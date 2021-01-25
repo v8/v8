@@ -365,8 +365,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                          InstructionCode opcode, Instruction* instr,
                          int pc) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
   if (access_mode == kMemoryAccessProtected) {
     zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr);
   }
@@ -375,8 +374,7 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                    InstructionCode opcode, Instruction* instr,
                                    X64OperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     codegen->tasm()->andq(value, kSpeculationPoisonRegister);
@@ -2126,8 +2124,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Movsd: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
-        const MemoryAccessMode access_mode =
-            static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+        const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
         if (access_mode == kMemoryAccessPoisoned) {
           // If we have to poison the loaded value, we load into a general
           // purpose register first, mask it with the poison, and move the

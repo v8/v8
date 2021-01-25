@@ -378,8 +378,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                    InstructionCode opcode, Instruction* instr,
                                    Arm64OperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     Register poison = value.Is64Bits() ? kSpeculationPoisonRegister
@@ -390,8 +389,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
 
 void EmitMaybePoisonedFPLoad(CodeGenerator* codegen, InstructionCode opcode,
                              Arm64OperandConverter* i, VRegister output_reg) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
   AddressingMode address_mode = AddressingModeField::decode(opcode);
   if (access_mode == kMemoryAccessPoisoned && address_mode != kMode_Root) {
     UseScratchRegisterScope temps(codegen->tasm());
@@ -1110,14 +1108,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mul(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1));
       break;
     case kArm64Saddlp: {
-      VectorFormat dst_f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat src_f = VectorFormatHalfWidthDoubleLanes(dst_f);
       __ Saddlp(i.OutputSimd128Register().Format(dst_f),
                 i.InputSimd128Register(0).Format(src_f));
       break;
     }
     case kArm64Uaddlp: {
-      VectorFormat dst_f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat src_f = VectorFormatHalfWidthDoubleLanes(dst_f);
       __ Uaddlp(i.OutputSimd128Register().Format(dst_f),
                 i.InputSimd128Register(0).Format(src_f));
@@ -1129,7 +1127,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputRegister32(1));
       } else {
         DCHECK(instr->InputAt(0)->IsSimd128Register());
-        VectorFormat dst_f = VectorFormatFillQ(MiscField::decode(opcode));
+        VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
         VectorFormat src_f = VectorFormatHalfWidth(dst_f);
         __ Smull(i.OutputSimd128Register().Format(dst_f),
                  i.InputSimd128Register(0).Format(src_f),
@@ -1138,7 +1136,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64Smull2: {
-      VectorFormat dst_f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat src_f = VectorFormatHalfWidthDoubleLanes(dst_f);
       __ Smull2(i.OutputSimd128Register().Format(dst_f),
                 i.InputSimd128Register(0).Format(src_f),
@@ -1151,7 +1149,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputRegister32(1));
       } else {
         DCHECK(instr->InputAt(0)->IsSimd128Register());
-        VectorFormat dst_f = VectorFormatFillQ(MiscField::decode(opcode));
+        VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
         VectorFormat src_f = VectorFormatHalfWidth(dst_f);
         __ Umull(i.OutputSimd128Register().Format(dst_f),
                  i.InputSimd128Register(0).Format(src_f),
@@ -1160,7 +1158,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64Umull2: {
-      VectorFormat dst_f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat src_f = VectorFormatHalfWidthDoubleLanes(dst_f);
       __ Umull2(i.OutputSimd128Register().Format(dst_f),
                 i.InputSimd128Register(0).Format(src_f),
@@ -1447,7 +1445,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cmn(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Cnt: {
-      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       __ Cnt(i.OutputSimd128Register().Format(f),
              i.InputSimd128Register(0).Format(f));
       break;
@@ -1930,28 +1928,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   }
 
     case kArm64Sxtl: {
-      VectorFormat wide = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat wide = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat narrow = VectorFormatHalfWidth(wide);
       __ Sxtl(i.OutputSimd128Register().Format(wide),
               i.InputSimd128Register(0).Format(narrow));
       break;
     }
     case kArm64Sxtl2: {
-      VectorFormat wide = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat wide = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat narrow = VectorFormatHalfWidthDoubleLanes(wide);
       __ Sxtl2(i.OutputSimd128Register().Format(wide),
                i.InputSimd128Register(0).Format(narrow));
       break;
     }
     case kArm64Uxtl: {
-      VectorFormat wide = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat wide = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat narrow = VectorFormatHalfWidth(wide);
       __ Uxtl(i.OutputSimd128Register().Format(wide),
               i.InputSimd128Register(0).Format(narrow));
       break;
     }
     case kArm64Uxtl2: {
-      VectorFormat wide = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat wide = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat narrow = VectorFormatHalfWidthDoubleLanes(wide);
       __ Uxtl2(i.OutputSimd128Register().Format(wide),
                i.InputSimd128Register(0).Format(narrow));
@@ -2497,7 +2495,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64SignSelect: {
-      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       __ Cmlt(i.OutputSimd128Register().Format(f),
               i.InputSimd128Register(2).Format(f), 0);
       __ Bsl(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
@@ -2632,19 +2630,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_UNOP_CASE(kArm64S8x4Reverse, Rev32, 16B);
       SIMD_UNOP_CASE(kArm64S8x2Reverse, Rev16, 16B);
     case kArm64LoadSplat: {
-      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       __ ld1r(i.OutputSimd128Register().Format(f), i.MemoryOperand(0));
       break;
     }
     case kArm64LoadLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       int laneidx = i.InputInt8(1);
       __ ld1(i.OutputSimd128Register().Format(f), laneidx, i.MemoryOperand(2));
       break;
     }
     case kArm64StoreLane: {
-      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       int laneidx = i.InputInt8(1);
       __ st1(i.InputSimd128Register(0).Format(f), laneidx, i.MemoryOperand(2));
       break;

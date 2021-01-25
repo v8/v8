@@ -383,7 +383,7 @@ void InstructionSelector::VisitLoadLane(Node* node) {
   // x64 supports unaligned loads.
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   if (params.kind == MemoryAccessKind::kProtected) {
-    opcode |= MiscField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
 }
@@ -435,7 +435,7 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   InstructionCode code = opcode;
   if (params.kind == MemoryAccessKind::kProtected) {
-    code |= MiscField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtected);
   }
   VisitLoad(node, node, code);
 }
@@ -450,10 +450,10 @@ void InstructionSelector::VisitLoad(Node* node, Node* value,
       g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kProtectedLoad) {
-    code |= MiscField::encode(kMemoryAccessProtected);
+    code |= AccessModeField::encode(kMemoryAccessProtected);
   } else if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    code |= MiscField::encode(kMemoryAccessPoisoned);
+    code |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs);
 }
@@ -528,7 +528,7 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
   AddressingMode addressing_mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
-                         MiscField::encode(kMemoryAccessProtected);
+                         AccessModeField::encode(kMemoryAccessProtected);
   InstructionOperand value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
   inputs[input_count++] = value_operand;
@@ -565,7 +565,7 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   opcode |= AddressingModeField::encode(addressing_mode);
 
   if (params.kind == MemoryAccessKind::kProtected) {
-    opcode |= MiscField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
   }
 
   InstructionOperand value_operand = g.UseRegister(node->InputAt(2));

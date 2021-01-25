@@ -672,7 +672,7 @@ void InstructionSelector::VisitLoadLane(Node* node) {
       params.rep == MachineType::Int32() || params.rep == MachineType::Int64());
 
   InstructionCode opcode = kArm64LoadLane;
-  opcode |= MiscField::encode(params.rep.MemSize() * kBitsPerByte);
+  opcode |= LaneSizeField::encode(params.rep.MemSize() * kBitsPerByte);
 
   Arm64OperandGenerator g(this);
   InstructionOperand addr = EmitAddBeforeLoadOrStore(this, node, &opcode);
@@ -686,7 +686,8 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   DCHECK_GE(MachineRepresentation::kWord64, params.rep);
 
   InstructionCode opcode = kArm64StoreLane;
-  opcode |= MiscField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
+  opcode |=
+      LaneSizeField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
 
   Arm64OperandGenerator g(this);
   InstructionOperand addr = EmitAddBeforeLoadOrStore(this, node, &opcode);
@@ -707,22 +708,22 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   switch (params.transformation) {
     case LoadTransformation::kS128Load8Splat:
       opcode = kArm64LoadSplat;
-      opcode |= MiscField::encode(8);
+      opcode |= LaneSizeField::encode(8);
       require_add = true;
       break;
     case LoadTransformation::kS128Load16Splat:
       opcode = kArm64LoadSplat;
-      opcode |= MiscField::encode(16);
+      opcode |= LaneSizeField::encode(16);
       require_add = true;
       break;
     case LoadTransformation::kS128Load32Splat:
       opcode = kArm64LoadSplat;
-      opcode |= MiscField::encode(32);
+      opcode |= LaneSizeField::encode(32);
       require_add = true;
       break;
     case LoadTransformation::kS128Load64Splat:
       opcode = kArm64LoadSplat;
-      opcode |= MiscField::encode(64);
+      opcode |= LaneSizeField::encode(64);
       require_add = true;
       break;
     case LoadTransformation::kS128Load8x8S:
@@ -844,7 +845,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
 
   EmitLoad(this, node, opcode, immediate_mode, rep);
@@ -1735,7 +1736,7 @@ namespace {
 void VisitExtMul(InstructionSelector* selector, ArchOpcode opcode, Node* node,
                  int dst_lane_size) {
   InstructionCode code = opcode;
-  code |= MiscField::encode(dst_lane_size);
+  code |= LaneSizeField::encode(dst_lane_size);
   VisitRRR(selector, code, node);
 }
 }  // namespace
@@ -1792,7 +1793,7 @@ namespace {
 void VisitExtAddPairwise(InstructionSelector* selector, ArchOpcode opcode,
                          Node* node, int dst_lane_size) {
   InstructionCode code = opcode;
-  code |= MiscField::encode(dst_lane_size);
+  code |= LaneSizeField::encode(dst_lane_size);
   VisitRR(selector, code, node);
 }
 }  // namespace
@@ -3604,7 +3605,7 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #define VISIT_SIGN_SELECT(NAME, SIZE)                 \
   void InstructionSelector::Visit##NAME(Node* node) { \
     InstructionCode opcode = kArm64SignSelect;        \
-    opcode |= MiscField::encode(SIZE);                \
+    opcode |= LaneSizeField::encode(SIZE);            \
     VisitRRRR(this, opcode, node);                    \
   }
 
@@ -3887,7 +3888,7 @@ namespace {
 void VisitSignExtendLong(InstructionSelector* selector, ArchOpcode opcode,
                          Node* node, int lane_size) {
   InstructionCode code = opcode;
-  code |= MiscField::encode(lane_size);
+  code |= LaneSizeField::encode(lane_size);
   VisitRR(selector, code, node);
 }
 }  // namespace
@@ -3942,7 +3943,7 @@ void InstructionSelector::VisitI16x8UConvertI8x16High(Node* node) {
 
 void InstructionSelector::VisitI8x16Popcnt(Node* node) {
   InstructionCode code = kArm64Cnt;
-  code |= MiscField::encode(8);
+  code |= LaneSizeField::encode(8);
   VisitRR(this, code, node);
 }
 

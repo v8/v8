@@ -280,6 +280,10 @@ using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
 using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;
 using DeoptImmedArgsCountField = base::BitField<int, 22, 2>;
 using DeoptFrameStateOffsetField = base::BitField<int, 24, 8>;
+// LaneSizeField and AccessModeField are helper types to encode/decode a lane
+// size, an access mode, or both inside the overlapping MiscField.
+using LaneSizeField = base::BitField<int, 22, 8>;
+using AccessModeField = base::BitField<MemoryAccessMode, 30, 2>;
 using MiscField = base::BitField<int, 22, 10>;
 
 }  // namespace compiler
