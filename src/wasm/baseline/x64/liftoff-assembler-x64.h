@@ -8,6 +8,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
+#include "src/codegen/machine-type.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/simd-shuffle.h"
@@ -2394,6 +2395,25 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
   } else {
     DCHECK_EQ(MachineType::Int64(), mem_type);
     Pinsrq(dst.fp(), src.fp(), src_op, laneidx);
+  }
+}
+
+void LiftoffAssembler::StoreLane(Register dst, Register offset,
+                                 uintptr_t offset_imm, LiftoffRegister src,
+                                 StoreType type, uint8_t lane,
+                                 uint32_t* protected_store_pc) {
+  Operand dst_op = liftoff::GetMemOp(this, dst, offset, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+  MachineRepresentation rep = type.mem_rep();
+  if (rep == MachineRepresentation::kWord8) {
+    Pextrb(dst_op, src.fp(), lane);
+  } else if (rep == MachineRepresentation::kWord16) {
+    Pextrw(dst_op, src.fp(), lane);
+  } else if (rep == MachineRepresentation::kWord32) {
+    S128Store32Lane(dst_op, src.fp(), lane);
+  } else {
+    DCHECK_EQ(MachineRepresentation::kWord64, rep);
+    S128Store64Lane(dst_op, src.fp(), lane);
   }
 }
 

@@ -2382,6 +2382,13 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                            NeonMemOperand(actual_src_addr));
 }
 
+void LiftoffAssembler::StoreLane(Register dst, Register offset,
+                                 uintptr_t offset_imm, LiftoffRegister src,
+                                 StoreType type, uint8_t lane,
+                                 uint32_t* protected_store_pc) {
+  bailout(kSimd, "store lane");
+}
+
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {

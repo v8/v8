@@ -4000,12 +4000,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       uint8_t lane = i.InputUint8(index + 1);
-      if (lane == 0) {
-        __ Movss(operand, i.InputSimd128Register(index));
-      } else {
-        DCHECK_GE(3, lane);
-        __ Extractps(operand, i.InputSimd128Register(index), lane);
-      }
+      __ S128Store32Lane(operand, i.InputSimd128Register(index), lane);
       break;
     }
     case kX64S128Store64Lane: {
@@ -4013,12 +4008,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       uint8_t lane = i.InputUint8(index + 1);
-      if (lane == 0) {
-        __ Movlps(operand, i.InputSimd128Register(index));
-      } else {
-        DCHECK_EQ(1, lane);
-        __ Movhps(operand, i.InputSimd128Register(index));
-      }
+      __ S128Store64Lane(operand, i.InputSimd128Register(index), lane);
       break;
     }
     case kX64Shufps: {

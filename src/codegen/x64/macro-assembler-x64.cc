@@ -2222,6 +2222,26 @@ void TurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
   Pxor(dst, kScratchDoubleReg);
 }
 
+void TurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
+                                     uint8_t laneidx) {
+  if (laneidx == 0) {
+    Movss(dst, src);
+  } else {
+    DCHECK_GE(3, laneidx);
+    Extractps(dst, src, laneidx);
+  }
+}
+
+void TurboAssembler::S128Store64Lane(Operand dst, XMMRegister src,
+                                     uint8_t laneidx) {
+  if (laneidx == 0) {
+    Movlps(dst, src);
+  } else {
+    DCHECK_EQ(1, laneidx);
+    Movhps(dst, src);
+  }
+}
+
 void TurboAssembler::Abspd(XMMRegister dst) {
   Andps(dst, ExternalReferenceAsOperand(
                  ExternalReference::address_of_double_abs_constant()));

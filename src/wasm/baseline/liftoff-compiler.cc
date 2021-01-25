@@ -2667,9 +2667,33 @@ class LiftoffCompiler {
   }
 
   void StoreLane(FullDecoder* decoder, StoreType type,
-                 const MemoryAccessImmediate<validate>& imm, const Value& index,
-                 const Value& value, const uint8_t laneidx) {
-    unsupported(decoder, kSimd, "simd load lane");
+                 const MemoryAccessImmediate<validate>& imm,
+                 const Value& _index, const Value& _value, const uint8_t lane) {
+    if (!CheckSupportedType(decoder, kWasmS128, "StoreLane")) return;
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister());
+    LiftoffRegister full_index = __ PopToRegister(pinned);
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, pinned, kDontForceCheck);
+    if (index == no_reg) return;
+
+    uintptr_t offset = imm.offset;
+    pinned.set(index);
+    index = AddMemoryMasking(index, &offset, &pinned);
+    DEBUG_CODE_COMMENT("store lane to memory");
+    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
+    uint32_t protected_store_pc = 0;
+    __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc);
+    if (env_->use_trap_handler) {
+      AddOutOfLineTrap(decoder->position(),
+                       WasmCode::kThrowWasmTrapMemOutOfBounds,
+                       protected_store_pc);
+    }
+    if (FLAG_trace_wasm_memory) {
+      TraceMemoryOperation(true, type.mem_rep(), index, offset,
+                           decoder->position());
+    }
   }
 
   void CurrentMemoryPages(FullDecoder* /* decoder */, Value* /* result */) {

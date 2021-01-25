@@ -4300,10 +4300,6 @@ template <typename T>
 void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode store_op, WasmOpcode splat_op) {
   FLAG_SCOPE(wasm_simd_post_mvp);
-  if (execution_tier == TestExecutionTier::kLiftoff) {
-    // Not yet implemented.
-    return;
-  }
 
   constexpr int lanes = kSimd128Size / sizeof(T);
   constexpr int mem_index = 16;  // Store to mem index 16 (bytes).
