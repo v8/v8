@@ -44,7 +44,7 @@ namespace internal {
 namespace {
 
 #ifdef USE_SIMULATOR
-static unsigned SimulatorFeaturesFromCommandLine() {
+unsigned SimulatorFeaturesFromCommandLine() {
   if (strcmp(FLAG_sim_arm64_optional_features, "none") == 0) {
     return 0;
   }
@@ -62,9 +62,17 @@ static unsigned SimulatorFeaturesFromCommandLine() {
 }
 #endif  // USE_SIMULATOR
 
-static constexpr unsigned CpuFeaturesFromCompiler() {
+constexpr unsigned CpuFeaturesFromCompiler() {
   unsigned features = 0;
 #if defined(__ARM_FEATURE_JCVT)
+  features |= 1u << JSCVT;
+#endif
+  return features;
+}
+
+constexpr unsigned CpuFeaturesFromTargetOS() {
+  unsigned features = 0;
+#if defined(V8_TARGET_OS_MACOSX)
   features |= 1u << JSCVT;
 #endif
   return features;
@@ -79,6 +87,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
     supported_ |= CpuFeaturesFromCompiler();
+    supported_ |= CpuFeaturesFromTargetOS();
     return;
   }
 
