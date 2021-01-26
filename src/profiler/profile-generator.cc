@@ -719,9 +719,29 @@ CodeMap::CodeMap(StringsStorage& function_and_resource_names)
 
 CodeMap::~CodeMap() { Clear(); }
 
+size_t CodeMap::ClearUnused() {
+  size_t num_freed = 0;
+  for (auto it = code_map_.begin(); it != code_map_.end();) {
+    auto* entry = it->second.entry;
+    DCHECK(entry);
+
+    // If a CodeEntry is not used by a profile and its heap object
+    // representation has been deallocated, remove the entry.
+    if (!entry->used() && entry->IsHeapObjectFreed()) {
+      DeleteCodeEntry(entry);
+      it = code_map_.erase(it);
+      num_freed++;
+    } else {
+      it++;
+    }
+  }
+  return num_freed;
+}
+
 void CodeMap::Clear() {
   for (auto& slot : code_map_) {
     if (CodeEntry* entry = slot.second.entry) {
+      entry->UntrackHeapObject();
       entry->ReleaseStrings(function_and_resource_names_);
       delete entry;
     } else {

@@ -42,6 +42,9 @@ void CodeDeoptEventRecord::UpdateCodeMap(CodeMap* code_map) {
   delete[] deopt_frames;
 }
 
+void CodeSweepEventRecord::UpdateCodeMap(CodeMap* code_map) {
+  code_map->ClearUnused();
+}
 
 void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
   CodeEntry* entry = code_map->FindEntry(instruction_start);

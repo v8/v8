@@ -851,6 +851,50 @@ TEST(NodeSourceTypes) {
   CHECK_EQ(unresolved_node->source_type(), v8::CpuProfileNode::kUnresolved);
 }
 
+TEST(CodeMapClearUnused) {
+  Isolate* isolate = CcTest::i_isolate();
+
+  StringsStorage strings;
+  CodeMap code_map(strings);
+
+  auto* entry = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  code_map.AddCode(0, entry, 1);
+
+  // Ensure that CodeEntry objects without a heap object aren't cleared.
+  CHECK_EQ(code_map.ClearUnused(), 0);
+
+  auto* gc_entry_unused =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  code_map.AddCode(0x10, gc_entry_unused, 1);
+
+  auto* gc_entry_used =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+  gc_entry_used->mark_used();
+  code_map.AddCode(0x20, gc_entry_used, 1);
+
+  {
+    HandleScope scope(isolate);
+
+    // Temporarily associate a random heap object with the entries.
+    Handle<FixedArray> stub_object = isolate->factory()->NewFixedArray(1);
+    gc_entry_used->TrackHeapObject(isolate, stub_object);
+    gc_entry_unused->TrackHeapObject(isolate, stub_object);
+
+    // Ensure that the entries aren't dropped while the object is alive.
+    CcTest::CollectAllGarbage();
+    CHECK_EQ(code_map.ClearUnused(), 0);
+    CHECK_EQ(code_map.FindEntry(0x10), gc_entry_unused);
+    CHECK_EQ(code_map.FindEntry(0x20), gc_entry_used);
+  }
+
+  // Ensure that the unused CodeEntry associated with a gc'd address is dropped
+  // after the handle is lost, but the used one isn't.
+  CcTest::CollectAllGarbage();
+  CHECK_EQ(code_map.ClearUnused(), 1);
+  CHECK_EQ(code_map.FindEntry(0x10), nullptr);
+  CHECK_EQ(code_map.FindEntry(0x20), gc_entry_used);
+}
+
 }  // namespace test_profile_generator
 }  // namespace internal
 }  // namespace v8
