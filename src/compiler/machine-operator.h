@@ -18,6 +18,7 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
+struct MachineOperatorGlobalCache;
 class Operator;
 
 
@@ -989,6 +990,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
  private:
   Zone* zone_;
+  MachineOperatorGlobalCache const& cache_;
   MachineRepresentation const word_;
   Flags const flags_;
   AlignmentRequirements const alignment_requirements_;
