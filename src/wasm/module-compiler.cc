@@ -1707,6 +1707,7 @@ void RecompileNativeModule(NativeModule* native_module,
   compilation_state->InitializeRecompilation(
       tiering_state,
       [recompilation_finished_semaphore](CompilationEvent event) {
+        DCHECK_NE(CompilationEvent::kFailedCompilation, event);
         if (event == CompilationEvent::kFinishedRecompilation) {
           recompilation_finished_semaphore->Signal();
         }
@@ -1959,6 +1960,12 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   }
   // We can only update the feature counts once the entire compile is done.
   compilation_state->PublishDetectedFeatures(isolate_);
+
+  // We might need to recompile the module for debugging, if the debugger was
+  // enabled while streaming compilation was running. Since handling this while
+  // compiling via streaming is tricky, we just tier down now, before publishing
+  // the module.
+  if (native_module_->IsTieredDown()) native_module_->RecompileForTiering();
 
   // Finally, log all generated code (it does not matter if this happens
   // repeatedly in case the script is shared).
@@ -2709,13 +2716,6 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   }
   const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   DCHECK_IMPLIES(!has_code_section, needs_finish);
-  // We might need to recompile the module for debugging, if the debugger was
-  // enabled while streaming compilation was running. Since handling this while
-  // compiling via streaming is tricky, we just tier down now, before publishing
-  // the module.
-  if (job_->native_module_->IsTieredDown()) {
-    job_->native_module_->RecompileForTiering();
-  }
   if (needs_finish) {
     const bool failed = job_->native_module_->compilation_state()->failed();
     if (!cache_hit) {
