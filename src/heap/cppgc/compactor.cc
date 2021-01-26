@@ -435,7 +435,7 @@ Compactor::Compactor(RawHeap& heap) : heap_(heap) {
 
 bool Compactor::ShouldCompact(
     GarbageCollector::Config::MarkingType marking_type,
-    GarbageCollector::Config::StackState stack_state) {
+    GarbageCollector::Config::StackState stack_state) const {
   if (compactable_spaces_.empty() ||
       (marking_type == GarbageCollector::Config::MarkingType::kAtomic &&
        stack_state ==
