@@ -1273,7 +1273,7 @@ WASM_SIMD_TEST(F64x2NearestInt) {
 }
 
 // TODO(v8:11265): Prototyping double precision conversions.
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 template <typename SrcType>
 void RunF64x2ConvertLowI32x4Test(TestExecutionTier execution_tier,
                                  LowerSimd lower_simd, WasmOpcode opcode) {
@@ -1388,13 +1388,9 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2PromoteLowF32x4) {
       double actual = ReadLittleEndianValue<double>(&g[i]);
       CheckDoubleResult(x, x, expected, actual, true);
     }
-    for (int i = 2; i < 4; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
-      CheckDoubleResult(x, x, 0, actual, true);
-    }
   }
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, DoubleBinOp expected_op) {

@@ -3399,36 +3399,42 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8)                \
   V(I8x16)
 
-#define SIMD_UNOP_LIST(V)                             \
-  V(F64x2Abs, kArm64F64x2Abs)                         \
-  V(F64x2Neg, kArm64F64x2Neg)                         \
-  V(F64x2Sqrt, kArm64F64x2Sqrt)                       \
-  V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)     \
-  V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)     \
-  V(F32x4Abs, kArm64F32x4Abs)                         \
-  V(F32x4Neg, kArm64F32x4Neg)                         \
-  V(F32x4Sqrt, kArm64F32x4Sqrt)                       \
-  V(F32x4RecipApprox, kArm64F32x4RecipApprox)         \
-  V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox) \
-  V(I64x2Neg, kArm64I64x2Neg)                         \
-  V(I64x2BitMask, kArm64I64x2BitMask)                 \
-  V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)     \
-  V(I32x4Neg, kArm64I32x4Neg)                         \
-  V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)     \
-  V(I32x4Abs, kArm64I32x4Abs)                         \
-  V(I32x4BitMask, kArm64I32x4BitMask)                 \
-  V(I16x8Neg, kArm64I16x8Neg)                         \
-  V(I16x8Abs, kArm64I16x8Abs)                         \
-  V(I16x8BitMask, kArm64I16x8BitMask)                 \
-  V(I8x16Neg, kArm64I8x16Neg)                         \
-  V(I8x16Abs, kArm64I8x16Abs)                         \
-  V(I8x16BitMask, kArm64I8x16BitMask)                 \
-  V(S128Not, kArm64S128Not)                           \
-  V(V32x4AnyTrue, kArm64V128AnyTrue)                  \
-  V(V32x4AllTrue, kArm64V32x4AllTrue)                 \
-  V(V16x8AnyTrue, kArm64V128AnyTrue)                  \
-  V(V16x8AllTrue, kArm64V16x8AllTrue)                 \
-  V(V8x16AnyTrue, kArm64V128AnyTrue)                  \
+#define SIMD_UNOP_LIST(V)                                   \
+  V(F64x2Abs, kArm64F64x2Abs)                               \
+  V(F64x2Neg, kArm64F64x2Neg)                               \
+  V(F64x2Sqrt, kArm64F64x2Sqrt)                             \
+  V(F64x2ConvertLowI32x4S, kArm64F64x2ConvertLowI32x4S)     \
+  V(F64x2ConvertLowI32x4U, kArm64F64x2ConvertLowI32x4U)     \
+  V(F64x2PromoteLowF32x4, kArm64F64x2PromoteLowF32x4)       \
+  V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)           \
+  V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)           \
+  V(F32x4Abs, kArm64F32x4Abs)                               \
+  V(F32x4Neg, kArm64F32x4Neg)                               \
+  V(F32x4Sqrt, kArm64F32x4Sqrt)                             \
+  V(F32x4RecipApprox, kArm64F32x4RecipApprox)               \
+  V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)       \
+  V(F32x4DemoteF64x2Zero, kArm64F32x4DemoteF64x2Zero)       \
+  V(I64x2Neg, kArm64I64x2Neg)                               \
+  V(I64x2BitMask, kArm64I64x2BitMask)                       \
+  V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)           \
+  V(I32x4Neg, kArm64I32x4Neg)                               \
+  V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)           \
+  V(I32x4Abs, kArm64I32x4Abs)                               \
+  V(I32x4BitMask, kArm64I32x4BitMask)                       \
+  V(I32x4TruncSatF64x2SZero, kArm64I32x4TruncSatF64x2SZero) \
+  V(I32x4TruncSatF64x2UZero, kArm64I32x4TruncSatF64x2UZero) \
+  V(I16x8Neg, kArm64I16x8Neg)                               \
+  V(I16x8Abs, kArm64I16x8Abs)                               \
+  V(I16x8BitMask, kArm64I16x8BitMask)                       \
+  V(I8x16Neg, kArm64I8x16Neg)                               \
+  V(I8x16Abs, kArm64I8x16Abs)                               \
+  V(I8x16BitMask, kArm64I8x16BitMask)                       \
+  V(S128Not, kArm64S128Not)                                 \
+  V(V32x4AnyTrue, kArm64V128AnyTrue)                        \
+  V(V32x4AllTrue, kArm64V32x4AllTrue)                       \
+  V(V16x8AnyTrue, kArm64V128AnyTrue)                        \
+  V(V16x8AllTrue, kArm64V16x8AllTrue)                       \
+  V(V8x16AnyTrue, kArm64V128AnyTrue)                        \
   V(V8x16AllTrue, kArm64V8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \

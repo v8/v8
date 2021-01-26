@@ -1955,6 +1955,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0).Format(narrow));
       break;
     }
+    case kArm64F64x2ConvertLowI32x4S: {
+      VRegister dst = i.OutputSimd128Register().V2D();
+      __ Sxtl(dst, i.InputSimd128Register(0).V2S());
+      __ Scvtf(dst, dst);
+      break;
+    }
+    case kArm64F64x2ConvertLowI32x4U: {
+      VRegister dst = i.OutputSimd128Register().V2D();
+      __ Uxtl(dst, i.InputSimd128Register(0).V2S());
+      __ Ucvtf(dst, dst);
+      break;
+    }
+    case kArm64I32x4TruncSatF64x2SZero: {
+      VRegister dst = i.OutputSimd128Register();
+      __ Fcvtzs(dst.V2D(), i.InputSimd128Register(0).V2D());
+      __ Sqxtn(dst.V2S(), dst.V2D());
+      break;
+    }
+    case kArm64I32x4TruncSatF64x2UZero: {
+      VRegister dst = i.OutputSimd128Register();
+      __ Fcvtzu(dst.V2D(), i.InputSimd128Register(0).V2D());
+      __ Uqxtn(dst.V2S(), dst.V2D());
+      break;
+    }
+    case kArm64F32x4DemoteF64x2Zero: {
+      __ Fcvtn(i.OutputSimd128Register().V2S(),
+               i.InputSimd128Register(0).V2D());
+      break;
+    }
+    case kArm64F64x2PromoteLowF32x4: {
+      __ Fcvtl(i.OutputSimd128Register().V2D(),
+               i.InputSimd128Register(0).V2S());
+      break;
+    }
     case kArm64F64x2Splat: {
       __ Dup(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).D(), 0);
       break;
