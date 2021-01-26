@@ -26103,7 +26103,7 @@ TEST(CorrectEnteredContext) {
 
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier) {
+    Local<String> specifier, Local<FixedArray> import_assertions) {
   CHECK(!referrer.IsEmpty());
   String::Utf8Value referrer_utf8(
       context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
@@ -26116,6 +26116,8 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
   CHECK_EQ(0, strcmp("index.js", *specifier_utf8));
 
+  CHECK_EQ(0, import_assertions->Length());
+
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
   auto result = v8_str("hello world");
@@ -26127,7 +26129,6 @@ TEST(DynamicImport) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-
   isolate->SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallbackResolve);
 
@@ -26143,7 +26144,95 @@ TEST(DynamicImport) {
   referrer->set_name(*url);
   referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
-      i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier);
+      i_isolate->RunHostImportModuleDynamicallyCallback(
+          referrer, specifier, i::MaybeHandle<i::Object>());
+  i::Handle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
+  isolate->PerformMicrotaskCheckpoint();
+  CHECK(result->Equals(i::String::cast(promise->result())));
+}
+
+v8::MaybeLocal<v8::Promise>
+HostImportModuleDynamicallyWithAssertionsCallbackResolve(
+    Local<Context> context, Local<v8::ScriptOrModule> referrer,
+    Local<String> specifier, Local<v8::FixedArray> import_assertions) {
+  CHECK(!referrer.IsEmpty());
+  String::Utf8Value referrer_utf8(
+      context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
+  CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
+  CHECK(referrer->GetHostDefinedOptions()
+            ->Get(context->GetIsolate(), 0)
+            ->IsSymbol());
+
+  CHECK(!specifier.IsEmpty());
+  String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
+  CHECK_EQ(0, strcmp("index.js", *specifier_utf8));
+
+  // clang-format off
+  const char* expected_assertions[][2] = {
+    {"a", "z"},
+    {"aa", "x"},
+    {"b", "w"},
+    {"c", "y"}
+  };
+
+  // clang-format on
+  CHECK_EQ(8, import_assertions->Length());
+  constexpr size_t kAssertionEntrySizeForDynamicImport = 2;
+  for (int i = 0; i < static_cast<int>(arraysize(expected_assertions)); ++i) {
+    Local<String> assertion_key =
+        import_assertions
+            ->Get(context, (i * kAssertionEntrySizeForDynamicImport))
+            .As<Value>()
+            .As<String>();
+    CHECK(v8_str(expected_assertions[i][0])->StrictEquals(assertion_key));
+    Local<String> assertion_value =
+        import_assertions
+            ->Get(context, (i * kAssertionEntrySizeForDynamicImport) + 1)
+            .As<Value>()
+            .As<String>();
+    CHECK(v8_str(expected_assertions[i][1])->StrictEquals(assertion_value));
+  }
+
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  auto result = v8_str("hello world");
+  resolver->Resolve(context, result).ToChecked();
+  return resolver->GetPromise();
+}
+
+TEST(DynamicImportWithAssertions) {
+  FLAG_SCOPE_EXTERNAL(harmony_import_assertions);
+
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyWithAssertionsCallbackResolve);
+
+  i::Handle<i::String> url(v8::Utils::OpenHandle(*v8_str("www.google.com")));
+  i::Handle<i::Object> specifier(v8::Utils::OpenHandle(*v8_str("index.js")));
+  i::Handle<i::String> result(v8::Utils::OpenHandle(*v8_str("hello world")));
+  i::Handle<i::String> source(v8::Utils::OpenHandle(*v8_str("foo")));
+  v8::Local<v8::Object> import_assertions =
+      CompileRun(
+          "var arg = { assert: { 'b': 'w', aa: 'x',  c: 'y', a: 'z'} };"
+          "arg;")
+          ->ToObject(context.local())
+          .ToLocalChecked();
+
+  i::Handle<i::Object> i_import_assertions =
+      v8::Utils::OpenHandle(*import_assertions);
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(1);
+  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewSymbol();
+  options->set(0, *symbol);
+  i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
+  referrer->set_name(*url);
+  referrer->set_host_defined_options(*options);
+  i::MaybeHandle<i::JSPromise> maybe_promise =
+      i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
+                                                        i_import_assertions);
   i::Handle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
   isolate->PerformMicrotaskCheckpoint();
   CHECK(result->Equals(i::String::cast(promise->result())));

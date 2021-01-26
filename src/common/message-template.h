@@ -125,10 +125,14 @@ namespace internal {
   T(NonCoercibleWithProperty,                                                  \
     "Cannot destructure property '%' of '%' as it is %.")                      \
   T(NonExtensibleProto, "% is not extensible")                                 \
+  T(NonObjectAssertOption, "The 'assert' option must be an object")            \
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \
   T(NonObjectPropertyLoad, "Cannot read property '%' of %")                    \
   T(NonObjectPropertyStore, "Cannot set property '%' of %")                    \
+  T(NonObjectImportArgument,                                                   \
+    "The second argument to import() must be an object")                       \
+  T(NonStringImportAssertionValue, "Import assertion value must be a string")  \
   T(NoSetterInCallback, "Cannot set property % of % which has only a getter")  \
   T(NotAnIterator, "% is not an iterator")                                     \
   T(NotAPromise, "% is not a promise")                                         \

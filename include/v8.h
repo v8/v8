@@ -7436,7 +7436,7 @@ using CallCompletedCallback = void (*)(Isolate*);
  * The specifier is the name of the module that should be imported.
  *
  * The embedder must compile, instantiate, evaluate the Module, and
- * obtain it's namespace object.
+ * obtain its namespace object.
  *
  * The Promise returned from this function is forwarded to userland
  * JavaScript. The embedder must resolve this promise with the module
@@ -7445,9 +7445,43 @@ using CallCompletedCallback = void (*)(Isolate*);
  * fails (e.g. due to stack overflow), the embedder must propagate
  * that exception by returning an empty MaybeLocal.
  */
-using HostImportModuleDynamicallyCallback = MaybeLocal<Promise> (*)(
-    Local<Context> context, Local<ScriptOrModule> referrer,
-    Local<String> specifier);
+using HostImportModuleDynamicallyCallback V8_DEPRECATE_SOON(
+    "Use HostImportModuleDynamicallyWithImportAssertionsCallback instead") =
+    MaybeLocal<Promise> (*)(Local<Context> context,
+                            Local<ScriptOrModule> referrer,
+                            Local<String> specifier);
+
+/**
+ * HostImportModuleDynamicallyWithImportAssertionsCallback is called when we
+ * require the embedder to load a module. This is used as part of the dynamic
+ * import syntax.
+ *
+ * The referrer contains metadata about the script/module that calls
+ * import.
+ *
+ * The specifier is the name of the module that should be imported.
+ *
+ * The import_assertions are import assertions for this request in the form:
+ * [key1, value1, key2, value2, ...] where the keys and values are of type
+ * v8::String. Note, unlike the FixedArray passed to ResolveModuleCallback and
+ * returned from ModuleRequest::GetImportAssertions(), this array does not
+ * contain the source Locations of the assertions.
+ *
+ * The embedder must compile, instantiate, evaluate the Module, and
+ * obtain its namespace object.
+ *
+ * The Promise returned from this function is forwarded to userland
+ * JavaScript. The embedder must resolve this promise with the module
+ * namespace object. In case of an exception, the embedder must reject
+ * this promise with the exception. If the promise creation itself
+ * fails (e.g. due to stack overflow), the embedder must propagate
+ * that exception by returning an empty MaybeLocal.
+ */
+using HostImportModuleDynamicallyWithImportAssertionsCallback =
+    MaybeLocal<Promise> (*)(Local<Context> context,
+                            Local<ScriptOrModule> referrer,
+                            Local<String> specifier,
+                            Local<FixedArray> import_assertions);
 
 /**
  * HostInitializeImportMetaObjectCallback is called the first time import.meta
@@ -8777,8 +8811,18 @@ class V8_EXPORT Isolate {
    * This specifies the callback called by the upcoming dynamic
    * import() language feature to load modules.
    */
+  V8_DEPRECATE_SOON(
+      "Use the version of SetHostImportModuleDynamicallyCallback that takes a "
+      "HostImportModuleDynamicallyWithImportAssertionsCallback instead")
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallback callback);
+
+  /**
+   * This specifies the callback called by the upcoming dynamic
+   * import() language feature to load modules.
+   */
+  void SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyWithImportAssertionsCallback callback);
 
   /**
    * This specifies the callback called by the upcoming import.meta

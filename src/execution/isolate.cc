@@ -4153,11 +4153,17 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 }  // namespace
 
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
-    Handle<Script> referrer, Handle<Object> specifier) {
+    Handle<Script> referrer, Handle<Object> specifier,
+    MaybeHandle<Object> maybe_import_assertions_argument) {
   v8::Local<v8::Context> api_context =
       v8::Utils::ToLocal(Handle<Context>(native_context()));
+  DCHECK_EQ(host_import_module_dynamically_callback_ != nullptr,
+            host_import_module_dynamically_with_import_assertions_callback_ ==
+                nullptr);
 
-  if (host_import_module_dynamically_callback_ == nullptr) {
+  if (host_import_module_dynamically_callback_ == nullptr &&
+      host_import_module_dynamically_with_import_assertions_callback_ ==
+          nullptr) {
     Handle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
     return NewRejectedPromise(this, api_context, exception);
@@ -4174,20 +4180,148 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   DCHECK(!has_pending_exception());
 
   v8::Local<v8::Promise> promise;
-  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
-      this, promise,
-      host_import_module_dynamically_callback_(
-          api_context, v8::Utils::ScriptOrModuleToLocal(referrer),
-          v8::Utils::ToLocal(specifier_str)),
-      MaybeHandle<JSPromise>());
-  return v8::Utils::OpenHandle(*promise);
+
+  if (host_import_module_dynamically_with_import_assertions_callback_) {
+    Handle<FixedArray> import_assertions_array;
+    if (GetImportAssertionsFromArgument(maybe_import_assertions_argument)
+            .ToHandle(&import_assertions_array)) {
+      ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+          this, promise,
+          host_import_module_dynamically_with_import_assertions_callback_(
+              api_context, v8::Utils::ScriptOrModuleToLocal(referrer),
+              v8::Utils::ToLocal(specifier_str),
+              ToApiHandle<v8::FixedArray>(import_assertions_array)),
+          MaybeHandle<JSPromise>());
+      return v8::Utils::OpenHandle(*promise);
+    } else {
+      Handle<Object> exception(pending_exception(), this);
+      clear_pending_exception();
+
+      return NewRejectedPromise(this, api_context, exception);
+    }
+
+  } else {
+    DCHECK_NOT_NULL(host_import_module_dynamically_callback_);
+    ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+        this, promise,
+        host_import_module_dynamically_callback_(
+            api_context, v8::Utils::ScriptOrModuleToLocal(referrer),
+            v8::Utils::ToLocal(specifier_str)),
+        MaybeHandle<JSPromise>());
+    return v8::Utils::OpenHandle(*promise);
+  }
+}
+
+MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
+    MaybeHandle<Object> maybe_import_assertions_argument) {
+  Handle<FixedArray> import_assertions_array = factory()->empty_fixed_array();
+  Handle<Object> import_assertions_argument;
+  if (!maybe_import_assertions_argument.ToHandle(&import_assertions_argument) ||
+      import_assertions_argument->IsUndefined()) {
+    return import_assertions_array;
+  }
+
+  // The parser shouldn't have allowed the second argument to import() if
+  // the flag wasn't enabled.
+  DCHECK(FLAG_harmony_import_assertions);
+
+  if (!import_assertions_argument->IsJSReceiver()) {
+    this->Throw(
+        *factory()->NewTypeError(MessageTemplate::kNonObjectImportArgument));
+    return MaybeHandle<FixedArray>();
+  }
+
+  Handle<JSReceiver> import_assertions_argument_receiver =
+      Handle<JSReceiver>::cast(import_assertions_argument);
+  Handle<Name> key = factory()->assert_string();
+
+  Handle<Object> import_assertions_object;
+  if (!JSReceiver::GetProperty(this, import_assertions_argument_receiver, key)
+           .ToHandle(&import_assertions_object)) {
+    // This can happen if the property has a getter function that throws
+    // an error.
+    return MaybeHandle<FixedArray>();
+  }
+
+  // If there is no 'assert' option in the options bag, it's not an error. Just
+  // do the import() as if no assertions were provided.
+  if (import_assertions_object->IsUndefined()) return import_assertions_array;
+
+  if (!import_assertions_object->IsJSReceiver()) {
+    this->Throw(
+        *factory()->NewTypeError(MessageTemplate::kNonObjectAssertOption));
+    return MaybeHandle<FixedArray>();
+  }
+
+  Handle<JSReceiver> import_assertions_object_receiver =
+      Handle<JSReceiver>::cast(import_assertions_object);
+
+  Handle<FixedArray> assertion_keys =
+      KeyAccumulator::GetKeys(import_assertions_object_receiver,
+                              KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
+                              GetKeysConversion::kConvertToString)
+          .ToHandleChecked();
+
+  // Assertions passed to the host must be sorted by the code point order of the
+  // key of each entry.
+  auto stringCompare = [this](Handle<String> lhs, Handle<String> rhs) {
+    return String::Compare(this, lhs, rhs) == ComparisonResult::kLessThan;
+  };
+  std::map<Handle<String>, Handle<String>, decltype(stringCompare)>
+      sorted_assertions(stringCompare);
+
+  // Collect the assertions in the sorted map.
+  for (int i = 0; i < assertion_keys->length(); i++) {
+    Handle<String> assertion_key(String::cast(assertion_keys->get(i)), this);
+    Handle<Object> assertion_value;
+    if (!JSReceiver::GetProperty(this, import_assertions_object_receiver,
+                                 assertion_key)
+             .ToHandle(&assertion_value)) {
+      // This can happen if the property has a getter function that throws
+      // an error.
+      return MaybeHandle<FixedArray>();
+    }
+
+    if (!assertion_value->IsString()) {
+      this->Throw(*factory()->NewTypeError(
+          MessageTemplate::kNonStringImportAssertionValue));
+      return MaybeHandle<FixedArray>();
+    }
+
+    auto insertion_result = sorted_assertions.insert(
+        std::make_pair(assertion_key, Handle<String>::cast(assertion_value)));
+
+    // Duplicate keys are not expected here.
+    CHECK(insertion_result.second);
+  }
+
+  // Move the assertions from the sorted map to the FixedArray that will be
+  // passed to the host. They will be stored in the array in the form: [key1,
+  // value1, key2, value2, ...].
+  constexpr size_t kAssertionEntrySizeForDynamicImport = 2;
+  import_assertions_array = factory()->NewFixedArray(static_cast<int>(
+      sorted_assertions.size() * kAssertionEntrySizeForDynamicImport));
+  int import_assertions_array_index = 0;
+  for (const auto& pair : sorted_assertions) {
+    import_assertions_array->set(import_assertions_array_index, *(pair.first));
+    import_assertions_array->set(import_assertions_array_index + 1,
+                                 *(pair.second));
+    import_assertions_array_index += kAssertionEntrySizeForDynamicImport;
+  }
+
+  return import_assertions_array;
 }
 
 void Isolate::ClearKeptObjects() { heap()->ClearKeptObjects(); }
 
 void Isolate::SetHostImportModuleDynamicallyCallback(
-    HostImportModuleDynamicallyCallback callback) {
+    DeprecatedHostImportModuleDynamicallyCallback callback) {
   host_import_module_dynamically_callback_ = callback;
+}
+
+void Isolate::SetHostImportModuleDynamicallyCallback(
+    HostImportModuleDynamicallyWithImportAssertionsCallback callback) {
+  host_import_module_dynamically_with_import_assertions_callback_ = callback;
 }
 
 MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(

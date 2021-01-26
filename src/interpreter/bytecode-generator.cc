@@ -5705,8 +5705,12 @@ void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
 }
 
 void BytecodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
-  RegisterList args = register_allocator()->NewRegisterList(2);
+  const int register_count = expr->import_assertions() ? 3 : 2;
+  RegisterList args = register_allocator()->NewRegisterList(register_count);
   VisitForRegisterValue(expr->specifier(), args[1]);
+  if (expr->import_assertions()) {
+    VisitForRegisterValue(expr->import_assertions(), args[2]);
+  }
   builder()
       ->MoveRegister(Register::function_closure(), args[0])
       .CallRuntime(Runtime::kDynamicImportCall, args);
