@@ -695,6 +695,16 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   return bytes;
 }
 
+void TurboAssembler::Movdqa(XMMRegister dst, Operand src) {
+  // See comments in Movdqa(XMMRegister, XMMRegister).
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vmovdqa(dst, src);
+  } else {
+    movaps(dst, src);
+  }
+}
+
 void TurboAssembler::Movdqa(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
@@ -1770,6 +1780,16 @@ void TurboAssembler::RetpolineJump(Register reg) {
   ret(0);
 }
 
+void TurboAssembler::Pmaddwd(XMMRegister dst, XMMRegister src1, Operand src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddwd(dst, src1, src2);
+  } else {
+    DCHECK_EQ(dst, src1);
+    pmaddwd(dst, src2);
+  }
+}
+
 void TurboAssembler::Pmaddwd(XMMRegister dst, XMMRegister src1,
                              XMMRegister src2) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1778,6 +1798,18 @@ void TurboAssembler::Pmaddwd(XMMRegister dst, XMMRegister src1,
   } else {
     DCHECK_EQ(dst, src1);
     pmaddwd(dst, src2);
+  }
+}
+
+void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
+                               Operand src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddubsw(dst, src1, src2);
+  } else {
+    CpuFeatureScope ssse3_scope(this, SSSE3);
+    DCHECK_EQ(dst, src1);
+    pmaddubsw(dst, src2);
   }
 }
 

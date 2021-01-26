@@ -361,6 +361,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Label::Distance condition_met_distance = Label::kFar);
 
   void Movapd(XMMRegister dst, XMMRegister src);
+  void Movdqa(XMMRegister dst, Operand src);
   void Movdqa(XMMRegister dst, XMMRegister src);
 
   template <typename Dst, typename Src>
@@ -536,7 +537,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DebugBreak() override;
 
   // Supports both AVX (dst != src1) and SSE (checks that dst == src1).
+  void Pmaddwd(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pmaddwd(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void Pmaddubsw(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
   // Shufps that will mov src1 into dst if AVX is not supported.
