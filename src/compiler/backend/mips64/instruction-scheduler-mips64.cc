@@ -794,11 +794,6 @@ int PrepareForTailCallLatency() {
          Latency::BRANCH + 2 * DsubuLatency(false) + 2 + Latency::BRANCH + 1;
 }
 
-int AssemblePopArgumentsAdoptFrameLatency() {
-  return 1 + Latency::BRANCH + 1 + SmiUntagLatency() +
-         PrepareForTailCallLatency();
-}
-
 int AssertLatency() { return 1; }
 
 int PrepareCallCFunctionLatency() {

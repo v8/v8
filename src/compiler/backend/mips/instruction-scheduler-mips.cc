@@ -1267,11 +1267,6 @@ int PrepareForTailCallLatency() {
          Latency::BRANCH + 2 * SubuLatency(false) + 2 + Latency::BRANCH + 1;
 }
 
-int AssemblePopArgumentsAdaptorFrameLatency() {
-  return 1 + Latency::BRANCH + 1 + SmiUntagLatency() +
-         PrepareForTailCallLatency();
-}
-
 int JumpLatency() {
   // Estimated max.
   return 1 + AdduLatency(false) + Latency::BRANCH + 2;
