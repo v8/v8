@@ -88,15 +88,15 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '710b42c08be2d80bf25542805e0d3b4d40a35d3e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '32fd3b2e52a86bcbaceedbd39dd8bdde93aaf4bf',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '07bd252238b7ba84f7039dc55ce03b37e475489c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1076f38947e6e13964741cd6547da31a2ccc7a1d',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '899e18383fd732b47e6978db2b960a1b2a80179b',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '4d3867052d35b2171f2edbb3466fa8f7e2d11319',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '13547b97dad2cdf1b3726b07b2563b921068a018',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '450b6b6103ec59640e957959356dae00c2f418b0',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'buildtools/linux64': {
@@ -206,7 +206,7 @@ deps = {
   'third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '0944e71f4b2cb9a871bcbe353f95e889b64a611a',
   'tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '1a072711d4388c62e02480fabc26c68c24494be9',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + 'a32a1607f6093d338f756c7e7c7b4333b0c50c9c',
   'test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'test/mozilla/data':
