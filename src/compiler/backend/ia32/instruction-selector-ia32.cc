@@ -2336,6 +2336,11 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16BitMask)           \
   V(S128Not)
 
+#define SIMD_ANYTRUE_LIST(V) \
+  V(V32x4AnyTrue)            \
+  V(V16x8AnyTrue)            \
+  V(V8x16AnyTrue)
+
 #define SIMD_ALLTRUE_LIST(V) \
   V(V32x4AllTrue)            \
   V(V16x8AllTrue)            \
@@ -2633,12 +2638,17 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-void InstructionSelector::VisitV128AnyTrue(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kIA32S128AnyTrue, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
-}
+// The implementation of AnyTrue is the same for all shapes.
+#define VISIT_SIMD_ANYTRUE(Opcode)                                  \
+  void InstructionSelector::Visit##Opcode(Node* node) {             \
+    IA32OperandGenerator g(this);                                   \
+    InstructionOperand temps[] = {g.TempRegister()};                \
+    Emit(kIA32S128AnyTrue, g.DefineAsRegister(node),                \
+         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
+  }
+SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
+#undef VISIT_SIMD_ANYTRUE
+#undef SIMD_ANYTRUE_LIST
 
 #define VISIT_SIMD_ALLTRUE(Opcode)                                            \
   void InstructionSelector::Visit##Opcode(Node* node) {                       \

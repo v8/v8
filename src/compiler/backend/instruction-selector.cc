@@ -2306,12 +2306,16 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Swizzle(node);
     case IrOpcode::kI8x16Shuffle:
       return MarkAsSimd128(node), VisitI8x16Shuffle(node);
+    case IrOpcode::kV32x4AnyTrue:
+      return MarkAsWord32(node), VisitV32x4AnyTrue(node);
     case IrOpcode::kV32x4AllTrue:
       return MarkAsWord32(node), VisitV32x4AllTrue(node);
+    case IrOpcode::kV16x8AnyTrue:
+      return MarkAsWord32(node), VisitV16x8AnyTrue(node);
     case IrOpcode::kV16x8AllTrue:
       return MarkAsWord32(node), VisitV16x8AllTrue(node);
-    case IrOpcode::kV128AnyTrue:
-      return MarkAsWord32(node), VisitV128AnyTrue(node);
+    case IrOpcode::kV8x16AnyTrue:
+      return MarkAsWord32(node), VisitV8x16AnyTrue(node);
     case IrOpcode::kV8x16AllTrue:
       return MarkAsWord32(node), VisitV8x16AllTrue(node);
     default:

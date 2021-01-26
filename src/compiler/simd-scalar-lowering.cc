@@ -166,9 +166,11 @@ void SimdScalarLowering::LowerGraph() {
   V(S128Not)                      \
   V(S128AndNot)                   \
   V(S128Select)                   \
+  V(V32x4AnyTrue)                 \
   V(V32x4AllTrue)                 \
+  V(V16x8AnyTrue)                 \
   V(V16x8AllTrue)                 \
-  V(V128AnyTrue)                  \
+  V(V8x16AnyTrue)                 \
   V(V8x16AllTrue)                 \
   V(I32x4BitMask)                 \
   V(I32x4ExtMulLowI16x8S)         \
@@ -2218,7 +2220,9 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node, 16);
       break;
     }
-    case IrOpcode::kV128AnyTrue: {
+    case IrOpcode::kV32x4AnyTrue:
+    case IrOpcode::kV16x8AnyTrue:
+    case IrOpcode::kV8x16AnyTrue: {
       DCHECK_EQ(1, node->InputCount());
       // AnyTrue always returns a I32x4, and can work with inputs of any shape,
       // but we still need GetReplacementsWithType if input is float.

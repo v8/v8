@@ -2977,6 +2977,11 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16Shl)                        \
   V(I8x16ShrU)
 
+#define SIMD_ANYTRUE_LIST(V) \
+  V(V32x4AnyTrue)            \
+  V(V16x8AnyTrue)            \
+  V(V8x16AnyTrue)
+
 #define SIMD_ALLTRUE_LIST(V) \
   V(V32x4AllTrue)            \
   V(V16x8AllTrue)            \
@@ -3167,11 +3172,15 @@ SIMD_BINOP_ONE_TEMP_LIST(VISIT_SIMD_BINOP_ONE_TEMP)
 #undef VISIT_SIMD_BINOP_ONE_TEMP
 #undef SIMD_BINOP_ONE_TEMP_LIST
 
-void InstructionSelector::VisitV128AnyTrue(Node* node) {
-  X64OperandGenerator g(this);
-  Emit(kX64V128AnyTrue, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)));
-}
+#define VISIT_SIMD_ANYTRUE(Opcode)                      \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    X64OperandGenerator g(this);                        \
+    Emit(kX64##Opcode, g.DefineAsRegister(node),        \
+         g.UseUniqueRegister(node->InputAt(0)));        \
+  }
+SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
+#undef VISIT_SIMD_ANYTRUE
+#undef SIMD_ANYTRUE_LIST
 
 #define VISIT_SIMD_ALLTRUE(Opcode)                                        \
   void InstructionSelector::Visit##Opcode(Node* node) {                   \
