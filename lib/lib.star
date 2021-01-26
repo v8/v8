@@ -83,16 +83,13 @@ GOMA = struct(
     DEFAULT = {
         "server_host": "goma.chromium.org",
         "rpc_extra_params": "?prod",
-    },
-    DEFAULT_LUCI_AUTH = {
-        "server_host": "goma.chromium.org",
-        "rpc_extra_params": "?prod",
         "use_luci_auth": True,
     },
     ATS = {
         "server_host": "goma.chromium.org",
         "enable_ats": True,
         "rpc_extra_params": "?prod",
+        "use_luci_auth": True,
     },
     NO = {"use_goma": False},
     NONE = {},

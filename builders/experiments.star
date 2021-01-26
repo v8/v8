@@ -71,7 +71,7 @@ experiment_builder(
             name = "osx_sdk",
         ),
     ],
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
 )
 
 experiment_builder_pair(
@@ -80,7 +80,7 @@ experiment_builder_pair(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
     to_notify = ["skyostil@google.com"],
 )
 
@@ -101,7 +101,7 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
     to_notify = ["mvstanton@google.com", "msarm@google.com"],
 )
 
@@ -139,7 +139,7 @@ experiment_builder_pair(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
@@ -149,7 +149,7 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
@@ -173,7 +173,7 @@ experiment_builder(
             name = "osx_sdk",
         ),
     ],
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
     # infra will be notified until this builder is not broken anymore
     notifies = ["infra"],
 )
@@ -184,7 +184,7 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
@@ -203,7 +203,7 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
@@ -222,7 +222,7 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
-    use_goma = GOMA.DEFAULT_LUCI_AUTH,
+    use_goma = GOMA.DEFAULT,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
