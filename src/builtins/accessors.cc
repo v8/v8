@@ -842,32 +842,5 @@ Handle<AccessorInfo> Accessors::MakeErrorStackInfo(Isolate* isolate) {
                       &ErrorStackGetter, &ErrorStackSetter);
 }
 
-//
-// Accessors::RegExpResultIndices
-//
-
-void Accessors::RegExpResultIndicesGetter(
-    v8::Local<v8::Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  HandleScope scope(isolate);
-  Handle<JSRegExpResult> regexp_result(
-      Handle<JSRegExpResult>::cast(Utils::OpenHandle(*info.Holder())));
-  MaybeHandle<JSArray> maybe_indices(
-      JSRegExpResult::GetAndCacheIndices(isolate, regexp_result));
-  Handle<JSArray> indices;
-  if (!maybe_indices.ToHandle(&indices)) {
-    isolate->OptionalRescheduleException(false);
-    Handle<Object> result = isolate->factory()->undefined_value();
-    info.GetReturnValue().Set(Utils::ToLocal(result));
-  } else {
-    info.GetReturnValue().Set(Utils::ToLocal(indices));
-  }
-}
-
-Handle<AccessorInfo> Accessors::MakeRegExpResultIndicesInfo(Isolate* isolate) {
-  return MakeAccessor(isolate, isolate->factory()->indices_string(),
-                      &RegExpResultIndicesGetter, nullptr);
-}
-
 }  // namespace internal
 }  // namespace v8

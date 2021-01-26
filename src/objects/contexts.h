@@ -214,6 +214,7 @@ enum ContextLookupFlags {
   V(REGEXP_PROTOTYPE_MAP_INDEX, Map, regexp_prototype_map)                     \
   V(REGEXP_REPLACE_FUNCTION_INDEX, JSFunction, regexp_replace_function)        \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
+  V(REGEXP_RESULT_WITH_INDICES_MAP_INDEX, Map, regexp_result_with_indices_map) \
   V(REGEXP_RESULT_INDICES_MAP_INDEX, Map, regexp_result_indices_map)           \
   V(REGEXP_SEARCH_FUNCTION_INDEX, JSFunction, regexp_search_function)          \
   V(REGEXP_SPLIT_FUNCTION_INDEX, JSFunction, regexp_split_function)            \

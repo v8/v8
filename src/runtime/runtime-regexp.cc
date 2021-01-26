@@ -894,6 +894,21 @@ RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
                                                last_match_info));
 }
 
+RUNTIME_FUNCTION(Runtime_RegExpBuildIndices) {
+  DCHECK(FLAG_harmony_regexp_match_indices);
+
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, match_info, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, maybe_names, 2);
+#ifdef DEBUG
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  DCHECK(regexp->GetFlags() & JSRegExp::kHasIndices);
+#endif
+
+  return *JSRegExpResultIndices::BuildIndices(isolate, match_info, maybe_names);
+}
+
 namespace {
 
 class MatchInfoBackedMatch : public String::Match {

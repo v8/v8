@@ -99,16 +99,18 @@ class StatsCounter;
 
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
+  V(address_of_builtin_subclassing_flag, "FLAG_builtin_subclassing")           \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
   V(address_of_double_neg_constant, "double_negate_constant")                  \
   V(address_of_enable_experimental_regexp_engine,                              \
     "address_of_enable_experimental_regexp_engine")                            \
   V(address_of_float_abs_constant, "float_absolute_constant")                  \
   V(address_of_float_neg_constant, "float_negate_constant")                    \
+  V(address_of_harmony_regexp_match_indices_flag,                              \
+    "FLAG_harmony_regexp_match_indices")                                       \
   V(address_of_min_int, "LDoubleConstant::min_int")                            \
   V(address_of_mock_arraybuffer_allocator_flag,                                \
     "FLAG_mock_arraybuffer_allocator")                                         \
-  V(address_of_builtin_subclassing_flag, "FLAG_builtin_subclassing")           \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \

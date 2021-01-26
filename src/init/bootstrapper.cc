@@ -4436,13 +4436,31 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
 void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
   if (!FLAG_harmony_regexp_match_indices) return;
 
-  // Add indices accessor to JSRegExpResult's initial map.
-  Handle<Map> initial_map(native_context()->regexp_result_map(), isolate());
-  Descriptor d = Descriptor::AccessorConstant(
-      factory()->indices_string(), factory()->regexp_result_indices_accessor(),
-      NONE);
-  Map::EnsureDescriptorSlack(isolate(), initial_map, 1);
-  initial_map->AppendDescriptor(isolate(), &d);
+  Handle<Map> source_map(native_context()->regexp_result_map(), isolate());
+  Handle<Map> initial_map =
+      Map::Copy(isolate(), source_map, "JSRegExpResult with indices");
+  initial_map->set_instance_size(JSRegExpResultWithIndices::kSize);
+  DCHECK_EQ(initial_map->GetInObjectProperties(),
+            JSRegExpResultWithIndices::kInObjectPropertyCount);
+
+  // indices descriptor
+  {
+    Descriptor d =
+        Descriptor::DataField(isolate(), factory()->indices_string(),
+                              JSRegExpResultWithIndices::kIndicesIndex, NONE,
+                              Representation::Tagged());
+    Map::EnsureDescriptorSlack(isolate(), initial_map, 1);
+    initial_map->AppendDescriptor(isolate(), &d);
+  }
+
+  native_context()->set_regexp_result_with_indices_map(*initial_map);
+
+  Handle<JSObject> prototype(native_context()->regexp_prototype(), isolate());
+  SimpleInstallGetter(isolate(), prototype, factory()->has_indices_string(),
+                      Builtins::kRegExpPrototypeHasIndicesGetter, true);
+
+  // Store regexp prototype map again after change.
+  native_context()->set_regexp_prototype_map(prototype->map());
 }
 
 void Genesis::InitializeGlobal_harmony_string_replaceall() {
@@ -4787,16 +4805,6 @@ bool Genesis::InstallABunchOfRandomThings() {
     // symbols to prevent their use in Javascript.
     {
       PropertyAttributes attribs = DONT_ENUM;
-
-      // cached_indices_or_regexp descriptor.
-      {
-        Descriptor d = Descriptor::DataField(
-            isolate(),
-            factory()->regexp_result_cached_indices_or_regexp_symbol(),
-            JSRegExpResult::kCachedIndicesOrRegExpIndex, attribs,
-            Representation::Tagged());
-        initial_map->AppendDescriptor(isolate(), &d);
-      }
 
       // names descriptor.
       {

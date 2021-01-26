@@ -843,6 +843,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kRegExpPrototypeSplit:
     case Builtins::kRegExpPrototypeFlagsGetter:
     case Builtins::kRegExpPrototypeGlobalGetter:
+    case Builtins::kRegExpPrototypeHasIndicesGetter:
     case Builtins::kRegExpPrototypeIgnoreCaseGetter:
     case Builtins::kRegExpPrototypeMatchAll:
     case Builtins::kRegExpPrototypeMultilineGetter:

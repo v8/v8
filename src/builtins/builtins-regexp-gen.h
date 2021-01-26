@@ -22,13 +22,14 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<RawPtrT> LoadCodeObjectEntry(TNode<Code> code);
 
-  // Allocate a RegExpResult with the given length (the number of captures,
-  // including the match itself), index (the index where the match starts),
-  // and input string.
+  // Allocate either a JSRegExpResult or a JSRegExpResultWithIndices (depending
+  // on has_indices) with the given length (the number of captures, including
+  // the match itself), index (the index where the match starts), and input
+  // string.
   TNode<JSRegExpResult> AllocateRegExpResult(
       TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
       TNode<String> input, TNode<JSRegExp> regexp, TNode<Number> last_index,
-      TNode<FixedArray>* elements_out = nullptr);
+      TNode<BoolT> has_indices, TNode<FixedArray>* elements_out = nullptr);
 
   TNode<Object> FastLoadLastIndexBeforeSmiCheck(TNode<JSRegExp> regexp);
   TNode<Smi> FastLoadLastIndex(TNode<JSRegExp> regexp) {

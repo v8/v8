@@ -51,8 +51,8 @@ transitioning macro RegExpExec(implicit context: Context)(
 }
 
 extern macro RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
-    implicit context: Context)(
-    JSRegExp, RegExpMatchInfo, String, Number): JSRegExpResult;
+    implicit context: Context)(JSRegExp, RegExpMatchInfo, String, Number):
+    JSRegExpResult|JSRegExpResultWithIndices;
 
 const kGlobalOrSticky: constexpr int31
     generates 'JSRegExp::kGlobal | JSRegExp::kSticky';
@@ -185,6 +185,7 @@ extern enum Flag constexpr 'JSRegExp::Flag' {
   kSticky,
   kUnicode,
   kDotAll,
+  kHasIndices,
   kLinear
 }
 
@@ -241,6 +242,13 @@ transitioning javascript builtin RegExpPrototypeMultilineGetter(
   return FlagGetter(
       receiver, Flag::kMultiline, kNoCounterFlagGetter,
       'RegExp.prototype.multiline');
+}
+
+transitioning javascript builtin RegExpPrototypeHasIndicesGetter(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  return FlagGetter(
+      receiver, Flag::kHasIndices, kNoCounterFlagGetter,
+      'RegExp.prototype.hasIndices');
 }
 
 transitioning javascript builtin RegExpPrototypeLinearGetter(

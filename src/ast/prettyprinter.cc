@@ -256,6 +256,7 @@ void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print("/");
   PrintLiteral(node->pattern(), false);
   Print("/");
+  if (node->flags() & RegExp::kHasIndices) Print("d");
   if (node->flags() & RegExp::kGlobal) Print("g");
   if (node->flags() & RegExp::kIgnoreCase) Print("i");
   if (node->flags() & RegExp::kLinear) Print("l");
@@ -1156,6 +1157,7 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   PrintLiteralIndented("PATTERN", node->raw_pattern(), false);
   int i = 0;
   EmbeddedVector<char, 128> buf;
+  if (node->flags() & RegExp::kHasIndices) buf[i++] = 'd';
   if (node->flags() & RegExp::kGlobal) buf[i++] = 'g';
   if (node->flags() & RegExp::kIgnoreCase) buf[i++] = 'i';
   if (node->flags() & RegExp::kLinear) buf[i++] = 'l';

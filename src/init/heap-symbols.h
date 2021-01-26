@@ -209,6 +209,7 @@
   V(_, globalThis_string, "globalThis")                              \
   V(_, groups_string, "groups")                                      \
   V(_, has_string, "has")                                            \
+  V(_, has_indices_string, "hasIndices")                             \
   V(_, ignoreCase_string, "ignoreCase")                              \
   V(_, illegal_access_string, "illegal access")                      \
   V(_, illegal_argument_string, "illegal argument")                  \
@@ -357,7 +358,6 @@
   V(_, promise_debug_message_symbol)                  \
   V(_, promise_forwarding_handler_symbol)             \
   V(_, promise_handled_by_symbol)                     \
-  V(_, regexp_result_cached_indices_or_regexp_symbol) \
   V(_, regexp_result_names_symbol)                    \
   V(_, regexp_result_regexp_input_symbol)             \
   V(_, regexp_result_regexp_last_index_symbol)        \
