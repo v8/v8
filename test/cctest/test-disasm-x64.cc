@@ -396,6 +396,7 @@ TEST(DisasmX64) {
     __ cvttps2dq(xmm0, xmm1);
     __ cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movaps(xmm0, xmm1);
+    __ movaps(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movdqa(xmm0, Operand(rsp, 12));
     __ movdqa(Operand(rsp, 12), xmm0);
     __ movdqu(xmm0, Operand(rsp, 12));
@@ -660,6 +661,7 @@ TEST(DisasmX64) {
       __ vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0);
 
       __ vmovdqa(xmm4, xmm5);
+      __ vmovdqa(xmm4, Operand(rbx, rcx, times_4, 10000));
 
       __ vmovdqu(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovdqu(Operand(rbx, rcx, times_4, 10000), xmm0);
@@ -692,6 +694,7 @@ TEST(DisasmX64) {
       __ vcvtsd2si(rdi, xmm9);
 
       __ vmovaps(xmm10, xmm11);
+      __ vmovaps(xmm0, Operand(rbx, rcx, times_4, 10000));
       __ vmovapd(xmm7, xmm0);
       __ vmovupd(xmm0, Operand(rbx, rcx, times_4, 10000));
       __ vmovupd(Operand(rbx, rcx, times_4, 10000), xmm0);

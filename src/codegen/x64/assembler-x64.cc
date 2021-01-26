@@ -2929,6 +2929,15 @@ void Assembler::movaps(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void Assembler::movaps(XMMRegister dst, Operand src) {
+  DCHECK(!IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x28);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::shufps(XMMRegister dst, XMMRegister src, byte imm8) {
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
@@ -3511,6 +3520,14 @@ void Assembler::vmovq(Register dst, XMMRegister src) {
   emit_vex_prefix(src, xmm0, idst, kL128, k66, k0F, kW1);
   emit(0x7E);
   emit_sse_operand(src, dst);
+}
+
+void Assembler::vmovdqa(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F, kWIG);
+  emit(0x6F);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::vmovdqa(XMMRegister dst, XMMRegister src) {

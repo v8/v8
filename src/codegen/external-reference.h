@@ -116,6 +116,7 @@ class StatsCounter;
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
+  V(address_of_wasm_i8x16_splat_0x0f, "wasm_i8x16_splat_0x0f")                 \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")     \
   V(check_object_type, "check_object_type")                                    \
   V(compute_integer_hash, "ComputeSeededHash")                                 \

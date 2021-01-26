@@ -84,6 +84,12 @@ constexpr struct alignas(16) {
 constexpr struct alignas(16) {
   uint64_t a;
   uint64_t b;
+} wasm_i8x16_splat_0x0f = {uint64_t{0x0F0F0F0F'0F0F0F0F},
+                           uint64_t{0x0F0F0F0F'0F0F0F0F}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
 } wasm_f64x2_convert_low_i32x4_u_int_mask = {uint64_t{0x4330000043300000},
                                              uint64_t{0x4330000043300000}};
 
@@ -554,6 +560,10 @@ ExternalReference ExternalReference::address_of_double_neg_constant() {
 
 ExternalReference ExternalReference::address_of_wasm_i8x16_popcnt_mask() {
   return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_popcnt_mask));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x0f() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_splat_0x0f));
 }
 
 ExternalReference

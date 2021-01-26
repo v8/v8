@@ -3928,35 +3928,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(0);
       XMMRegister tmp = i.TempSimd128Register(0);
 
-      // tmp = wasm_i8x16_splat(0x0F)
-      __ Move(tmp, uint32_t{0x0F0F0F0F});
-
       if (CpuFeatures::IsSupported(AVX)) {
         CpuFeatureScope avx_scope(tasm(), AVX);
-        if (CpuFeatures::IsSupported(AVX2)) {
-          CpuFeatureScope avx2_scope(tasm(), AVX2);
-          __ vpbroadcastd(tmp, tmp);
-        } else {
-          __ vpshufd(tmp, tmp, 0);
-        }
+        __ vmovdqa(tmp,
+                   __ ExternalReferenceAsOperand(
+                       ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
         __ vpandn(kScratchDoubleReg, tmp, src);
         __ vpand(dst, tmp, src);
-        __ Move(tmp, 0x04030302'03020201, 0x03020201'02010100);
+        __ vmovdqa(tmp,
+                   __ ExternalReferenceAsOperand(
+                       ExternalReference::address_of_wasm_i8x16_popcnt_mask()));
         __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 4);
         __ vpshufb(dst, tmp, dst);
         __ vpshufb(kScratchDoubleReg, tmp, kScratchDoubleReg);
         __ vpaddb(dst, dst, kScratchDoubleReg);
       } else {
+        __ movaps(tmp,
+                  __ ExternalReferenceAsOperand(
+                      ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
         Operand mask = __ ExternalReferenceAsOperand(
             ExternalReference::address_of_wasm_i8x16_popcnt_mask());
-        __ shufps(tmp, tmp, 0);
         __ Move(kScratchDoubleReg, tmp);
         __ andps(tmp, src);
         __ andnps(kScratchDoubleReg, src);
         __ psrlw(kScratchDoubleReg, 4);
-        __ movups(dst, mask);
+        __ movaps(dst, mask);
         __ pshufb(dst, tmp);
-        __ movups(tmp, mask);
+        __ movaps(tmp, mask);
         __ pshufb(tmp, kScratchDoubleReg);
         __ paddb(dst, tmp);
       }

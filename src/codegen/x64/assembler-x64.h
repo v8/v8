@@ -921,6 +921,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void ucomiss(XMMRegister dst, XMMRegister src);
   void ucomiss(XMMRegister dst, Operand src);
   void movaps(XMMRegister dst, XMMRegister src);
+  void movaps(XMMRegister dst, Operand src);
 
   // Don't use this unless it's important to keep the
   // top half of the destination register unchanged.
@@ -1331,6 +1332,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vmovsd(XMMRegister dst, Operand src) { vsd(0x10, dst, xmm0, src); }
   void vmovsd(Operand dst, XMMRegister src) { vsd(0x11, src, xmm0, dst); }
+  void vmovdqa(XMMRegister dst, Operand src);
   void vmovdqa(XMMRegister dst, XMMRegister src);
   void vmovdqu(XMMRegister dst, Operand src);
   void vmovdqu(Operand dst, XMMRegister src);
@@ -1514,6 +1516,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   void vmovaps(XMMRegister dst, XMMRegister src) { vps(0x28, dst, xmm0, src); }
+  void vmovaps(XMMRegister dst, Operand src) { vps(0x28, dst, xmm0, src); }
   void vmovups(XMMRegister dst, XMMRegister src) { vps(0x10, dst, xmm0, src); }
   void vmovups(XMMRegister dst, Operand src) { vps(0x10, dst, xmm0, src); }
   void vmovups(Operand dst, XMMRegister src) { vps(0x11, src, xmm0, dst); }
