@@ -31,6 +31,9 @@ class Stack;
 }  // namespace heap
 
 namespace cppgc {
+namespace subtle {
+class NoGarbageCollectionScope;
+}  // namespace subtle
 
 class Platform;
 
@@ -54,22 +57,6 @@ class StatsCollector;
 class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
  public:
   using StackSupport = cppgc::Heap::StackSupport;
-
-  // NoGCScope allows going over limits and avoids triggering garbage
-  // collection triggered through allocations or even explicitly.
-  class V8_EXPORT_PRIVATE V8_NODISCARD NoGCScope final {
-    CPPGC_STACK_ALLOCATED();
-
-   public:
-    explicit NoGCScope(HeapBase& heap);
-    ~NoGCScope();
-
-    NoGCScope(const NoGCScope&) = delete;
-    NoGCScope& operator=(const NoGCScope&) = delete;
-
-   private:
-    HeapBase& heap_;
-  };
 
   static HeapBase& From(cppgc::HeapHandle& heap_handle) {
     return static_cast<HeapBase&>(heap_handle);
@@ -199,6 +186,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;
+  friend class cppgc::subtle::NoGarbageCollectionScope;
 };
 
 }  // namespace internal

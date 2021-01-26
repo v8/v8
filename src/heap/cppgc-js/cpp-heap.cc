@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc-js/cpp-heap.h"
 
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
 #include "include/v8-platform.h"
 #include "include/v8.h"
@@ -181,6 +182,7 @@ CppHeap::CppHeap(
     isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(
         &CppGraphBuilder::Run, this);
   }
+  stats_collector()->RegisterObserver(this);
 }
 
 CppHeap::~CppHeap() {
@@ -290,7 +292,7 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
 #endif
 
   {
-    NoGCScope no_gc(*this);
+    cppgc::subtle::NoGarbageCollectionScope no_gc(*this);
     cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
         compactable_space_handling = compactor_.CompactSpacesIfEnabled();
     const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
@@ -300,6 +302,33 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
     sweeper().Start(sweeping_config);
   }
   sweeper().NotifyDoneIfNeeded();
+}
+
+void CppHeap::AllocatedObjectSizeIncreased(size_t bytes) {
+  buffered_allocated_bytes_ += static_cast<int64_t>(bytes);
+  ReportBufferedAllocationSizeIfPossible();
+}
+
+void CppHeap::AllocatedObjectSizeDecreased(size_t bytes) {
+  buffered_allocated_bytes_ -= static_cast<int64_t>(bytes);
+  ReportBufferedAllocationSizeIfPossible();
+}
+
+void CppHeap::ReportBufferedAllocationSizeIfPossible() {
+  // Avoid reporting to V8 in the following conditions as that may trigger GC
+  // finalizations where not allowed.
+  // - Recursive sweeping.
+  // - GC forbidden scope.
+  if (sweeper().IsSweepingOnMutatorThread() || in_no_gc_scope()) {
+    return;
+  }
+
+  if (buffered_allocated_bytes_ < 0) {
+    DecreaseAllocatedSize(static_cast<size_t>(-buffered_allocated_bytes_));
+  } else {
+    IncreaseAllocatedSize(static_cast<size_t>(buffered_allocated_bytes_));
+  }
+  buffered_allocated_bytes_ = 0;
 }
 
 }  // namespace internal

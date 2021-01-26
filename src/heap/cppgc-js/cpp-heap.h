@@ -9,6 +9,7 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/heap-base.h"
+#include "src/heap/cppgc/stats-collector.h"
 
 namespace v8 {
 
@@ -17,9 +18,11 @@ class Isolate;
 namespace internal {
 
 // A C++ heap implementation used with V8 to implement unified heap.
-class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
-                                        public v8::CppHeap,
-                                        public v8::EmbedderHeapTracer {
+class V8_EXPORT_PRIVATE CppHeap final
+    : public cppgc::internal::HeapBase,
+      public v8::CppHeap,
+      public v8::EmbedderHeapTracer,
+      public cppgc::internal::StatsCollector::AllocationObserver {
  public:
   static CppHeap* From(v8::CppHeap* heap) {
     return static_cast<CppHeap*>(heap);
@@ -41,6 +44,9 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
   HeapBase& AsBase() { return *this; }
   const HeapBase& AsBase() const { return *this; }
 
+  void Terminate();
+
+  // v8::EmbedderHeapTracer interface.
   void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) final;
   void TracePrologue(TraceFlags flags) final;
@@ -49,7 +55,10 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
   void TraceEpilogue(TraceSummary* trace_summary) final;
   void EnterFinalPause(EmbedderStackState stack_state) final;
 
-  void Terminate();
+  // StatsCollector::AllocationObserver interface.
+  void AllocatedObjectSizeIncreased(size_t) final;
+  void AllocatedObjectSizeDecreased(size_t) final;
+  void ResetAllocatedObjectSize(size_t) final {}
 
  private:
   void FinalizeIncrementalGarbageCollectionIfNeeded(
@@ -58,9 +67,16 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
     // finalization is not needed) thus this method is left empty.
   }
 
+  void ReportBufferedAllocationSizeIfPossible();
+
   Isolate& isolate_;
   bool marking_done_ = false;
   bool is_in_final_pause_ = false;
+
+  // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
+  // atomic pause. Allocated bytes are buffer in case this is temporarily
+  // prohibited.
+  int64_t buffered_allocated_bytes_ = 0;
 };
 
 }  // namespace internal

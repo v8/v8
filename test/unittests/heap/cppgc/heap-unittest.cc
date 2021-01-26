@@ -9,6 +9,7 @@
 #include <numeric>
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/globals.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -95,7 +96,7 @@ TEST_F(GCHeapTest, ObjectPayloadSize) {
   Heap::From(GetHeap())->CollectGarbage(
       GarbageCollector::Config::ConservativeAtomicConfig());
 
-  Heap::NoGCScope no_gc_scope(*Heap::From(GetHeap()));
+  subtle::NoGarbageCollectionScope no_gc(*Heap::From(GetHeap()));
 
   for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
     MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetAllocationHandle());
@@ -154,6 +155,23 @@ TEST_F(GCHeapTest, AllocatedSizeDependOnAdditionalBytes) {
             HeapObjectHeader::FromPayload(object_with_bytes).GetSize());
   EXPECT_LT(HeapObjectHeader::FromPayload(object_with_bytes).GetSize(),
             HeapObjectHeader::FromPayload(object_with_more_bytes).GetSize());
+}
+
+TEST_F(GCHeapTest, Epoch) {
+  const size_t epoch_before = internal::Heap::From(GetHeap())->epoch();
+  PreciseGC();
+  const size_t epoch_after_gc = internal::Heap::From(GetHeap())->epoch();
+  EXPECT_EQ(epoch_after_gc, epoch_before + 1);
+}
+
+TEST_F(GCHeapTest, NoGarbageCollectionScope) {
+  const size_t epoch_before = internal::Heap::From(GetHeap())->epoch();
+  {
+    subtle::NoGarbageCollectionScope scope(GetHeap()->GetHeapHandle());
+    PreciseGC();
+  }
+  const size_t epoch_after_gc = internal::Heap::From(GetHeap())->epoch();
+  EXPECT_EQ(epoch_after_gc, epoch_before);
 }
 
 TEST_F(GCHeapTest, TerminateEmptyHeap) { Heap::From(GetHeap())->Terminate(); }

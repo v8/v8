@@ -85,12 +85,6 @@ size_t HeapBase::ObjectPayloadSize() const {
   return ObjectSizeCounter().GetSize(const_cast<RawHeap*>(&raw_heap()));
 }
 
-HeapBase::NoGCScope::NoGCScope(HeapBase& heap) : heap_(heap) {
-  heap_.no_gc_scope_++;
-}
-
-HeapBase::NoGCScope::~NoGCScope() { heap_.no_gc_scope_--; }
-
 void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
   if (marker_) marker_->AdvanceMarkingOnAllocation();
 }

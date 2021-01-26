@@ -583,6 +583,10 @@ class Sweeper::SweeperImpl final {
     if (concurrent_sweeper_handle_) concurrent_sweeper_handle_->Join();
   }
 
+  bool IsSweepingOnMutatorThread() const {
+    return is_sweeping_on_mutator_thread_;
+  }
+
  private:
   class MutatorThreadSweepingScope final {
    public:
@@ -713,6 +717,9 @@ void Sweeper::WaitForConcurrentSweepingForTesting() {
   impl_->WaitForConcurrentSweepingForTesting();
 }
 void Sweeper::NotifyDoneIfNeeded() { impl_->NotifyDoneIfNeeded(); }
+bool Sweeper::IsSweepingOnMutatorThread() const {
+  return impl_->IsSweepingOnMutatorThread();
+}
 
 }  // namespace internal
 }  // namespace cppgc

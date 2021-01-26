@@ -42,6 +42,8 @@ class V8_EXPORT_PRIVATE Sweeper final {
   void FinishIfRunning();
   void NotifyDoneIfNeeded();
 
+  bool IsSweepingOnMutatorThread() const;
+
  private:
   void WaitForConcurrentSweepingForTesting();
 

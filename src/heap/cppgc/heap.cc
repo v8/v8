@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/heap.h"
 
+#include "include/cppgc/heap-consistency.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/garbage-collector.h"
 #include "src/heap/cppgc/gc-invoker.h"
@@ -101,7 +102,7 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
 }
 
 Heap::~Heap() {
-  NoGCScope no_gc(*this);
+  subtle::NoGarbageCollectionScope no_gc(*this);
   // Finish already running GC if any, but don't finalize live objects.
   sweeper_.FinishIfRunning();
 }
@@ -189,7 +190,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   verifier.Run(stack_state);
 #endif
 
-  NoGCScope no_gc(*this);
+  subtle::NoGarbageCollectionScope no_gc(*this);
   const Sweeper::SweepingConfig sweeping_config{
       config_.sweeping_type,
       Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};

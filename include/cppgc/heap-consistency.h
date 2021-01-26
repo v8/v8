@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include "cppgc/internal/write-barrier.h"
+#include "cppgc/macros.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -129,6 +130,49 @@ class HeapConsistency final {
 
  private:
   HeapConsistency() = delete;
+};
+
+/**
+ * Avoids invoking garbage collection finalizations. Already running garbage
+ * collection phase are unaffected by this scope.
+ *
+ * Should only be used temporarily as the scope has an impact on memory usage
+ * and follow up garbage collections.
+ */
+class V8_EXPORT V8_NODISCARD NoGarbageCollectionScope final {
+  CPPGC_STACK_ALLOCATED();
+
+ public:
+  /**
+   * Enters a no garbage collection scope. Must be paired with `Leave()`. Prefer
+   * a scope instance of `NoGarbageCollectionScope`.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  static void Enter(HeapHandle& heap_handle);
+
+  /**
+   * Leaves a no garbage collection scope. Must be paired with `Enter()`. Prefer
+   * a scope instance of `NoGarbageCollectionScope`.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  static void Leave(HeapHandle& heap_handle);
+
+  /**
+   * Constructs a scoped object that automatically enters and leaves a no
+   * garbage collection scope based on its lifetime.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  explicit NoGarbageCollectionScope(HeapHandle& heap_handle);
+  ~NoGarbageCollectionScope();
+
+  NoGarbageCollectionScope(const NoGarbageCollectionScope&) = delete;
+  NoGarbageCollectionScope& operator=(const NoGarbageCollectionScope&) = delete;
+
+ private:
+  HeapHandle& heap_handle_;
 };
 
 }  // namespace subtle
