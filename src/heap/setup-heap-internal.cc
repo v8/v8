@@ -931,13 +931,6 @@ void Heap::CreateInitialObjects() {
   script->set_origin_options(ScriptOriginOptions(true, false));
   set_empty_script(*script);
 
-  {
-    Handle<PropertyCell> cell = factory->NewPropertyCell(
-        factory->empty_string(), AllocationType::kReadOnly);
-    cell->set_value(roots.the_hole_value());
-    set_empty_property_cell(*cell);
-  }
-
   // Protectors
   {
     Handle<PropertyCell> cell =

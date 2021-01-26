@@ -163,7 +163,6 @@ class Symbol;
   V(OrderedHashMap, empty_ordered_hash_map, EmptyOrderedHashMap)               \
   V(OrderedHashSet, empty_ordered_hash_set, EmptyOrderedHashSet)               \
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
-  V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
   V(OrderedNameDictionary, empty_ordered_property_dictionary,                  \
     EmptyOrderedPropertyDictionary)                                            \
