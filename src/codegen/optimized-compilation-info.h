@@ -34,6 +34,10 @@ class JavaScriptFrame;
 class JSGlobalObject;
 class Zone;
 
+namespace compiler {
+class NodeObserver;
+}
+
 namespace wasm {
 struct WasmCompilationResult;
 }  // namespace wasm
@@ -121,6 +125,11 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void set_builtin_index(int32_t index) { builtin_index_ = index; }
   BytecodeOffset osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
+  void SetNodeObserver(compiler::NodeObserver* observer) {
+    DCHECK_NULL(node_observer_);
+    node_observer_ = observer;
+  }
+  compiler::NodeObserver* node_observer() const { return node_observer_; }
 
   void SetPoisoningMitigationLevel(PoisoningMitigationLevel poisoning_level) {
     poisoning_level_ = poisoning_level;
@@ -283,6 +292,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // The zone from which the compilation pipeline working on this
   // OptimizedCompilationInfo allocates.
   Zone* const zone_;
+
+  compiler::NodeObserver* node_observer_ = nullptr;
 
   BailoutReason bailout_reason_ = BailoutReason::kNoReason;
 

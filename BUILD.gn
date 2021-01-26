@@ -2301,6 +2301,8 @@ v8_compiler_sources = [
   "src/compiler/node-marker.h",
   "src/compiler/node-matchers.cc",
   "src/compiler/node-matchers.h",
+  "src/compiler/node-observer.cc",
+  "src/compiler/node-observer.h",
   "src/compiler/node-origin-table.cc",
   "src/compiler/node-origin-table.h",
   "src/compiler/node-properties.cc",

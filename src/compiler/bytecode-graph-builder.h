@@ -7,6 +7,7 @@
 
 #include "src/compiler/js-operator.h"
 #include "src/compiler/js-type-hint-lowering.h"
+#include "src/compiler/node-observer.h"
 #include "src/handles/handles.h"
 #include "src/objects/code-kind.h"
 #include "src/utils/utils.h"
@@ -25,6 +26,7 @@ class Zone;
 namespace compiler {
 
 class JSGraph;
+class NodeObserver;
 class SourcePositionTable;
 
 enum class BytecodeGraphBuilderFlag : uint8_t {
@@ -47,7 +49,8 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             SourcePositionTable* source_positions,
                             int inlining_id, CodeKind code_kind,
                             BytecodeGraphBuilderFlags flags,
-                            TickCounter* tick_counter);
+                            TickCounter* tick_counter,
+                            ObserveNodeInfo const& observe_node_info = {});
 
 }  // namespace compiler
 }  // namespace internal
