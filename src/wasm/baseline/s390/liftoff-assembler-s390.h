@@ -289,7 +289,39 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  bailout(kUnsupportedArchitecture, "Store");
+  DCHECK(is_int20(offset_imm));
+  MemOperand dst_op =
+      MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
+      StoreU8(src.gp(), dst_op);
+      break;
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
+      StoreU16LE(src.gp(), dst_op, r1);
+      break;
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32:
+      StoreU32LE(src.gp(), dst_op, r1);
+      break;
+    case StoreType::kI64Store:
+      StoreU64LE(src.gp(), dst_op, r1);
+      break;
+    case StoreType::kF32Store:
+      StoreF32LE(src.fp(), dst_op, r1);
+      break;
+    case StoreType::kF64Store:
+      StoreF64LE(src.fp(), dst_op, r1);
+      break;
+    case StoreType::kS128Store: {
+      StoreV128LE(src.fp(), dst_op, r0, r1);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
