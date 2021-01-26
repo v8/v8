@@ -37,6 +37,7 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/cpu.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/mips64/assembler-mips64-inl.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/string-constants.h"
@@ -3988,6 +3989,26 @@ Register UseScratchRegisterScope::Acquire() {
 }
 
 bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
+
+LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
+                                         uint8_t laneidx) {
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      *this = LoadStoreLaneParams(laneidx, MSA_B, 16);
+      break;
+    case MachineRepresentation::kWord16:
+      *this = LoadStoreLaneParams(laneidx, MSA_H, 8);
+      break;
+    case MachineRepresentation::kWord32:
+      *this = LoadStoreLaneParams(laneidx, MSA_W, 4);
+      break;
+    case MachineRepresentation::kWord64:
+      *this = LoadStoreLaneParams(laneidx, MSA_D, 2);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

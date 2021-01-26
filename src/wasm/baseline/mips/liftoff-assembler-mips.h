@@ -1712,6 +1712,13 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   bailout(kSimd, "load extend and load splat unimplemented");
 }
 
+void LiftoffAssembler::StoreLane(Register dst, Register offset,
+                                 uintptr_t offset_imm, LiftoffRegister src,
+                                 StoreType type, uint8_t lane,
+                                 uint32_t* protected_store_pc) {
+  bailout(kSimd, "storelane");
+}
+
 void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,

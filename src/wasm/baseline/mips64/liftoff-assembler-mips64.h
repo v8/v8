@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_H_
 
 #include "src/base/platform/wrappers.h"
+#include "src/codegen/machine-type.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 
@@ -1612,7 +1613,20 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,
                                 uint8_t laneidx, uint32_t* protected_load_pc) {
-  bailout(kSimd, "loadlane");
+  MemOperand src_op = liftoff::GetMemOp(this, addr, offset_reg, offset_imm);
+  *protected_load_pc = pc_offset();
+  LoadStoreLaneParams load_params(type.mem_type().representation(), laneidx);
+  TurboAssembler::LoadLane(load_params.sz, dst.fp().toW(), laneidx, src_op);
+}
+
+void LiftoffAssembler::StoreLane(Register dst, Register offset,
+                                 uintptr_t offset_imm, LiftoffRegister src,
+                                 StoreType type, uint8_t lane,
+                                 uint32_t* protected_store_pc) {
+  MemOperand dst_op = liftoff::GetMemOp(this, dst, offset, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+  LoadStoreLaneParams store_params(type.mem_rep(), lane);
+  TurboAssembler::StoreLane(store_params.sz, src.fp().toW(), lane, dst_op);
 }
 
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,

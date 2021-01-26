@@ -2633,22 +2633,24 @@ void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
 
 void TurboAssembler::LoadLane(MSASize sz, MSARegister dst, uint8_t laneidx,
                               MemOperand src) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   switch (sz) {
     case MSA_B:
-      Lbu(kScratchReg, src);
-      insert_b(dst, laneidx, kScratchReg);
+      Lbu(scratch, src);
+      insert_b(dst, laneidx, scratch);
       break;
     case MSA_H:
-      Lhu(kScratchReg, src);
-      insert_h(dst, laneidx, kScratchReg);
+      Lhu(scratch, src);
+      insert_h(dst, laneidx, scratch);
       break;
     case MSA_W:
-      Lwu(kScratchReg, src);
-      insert_w(dst, laneidx, kScratchReg);
+      Lwu(scratch, src);
+      insert_w(dst, laneidx, scratch);
       break;
     case MSA_D:
-      Ld(kScratchReg, src);
-      insert_d(dst, laneidx, kScratchReg);
+      Ld(scratch, src);
+      insert_d(dst, laneidx, scratch);
       break;
     default:
       UNREACHABLE();
@@ -2657,22 +2659,24 @@ void TurboAssembler::LoadLane(MSASize sz, MSARegister dst, uint8_t laneidx,
 
 void TurboAssembler::StoreLane(MSASize sz, MSARegister src, uint8_t laneidx,
                                MemOperand dst) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   switch (sz) {
     case MSA_B:
-      copy_u_b(kScratchReg, src, laneidx);
-      Sb(kScratchReg, dst);
+      copy_u_b(scratch, src, laneidx);
+      Sb(scratch, dst);
       break;
     case MSA_H:
-      copy_u_h(kScratchReg, src, laneidx);
-      Sh(kScratchReg, dst);
+      copy_u_h(scratch, src, laneidx);
+      Sh(scratch, dst);
       break;
     case MSA_W:
       if (laneidx == 0) {
         FPURegister src_reg = FPURegister::from_code(src.code());
         Swc1(src_reg, dst);
       } else {
-        copy_u_w(kScratchReg, src, laneidx);
-        Sw(kScratchReg, dst);
+        copy_u_w(scratch, src, laneidx);
+        Sw(scratch, dst);
       }
       break;
     case MSA_D:
@@ -2680,8 +2684,8 @@ void TurboAssembler::StoreLane(MSASize sz, MSARegister src, uint8_t laneidx,
         FPURegister src_reg = FPURegister::from_code(src.code());
         Sdc1(src_reg, dst);
       } else {
-        copy_s_d(kScratchReg, src, laneidx);
-        Sd(kScratchReg, dst);
+        copy_s_d(scratch, src, laneidx);
+        Sd(scratch, dst);
       }
       break;
     default:
