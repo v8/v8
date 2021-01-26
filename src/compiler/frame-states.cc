@@ -180,6 +180,7 @@ FrameState CreateJavaScriptBuiltinContinuationFrameState(
   // to be the second value in the translation when creating stack crawls
   // (e.g. Error.stack) of optimized JavaScript frames.
   std::vector<Node*> actual_parameters;
+  actual_parameters.reserve(stack_parameter_count);
   for (int i = 0; i < stack_parameter_count; ++i) {
     actual_parameters.push_back(stack_parameters[i]);
   }

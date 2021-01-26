@@ -1312,6 +1312,7 @@ base::Optional<ParseResult> MakeEnumDeclaration(
       name_type_expression->pos = name_identifier->pos;
 
       std::vector<Declaration*> entry_decls;
+      entry_decls.reserve(entries.size());
       for (const auto& entry : entries) {
         entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
             entry.name, AbstractTypeFlag::kNone,
