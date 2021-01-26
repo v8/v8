@@ -1677,7 +1677,22 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uintptr_t offset_imm, LiftoffRegister src,
                                  StoreType type, uint8_t lane,
                                  uint32_t* protected_store_pc) {
-  bailout(kSimd, "store lane");
+  UseScratchRegisterScope temps(this);
+  MemOperand dst_op =
+      liftoff::GetMemOpWithImmOffsetZero(this, &temps, dst, offset, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+
+  MachineRepresentation rep = type.mem_rep();
+  if (rep == MachineRepresentation::kWord8) {
+    st1(src.fp().B(), lane, dst_op);
+  } else if (rep == MachineRepresentation::kWord16) {
+    st1(src.fp().H(), lane, dst_op);
+  } else if (rep == MachineRepresentation::kWord32) {
+    st1(src.fp().S(), lane, dst_op);
+  } else {
+    DCHECK_EQ(MachineRepresentation::kWord64, rep);
+    st1(src.fp().D(), lane, dst_op);
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
