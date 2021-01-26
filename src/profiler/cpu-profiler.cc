@@ -85,15 +85,6 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   }
   logger->LogCompiledFunctions();
   logger->LogAccessorCallbacks();
-
-  // Trigger dead code to be cleared from the CodeMap on GC.
-  isolate_->heap()->AddGCEpilogueCallback(SweepCallback,
-                                          kGCTypeMarkSweepCompact, listener_);
-}
-
-void ProfilingScope::SweepCallback(v8::Isolate*, v8::GCType,
-                                   v8::GCCallbackFlags, void* listener) {
-  reinterpret_cast<ProfilerListener*>(listener)->CodeSweepEvent();
 }
 
 ProfilingScope::~ProfilingScope() {
@@ -104,7 +95,6 @@ ProfilingScope::~ProfilingScope() {
   profiler_count--;
   isolate_->set_num_cpu_profilers(profiler_count);
   if (profiler_count == 0) isolate_->set_is_profiling(false);
-  isolate_->heap()->RemoveGCEpilogueCallback(SweepCallback, listener_);
 }
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(
@@ -206,7 +196,6 @@ void ProfilerEventsProcessor::CodeEventHandler(
     case CodeEventRecord::CODE_CREATION:
     case CodeEventRecord::CODE_MOVE:
     case CodeEventRecord::CODE_DISABLE_OPT:
-    case CodeEventRecord::CODE_SWEEP:
       Enqueue(evt_rec);
       break;
     case CodeEventRecord::CODE_DEOPT: {

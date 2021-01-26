@@ -34,7 +34,6 @@ class Symbolizer;
   V(CODE_MOVE, CodeMoveEventRecord)              \
   V(CODE_DISABLE_OPT, CodeDisableOptEventRecord) \
   V(CODE_DEOPT, CodeDeoptEventRecord)            \
-  V(CODE_SWEEP, CodeSweepEventRecord)            \
   V(REPORT_BUILTIN, ReportBuiltinEventRecord)
 
 class CodeEventRecord {
@@ -89,10 +88,6 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
-class CodeSweepEventRecord : public CodeEventRecord {
- public:
-  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
-};
 
 class ReportBuiltinEventRecord : public CodeEventRecord {
  public:
@@ -140,9 +135,6 @@ class V8_NODISCARD ProfilingScope {
   ~ProfilingScope();
 
  private:
-  static void SweepCallback(v8::Isolate*, v8::GCType, v8::GCCallbackFlags,
-                            void* listener);
-
   Isolate* const isolate_;
   ProfilerListener* const listener_;
 };

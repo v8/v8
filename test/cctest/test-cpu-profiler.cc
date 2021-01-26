@@ -4075,38 +4075,6 @@ TEST(FastApiCPUProfiler) {
 #endif
 }
 
-// Ensure that unused code entries are removed after GC with eager logging.
-TEST(ClearUnusedWithEagerLogging) {
-  ManualGCScope manual_gc;
-  TestSetup test_setup;
-  LocalContext env;
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::HandleScope scope(isolate);
-
-  CpuProfiler profiler(isolate, kDebugNaming, kEagerLogging);
-
-  CodeMap* code_map = profiler.code_map_for_test();
-  size_t initial_size = code_map->size();
-
-  {
-    // Create and run a new script and function, generating 2 code objects.
-    i::HandleScope inner_scope(isolate);
-    CompileRun(
-        "function some_func() {}"
-        "some_func();");
-    CHECK_GT(code_map->size(), initial_size);
-  }
-
-  // Perform a few GCs, ensuring that the executed code's bytecode is flushed.
-  const int kAgingThreshold = 8;
-  for (int i = 0; i < kAgingThreshold; i++) {
-    CcTest::CollectAllGarbage();
-  }
-
-  // Verify that the CodeMap's size is unchanged post-GC.
-  CHECK_EQ(code_map->size(), initial_size);
-}
-
 }  // namespace test_cpu_profiler
 }  // namespace internal
 }  // namespace v8

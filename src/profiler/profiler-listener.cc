@@ -43,7 +43,6 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   rec->entry = new CodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr);
-  rec->entry->TrackHeapObject(isolate_, code);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -57,7 +56,6 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   rec->entry = new CodeEntry(tag, GetName(*name), CodeEntry::kEmptyResourceName,
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr);
-  rec->entry->TrackHeapObject(isolate_, code);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -75,7 +73,6 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr);
   DCHECK(!code->IsCode());
   rec->entry->FillFunctionInfo(*shared);
-  rec->entry->TrackHeapObject(isolate_, code);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -198,7 +195,6 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   }
 
   rec->entry->FillFunctionInfo(*shared);
-  rec->entry->TrackHeapObject(isolate_, abstract_code);
   rec->instruction_size = abstract_code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -300,11 +296,6 @@ void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
   // When a function is deoptimized, we store the deoptimized frame information
   // for the use of GetDeoptInfos().
   AttachDeoptInlinedFrames(code, rec);
-  DispatchCodeEvent(evt_rec);
-}
-
-void ProfilerListener::CodeSweepEvent() {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_SWEEP);
   DispatchCodeEvent(evt_rec);
 }
 

@@ -17,8 +17,6 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
-#include "src/execution/isolate.h"
-#include "src/handles/global-handles.h"
 #include "src/logging/code-events.h"
 #include "src/profiler/strings-storage.h"
 #include "src/utils/allocation.h"
@@ -104,8 +102,8 @@ class CodeEntry {
     rare_data_->deopt_reason_ = kNoDeoptReason;
     rare_data_->deopt_id_ = kNoDeoptimizationId;
   }
-  void mark_used() { used_ = true; }
-  bool used() const { return used_; }
+  void mark_used() { bit_field_ = UsedField::update(bit_field_, true); }
+  bool used() const { return UsedField::decode(bit_field_); }
 
   const char* code_type_string() const {
     switch (CodeTypeField::decode(bit_field_)) {
@@ -118,37 +116,7 @@ class CodeEntry {
     }
   }
 
-  bool is_tracking_heap_object() const {
-    return TrackingHeapObjectField::decode(bit_field_);
-  }
-
-  bool IsHeapObjectFreed() const {
-    return is_tracking_heap_object() && heap_object_handle_location_ == nullptr;
-  }
-
   void FillFunctionInfo(SharedFunctionInfo shared);
-
-  // Associates this CodeEntry with the given heap object, taking a weak
-  // reference to it. Must be called on the isolate thread.
-  template <typename T>
-  void TrackHeapObject(Isolate* isolate, Handle<T> object) {
-    DCHECK(!is_tracking_heap_object());
-    bit_field_ = TrackingHeapObjectField::update(bit_field_, true);
-    heap_object_handle_location_ =
-        isolate->global_handles()->Create(*object).location();
-    GlobalHandles::MakeWeak(&heap_object_handle_location_);
-  }
-
-  // Clears out any weak reference set by TrackHeapObject. Must be called on
-  // the isolate thread.
-  void UntrackHeapObject() {
-    if (is_tracking_heap_object()) {
-      bit_field_ = TrackingHeapObjectField::update(bit_field_, false);
-      if (heap_object_handle_location_) {
-        GlobalHandles::ClearWeakness(heap_object_handle_location_);
-      }
-    }
-  }
 
   void SetBuiltinId(Builtins::Name id);
   Builtins::Name builtin_id() const {
@@ -232,23 +200,20 @@ class CodeEntry {
   static_assert(Builtins::builtin_count <= BuiltinIdField::kNumValues,
                 "builtin_count exceeds size of bitfield");
   using CodeTypeField = base::BitField<CodeType, 28, 2>;
-  using TrackingHeapObjectField = base::BitField<bool, 30, 1>;
+  using UsedField = base::BitField<bool, 30, 1>;
   using SharedCrossOriginField = base::BitField<bool, 31, 1>;
 
-  std::uint32_t bit_field_;
+  // Atomic because Used is written from the profiler thread while CodeType is
+  // read from the main thread.
+  std::atomic<std::uint32_t> bit_field_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
   int column_number_;
   int script_id_;
   int position_;
-  // We use a full byte here instead of a bitfield to avoid raciness between
-  // the main thread and profiler thread.
-  // TODO(acomminos): Remove this after atomic reference counting is added.
-  std::uint8_t used_ = false;
   std::unique_ptr<SourcePositionTable> line_info_;
   std::unique_ptr<RareData> rare_data_;
-  Address* heap_object_handle_location_ = nullptr;
 };
 
 struct CodeEntryAndLineNumber {
@@ -443,12 +408,6 @@ class V8_EXPORT_PRIVATE CodeMap {
   void MoveCode(Address from, Address to);
   CodeEntry* FindEntry(Address addr, Address* out_instruction_start = nullptr);
   void Print();
-
-  // Frees all CodeMap entries that no longer have a heap object, and are not
-  // being included in any profiles.
-  size_t ClearUnused();
-
-  size_t size() const { return code_map_.size(); }
 
   void Clear();
 

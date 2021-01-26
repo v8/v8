@@ -62,7 +62,6 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
-  void CodeSweepEvent();
 
   const char* GetName(Name name) {
     return function_and_resource_names_.GetName(name);
