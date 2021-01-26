@@ -80,8 +80,20 @@ trigger_dict = {
 }
 
 GOMA = struct(
-    DEFAULT = {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"},
-    ATS = {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"},
+    DEFAULT = {
+        "server_host": "goma.chromium.org",
+        "rpc_extra_params": "?prod",
+    },
+    DEFAULT_LUCI_AUTH = {
+        "server_host": "goma.chromium.org",
+        "rpc_extra_params": "?prod",
+        "use_luci_auth": True,
+    },
+    ATS = {
+        "server_host": "goma.chromium.org",
+        "enable_ats": True,
+        "rpc_extra_params": "?prod",
+    },
     NO = {"use_goma": False},
     NONE = {},
 )
@@ -91,15 +103,15 @@ GOMA_JOBS = struct(
 )
 
 def _goma_properties(use_goma, goma_jobs):
-  if use_goma == GOMA.NONE or use_goma == GOMA.NO:
-    return use_goma
+    if use_goma == GOMA.NONE or use_goma == GOMA.NO:
+        return use_goma
 
-  properties = dict(use_goma)
+    properties = dict(use_goma)
 
-  if goma_jobs:
-    properties["jobs"] = goma_jobs
+    if goma_jobs:
+        properties["jobs"] = goma_jobs
 
-  return {"$build/goma": properties}
+    return {"$build/goma": properties}
 
 # These settings enable overwriting variables in V8's DEPS file.
 GCLIENT_VARS = struct(
@@ -111,13 +123,13 @@ GCLIENT_VARS = struct(
 )
 
 def _gclient_vars_properties(props):
-  gclient_vars = {}
-  for prop in props:
-    gclient_vars.update(prop)
-  if gclient_vars:
-    return {"gclient_vars": gclient_vars}
-  else:
-    return {}
+    gclient_vars = {}
+    for prop in props:
+        gclient_vars.update(prop)
+    if gclient_vars:
+        return {"gclient_vars": gclient_vars}
+    else:
+        return {}
 
 multibot_caches = [
     swarming.cache(
@@ -164,7 +176,9 @@ def v8_basic_builder(defaults, **kwargs):
         )
     properties = dict(kwargs.pop("properties", {}))
     properties.update(_goma_properties(
-        kwargs.pop("use_goma", GOMA.NONE), kwargs.pop("goma_jobs", None)))
+        kwargs.pop("use_goma", GOMA.NONE),
+        kwargs.pop("goma_jobs", None),
+    ))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
     kwargs["properties"] = properties
 
