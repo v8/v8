@@ -119,7 +119,7 @@ class CompileImportWrapperJob final : public JobTask {
 
 // TODO(jkummerow): Move these elsewhere.
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index, Handle<Map> opt_rtt_parent) {
+                            int struct_index, Handle<Map> rtt_parent) {
   const wasm::StructType* type = module->struct_type(struct_index);
   const int inobject_properties = 0;
   DCHECK_LE(type->total_fields_size(), kMaxInt - WasmStruct::kHeaderSize);
@@ -129,7 +129,7 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), opt_rtt_parent);
+      reinterpret_cast<Address>(type), rtt_parent);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -137,14 +137,28 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
 }
 
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index, Handle<Map> opt_rtt_parent) {
+                           int array_index, Handle<Map> rtt_parent) {
   const wasm::ArrayType* type = module->array_type(array_index);
   const int inobject_properties = 0;
   const int instance_size = kVariableSizeSentinel;
   const InstanceType instance_type = WASM_ARRAY_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), opt_rtt_parent);
+      reinterpret_cast<Address>(type), rtt_parent);
+  Handle<Map> map = isolate->factory()->NewMap(
+      instance_type, instance_size, elements_kind, inobject_properties);
+  map->set_wasm_type_info(*type_info);
+  return map;
+}
+
+Handle<Map> CreateGenericRtt(Isolate* isolate, const WasmModule* module,
+                             Handle<Map> rtt_parent) {
+  const int inobject_properties = 0;
+  const int instance_size = 0;
+  const InstanceType instance_type = WASM_STRUCT_TYPE;  // Fake; good enough.
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  Handle<WasmTypeInfo> type_info =
+      isolate->factory()->NewWasmTypeInfo(0, rtt_parent);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -193,7 +207,9 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
   // Allocate a fresh RTT otherwise.
   const wasm::WasmModule* module = instance->module();
   Handle<Map> rtt;
-  if (module->has_struct(type)) {
+  if (wasm::HeapType(type).is_generic()) {
+    rtt = wasm::CreateGenericRtt(isolate, module, parent);
+  } else if (module->has_struct(type)) {
     rtt = wasm::CreateStructMap(isolate, module, type, parent);
   } else if (module->has_array(type)) {
     rtt = wasm::CreateArrayMap(isolate, module, type, parent);
@@ -612,16 +628,18 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (enabled_.has_gc()) {
     Handle<FixedArray> maps = isolate_->factory()->NewUninitializedFixedArray(
         static_cast<int>(module_->type_kinds.size()));
+    Handle<Map> anyref_map =
+        Handle<Map>::cast(isolate_->root_handle(RootIndex::kWasmRttAnyrefMap));
     for (int map_index = 0;
          map_index < static_cast<int>(module_->type_kinds.size());
          map_index++) {
       Handle<Map> map;
       switch (module_->type_kinds[map_index]) {
         case kWasmStructTypeCode:
-          map = CreateStructMap(isolate_, module_, map_index, Handle<Map>());
+          map = CreateStructMap(isolate_, module_, map_index, anyref_map);
           break;
         case kWasmArrayTypeCode:
-          map = CreateArrayMap(isolate_, module_, map_index, Handle<Map>());
+          map = CreateArrayMap(isolate_, module_, map_index, anyref_map);
           break;
         case kWasmFunctionTypeCode:
           // TODO(7748): Think about canonicalizing rtts to make them work for
@@ -1535,11 +1553,26 @@ Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
       return handle(tagged_globals_->get(old_offset), isolate_);
     }
     case WasmInitExpr::kRttCanon: {
-      int map_index = init.immediate().index;
+      switch (init.immediate().heap_type) {
+        case wasm::HeapType::kEq:
+          return isolate_->root_handle(RootIndex::kWasmRttEqrefMap);
+        case wasm::HeapType::kExtern:
+          return isolate_->root_handle(RootIndex::kWasmRttExternrefMap);
+        case wasm::HeapType::kFunc:
+          return isolate_->root_handle(RootIndex::kWasmRttFuncrefMap);
+        case wasm::HeapType::kI31:
+          return isolate_->root_handle(RootIndex::kWasmRttI31refMap);
+        case wasm::HeapType::kAny:
+          return isolate_->root_handle(RootIndex::kWasmRttAnyrefMap);
+        case wasm::HeapType::kBottom:
+          UNREACHABLE();
+      }
+      // Non-generic types fall through.
+      int map_index = init.immediate().heap_type;
       return handle(instance->managed_object_maps().get(map_index), isolate_);
     }
     case WasmInitExpr::kRttSub: {
-      uint32_t type = init.immediate().index;
+      uint32_t type = static_cast<uint32_t>(init.immediate().heap_type);
       Handle<Object> parent =
           RecursivelyEvaluateGlobalInitializer(*init.operand(), instance);
       return AllocateSubRtt(isolate_, instance, type,

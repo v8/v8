@@ -5719,17 +5719,42 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
   return a;
 }
 
-Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
-  Node* maps_list =
-      LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
-  return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, type_index);
+Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
+  RootIndex index;
+  switch (type.representation()) {
+    case wasm::HeapType::kEq:
+      index = RootIndex::kWasmRttEqrefMap;
+      break;
+    case wasm::HeapType::kExtern:
+      index = RootIndex::kWasmRttExternrefMap;
+      break;
+    case wasm::HeapType::kFunc:
+      index = RootIndex::kWasmRttFuncrefMap;
+      break;
+    case wasm::HeapType::kI31:
+      index = RootIndex::kWasmRttI31refMap;
+      break;
+    case wasm::HeapType::kAny:
+      index = RootIndex::kWasmRttAnyrefMap;
+      break;
+    case wasm::HeapType::kBottom:
+      UNREACHABLE();
+    default: {
+      // User-defined type.
+      Node* maps_list =
+          LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
+      return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, type.ref_index());
+    }
+  }
+  return LOAD_FULL_POINTER(BuildLoadIsolateRoot(),
+                           IsolateData::root_slot_offset(index));
 }
 
-Node* WasmGraphBuilder::RttSub(uint32_t type_index, Node* parent_rtt) {
-  return CALL_BUILTIN(
-      WasmAllocateRtt,
-      graph()->NewNode(mcgraph()->common()->Int32Constant(type_index)),
-      parent_rtt);
+Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
+  return CALL_BUILTIN(WasmAllocateRtt,
+                      graph()->NewNode(mcgraph()->common()->Int32Constant(
+                          type.representation())),
+                      parent_rtt);
 }
 
 void AssertFalse(MachineGraph* mcgraph, GraphAssembler* gasm, Node* condition) {
@@ -5748,6 +5773,9 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
                                 ObjectReferenceKnowledge config) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
   if (config.object_can_be_i31) {
+    if (config.rtt_is_i31) {
+      return gasm_->IsI31(object);
+    }
     gasm_->GotoIf(gasm_->IsI31(object), &done, gasm_->Int32Constant(0));
   } else {
     AssertFalse(mcgraph(), gasm_.get(), gasm_->IsI31(object));
@@ -5782,7 +5810,12 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 ObjectReferenceKnowledge config,
                                 wasm::WasmCodePosition position) {
   if (config.object_can_be_i31) {
-    TrapIfTrue(wasm::kTrapIllegalCast, gasm_->IsI31(object), position);
+    if (config.rtt_is_i31) {
+      TrapIfFalse(wasm::kTrapIllegalCast, gasm_->IsI31(object), position);
+      return object;
+    } else {
+      TrapIfTrue(wasm::kTrapIllegalCast, gasm_->IsI31(object), position);
+    }
   } else {
     AssertFalse(mcgraph(), gasm_.get(), gasm_->IsI31(object));
   }
@@ -5828,12 +5861,17 @@ Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
 
   Node* is_i31 = gasm_->IsI31(object);
   if (config.object_can_be_i31) {
-    Node* i31_branch = graph()->NewNode(
-        mcgraph()->common()->Branch(BranchHint::kFalse), is_i31, control());
-    SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), i31_branch));
-    no_match_controls.emplace_back(
-        graph()->NewNode(mcgraph()->common()->IfTrue(), i31_branch));
-    no_match_effects.emplace_back(effect());
+    if (config.rtt_is_i31) {
+      BranchExpectFalse(is_i31, match_control, no_match_control);
+      return nullptr;
+    } else {
+      Node* i31_branch = graph()->NewNode(
+          mcgraph()->common()->Branch(BranchHint::kFalse), is_i31, control());
+      SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), i31_branch));
+      no_match_controls.emplace_back(
+          graph()->NewNode(mcgraph()->common()->IfTrue(), i31_branch));
+      no_match_effects.emplace_back(effect());
+    }
   } else {
     AssertFalse(mcgraph(), gasm_.get(), is_i31);
   }

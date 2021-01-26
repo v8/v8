@@ -971,13 +971,14 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(I31GetU, input.node);
   }
 
-  void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {
-    result->node = BUILD(RttCanon, type_index);
+  void RttCanon(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
+                Value* result) {
+    result->node = BUILD(RttCanon, imm.type);
   }
 
-  void RttSub(FullDecoder* decoder, uint32_t type_index, const Value& parent,
-              Value* result) {
-    result->node = BUILD(RttSub, type_index, parent.node);
+  void RttSub(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
+              const Value& parent, Value* result) {
+    result->node = BUILD(RttSub, imm.type, parent.node);
   }
 
   using StaticKnowledge = compiler::WasmGraphBuilder::ObjectReferenceKnowledge;
@@ -990,6 +991,7 @@ class WasmGraphBuildingInterface {
     DCHECK(object_type.is_object_reference_type());  // Checked by validation.
     result.object_must_be_data_ref = is_data_ref_type(object_type, module);
     result.object_can_be_i31 = IsSubtypeOf(kWasmI31Ref, object_type, module);
+    result.rtt_is_i31 = rtt_type.heap_representation() == HeapType::kI31;
     result.rtt_depth = rtt_type.depth();
     return result;
   }

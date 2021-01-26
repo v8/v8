@@ -194,12 +194,16 @@ class ValueType {
     return Ref(heap_type.representation(), nullability);
   }
 
-  static constexpr ValueType Rtt(uint32_t type_index,
+  static constexpr ValueType Rtt(uint32_t heap_type,
                                  uint8_t inheritance_depth) {
-    CONSTEXPR_DCHECK(HeapType(type_index).is_index());
+    CONSTEXPR_DCHECK(HeapType(heap_type).is_valid());
     return ValueType(KindField::encode(kRtt) |
-                     HeapTypeField::encode(type_index) |
+                     HeapTypeField::encode(heap_type) |
                      DepthField::encode(inheritance_depth));
+  }
+  static constexpr ValueType Rtt(HeapType heap_type,
+                                 uint8_t inheritance_depth) {
+    return Rtt(heap_type.representation(), inheritance_depth);
   }
 
   // Useful when deserializing a type stored in a runtime object.
@@ -227,7 +231,7 @@ class ValueType {
   constexpr bool has_depth() const { return is_rtt(); }
 
   constexpr bool has_index() const {
-    return is_rtt() || (is_object_reference_type() && heap_type().is_index());
+    return is_reference_type() && heap_type().is_index();
   }
 
   constexpr bool is_defaultable() const {
@@ -246,12 +250,11 @@ class ValueType {
   /***************************** Field Accessors ******************************/
   constexpr Kind kind() const { return KindField::decode(bit_field_); }
   constexpr HeapType::Representation heap_representation() const {
-    CONSTEXPR_DCHECK(is_object_reference_type());
+    CONSTEXPR_DCHECK(is_reference_type());
     return static_cast<HeapType::Representation>(
         HeapTypeField::decode(bit_field_));
   }
   constexpr HeapType heap_type() const {
-    CONSTEXPR_DCHECK(is_object_reference_type());
     return HeapType(heap_representation());
   }
   constexpr uint8_t depth() const {
@@ -260,7 +263,7 @@ class ValueType {
   }
   constexpr uint32_t ref_index() const {
     CONSTEXPR_DCHECK(has_index());
-    return HeapTypeField::decode(bit_field_);
+    return heap_type().ref_index();
   }
 
   // Useful when serializing this type to store it into a runtime object.
@@ -426,8 +429,8 @@ class ValueType {
         }
         break;
       case kRtt:
-        buf << "(rtt " << static_cast<uint32_t>(depth()) << " " << ref_index()
-            << ")";
+        buf << "(rtt " << static_cast<uint32_t>(depth()) << " "
+            << heap_type().name() << ")";
         break;
       default:
         buf << kind_name();

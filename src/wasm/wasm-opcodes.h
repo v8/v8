@@ -864,17 +864,18 @@ class WasmInitExpr {
     return expr;
   }
 
-  static WasmInitExpr RttCanon(uint32_t index) {
+  static WasmInitExpr RttCanon(HeapType::Representation heap_type) {
     WasmInitExpr expr;
     expr.kind_ = kRttCanon;
-    expr.immediate_.index = index;
+    expr.immediate_.heap_type = heap_type;
     return expr;
   }
 
-  static WasmInitExpr RttSub(uint32_t index, WasmInitExpr supertype) {
+  static WasmInitExpr RttSub(HeapType::Representation heap_type,
+                             WasmInitExpr supertype) {
     WasmInitExpr expr;
     expr.kind_ = kRttSub;
-    expr.immediate_.index = index;
+    expr.immediate_.heap_type = heap_type;
     expr.operand_ = std::make_unique<WasmInitExpr>(std::move(supertype));
     return expr;
   }
@@ -890,7 +891,6 @@ class WasmInitExpr {
         return true;
       case kGlobalGet:
       case kRefFuncConst:
-      case kRttCanon:
         return immediate().index == other.immediate().index;
       case kI32Const:
         return immediate().i32_const == other.immediate().i32_const;
@@ -903,9 +903,10 @@ class WasmInitExpr {
       case kS128Const:
         return immediate().s128_const == other.immediate().s128_const;
       case kRefNullConst:
+      case kRttCanon:
         return immediate().heap_type == other.immediate().heap_type;
       case kRttSub:
-        return immediate().index == other.immediate().index &&
+        return immediate().heap_type == other.immediate().heap_type &&
                *operand() == *other.operand();
     }
   }

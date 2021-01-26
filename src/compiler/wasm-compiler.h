@@ -166,6 +166,7 @@ class WasmGraphBuilder {
     bool object_can_be_null;
     bool object_must_be_data_ref;
     bool object_can_be_i31;
+    bool rtt_is_i31;
     uint8_t rtt_depth;
   };
   enum EnforceBoundsCheck : bool {  // --
@@ -433,8 +434,8 @@ class WasmGraphBuilder {
   Node* I31New(Node* input);
   Node* I31GetS(Node* input);
   Node* I31GetU(Node* input);
-  Node* RttCanon(uint32_t type_index);
-  Node* RttSub(uint32_t type_index, Node* parent_rtt);
+  Node* RttCanon(wasm::HeapType type);
+  Node* RttSub(wasm::HeapType type, Node* parent_rtt);
   Node* RefTest(Node* object, Node* rtt, ObjectReferenceKnowledge config);
   Node* RefCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                 wasm::WasmCodePosition position);

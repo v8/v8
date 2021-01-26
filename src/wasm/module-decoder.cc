@@ -1369,7 +1369,8 @@ class ModuleDecoderImpl : public Decoder {
       case WasmInitExpr::kRefNullConst:
         return ValueType::Ref(expr.immediate().heap_type, kNullable);
       case WasmInitExpr::kRttCanon: {
-        return ValueType::Rtt(expr.immediate().heap_type, 0);
+        uint8_t depth = expr.immediate().heap_type == HeapType::kAny ? 0 : 1;
+        return ValueType::Rtt(expr.immediate().heap_type, depth);
       }
       case WasmInitExpr::kRttSub: {
         ValueType operand_type = TypeOf(*expr.operand());
@@ -1767,21 +1768,18 @@ class ModuleDecoderImpl : public Decoder {
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           switch (opcode) {
             case kExprRttCanon: {
-              TypeIndexImmediate<validate> imm(this, pc() + 2);
-              if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
-                errorf(pc() + 2, "type index %u is out of bounds", imm.index);
-                return {};
-              }
+              HeapTypeImmediate<validate> imm(enabled_features_, this, pc() + 2,
+                                              module_.get());
+              if (V8_UNLIKELY(failed())) return {};
               len += imm.length;
-              stack.push_back(WasmInitExpr::RttCanon(imm.index));
+              stack.push_back(
+                  WasmInitExpr::RttCanon(imm.type.representation()));
               break;
             }
             case kExprRttSub: {
-              TypeIndexImmediate<validate> imm(this, pc() + 2);
-              if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
-                errorf(pc() + 2, "type index %u is out of bounds", imm.index);
-                return {};
-              }
+              HeapTypeImmediate<validate> imm(enabled_features_, this, pc() + 2,
+                                              module_.get());
+              if (V8_UNLIKELY(failed())) return {};
               len += imm.length;
               if (stack.empty()) {
                 error(pc(), "calling rtt.sub without arguments");
@@ -1790,15 +1788,17 @@ class ModuleDecoderImpl : public Decoder {
               WasmInitExpr parent = std::move(stack.back());
               stack.pop_back();
               ValueType parent_type = TypeOf(parent);
-              if (V8_UNLIKELY(!parent_type.is_rtt() ||
-                              !IsHeapSubtypeOf(imm.index,
-                                               parent_type.ref_index(),
-                                               module_.get()))) {
+              if (V8_UNLIKELY(
+                      parent_type.kind() != ValueType::kRtt ||
+                      !IsSubtypeOf(
+                          ValueType::Ref(imm.type, kNonNullable),
+                          ValueType::Ref(parent_type.heap_type(), kNonNullable),
+                          module_.get()))) {
                 error(pc(), "rtt.sub requires a supertype rtt on stack");
                 return {};
               }
-              stack.push_back(
-                  WasmInitExpr::RttSub(imm.index, std::move(parent)));
+              stack.push_back(WasmInitExpr::RttSub(imm.type.representation(),
+                                                   std::move(parent)));
               break;
             }
             default: {

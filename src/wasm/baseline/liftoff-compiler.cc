@@ -4359,20 +4359,50 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, dst);
   }
 
-  void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {
+  void RttCanon(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
+                Value* result) {
     LiftoffRegister rtt = __ GetUnusedRegister(kGpReg, {});
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(rtt.gp(), ManagedObjectMaps);
-    __ LoadTaggedPointer(
-        rtt.gp(), rtt.gp(), no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index), {});
-    __ PushRegister(ValueType::Rtt(type_index, 1), rtt);
+    RootIndex index;
+    switch (imm.type.representation()) {
+      case wasm::HeapType::kEq:
+        index = RootIndex::kWasmRttEqrefMap;
+        break;
+      case wasm::HeapType::kExtern:
+        index = RootIndex::kWasmRttExternrefMap;
+        break;
+      case wasm::HeapType::kFunc:
+        index = RootIndex::kWasmRttFuncrefMap;
+        break;
+      case wasm::HeapType::kI31:
+        index = RootIndex::kWasmRttI31refMap;
+        break;
+      case wasm::HeapType::kAny:
+        index = RootIndex::kWasmRttAnyrefMap;
+        break;
+      case wasm::HeapType::kBottom:
+        UNREACHABLE();
+      default:
+        // User-defined type.
+        LOAD_TAGGED_PTR_INSTANCE_FIELD(rtt.gp(), ManagedObjectMaps);
+        __ LoadTaggedPointer(
+            rtt.gp(), rtt.gp(), no_reg,
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                imm.type.ref_index()),
+            {});
+        __ PushRegister(ValueType::Rtt(imm.type, 1), rtt);
+        return;
+    }
+    LOAD_INSTANCE_FIELD(rtt.gp(), IsolateRoot, kSystemPointerSize);
+    __ LoadTaggedPointer(rtt.gp(), rtt.gp(), no_reg,
+                         IsolateData::root_slot_offset(index), {});
+    __ PushRegister(ValueType::Rtt(imm.type, 1), rtt);
   }
 
-  void RttSub(FullDecoder* decoder, uint32_t type_index, const Value& parent,
-              Value* result) {
+  void RttSub(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
+              const Value& parent, Value* result) {
     ValueType parent_value_type = parent.type;
     ValueType rtt_value_type =
-        ValueType::Rtt(type_index, parent_value_type.depth() + 1);
+        ValueType::Rtt(imm.type, parent_value_type.depth() + 1);
     WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateRtt;
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmAllocateRttDescriptor>(compilation_zone_);
@@ -4381,7 +4411,7 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState parent_var =
         __ cache_state()->stack_state.end()[-1];
     LiftoffRegister type_reg = __ GetUnusedRegister(kGpReg, {});
-    __ LoadConstant(type_reg, WasmValue(type_index));
+    __ LoadConstant(type_reg, WasmValue(imm.type.representation()));
     LiftoffAssembler::VarState type_var(kWasmI32, type_reg, 0);
     __ PrepareBuiltinCall(&sig, call_descriptor, {type_var, parent_var});
     __ CallRuntimeStub(target);
@@ -4402,57 +4432,66 @@ class LiftoffCompiler {
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
 
     bool obj_can_be_i31 = IsSubtypeOf(kWasmI31Ref, obj.type, decoder->module_);
-    // Reserve all temporary registers up front, so that the cache state
-    // tracking doesn't get confused by the following conditional jumps.
-    LiftoffRegister tmp1 =
-        opt_scratch != no_reg
-            ? LiftoffRegister(opt_scratch)
-            : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    if (obj_can_be_i31) {
-      __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
+    bool rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31;
+    bool i31_check_only = obj_can_be_i31 && rtt_is_i31;
+    if (i31_check_only) {
+      __ emit_smi_check(obj_reg.gp(), no_match,
+                        LiftoffAssembler::kJumpOnNotSmi);
+      // Emit no further code, just fall through to {match}.
+    } else {
+      // Reserve all temporary registers up front, so that the cache state
+      // tracking doesn't get confused by the following conditional jumps.
+      LiftoffRegister tmp1 =
+          opt_scratch != no_reg
+              ? LiftoffRegister(opt_scratch)
+              : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LiftoffRegister tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      if (obj_can_be_i31) {
+        DCHECK(!rtt_is_i31);
+        __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
+      }
+      if (obj.type.is_nullable()) {
+        LoadNullValue(tmp1.gp(), pinned);
+        __ emit_cond_jump(kEqual, no_match, obj.type, obj_reg.gp(), tmp1.gp());
+      }
+
+      // At this point, the object is neither null nor an i31ref. Perform
+      // a regular type check. Check for exact match first.
+      __ LoadMap(tmp1.gp(), obj_reg.gp());
+      // {tmp1} now holds the object's map.
+      __ emit_cond_jump(kEqual, &match, rtt.type, tmp1.gp(), rtt_reg.gp());
+
+      // If the object isn't guaranteed to be an array or struct, check that.
+      // Subsequent code wouldn't handle e.g. funcrefs.
+      if (!is_data_ref_type(obj.type, decoder->module_)) {
+        EmitDataRefCheck(tmp1.gp(), no_match, tmp2, pinned);
+      }
+
+      // Constant-time subtyping check: load exactly one candidate RTT from the
+      // supertypes list.
+      // Step 1: load the WasmTypeInfo into {tmp1}.
+      constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
+          Map::kConstructorOrBackPointerOrNativeContextOffset);
+      __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kTypeInfoOffset,
+                           pinned);
+      // Step 2: load the super types list into {tmp1}.
+      constexpr int kSuperTypesOffset =
+          wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset);
+      __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kSuperTypesOffset,
+                           pinned);
+      // Step 3: check the list's length.
+      LiftoffRegister list_length = tmp2;
+      __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
+      __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
+                             rtt.type.depth());
+      // Step 4: load the candidate list slot into {tmp1}, and compare it.
+      __ LoadTaggedPointer(
+          tmp1.gp(), tmp1.gp(), no_reg,
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(rtt.type.depth()),
+          pinned);
+      __ emit_cond_jump(kUnequal, no_match, rtt.type, tmp1.gp(), rtt_reg.gp());
+      // Fall through to {match}.
     }
-    if (obj.type.is_nullable()) {
-      LoadNullValue(tmp1.gp(), pinned);
-      __ emit_cond_jump(kEqual, no_match, obj.type, obj_reg.gp(), tmp1.gp());
-    }
-
-    // At this point, the object is neither null nor an i31ref. Perform
-    // a regular type check. Check for exact match first.
-    __ LoadMap(tmp1.gp(), obj_reg.gp());
-    // {tmp1} now holds the object's map.
-    __ emit_cond_jump(kEqual, &match, rtt.type, tmp1.gp(), rtt_reg.gp());
-
-    // If the object isn't guaranteed to be an array or struct, check that.
-    // Subsequent code wouldn't handle e.g. funcrefs.
-    if (!is_data_ref_type(obj.type, decoder->module_)) {
-      EmitDataRefCheck(tmp1.gp(), no_match, tmp2, pinned);
-    }
-
-    // Constant-time subtyping check: load exactly one candidate RTT from the
-    // supertypes list.
-    // Step 1: load the WasmTypeInfo into {tmp1}.
-    constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
-        Map::kConstructorOrBackPointerOrNativeContextOffset);
-    __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kTypeInfoOffset, pinned);
-    // Step 2: load the super types list into {tmp1}.
-    constexpr int kSuperTypesOffset =
-        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset);
-    __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kSuperTypesOffset,
-                         pinned);
-    // Step 3: check the list's length.
-    LiftoffRegister list_length = tmp2;
-    __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
-    __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
-                           rtt.type.depth());
-    // Step 4: load the candidate list slot into {tmp1}, and compare it.
-    __ LoadTaggedPointer(
-        tmp1.gp(), tmp1.gp(), no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(rtt.type.depth()),
-        pinned);
-    __ emit_cond_jump(kUnequal, no_match, rtt.type, tmp1.gp(), rtt_reg.gp());
-    // Fall through to {match}.
-
     __ bind(&match);
     return obj_reg;
   }
@@ -4480,7 +4519,7 @@ class LiftoffCompiler {
     Label* trap_label = AddOutOfLineTrap(decoder->position(),
                                          WasmCode::kThrowWasmTrapIllegalCast);
     LiftoffRegister obj_reg = SubtypeCheck(decoder, obj, rtt, trap_label);
-    __ PushRegister(ValueType::Ref(rtt.type.ref_index(), kNonNullable),
+    __ PushRegister(ValueType::Ref(rtt.type.heap_type(), kNonNullable),
                     obj_reg);
   }
 
@@ -4498,7 +4537,7 @@ class LiftoffCompiler {
 
     __ PushRegister(rtt.type.is_bottom()
                         ? kWasmBottom
-                        : ValueType::Ref(rtt.type.ref_index(), kNonNullable),
+                        : ValueType::Ref(rtt.type.heap_type(), kNonNullable),
                     obj_reg);
     BrOrRet(decoder, depth);
 

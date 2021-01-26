@@ -106,6 +106,7 @@ extern class AsmWasmData extends Struct {
 
 @generateCppClass
 extern class WasmTypeInfo extends Foreign {
+  parent: Map;
   supertypes: FixedArray;
   subtypes: ArrayList;
 }

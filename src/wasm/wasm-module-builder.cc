@@ -414,12 +414,11 @@ void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 namespace {
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
-  if (type.is_object_reference_type() && type.encoding_needs_heap_type()) {
-    buffer->write_i32v(type.heap_type().code());
-  }
-  if (type.is_rtt()) {
+  if (type.has_depth()) {
     buffer->write_u32v(type.depth());
-    buffer->write_u32v(type.ref_index());
+  }
+  if (type.encoding_needs_heap_type()) {
+    buffer->write_i32v(type.heap_type().code());
   }
 }
 
@@ -498,7 +497,7 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
       STATIC_ASSERT((kExprRttCanon >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprRttCanon));
-      buffer->write_i32v(static_cast<int32_t>(init.immediate().index));
+      buffer->write_i32v(HeapType(init.immediate().heap_type).code());
       break;
     case WasmInitExpr::kRttSub:
       // The operand to rtt.sub must be emitted first.
@@ -508,7 +507,7 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprRttSub));
-      buffer->write_i32v(static_cast<int32_t>(init.immediate().index));
+      buffer->write_i32v(HeapType(init.immediate().heap_type).code());
       break;
   }
 }
