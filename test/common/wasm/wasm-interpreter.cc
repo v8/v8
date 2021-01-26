@@ -451,19 +451,6 @@ int_type ExecuteConvert(float_type a, TrapReason* trap) {
   return 0;
 }
 
-template <typename int_type, typename float_type>
-int_type ExecuteConvertSaturate(float_type a) {
-  TrapReason base_trap = kTrapCount;
-  int32_t val = ExecuteConvert<int_type>(a, &base_trap);
-  if (base_trap == kTrapCount) {
-    return val;
-  }
-  return std::isnan(a) ? 0
-                       : (a < static_cast<float_type>(0.0)
-                              ? std::numeric_limits<int_type>::min()
-                              : std::numeric_limits<int_type>::max());
-}
-
 template <typename dst_type, typename src_type, void (*fn)(Address)>
 dst_type CallExternalIntToFloatFunction(src_type input) {
   uint8_t data[std::max(sizeof(dst_type), sizeof(src_type))];
@@ -491,31 +478,9 @@ int64_t ExecuteI64SConvertF32(float a, TrapReason* trap) {
                                         float32_to_int64_wrapper>(a, trap);
 }
 
-int64_t ExecuteI64SConvertSatF32(float a) {
-  TrapReason base_trap = kTrapCount;
-  int64_t val = ExecuteI64SConvertF32(a, &base_trap);
-  if (base_trap == kTrapCount) {
-    return val;
-  }
-  return std::isnan(a) ? 0
-                       : (a < 0.0 ? std::numeric_limits<int64_t>::min()
-                                  : std::numeric_limits<int64_t>::max());
-}
-
 int64_t ExecuteI64SConvertF64(double a, TrapReason* trap) {
   return CallExternalFloatToIntFunction<int64_t, double,
                                         float64_to_int64_wrapper>(a, trap);
-}
-
-int64_t ExecuteI64SConvertSatF64(double a) {
-  TrapReason base_trap = kTrapCount;
-  int64_t val = ExecuteI64SConvertF64(a, &base_trap);
-  if (base_trap == kTrapCount) {
-    return val;
-  }
-  return std::isnan(a) ? 0
-                       : (a < 0.0 ? std::numeric_limits<int64_t>::min()
-                                  : std::numeric_limits<int64_t>::max());
 }
 
 uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
@@ -523,31 +488,9 @@ uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
                                         float32_to_uint64_wrapper>(a, trap);
 }
 
-uint64_t ExecuteI64UConvertSatF32(float a) {
-  TrapReason base_trap = kTrapCount;
-  uint64_t val = ExecuteI64UConvertF32(a, &base_trap);
-  if (base_trap == kTrapCount) {
-    return val;
-  }
-  return std::isnan(a) ? 0
-                       : (a < 0.0 ? std::numeric_limits<uint64_t>::min()
-                                  : std::numeric_limits<uint64_t>::max());
-}
-
 uint64_t ExecuteI64UConvertF64(double a, TrapReason* trap) {
   return CallExternalFloatToIntFunction<uint64_t, double,
                                         float64_to_uint64_wrapper>(a, trap);
-}
-
-uint64_t ExecuteI64UConvertSatF64(double a) {
-  TrapReason base_trap = kTrapCount;
-  int64_t val = ExecuteI64UConvertF64(a, &base_trap);
-  if (base_trap == kTrapCount) {
-    return val;
-  }
-  return std::isnan(a) ? 0
-                       : (a < 0.0 ? std::numeric_limits<uint64_t>::min()
-                                  : std::numeric_limits<uint64_t>::max());
 }
 
 int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
@@ -1634,28 +1577,28 @@ class WasmInterpreterInternals {
                         InterpreterCode* code, pc_t pc, int* const len) {
     switch (opcode) {
       case kExprI32SConvertSatF32:
-        Push(WasmValue(ExecuteConvertSaturate<int32_t>(Pop().to<float>())));
+        Push(WasmValue(base::saturated_cast<int32_t>(Pop().to<float>())));
         return true;
       case kExprI32UConvertSatF32:
-        Push(WasmValue(ExecuteConvertSaturate<uint32_t>(Pop().to<float>())));
+        Push(WasmValue(base::saturated_cast<uint32_t>(Pop().to<float>())));
         return true;
       case kExprI32SConvertSatF64:
-        Push(WasmValue(ExecuteConvertSaturate<int32_t>(Pop().to<double>())));
+        Push(WasmValue(base::saturated_cast<int32_t>(Pop().to<double>())));
         return true;
       case kExprI32UConvertSatF64:
-        Push(WasmValue(ExecuteConvertSaturate<uint32_t>(Pop().to<double>())));
+        Push(WasmValue(base::saturated_cast<uint32_t>(Pop().to<double>())));
         return true;
       case kExprI64SConvertSatF32:
-        Push(WasmValue(ExecuteI64SConvertSatF32(Pop().to<float>())));
+        Push(WasmValue(base::saturated_cast<int64_t>(Pop().to<float>())));
         return true;
       case kExprI64UConvertSatF32:
-        Push(WasmValue(ExecuteI64UConvertSatF32(Pop().to<float>())));
+        Push(WasmValue(base::saturated_cast<uint64_t>(Pop().to<float>())));
         return true;
       case kExprI64SConvertSatF64:
-        Push(WasmValue(ExecuteI64SConvertSatF64(Pop().to<double>())));
+        Push(WasmValue(base::saturated_cast<int64_t>(Pop().to<double>())));
         return true;
       case kExprI64UConvertSatF64:
-        Push(WasmValue(ExecuteI64UConvertSatF64(Pop().to<double>())));
+        Push(WasmValue(base::saturated_cast<uint64_t>(Pop().to<double>())));
         return true;
       case kExprMemoryInit: {
         MemoryInitImmediate<Decoder::kNoValidation> imm(decoder,
