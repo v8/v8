@@ -375,9 +375,9 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
       concurrent_marking_->Run(delegate, bytecode_flush_mode_,
                                mark_compact_epoch_, is_forced_gc_);
     } else {
-      TRACE_GC1(concurrent_marking_->heap_->tracer(),
-                GCTracer::Scope::MC_BACKGROUND_MARKING,
-                ThreadKind::kBackground);
+      TRACE_GC_EPOCH(concurrent_marking_->heap_->tracer(),
+                     GCTracer::Scope::MC_BACKGROUND_MARKING,
+                     ThreadKind::kBackground);
       concurrent_marking_->Run(delegate, bytecode_flush_mode_,
                                mark_compact_epoch_, is_forced_gc_);
     }
