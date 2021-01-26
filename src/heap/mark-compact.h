@@ -238,8 +238,6 @@ class MarkCompactCollectorBase {
   int NumberOfParallelCompactionTasks();
 
   Heap* heap_;
-  // Number of old to new slots. Should be computed during MarkLiveObjects.
-  base::Optional<size_t> old_to_new_slots_;
 };
 
 class MinorMarkingState final

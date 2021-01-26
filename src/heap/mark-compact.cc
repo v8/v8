@@ -3503,12 +3503,10 @@ class PointersUpdatingJob : public v8::JobTask {
   explicit PointersUpdatingJob(
       Isolate* isolate,
       std::vector<std::unique_ptr<UpdatingItem>> updating_items,
-      base::Optional<size_t> slots, GCTracer::Scope::ScopeId scope,
-      GCTracer::Scope::ScopeId background_scope)
+      GCTracer::Scope::ScopeId scope, GCTracer::Scope::ScopeId background_scope)
       : updating_items_(std::move(updating_items)),
         remaining_updating_items_(updating_items_.size()),
         generator_(updating_items_.size()),
-        slots_(slots),
         tracer_(isolate->heap()->tracer()),
         scope_(scope),
         background_scope_(background_scope) {}
@@ -3543,17 +3541,7 @@ class PointersUpdatingJob : public v8::JobTask {
     size_t items = remaining_updating_items_.load(std::memory_order_relaxed);
     if (!FLAG_parallel_pointer_update) return items > 0;
     const size_t kMaxPointerUpdateTasks = 8;
-    const size_t kSlotsPerTask = 600;
-    size_t wanted_tasks = items;
-    // Limit the number of update tasks as task creation often dominates the
-    // actual work that is being done.
-    if (slots_ && *slots_ > 0) {
-      // Round up to ensure enough workers for all items.
-      wanted_tasks = std::min<size_t>(
-          items, (*slots_ + kSlotsPerTask - 1) / kSlotsPerTask);
-    }
-    size_t max_concurrency =
-        std::min<size_t>(kMaxPointerUpdateTasks, wanted_tasks);
+    size_t max_concurrency = std::min<size_t>(kMaxPointerUpdateTasks, items);
     DCHECK_IMPLIES(items > 0, max_concurrency > 0);
     return max_concurrency;
   }
@@ -3562,7 +3550,6 @@ class PointersUpdatingJob : public v8::JobTask {
   std::vector<std::unique_ptr<UpdatingItem>> updating_items_;
   std::atomic<size_t> remaining_updating_items_{0};
   IndexGenerator generator_;
-  const base::Optional<size_t> slots_;
 
   GCTracer* tracer_;
   GCTracer::Scope::ScopeId scope_;
@@ -3960,7 +3947,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     V8::GetCurrentPlatform()
         ->PostJob(v8::TaskPriority::kUserBlocking,
                   std::make_unique<PointersUpdatingJob>(
-                      isolate(), std::move(updating_items), old_to_new_slots_,
+                      isolate(), std::move(updating_items),
                       GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
                       GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
         ->Join();
@@ -3982,7 +3969,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
           ->PostJob(
               v8::TaskPriority::kUserBlocking,
               std::make_unique<PointersUpdatingJob>(
-                  isolate(), std::move(updating_items), old_to_new_slots_,
+                  isolate(), std::move(updating_items),
                   GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
                   GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
           ->Join();
@@ -4481,7 +4468,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
         ->PostJob(
             v8::TaskPriority::kUserBlocking,
             std::make_unique<PointersUpdatingJob>(
-                isolate(), std::move(updating_items), old_to_new_slots_,
+                isolate(), std::move(updating_items),
                 GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
                 GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
         ->Join();
@@ -4764,10 +4751,6 @@ class YoungGenerationMarkingTask {
                               Page::kPageSize);
   }
 
-  int slots() const { return slots_; }
-
-  void IncrementSlots() { ++slots_; }
-
   void MarkObject(Object object) {
     if (!Heap::InYoungGeneration(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
@@ -4800,7 +4783,6 @@ class YoungGenerationMarkingTask {
   MinorMarkCompactCollector::MarkingState* marking_state_;
   YoungGenerationMarkingVisitor visitor_;
   std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
-  int slots_ = 0;
 };
 
 class PageMarkingItem : public ParallelWorkItem {
@@ -4865,7 +4847,6 @@ class PageMarkingItem : public ParallelWorkItem {
       USE(success);
       DCHECK(success);
       task->MarkObject(heap_object);
-      task->IncrementSlots();
       return KEEP_SLOT;
     }
     return REMOVE_SLOT;
@@ -4879,14 +4860,13 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   YoungGenerationMarkingJob(
       Isolate* isolate, MinorMarkCompactCollector* collector,
       MinorMarkCompactCollector::MarkingWorklist* global_worklist,
-      std::vector<PageMarkingItem> marking_items, std::atomic<int>* slots)
+      std::vector<PageMarkingItem> marking_items)
       : isolate_(isolate),
         collector_(collector),
         global_worklist_(global_worklist),
         marking_items_(std::move(marking_items)),
         remaining_marking_items_(marking_items_.size()),
-        generator_(marking_items_.size()),
-        slots_(slots) {}
+        generator_(marking_items_.size()) {}
 
   void Run(JobDelegate* delegate) override {
     if (delegate->IsJoiningThread()) {
@@ -4922,7 +4902,6 @@ class YoungGenerationMarkingJob : public v8::JobTask {
       ProcessMarkingItems(&task);
       task.EmptyMarkingWorklist();
       task.FlushLiveBytes();
-      *slots_ += task.slots();
     }
     if (FLAG_trace_minor_mc_parallel_marking) {
       PrintIsolate(collector_->isolate(), "marking[%p]: time=%f\n",
@@ -4953,12 +4932,10 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   std::vector<PageMarkingItem> marking_items_;
   std::atomic_size_t remaining_marking_items_{0};
   IndexGenerator generator_;
-  std::atomic<int>* slots_;
 };
 
 void MinorMarkCompactCollector::MarkRootSetInParallel(
     RootMarkingVisitor* root_visitor) {
-  std::atomic<int> slots;
   {
     std::vector<PageMarkingItem> marking_items;
 
@@ -4993,14 +4970,12 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       V8::GetCurrentPlatform()
           ->PostJob(v8::TaskPriority::kUserBlocking,
                     std::make_unique<YoungGenerationMarkingJob>(
-                        isolate(), this, worklist(), std::move(marking_items),
-                        &slots))
+                        isolate(), this, worklist(), std::move(marking_items)))
           ->Join();
 
       DCHECK(worklist()->IsEmpty());
     }
   }
-  old_to_new_slots_ = slots;
 }
 
 void MinorMarkCompactCollector::MarkLiveObjects() {
