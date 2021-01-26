@@ -255,12 +255,6 @@ struct IndexedDebugProxy {
 // of functions in them.
 template <typename T, DebugProxyId id, typename Provider = WasmInstanceObject>
 struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
-  enum {
-    kProviderField,
-    kNameTableField,
-    kFieldCount,
-  };
-
   static v8::Local<v8::FunctionTemplate> CreateTemplate(v8::Isolate* isolate) {
     auto templ = IndexedDebugProxy<T, id, Provider>::CreateTemplate(isolate);
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -275,8 +269,9 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
 
   static Handle<NameDictionary> GetNameTable(Handle<JSObject> holder,
                                              Isolate* isolate) {
-    Handle<Object> table_or_undefined(holder->GetEmbedderField(kNameTableField),
-                                      isolate);
+    Handle<Symbol> symbol = isolate->factory()->wasm_debug_proxy_names_symbol();
+    Handle<Object> table_or_undefined =
+        JSObject::GetProperty(isolate, holder, symbol).ToHandleChecked();
     if (!table_or_undefined->IsUndefined(isolate)) {
       return Handle<NameDictionary>::cast(table_or_undefined);
     }
@@ -291,7 +286,7 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
       table = NameDictionary::Add(isolate, table, key, value,
                                   PropertyDetails::Empty());
     }
-    holder->SetEmbedderField(kNameTableField, *table);
+    Object::SetProperty(isolate, holder, symbol, table).Check();
     return table;
   }
 
@@ -593,33 +588,17 @@ Handle<JSObject> GetOrCreateInstanceProxy(Isolate* isolate,
 //
 // See http://doc/1VZOJrU2VsqOZe3IUzbwQWQQSZwgGySsm5119Ust1gUA and
 // http://bit.ly/devtools-wasm-entities for more details.
-class ContextProxy {
+class ContextProxyPrototype {
  public:
-  static Handle<JSObject> Create(WasmFrame* frame) {
-    Isolate* isolate = frame->isolate();
+  static Handle<JSObject> Create(Isolate* isolate) {
     auto object_map =
         GetOrCreateDebugProxyMap(isolate, kContextProxy, &CreateTemplate);
-    auto object = isolate->factory()->NewJSObjectFromMap(object_map);
-    Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
-    object->SetEmbedderField(kInstanceField, *instance);
-    Handle<JSObject> locals = LocalsProxy::Create(frame);
-    object->SetEmbedderField(kLocalsField, *locals);
-    Handle<JSObject> stack = StackProxy::Create(frame);
-    object->SetEmbedderField(kStackField, *stack);
-    return object;
+    return isolate->factory()->NewJSObjectFromMap(object_map);
   }
 
  private:
-  enum {
-    kInstanceField,
-    kLocalsField,
-    kStackField,
-    kFieldCount,
-  };
-
   static v8::Local<v8::FunctionTemplate> CreateTemplate(v8::Isolate* isolate) {
     Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-    templ->InstanceTemplate()->SetInternalFieldCount(kFieldCount);
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
         &NamedGetter, {}, {}, {}, {}, {}, {}, {},
         static_cast<v8::PropertyHandlerFlags>(
@@ -631,44 +610,16 @@ class ContextProxy {
   }
 
   static MaybeHandle<Object> GetNamedProperty(Isolate* isolate,
-                                              Handle<JSObject> holder,
+                                              Handle<JSObject> receiver,
                                               Handle<String> name) {
-    if (name->length() == 0) return {};
-    Handle<WasmInstanceObject> instance(
-        WasmInstanceObject::cast(holder->GetEmbedderField(kInstanceField)),
-        isolate);
-    if (name->IsOneByteEqualTo(StaticCharVector("instance"))) {
-      return instance;
-    }
-    if (name->IsOneByteEqualTo(StaticCharVector("module"))) {
-      return handle(instance->module_object(), isolate);
-    }
-    if (name->IsOneByteEqualTo(StaticCharVector("locals"))) {
-      return handle(holder->GetEmbedderField(kLocalsField), isolate);
-    }
-    if (name->IsOneByteEqualTo(StaticCharVector("stack"))) {
-      return handle(holder->GetEmbedderField(kStackField), isolate);
-    }
-    if (name->IsOneByteEqualTo(StaticCharVector("memories"))) {
-      return GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance);
-    }
-    if (name->IsOneByteEqualTo(StaticCharVector("tables"))) {
-      return GetOrCreateInstanceProxy<TablesProxy>(isolate, instance);
-    }
-    if (name->IsOneByteEqualTo(StaticCharVector("globals"))) {
-      return GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
-    }
-    if (name->IsOneByteEqualTo(StaticCharVector("functions"))) {
-      return GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
-    }
-    if (name->Get(0) == '$') {
+    if (name->length() != 0 && name->Get(0) == '$') {
       const char* kDelegateNames[] = {"memories", "locals", "tables",
                                       "functions", "globals"};
       for (auto delegate_name : kDelegateNames) {
         Handle<Object> delegate;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, delegate,
-            JSObject::GetProperty(isolate, holder, delegate_name), Object);
+            JSObject::GetProperty(isolate, receiver, delegate_name), Object);
         if (!delegate->IsUndefined(isolate)) {
           Handle<Object> value;
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -685,11 +636,39 @@ class ContextProxy {
                           const PropertyCallbackInfo<v8::Value>& info) {
     auto name_string = Handle<String>::cast(Utils::OpenHandle(*name));
     auto isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-    auto holder = Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
+    auto receiver = Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
     Handle<Object> value;
-    if (GetNamedProperty(isolate, holder, name_string).ToHandle(&value)) {
+    if (GetNamedProperty(isolate, receiver, name_string).ToHandle(&value)) {
       info.GetReturnValue().Set(Utils::ToLocal(value));
     }
+  }
+};
+
+class ContextProxy {
+ public:
+  static Handle<JSObject> Create(WasmFrame* frame) {
+    Isolate* isolate = frame->isolate();
+    auto object = isolate->factory()->NewJSObjectWithNullProto();
+    Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
+    JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
+    Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+    JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
+    auto locals = LocalsProxy::Create(frame);
+    JSObject::AddProperty(isolate, object, "locals", locals, FROZEN);
+    auto stack = StackProxy::Create(frame);
+    JSObject::AddProperty(isolate, object, "stack", stack, FROZEN);
+    auto memories = GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance);
+    JSObject::AddProperty(isolate, object, "memories", memories, FROZEN);
+    auto tables = GetOrCreateInstanceProxy<TablesProxy>(isolate, instance);
+    JSObject::AddProperty(isolate, object, "tables", tables, FROZEN);
+    auto globals = GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
+    JSObject::AddProperty(isolate, object, "globals", globals, FROZEN);
+    auto functions =
+        GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
+    JSObject::AddProperty(isolate, object, "functions", functions, FROZEN);
+    Handle<JSObject> prototype = ContextProxyPrototype::Create(isolate);
+    JSObject::SetPrototype(object, prototype, false, kDontThrow).Check();
+    return object;
   }
 };
 
