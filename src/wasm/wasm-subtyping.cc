@@ -277,12 +277,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   if (!subtype.is_reference_type()) return subtype == supertype;
 
   if (subtype.is_rtt()) {
-    return subtype.heap_type().is_generic()
-               ? subtype == supertype
-               : (supertype.is_rtt() && subtype.depth() == supertype.depth() &&
-                  supertype.has_index() &&
-                  EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
-                                    sub_module, super_module));
+    return supertype.is_rtt() && subtype.depth() == supertype.depth() &&
+           EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
+                             sub_module, super_module);
   }
 
   DCHECK(subtype.is_object_reference_type());

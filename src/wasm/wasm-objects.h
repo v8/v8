@@ -933,11 +933,9 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
 namespace wasm {
 
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index, Handle<Map> rtt_parent);
+                            int struct_index, MaybeHandle<Map> rtt_parent);
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index, Handle<Map> rtt_parent);
-Handle<Map> CreateGenericRtt(Isolate* isolate, const WasmModule* module,
-                             Handle<Map> rtt_parent);
+                           int array_index, MaybeHandle<Map> rtt_parent);
 Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
                            Handle<Map> parent);
