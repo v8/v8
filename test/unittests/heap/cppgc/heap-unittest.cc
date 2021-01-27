@@ -174,6 +174,28 @@ TEST_F(GCHeapTest, NoGarbageCollectionScope) {
   EXPECT_EQ(epoch_after_gc, epoch_before);
 }
 
+TEST_F(GCHeapTest, IsAllocationAllowed) {
+  EXPECT_TRUE(
+      subtle::HeapState::IsAllocationAllowed(GetHeap()->GetHeapHandle()));
+  {
+    ObjectAllocator::NoAllocationScope no_allocation(
+        Heap::From(GetHeap())->object_allocator());
+    EXPECT_FALSE(
+        subtle::HeapState::IsAllocationAllowed(GetHeap()->GetHeapHandle()));
+  }
+}
+
+TEST_F(GCHeapTest, IsIncrementalMarking) {
+  GarbageCollector::Config config =
+      GarbageCollector::Config::PreciseIncrementalConfig();
+  auto* heap = Heap::From(GetHeap());
+  EXPECT_FALSE(subtle::HeapState::IsMarking(*heap));
+  heap->StartIncrementalGarbageCollection(config);
+  EXPECT_TRUE(subtle::HeapState::IsMarking(*heap));
+  heap->FinalizeIncrementalGarbageCollectionIfRunning(config);
+  EXPECT_FALSE(subtle::HeapState::IsMarking(*heap));
+}
+
 TEST_F(GCHeapTest, TerminateEmptyHeap) { Heap::From(GetHeap())->Terminate(); }
 
 TEST_F(GCHeapTest, TerminateClearsPersistent) {

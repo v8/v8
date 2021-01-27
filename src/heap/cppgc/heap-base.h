@@ -104,6 +104,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   Compactor& compactor() { return compactor_; }
 
   ObjectAllocator& object_allocator() { return object_allocator_; }
+  const ObjectAllocator& object_allocator() const { return object_allocator_; }
 
   Sweeper& sweeper() { return sweeper_; }
 

@@ -59,13 +59,13 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   // Terminate the allocator. Subsequent allocation calls result in a crash.
   void Terminate();
 
+  bool is_allocation_allowed() const { return no_allocation_scope_ == 0; }
+
  private:
   // Returns the initially tried SpaceType to allocate an object of |size| bytes
   // on. Returns the largest regular object size bucket for large objects.
   inline static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
       size_t size);
-
-  bool is_allocation_allowed() const { return no_allocation_scope_ == 0; }
 
   inline void* AllocateObjectOnSpace(NormalPageSpace* space, size_t size,
                                      GCInfoIndex gcinfo);

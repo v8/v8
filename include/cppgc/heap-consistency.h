@@ -133,6 +133,31 @@ class HeapConsistency final {
 };
 
 /**
+ * Helpers to peek into heap-internal state.
+ */
+class V8_EXPORT HeapState final {
+ public:
+  /**
+   * Returns whether the garbage collector is marking. This API is experimental
+   * and is expected to be removed in future.
+   *
+   * \param heap_handle The corresponding heap.
+   * \returns true if the garbage collector is currently marking, and false
+   * otherwise.
+   */
+  static bool IsMarking(HeapHandle& heap_handle);
+
+  /**
+   * \param heap_handle The corresponding heap.
+   * \returns true if allocations are allowed, and false otherwise.
+   */
+  static bool IsAllocationAllowed(HeapHandle& heap_handle);
+
+ private:
+  HeapState() = delete;
+};
+
+/**
  * Avoids invoking garbage collection finalizations. Already running garbage
  * collection phase are unaffected by this scope.
  *

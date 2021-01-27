@@ -32,5 +32,17 @@ NoGarbageCollectionScope::NoGarbageCollectionScope(
 
 NoGarbageCollectionScope::~NoGarbageCollectionScope() { Leave(heap_handle_); }
 
+// static
+bool HeapState::IsMarking(HeapHandle& heap_handle) {
+  const auto& heap_base = internal::HeapBase::From(heap_handle);
+  return heap_base.marker();
+}
+
+// static
+bool HeapState::IsAllocationAllowed(HeapHandle& heap_handle) {
+  const auto& heap_base = internal::HeapBase::From(heap_handle);
+  return heap_base.object_allocator().is_allocation_allowed();
+}
+
 }  // namespace subtle
 }  // namespace cppgc
