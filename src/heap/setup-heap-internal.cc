@@ -504,14 +504,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
-    // The wasm_rttcanon_* maps are never used for real objects, only as
-    // sentinels. They are maps so that they fit in with their subtype maps
-    // (which are real maps).
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_eqref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_externref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_funcref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_i31ref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_anyref)
     ALLOCATE_MAP(WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize, wasm_type_info)
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
@@ -620,74 +612,6 @@ bool Heap::CreateInitialMaps() {
     FixedArray::cast(obj).set_length(0);
     set_empty_closure_feedback_cell_array(ClosureFeedbackCellArray::cast(obj));
   }
-
-  // Set up the WasmTypeInfo objects for built-in generic Wasm RTTs.
-  // anyref:
-  {
-    /* Subtypes. We do not cache subtypes for (rtt.canon any). */
-    int slot_count = ArrayList::kHeaderFields;
-    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)
-             .To(&obj)) {
-      return false;
-    }
-    obj.set_map_after_allocation(roots.array_list_map());
-    ArrayList subtypes = ArrayList::cast(obj);
-    subtypes.set_length(slot_count);
-    subtypes.SetLength(0);
-    /* TypeInfo */
-    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) {
-      return false;
-    }
-    obj.set_map_after_allocation(roots.wasm_type_info_map(),
-                                 SKIP_WRITE_BARRIER);
-    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);
-    type_info.set_subtypes(subtypes);
-    type_info.set_supertypes(roots.empty_fixed_array());
-    type_info.set_parent(roots.null_map());
-    type_info.clear_foreign_address(isolate());
-    wasm_rttcanon_anyref_map().set_wasm_type_info(type_info);
-  }
-
-  // Rest of builtin types:
-#define ALLOCATE_TYPE_INFO(which)                                              \
-  {                                                                            \
-    /* Subtypes */                                                             \
-    int slot_count = ArrayList::kHeaderFields;                                 \
-    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)     \
-             .To(&obj)) {                                                      \
-      return false;                                                            \
-    }                                                                          \
-    obj.set_map_after_allocation(roots.array_list_map());                      \
-    ArrayList subtypes = ArrayList::cast(obj);                                 \
-    subtypes.set_length(slot_count);                                           \
-    subtypes.SetLength(0);                                                     \
-    /* Supertypes */                                                           \
-    if (!AllocateRaw(FixedArray::SizeFor(1), AllocationType::kOld).To(&obj)) { \
-      return false;                                                            \
-    }                                                                          \
-    obj.set_map_after_allocation(roots.fixed_array_map(), SKIP_WRITE_BARRIER); \
-    FixedArray supertypes = FixedArray::cast(obj);                             \
-    supertypes.set_length(1);                                                  \
-    supertypes.set(0, wasm_rttcanon_anyref_map());                             \
-    /* TypeInfo */                                                             \
-    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) {    \
-      return false;                                                            \
-    }                                                                          \
-    obj.set_map_after_allocation(roots.wasm_type_info_map(),                   \
-                                 SKIP_WRITE_BARRIER);                          \
-    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);                          \
-    type_info.set_subtypes(subtypes);                                          \
-    type_info.set_supertypes(supertypes);                                      \
-    type_info.set_parent(wasm_rttcanon_anyref_map());                          \
-    type_info.clear_foreign_address(isolate());                                \
-    wasm_rttcanon_##which##_map().set_wasm_type_info(type_info);               \
-  }
-
-  ALLOCATE_TYPE_INFO(eqref)
-  ALLOCATE_TYPE_INFO(externref)
-  ALLOCATE_TYPE_INFO(funcref)
-  ALLOCATE_TYPE_INFO(i31ref)
-#undef ALLOCATE_TYPE_INFO
 
   DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
 

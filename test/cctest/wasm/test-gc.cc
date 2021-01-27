@@ -348,8 +348,9 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
   WasmGCTester tester(execution_tier);
   FLAG_experimental_liftoff_extern_ref = true;
   const byte type_index = tester.DefineStruct({F(kWasmI32, true)});
+  const byte other_type_index = tester.DefineStruct({F(kWasmF32, true)});
   const byte rtt_index =
-      tester.AddGlobal(ValueType::Rtt(type_index, 1), false,
+      tester.AddGlobal(ValueType::Rtt(type_index, 0), false,
                        WasmInitExpr::RttCanon(
                            static_cast<HeapType::Representation>(type_index)));
   const byte kTestStruct = tester.DefineFunction(
@@ -361,8 +362,8 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                       1, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(1),
                                                   WASM_GLOBAL_GET(rtt_index))),
                   WASM_LOCAL_GET(1),
-                  // The struct is not an i31, so this branch isn't taken.
-                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(kI31RefCode)),
+                  // The type check fails, so this branch isn't taken.
+                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(other_type_index)),
                   WASM_LOCAL_SET(0, WASM_I32V(222)),  // Final result.
                   // This branch is taken.
                   WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
@@ -378,12 +379,8 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                   WASM_LOCAL_SET(1, WASM_I31_NEW(WASM_I32V(42))),
                   WASM_LOCAL_GET(1),
                   // The i31 is not a struct, so this branch isn't taken.
-                  WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
-                  WASM_LOCAL_SET(0, WASM_I32V(222)),  // Final result.
-                  // This branch is taken.
-                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(kI31RefCode)),
-                  // Not executed due to the branch.
-                  WASM_DROP, WASM_LOCAL_SET(0, WASM_I32V(333))),
+                  WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)), WASM_DROP,
+                  WASM_LOCAL_SET(0, WASM_I32V(222))),  // Final result.
        WASM_LOCAL_GET(0), kExprEnd});
 
   const byte kTestNull = tester.DefineFunction(
@@ -391,7 +388,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
       {WASM_BLOCK(WASM_LOCAL_SET(0, WASM_I32V(111)),
                   WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
                   // Neither of these branches is taken for nullref.
-                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(kI31RefCode)),
+                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(other_type_index)),
                   WASM_LOCAL_SET(0, WASM_I32V(222)),
                   WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)), WASM_DROP,
                   WASM_LOCAL_SET(0, WASM_I32V(333))),  // Final result.
@@ -806,12 +803,11 @@ TEST(BasicRTT) {
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte subtype_index =
       tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)});
-  ValueType kRttTypes[] = {ValueType::Rtt(type_index, 1)};
+  ValueType kRttTypes[] = {ValueType::Rtt(type_index, 0)};
   FunctionSig sig_t_v(1, 0, kRttTypes);
-  ValueType kRttSubtypes[] = {
-      ValueType::Rtt(static_cast<HeapType>(subtype_index), 2)};
+  ValueType kRttSubtypes[] = {ValueType::Rtt(subtype_index, 1)};
   FunctionSig sig_t2_v(1, 0, kRttSubtypes);
-  ValueType kRttTypesDeeper[] = {ValueType::Rtt(type_index, 2)};
+  ValueType kRttTypesDeeper[] = {ValueType::Rtt(type_index, 1)};
   FunctionSig sig_t3_v(1, 0, kRttTypesDeeper);
   ValueType kRefTypes[] = {ref(type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
@@ -821,9 +817,6 @@ TEST(BasicRTT) {
   const byte kRttSub = tester.DefineFunction(
       &sig_t2_v, {},
       {WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index)), kExprEnd});
-  const byte kRttSubGeneric = tester.DefineFunction(
-      &sig_t3_v, {},
-      {WASM_RTT_SUB(type_index, WASM_RTT_CANON(kEqRefCode)), kExprEnd});
   const byte kStructWithRtt = tester.DefineFunction(
       &sig_q_v, {},
       {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
@@ -843,7 +836,7 @@ TEST(BasicRTT) {
   const byte kRefCast = tester.DefineFunction(
       tester.sigs.i_v(), {optref(type_index)},
       {WASM_LET_1_I(
-          WASM_RTT(2, subtype_index),
+          WASM_RTT(1, subtype_index),
           WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index)),
           WASM_LOCAL_SET(kStructIndexCode,
                          WASM_STRUCT_NEW_WITH_RTT(
@@ -874,7 +867,6 @@ TEST(BasicRTT) {
       tester.GetResultObject(kRttSub).ToHandleChecked();
   CHECK(subref_result->IsMap());
   Handle<Map> submap = Handle<Map>::cast(subref_result);
-  CHECK_EQ(*map, submap->wasm_type_info().parent());
   CHECK_EQ(reinterpret_cast<Address>(
                tester.instance()->module()->struct_type(subtype_index)),
            submap->wasm_type_info().foreign_address());
@@ -882,91 +874,11 @@ TEST(BasicRTT) {
       tester.GetResultObject(kRttSub).ToHandleChecked();
   CHECK(subref_result.is_identical_to(subref_result_canonicalized));
 
-  Handle<Object> sub_generic_1 =
-      tester.GetResultObject(kRttSubGeneric).ToHandleChecked();
-  Handle<Object> sub_generic_2 =
-      tester.GetResultObject(kRttSubGeneric).ToHandleChecked();
-  CHECK(sub_generic_1.is_identical_to(sub_generic_2));
-
   Handle<Object> s = tester.GetResultObject(kStructWithRtt).ToHandleChecked();
   CHECK(s->IsWasmStruct());
   CHECK_EQ(Handle<WasmStruct>::cast(s)->map(), *map);
 
   tester.CheckResult(kRefCast, 43);
-}
-
-WASM_COMPILED_EXEC_TEST(AnyRefRtt) {
-  WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
-
-  ValueType any_rtt_0_type = ValueType::Rtt(HeapType::kAny, 0);
-  FunctionSig sig_any_canon(1, 0, &any_rtt_0_type);
-  byte kAnyRttCanon = tester.DefineFunction(
-      &sig_any_canon, {}, {WASM_RTT_CANON(kAnyRefCode), kExprEnd});
-
-  ValueType any_rtt_1_type = ValueType::Rtt(HeapType::kAny, 1);
-  FunctionSig sig_any_sub(1, 0, &any_rtt_1_type);
-  byte kAnyRttSub = tester.DefineFunction(
-      &sig_any_sub, {},
-      {WASM_RTT_SUB(kAnyRefCode, WASM_RTT_CANON(kAnyRefCode)), kExprEnd});
-
-  ValueType func_rtt_1_type = ValueType::Rtt(HeapType::kFunc, 1);
-  FunctionSig sig_func_sub(1, 0, &func_rtt_1_type);
-  byte kFuncRttSub = tester.DefineFunction(
-      &sig_func_sub, {},
-      {WASM_RTT_SUB(kFuncRefCode, WASM_RTT_CANON(kAnyRefCode)), kExprEnd});
-
-  ValueType eq_rtt_1_type = ValueType::Rtt(HeapType::kEq, 1);
-  FunctionSig sig_eq_sub(1, 0, &eq_rtt_1_type);
-  byte kEqRttSub = tester.DefineFunction(
-      &sig_eq_sub, {},
-      {WASM_RTT_SUB(kEqRefCode, WASM_RTT_CANON(kAnyRefCode)), kExprEnd});
-
-  const byte type_index = tester.DefineArray(kWasmI32, true);
-  ValueType array_rtt_type = ValueType::Rtt(type_index, 1);
-  FunctionSig sig_array_canon(1, 0, &array_rtt_type);
-  byte kArrayRttCanon = tester.DefineFunction(
-      &sig_array_canon, {}, {WASM_RTT_CANON(type_index), kExprEnd});
-
-  byte kCheckArrayAgainstAny = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmAnyRef},
-      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(5),
-                                                WASM_RTT_CANON(type_index))),
-       WASM_REF_TEST(type_index, WASM_LOCAL_GET(0), WASM_RTT_CANON(type_index)),
-       kExprEnd});
-
-  byte kCheckAnyAgainstAny = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmAnyRef},
-      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(5),
-                                                WASM_RTT_CANON(type_index))),
-       WASM_REF_TEST(kAnyRefCode, WASM_LOCAL_GET(0),
-                     WASM_RTT_CANON(kAnyRefCode)),
-       kExprEnd});
-
-  tester.CompileModule();
-
-  // Check (rtt.canon any).
-  Handle<Object> result_any_canon =
-      tester.GetResultObject(kAnyRttCanon).ToHandleChecked();
-  CHECK(result_any_canon->IsMap());
-  Handle<Map> any_map = Handle<Map>::cast(result_any_canon);
-  CHECK_EQ(any_map->wasm_type_info().parent(),
-           tester.isolate()->root(RootIndex::kNullMap));
-  CHECK_EQ(any_map->wasm_type_info().supertypes().length(), 0);
-
-  for (byte func_index : {kArrayRttCanon, kAnyRttSub, kFuncRttSub, kEqRttSub}) {
-    Handle<Object> result =
-        tester.GetResultObject(func_index).ToHandleChecked();
-    CHECK(result->IsMap());
-    Handle<Map> map = Handle<Map>::cast(result);
-    // Its parent should be (rtt.canon any).
-    CHECK_EQ(map->wasm_type_info().parent(), *any_map);
-    CHECK_EQ(map->wasm_type_info().supertypes().get(0), *any_map);
-    CHECK_EQ(map->wasm_type_info().supertypes().length(), 1);
-  }
-
-  tester.CheckResult(kCheckArrayAgainstAny, 1);
-  tester.CheckResult(kCheckAnyAgainstAny, 1);
 }
 
 WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
@@ -983,7 +895,7 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
                                WASM_RTT_CANON(type_index)),
        kExprEnd});
 
-  ValueType rtt_type = ValueType::Rtt(type_index, 1);
+  ValueType rtt_type = ValueType::Rtt(type_index, 0);
   FunctionSig rtt_canon_sig(1, 0, &rtt_type);
   const byte kRttCanon = tester.DefineFunction(
       &rtt_canon_sig, {}, {WASM_RTT_CANON(type_index), kExprEnd});
@@ -1014,16 +926,10 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   ValueType func_type = ValueType::Ref(sig_index, kNonNullable);
   FunctionSig sig_func(1, 0, &func_type);
 
-  ValueType rtt1 = ValueType::Rtt(sig_index, 1);
-  FunctionSig sig_rtt1(1, 0, &rtt1);
+  ValueType rtt0 = ValueType::Rtt(sig_index, 0);
+  FunctionSig sig_rtt0(1, 0, &rtt0);
   const byte rtt_canon = tester.DefineFunction(
-      &sig_rtt1, {}, {WASM_RTT_CANON(sig_index), kExprEnd});
-
-  ValueType rtt2 = ValueType::Rtt(sig_index, 2);
-  FunctionSig sig_rtt2(1, 0, &rtt2);
-  const byte rtt_sub = tester.DefineFunction(
-      &sig_rtt2, {},
-      {WASM_RTT_SUB(sig_index, WASM_RTT_CANON(kFuncRefCode)), kExprEnd});
+      &sig_rtt0, {}, {WASM_RTT_CANON(sig_index), kExprEnd});
 
   const byte cast = tester.DefineFunction(
       &sig_func, {kWasmFuncRef},
@@ -1048,11 +954,6 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   CHECK(result_canon->IsMap());
   Handle<Map> map_canon = Handle<Map>::cast(result_canon);
   CHECK(map_canon->IsJSFunctionMap());
-
-  Handle<Object> result_sub = tester.GetResultObject(rtt_sub).ToHandleChecked();
-  CHECK(result_sub->IsMap());
-  Handle<Map> map_sub = Handle<Map>::cast(result_sub);
-  CHECK(map_sub->IsJSFunctionMap());
 
   Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
   CHECK(result_cast->IsJSFunction());
@@ -1132,65 +1033,6 @@ WASM_COMPILED_EXEC_TEST(BasicI31) {
   tester.CheckResult(kUnsigned, 0x7FFFFFFF, 0x7FFFFFFF);
 }
 
-WASM_COMPILED_EXEC_TEST(I31Casts) {
-  WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
-  const byte struct_type = tester.DefineStruct({F(wasm::kWasmI32, true)});
-  const byte i31_rtt =
-      tester.AddGlobal(ValueType::Rtt(HeapType::kI31, 1), false,
-                       WasmInitExpr::RttCanon(HeapType::kI31));
-  const byte struct_rtt =
-      tester.AddGlobal(ValueType::Rtt(struct_type, 1), false,
-                       WasmInitExpr::RttCanon(
-                           static_cast<HeapType::Representation>(struct_type)));
-  // Adds the result of a successful typecheck to the untagged value, i.e.
-  // should return 1 + 42 = 43.
-  const byte kTestAndCastSuccess = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmEqRef},
-      {WASM_LOCAL_SET(0, WASM_I31_NEW(WASM_I32V(42))),
-       WASM_I32_ADD(WASM_REF_TEST(kI31RefCode, WASM_LOCAL_GET(0),
-                                  WASM_GLOBAL_GET(i31_rtt)),
-                    WASM_I31_GET_S(WASM_REF_CAST(kI31RefCode, WASM_LOCAL_GET(0),
-                                                 WASM_GLOBAL_GET(i31_rtt)))),
-       kExprEnd});
-  // Adds the results of two unsuccessful type checks (an i31ref is not a
-  // struct, nor the other way round).
-  const byte kTestFalse = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmAnyRef},
-      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_WITH_RTT(struct_type, WASM_I32V(42),
-                                                  WASM_GLOBAL_GET(struct_rtt))),
-       WASM_I32_ADD(WASM_REF_TEST(kI31RefCode, WASM_LOCAL_GET(0),
-                                  WASM_GLOBAL_GET(i31_rtt)),
-                    WASM_SEQ(WASM_LOCAL_SET(0, WASM_I31_NEW(WASM_I32V(23))),
-                             WASM_REF_TEST(struct_type, WASM_LOCAL_GET(0),
-                                           WASM_GLOBAL_GET(struct_rtt)))),
-       kExprEnd});
-
-  const byte kCastI31ToStruct = tester.DefineFunction(
-      tester.sigs.i_i(),  // Argument and return value ignored
-      {kWasmAnyRef},
-      {WASM_LOCAL_SET(1, WASM_I31_NEW(WASM_I32V(42))),
-       WASM_STRUCT_GET(struct_type, 0,
-                       WASM_REF_CAST(struct_type, WASM_LOCAL_GET(1),
-                                     WASM_GLOBAL_GET(struct_rtt))),
-       kExprEnd});
-  // Tries to cast a struct to i31ref, which should trap.
-  const byte kCastStructToI31 = tester.DefineFunction(
-      tester.sigs.i_i(),  // Argument and return value ignored
-      {kWasmAnyRef},
-      {WASM_LOCAL_SET(1, WASM_STRUCT_NEW_WITH_RTT(struct_type, WASM_I32V(42),
-                                                  WASM_GLOBAL_GET(struct_rtt))),
-       WASM_I31_GET_S(WASM_REF_CAST(kI31RefCode, WASM_LOCAL_GET(1),
-                                    WASM_GLOBAL_GET(i31_rtt))),
-       kExprEnd});
-
-  tester.CompileModule();
-  tester.CheckResult(kTestAndCastSuccess, 43);
-  tester.CheckResult(kTestFalse, 0);
-  tester.CheckHasThrown(kCastI31ToStruct, 0);
-  tester.CheckHasThrown(kCastStructToI31, 0);
-}
-
 // This flushed out a few bugs, so it serves as a regression test. It can also
 // be modified (made to run longer) to measure performance of casts.
 WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
@@ -1206,14 +1048,14 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
                        WasmInitExpr::RefNullConst(
                            static_cast<HeapType::Representation>(ListType)));
   const byte RttSuper = tester.AddGlobal(
-      ValueType::Rtt(SuperType, 1), false,
+      ValueType::Rtt(SuperType, 0), false,
       WasmInitExpr::RttCanon(static_cast<HeapType::Representation>(SuperType)));
   const byte RttSub = tester.AddGlobal(
-      ValueType::Rtt(SubType, 2), false,
+      ValueType::Rtt(SubType, 1), false,
       WasmInitExpr::RttSub(static_cast<HeapType::Representation>(SubType),
                            WasmInitExpr::GlobalGet(RttSuper)));
   const byte RttList = tester.AddGlobal(
-      ValueType::Rtt(ListType, 1), false,
+      ValueType::Rtt(ListType, 0), false,
       WasmInitExpr::RttCanon(static_cast<HeapType::Representation>(ListType)));
 
   const uint32_t kListLength = 1024;

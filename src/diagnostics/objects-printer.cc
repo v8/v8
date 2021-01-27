@@ -1716,7 +1716,6 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmTypeInfo");
   os << "\n - type address: " << reinterpret_cast<void*>(foreign_address());
-  os << "\n - parent: " << Brief(parent());
   os << "\n";
 }
 
