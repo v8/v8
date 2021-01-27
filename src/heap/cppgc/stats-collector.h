@@ -425,11 +425,11 @@ void StatsCollector::InternalScope<trace_category,
   }
   // scope_category == StatsCollector::ScopeContext::kConcurrentThread
   using Atomic32 = v8::base::Atomic32;
-  const int64_t ms = time.InMicroseconds();
-  DCHECK(ms <= std::numeric_limits<Atomic32>::max());
+  const int64_t us = time.InMicroseconds();
+  DCHECK_LE(us, std::numeric_limits<Atomic32>::max());
   v8::base::Relaxed_AtomicIncrement(
       &stats_collector_->current_.concurrent_scope_data[scope_id_],
-      static_cast<Atomic32>(ms));
+      static_cast<Atomic32>(us));
 }
 
 }  // namespace internal

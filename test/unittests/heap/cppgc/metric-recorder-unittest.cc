@@ -86,7 +86,7 @@ TEST_F(MetricRecorderTest, IncrementalScopesReportedImmediately) {
               MetricRecorderImpl::CppGCIncrementalMarkMetricSample_callcount);
     EXPECT_LT(
         0u,
-        MetricRecorderImpl::CppGCIncrementalMarkMetricSample_event.duration_ms);
+        MetricRecorderImpl::CppGCIncrementalMarkMetricSample_event.duration_us);
   }
   {
     EXPECT_EQ(0u,
@@ -100,7 +100,7 @@ TEST_F(MetricRecorderTest, IncrementalScopesReportedImmediately) {
     EXPECT_EQ(1u,
               MetricRecorderImpl::CppGCIncrementalSweepMetricSample_callcount);
     EXPECT_LT(0u, MetricRecorderImpl::CppGCIncrementalSweepMetricSample_event
-                      .duration_ms);
+                      .duration_us);
   }
   EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_callcount);
   EndGC(0);
@@ -152,20 +152,20 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsValuesForAtomicScopes) {
     EndGC(0);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_mark_ms);
+                      .incremental_mark_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_sweep_ms);
+                      .incremental_sweep_us);
   }
   {
     StartGC();
@@ -178,20 +178,20 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsValuesForAtomicScopes) {
     EndGC(0);
     EXPECT_LT(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_mark_ms);
+                      .incremental_mark_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_sweep_ms);
+                      .incremental_sweep_us);
   }
   {
     StartGC();
@@ -204,20 +204,20 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsValuesForAtomicScopes) {
     EndGC(0);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_us);
     EXPECT_LT(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_mark_ms);
+                      .incremental_mark_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_sweep_ms);
+                      .incremental_sweep_us);
   }
   {
     StartGC();
@@ -230,20 +230,20 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsValuesForAtomicScopes) {
     EndGC(0);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_us);
     EXPECT_LT(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_mark_ms);
+                      .incremental_mark_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_sweep_ms);
+                      .incremental_sweep_us);
   }
   {
     StartGC();
@@ -256,20 +256,20 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsValuesForAtomicScopes) {
     EndGC(0);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_us);
     EXPECT_LT(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_mark_ms);
+                      .incremental_mark_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_sweep_ms);
+                      .incremental_sweep_us);
   }
   {
     StartGC();
@@ -282,20 +282,20 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsValuesForAtomicScopes) {
     EndGC(0);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_us);
     EXPECT_LT(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_mark_ms);
+                      .incremental_mark_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_sweep_ms);
+                      .incremental_sweep_us);
   }
   {
     StartGC();
@@ -308,20 +308,20 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsValuesForAtomicScopes) {
     EndGC(0);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_mark_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_weak_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_compact_us);
     EXPECT_EQ(
         0u,
-        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_ms);
+        MetricRecorderImpl::CppGCCycleEndMetricSamples_event.atomic_sweep_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_mark_ms);
+                      .incremental_mark_us);
     EXPECT_LT(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .incremental_sweep_ms);
+                      .incremental_sweep_us);
   }
 }
 
@@ -330,9 +330,9 @@ TEST_F(MetricRecorderTest, ConcurrentSamplesAreReported) {
     StartGC();
     EndGC(0);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .concurrent_mark_ms);
+                      .concurrent_mark_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .concurrent_sweep_ms);
+                      .concurrent_sweep_us);
   }
   {
     StartGC();
@@ -344,9 +344,9 @@ TEST_F(MetricRecorderTest, ConcurrentSamplesAreReported) {
     }
     EndGC(0);
     EXPECT_LT(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .concurrent_mark_ms);
+                      .concurrent_mark_us);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .concurrent_sweep_ms);
+                      .concurrent_sweep_us);
   }
   {
     StartGC();
@@ -358,9 +358,9 @@ TEST_F(MetricRecorderTest, ConcurrentSamplesAreReported) {
     }
     EndGC(0);
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .concurrent_mark_ms);
+                      .concurrent_mark_us);
     EXPECT_LT(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
-                      .concurrent_sweep_ms);
+                      .concurrent_sweep_us);
   }
 }
 

@@ -21,14 +21,14 @@ class StatsCollector;
 class MetricRecorder {
  public:
   struct CppGCCycleEndMetricSamples {
-    int64_t atomic_mark_ms;
-    int64_t atomic_weak_ms;
-    int64_t atomic_compact_ms;
-    int64_t atomic_sweep_ms;
-    int64_t incremental_mark_ms;
-    int64_t incremental_sweep_ms;
-    int64_t concurrent_mark_ms;
-    int64_t concurrent_sweep_ms;
+    int64_t atomic_mark_us;
+    int64_t atomic_weak_us;
+    int64_t atomic_compact_us;
+    int64_t atomic_sweep_us;
+    int64_t incremental_mark_us;
+    int64_t incremental_sweep_us;
+    int64_t concurrent_mark_us;
+    int64_t concurrent_sweep_us;
 
     int64_t objects_before_bytes;
     int64_t objects_after_bytes;
@@ -39,11 +39,11 @@ class MetricRecorder {
   };
 
   struct CppGCIncrementalMarkMetricSample {
-    int64_t duration_ms;
+    int64_t duration_us;
   };
 
   struct CppGCIncrementalSweepMetricSample {
-    int64_t duration_ms;
+    int64_t duration_us;
   };
 
   virtual ~MetricRecorder() = default;

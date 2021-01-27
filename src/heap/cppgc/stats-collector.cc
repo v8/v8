@@ -130,12 +130,12 @@ void StatsCollector::NotifySweepingCompleted() {
   current_ = Event();
   if (metric_recorder_) {
     MetricRecorder::CppGCCycleEndMetricSamples event{
-        previous_.scope_data[kAtomicMark].InMilliseconds(),
-        previous_.scope_data[kAtomicWeak].InMilliseconds(),
-        previous_.scope_data[kAtomicCompact].InMilliseconds(),
-        previous_.scope_data[kAtomicSweep].InMilliseconds(),
-        previous_.scope_data[kIncrementalMark].InMilliseconds(),
-        previous_.scope_data[kIncrementalSweep].InMilliseconds(),
+        previous_.scope_data[kAtomicMark].InMicroseconds(),
+        previous_.scope_data[kAtomicWeak].InMicroseconds(),
+        previous_.scope_data[kAtomicCompact].InMicroseconds(),
+        previous_.scope_data[kAtomicSweep].InMicroseconds(),
+        previous_.scope_data[kIncrementalMark].InMicroseconds(),
+        previous_.scope_data[kIncrementalSweep].InMicroseconds(),
         previous_.concurrent_scope_data[kConcurrentMark],
         previous_.concurrent_scope_data[kConcurrentSweep],
         previous_.object_size_before_sweep_bytes /* objects_before */,
@@ -176,13 +176,13 @@ void StatsCollector::RecordHistogramSample(ScopeId scope_id_,
   switch (scope_id_) {
     case kIncrementalMark: {
       MetricRecorder::CppGCIncrementalMarkMetricSample event{
-          time.InMilliseconds()};
+          time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }
     case kIncrementalSweep: {
       MetricRecorder::CppGCIncrementalSweepMetricSample event{
-          time.InMilliseconds()};
+          time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }
