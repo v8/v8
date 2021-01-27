@@ -38,7 +38,7 @@ const AccumulatorUse Bytecodes::kAccumulatorUse[] = {
 #undef ENTRY
 };
 
-const int Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
+const uint8_t Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
   {
 #define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kSingleScaleSize,
   BYTECODE_LIST(ENTRY)

@@ -934,7 +934,8 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   }
 
   static Address bytecode_size_table_address() {
-    return reinterpret_cast<Address>(const_cast<int*>(&kBytecodeSizes[0][0]));
+    return reinterpret_cast<Address>(
+        const_cast<uint8_t*>(&kBytecodeSizes[0][0]));
   }
 
  private:
@@ -944,7 +945,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   static const int kNumberOfRegisterOperands[];
   static const AccumulatorUse kAccumulatorUse[];
   static const bool kIsScalable[];
-  static const int kBytecodeSizes[3][kBytecodeCount];
+  static const uint8_t kBytecodeSizes[3][kBytecodeCount];
   static const OperandSize* const kOperandSizes[3][kBytecodeCount];
   static OperandSize const
       kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount];

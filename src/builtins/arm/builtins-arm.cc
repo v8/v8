@@ -942,11 +942,11 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   // Update table to the wide scaled table.
   __ add(bytecode_size_table, bytecode_size_table,
-         Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+         Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount));
   // Conditionally update table to the extra wide scaled table. We are taking
   // advantage of the fact that the extra wide follows the wide one.
   __ add(bytecode_size_table, bytecode_size_table,
-         Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount), LeaveCC,
+         Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount), LeaveCC,
          ne);
 
   __ bind(&process_bytecode);
@@ -976,7 +976,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ ldr(scratch1, MemOperand(bytecode_size_table, bytecode, LSL, 2));
+  __ ldrb(scratch1, MemOperand(bytecode_size_table, bytecode));
   __ add(bytecode_offset, bytecode_offset, scratch1);
 
   __ bind(&end);
