@@ -4243,7 +4243,7 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     ValueType test_reps[] = {kWasmI32, ValueType::Ref(from_heap, kNullable)};
     FunctionSig test_sig(1, 1, test_reps);
     ValueType cast_reps[] = {ValueType::Ref(to_heap, kNonNullable),
-                             ValueType::Ref(from_heap, kNullable)};
+                             ValueType::Ref(from_heap, kNonNullable)};
     FunctionSig cast_sig(1, 1, cast_reps);
     ExpectValidates(&test_sig,
                     {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
@@ -4263,7 +4263,7 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     HeapType to_heap = HeapType(pair.second);
     ValueType test_reps[] = {kWasmI32, ValueType::Ref(from_heap, kNullable)};
     FunctionSig test_sig(1, 1, test_reps);
-    ValueType cast_reps[] = {ValueType::Ref(to_heap, kNonNullable),
+    ValueType cast_reps[] = {ValueType::Ref(to_heap, kNullable),
                              ValueType::Ref(from_heap, kNullable)};
     FunctionSig cast_sig(1, 1, cast_reps);
 

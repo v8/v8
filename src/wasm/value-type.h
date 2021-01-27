@@ -262,6 +262,10 @@ class ValueType {
     CONSTEXPR_DCHECK(has_index());
     return HeapTypeField::decode(bit_field_);
   }
+  constexpr Nullability nullability() const {
+    CONSTEXPR_DCHECK(is_object_reference_type());
+    return kind() == kOptRef ? kNullable : kNonNullable;
+  }
 
   // Useful when serializing this type to store it into a runtime object.
   constexpr uint32_t raw_bit_field() const { return bit_field_; }

@@ -5792,12 +5792,11 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
   } else {
     AssertFalse(mcgraph(), gasm_.get(), gasm_->IsI31(object));
   }
+  auto done = gasm_->MakeLabel();
   if (config.object_can_be_null) {
-    TrapIfTrue(wasm::kTrapIllegalCast, gasm_->WordEqual(object, RefNull()),
-               position);
+    gasm_->GotoIf(gasm_->WordEqual(object, RefNull()), &done);
   }
   Node* map = gasm_->LoadMap(object);
-  auto done = gasm_->MakeLabel();
   gasm_->GotoIf(gasm_->TaggedEqual(map, rtt), &done);
   if (!config.object_must_be_data_ref) {
     TrapIfFalse(wasm::kTrapIllegalCast, gasm_->IsDataRefMap(map), position);

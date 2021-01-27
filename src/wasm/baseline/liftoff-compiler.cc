@@ -4391,10 +4391,16 @@ class LiftoffCompiler {
     __ PushRegister(rtt_value_type, LiftoffRegister(kReturnRegister0));
   }
 
+  enum NullSucceeds : bool {  // --
+    kNullSucceeds = true,
+    kNullFails = false
+  };
+
   // Falls through on match (=successful type check).
   // Returns the register containing the object.
   LiftoffRegister SubtypeCheck(FullDecoder* decoder, const Value& obj,
                                const Value& rtt, Label* no_match,
+                               NullSucceeds null_succeeds,
                                LiftoffRegList pinned = {},
                                Register opt_scratch = no_reg) {
     Label match;
@@ -4414,7 +4420,8 @@ class LiftoffCompiler {
     }
     if (obj.type.is_nullable()) {
       LoadNullValue(tmp1.gp(), pinned);
-      __ emit_cond_jump(kEqual, no_match, obj.type, obj_reg.gp(), tmp1.gp());
+      __ emit_cond_jump(kEqual, null_succeeds ? &match : no_match, obj.type,
+                        obj_reg.gp(), tmp1.gp());
     }
 
     // At this point, the object is neither null nor an i31ref. Perform
@@ -4463,7 +4470,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, {}));
 
-    SubtypeCheck(decoder, obj, rtt, &return_false, pinned, result.gp());
+    SubtypeCheck(decoder, obj, rtt, &return_false, kNullFails, pinned,
+                 result.gp());
 
     __ LoadConstant(result, WasmValue(1));
     // TODO(jkummerow): Emit near jumps on platforms where it's more efficient.
@@ -4479,9 +4487,10 @@ class LiftoffCompiler {
                Value* result) {
     Label* trap_label = AddOutOfLineTrap(decoder->position(),
                                          WasmCode::kThrowWasmTrapIllegalCast);
-    LiftoffRegister obj_reg = SubtypeCheck(decoder, obj, rtt, trap_label);
-    __ PushRegister(ValueType::Ref(rtt.type.ref_index(), kNonNullable),
-                    obj_reg);
+    LiftoffRegister obj_reg =
+        SubtypeCheck(decoder, obj, rtt, trap_label, kNullSucceeds);
+    __ PushRegister(
+        ValueType::Ref(rtt.type.ref_index(), obj.type.nullability()), obj_reg);
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
@@ -4494,12 +4503,14 @@ class LiftoffCompiler {
     }
 
     Label cont_false;
-    LiftoffRegister obj_reg = SubtypeCheck(decoder, obj, rtt, &cont_false);
+    LiftoffRegister obj_reg =
+        SubtypeCheck(decoder, obj, rtt, &cont_false, kNullFails);
 
-    __ PushRegister(rtt.type.is_bottom()
-                        ? kWasmBottom
-                        : ValueType::Ref(rtt.type.ref_index(), kNonNullable),
-                    obj_reg);
+    __ PushRegister(
+        rtt.type.is_bottom()
+            ? kWasmBottom
+            : ValueType::Ref(rtt.type.ref_index(), obj.type.nullability()),
+        obj_reg);
     BrOrRet(decoder, depth);
 
     __ bind(&cont_false);

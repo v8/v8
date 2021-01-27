@@ -923,7 +923,7 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   tester.AddGlobal(ValueType::Ref(sig_index, kNullable), false,
                    WasmInitExpr::RefFuncConst(func_index));
 
-  ValueType func_type = ValueType::Ref(sig_index, kNonNullable);
+  ValueType func_type = ValueType::Ref(sig_index, kNullable);
   FunctionSig sig_func(1, 0, &func_type);
 
   ValueType rtt0 = ValueType::Rtt(sig_index, 0);
@@ -1003,14 +1003,13 @@ WASM_COMPILED_EXEC_TEST(RefTestCastNull) {
        kExprEnd});
 
   const byte kRefCastNull = tester.DefineFunction(
-      tester.sigs.i_i(),  // Argument and return value ignored
-      {},
-      {WASM_REF_CAST(type_index, WASM_REF_NULL(type_index),
-                     WASM_RTT_CANON(type_index)),
-       kExprDrop, WASM_I32V(0), kExprEnd});
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(type_index, WASM_REF_NULL(type_index),
+                                      WASM_RTT_CANON(type_index))),
+       kExprEnd});
   tester.CompileModule();
   tester.CheckResult(kRefTestNull, 0);
-  tester.CheckHasThrown(kRefCastNull, 0);
+  tester.CheckResult(kRefCastNull, 1);
 }
 
 WASM_COMPILED_EXEC_TEST(BasicI31) {

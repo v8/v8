@@ -4090,7 +4090,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         Value obj = Pop(0, kWasmAnyRef);
-        Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
         if (obj.type != kWasmBottom) {
           if (!VALIDATE(IsSubtypeOf(ValueType::Ref(imm.index, kNonNullable),
                                     obj.type, this->module_))) {
@@ -4098,6 +4097,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                          "supertype of type " + std::to_string(imm.index));
             return 0;
           }
+          Value* value =
+              Push(ValueType::Ref(imm.index, obj.type.nullability()));
           CALL_INTERFACE_IF_REACHABLE(RefCast, obj, rtt, value);
         }
         return opcode_length + imm.length;
