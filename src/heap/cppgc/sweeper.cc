@@ -104,6 +104,7 @@ struct SpaceState {
     FreeList cached_free_list;
     std::vector<FreeList::Block> unfinalized_free_list;
     bool is_empty = false;
+    size_t largest_new_free_list_entry = 0;
   };
 
   ThreadSafeStack<BasePage*> unswept_pages;
@@ -122,7 +123,10 @@ void StickyUnmark(HeapObjectHeader* header) {
 // Builder that finalizes objects and adds freelist entries right away.
 class InlinedFinalizationBuilder final {
  public:
-  using ResultType = bool;
+  struct ResultType {
+    bool is_empty = false;
+    size_t largest_new_free_list_entry = 0;
+  };
 
   explicit InlinedFinalizationBuilder(BasePage* page) : page_(page) {}
 
@@ -136,7 +140,9 @@ class InlinedFinalizationBuilder final {
     space->free_list().Add({start, size});
   }
 
-  ResultType GetResult(bool is_empty) { return is_empty; }
+  ResultType GetResult(bool is_empty, size_t largest_new_free_list_entry) {
+    return {is_empty, largest_new_free_list_entry};
+  }
 
  private:
   BasePage* page_;
@@ -167,8 +173,9 @@ class DeferredFinalizationBuilder final {
     found_finalizer_ = false;
   }
 
-  ResultType&& GetResult(bool is_empty) {
+  ResultType&& GetResult(bool is_empty, size_t largest_new_free_list_entry) {
     result_.is_empty = is_empty;
+    result_.largest_new_free_list_entry = largest_new_free_list_entry;
     return std::move(result_);
   }
 
@@ -184,6 +191,8 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
 
   PlatformAwareObjectStartBitmap& bitmap = page->object_start_bitmap();
   bitmap.Clear();
+
+  size_t largest_new_free_list_entry = 0;
 
   Address start_of_gap = page->PayloadStart();
   for (Address begin = page->PayloadStart(), end = page->PayloadEnd();
@@ -205,8 +214,11 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
     // The object is alive.
     const Address header_address = reinterpret_cast<Address>(header);
     if (start_of_gap != header_address) {
-      builder.AddFreeListEntry(
-          start_of_gap, static_cast<size_t>(header_address - start_of_gap));
+      size_t new_free_list_entry_size =
+          static_cast<size_t>(header_address - start_of_gap);
+      builder.AddFreeListEntry(start_of_gap, new_free_list_entry_size);
+      largest_new_free_list_entry =
+          std::max(largest_new_free_list_entry, new_free_list_entry_size);
       bitmap.SetBit(start_of_gap);
     }
     StickyUnmark(header);
@@ -223,7 +235,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
   }
 
   const bool is_empty = (start_of_gap == page->PayloadStart());
-  return builder.GetResult(is_empty);
+  return builder.GetResult(is_empty, largest_new_free_list_entry);
 }
 
 // SweepFinalizer is responsible for heap/space/page finalization. Finalization
@@ -297,12 +309,20 @@ class SweepFinalizer final {
       space_freelist.Add(std::move(entry));
     }
 
+    largest_new_free_list_entry_ = std::max(
+        page_state->largest_new_free_list_entry, largest_new_free_list_entry_);
+
     // Add the page to the space.
     page->space()->AddPage(page);
   }
 
+  size_t largest_new_free_list_entry() const {
+    return largest_new_free_list_entry_;
+  }
+
  private:
   cppgc::Platform* platform_;
+  size_t largest_new_free_list_entry_ = 0;
 };
 
 class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
@@ -315,10 +335,12 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   void Sweep() {
     for (SpaceState& state : *states_) {
       while (auto page = state.unswept_pages.Pop()) {
-        Traverse(*page);
+        SweepPage(*page);
       }
     }
   }
+
+  void SweepPage(BasePage* page) { Traverse(page); }
 
   bool SweepWithDeadline(double deadline_in_seconds) {
     DCHECK(platform_);
@@ -345,6 +367,10 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     return true;
   }
 
+  size_t largest_new_free_list_entry() const {
+    return largest_new_free_list_entry_;
+  }
+
  private:
   bool SweepSpaceWithDeadline(SpaceState* state, double deadline_in_seconds) {
     static constexpr size_t kDeadlineCheckInterval = 8;
@@ -362,11 +388,14 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   }
 
   bool VisitNormalPage(NormalPage* page) {
-    const bool is_empty = SweepNormalPage<InlinedFinalizationBuilder>(page);
-    if (is_empty) {
+    const InlinedFinalizationBuilder::ResultType result =
+        SweepNormalPage<InlinedFinalizationBuilder>(page);
+    if (result.is_empty) {
       NormalPage::Destroy(page);
     } else {
       page->space()->AddPage(page);
+      largest_new_free_list_entry_ = std::max(
+          result.largest_new_free_list_entry, largest_new_free_list_entry_);
     }
     return true;
   }
@@ -385,6 +414,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
 
   SpaceStates* states_;
   cppgc::Platform* platform_;
+  size_t largest_new_free_list_entry_ = 0;
 };
 
 class ConcurrentSweepTask final : public cppgc::JobTask,
@@ -520,6 +550,43 @@ class Sweeper::SweeperImpl final {
       ScheduleIncrementalSweeping();
       ScheduleConcurrentSweeping();
     }
+  }
+
+  bool SweepForAllocationIfRunning(NormalPageSpace* space, size_t size) {
+    if (!is_in_progress_) return false;
+
+    // Bail out for recursive sweeping calls. This can happen when finalizers
+    // allocate new memory.
+    if (is_sweeping_on_mutator_thread_) return false;
+
+    StatsCollector::EnabledScope stats_scope(*heap_->heap(),
+                                             StatsCollector::kIncrementalSweep);
+    StatsCollector::EnabledScope inner_scope(
+        *heap_->heap(), StatsCollector::kSweepOnAllocation);
+    MutatorThreadSweepingScope sweeping_in_progresss(*this);
+
+    SpaceState& space_state = space_states_[space->index()];
+
+    {
+      // First, process unfinalized pages as finalizing a page is faster than
+      // sweeping.
+      SweepFinalizer finalizer(platform_);
+      while (auto page = space_state.swept_unfinalized_pages.Pop()) {
+        finalizer.FinalizePage(&*page);
+        if (size <= finalizer.largest_new_free_list_entry()) return true;
+      }
+    }
+    {
+      // Then, if no matching slot is found in the unfinalized pages, search the
+      // unswept page. This also helps out the concurrent sweeper.
+      MutatorThreadSweeper sweeper(&space_states_, platform_);
+      while (auto page = space_state.unswept_pages.Pop()) {
+        sweeper.SweepPage(*page);
+        if (size <= sweeper.largest_new_free_list_entry()) return true;
+      }
+    }
+
+    return false;
   }
 
   void FinishIfRunning() {
@@ -717,6 +784,9 @@ void Sweeper::WaitForConcurrentSweepingForTesting() {
   impl_->WaitForConcurrentSweepingForTesting();
 }
 void Sweeper::NotifyDoneIfNeeded() { impl_->NotifyDoneIfNeeded(); }
+bool Sweeper::SweepForAllocationIfRunning(NormalPageSpace* space, size_t size) {
+  return impl_->SweepForAllocationIfRunning(space, size);
+}
 bool Sweeper::IsSweepingOnMutatorThread() const {
   return impl_->IsSweepingOnMutatorThread();
 }

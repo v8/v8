@@ -136,14 +136,15 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
 
   // 3. Lazily sweep pages of this heap until we find a freed area for
   // this allocation or we finish sweeping all pages of this heap.
-  // {
-  //   StatsCollector::EnabledScope stats_scope(
-  //       *space->raw_heap()->heap(), StatsCollector::kSweepOnAllocation);
-  //   // TODO(chromium:1056170): Add lazy sweep.
-  // }
+  Sweeper& sweeper = raw_heap_->heap()->sweeper();
+  if (sweeper.SweepForAllocationIfRunning(space, size)) {
+    void* result = AllocateFromFreeList(space, size, gcinfo);
+    DCHECK_NOT_NULL(result);
+    return result;
+  }
 
   // 4. Complete sweeping.
-  raw_heap_->heap()->sweeper().FinishIfRunning();
+  sweeper.FinishIfRunning();
 
   // 5. Add a new page to this heap.
   auto* new_page = NormalPage::Create(page_backend_, space);
