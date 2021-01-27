@@ -1778,8 +1778,6 @@ int BuiltinFrame::ComputeParametersCount() const {
   return Smi::ToInt(Object(base::Memory<Address>(fp() + offset)));
 }
 
-Code InternalFrame::unchecked_code() const { return Code(); }
-
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                       int index) const {
   PrintIndex(accumulator, mode, index);
@@ -1806,10 +1804,6 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                    static_cast<int>(pc() - instruction_start), pos,
                    pos - func_code_offset);
   if (mode != OVERVIEW) accumulator->Add("\n");
-}
-
-Code WasmFrame::unchecked_code() const {
-  return isolate()->FindCodeObject(pc());
 }
 
 wasm::WasmCode* WasmFrame::wasm_code() const {
