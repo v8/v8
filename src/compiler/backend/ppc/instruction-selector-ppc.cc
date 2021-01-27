@@ -2529,6 +2529,28 @@ void InstructionSelector::EmitPrepareResults(
   }
 }
 
+void InstructionSelector::VisitLoadLane(Node* node) {
+  LoadLaneParameters params = LoadLaneParametersOf(node->op());
+  InstructionCode opcode = kArchNop;
+  if (params.rep == MachineType::Int8()) {
+    opcode = kPPC_S128Load8Lane;
+  } else if (params.rep == MachineType::Int16()) {
+    opcode = kPPC_S128Load16Lane;
+  } else if (params.rep == MachineType::Int32()) {
+    opcode = kPPC_S128Load32Lane;
+  } else if (params.rep == MachineType::Int64()) {
+    opcode = kPPC_S128Load64Lane;
+  } else {
+    UNREACHABLE();
+  }
+
+  PPCOperandGenerator g(this);
+  Emit(opcode | AddressingModeField::encode(kMode_MRR),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseImmediate(params.laneidx));
+}
+
 void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   PPCOperandGenerator g(this);
@@ -2578,6 +2600,32 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   }
   Emit(opcode | AddressingModeField::encode(kMode_MRR),
        g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+}
+
+void InstructionSelector::VisitStoreLane(Node* node) {
+  PPCOperandGenerator g(this);
+
+  StoreLaneParameters params = StoreLaneParametersOf(node->op());
+  InstructionCode opcode = kArchNop;
+  if (params.rep == MachineRepresentation::kWord8) {
+    opcode = kPPC_S128Store8Lane;
+  } else if (params.rep == MachineRepresentation::kWord16) {
+    opcode = kPPC_S128Store16Lane;
+  } else if (params.rep == MachineRepresentation::kWord32) {
+    opcode = kPPC_S128Store32Lane;
+  } else if (params.rep == MachineRepresentation::kWord64) {
+    opcode = kPPC_S128Store64Lane;
+  } else {
+    UNREACHABLE();
+  }
+
+  InstructionOperand inputs[4];
+  InstructionOperand value_operand = g.UseRegister(node->InputAt(2));
+  inputs[0] = value_operand;
+  inputs[1] = g.UseRegister(node->InputAt(0));
+  inputs[2] = g.UseRegister(node->InputAt(1));
+  inputs[3] = g.UseImmediate(params.laneidx);
+  Emit(opcode | AddressingModeField::encode(kMode_MRR), 0, nullptr, 4, inputs);
 }
 
 // static

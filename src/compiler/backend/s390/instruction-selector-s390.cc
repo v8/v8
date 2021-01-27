@@ -2798,9 +2798,19 @@ void InstructionSelector::EmitPrepareResults(
   }
 }
 
+void InstructionSelector::VisitLoadLane(Node* node) {
+  // We should never reach here, see http://crrev.com/c/2577820
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitLoadTransform(Node* node) {
   // We should never reach here, see http://crrev.com/c/2050811
   UNREACHABLE();
+}
+
+void InstructionSelector::VisitStoreLane(Node* node) {
+  // We should never reach here, see http://crrev.com/c/2577820
+  UNIMPLEMENTED();
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
