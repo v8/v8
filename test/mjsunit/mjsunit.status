@@ -630,6 +630,9 @@
 
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
+
+  # BUG(v8:11357): data race.
+  'regress/wasm/regress-1161555': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
