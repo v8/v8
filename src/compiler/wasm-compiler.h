@@ -10,6 +10,7 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
+#include "src/base/small-vector.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -36,6 +37,8 @@ class WasmDecorator;
 class WasmGraphAssembler;
 enum class TrapId : uint32_t;
 struct Int64LoweringSpecialCase;
+template <size_t VarCount>
+class GraphAssemblerLabel;
 }  // namespace compiler
 
 namespace wasm {
@@ -581,6 +584,30 @@ class WasmGraphBuilder {
   Node* BuildChangeSmiToIntPtr(Node* value);
   // generates {index > max ? Smi(max) : Smi(index)}
   Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
+
+  using NodeConsumer = std::function<void(Node*)>;
+  struct Callbacks {
+    NodeConsumer succeed_if;
+    NodeConsumer fail_if;
+    NodeConsumer fail_if_not;
+  };
+
+  // This type is used to collect control/effect nodes we need to merge at the
+  // end of BrOn* functions. Nodes are collected in {TypeCheck} etc. by calling
+  // the passed callbacks succeed_if, fail_if and fail_if_not. We have up to 5
+  // control nodes to merge; the EffectPhi needs an additional input.
+  using SmallNodeVector = base::SmallVector<Node*, 6>;
+
+  Callbacks TestCallbacks(GraphAssemblerLabel<1>* label);
+  Callbacks CastCallbacks(GraphAssemblerLabel<0>* label,
+                          wasm::WasmCodePosition position);
+  Callbacks BranchCallbacks(SmallNodeVector& no_match_controls,
+                            SmallNodeVector& no_match_effects,
+                            SmallNodeVector& match_controls,
+                            SmallNodeVector& match_effects);
+
+  void TypeCheck(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                 bool null_succeeds, Callbacks callbacks);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);

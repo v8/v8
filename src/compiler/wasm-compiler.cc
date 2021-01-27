@@ -5750,72 +5750,101 @@ void AssertFalse(MachineGraph* mcgraph, GraphAssembler* gasm, Node* condition) {
 #endif
 }
 
-Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
-                                ObjectReferenceKnowledge config) {
-  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  if (config.object_can_be_i31) {
-    gasm_->GotoIf(gasm_->IsI31(object), &done, gasm_->Int32Constant(0));
-  } else {
-    AssertFalse(mcgraph(), gasm_.get(), gasm_->IsI31(object));
-  }
-  if (config.object_can_be_null) {
-    gasm_->GotoIf(gasm_->WordEqual(object, RefNull()), &done,
-                  gasm_->Int32Constant(0));
-  }
-
-  Node* map = gasm_->LoadMap(object);
-  gasm_->GotoIf(gasm_->TaggedEqual(map, rtt), &done, gasm_->Int32Constant(1));
-
-  if (!config.object_must_be_data_ref) {
-    gasm_->GotoIfNot(gasm_->IsDataRefMap(map), &done, gasm_->Int32Constant(0));
-  }
-  Node* type_info = gasm_->LoadWasmTypeInfo(map);
-  Node* supertypes = gasm_->LoadSupertypes(type_info);
-  Node* length =
-      BuildChangeSmiToInt32(gasm_->LoadFixedArrayLengthAsSmi(supertypes));
-  gasm_->GotoIfNot(
-      gasm_->Uint32LessThan(gasm_->Int32Constant(config.rtt_depth), length),
-      &done, gasm_->Int32Constant(0));
-  Node* maybe_match = gasm_->LoadFixedArrayElement(
-      supertypes, config.rtt_depth, MachineType::TaggedPointer());
-  gasm_->Goto(&done, gasm_->TaggedEqual(maybe_match, rtt));
-  gasm_->Bind(&done);
-
-  return done.PhiAt(0);
+WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(
+    GraphAssemblerLabel<1>* label) {
+  return {// succeed_if
+          [=](Node* condition) -> void {
+            gasm_->GotoIf(condition, label, gasm_->Int32Constant(1));
+          },
+          // fail_if
+          [=](Node* condition) -> void {
+            gasm_->GotoIf(condition, label, gasm_->Int32Constant(0));
+          },
+          // fail_if_not
+          [=](Node* condition) -> void {
+            gasm_->GotoIfNot(condition, label, gasm_->Int32Constant(0));
+          }};
 }
 
-Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
-                                ObjectReferenceKnowledge config,
-                                wasm::WasmCodePosition position) {
+WasmGraphBuilder::Callbacks WasmGraphBuilder::CastCallbacks(
+    GraphAssemblerLabel<0>* label, wasm::WasmCodePosition position) {
+  return {// succeed_if
+          [=](Node* condition) -> void { gasm_->GotoIf(condition, label); },
+          // fail_if
+          [=](Node* condition) -> void {
+            TrapIfTrue(wasm::kTrapIllegalCast, condition, position);
+          },
+          // fail_if_not
+          [=](Node* condition) -> void {
+            TrapIfFalse(wasm::kTrapIllegalCast, condition, position);
+          }};
+}
+
+WasmGraphBuilder::Callbacks WasmGraphBuilder::BranchCallbacks(
+    SmallNodeVector& no_match_controls, SmallNodeVector& no_match_effects,
+    SmallNodeVector& match_controls, SmallNodeVector& match_effects) {
+  return {
+      // succeed_if
+      [&](Node* condition) -> void {
+        Node* branch =
+            graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
+                             condition, control());
+        match_controls.emplace_back(
+            graph()->NewNode(mcgraph()->common()->IfTrue(), branch));
+        match_effects.emplace_back(effect());
+        SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), branch));
+      },
+      // fail_if
+      [&](Node* condition) -> void {
+        Node* branch =
+            graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kFalse),
+                             condition, control());
+        no_match_controls.emplace_back(
+            graph()->NewNode(mcgraph()->common()->IfTrue(), branch));
+        no_match_effects.emplace_back(effect());
+        SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), branch));
+      },
+      // fail_if_not
+      [&](Node* condition) -> void {
+        Node* branch =
+            graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
+                             condition, control());
+        no_match_controls.emplace_back(
+            graph()->NewNode(mcgraph()->common()->IfFalse(), branch));
+        no_match_effects.emplace_back(effect());
+        SetControl(graph()->NewNode(mcgraph()->common()->IfTrue(), branch));
+      }};
+}
+
+void WasmGraphBuilder::TypeCheck(
+    Node* object, Node* rtt, WasmGraphBuilder::ObjectReferenceKnowledge config,
+    bool null_succeeds, Callbacks callbacks) {
   if (config.object_can_be_i31) {
-    TrapIfTrue(wasm::kTrapIllegalCast, gasm_->IsI31(object), position);
+    callbacks.fail_if(gasm_->IsI31(object));
   } else {
     AssertFalse(mcgraph(), gasm_.get(), gasm_->IsI31(object));
   }
-  auto done = gasm_->MakeLabel();
   if (config.object_can_be_null) {
-    gasm_->GotoIf(gasm_->WordEqual(object, RefNull()), &done);
+    (null_succeeds ? callbacks.succeed_if
+                   : callbacks.fail_if)(gasm_->WordEqual(object, RefNull()));
   }
+
   Node* map = gasm_->LoadMap(object);
-  gasm_->GotoIf(gasm_->TaggedEqual(map, rtt), &done);
+  callbacks.succeed_if(gasm_->TaggedEqual(map, rtt));
+
   if (!config.object_must_be_data_ref) {
-    TrapIfFalse(wasm::kTrapIllegalCast, gasm_->IsDataRefMap(map), position);
+    callbacks.fail_if_not(gasm_->IsDataRefMap(map));
   }
   Node* type_info = gasm_->LoadWasmTypeInfo(map);
   Node* supertypes = gasm_->LoadSupertypes(type_info);
   Node* length =
       BuildChangeSmiToInt32(gasm_->LoadFixedArrayLengthAsSmi(supertypes));
-  TrapIfFalse(
-      wasm::kTrapIllegalCast,
-      gasm_->Uint32LessThan(gasm_->Int32Constant(config.rtt_depth), length),
-      position);
+  callbacks.fail_if_not(
+      gasm_->Uint32LessThan(gasm_->Int32Constant(config.rtt_depth), length));
   Node* maybe_match = gasm_->LoadFixedArrayElement(
       supertypes, config.rtt_depth, MachineType::TaggedPointer());
-  TrapIfFalse(wasm::kTrapIllegalCast, gasm_->TaggedEqual(maybe_match, rtt),
-              position);
-  gasm_->Goto(&done);
-  gasm_->Bind(&done);
-  return object;
+
+  callbacks.fail_if_not(gasm_->TaggedEqual(maybe_match, rtt));
 }
 
 Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
@@ -5823,78 +5852,15 @@ Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
                                  Node** match_control, Node** match_effect,
                                  Node** no_match_control,
                                  Node** no_match_effect) {
-  // We have up to 5 control nodes to merge; the EffectPhi needs an additional
-  // input.
-  base::SmallVector<Node*, 5> no_match_controls;
-  base::SmallVector<Node*, 6> no_match_effects;
-  // We always have 2 match_controls; use the same mechanism for uniformity.
-  base::SmallVector<Node*, 2> match_controls;
-  base::SmallVector<Node*, 3> match_effects;
+  SmallNodeVector no_match_controls, no_match_effects, match_controls,
+      match_effects;
 
-  Node* is_i31 = gasm_->IsI31(object);
-  if (config.object_can_be_i31) {
-    Node* i31_branch = graph()->NewNode(
-        mcgraph()->common()->Branch(BranchHint::kFalse), is_i31, control());
-    SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), i31_branch));
-    no_match_controls.emplace_back(
-        graph()->NewNode(mcgraph()->common()->IfTrue(), i31_branch));
-    no_match_effects.emplace_back(effect());
-  } else {
-    AssertFalse(mcgraph(), gasm_.get(), is_i31);
-  }
+  TypeCheck(object, rtt, config, false,
+            BranchCallbacks(no_match_controls, no_match_effects, match_controls,
+                            match_effects));
 
-  if (config.object_can_be_null) {
-    Node* null_branch =
-        graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kFalse),
-                         gasm_->WordEqual(object, RefNull()), control());
-    SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), null_branch));
-    no_match_controls.emplace_back(
-        graph()->NewNode(mcgraph()->common()->IfTrue(), null_branch));
-    no_match_effects.emplace_back(effect());
-  }
-
-  // At this point, {object} is neither null nor an i31ref/Smi.
-  Node* map = gasm_->LoadMap(object);
-  Node* exact_match =
-      graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
-                       gasm_->TaggedEqual(map, rtt), control());
-  match_controls.emplace_back(
-      graph()->NewNode(mcgraph()->common()->IfTrue(), exact_match));
+  match_controls.emplace_back(control());
   match_effects.emplace_back(effect());
-  SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), exact_match));
-  if (!config.object_must_be_data_ref) {
-    Node* is_data_ref =
-        graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
-                         gasm_->IsDataRefMap(map), control());
-    no_match_controls.emplace_back(
-        graph()->NewNode(mcgraph()->common()->IfFalse(), is_data_ref));
-    no_match_effects.emplace_back(effect());
-    SetControl(graph()->NewNode(mcgraph()->common()->IfTrue(), is_data_ref));
-  }
-  Node* type_info = gasm_->LoadWasmTypeInfo(map);
-  Node* supertypes = gasm_->LoadSupertypes(type_info);
-  Node* length =
-      BuildChangeSmiToInt32(gasm_->LoadFixedArrayLengthAsSmi(supertypes));
-  Node* length_sufficient = graph()->NewNode(
-      mcgraph()->common()->Branch(BranchHint::kTrue),
-      gasm_->Uint32LessThan(gasm_->Int32Constant(config.rtt_depth), length),
-      control());
-  no_match_controls.emplace_back(
-      graph()->NewNode(mcgraph()->common()->IfFalse(), length_sufficient));
-  no_match_effects.emplace_back(effect());
-  SetControl(
-      graph()->NewNode(mcgraph()->common()->IfTrue(), length_sufficient));
-  Node* maybe_match = gasm_->LoadFixedArrayElement(
-      supertypes, config.rtt_depth, MachineType::TaggedPointer());
-  Node* supertype_match =
-      graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
-                       gasm_->TaggedEqual(maybe_match, rtt), control());
-  match_controls.emplace_back(
-      graph()->NewNode(mcgraph()->common()->IfTrue(), supertype_match));
-  match_effects.emplace_back(effect());
-  no_match_controls.emplace_back(
-      graph()->NewNode(mcgraph()->common()->IfFalse(), supertype_match));
-  no_match_effects.emplace_back(effect());
 
   // Wire up the control/effect nodes.
   unsigned count = static_cast<unsigned>(match_controls.size());
@@ -5914,6 +5880,25 @@ Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
   // Return value is not used, but we need it for compatibility
   // with graph-builder-interface.
   return nullptr;
+}
+
+Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
+                                ObjectReferenceKnowledge config) {
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  TypeCheck(object, rtt, config, false, TestCallbacks(&done));
+  gasm_->Goto(&done, gasm_->Int32Constant(1));
+  gasm_->Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
+                                ObjectReferenceKnowledge config,
+                                wasm::WasmCodePosition position) {
+  auto done = gasm_->MakeLabel();
+  TypeCheck(object, rtt, config, true, CastCallbacks(&done, position));
+  gasm_->Goto(&done);
+  gasm_->Bind(&done);
+  return object;
 }
 
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
