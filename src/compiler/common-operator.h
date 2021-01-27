@@ -700,6 +700,67 @@ class StartNode final : public CommonNodeWrapperBase {
     return node()->op()->ValueOutputCount() - kExtraOutputCount -
            kReceiverOutputCount;
   }
+
+  // Note these functions don't return the index of the Start output; instead
+  // they return the index assigned to the Parameter node.
+  // TODO(jgruber): Consider unifying the two.
+  int NewTargetParameterIndex() const {
+    return Linkage::GetJSCallNewTargetParamIndex(FormalParameterCount());
+  }
+  int ArgCountParameterIndex() const {
+    return Linkage::GetJSCallArgCountParamIndex(FormalParameterCount());
+  }
+  int ContextParameterIndex() const {
+    return Linkage::GetJSCallContextParamIndex(FormalParameterCount());
+  }
+
+  // TODO(jgruber): Remove this function and use
+  // Linkage::GetJSCallContextParamIndex instead. This currently doesn't work
+  // because tests don't create valid Start nodes - for example, they may add
+  // only two context outputs (and not the closure, new target, argc). Once
+  // tests are fixed, remove this function.
+  int ContextParameterIndex_MaybeNonStandardLayout() const {
+    // The context is always the last parameter to a JavaScript function, and
+    // {Parameter} indices start at -1, so value outputs of {Start} look like
+    // this: closure, receiver, param0, ..., paramN, context.
+    //
+    // TODO(jgruber): This function is called from spots that operate on
+    // CSA/Torque graphs; Start node layout appears to be different there.
+    // These should be unified to avoid confusion. Once done, enable this
+    // DCHECK: DCHECK_EQ(LastOutputIndex(), ContextOutputIndex());
+    return node()->op()->ValueOutputCount() - 2;
+  }
+  int LastParameterIndex_MaybeNonStandardLayout() const {
+    return ContextParameterIndex_MaybeNonStandardLayout();
+  }
+
+  // Unlike ContextParameterIndex_MaybeNonStandardLayout above, these return
+  // output indices (and not the index assigned to a Parameter).
+  int NewTargetOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1).
+    // TODO(jgruber): Consider starting at 0.
+    DCHECK_EQ(Linkage::GetJSCallNewTargetParamIndex(FormalParameterCount()) + 1,
+              node()->op()->ValueOutputCount() - 3);
+    return node()->op()->ValueOutputCount() - 3;
+  }
+  int ArgCountOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1).
+    // TODO(jgruber): Consider starting at 0.
+    DCHECK_EQ(Linkage::GetJSCallArgCountParamIndex(FormalParameterCount()) + 1,
+              node()->op()->ValueOutputCount() - 2);
+    return node()->op()->ValueOutputCount() - 2;
+  }
+  int ContextOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1).
+    // TODO(jgruber): Consider starting at 0.
+    DCHECK_EQ(Linkage::GetJSCallContextParamIndex(FormalParameterCount()) + 1,
+              node()->op()->ValueOutputCount() - 1);
+    return node()->op()->ValueOutputCount() - 1;
+  }
+  int LastOutputIndex() const { return ContextOutputIndex(); }
 };
 
 class DynamicCheckMapsWithDeoptUnlessNode final : public CommonNodeWrapperBase {

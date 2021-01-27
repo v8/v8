@@ -396,11 +396,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK_EQ(1, input_count);
       // Parameter has an input that produces enough values.
       int const index = ParameterIndexOf(node->op());
-      Node* const start = NodeProperties::GetValueInput(node, 0);
-      CHECK_EQ(IrOpcode::kStart, start->opcode());
+      StartNode start{NodeProperties::GetValueInput(node, 0)};
       // Currently, parameter indices start at -1 instead of 0.
       CHECK_LE(-1, index);
-      CHECK_LT(index + 1, start->op()->ValueOutputCount());
+      CHECK_LE(index, start.LastParameterIndex_MaybeNonStandardLayout());
       CheckTypeIs(node, Type::Any());
       break;
     }

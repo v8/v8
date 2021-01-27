@@ -67,7 +67,7 @@ class JSInliner final : public AdvancedReducer {
       SharedFunctionInfoRef shared, Node* context = nullptr);
 
   Reduction InlineCall(Node* call, Node* new_target, Node* context,
-                       Node* frame_state, Node* start, Node* end,
+                       Node* frame_state, StartNode start, Node* end,
                        Node* exception_target,
                        const NodeVector& uncaught_subcalls);
 };

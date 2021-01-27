@@ -81,7 +81,7 @@ class JSCallAccessor {
 };
 
 Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
-                                Node* frame_state, Node* start, Node* end,
+                                Node* frame_state, StartNode start, Node* end,
                                 Node* exception_target,
                                 const NodeVector& uncaught_subcalls) {
   JSCallAccessor c(call);
@@ -92,12 +92,9 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
   Node* control = NodeProperties::GetControlInput(call);
   Node* effect = NodeProperties::GetEffectInput(call);
 
-  int const inlinee_new_target_index =
-      static_cast<int>(start->op()->ValueOutputCount()) - 3;
-  int const inlinee_arity_index =
-      static_cast<int>(start->op()->ValueOutputCount()) - 2;
-  int const inlinee_context_index =
-      static_cast<int>(start->op()->ValueOutputCount()) - 1;
+  int const inlinee_new_target_index = start.NewTargetOutputIndex();
+  int const inlinee_arity_index = start.ArgCountOutputIndex();
+  int const inlinee_context_index = start.ContextOutputIndex();
 
   // {inliner_inputs} counts the target, receiver/new_target, and arguments; but
   // not feedback vector, context, effect or control.
@@ -456,7 +453,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
                                 source_positions_->GetSourcePosition(node));
 
   // Create the subgraph for the inlinee.
-  Node* start;
+  Node* start_node;
   Node* end;
   {
     // Run the BytecodeGraphBuilder to create the subgraph.
@@ -478,9 +475,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
 
     // Extract the inlinee start/end nodes.
-    start = graph()->start();
+    start_node = graph()->start();
     end = graph()->end();
   }
+  StartNode start{start_node};
 
   // If we are inlining into a surrounding exception handler, we collect all
   // potentially throwing nodes within the inlinee that are not handled locally
@@ -603,11 +601,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   }
 
   // Insert argument adaptor frame if required. The callees formal parameter
-  // count (i.e. value outputs of start node minus target, receiver, new target,
-  // arguments count and context) have to match the number of arguments passed
+  // count have to match the number of arguments passed
   // to the call.
   int parameter_count = shared_info->internal_formal_parameter_count();
-  DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
+  DCHECK_EQ(parameter_count, start.FormalParameterCountWithoutReceiver());
   if (call.argument_count() != parameter_count) {
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.argument_count(), BytecodeOffset::None(),
