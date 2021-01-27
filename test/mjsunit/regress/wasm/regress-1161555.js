@@ -8,7 +8,6 @@
 // where we are not correctly pushing the full 128-bits of a SIMD register.
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-print('v8-foozzie source: v8/test/mjsunit/wasm/simd-call.js');
 const __v_0 = new WasmModuleBuilder();
 __v_0.addImportedMemory('m', 'imported_mem');
 __v_0.addFunction('main', makeSig([], [])).addBodyWithEnd([
