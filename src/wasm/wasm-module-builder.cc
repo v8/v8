@@ -414,11 +414,11 @@ void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 namespace {
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
-  if (type.is_object_reference_type() && type.encoding_needs_heap_type()) {
+  if (type.encoding_needs_heap_type()) {
     buffer->write_i32v(type.heap_type().code());
   }
   if (type.is_rtt()) {
-    buffer->write_u32v(type.depth());
+    if (type.has_depth()) buffer->write_u32v(type.depth());
     buffer->write_u32v(type.ref_index());
   }
 }
@@ -490,6 +490,7 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
         case ValueType::kBottom:
         case ValueType::kRef:
         case ValueType::kRtt:
+        case ValueType::kRttWithDepth:
           UNREACHABLE();
       }
       break;

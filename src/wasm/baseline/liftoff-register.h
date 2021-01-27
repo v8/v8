@@ -69,6 +69,7 @@ static inline constexpr RegClass reg_class_for(ValueType::Kind kind) {
     case ValueType::kRef:
     case ValueType::kOptRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       return kGpReg;
     default:
       return kNoReg;  // unsupported type

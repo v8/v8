@@ -169,7 +169,7 @@ class WasmGraphBuilder {
     bool object_can_be_null;
     bool object_must_be_data_ref;
     bool object_can_be_i31;
-    uint8_t rtt_depth;
+    int8_t rtt_depth;
   };
   enum EnforceBoundsCheck : bool {  // --
     kNeedsBoundsCheck = true,

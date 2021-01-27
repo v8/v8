@@ -1256,8 +1256,9 @@ class WasmInterpreterInternals {
           val = WasmValue(isolate_->factory()->null_value());
           break;
         }
-        case ValueType::kRef:
-        case ValueType::kRtt:  // TODO(7748): Implement.
+        case ValueType::kRef:  // TODO(7748): Implement.
+        case ValueType::kRtt:
+        case ValueType::kRttWithDepth:
         case ValueType::kStmt:
         case ValueType::kBottom:
         case ValueType::kI8:
@@ -3034,6 +3035,7 @@ class WasmInterpreterInternals {
           break;
         }
         case ValueType::kRtt:  // TODO(7748): Implement.
+        case ValueType::kRttWithDepth:
         case ValueType::kI8:
         case ValueType::kI16:
         case ValueType::kStmt:
@@ -3151,6 +3153,7 @@ class WasmInterpreterInternals {
           break;
         }
         case ValueType::kRtt:  // TODO(7748): Implement.
+        case ValueType::kRttWithDepth:
         case ValueType::kI8:
         case ValueType::kI16:
         case ValueType::kStmt:
@@ -3522,6 +3525,7 @@ class WasmInterpreterInternals {
               break;
             }
             case ValueType::kRtt:  // TODO(7748): Implement.
+            case ValueType::kRttWithDepth:
             case ValueType::kI8:
             case ValueType::kI16:
             case ValueType::kStmt:
@@ -3933,6 +3937,7 @@ class WasmInterpreterInternals {
           break;
         }
         case ValueType::kRtt:
+        case ValueType::kRttWithDepth:
           // TODO(7748): Implement properly.
           PrintF("rtt");
           break;

@@ -494,6 +494,7 @@ class LiftoffCompiler {
       case ValueType::kRef:
       case ValueType::kOptRef:
       case ValueType::kRtt:
+      case ValueType::kRttWithDepth:
       case ValueType::kI8:
       case ValueType::kI16:
         if (FLAG_experimental_liftoff_extern_ref) return true;
@@ -4452,8 +4453,13 @@ class LiftoffCompiler {
     // Step 3: check the list's length.
     LiftoffRegister list_length = tmp2;
     __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
-    __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
-                           rtt.type.depth());
+    if (rtt.type.has_depth()) {
+      __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
+                             rtt.type.depth());
+    } else {
+      unsupported(decoder, kGC, "rtt without depth");
+    }
+
     // Step 4: load the candidate list slot into {tmp1}, and compare it.
     __ LoadTaggedPointer(
         tmp1.gp(), tmp1.gp(), no_reg,
@@ -5011,6 +5017,7 @@ class LiftoffCompiler {
       case ValueType::kOptRef:
         return LoadNullValue(reg.gp(), pinned);
       case ValueType::kRtt:
+      case ValueType::kRttWithDepth:
       case ValueType::kStmt:
       case ValueType::kBottom:
       case ValueType::kRef:

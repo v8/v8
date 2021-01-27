@@ -4230,55 +4230,61 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
           builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}));
 
   // Passing/failing tests due to static subtyping.
-  std::pair<HeapType::Representation, HeapType::Representation> valid_pairs[] =
-      {{HeapType::kAny, array_heap},
-       {HeapType::kAny, super_struct_heap},
-       {HeapType::kEq, array_heap},
-       {HeapType::kEq, super_struct_heap},
-       {super_struct_heap, sub_struct_heap}};
+  std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
+      {{HeapType::kAny, array_heap, true},
+       {HeapType::kAny, super_struct_heap, true},
+       {HeapType::kEq, array_heap, true},
+       {HeapType::kEq, super_struct_heap, true},
+       {super_struct_heap, sub_struct_heap, true},
+       {sub_struct_heap, super_struct_heap, false},
+       {sub_struct_heap, array_heap, false},
+       {HeapType::kFunc, array_heap, false}};
 
-  for (auto pair : valid_pairs) {
-    HeapType from_heap = HeapType(pair.first);
-    HeapType to_heap = HeapType(pair.second);
+  for (auto test : tests) {
+    HeapType from_heap = HeapType(std::get<0>(test));
+    HeapType to_heap = HeapType(std::get<1>(test));
+    bool should_pass = std::get<2>(test);
+
     ValueType test_reps[] = {kWasmI32, ValueType::Ref(from_heap, kNullable)};
     FunctionSig test_sig(1, 1, test_reps);
-    ValueType cast_reps[] = {ValueType::Ref(to_heap, kNonNullable),
-                             ValueType::Ref(from_heap, kNonNullable)};
-    FunctionSig cast_sig(1, 1, cast_reps);
-    ExpectValidates(&test_sig,
-                    {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
-                                   WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
-    ExpectValidates(&cast_sig,
-                    {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
-                                   WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
-  }
 
-  std::pair<HeapType::Representation, HeapType::Representation>
-      invalid_pairs[] = {{sub_struct_heap, super_struct_heap},
-                         {sub_struct_heap, array_heap},
-                         {HeapType::kFunc, array_heap}};
+    ValueType cast_reps_with_depth[] = {ValueType::Ref(to_heap, kNullable),
+                                        ValueType::Ref(from_heap, kNullable)};
+    FunctionSig cast_sig_with_depth(1, 1, cast_reps_with_depth);
 
-  for (auto pair : invalid_pairs) {
-    HeapType from_heap = HeapType(pair.first);
-    HeapType to_heap = HeapType(pair.second);
-    ValueType test_reps[] = {kWasmI32, ValueType::Ref(from_heap, kNullable)};
-    FunctionSig test_sig(1, 1, test_reps);
     ValueType cast_reps[] = {ValueType::Ref(to_heap, kNullable),
-                             ValueType::Ref(from_heap, kNullable)};
-    FunctionSig cast_sig(1, 1, cast_reps);
+                             ValueType::Ref(from_heap, kNullable),
+                             ValueType::Rtt(to_heap.ref_index())};
+    FunctionSig cast_sig(1, 2, cast_reps);
 
-    std::string error_message = "[0] expected supertype of type " +
-                                std::to_string(to_heap.ref_index()) +
-                                ", found local.get of type " +
-                                test_reps[1].name();
-    ExpectFailure(&test_sig,
-                  {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
-                                 WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
-                  kAppendEnd, ("ref.test" + error_message).c_str());
-    ExpectFailure(&cast_sig,
-                  {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
-                                 WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
-                  kAppendEnd, ("ref.cast" + error_message).c_str());
+    if (should_pass) {
+      ExpectValidates(&test_sig,
+                      {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                                     WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
+      ExpectValidates(&cast_sig_with_depth,
+                      {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                                     WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
+      ExpectValidates(&cast_sig,
+                      {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                                     WASM_LOCAL_GET(1))});
+    } else {
+      std::string error_message = "[0] expected supertype of type " +
+                                  std::to_string(to_heap.ref_index()) +
+                                  ", found local.get of type " +
+                                  test_reps[1].name();
+      ExpectFailure(&test_sig,
+                    {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                                   WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
+                    kAppendEnd, ("ref.test" + error_message).c_str());
+      ExpectFailure(&cast_sig_with_depth,
+                    {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                                   WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
+                    kAppendEnd, ("ref.cast" + error_message).c_str());
+      ExpectFailure(&cast_sig,
+                    {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                                   WASM_LOCAL_GET(1))},
+                    kAppendEnd, ("ref.cast" + error_message).c_str());
+    }
   }
 
   // Trivial type error.

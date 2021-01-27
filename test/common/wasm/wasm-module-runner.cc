@@ -70,6 +70,7 @@ OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
         break;
       case ValueType::kRef:
       case ValueType::kRtt:
+      case ValueType::kRttWithDepth:
       case ValueType::kI8:
       case ValueType::kI16:
       case ValueType::kStmt:
@@ -104,6 +105,7 @@ OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
         break;
       case ValueType::kRef:
       case ValueType::kRtt:
+      case ValueType::kRttWithDepth:
       case ValueType::kI8:
       case ValueType::kI16:
       case ValueType::kStmt:

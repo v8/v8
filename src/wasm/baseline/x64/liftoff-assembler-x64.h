@@ -93,6 +93,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
     case ValueType::kOptRef:
     case ValueType::kRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       assm->movq(dst.gp(), src);
       break;
     case ValueType::kF32:
@@ -828,6 +829,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
     case ValueType::kOptRef:
     case ValueType::kRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       movq(dst, reg.gp());
       break;
     case ValueType::kF32:
@@ -2043,6 +2045,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       case ValueType::kRef:
       case ValueType::kOptRef:
       case ValueType::kRtt:
+      case ValueType::kRttWithDepth:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
         V8_FALLTHROUGH;
       case ValueType::kI64:

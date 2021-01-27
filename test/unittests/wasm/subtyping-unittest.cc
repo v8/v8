@@ -131,6 +131,13 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Identical rtts are subtypes of each other.
     CHECK(IsSubtypeOf(ValueType::Rtt(5, 3), ValueType::Rtt(5, 3), module1,
                       module2));
+    CHECK(IsSubtypeOf(ValueType::Rtt(5), ValueType::Rtt(5), module1, module2));
+    // Rtts of unrelated types are unrelated.
+    CHECK(!IsSubtypeOf(ValueType::Rtt(1, 1), ValueType::Rtt(2, 1), module1,
+                       module2));
+    CHECK(!IsSubtypeOf(ValueType::Rtt(1), ValueType::Rtt(2), module1, module2));
+    CHECK(!IsSubtypeOf(ValueType::Rtt(1, 0), ValueType::Rtt(2), module1,
+                       module2));
     // Rtts of different depth are unrelated.
     CHECK(!IsSubtypeOf(ValueType::Rtt(5, 1), ValueType::Rtt(5, 3), module1,
                        module2));
@@ -139,9 +146,16 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Rtts of identical types are subtype-related.
     CHECK(IsSubtypeOf(ValueType::Rtt(8, 1), ValueType::Rtt(9, 1), module1,
                       module));
+    CHECK(IsSubtypeOf(ValueType::Rtt(8), ValueType::Rtt(9), module1, module));
     // Rtts of subtypes are not related.
     CHECK(!IsSubtypeOf(ValueType::Rtt(1, 1), ValueType::Rtt(0, 1), module1,
                        module));
+    CHECK(!IsSubtypeOf(ValueType::Rtt(1), ValueType::Rtt(0), module1, module));
+    // rtt(t, d) <: rtt(t)
+    for (uint8_t depth : {0, 1, 5}) {
+      CHECK(IsSubtypeOf(ValueType::Rtt(1, depth), ValueType::Rtt(1), module1,
+                        module));
+    }
   }
 }
 

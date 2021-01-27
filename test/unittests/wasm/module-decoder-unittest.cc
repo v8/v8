@@ -569,12 +569,12 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
     static const byte referencing_undefined_global_nested[] = {
         SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI32Code, true)),
         SECTION(Global, ENTRY_COUNT(2),            // --
-                WASM_RTT(1, 0),                    // type
+                WASM_RTT_WITH_DEPTH(1, 0),         // type
                 0,                                 // mutable
                 WASM_RTT_SUB(0,                    // init value
                              WASM_GLOBAL_GET(1)),  // --
                 kExprEnd,                          // --
-                WASM_RTT(0, 0),                    // type
+                WASM_RTT_WITH_DEPTH(0, 0),         // type
                 0,                                 // mutable
                 WASM_RTT_CANON(0), kExprEnd)       // init value
     };
@@ -796,8 +796,8 @@ TEST_F(WasmModuleVerifyTest, RttCanonGlobalStruct) {
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1),
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(0, 0), 0, WASM_RTT_CANON(0),
-              kExprEnd)};
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(0, 0), 0,
+              WASM_RTT_CANON(0), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
 }
@@ -809,8 +809,8 @@ TEST_F(WasmModuleVerifyTest, RttCanonGlobalTypeError) {
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1),
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(1, 0), 1, WASM_RTT_CANON(0),
-              kExprEnd)};
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 0), 1,
+              WASM_RTT_CANON(0), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result,
                 "type error in init expression, expected (rtt 1 0), got "
@@ -826,7 +826,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfCanon) {
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
               WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
                               STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(1, 1), 1,
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
               WASM_RTT_SUB(1, WASM_RTT_CANON(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   WasmInitExpr expected = WasmInitExpr::RttSub(1, WasmInitExpr::RttCanon(0));
@@ -843,7 +843,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfSubOfCanon) {
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
               WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
                               STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, 1), 1,
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(2, 1), 1,
               WASM_RTT_SUB(1, WASM_RTT_SUB(1, WASM_RTT_CANON(0))), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   WasmInitExpr expected = WasmInitExpr::RttSub(
@@ -861,14 +861,14 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobal) {
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
               WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
                               STRUCT_FIELD(kI32Code, true))),
-      SECTION(Import,           // section header
-              ENTRY_COUNT(1),   // number of imports
-              ADD_COUNT('m'),   // module name
-              ADD_COUNT('f'),   // global name
-              kExternalGlobal,  // import kind
-              WASM_RTT(0, 0),   // type
-              0),               // mutability
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(1, 1), 1,
+      SECTION(Import,                     // section header
+              ENTRY_COUNT(1),             // number of imports
+              ADD_COUNT('m'),             // module name
+              ADD_COUNT('f'),             // global name
+              kExternalGlobal,            // import kind
+              WASM_RTT_WITH_DEPTH(0, 0),  // type
+              0),                         // mutability
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
               WASM_RTT_SUB(1, WASM_GLOBAL_GET(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   WasmInitExpr expected = WasmInitExpr::RttSub(1, WasmInitExpr::GlobalGet(0));
@@ -890,7 +890,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobalTypeError) {
               kExternalGlobal,  // import kind
               kI32Code,         // type
               0),               // mutability
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(1, 0), 1,
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 0), 1,
               WASM_RTT_SUB(0, WASM_GLOBAL_GET(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
@@ -904,7 +904,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubIllegalParent) {
       SECTION(Type, ENTRY_COUNT(2),
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kF32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(1, 1), 1,
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
               WASM_RTT_SUB(1, WASM_RTT_CANON(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
@@ -917,7 +917,7 @@ TEST_F(WasmModuleVerifyTest, RttSubGlobalTypeError) {
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1),
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(0, 0), 1,
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(0, 0), 1,
               WASM_RTT_SUB(0, WASM_RTT_CANON(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result,
@@ -1982,7 +1982,7 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
                               {kOptRefCode, 1},
                               {kOptRefCode, kI31RefCode},
                               {kI31RefCode},
-                              {kRttCode, 2, 0}};
+                              {kRttWithDepthCode, 2, 0}};
 
   for (Vec type : table_types) {
     Vec data = {

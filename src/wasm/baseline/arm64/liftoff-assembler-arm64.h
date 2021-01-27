@@ -80,6 +80,7 @@ inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueType type) {
     case ValueType::kRef:
     case ValueType::kOptRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       return reg.gp().X();
     case ValueType::kF32:
       return reg.fp().S();
@@ -1503,6 +1504,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
     case ValueType::kRef:
     case ValueType::kOptRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       DCHECK(rhs.is_valid());
       DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
       V8_FALLTHROUGH;

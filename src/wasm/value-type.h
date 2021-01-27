@@ -35,12 +35,13 @@ class Simd128;
   V(I8, 0, I8, Int8, 'b', "i8")          \
   V(I16, 1, I16, Int16, 'h', "i16")
 
-#define FOREACH_VALUE_TYPE(V)                                    \
-  V(Stmt, -1, Void, None, 'v', "<stmt>")                         \
-  FOREACH_NUMERIC_VALUE_TYPE(V)                                  \
-  V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")        \
-  V(Ref, kTaggedSizeLog2, Ref, AnyTagged, 'r', "ref")            \
-  V(OptRef, kTaggedSizeLog2, OptRef, AnyTagged, 'n', "ref null") \
+#define FOREACH_VALUE_TYPE(V)                                               \
+  V(Stmt, -1, Void, None, 'v', "<stmt>")                                    \
+  FOREACH_NUMERIC_VALUE_TYPE(V)                                             \
+  V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")                   \
+  V(RttWithDepth, kTaggedSizeLog2, RttWithDepth, TaggedPointer, 'k', "rtt") \
+  V(Ref, kTaggedSizeLog2, Ref, AnyTagged, 'r', "ref")                       \
+  V(OptRef, kTaggedSizeLog2, OptRef, AnyTagged, 'n', "ref null")            \
   V(Bottom, -1, Void, None, '*', "<bot>")
 
 // Represents a WebAssembly heap type, as per the typed-funcref and gc
@@ -194,10 +195,16 @@ class ValueType {
     return Ref(heap_type.representation(), nullability);
   }
 
+  static constexpr ValueType Rtt(uint32_t type_index) {
+    CONSTEXPR_DCHECK(HeapType(type_index).is_index());
+    return ValueType(KindField::encode(kRtt) |
+                     HeapTypeField::encode(type_index));
+  }
+
   static constexpr ValueType Rtt(uint32_t type_index,
                                  uint8_t inheritance_depth) {
     CONSTEXPR_DCHECK(HeapType(type_index).is_index());
-    return ValueType(KindField::encode(kRtt) |
+    return ValueType(KindField::encode(kRttWithDepth) |
                      HeapTypeField::encode(type_index) |
                      DepthField::encode(inheritance_depth));
   }
@@ -209,7 +216,8 @@ class ValueType {
 
   /******************************** Type checks *******************************/
   constexpr bool is_reference_type() const {
-    return kind() == kRef || kind() == kOptRef || kind() == kRtt;
+    return kind() == kRef || kind() == kOptRef || kind() == kRtt ||
+           kind() == kRttWithDepth;
   }
 
   constexpr bool is_object_reference_type() const {
@@ -223,8 +231,10 @@ class ValueType {
            heap_representation() == htype;
   }
 
-  constexpr bool is_rtt() const { return kind() == kRtt; }
-  constexpr bool has_depth() const { return is_rtt(); }
+  constexpr bool is_rtt() const {
+    return kind() == kRtt || kind() == kRttWithDepth;
+  }
+  constexpr bool has_depth() const { return kind() == kRttWithDepth; }
 
   constexpr bool has_index() const {
     return is_rtt() || (is_object_reference_type() && heap_type().is_index());
@@ -232,7 +242,7 @@ class ValueType {
 
   constexpr bool is_defaultable() const {
     CONSTEXPR_DCHECK(kind() != kBottom && kind() != kStmt);
-    return kind() != kRef && kind() != kRtt;
+    return kind() != kRef && !is_rtt();
   }
 
   constexpr bool is_bottom() const { return kind() == kBottom; }
@@ -377,6 +387,8 @@ class ValueType {
         return kVoidCode;
       case kRtt:
         return kRttCode;
+      case kRttWithDepth:
+        return kRttWithDepthCode;
 #define NUMERIC_TYPE_CASE(kind, ...) \
   case k##kind:                      \
     return k##kind##Code;
@@ -392,7 +404,6 @@ class ValueType {
   // binary format, taking into account available type shorthands.
   constexpr bool encoding_needs_heap_type() const {
     return (kind() == kRef && heap_representation() != HeapType::kI31) ||
-           kind() == kRtt ||
            (kind() == kOptRef && (!heap_type().is_generic() ||
                                   heap_representation() == HeapType::kI31));
   }
@@ -429,9 +440,12 @@ class ValueType {
           buf << "(ref null " << heap_type().name() << ")";
         }
         break;
-      case kRtt:
+      case kRttWithDepth:
         buf << "(rtt " << static_cast<uint32_t>(depth()) << " " << ref_index()
             << ")";
+        break;
+      case kRtt:
+        buf << "(rtt " << ref_index() << ")";
         break;
       default:
         buf << kind_name();

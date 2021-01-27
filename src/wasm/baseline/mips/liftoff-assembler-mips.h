@@ -91,6 +91,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case ValueType::kRef:
     case ValueType::kOptRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       assm->lw(dst.gp(), src);
       break;
     case ValueType::kI64:
@@ -118,6 +119,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case ValueType::kOptRef:
     case ValueType::kRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       assm->Usw(src.gp(), dst);
       break;
     case ValueType::kI64:
@@ -722,6 +724,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
     case ValueType::kRef:
     case ValueType::kOptRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       sw(reg.gp(), dst);
       break;
     case ValueType::kI64:

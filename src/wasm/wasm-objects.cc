@@ -1745,6 +1745,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         encoded_size += 1;
         break;
       case wasm::ValueType::kRtt:
+      case wasm::ValueType::kRttWithDepth:
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
       case wasm::ValueType::kI8:

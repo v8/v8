@@ -2321,6 +2321,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         ++index;
         break;
       case wasm::ValueType::kRtt:  // TODO(7748): Implement.
+      case wasm::ValueType::kRttWithDepth:
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:
       case wasm::ValueType::kStmt:
@@ -2469,6 +2470,7 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
         ++index;
         break;
       case wasm::ValueType::kRtt:  // TODO(7748): Implement.
+      case wasm::ValueType::kRttWithDepth:
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:
       case wasm::ValueType::kStmt:
@@ -5837,12 +5839,16 @@ void WasmGraphBuilder::TypeCheck(
   }
   Node* type_info = gasm_->LoadWasmTypeInfo(map);
   Node* supertypes = gasm_->LoadSupertypes(type_info);
-  Node* length =
+  Node* supertypes_length =
       BuildChangeSmiToInt32(gasm_->LoadFixedArrayLengthAsSmi(supertypes));
-  callbacks.fail_if_not(
-      gasm_->Uint32LessThan(gasm_->Int32Constant(config.rtt_depth), length));
+  Node* rtt_depth =
+      config.rtt_depth >= 0
+          ? gasm_->Int32Constant(config.rtt_depth)
+          : BuildChangeSmiToInt32(gasm_->LoadFixedArrayLengthAsSmi(
+                gasm_->LoadSupertypes(gasm_->LoadWasmTypeInfo(rtt))));
+  callbacks.fail_if_not(gasm_->Uint32LessThan(rtt_depth, supertypes_length));
   Node* maybe_match = gasm_->LoadFixedArrayElement(
-      supertypes, config.rtt_depth, MachineType::TaggedPointer());
+      supertypes, rtt_depth, MachineType::TaggedPointer());
 
   callbacks.fail_if_not(gasm_->TaggedEqual(maybe_match, rtt));
 }
@@ -6261,6 +6267,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         UNREACHABLE();
       }
       case wasm::ValueType::kRtt:
+      case wasm::ValueType::kRttWithDepth:
         // TODO(7748): Figure out what to do for RTTs.
         UNIMPLEMENTED();
       case wasm::ValueType::kI8:
@@ -6414,6 +6421,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeBigIntToInt64(input, js_context);
 
       case wasm::ValueType::kRtt:  // TODO(7748): Implement.
+      case wasm::ValueType::kRttWithDepth:
       case wasm::ValueType::kS128:
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:
@@ -6470,6 +6478,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kOptRef:
       case wasm::ValueType::kI64:
       case wasm::ValueType::kRtt:
+      case wasm::ValueType::kRttWithDepth:
       case wasm::ValueType::kS128:
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:
@@ -6609,6 +6618,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         case wasm::ValueType::kOptRef:
         case wasm::ValueType::kI64:
         case wasm::ValueType::kRtt:
+        case wasm::ValueType::kRttWithDepth:
         case wasm::ValueType::kS128:
         case wasm::ValueType::kI8:
         case wasm::ValueType::kI16:
@@ -6659,6 +6669,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kOptRef:
       case wasm::ValueType::kI64:
       case wasm::ValueType::kRtt:
+      case wasm::ValueType::kRttWithDepth:
       case wasm::ValueType::kS128:
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:

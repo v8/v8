@@ -1420,6 +1420,7 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
       case i::wasm::ValueType::kRtt:
+      case i::wasm::ValueType::kRttWithDepth:
       case i::wasm::ValueType::kS128:
         // TODO(7748): Implement.
         UNIMPLEMENTED();
@@ -1460,6 +1461,7 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
         break;
       }
       case i::wasm::ValueType::kRtt:
+      case i::wasm::ValueType::kRttWithDepth:
       case i::wasm::ValueType::kS128:
         // TODO(7748): Implement.
         UNIMPLEMENTED();
@@ -1724,6 +1726,7 @@ auto Global::get() const -> Val {
       return Val(V8RefValueToWasm(store, v8_global->GetRef()));
     }
     case i::wasm::ValueType::kRtt:
+    case i::wasm::ValueType::kRttWithDepth:
     case i::wasm::ValueType::kS128:
       // TODO(7748): Implement these.
       UNIMPLEMENTED();

@@ -1750,6 +1750,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
       case wasm::ValueType::kRtt:
+      case wasm::ValueType::kRttWithDepth:
       case wasm::ValueType::kBottom:
       case wasm::ValueType::kStmt:
         os << "UNIMPLEMENTED";  // TODO(7748): Implement.
@@ -1789,6 +1790,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
     case wasm::ValueType::kRef:
     case wasm::ValueType::kOptRef:
     case wasm::ValueType::kRtt:
+    case wasm::ValueType::kRttWithDepth:
     case wasm::ValueType::kBottom:
     case wasm::ValueType::kStmt:
       os << "\n   Printing elements of this type is unimplemented, sorry";

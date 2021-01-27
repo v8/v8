@@ -990,7 +990,7 @@ class WasmGraphBuildingInterface {
     DCHECK(object_type.is_object_reference_type());  // Checked by validation.
     result.object_must_be_data_ref = is_data_ref_type(object_type, module);
     result.object_can_be_i31 = IsSubtypeOf(kWasmI31Ref, object_type, module);
-    result.rtt_depth = rtt_type.depth();
+    result.rtt_depth = rtt_type.has_depth() ? rtt_type.depth() : -1;
     return result;
   }
 
@@ -1142,6 +1142,7 @@ class WasmGraphBuildingInterface {
       case ValueType::kOptRef:
         return builder_->RefNull();
       case ValueType::kRtt:
+      case ValueType::kRttWithDepth:
       case ValueType::kStmt:
       case ValueType::kBottom:
       case ValueType::kRef:

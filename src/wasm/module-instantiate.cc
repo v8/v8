@@ -912,6 +912,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
       break;
     }
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
     case ValueType::kRef:
     case ValueType::kOptRef: {
       tagged_globals_->set(global.offset, *value->GetRef());
