@@ -510,7 +510,7 @@
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
   F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
-  F(STOP_THE_WORLD)                                  \
+  F(TIME_TO_SAFEPOINT)                               \
   F(UNMAPPER)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \

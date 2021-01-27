@@ -573,7 +573,7 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
-          "stop_the_world=%.2f "
+          "time_to_safepoint=%.2f "
           "heap.prologue=%.2f "
           "heap.epilogue=%.2f "
           "heap.epilogue.reduce_new_space=%.2f "
@@ -615,7 +615,7 @@ void GCTracer::PrintNVP() const {
           "unmapper_chunks=%d "
           "context_disposal_rate=%.1f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::STOP_THE_WORLD],
+          current_.reduce_memory, current_.scopes[Scope::TIME_TO_SAFEPOINT],
           current_.scopes[Scope::HEAP_PROLOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],
@@ -662,7 +662,7 @@ void GCTracer::PrintNVP() const {
           "reduce_memory=%d "
           "minor_mc=%.2f "
           "finish_sweeping=%.2f "
-          "stop_the_world=%.2f "
+          "time_to_safepoint=%.2f "
           "mark=%.2f "
           "mark.seed=%.2f "
           "mark.roots=%.2f "
@@ -686,7 +686,7 @@ void GCTracer::PrintNVP() const {
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
           current_.scopes[Scope::MINOR_MC],
           current_.scopes[Scope::MINOR_MC_SWEEPING],
-          current_.scopes[Scope::STOP_THE_WORLD],
+          current_.scopes[Scope::TIME_TO_SAFEPOINT],
           current_.scopes[Scope::MINOR_MC_MARK],
           current_.scopes[Scope::MINOR_MC_MARK_SEED],
           current_.scopes[Scope::MINOR_MC_MARK_ROOTS],
@@ -716,7 +716,7 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
-          "stop_the_world=%.2f "
+          "time_to_safepoint=%.2f "
           "heap.prologue=%.2f "
           "heap.embedder_tracing_epilogue=%.2f "
           "heap.epilogue=%.2f "
@@ -808,7 +808,7 @@ void GCTracer::PrintNVP() const {
           "context_disposal_rate=%.1f "
           "compaction_speed=%.f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::STOP_THE_WORLD],
+          current_.reduce_memory, current_.scopes[Scope::TIME_TO_SAFEPOINT],
           current_.scopes[Scope::HEAP_PROLOGUE],
           current_.scopes[Scope::HEAP_EMBEDDER_TRACING_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE],
