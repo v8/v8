@@ -33,6 +33,8 @@ class MetricRecorder {
     int64_t objects_before_bytes;
     int64_t objects_after_bytes;
     int64_t objects_freed_bytes;
+    int64_t memory_before_bytes;
+    int64_t memory_after_bytes;
     int64_t memory_freed_bytes;
   };
 

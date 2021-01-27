@@ -381,6 +381,12 @@ TEST_F(MetricRecorderTest, ObjectSizeMetricsNoAllocations) {
       MetricRecorderImpl::CppGCCycleEndMetricSamples_event.objects_freed_bytes);
   EXPECT_EQ(
       0u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.memory_before_bytes);
+  EXPECT_EQ(
+      0u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.memory_after_bytes);
+  EXPECT_EQ(
+      0u,
       MetricRecorderImpl::CppGCCycleEndMetricSamples_event.memory_freed_bytes);
 }
 
@@ -391,9 +397,11 @@ TEST_F(MetricRecorderTest, ObjectSizeMetricsWithAllocations) {
   // Populate current event.
   StartGC();
   stats->NotifyAllocation(300);
+  stats->NotifyAllocatedMemory(1400);
   stats->NotifyFreedMemory(700);
   stats->NotifyMarkingCompleted(800);
   stats->NotifyAllocation(150);
+  stats->NotifyAllocatedMemory(1000);
   stats->NotifyFreedMemory(400);
   stats->NotifySweepingCompleted();
   EXPECT_EQ(1300u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
@@ -404,6 +412,12 @@ TEST_F(MetricRecorderTest, ObjectSizeMetricsWithAllocations) {
   EXPECT_EQ(
       500u,
       MetricRecorderImpl::CppGCCycleEndMetricSamples_event.objects_freed_bytes);
+  EXPECT_EQ(
+      700u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.memory_before_bytes);
+  EXPECT_EQ(
+      300u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.memory_after_bytes);
   EXPECT_EQ(
       400u,
       MetricRecorderImpl::CppGCCycleEndMetricSamples_event.memory_freed_bytes);

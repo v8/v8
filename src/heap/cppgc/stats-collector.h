@@ -105,6 +105,7 @@ class V8_EXPORT_PRIVATE StatsCollector final {
     // Marked bytes collected during marking.
     size_t marked_bytes = 0;
     size_t object_size_before_sweep_bytes = -1;
+    size_t memory_size_before_sweep_bytes = -1;
   };
 
  private:
@@ -270,6 +271,7 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
   const Event& GetPreviousEventForTesting() const { return previous_; }
 
+  void NotifyAllocatedMemory(int64_t);
   void NotifyFreedMemory(int64_t);
 
   void SetMetricRecorderForTesting(
@@ -306,7 +308,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   int64_t allocated_bytes_since_safepoint_ = 0;
   int64_t explicitly_freed_bytes_since_safepoint_ = 0;
 
-  int64_t freed_memory_bytes_since_end_of_marking_ = 0;
+  int64_t memory_allocated_bytes_ = 0;
+  int64_t memory_freed_bytes_since_end_of_marking_ = 0;
 
   // vector to allow fast iteration of observers. Register/Unregisters only
   // happens on startup/teardown.

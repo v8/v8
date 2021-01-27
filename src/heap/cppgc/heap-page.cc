@@ -114,6 +114,7 @@ NormalPage* NormalPage::Create(PageBackend* page_backend,
   void* memory = page_backend->AllocateNormalPageMemory(space->index());
   auto* normal_page = new (memory) NormalPage(space->raw_heap()->heap(), space);
   normal_page->SynchronizedStore();
+  normal_page->heap()->stats_collector()->NotifyAllocatedMemory(kPageSize);
   return normal_page;
 }
 
@@ -199,6 +200,8 @@ LargePage* LargePage::Create(PageBackend* page_backend, LargePageSpace* space,
   void* memory = page_backend->AllocateLargePageMemory(allocation_size);
   LargePage* page = new (memory) LargePage(heap, space, size);
   page->SynchronizedStore();
+  page->heap()->stats_collector()->NotifyAllocatedMemory(
+      LargePageAllocationSize(page->PayloadSize()));
   return page;
 }
 

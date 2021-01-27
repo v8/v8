@@ -100,6 +100,11 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
   allocated_bytes_since_safepoint_ = 0;
   explicitly_freed_bytes_since_safepoint_ = 0;
 
+  DCHECK_LE(memory_freed_bytes_since_end_of_marking_, memory_allocated_bytes_);
+  memory_allocated_bytes_ -= memory_freed_bytes_since_end_of_marking_;
+  current_.memory_size_before_sweep_bytes = memory_allocated_bytes_;
+  memory_freed_bytes_since_end_of_marking_ = 0;
+
   ForAllAllocationObservers([marked_bytes](AllocationObserver* observer) {
     observer->ResetAllocatedObjectSize(marked_bytes);
   });
@@ -108,7 +113,6 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
   // execution of ResetAllocatedObjectSize.
   allocated_bytes_since_end_of_marking_ = 0;
   time_of_last_end_of_marking_ = v8::base::TimeTicks::Now();
-  freed_memory_bytes_since_end_of_marking_ = 0;
 }
 
 double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
@@ -138,7 +142,10 @@ void StatsCollector::NotifySweepingCompleted() {
         previous_.marked_bytes /* objects_after */,
         previous_.object_size_before_sweep_bytes -
             previous_.marked_bytes /* objects_freed */,
-        freed_memory_bytes_since_end_of_marking_ /* memory_freed */};
+        previous_.memory_size_before_sweep_bytes /* memory_before */,
+        previous_.memory_size_before_sweep_bytes -
+            memory_freed_bytes_since_end_of_marking_ /* memory_after */,
+        memory_freed_bytes_since_end_of_marking_ /* memory_freed */};
     metric_recorder_->AddMainThreadEvent(event);
   }
 }
@@ -156,8 +163,12 @@ size_t StatsCollector::allocated_object_size() const {
                              allocated_bytes_since_end_of_marking_);
 }
 
+void StatsCollector::NotifyAllocatedMemory(int64_t size) {
+  memory_allocated_bytes_ += size;
+}
+
 void StatsCollector::NotifyFreedMemory(int64_t size) {
-  freed_memory_bytes_since_end_of_marking_ += size;
+  memory_freed_bytes_since_end_of_marking_ += size;
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,
