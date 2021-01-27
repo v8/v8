@@ -1207,6 +1207,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movupd(XMMRegister dst, Operand src);
   void movupd(Operand dst, XMMRegister src);
 
+  void cvtdq2pd(XMMRegister dst, XMMRegister src);
+
   void cvttsd2si(Register dst, Operand src);
   void cvttsd2si(Register dst, XMMRegister src);
   void cvttss2siq(Register dst, XMMRegister src);
@@ -1401,6 +1403,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr(0x12, dst, src1, src2, kNone, k0F, kWIG);
+  }
+  void vcvtdq2pd(XMMRegister dst, XMMRegister src) {
+    vinstr(0xe6, dst, xmm0, src, kF3, k0F, kWIG);
   }
   void vcvtss2sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr(0x5a, dst, src1, src2, kF3, k0F, kWIG);

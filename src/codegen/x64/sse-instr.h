@@ -135,8 +135,7 @@
   V(subsd, F2, 0F, 5C)              \
   V(minsd, F2, 0F, 5D)              \
   V(divsd, F2, 0F, 5E)              \
-  V(maxsd, F2, 0F, 5F)              \
-  V(cvtdq2pd, F3, 0F, E6)
+  V(maxsd, F2, 0F, 5F)
 
 #define SSSE3_INSTRUCTION_LIST(V) \
   V(pshufb, 66, 0F, 38, 00)       \
