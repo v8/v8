@@ -4246,6 +4246,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef Q15_MUL_ROAUND
+#define SIGN_SELECT(mode)                                                      \
+  Simd128Register src0 = i.InputSimd128Register(0);                            \
+  Simd128Register src1 = i.InputSimd128Register(1);                            \
+  Simd128Register src2 = i.InputSimd128Register(2);                            \
+  Simd128Register dst = i.OutputSimd128Register();                             \
+  __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg, Condition(0), \
+        Condition(0), Condition(3));                                           \
+  __ vch(kScratchDoubleReg, kScratchDoubleReg, src2, Condition(0),             \
+         Condition(mode));                                                     \
+  __ vsel(dst, src0, src1, kScratchDoubleReg, Condition(0), Condition(0));
+    case kS390_I8x16SignSelect: {
+      SIGN_SELECT(0)
+      break;
+    }
+    case kS390_I16x8SignSelect: {
+      SIGN_SELECT(1)
+      break;
+    }
+    case kS390_I32x4SignSelect: {
+      SIGN_SELECT(2)
+      break;
+    }
+    case kS390_I64x2SignSelect: {
+      SIGN_SELECT(3)
+      break;
+    }
+#undef SIGN_SELECT
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
