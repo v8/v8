@@ -569,6 +569,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // instructions. These helpers allow us to define the optimal code sequence,
   // and be used in both TurboFan and Liftoff.
   void I64x2BitMask(Register dst, QwNeonRegister src);
+  void I64x2Eq(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
 
  private:
   // Compare single values and then load the fpscr flags to a register.

@@ -2640,6 +2640,15 @@ void TurboAssembler::I64x2BitMask(Register dst, QwNeonRegister src) {
   add(dst, dst, Operand(tmp, LSL, 1));
 }
 
+void TurboAssembler::I64x2Eq(QwNeonRegister dst, QwNeonRegister src1,
+                             QwNeonRegister src2) {
+  UseScratchRegisterScope temps(this);
+  Simd128Register scratch = temps.AcquireQ();
+  vceq(Neon32, dst, src1, src2);
+  vrev64(Neon32, scratch, dst);
+  vand(dst, dst, scratch);
+}
+
 }  // namespace internal
 }  // namespace v8
 

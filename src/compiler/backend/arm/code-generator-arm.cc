@@ -2429,13 +2429,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI64x2Eq: {
-      Simd128Register dst = i.OutputSimd128Register();
-      UseScratchRegisterScope temps(tasm());
-      Simd128Register scratch = temps.AcquireQ();
-      __ vceq(Neon32, dst, i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
-      __ vrev64(Neon32, scratch, dst);
-      __ vand(dst, dst, scratch);
+      __ I64x2Eq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
       break;
     }
     case kArmI32x4Eq: {
