@@ -2449,7 +2449,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     constexpr RegList fp_regs = DoubleRegister::ListOf(d0, d2);
 #endif
     __ MultiPush(gp_regs);
-    __ MultiPushDoubles(fp_regs);
+    __ MultiPushV128(fp_regs);
 
     // Pass instance and function index as explicit arguments to the runtime
     // function.
@@ -2462,7 +2462,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ mov(ip, r2);
 
     // Restore registers.
-    __ MultiPopDoubles(fp_regs);
+    __ MultiPopV128(fp_regs);
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.
