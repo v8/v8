@@ -123,13 +123,78 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
          (current_time - time_of_last_end_of_marking_).InMillisecondsF();
 }
 
+namespace {
+
+int64_t SumPhases(const MetricRecorder::CppGCFullCycle::Phases& phases) {
+  return phases.mark_duration_us + phases.weak_duration_us +
+         phases.compact_duration_us + phases.sweep_duration_us;
+}
+
+MetricRecorder::CppGCFullCycle GetFullCycleEventForMetricRecorder(
+    int64_t atomic_mark_us, int64_t atomic_weak_us, int64_t atomic_compact_us,
+    int64_t atomic_sweep_us, int64_t incremental_mark_us,
+    int64_t incremental_sweep_us, int64_t concurrent_mark_us,
+    int64_t concurrent_sweep_us, int64_t objects_before_bytes,
+    int64_t objects_after_bytes, int64_t objects_freed_bytes,
+    int64_t memory_before_bytes, int64_t memory_after_bytes,
+    int64_t memory_freed_bytes) {
+  MetricRecorder::CppGCFullCycle event;
+  // MainThread.Incremental:
+  event.main_thread_incremental.mark_duration_us = incremental_mark_us;
+  event.main_thread_incremental.sweep_duration_us = incremental_sweep_us;
+  // MainThread.Atomic:
+  event.main_thread_atomic.mark_duration_us = atomic_mark_us;
+  event.main_thread_atomic.weak_duration_us = atomic_weak_us;
+  event.main_thread_atomic.compact_duration_us = atomic_compact_us;
+  event.main_thread_atomic.sweep_duration_us = atomic_sweep_us;
+  // MainThread:
+  event.main_thread.mark_duration_us =
+      event.main_thread_atomic.mark_duration_us +
+      event.main_thread_incremental.mark_duration_us;
+  event.main_thread.weak_duration_us =
+      event.main_thread_atomic.weak_duration_us;
+  event.main_thread.compact_duration_us =
+      event.main_thread_atomic.compact_duration_us;
+  event.main_thread.sweep_duration_us =
+      event.main_thread_atomic.sweep_duration_us +
+      event.main_thread_incremental.sweep_duration_us;
+  // Total:
+  event.total.mark_duration_us =
+      event.main_thread.mark_duration_us + concurrent_mark_us;
+  event.total.weak_duration_us = event.main_thread.weak_duration_us;
+  event.total.compact_duration_us = event.main_thread.compact_duration_us;
+  event.total.sweep_duration_us =
+      event.main_thread.sweep_duration_us + concurrent_sweep_us;
+  // Objects:
+  event.objects.before_bytes = objects_before_bytes;
+  event.objects.after_bytes = objects_after_bytes;
+  event.objects.freed_bytes = objects_freed_bytes;
+  // Memory:
+  event.memory.before_bytes = memory_before_bytes;
+  event.memory.after_bytes = memory_after_bytes;
+  event.memory.freed_bytes = memory_freed_bytes;
+  // Collection Rate:
+  event.collection_rate_in_percent =
+      static_cast<double>(event.objects.after_bytes) /
+      event.objects.before_bytes;
+  // Efficiency:
+  event.efficiency_in_bytes_per_us =
+      static_cast<double>(event.objects.freed_bytes) / SumPhases(event.total);
+  event.main_thread_efficiency_in_bytes_per_us =
+      static_cast<double>(event.objects.freed_bytes) /
+      SumPhases(event.main_thread);
+  return event;
+}
+
+}  // namespace
+
 void StatsCollector::NotifySweepingCompleted() {
   DCHECK_EQ(GarbageCollectionState::kSweeping, gc_state_);
   gc_state_ = GarbageCollectionState::kNotRunning;
   previous_ = std::move(current_);
   current_ = Event();
   if (metric_recorder_) {
-    MetricRecorder::CppGCCycleEndMetricSamples event{
+    MetricRecorder::CppGCFullCycle event = GetFullCycleEventForMetricRecorder(
         previous_.scope_data[kAtomicMark].InMicroseconds(),
         previous_.scope_data[kAtomicWeak].InMicroseconds(),
         previous_.scope_data[kAtomicCompact].InMicroseconds(),
@@ -145,7 +210,7 @@ void StatsCollector::NotifySweepingCompleted() {
         previous_.memory_size_before_sweep_bytes /* memory_before */,
         previous_.memory_size_before_sweep_bytes -
             memory_freed_bytes_since_end_of_marking_ /* memory_after */,
-        memory_freed_bytes_since_end_of_marking_ /* memory_freed */};
+        memory_freed_bytes_since_end_of_marking_ /* memory_freed */);
     metric_recorder_->AddMainThreadEvent(event);
   }
 }
@@ -175,13 +240,13 @@ void StatsCollector::RecordHistogramSample(ScopeId scope_id_,
                                            v8::base::TimeDelta time) {
   switch (scope_id_) {
     case kIncrementalMark: {
-      MetricRecorder::CppGCIncrementalMarkMetricSample event{
+      MetricRecorder::CppGCMainThreadIncrementalMark event{
           time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }
     case kIncrementalSweep: {
-      MetricRecorder::CppGCIncrementalSweepMetricSample event{
+      MetricRecorder::CppGCMainThreadIncrementalSweep event{
           time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;

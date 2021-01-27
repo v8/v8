@@ -20,39 +20,47 @@ class StatsCollector;
  */
 class MetricRecorder {
  public:
-  struct CppGCCycleEndMetricSamples {
-    int64_t atomic_mark_us;
-    int64_t atomic_weak_us;
-    int64_t atomic_compact_us;
-    int64_t atomic_sweep_us;
-    int64_t incremental_mark_us;
-    int64_t incremental_sweep_us;
-    int64_t concurrent_mark_us;
-    int64_t concurrent_sweep_us;
+  struct CppGCFullCycle {
+    struct IncrementalPhases {
+      int64_t mark_duration_us;
+      int64_t sweep_duration_us;
+    };
+    struct Phases : public IncrementalPhases {
+      int64_t weak_duration_us;
+      int64_t compact_duration_us;
+    };
+    struct Sizes {
+      int64_t before_bytes;
+      int64_t after_bytes;
+      int64_t freed_bytes;
+    };
 
-    int64_t objects_before_bytes;
-    int64_t objects_after_bytes;
-    int64_t objects_freed_bytes;
-    int64_t memory_before_bytes;
-    int64_t memory_after_bytes;
-    int64_t memory_freed_bytes;
+    Phases total;
+    Phases main_thread;
+    Phases main_thread_atomic;
+    IncrementalPhases main_thread_incremental;
+    Sizes objects;
+    Sizes memory;
+    double collection_rate_in_percent;
+    double efficiency_in_bytes_per_us;
+    double main_thread_efficiency_in_bytes_per_us;
   };
 
-  struct CppGCIncrementalMarkMetricSample {
+  struct CppGCMainThreadIncrementalMark {
     int64_t duration_us;
   };
 
-  struct CppGCIncrementalSweepMetricSample {
+  struct CppGCMainThreadIncrementalSweep {
     int64_t duration_us;
   };
 
   virtual ~MetricRecorder() = default;
 
-  virtual void AddMainThreadEvent(const CppGCCycleEndMetricSamples& event) {}
+  virtual void AddMainThreadEvent(const CppGCFullCycle& event) {}
+  virtual void AddMainThreadEvent(const CppGCMainThreadIncrementalMark& event) {
+  }
   virtual void AddMainThreadEvent(
-      const CppGCIncrementalMarkMetricSample& event) {}
-  virtual void AddMainThreadEvent(
-      const CppGCIncrementalSweepMetricSample& event) {}
+      const CppGCMainThreadIncrementalSweep& event) {}
 };
 
 }  // namespace internal
