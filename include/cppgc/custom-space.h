@@ -48,15 +48,18 @@ class CustomSpaceBase {
 template <typename ConcreteCustomSpace>
 class CustomSpace : public CustomSpaceBase {
  public:
+  /**
+   * Compaction is only supported on spaces that manually manage slots
+   * recording.
+   */
+  static constexpr bool kSupportsCompaction = false;
+
   CustomSpaceIndex GetCustomSpaceIndex() const final {
     return ConcreteCustomSpace::kSpaceIndex;
   }
   bool IsCompactable() const final {
     return ConcreteCustomSpace::kSupportsCompaction;
   }
-
- protected:
-  static constexpr bool kSupportsCompaction = false;
 };
 
 /**
