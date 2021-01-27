@@ -4262,15 +4262,11 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
                               GetKeysConversion::kConvertToString)
           .ToHandleChecked();
 
-  // Assertions passed to the host must be sorted by the code point order of the
-  // key of each entry.
-  auto stringCompare = [this](Handle<String> lhs, Handle<String> rhs) {
-    return String::Compare(this, lhs, rhs) == ComparisonResult::kLessThan;
-  };
-  std::map<Handle<String>, Handle<String>, decltype(stringCompare)>
-      sorted_assertions(stringCompare);
-
-  // Collect the assertions in the sorted map.
+  // The assertions will be passed to the host in the form: [key1,
+  // value1, key2, value2, ...].
+  constexpr size_t kAssertionEntrySizeForDynamicImport = 2;
+  import_assertions_array = factory()->NewFixedArray(static_cast<int>(
+      assertion_keys->length() * kAssertionEntrySizeForDynamicImport));
   for (int i = 0; i < assertion_keys->length(); i++) {
     Handle<String> assertion_key(String::cast(assertion_keys->get(i)), this);
     Handle<Object> assertion_value;
@@ -4288,25 +4284,10 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
       return MaybeHandle<FixedArray>();
     }
 
-    auto insertion_result = sorted_assertions.insert(
-        std::make_pair(assertion_key, Handle<String>::cast(assertion_value)));
-
-    // Duplicate keys are not expected here.
-    CHECK(insertion_result.second);
-  }
-
-  // Move the assertions from the sorted map to the FixedArray that will be
-  // passed to the host. They will be stored in the array in the form: [key1,
-  // value1, key2, value2, ...].
-  constexpr size_t kAssertionEntrySizeForDynamicImport = 2;
-  import_assertions_array = factory()->NewFixedArray(static_cast<int>(
-      sorted_assertions.size() * kAssertionEntrySizeForDynamicImport));
-  int import_assertions_array_index = 0;
-  for (const auto& pair : sorted_assertions) {
-    import_assertions_array->set(import_assertions_array_index, *(pair.first));
-    import_assertions_array->set(import_assertions_array_index + 1,
-                                 *(pair.second));
-    import_assertions_array_index += kAssertionEntrySizeForDynamicImport;
+    import_assertions_array->set((i * kAssertionEntrySizeForDynamicImport),
+                                 *assertion_key);
+    import_assertions_array->set((i * kAssertionEntrySizeForDynamicImport) + 1,
+                                 *assertion_value);
   }
 
   return import_assertions_array;

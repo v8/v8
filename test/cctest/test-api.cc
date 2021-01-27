@@ -26167,30 +26167,32 @@ HostImportModuleDynamicallyWithAssertionsCallbackResolve(
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
   CHECK_EQ(0, strcmp("index.js", *specifier_utf8));
 
-  // clang-format off
-  const char* expected_assertions[][2] = {
-    {"a", "z"},
-    {"aa", "x"},
-    {"b", "w"},
-    {"c", "y"}
-  };
-
-  // clang-format on
   CHECK_EQ(8, import_assertions->Length());
-  constexpr size_t kAssertionEntrySizeForDynamicImport = 2;
-  for (int i = 0; i < static_cast<int>(arraysize(expected_assertions)); ++i) {
+  constexpr int kAssertionEntrySizeForDynamicImport = 2;
+  for (int i = 0;
+       i < import_assertions->Length() / kAssertionEntrySizeForDynamicImport;
+       ++i) {
     Local<String> assertion_key =
         import_assertions
             ->Get(context, (i * kAssertionEntrySizeForDynamicImport))
             .As<Value>()
             .As<String>();
-    CHECK(v8_str(expected_assertions[i][0])->StrictEquals(assertion_key));
     Local<String> assertion_value =
         import_assertions
             ->Get(context, (i * kAssertionEntrySizeForDynamicImport) + 1)
             .As<Value>()
             .As<String>();
-    CHECK(v8_str(expected_assertions[i][1])->StrictEquals(assertion_value));
+    if (v8_str("a")->StrictEquals(assertion_key)) {
+      CHECK(v8_str("z")->StrictEquals(assertion_value));
+    } else if (v8_str("aa")->StrictEquals(assertion_key)) {
+      CHECK(v8_str("x")->StrictEquals(assertion_value));
+    } else if (v8_str("b")->StrictEquals(assertion_key)) {
+      CHECK(v8_str("w")->StrictEquals(assertion_value));
+    } else if (v8_str("c")->StrictEquals(assertion_key)) {
+      CHECK(v8_str("y")->StrictEquals(assertion_value));
+    } else {
+      UNREACHABLE();
+    }
   }
 
   Local<v8::Promise::Resolver> resolver =
