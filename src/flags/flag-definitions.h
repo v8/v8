@@ -237,11 +237,8 @@ DEFINE_BOOL(allow_overwriting_for_next_flag, false,
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
 
-DEFINE_BOOL(es_staging, false,
-            "enable test-worthy harmony features (for internal use only)")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
-DEFINE_IMPLICATION(es_staging, harmony)
 // Enabling FinalizationRegistry#cleanupSome also enables weak refs
 DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
@@ -548,7 +545,6 @@ DEFINE_STRING(trace_ignition_dispatches_output_file, nullptr,
               "the file to which the bytecode handler dispatch table is "
               "written (by default, the table is not written to a file)")
 
-DEFINE_BOOL(fast_math, true, "faster (but maybe less accurate) math functions")
 DEFINE_BOOL(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
 DEFINE_BOOL(trace_migration, false, "trace object migration")
@@ -1052,8 +1048,6 @@ DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "number of fixpoint iterations it takes to switch to linear "
            "ephemeron algorithm")
 DEFINE_BOOL(trace_concurrent_marking, false, "trace concurrent marking")
-DEFINE_BOOL(concurrent_store_buffer, true,
-            "use concurrent store buffer processing")
 DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
 DEFINE_BOOL(parallel_compaction, true, "use parallel compaction")
 DEFINE_BOOL(parallel_pointer_update, true,
@@ -1084,8 +1078,6 @@ DEFINE_GENERIC_IMPLICATION(
 DEFINE_BOOL(track_retaining_path, false,
             "enable support for tracking retaining path")
 DEFINE_DEBUG_BOOL(trace_backing_store, false, "trace backing store events")
-DEFINE_BOOL(concurrent_array_buffer_freeing, true,
-            "free array buffer allocations on a background thread")
 DEFINE_INT(gc_stats, 0, "Used by tracing internally to enable gc statistics")
 DEFINE_IMPLICATION(trace_gc_object_stats, track_gc_object_stats)
 DEFINE_GENERIC_IMPLICATION(
@@ -1160,12 +1152,8 @@ DEFINE_BOOL(
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
 
 // These flags will be removed after experiments. Do not rely on them.
-DEFINE_BOOL(gc_experiment_background_schedule, false,
-            "new background GC schedule heuristics")
 DEFINE_BOOL(gc_experiment_less_compaction, false,
             "less compaction in non-memory reducing mode")
-DEFINE_BOOL(gc_experiment_reduce_concurrent_marking_tasks, false,
-            "reduce the number of concurrent marking tasks")
 
 DEFINE_BOOL(disable_abortjs, false, "disables AbortJS runtime function")
 
@@ -1589,8 +1577,6 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 // Minor mark compact collector flags.
 //
 #ifdef ENABLE_MINOR_MC
-DEFINE_BOOL(minor_mc_parallel_marking, true,
-            "use parallel marking for the young generation")
 DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
@@ -1701,9 +1687,6 @@ DEFINE_BOOL(trace_normalization, false,
 DEFINE_BOOL(trace_lazy, false, "trace lazy compilation")
 
 // spaces.cc
-DEFINE_BOOL(collect_heap_spill_statistics, false,
-            "report heap spill statistics along with heap_stats "
-            "(requires heap_stats)")
 DEFINE_BOOL(trace_isolates, false, "trace isolate state changes")
 
 // Regexp
@@ -1885,21 +1868,12 @@ DEFINE_BOOL(print_regexp_bytecode, false, "print generated regexp bytecode")
 DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
 
 #ifdef ENABLE_DISASSEMBLER
-DEFINE_BOOL(sodium, false,
-            "print generated code output suitable for use with "
-            "the Sodium code viewer")
-
-DEFINE_IMPLICATION(sodium, print_code)
-DEFINE_IMPLICATION(sodium, print_opt_code)
-DEFINE_IMPLICATION(sodium, code_comments)
-
 DEFINE_BOOL(print_all_code, false, "enable all flags related to printing code")
 DEFINE_IMPLICATION(print_all_code, print_code)
 DEFINE_IMPLICATION(print_all_code, print_opt_code)
 DEFINE_IMPLICATION(print_all_code, print_code_verbose)
 DEFINE_IMPLICATION(print_all_code, print_builtin_code)
 DEFINE_IMPLICATION(print_all_code, print_regexp_code)
-DEFINE_IMPLICATION(print_all_code, code_comments)
 #endif
 
 #undef FLAG
@@ -1942,10 +1916,6 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_compaction)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_marking)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_pointer_update)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
-DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_store_buffer)
-#ifdef ENABLE_MINOR_MC
-DEFINE_NEG_IMPLICATION(single_threaded_gc, minor_mc_parallel_marking)
-#endif  // ENABLE_MINOR_MC
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
 
