@@ -184,14 +184,16 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // lazily.
   inline bool has_closure_feedback_cell_array() const;
   inline ClosureFeedbackCellArray closure_feedback_cell_array() const;
-  static void EnsureClosureFeedbackCellArray(Handle<JSFunction> function);
+  static void EnsureClosureFeedbackCellArray(
+      Handle<JSFunction> function, bool reset_budget_for_feedback_allocation);
 
   // Initializes the feedback cell of |function|. In lite mode, this would be
   // initialized to the closure feedback cell array that holds the feedback
   // cells for create closure calls from this function. In the regular mode,
   // this allocates feedback vector.
   static void InitializeFeedbackCell(Handle<JSFunction> function,
-                                     IsCompiledScope* compiled_scope);
+                                     IsCompiledScope* compiled_scope,
+                                     bool reset_budget_for_feedback_allocation);
 
   // Unconditionally clear the type feedback vector.
   void ClearTypeFeedbackInfo();

@@ -1845,8 +1845,13 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   DCHECK(is_compiled_scope->is_compiled());
   Handle<Code> code = handle(shared_info->GetCode(), isolate);
 
-  // Initialize the feedback cell for this JSFunction.
-  JSFunction::InitializeFeedbackCell(function, is_compiled_scope);
+  // Initialize the feedback cell for this JSFunction and reset the interrupt
+  // budget for feedback vector allocation even if there is a closure feedback
+  // cell array. We are re-compiling when we have a closure feedback cell array
+  // which means we are compiling after a bytecode flush.
+  // TODO(verwaest/mythria): Investigate if allocating feedback vector
+  // immediately after a flush would be better.
+  JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
 
   // Optimize now if --always-opt is enabled.
   if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
@@ -2060,7 +2065,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       result = Factory::JSFunctionBuilder{isolate, shared_info, context}
                    .set_allocation_type(AllocationType::kYoung)
                    .Build();
-      JSFunction::InitializeFeedbackCell(result, &is_compiled_scope);
+      // TODO(mythria): I don't think we need this here. PostInstantiation
+      // already initializes feedback cell.
+      JSFunction::InitializeFeedbackCell(result, &is_compiled_scope, true);
       if (allow_eval_cache) {
         // Make sure to cache this result.
         Handle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
@@ -2073,7 +2080,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     result = Factory::JSFunctionBuilder{isolate, shared_info, context}
                  .set_allocation_type(AllocationType::kYoung)
                  .Build();
-    JSFunction::InitializeFeedbackCell(result, &is_compiled_scope);
+    // TODO(mythria): I don't think we need this here. PostInstantiation
+    // already initializes feedback cell.
+    JSFunction::InitializeFeedbackCell(result, &is_compiled_scope, true);
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
       // we didn't retrieve from there.
@@ -3107,7 +3116,9 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
   // If code is compiled to bytecode (i.e., isn't asm.js), then allocate a
   // feedback and check for optimized code.
   if (is_compiled_scope.is_compiled() && shared->HasBytecodeArray()) {
-    JSFunction::InitializeFeedbackCell(function, &is_compiled_scope);
+    // Don't reset budget if there is a closure feedback cell array already. We
+    // are just creating a new closure that shares the same feedback cell.
+    JSFunction::InitializeFeedbackCell(function, &is_compiled_scope, false);
 
     if (function->has_feedback_vector()) {
       // Evict any deoptimized code on feedback vector. We need to do this after
