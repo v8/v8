@@ -1825,7 +1825,8 @@ WasmModuleObject WasmFrame::module_object() const {
 }
 
 uint32_t WasmFrame::function_index() const {
-  return FrameSummary::GetSingle(this).AsWasm().function_index();
+  wasm::WasmCodeRefScope code_ref_scope;
+  return wasm_code()->index();
 }
 
 Script WasmFrame::script() const { return module_object().script(); }
