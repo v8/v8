@@ -1133,10 +1133,6 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
-  // Add the code to the surrounding code ref scope, so the returned pointer is
-  // guaranteed to be valid.
-  WasmCodeRefScope::AddRef(code.get());
-
   if (!code->IsAnonymous() &&
       code->index() >= module_->num_imported_functions) {
     DCHECK_LT(code->index(), num_functions());
@@ -1173,21 +1169,17 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
         WasmCodeRefScope::AddRef(prior_code);
         // The code is added to the current {WasmCodeRefScope}, hence the ref
         // count cannot drop to zero here.
-        prior_code->DecRefOnLiveCode();
+        CHECK(!prior_code->DecRef());
       }
 
       PatchJumpTablesLocked(slot_idx, code->instruction_start());
-    } else {
-      // The code tables does not hold a reference to the code, hence decrement
-      // the initial ref count of 1. The code was added to the
-      // {WasmCodeRefScope} though, so it cannot die here.
-      code->DecRefOnLiveCode();
     }
     if (!code->for_debugging() && tiering_state_ == kTieredDown &&
         code->tier() == ExecutionTier::kTurbofan) {
       liftoff_bailout_count_.fetch_add(1);
     }
   }
+  WasmCodeRefScope::AddRef(code.get());
   WasmCode* result = code.get();
   owned_code_.emplace(result->instruction_start(), std::move(code));
   return result;
