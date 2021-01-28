@@ -874,10 +874,12 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 
   // Log all owned code, not just the current entries in the code table. This
   // will also include import wrappers.
-  WasmCodeRefScope code_ref_scope;
   base::MutexGuard lock(&allocation_mutex_);
   for (auto& owned_entry : owned_code_) {
     owned_entry.second->LogCode(isolate, source_url.get(), script.id());
+  }
+  for (auto& owned_entry : new_owned_code_) {
+    owned_entry->LogCode(isolate, source_url.get(), script.id());
   }
 }
 
@@ -1189,7 +1191,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     }
   }
   WasmCode* result = code.get();
-  owned_code_.emplace(result->instruction_start(), std::move(code));
+  new_owned_code_.emplace_back(std::move(code));
   return result;
 }
 
@@ -1461,8 +1463,34 @@ void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
   }
 }
 
+void NativeModule::TransferNewOwnedCodeLocked() const {
+  // The caller holds the allocation mutex.
+  DCHECK(!allocation_mutex_.TryLock());
+  DCHECK(!new_owned_code_.empty());
+  // Sort the {new_owned_code_} vector reversed, such that the position of the
+  // previously inserted element can be used as a hint for the next element. If
+  // elements in {new_owned_code_} are adjacent, this will guarantee
+  // constant-time insertion into the map.
+  std::sort(new_owned_code_.begin(), new_owned_code_.end(),
+            [](const std::unique_ptr<WasmCode>& a,
+               const std::unique_ptr<WasmCode>& b) {
+              return a->instruction_start() > b->instruction_start();
+            });
+  auto insertion_hint = owned_code_.end();
+  for (auto& code : new_owned_code_) {
+    DCHECK_EQ(0, owned_code_.count(code->instruction_start()));
+    // Check plausibility of the insertion hint.
+    DCHECK(insertion_hint == owned_code_.end() ||
+           insertion_hint->first > code->instruction_start());
+    insertion_hint = owned_code_.emplace_hint(
+        insertion_hint, code->instruction_start(), std::move(code));
+  }
+  new_owned_code_.clear();
+}
+
 WasmCode* NativeModule::Lookup(Address pc) const {
   base::MutexGuard lock(&allocation_mutex_);
+  if (!new_owned_code_.empty()) TransferNewOwnedCodeLocked();
   auto iter = owned_code_.upper_bound(pc);
   if (iter == owned_code_.begin()) return nullptr;
   --iter;
@@ -2004,6 +2032,7 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
   DebugInfo* debug_info = nullptr;
   {
     base::MutexGuard guard(&allocation_mutex_);
+    if (!new_owned_code_.empty()) TransferNewOwnedCodeLocked();
     debug_info = debug_info_.get();
     // Free the {WasmCode} objects. This will also unregister trap handler data.
     for (WasmCode* code : codes) {
