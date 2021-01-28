@@ -4085,10 +4085,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprRefTest: {
         // "Tests whether {obj}'s runtime type is a runtime subtype of {rtt}."
         Value rtt = Pop(1);
-        Value obj = Pop(0, kWasmAnyRef);
+        Value obj = Pop(0);
         Value* value = Push(kWasmI32);
         if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
           PopTypeError(1, rtt, "rtt");
+          return 0;
+        }
+        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
+                      IsSubtypeOf(obj.type,
+                                  ValueType::Ref(HeapType::kData, kNullable),
+                                  this->module_) ||
+                      obj.type.is_bottom())) {
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         if (!obj.type.is_bottom() && !rtt.type.is_bottom()) {
@@ -4106,9 +4114,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprRefCast: {
         Value rtt = Pop(1);
-        Value obj = Pop(0, kWasmAnyRef);
+        Value obj = Pop(0);
         if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
           PopTypeError(1, rtt, "rtt");
+          return 0;
+        }
+        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
+                      IsSubtypeOf(obj.type,
+                                  ValueType::Ref(HeapType::kData, kNullable),
+                                  this->module_) ||
+                      obj.type.is_bottom())) {
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         if (!obj.type.is_bottom() && !rtt.type.is_bottom()) {
@@ -4139,9 +4155,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         Value obj = Pop(0);
-        if (!VALIDATE(obj.type.is_object_reference_type() ||
-                      rtt.type.is_bottom())) {
-          PopTypeError(0, obj, "reference");
+        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
+                      IsSubtypeOf(obj.type,
+                                  ValueType::Ref(HeapType::kData, kNullable),
+                                  this->module_) ||
+                      obj.type.is_bottom())) {
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         // The static type of {obj} must be a supertype of {rtt}'s type.

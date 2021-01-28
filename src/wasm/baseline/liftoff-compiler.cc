@@ -4410,7 +4410,6 @@ class LiftoffCompiler {
     LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
 
-    bool obj_can_be_i31 = IsSubtypeOf(kWasmI31Ref, obj.type, decoder->module_);
     // Reserve all temporary registers up front, so that the cache state
     // tracking doesn't get confused by the following conditional jumps.
     LiftoffRegister tmp1 =
@@ -4418,9 +4417,6 @@ class LiftoffCompiler {
             ? LiftoffRegister(opt_scratch)
             : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    if (obj_can_be_i31) {
-      __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
-    }
     if (obj.type.is_nullable()) {
       LoadNullValue(tmp1.gp(), pinned);
       __ emit_cond_jump(kEqual, null_succeeds ? &match : no_match, obj.type,

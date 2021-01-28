@@ -989,7 +989,6 @@ class WasmGraphBuildingInterface {
     result.object_can_be_null = object_type.is_nullable();
     DCHECK(object_type.is_object_reference_type());  // Checked by validation.
     result.object_must_be_data_ref = is_data_ref_type(object_type, module);
-    result.object_can_be_i31 = IsSubtypeOf(kWasmI31Ref, object_type, module);
     result.rtt_depth = rtt_type.has_depth() ? rtt_type.depth() : -1;
     return result;
   }

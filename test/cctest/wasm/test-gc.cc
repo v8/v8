@@ -347,6 +347,7 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
 WASM_COMPILED_EXEC_TEST(BrOnCast) {
   WasmGCTester tester(execution_tier);
   FLAG_experimental_liftoff_extern_ref = true;
+  ValueType kDataRefNull = ValueType::Ref(HeapType::kData, kNullable);
   const byte type_index = tester.DefineStruct({F(kWasmI32, true)});
   const byte other_type_index = tester.DefineStruct({F(kWasmF32, true)});
   const byte rtt_index =
@@ -354,7 +355,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                        WasmInitExpr::RttCanon(
                            static_cast<HeapType::Representation>(type_index)));
   const byte kTestStruct = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmI32, kWasmEqRef},
+      tester.sigs.i_v(), {kWasmI32, kDataRefNull},
       {WASM_BLOCK(WASM_LOCAL_SET(0, WASM_I32V(111)),
                   // Pipe a struct through a local so it's statically typed
                   // as eqref.
@@ -371,20 +372,8 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                   WASM_DROP, WASM_LOCAL_SET(0, WASM_I32V(333))),
        WASM_LOCAL_GET(0), kExprEnd});
 
-  const byte kTestI31 = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmI32, kWasmEqRef},
-      {WASM_BLOCK(WASM_LOCAL_SET(0, WASM_I32V(111)),
-                  // Pipe an i31ref through a local so it's statically typed
-                  // as eqref.
-                  WASM_LOCAL_SET(1, WASM_I31_NEW(WASM_I32V(42))),
-                  WASM_LOCAL_GET(1),
-                  // The i31 is not a struct, so this branch isn't taken.
-                  WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)), WASM_DROP,
-                  WASM_LOCAL_SET(0, WASM_I32V(222))),  // Final result.
-       WASM_LOCAL_GET(0), kExprEnd});
-
   const byte kTestNull = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmI32, kWasmEqRef},
+      tester.sigs.i_v(), {kWasmI32, kDataRefNull},
       {WASM_BLOCK(WASM_LOCAL_SET(0, WASM_I32V(111)),
                   WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
                   // Neither of these branches is taken for nullref.
@@ -395,7 +384,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
        WASM_LOCAL_GET(0), kExprEnd});
 
   const byte kTypedAfterBranch = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmI32, kWasmEqRef},
+      tester.sigs.i_v(), {kWasmI32, kDataRefNull},
       {WASM_LOCAL_SET(1, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
                                                   WASM_GLOBAL_GET(rtt_index))),
        WASM_BLOCK(WASM_LOCAL_SET(
@@ -415,7 +404,6 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
 
   tester.CompileModule();
   tester.CheckResult(kTestStruct, 222);
-  tester.CheckResult(kTestI31, 222);
   tester.CheckResult(kTestNull, 333);
   tester.CheckResult(kTypedAfterBranch, 42);
 }
@@ -1116,7 +1104,9 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
   const byte SuperType = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte SubType =
       tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)});
-  const byte ListType = tester.DefineArray(wasm::kWasmEqRef, true);
+
+  ValueType kDataRefNull = ValueType::Ref(HeapType::kData, kNullable);
+  const byte ListType = tester.DefineArray(kDataRefNull, true);
 
   const byte List =
       tester.AddGlobal(ValueType::Ref(ListType, kNullable), true,

@@ -4229,12 +4229,19 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       static_cast<HeapType::Representation>(
           builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}));
 
+  HeapType::Representation func_heap_1 =
+      static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_i()));
+
+  HeapType::Representation func_heap_2 =
+      static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
+
   // Passing/failing tests due to static subtyping.
   std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
-      {{HeapType::kAny, array_heap, true},
-       {HeapType::kAny, super_struct_heap, true},
-       {HeapType::kEq, array_heap, true},
-       {HeapType::kEq, super_struct_heap, true},
+      {{HeapType::kData, array_heap, true},
+       {HeapType::kData, super_struct_heap, true},
+       {HeapType::kFunc, func_heap_1, true},
+       {func_heap_1, func_heap_1, true},
+       {func_heap_1, func_heap_2, false},
        {super_struct_heap, sub_struct_heap, true},
        {sub_struct_heap, super_struct_heap, false},
        {sub_struct_heap, array_heap, false},
@@ -4290,24 +4297,28 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       sigs.v_v(),
       {WASM_REF_TEST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
       kAppendEnd,
-      "ref.test[0] expected type anyref, found i32.const of type i32");
+      "ref.test[0] expected subtype of (ref null func) or (ref null data), "
+      "found i32.const of type i32");
   ExpectFailure(
       sigs.v_v(),
       {WASM_REF_CAST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
       kAppendEnd,
-      "ref.cast[0] expected type anyref, found i32.const of type i32");
+      "ref.cast[0] expected subtype of (ref null func) or (ref null data), "
+      "found i32.const of type i32");
 
   // Trivial type error.
   ExpectFailure(
       sigs.v_v(),
       {WASM_REF_TEST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
       kAppendEnd,
-      "ref.test[0] expected type anyref, found i32.const of type i32");
+      "ref.test[0] expected subtype of (ref null func) or (ref null data), "
+      "found i32.const of type i32");
   ExpectFailure(
       sigs.v_v(),
       {WASM_REF_CAST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
       kAppendEnd,
-      "ref.cast[0] expected type anyref, found i32.const of type i32");
+      "ref.cast[0] expected subtype of (ref null func) or (ref null data), "
+      "found i32.const of type i32");
 }
 
 // This tests that num_locals_ in decoder remains consistent, even if we fail

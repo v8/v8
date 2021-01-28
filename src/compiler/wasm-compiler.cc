@@ -5821,11 +5821,6 @@ WasmGraphBuilder::Callbacks WasmGraphBuilder::BranchCallbacks(
 void WasmGraphBuilder::TypeCheck(
     Node* object, Node* rtt, WasmGraphBuilder::ObjectReferenceKnowledge config,
     bool null_succeeds, Callbacks callbacks) {
-  if (config.object_can_be_i31) {
-    callbacks.fail_if(gasm_->IsI31(object));
-  } else {
-    AssertFalse(mcgraph(), gasm_.get(), gasm_->IsI31(object));
-  }
   if (config.object_can_be_null) {
     (null_succeeds ? callbacks.succeed_if
                    : callbacks.fail_if)(gasm_->WordEqual(object, RefNull()));
