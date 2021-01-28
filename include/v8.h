@@ -8479,7 +8479,7 @@ class V8_EXPORT Isolate {
      */
     std::shared_ptr<CppHeapCreateParams> cpp_heap_params;
 
-    V8_DEPRECATE_SOON(
+    V8_DEPRECATED(
         "Setting this has no effect. Embedders should ignore import assertions "
         "that they do not use.")
     std::vector<std::string> supported_import_assertions;
