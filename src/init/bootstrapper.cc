@@ -297,6 +297,10 @@ class Genesis {
   Handle<NativeContext> native_context_;
   Handle<JSGlobalProxy> global_proxy_;
 
+  // Temporary function maps needed only during bootstrapping.
+  Handle<Map> strict_function_with_home_object_map_;
+  Handle<Map> strict_function_with_name_and_home_object_map_;
+
   // %ThrowTypeError%. See ES#sec-%throwtypeerror% for details.
   Handle<JSFunction> restricted_properties_thrower_;
 
@@ -789,6 +793,13 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   map = factory->CreateStrictFunctionMap(METHOD_WITH_NAME, empty);
   native_context()->set_method_with_name_map(*map);
 
+  map = factory->CreateStrictFunctionMap(METHOD_WITH_HOME_OBJECT, empty);
+  native_context()->set_method_with_home_object_map(*map);
+
+  map =
+      factory->CreateStrictFunctionMap(METHOD_WITH_NAME_AND_HOME_OBJECT, empty);
+  native_context()->set_method_with_name_and_home_object_map(*map);
+
   //
   // Allocate maps for strict functions with writable prototype.
   //
@@ -799,6 +810,12 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   map = factory->CreateStrictFunctionMap(
       FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE, empty);
   native_context()->set_strict_function_with_name_map(*map);
+
+  strict_function_with_home_object_map_ = factory->CreateStrictFunctionMap(
+      FUNCTION_WITH_HOME_OBJECT_AND_WRITEABLE_PROTOTYPE, empty);
+  strict_function_with_name_and_home_object_map_ =
+      factory->CreateStrictFunctionMap(
+          FUNCTION_WITH_NAME_AND_HOME_OBJECT_AND_WRITEABLE_PROTOTYPE, empty);
 
   //
   // Allocate maps for strict functions with readonly prototype.
@@ -988,6 +1005,17 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
       generator_function_prototype, "GeneratorFunction with name");
   native_context()->set_generator_function_with_name_map(*map);
 
+  map = CreateNonConstructorMap(
+      isolate(), strict_function_with_home_object_map_,
+      generator_function_prototype, "GeneratorFunction with home object");
+  native_context()->set_generator_function_with_home_object_map(*map);
+
+  map = CreateNonConstructorMap(isolate(),
+                                strict_function_with_name_and_home_object_map_,
+                                generator_function_prototype,
+                                "GeneratorFunction with name and home object");
+  native_context()->set_generator_function_with_name_and_home_object_map(*map);
+
   Handle<JSFunction> object_function(native_context()->object_function(),
                                      isolate());
   Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
@@ -1091,6 +1119,19 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
       async_generator_function_prototype, "AsyncGeneratorFunction with name");
   native_context()->set_async_generator_function_with_name_map(*map);
 
+  map =
+      CreateNonConstructorMap(isolate(), strict_function_with_home_object_map_,
+                              async_generator_function_prototype,
+                              "AsyncGeneratorFunction with home object");
+  native_context()->set_async_generator_function_with_home_object_map(*map);
+
+  map = CreateNonConstructorMap(
+      isolate(), strict_function_with_name_and_home_object_map_,
+      async_generator_function_prototype,
+      "AsyncGeneratorFunction with name and home object");
+  native_context()->set_async_generator_function_with_name_and_home_object_map(
+      *map);
+
   Handle<JSFunction> object_function(native_context()->object_function(),
                                      isolate());
   Handle<Map> async_generator_object_prototype_map = Map::Create(isolate(), 0);
@@ -1118,6 +1159,16 @@ void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
                   "AsyncFunction with name");
   Map::SetPrototype(isolate(), map, async_function_prototype);
   native_context()->set_async_function_with_name_map(*map);
+
+  map = Map::Copy(isolate(), isolate()->method_with_home_object_map(),
+                  "AsyncFunction with home object");
+  Map::SetPrototype(isolate(), map, async_function_prototype);
+  native_context()->set_async_function_with_home_object_map(*map);
+
+  map = Map::Copy(isolate(), isolate()->method_with_name_and_home_object_map(),
+                  "AsyncFunction with name and home object");
+  Map::SetPrototype(isolate(), map, async_function_prototype);
+  native_context()->set_async_function_with_name_and_home_object_map(*map);
 }
 
 void Genesis::CreateJSProxyMaps() {
@@ -1658,6 +1709,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       isolate_->strict_function_map()->SetConstructor(*function_fun);
       isolate_->strict_function_with_name_map()->SetConstructor(*function_fun);
+      strict_function_with_home_object_map_->SetConstructor(*function_fun);
+      strict_function_with_name_and_home_object_map_->SetConstructor(
+          *function_fun);
       isolate_->strict_function_with_readonly_prototype_map()->SetConstructor(
           *function_fun);
 

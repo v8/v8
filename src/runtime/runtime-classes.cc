@@ -113,6 +113,11 @@ RUNTIME_FUNCTION(Runtime_ThrowNotSuperConstructor) {
   return ThrowNotSuperConstructor(isolate, constructor, function);
 }
 
+RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
+  DCHECK_EQ(0, args.length());
+  return ReadOnlyRoots(isolate).home_object_symbol();
+}
+
 namespace {
 
 template <typename Dictionary>
@@ -129,17 +134,35 @@ Handle<Name> KeyToName<NumberDictionary>(Isolate* isolate, Handle<Object> key) {
   return isolate->factory()->NumberToString(key);
 }
 
+inline void SetHomeObject(Isolate* isolate, JSFunction method,
+                          JSObject home_object) {
+  if (method.shared().needs_home_object()) {
+    const InternalIndex kPropertyIndex(
+        JSFunction::kMaybeHomeObjectDescriptorIndex);
+    CHECK_EQ(
+        method.map().instance_descriptors(kRelaxedLoad).GetKey(kPropertyIndex),
+        ReadOnlyRoots(isolate).home_object_symbol());
+
+    FieldIndex field_index =
+        FieldIndex::ForDescriptor(method.map(), kPropertyIndex);
+    method.RawFastPropertyAtPut(field_index, home_object);
+  }
+}
+
 // Gets |index|'th argument which may be a class constructor object, a class
 // prototype object or a class method. In the latter case the following
 // post-processing may be required:
-// 1) set method's name to a concatenation of |name_prefix| and |key| if the
+// 1) set [[HomeObject]] slot to given |home_object| value if the method's
+//    shared function info indicates that the method requires that;
+// 2) set method's name to a concatenation of |name_prefix| and |key| if the
 //    method's shared function info indicates that method does not have a
 //    shared name.
 template <typename Dictionary>
-MaybeHandle<Object> GetMethodAndSetName(
+MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
     Isolate* isolate,
     RuntimeArguments& args,  // NOLINT(runtime/references)
-    Smi index, Handle<String> name_prefix, Handle<Object> key) {
+    Smi index, Handle<JSObject> home_object, Handle<String> name_prefix,
+    Handle<Object> key) {
   int int_index = index.value();
 
   // Class constructor and prototype values do not require post processing.
@@ -148,6 +171,8 @@ MaybeHandle<Object> GetMethodAndSetName(
   }
 
   Handle<JSFunction> method = args.at<JSFunction>(int_index);
+
+  SetHomeObject(isolate, *method, *home_object);
 
   if (!method->shared().HasSharedName()) {
     // TODO(ishell): method does not have a shared name at this point only if
@@ -164,14 +189,17 @@ MaybeHandle<Object> GetMethodAndSetName(
 }
 
 // Gets |index|'th argument which may be a class constructor object, a class
-// prototype object or a class method.
-// This is a simplified version of GetMethodAndSetName()
+// prototype object or a class method. In the latter case the following
+// post-processing may be required:
+// 1) set [[HomeObject]] slot to given |home_object| value if the method's
+//    shared function info indicates that the method requires that;
+// This is a simplified version of GetMethodWithSharedNameAndSetHomeObject()
 // function above that is used when it's guaranteed that the method has
 // shared name.
-Object GetMethodWithSharedName(
+Object GetMethodWithSharedNameAndSetHomeObject(
     Isolate* isolate,
     RuntimeArguments& args,  // NOLINT(runtime/references)
-    Object index) {
+    Object index, JSObject home_object) {
   DisallowGarbageCollection no_gc;
   int int_index = Smi::ToInt(index);
 
@@ -181,6 +209,9 @@ Object GetMethodWithSharedName(
   }
 
   Handle<JSFunction> method = args.at<JSFunction>(int_index);
+
+  SetHomeObject(isolate, *method, home_object);
+
   DCHECK(method->shared().HasSharedName());
   return *method;
 }
@@ -206,6 +237,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
 
 template <typename Dictionary>
 bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
+                      Handle<JSObject> receiver,
                       RuntimeArguments& args,  // NOLINT(runtime/references)
                       bool* install_name_accessor = nullptr) {
   Handle<Name> name_string = isolate->factory()->name_string();
@@ -228,9 +260,9 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
-            GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(tmp),
-                                            isolate->factory()->get_string(),
-                                            key),
+            GetMethodAndSetHomeObjectAndName<Dictionary>(
+                isolate, args, Smi::cast(tmp), receiver,
+                isolate->factory()->get_string(), key),
             false);
         pair->set_getter(*result);
       }
@@ -239,9 +271,9 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
-            GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(tmp),
-                                            isolate->factory()->set_string(),
-                                            key),
+            GetMethodAndSetHomeObjectAndName<Dictionary>(
+                isolate, args, Smi::cast(tmp), receiver,
+                isolate->factory()->set_string(), key),
             false);
         pair->set_setter(*result);
       }
@@ -249,9 +281,9 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
       Handle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, result,
-          GetMethodAndSetName<Dictionary>(isolate, args, Smi::cast(*value),
-                                          isolate->factory()->empty_string(),
-                                          key),
+          GetMethodAndSetHomeObjectAndName<Dictionary>(
+              isolate, args, Smi::cast(*value), receiver,
+              isolate->factory()->empty_string(), key),
           false);
       dictionary->ValueAtPut(i, *result);
     }
@@ -327,7 +359,8 @@ bool AddDescriptorsByTemplate(
     if (details.location() == kDescriptor) {
       if (details.kind() == kData) {
         if (value.IsSmi()) {
-          value = GetMethodWithSharedName(isolate, args, value);
+          value = GetMethodWithSharedNameAndSetHomeObject(isolate, args, value,
+                                                          *receiver);
         }
         details = details.CopyWithRepresentation(
             value.OptimalRepresentation(isolate));
@@ -337,11 +370,13 @@ bool AddDescriptorsByTemplate(
           AccessorPair pair = AccessorPair::cast(value);
           Object tmp = pair.getter();
           if (tmp.IsSmi()) {
-            pair.set_getter(GetMethodWithSharedName(isolate, args, tmp));
+            pair.set_getter(GetMethodWithSharedNameAndSetHomeObject(
+                isolate, args, tmp, *receiver));
           }
           tmp = pair.setter();
           if (tmp.IsSmi()) {
-            pair.set_setter(GetMethodWithSharedName(isolate, args, tmp));
+            pair.set_setter(GetMethodWithSharedNameAndSetHomeObject(
+                isolate, args, tmp, *receiver));
           }
         }
       }
@@ -370,7 +405,7 @@ bool AddDescriptorsByTemplate(
                              LayoutDescriptor::FastPointerLayout());
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
-                                            args)) {
+                                            receiver, args)) {
       return false;
     }
     map->set_elements_kind(DICTIONARY_ELEMENTS);
@@ -445,8 +480,8 @@ bool AddDescriptorsByTemplate(
   }
 
   // Replace all indices with proper methods.
-  if (!SubstituteValues<Dictionary>(isolate, properties_dictionary, args,
-                                    &install_name_accessor)) {
+  if (!SubstituteValues<Dictionary>(isolate, properties_dictionary, receiver,
+                                    args, &install_name_accessor)) {
     return false;
   }
   if (install_name_accessor) {
@@ -463,7 +498,7 @@ bool AddDescriptorsByTemplate(
 
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
-                                            args)) {
+                                            receiver, args)) {
       return false;
     }
     map->set_elements_kind(DICTIONARY_ELEMENTS);
