@@ -203,6 +203,8 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   void ClearFromGC() const { MemberBase::ClearFromGC(); }
 
   friend class cppgc::Visitor;
+  template <typename U>
+  friend struct cppgc::TraceTrait;
 };
 
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
