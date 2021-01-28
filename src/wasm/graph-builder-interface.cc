@@ -765,7 +765,7 @@ class WasmGraphBuildingInterface {
     if (block->try_info->might_throw()) {
       // Merge the current env into the target handler's env.
       SetEnv(block->try_info->catch_env);
-      if (depth == decoder->control_depth()) {
+      if (depth == decoder->control_depth() - 1) {
         builder_->Rethrow(block->try_info->exception);
         builder_->TerminateThrow(effect(), control());
         return;
