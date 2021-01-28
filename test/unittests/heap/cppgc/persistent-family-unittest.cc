@@ -864,5 +864,18 @@ TEST_F(PersistentTest, PersistentTraceLocation) {
   }
 }
 
+namespace {
+class IncompleteType;
+}  // namespace
+
+TEST_F(PersistentTest, EmptyPersistentConstructDestructWithoutCompleteType) {
+  // Test ensures that empty constructor and destructor compile without having
+  // a complete type available.
+  Persistent<IncompleteType> p1;
+  WeakPersistent<IncompleteType> p2;
+  subtle::CrossThreadPersistent<IncompleteType> p3;
+  subtle::WeakCrossThreadPersistent<IncompleteType> p4;
+}
+
 }  // namespace internal
 }  // namespace cppgc

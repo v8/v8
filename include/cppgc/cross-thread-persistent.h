@@ -168,7 +168,18 @@ class BasicCrossThreadPersistent final : public PersistentBase,
   /**
    * Clears the stored object.
    */
-  void Clear() { Assign(nullptr); }
+  void Clear() {
+    // Simplified version of `Assign()` to allow calling without a complete type
+    // `T`.
+    const void* old_value = GetValue();
+    if (IsValid(old_value)) {
+      PersistentRegionLock guard;
+      PersistentRegion& region = this->GetPersistentRegion(old_value);
+      region.FreeNode(GetNode());
+      SetNode(nullptr);
+    }
+    SetValue(nullptr);
+  }
 
   /**
    * Returns a pointer to the stored object and releases it.

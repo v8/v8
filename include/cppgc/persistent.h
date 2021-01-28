@@ -194,7 +194,15 @@ class BasicPersistent final : public PersistentBase,
     return static_cast<T*>(const_cast<void*>(GetValue()));
   }
 
-  void Clear() { Assign(nullptr); }
+  void Clear() {
+    // Simplified version of `Assign()` to allow calling without a complete type
+    // `T`.
+    if (IsValid()) {
+      WeaknessPolicy::GetPersistentRegion(GetValue()).FreeNode(GetNode());
+      SetNode(nullptr);
+    }
+    SetValue(nullptr);
+  }
 
   T* Release() {
     T* result = Get();
