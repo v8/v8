@@ -481,6 +481,10 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitLoadLane(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitStoreLane(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitWord32And(Node* node) {
   MipsOperandGenerator g(this);
   Int32BinopMatcher m(node);
