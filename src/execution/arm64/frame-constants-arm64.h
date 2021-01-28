@@ -81,7 +81,7 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
       // Header is padded to 16 byte (see {MacroAssembler::EnterFrame}).
       RoundUp<16>(TypedFrameConstants::kFixedFrameSizeFromFp) +
       kNumberOfSavedGpParamRegs * kSystemPointerSize +
-      kNumberOfSavedFpParamRegs * kDoubleSize;
+      kNumberOfSavedFpParamRegs * kSimd128Size;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.

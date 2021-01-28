@@ -2696,6 +2696,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
         Register::ListOf(x0, x1, x2, x3, x4, x5, x6, x7);
     constexpr RegList fp_regs =
         Register::ListOf(d0, d1, d2, d3, d4, d5, d6, d7);
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs ==
+                      NumRegs(gp_regs),
+                  "frame size mismatch");
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                      NumRegs(fp_regs),
+                  "frame size mismatch");
     __ PushXRegList(gp_regs);
     __ PushQRegList(fp_regs);
 
