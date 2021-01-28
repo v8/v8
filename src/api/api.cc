@@ -5911,7 +5911,13 @@ bool v8::V8::Initialize(const int build_config) {
 #if V8_OS_LINUX || V8_OS_MACOSX
 bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
                                    void* context) {
-#if V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+  // When the target code runs on the V8 arm simulator, the trap handler does
+  // not behave as expected: the instruction pointer points inside the simulator
+  // code rather than the wasm code, so the trap handler cannot find the landing
+  // pad and lets the process crash. Therefore, only enable trap handlers if
+  // the host and target arch are the same.
+#if (V8_TARGET_ARCH_X64 && !V8_OS_ANDROID) || \
+    (V8_HOST_ARCH_ARM64 && V8_TARGET_ARCH_ARM64 && V8_OS_MACOSX)
   return i::trap_handler::TryHandleSignal(sig_code, info, context);
 #else
   return false;

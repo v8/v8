@@ -125,11 +125,10 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            Register offset, T offset_imm) {
   if (offset.is_valid()) {
     if (offset_imm == 0) return MemOperand(addr.X(), offset.W(), UXTW);
-    Register tmp = temps->AcquireW();
-    // TODO(clemensb): Do a 64-bit addition if memory64 is used.
+    Register tmp = temps->AcquireX();
     DCHECK_GE(kMaxUInt32, offset_imm);
-    assm->Add(tmp, offset.W(), offset_imm);
-    return MemOperand(addr.X(), tmp, UXTW);
+    assm->Add(tmp, offset.X(), offset_imm);
+    return MemOperand(addr.X(), tmp);
   }
   return MemOperand(addr.X(), offset_imm);
 }

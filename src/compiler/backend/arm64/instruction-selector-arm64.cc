@@ -673,6 +673,9 @@ void InstructionSelector::VisitLoadLane(Node* node) {
 
   InstructionCode opcode = kArm64LoadLane;
   opcode |= LaneSizeField::encode(params.rep.MemSize() * kBitsPerByte);
+  if (params.kind == MemoryAccessKind::kProtected) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+  }
 
   Arm64OperandGenerator g(this);
   InstructionOperand addr = EmitAddBeforeLoadOrStore(this, node, &opcode);
@@ -688,6 +691,9 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   InstructionCode opcode = kArm64StoreLane;
   opcode |=
       LaneSizeField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
+  if (params.kind == MemoryAccessKind::kProtected) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+  }
 
   Arm64OperandGenerator g(this);
   InstructionOperand addr = EmitAddBeforeLoadOrStore(this, node, &opcode);
@@ -775,6 +781,9 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   } else {
     opcode |= AddressingModeField::encode(kMode_MRR);
   }
+  if (params.kind == MemoryAccessKind::kProtected) {
+    opcode |= MiscField::encode(kMemoryAccessProtected);
+  }
   Emit(opcode, 1, outputs, 2, inputs);
 }
 
@@ -847,16 +856,16 @@ void InstructionSelector::VisitLoad(Node* node) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
     opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
+  if (node->opcode() == IrOpcode::kProtectedLoad) {
+    opcode |= MiscField::encode(kMemoryAccessProtected);
+  }
 
   EmitLoad(this, node, opcode, immediate_mode, rep);
 }
 
 void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
-void InstructionSelector::VisitProtectedLoad(Node* node) {
-  // TODO(eholk)
-  UNIMPLEMENTED();
-}
+void InstructionSelector::VisitProtectedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitStore(Node* node) {
   Arm64OperandGenerator g(this);
@@ -988,14 +997,15 @@ void InstructionSelector::VisitStore(Node* node) {
       opcode |= AddressingModeField::encode(kMode_MRR);
     }
 
+    if (node->opcode() == IrOpcode::kProtectedStore) {
+      opcode |= MiscField::encode(kMemoryAccessProtected);
+    }
+
     Emit(opcode, 0, nullptr, input_count, inputs);
   }
 }
 
-void InstructionSelector::VisitProtectedStore(Node* node) {
-  // TODO(eholk)
-  UNIMPLEMENTED();
-}
+void InstructionSelector::VisitProtectedStore(Node* node) { VisitStore(node); }
 
 void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
   UNREACHABLE();
