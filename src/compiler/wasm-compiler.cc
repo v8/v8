@@ -6243,7 +6243,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             representation == wasm::HeapType::kFunc) {
           return node;
         }
-        if (representation == wasm::HeapType::kEq) {
+        if (representation == wasm::HeapType::kData) {
           // TODO(7748): Update this when JS interop is settled.
           return BuildAllocateObjectWrapper(node);
         }
@@ -6387,10 +6387,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kFunc:
             BuildCheckValidRefValue(input, js_context, type);
             return input;
-          case wasm::HeapType::kEq:
+          case wasm::HeapType::kData:
             // TODO(7748): Update this when JS interop has settled.
             BuildCheckValidRefValue(input, js_context, type);
             return BuildUnpackObjectWrapper(input, kReturnNull);
+          case wasm::HeapType::kEq:
           case wasm::HeapType::kI31:
             // If this is reached, then IsJSCompatibleSignature() is too
             // permissive.

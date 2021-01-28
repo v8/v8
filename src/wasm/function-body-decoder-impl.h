@@ -185,10 +185,10 @@ V8_INLINE WasmFeature feature_for_heap_type(HeapType heap_type) {
       return WasmFeature::kFeature_reftypes;
     case HeapType::kEq:
     case HeapType::kI31:
+    case HeapType::kData:
     case HeapType::kAny:
       return WasmFeature::kFeature_gc;
     case HeapType::kBottom:
-    default:
       UNREACHABLE();
   }
 }
@@ -214,6 +214,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
       case kEqRefCode:
       case kExternRefCode:
       case kI31RefCode:
+      case kDataRefCode:
       case kAnyRefCode: {
         HeapType result = HeapType::from_code(code);
         if (!VALIDATE(enabled.contains(feature_for_heap_type(result)))) {
@@ -279,10 +280,13 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kEqRefCode:
     case kExternRefCode:
     case kI31RefCode:
+    case kDataRefCode:
     case kAnyRefCode: {
       HeapType heap_type = HeapType::from_code(code);
-      ValueType result = ValueType::Ref(
-          heap_type, code == kI31RefCode ? kNonNullable : kNullable);
+      Nullability nullability = code == kI31RefCode || code == kDataRefCode
+                                    ? kNonNullable
+                                    : kNullable;
+      ValueType result = ValueType::Ref(heap_type, nullability);
       if (!VALIDATE(enabled.contains(feature_for_heap_type(heap_type)))) {
         DecodeError<validate>(
             decoder, pc,

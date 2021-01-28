@@ -3026,7 +3026,11 @@ class WasmInterpreterInternals {
               encoded_values->set(encoded_index++, *externref);
               break;
             }
+            case HeapType::kBottom:
+              UNREACHABLE();
             case HeapType::kEq:
+            case HeapType::kData:
+            case HeapType::kI31:
             default:
               // TODO(7748): Implement these.
               UNIMPLEMENTED();

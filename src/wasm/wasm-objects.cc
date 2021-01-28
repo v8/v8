@@ -452,6 +452,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
       SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
       return;
     case wasm::HeapType::kEq:
+    case wasm::HeapType::kData:
     case wasm::HeapType::kI31:
       // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
       // JS.
@@ -499,6 +500,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
       break;
     case wasm::HeapType::kEq:
     case wasm::HeapType::kI31:
+    case wasm::HeapType::kData:
     case wasm::HeapType::kAny:
       // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
       // JS.
@@ -2111,7 +2113,7 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
         case HeapType::kExtern:
         case HeapType::kAny:
           return true;
-        case HeapType::kEq: {
+        case HeapType::kData: {
           // TODO(7748): Change this when we have a decision on the JS API for
           // structs/arrays.
           Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
@@ -2119,13 +2121,15 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                             LookupIterator::OWN_SKIP_INTERCEPTOR);
           if (it.state() == LookupIterator::DATA) return true;
           *error_message =
-              "eqref object must be null (if nullable) or wrapped with wasm "
-              "object wrapper";
+              "dataref object must be null (if nullable) or wrapped with the "
+              "wasm object wrapper";
           return false;
         }
+        case HeapType::kEq:
         case HeapType::kI31:
           // TODO(7748): Implement when the JS API for i31ref is decided on.
-          *error_message = "Assigning JS objects to i31ref not supported yet.";
+          *error_message =
+              "Assigning JS objects to eqref/i31ref not supported yet.";
           return false;
         default:
           // Tables defined outside a module can't refer to user-defined types.

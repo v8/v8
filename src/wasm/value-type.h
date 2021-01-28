@@ -57,6 +57,7 @@ class HeapType {
     kExtern,                  // shorthand: e
     kEq,                      // shorthand: q
     kI31,                     // shorthand: j
+    kData,                    // shorthand: o
     kAny,                     // shorthand: a
     // This value is used to represent failures in the parsing of heap types and
     // does not correspond to a wasm heap type.
@@ -79,6 +80,8 @@ class HeapType {
         return HeapType(kI31);
       case ValueTypeCode::kAnyRefCode:
         return HeapType(kAny);
+      case ValueTypeCode::kDataRefCode:
+        return HeapType(kData);
       default:
         return HeapType(kBottom);
     }
@@ -129,6 +132,8 @@ class HeapType {
         return std::string("eq");
       case kI31:
         return std::string("i31");
+      case kData:
+        return std::string("data");
       case kAny:
         return std::string("any");
       default:
@@ -150,6 +155,8 @@ class HeapType {
         return mask | kEqRefCode;
       case kI31:
         return mask | kI31RefCode;
+      case kData:
+        return mask | kDataRefCode;
       case kAny:
         return mask | kAnyRefCode;
       default:
@@ -381,8 +388,14 @@ class ValueType {
             return kOptRefCode;
         }
       case kRef:
-        if (heap_representation() == HeapType::kI31) return kI31RefCode;
-        return kRefCode;
+        switch (heap_representation()) {
+          case HeapType::kI31:
+            return kI31RefCode;
+          case HeapType::kData:
+            return kDataRefCode;
+          default:
+            return kRefCode;
+        }
       case kStmt:
         return kVoidCode;
       case kRtt:
@@ -403,9 +416,11 @@ class ValueType {
   // Returns true iff the heap type is needed to encode this type in the wasm
   // binary format, taking into account available type shorthands.
   constexpr bool encoding_needs_heap_type() const {
-    return (kind() == kRef && heap_representation() != HeapType::kI31) ||
-           (kind() == kOptRef && (!heap_type().is_generic() ||
-                                  heap_representation() == HeapType::kI31));
+    return (kind() == kRef && heap_representation() != HeapType::kI31 &&
+            heap_representation() != HeapType::kData) ||
+           (kind() == kOptRef && (heap_type().is_index() ||
+                                  heap_representation() == HeapType::kI31 ||
+                                  heap_representation() == HeapType::kData));
   }
 
   static constexpr int kLastUsedBit = 30;
@@ -425,19 +440,12 @@ class ValueType {
     std::ostringstream buf;
     switch (kind()) {
       case kRef:
-        if (heap_representation() == HeapType::kI31) {
-          buf << "i31ref";
-        } else {
-          buf << "(ref " << heap_type().name() << ")";
-        }
-        break;
       case kOptRef:
-        if (heap_type().is_generic() &&
-            heap_representation() != HeapType::kI31) {
-          // We use shorthands to be compatible with the 'reftypes' proposal.
-          buf << heap_type().name() << "ref";
+        if (encoding_needs_heap_type()) {
+          buf << "(ref " << (kind() == kOptRef ? "null " : "")
+              << heap_type().name() << ")";
         } else {
-          buf << "(ref null " << heap_type().name() << ")";
+          buf << heap_type().name() << "ref";
         }
         break;
       case kRttWithDepth:
@@ -511,12 +519,14 @@ constexpr ValueType kWasmI8 = ValueType::Primitive(ValueType::kI8);
 constexpr ValueType kWasmI16 = ValueType::Primitive(ValueType::kI16);
 constexpr ValueType kWasmStmt = ValueType::Primitive(ValueType::kStmt);
 constexpr ValueType kWasmBottom = ValueType::Primitive(ValueType::kBottom);
-// Established wasm shorthands:
+// Established reference-type proposal shorthands.
 constexpr ValueType kWasmFuncRef = ValueType::Ref(HeapType::kFunc, kNullable);
 constexpr ValueType kWasmExternRef =
     ValueType::Ref(HeapType::kExtern, kNullable);
 constexpr ValueType kWasmEqRef = ValueType::Ref(HeapType::kEq, kNullable);
 constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31, kNonNullable);
+constexpr ValueType kWasmDataRef =
+    ValueType::Ref(HeapType::kData, kNonNullable);
 constexpr ValueType kWasmAnyRef = ValueType::Ref(HeapType::kAny, kNullable);
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
