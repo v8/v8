@@ -66,6 +66,7 @@
   'debugger/asm-js-breakpoint-during-exec': [SKIP],
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
+  'runtime/get-properties': [SKIP],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
