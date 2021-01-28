@@ -15,8 +15,6 @@ ALL_VARIANT_FLAGS = {
   "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
   "jitless": [["--jitless"]],
   "minor_mc": [["--minor-mc"]],
-  "nci": [["--turbo-nci"]],
-  "nci_as_midtier": [["--turbo-nci-as-midtier"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
   "no_local_heaps": [[
       "--no-local-heaps",
