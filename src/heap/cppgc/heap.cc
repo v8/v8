@@ -171,16 +171,17 @@ void Heap::StartGarbageCollection(Config config) {
 void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   DCHECK(IsMarking());
   DCHECK(!in_no_gc_scope());
+  CHECK(!in_disallow_gc_scope());
   config_.stack_state = stack_state;
   {
     // This guards atomic pause marking, meaning that no internal method or
     // external callbacks are allowed to allocate new objects.
-    ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
+    cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
     marker_->FinishMarking(stack_state);
   }
   {
     // Pre finalizers are forbidden from allocating objects.
-    ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
+    cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
     prefinalizer_handler_->InvokePreFinalizers();
   }
   marker_.reset();

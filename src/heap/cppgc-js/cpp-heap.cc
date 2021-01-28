@@ -258,6 +258,7 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
 bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
+  CHECK(!in_disallow_gc_scope());
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
       AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
   is_in_final_pause_ = true;
@@ -274,14 +275,12 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   {
     cppgc::internal::StatsCollector::EnabledScope stats_scope(
         AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
-    cppgc::internal::ObjectAllocator::NoAllocationScope no_allocation_scope_(
-        object_allocator_);
+    cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
     is_in_final_pause_ = false;
   }
   {
-    cppgc::internal::ObjectAllocator::NoAllocationScope no_allocation_scope_(
-        object_allocator_);
+    cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     prefinalizer_handler()->InvokePreFinalizers();
   }
   marker_.reset();

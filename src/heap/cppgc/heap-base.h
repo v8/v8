@@ -32,6 +32,7 @@ class Stack;
 
 namespace cppgc {
 namespace subtle {
+class DisallowGarbageCollectionScope;
 class NoGarbageCollectionScope;
 }  // namespace subtle
 
@@ -148,6 +149,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   // destructors. Exceeding the loop bound results in a crash.
   void Terminate();
 
+  bool in_disallow_gc_scope() const { return disallow_gc_scope_ > 0; }
+
  protected:
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
@@ -182,11 +185,13 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 #endif
 
   size_t no_gc_scope_ = 0;
+  size_t disallow_gc_scope_ = 0;
 
   const StackSupport stack_support_;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;
+  friend class cppgc::subtle::DisallowGarbageCollectionScope;
   friend class cppgc::subtle::NoGarbageCollectionScope;
 };
 

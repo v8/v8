@@ -174,14 +174,15 @@ TEST_F(GCHeapTest, NoGarbageCollectionScope) {
   EXPECT_EQ(epoch_after_gc, epoch_before);
 }
 
-TEST_F(GCHeapTest, IsAllocationAllowed) {
+TEST_F(GCHeapTest, IsGarbageCollectionAllowed) {
   EXPECT_TRUE(
-      subtle::HeapState::IsAllocationAllowed(GetHeap()->GetHeapHandle()));
+      subtle::DisallowGarbageCollectionScope::IsGarbageCollectionAllowed(
+          GetHeap()->GetHeapHandle()));
   {
-    ObjectAllocator::NoAllocationScope no_allocation(
-        Heap::From(GetHeap())->object_allocator());
+    subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
     EXPECT_FALSE(
-        subtle::HeapState::IsAllocationAllowed(GetHeap()->GetHeapHandle()));
+        subtle::DisallowGarbageCollectionScope::IsGarbageCollectionAllowed(
+            GetHeap()->GetHeapHandle()));
   }
 }
 

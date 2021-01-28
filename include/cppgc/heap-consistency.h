@@ -147,14 +147,59 @@ class V8_EXPORT HeapState final {
    */
   static bool IsMarking(HeapHandle& heap_handle);
 
-  /**
-   * \param heap_handle The corresponding heap.
-   * \returns true if allocations are allowed, and false otherwise.
-   */
-  static bool IsAllocationAllowed(HeapHandle& heap_handle);
-
  private:
   HeapState() = delete;
+};
+
+/**
+ * Disallows garbage collection finalizations. Any garbage collection triggers
+ * result in a crash when in this scope.
+ *
+ * Note that the garbage collector already covers paths that can lead to garbage
+ * collections, so user code does not require checking
+ * `IsGarbageCollectionAllowed()` before allocations.
+ */
+class V8_EXPORT V8_NODISCARD DisallowGarbageCollectionScope final {
+  CPPGC_STACK_ALLOCATED();
+
+ public:
+  /**
+   * \returns whether garbage collections are currently allowed.
+   */
+  static bool IsGarbageCollectionAllowed(HeapHandle& heap_handle);
+
+  /**
+   * Enters a disallow garbage collection scope. Must be paired with `Leave()`.
+   * Prefer a scope instance of `DisallowGarbageCollectionScope`.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  static void Enter(HeapHandle& heap_handle);
+
+  /**
+   * LEaves a disallow garbage collection scope. Must be paired with `Enter()`.
+   * Prefer a scope instance of `DisallowGarbageCollectionScope`.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  static void Leave(HeapHandle& heap_handle);
+
+  /**
+   * Constructs a scoped object that automatically enters and leaves a disallow
+   * garbage collection scope based on its lifetime.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  explicit DisallowGarbageCollectionScope(HeapHandle& heap_handle);
+  ~DisallowGarbageCollectionScope();
+
+  DisallowGarbageCollectionScope(const DisallowGarbageCollectionScope&) =
+      delete;
+  DisallowGarbageCollectionScope& operator=(
+      const DisallowGarbageCollectionScope&) = delete;
+
+ private:
+  HeapHandle& heap_handle_;
 };
 
 /**

@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/process-heap.h"
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -267,8 +268,7 @@ void MarkerBase::LeaveAtomicPause() {
   is_marking_started_ = false;
   {
     // Weakness callbacks are forbidden from allocating objects.
-    ObjectAllocator::NoAllocationScope no_allocation_scope_(
-        heap_.object_allocator());
+    cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_);
     ProcessWeakness();
   }
   g_process_mutex.Pointer()->Unlock();

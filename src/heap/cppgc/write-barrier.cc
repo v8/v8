@@ -4,6 +4,7 @@
 
 #include "include/cppgc/internal/write-barrier.h"
 
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/pointer-policies.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -81,8 +82,7 @@ void WriteBarrier::DijkstraMarkingBarrierRangeSlow(
     return;
   }
 
-  ObjectAllocator::NoAllocationScope no_allocation(
-      heap_base.object_allocator());
+  cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_base);
   const char* array = static_cast<const char*>(first_element);
   while (number_of_elements-- > 0) {
     trace_callback(&heap_base.marker()->Visitor(), array);
