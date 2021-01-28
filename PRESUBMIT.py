@@ -480,8 +480,8 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   def FilterFile(affected_file):
     return input_api.FilterSourceFile(
         affected_file,
-        files_to_check=(r'src/.*', r'test/.*'),
-        files_to_skip=(r'src[\\\/]api[\\\/]api\.cc'))
+        files_to_check=(r'src/.*', r'test/.*'))
+
 
   # matches any class name.
   class_name = r'\b([A-Z][A-Za-z0-9_:]*)(?:::\1)?'
