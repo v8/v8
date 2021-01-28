@@ -1066,27 +1066,45 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     // EventHandlers
     function handleBodyLoad() {
       $('uploadInput').focus();
-      if (defaultData) {
-        handleLoadJSON(defaultData);
-      } else if (window.location.protocol !== 'file:') {
-        tryLoadDefaultResults();
-      }
+      if (defaultData) return handleLoadJSON(defaultData);
+      if (tryLoadFromURLParams()) return;
+      if (window.location.protocol !== 'file:') return tryLoadDefaultResults();
     }
 
-    function tryLoadDefaultResults() {
+    async function tryLoadDefaultResults() {
      // Try to load a results.json file adjacent to this day.
-     let xhr = new XMLHttpRequest();
      // The markers on the following line can be used to replace the url easily
      // with scripts.
-     xhr.open('GET', /*results-url-start*/'results.json'/*results-url-end*/, true);
-     xhr.onreadystatechange = function(e) {
-       if(this.readyState !== XMLHttpRequest.DONE || this.status !== 200) return;
-       handleLoadText(this.responseText);
-     };
-     xhr.send();
+     const url = /*results-url-start*/'results.json'/*results-url-end*/;
+     tryLoadFile(url);
     }
 
-    function handleAppendFile() {
+    async function tryLoadFile(url, append=false) {
+      if (!url.startsWith('http')) {
+        // hack to get relative urls
+        let location = window.location;
+        let parts = location.pathname.split("/").slice(0, -1);
+        url = location.origin + parts.join('/') + '/' + url;
+      }
+      let response = await fetch(url);
+      if (!response.ok) return false;
+      let filename = url.split('/');
+      filename = filename[filename.length-1];
+      handleLoadText(await response.text(), append, filename);
+    }
+
+    async function tryLoadFromURLParams() {
+      let params = new URLSearchParams(document.location.search);
+      let hasFile = false;
+      params.forEach((value, key) => {
+        if (key !== 'file') return;
+        hasFile = true;
+        tryLoadFile(value, true);
+      });
+      return hasFile;
+    }
+
+    function handleAppendFiles() {
       let files = document.getElementById("appendInput").files;
       loadFiles(files, true);
     }
@@ -1096,17 +1114,21 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       loadFiles(files, false)
     }
 
-    function loadFiles(files, append) {
-      let file = files[0];
-      let reader = new FileReader();
-
-      reader.onload = function(evt) {
-        handleLoadText(this.result, append, file.name);
+    async function loadFiles(files, append) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        console.log(file.name);
+        let text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result)
+          reader.readAsText(file);
+        });
+        handleLoadText(text, append, file.name);
       }
-      reader.readAsText(file);
     }
 
     function handleLoadText(text, append, fileName) {
+      console.log(text.length);
       try {
         handleLoadJSON(JSON.parse(text), append, fileName);
       } catch(e) {
@@ -1153,21 +1175,22 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         pages = new Pages();
         versions = new Versions()
       }
-      versions.add(Version.fromTXT(fileName, txt))
-      displayResultsAfterLoading()
+      versions.add(Version.fromTXT(fileName, txt));
+      displayResultsAfterLoading(isFirstLoad);
 
     }
 
-    function displayResultsAfterLoading(isFirstLoad) {
+    function displayResultsAfterLoading(isFirstLoad=true) {
       let state = getStateFromParams();
       initialize()
       if (isFirstLoad && !popHistoryState(state) && selectedPage) {
         showEntry(selectedPage.total);
         return;
       }
-      selectedPage = versions.versions[0].pages[0]
-      if (selectedPage == undefined) return;
-      showPage(selectedPage);
+      const page = versions.versions[0].pages[0]
+      if (page  == undefined) return;
+      showPage(page);
+      showEntry(page.total);
     }
 
     function fixClusterTelemetryResults(json) {
@@ -1277,6 +1300,24 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         result[key+"_"+appendIndex] = json[key];
       }
       return result
+    }
+
+    function handleCopyToClipboard(event) {        
+      const names =[ "Group", ...versions.versions.map(e=>e.name)];
+      let result = [ names.join("\t") ];
+      let groups = Array.from(Group.groups.values());
+      // Move the total group to the end.
+      groups.push(groups.shift())
+      groups.forEach(group => {
+        let row = [group.name];
+        versions.forEach(v => {
+          const time = v.pages[0].get("Group-"+group.name)?._time ?? 0;
+          row.push(time)
+        })
+        result.push(row.join("\t"));
+      });
+      result = result.join("\n");
+      navigator.clipboard.writeText(result)
     }
 
     function handleToggleGroup(event) {
@@ -1630,12 +1671,22 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       add(entry) {
         // Ignore accidentally added Group entries.
         if (entry.name.startsWith(GroupedEntry.prefix)) return;
-        entry.page = this;
-        this.entryDict.set(entry.name, entry);
-        for (let group of this.groups) { 
-          if (group.add(entry)) return;
+        let existingEntry = this.entryDict.get(entry.name);
+        if (existingEntry !== undefined) {
+          // Duplicate entries happen when multipe runs are combined into a
+          // single file.
+          existingEntry.add(entry);
+          for (let group of this.groups) { 
+            if (group.addTimeAndCount(entry)) return;
+          }
+        } else {
+          entry.page = this;
+          this.entryDict.set(entry.name, entry);
+          for (let group of this.groups) { 
+            if (group.add(entry)) return;
+          }
         }
-        console.error("Sould not get here", entry);
+        console.error("Should not get here", entry);
       }
       get(name) {
         return this.entryDict.get(name)
@@ -1718,6 +1769,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         // Skip the first two lines (HEADER and SEPARATOR)
         for (let i = 2; i < lines.length; i++) {
           let line = lines[i].trim().split(split)
+          // Skip header lines
+          if (lines[i].startsWith("======")) continue;
+          if (lines[i+1]?.startsWith("======")) continue;
           if (line.length != 5) continue;
           let position = i-2;
           pageVersion.add(Entry.fromTXT(position, line));
@@ -1742,6 +1796,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.page = undefined;
         this.parent = undefined;
         this.isTotal = false;
+      }
+      add(entry) {
+        if (this.name != entry.name) {
+          console.error("Should not combine entries with different names");
+          return;
+        }
+        this._time += entry._time;
+        this._count += entry._count;
       }
       urlParams() {
         let params = this.page.urlParams();
@@ -1886,12 +1948,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       get color() { return this.group.color }
       get enabled() { return this.group.enabled }
       add(entry) {
-        if (!this.regexp.test(entry.name)) return false;
-        this._time += entry.time;
-        this._count += entry.count;
+        if (!this.addTimeAndCount(entry)) return;
         // TODO: sum up variance
         this.entries.push(entry);
         entry.parent = this;
+        return true;
+      }
+      addTimeAndCount(entry) {
+        if (!this.regexp.test(entry.name)) return false;
+        this._time += entry.time;
+        this._count += entry.count;
         return true;
       }
       _initializeMissingEntries() {
@@ -2012,10 +2078,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           <input id="uploadInput" type="file" name="files" onchange="handleLoadFile();" accept=".json,.txt">
         </p>
         <p>
-          <label for="appendInput">Append File:</label>
-          <input id="appendInput" type="file" name="files" onchange="handleAppendFile();" accept=".json,.txt">
+          <label for="appendInput">Append Files:</label>
+          <input id="appendInput" type="file" name="files" onchange="handleAppendFiles();" multiple accept=".json,.txt">
         </p>
       </form>
+      <p>
+        <button onclick="handleCopyToClipboard()">Copy Table to Clipboard</button>
+      </p>
     </div>
 
     <div class="inline hidden">
