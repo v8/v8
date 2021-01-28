@@ -1011,7 +1011,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ AddS64(bytecode_offset, bytecode_offset, Operand(1));
   __ LoadU8(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ AddS64(bytecode_size_table, bytecode_size_table,
-            Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+            Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount));
   __ b(&process_bytecode);
 
   __ bind(&extra_wide);
@@ -1019,7 +1019,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ AddS64(bytecode_offset, bytecode_offset, Operand(1));
   __ LoadU8(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ AddS64(bytecode_size_table, bytecode_size_table,
-            Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+            Operand(2 * kByteSize * interpreter::Bytecodes::kBytecodeCount));
 
   // Load the size of the current bytecode.
   __ bind(&process_bytecode);
@@ -1045,8 +1045,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ ShiftLeftU64(scratch3, bytecode, Operand(2));
-  __ LoadU32(scratch3, MemOperand(bytecode_size_table, scratch3));
+  __ LoadU8(scratch3, MemOperand(bytecode_size_table, bytecode));
   __ AddS64(bytecode_offset, bytecode_offset, scratch3);
 
   __ bind(&end);
