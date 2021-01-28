@@ -118,6 +118,8 @@ class StatsCounter;
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
   V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
   V(address_of_wasm_i8x16_splat_0x0f, "wasm_i8x16_splat_0x0f")                 \
+  V(address_of_wasm_i8x16_splat_0x33, "wasm_i8x16_splat_0x33")                 \
+  V(address_of_wasm_i8x16_splat_0x55, "wasm_i8x16_splat_0x55")                 \
   V(address_of_wasm_i16x8_splat_0x0001, "wasm_16x8_splat_0x0001")              \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")     \
   V(check_object_type, "check_object_type")                                    \

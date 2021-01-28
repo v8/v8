@@ -3941,6 +3941,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vpshufb(dst, tmp, dst);
         __ vpshufb(kScratchDoubleReg, tmp, kScratchDoubleReg);
         __ vpaddb(dst, dst, kScratchDoubleReg);
+      } else if (CpuFeatures::IsSupported(ATOM)) {
+        // Pre-Goldmont low-power Intel microarchitectures have very slow
+        // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
+        // algorithm on these processors. ATOM CPU feature captures exactly
+        // the right set of processors.
+        __ xorps(tmp, tmp);
+        __ pavgb(tmp, src);
+        if (dst != src) {
+          __ movaps(dst, src);
+        }
+        __ andps(tmp,
+                 __ ExternalReferenceAsOperand(
+                     ExternalReference::address_of_wasm_i8x16_splat_0x55()));
+        __ psubb(dst, tmp);
+        Operand splat_0x33 = __ ExternalReferenceAsOperand(
+            ExternalReference::address_of_wasm_i8x16_splat_0x33());
+        __ movaps(tmp, dst);
+        __ andps(dst, splat_0x33);
+        __ psrlw(tmp, 2);
+        __ andps(tmp, splat_0x33);
+        __ paddb(dst, tmp);
+        __ movaps(tmp, dst);
+        __ psrlw(dst, 4);
+        __ paddb(dst, tmp);
+        __ andps(dst,
+                 __ ExternalReferenceAsOperand(
+                     ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
       } else {
         __ movaps(tmp,
                   __ ExternalReferenceAsOperand(

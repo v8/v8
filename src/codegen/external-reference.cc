@@ -96,6 +96,18 @@ constexpr struct alignas(16) {
 constexpr struct alignas(16) {
   uint64_t a;
   uint64_t b;
+} wasm_i8x16_splat_0x33 = {uint64_t{0x33333333'33333333},
+                           uint64_t{0x33333333'33333333}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i8x16_splat_0x55 = {uint64_t{0x55555555'55555555},
+                           uint64_t{0x55555555'55555555}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
 } wasm_i16x8_splat_0x0001 = {uint64_t{0x00010001'00010001},
                              uint64_t{0x00010001'00010001}};
 
@@ -580,6 +592,14 @@ ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x01() {
 
 ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x0f() {
   return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_splat_0x0f));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x33() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_splat_0x33));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x55() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_splat_0x55));
 }
 
 ExternalReference ExternalReference::address_of_wasm_i16x8_splat_0x0001() {
