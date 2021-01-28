@@ -4135,12 +4135,47 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
                              lhs_data.super_property_args().Truncate(3));
       break;
     }
-    case PRIVATE_METHOD:
-    case PRIVATE_GETTER_ONLY:
-    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_METHOD: {
+      // The property access is invalid, but if the brand check fails too, we
+      // need to return the error from the brand check.
+      Property* property = lhs_data.expr()->AsProperty();
+      Register object = VisitForRegisterValue(property->obj());
+      BuildPrivateBrandCheck(property, object,
+                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateMethodWrite,
+                                 lhs_data.expr()->AsProperty());
+      break;
+    }
+    case PRIVATE_GETTER_ONLY: {
+      // The property access is invalid, but if the brand check fails too, we
+      // need to return the error from the brand check.
+      Property* property = lhs_data.expr()->AsProperty();
+      Register object = VisitForRegisterValue(property->obj());
+      BuildPrivateBrandCheck(property, object,
+                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateSetterAccess,
+                                 lhs_data.expr()->AsProperty());
+
+      break;
+    }
+    case PRIVATE_SETTER_ONLY: {
+      // The property access is invalid, but if the brand check fails too, we
+      // need to return the error from the brand check.
+      Property* property = lhs_data.expr()->AsProperty();
+      Register object = VisitForRegisterValue(property->obj());
+      BuildPrivateBrandCheck(property, object,
+                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateGetterAccess,
+                                 lhs_data.expr()->AsProperty());
+      break;
+    }
     case PRIVATE_GETTER_AND_SETTER: {
-      // ({ #foo: name } = obj) is currently syntactically invalid.
-      UNREACHABLE();
+      Property* property = lhs_data.expr()->AsProperty();
+      Register object = VisitForRegisterValue(property->obj());
+      Register key = VisitForRegisterValue(property->key());
+      BuildPrivateBrandCheck(property, object,
+                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildPrivateGetterAccess(object, key);
       break;
     }
   }
