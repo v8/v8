@@ -4084,51 +4084,47 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprRefTest: {
         // "Tests whether {obj}'s runtime type is a runtime subtype of {rtt}."
-        TypeIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
-        if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         Value rtt = Pop(1);
-        if (!VALIDATE(
-                (rtt.type.is_rtt() && rtt.type.ref_index() == imm.index) ||
-                rtt.type == kWasmBottom)) {
-          PopTypeError(1, rtt, "rtt for type " + std::to_string(imm.index));
-          return 0;
-        }
         Value obj = Pop(0, kWasmAnyRef);
         Value* value = Push(kWasmI32);
-        if (obj.type != kWasmBottom) {
-          if (!VALIDATE(IsSubtypeOf(ValueType::Ref(imm.index, kNonNullable),
-                                    obj.type, this->module_))) {
-            PopTypeError(0, obj,
-                         "supertype of type " + std::to_string(imm.index));
+        if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
+          PopTypeError(1, rtt, "rtt");
+          return 0;
+        }
+        if (!obj.type.is_bottom() && !rtt.type.is_bottom()) {
+          if (!VALIDATE(IsSubtypeOf(
+                  ValueType::Ref(rtt.type.ref_index(), kNonNullable), obj.type,
+                  this->module_))) {
+            PopTypeError(
+                0, obj,
+                "supertype of type " + std::to_string(rtt.type.ref_index()));
             return 0;
           }
           CALL_INTERFACE_IF_REACHABLE(RefTest, obj, rtt, value);
         }
-        return opcode_length + imm.length;
+        return opcode_length;
       }
       case kExprRefCast: {
-        TypeIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
-        if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         Value rtt = Pop(1);
-        if (!VALIDATE(
-                (rtt.type.is_rtt() && rtt.type.ref_index() == imm.index) ||
-                rtt.type == kWasmBottom)) {
-          PopTypeError(1, rtt, "rtt for type " + std::to_string(imm.index));
+        Value obj = Pop(0, kWasmAnyRef);
+        if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
+          PopTypeError(1, rtt, "rtt");
           return 0;
         }
-        Value obj = Pop(0, kWasmAnyRef);
-        if (obj.type != kWasmBottom) {
-          if (!VALIDATE(IsSubtypeOf(ValueType::Ref(imm.index, kNonNullable),
-                                    obj.type, this->module_))) {
-            PopTypeError(0, obj,
-                         "supertype of type " + std::to_string(imm.index));
+        if (!obj.type.is_bottom() && !rtt.type.is_bottom()) {
+          if (!VALIDATE(IsSubtypeOf(
+                  ValueType::Ref(rtt.type.ref_index(), kNonNullable), obj.type,
+                  this->module_))) {
+            PopTypeError(
+                0, obj,
+                "supertype of type " + std::to_string(rtt.type.ref_index()));
             return 0;
           }
-          Value* value =
-              Push(ValueType::Ref(imm.index, obj.type.nullability()));
+          Value* value = Push(
+              ValueType::Ref(rtt.type.ref_index(), obj.type.nullability()));
           CALL_INTERFACE_IF_REACHABLE(RefCast, obj, rtt, value);
         }
-        return opcode_length + imm.length;
+        return opcode_length;
       }
       case kExprBrOnCast: {
         BranchDepthImmediate<validate> branch_depth(this,
