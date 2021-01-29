@@ -4142,7 +4142,9 @@ void LiftoffStackSlots::Construct() {
           // split into two i32 registers
           case ValueType::kI32:
           case ValueType::kI64:
-          case ValueType::kF32: {
+          case ValueType::kF32:
+          case ValueType::kRef:
+          case ValueType::kOptRef: {
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
             asm_->ldr(scratch,
