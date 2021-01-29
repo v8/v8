@@ -2652,11 +2652,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (dst == src) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ Psrld(kScratchDoubleReg, byte{1});
-        __ Andps(i.OutputSimd128Register(), kScratchDoubleReg);
+        __ Andps(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
         __ Psrld(dst, byte{1});
-        __ Andps(dst, i.InputSimd128Register(0));
+        __ Andps(dst, src);
       }
       break;
     }
@@ -2666,11 +2666,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (dst == src) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ Pslld(kScratchDoubleReg, byte{31});
-        __ Xorps(i.OutputSimd128Register(), kScratchDoubleReg);
+        __ Xorps(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
         __ Pslld(dst, byte{31});
-        __ Xorps(dst, i.InputSimd128Register(0));
+        __ Xorps(dst, src);
       }
       break;
     }
@@ -3291,9 +3291,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8Ne: {
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ Pcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pcmpeqw(dst, i.InputSimd128Register(1));
       __ Pcmpeqw(tmp, tmp);
-      __ Pxor(i.OutputSimd128Register(), tmp);
+      __ Pxor(dst, tmp);
       break;
     }
     case kX64I16x8GtS: {
@@ -3624,9 +3625,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16Ne: {
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ Pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pcmpeqb(dst, i.InputSimd128Register(1));
       __ Pcmpeqb(tmp, tmp);
-      __ Pxor(i.OutputSimd128Register(), tmp);
+      __ Pxor(dst, tmp);
       break;
     }
     case kX64I8x16GtS: {
