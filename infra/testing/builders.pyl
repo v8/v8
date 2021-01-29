@@ -329,6 +329,7 @@
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
+      {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
     ],
   },
   'v8_linux64_fuzzilli_ng_triggered': {
@@ -466,6 +467,7 @@
         'test_args': ['--extra-flags=--future'],
         'shards': 6,
       },
+      {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
     ],
   },
   'v8_linux64_tsan_isolates_rel_ng_triggered': {
@@ -1083,6 +1085,7 @@
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
+      {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -1283,6 +1286,7 @@
         'test_args': ['--extra-flags=--future'],
         'shards': 6,
       },
+      {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
     ],
   },
   'V8 Linux64 UBSan': {

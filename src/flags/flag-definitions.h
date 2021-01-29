@@ -582,8 +582,14 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
+DEFINE_BOOL(stress_concurrent_inlining, false,
+            "makes concurrent inlining more likely to trigger in tests")
 DEFINE_BOOL(turbo_direct_heap_access, false,
             "access kNeverSerialized objects directly from the heap")
+DEFINE_IMPLICATION(stress_concurrent_inlining, concurrent_inlining)
+DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, lazy_feedback_allocation)
+DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
+                              15 * KB)
 DEFINE_IMPLICATION(concurrent_inlining, turbo_direct_heap_access)
 DEFINE_INT(max_serializer_nesting, 25,
            "maximum levels for nesting child serializers")
@@ -1037,6 +1043,7 @@ DEFINE_BOOL(local_heaps, true, "allow heap access from background tasks")
 // Since the local_heaps flag is enabled by default, we defined reverse
 // implications to simplify disabling the flag.
 DEFINE_NEG_NEG_IMPLICATION(local_heaps, turbo_direct_heap_access)
+DEFINE_NEG_NEG_IMPLICATION(local_heaps, stress_concurrent_inlining)
 DEFINE_NEG_NEG_IMPLICATION(local_heaps, concurrent_inlining)
 DEFINE_NEG_NEG_IMPLICATION(local_heaps, concurrent_allocation)
 DEFINE_NEG_NEG_IMPLICATION(concurrent_allocation,
@@ -1905,6 +1912,7 @@ DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
 DEFINE_IMPLICATION(single_threaded, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(single_threaded, compiler_dispatcher)
+DEFINE_NEG_IMPLICATION(single_threaded, stress_concurrent_inlining)
 
 //
 // Parallel and concurrent GC (Orinoco) related flags.
