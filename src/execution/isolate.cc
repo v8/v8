@@ -4157,9 +4157,9 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeHandle<Object> maybe_import_assertions_argument) {
   v8::Local<v8::Context> api_context =
       v8::Utils::ToLocal(Handle<Context>(native_context()));
-  DCHECK_EQ(host_import_module_dynamically_callback_ != nullptr,
-            host_import_module_dynamically_with_import_assertions_callback_ ==
-                nullptr);
+  DCHECK(host_import_module_dynamically_callback_ == nullptr ||
+         host_import_module_dynamically_with_import_assertions_callback_ ==
+             nullptr);
 
   if (host_import_module_dynamically_callback_ == nullptr &&
       host_import_module_dynamically_with_import_assertions_callback_ ==
