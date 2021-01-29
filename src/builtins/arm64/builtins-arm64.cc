@@ -643,6 +643,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                                         masm->isolate()));
   __ Ldr(x10, MemOperand(x11));  // x10 = C entry FP.
 
+  // Clear c_entry_fp, now we've loaded its value to be pushed on the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ Str(xzr, MemOperand(x11));
+
   // Set js_entry_sp if this is the outermost JS call.
   Label done;
   ExternalReference js_entry_sp = ExternalReference::Create(
@@ -2946,6 +2952,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  {
+    // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch, ExternalReference::Create(
+                        IsolateAddressId::kCEntryFPAddress, masm->isolate()));
+    __ Str(xzr, MemOperand(scratch));
+  }
 
   // Compute the handler entry address and jump to it. We use x17 here for the
   // jump target, as this jump can occasionally end up at the start of

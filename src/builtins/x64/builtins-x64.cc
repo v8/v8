@@ -382,6 +382,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   {
     Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
     __ Push(c_entry_fp_operand);
+
+    // Clear c_entry_fp, now we've pushed its previous value to the stack.
+    // If the c_entry_fp is not already zero and we don't clear it, the
+    // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+    // frames on top.
+    __ movq(c_entry_fp_operand, Immediate(0));
   }
 
   // Store the context address in the previously-reserved slot.
@@ -2696,6 +2702,13 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  ExternalReference c_entry_fp_address = ExternalReference::Create(
+      IsolateAddressId::kCEntryFPAddress, masm->isolate());
+  Operand c_entry_fp_operand =
+      masm->ExternalReferenceAsOperand(c_entry_fp_address);
+  __ movq(c_entry_fp_operand, Immediate(0));
 
   // Compute the handler entry address and jump to it.
   __ movq(rdi,
