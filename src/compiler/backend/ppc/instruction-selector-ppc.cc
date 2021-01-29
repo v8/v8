@@ -230,7 +230,7 @@ void InstructionSelector::VisitLoad(Node* node) {
 
   if (node->opcode() == IrOpcode::kPoisonedLoad &&
       poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
-    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
 
   bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||

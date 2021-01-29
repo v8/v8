@@ -1053,8 +1053,7 @@ void AdjustStackPointerForTailCall(
 
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
                                    S390OperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
+  const MemoryAccessMode access_mode = AccessModeField::decode(instr->opcode());
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     codegen->tasm()->AndP(value, kSpeculationPoisonRegister);

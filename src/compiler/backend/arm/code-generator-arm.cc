@@ -314,8 +314,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                    InstructionCode opcode,
                                    ArmOperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     codegen->tasm()->and_(value, value, Operand(kSpeculationPoisonRegister));
@@ -326,8 +325,7 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
                                    InstructionCode opcode,
                                    ArmOperandConverter const& i,
                                    Register address) {
-  DCHECK_EQ(kMemoryAccessPoisoned,
-            static_cast<MemoryAccessMode>(MiscField::decode(opcode)));
+  DCHECK_EQ(kMemoryAccessPoisoned, AccessModeField::decode(opcode));
   switch (AddressingModeField::decode(opcode)) {
     case kMode_Offset_RI:
       codegen->tasm()->mov(address, i.InputImmediate(1));
@@ -1648,8 +1646,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVldrF32: {
-      const MemoryAccessMode access_mode =
-          static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+      const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
       if (access_mode == kMemoryAccessPoisoned) {
         UseScratchRegisterScope temps(tasm());
         Register address = temps.Acquire();
@@ -1686,8 +1683,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmVldrF64: {
-      const MemoryAccessMode access_mode =
-          static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+      const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
       if (access_mode == kMemoryAccessPoisoned) {
         UseScratchRegisterScope temps(tasm());
         Register address = temps.Acquire();

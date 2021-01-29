@@ -276,8 +276,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
                                    PPCOperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
+  const MemoryAccessMode access_mode = AccessModeField::decode(instr->opcode());
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     codegen->tasm()->and_(value, value, kSpeculationPoisonRegister);

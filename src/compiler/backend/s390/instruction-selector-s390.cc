@@ -703,7 +703,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   opcode |= AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
 }

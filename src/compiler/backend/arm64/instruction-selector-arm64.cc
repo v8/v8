@@ -782,7 +782,7 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
     opcode |= AddressingModeField::encode(kMode_MRR);
   }
   if (params.kind == MemoryAccessKind::kProtected) {
-    opcode |= MiscField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
   }
   Emit(opcode, 1, outputs, 2, inputs);
 }
@@ -857,7 +857,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
   if (node->opcode() == IrOpcode::kProtectedLoad) {
-    opcode |= MiscField::encode(kMemoryAccessProtected);
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
   }
 
   EmitLoad(this, node, opcode, immediate_mode, rep);
@@ -998,7 +998,7 @@ void InstructionSelector::VisitStore(Node* node) {
     }
 
     if (node->opcode() == IrOpcode::kProtectedStore) {
-      opcode |= MiscField::encode(kMemoryAccessProtected);
+      opcode |= AccessModeField::encode(kMemoryAccessProtected);
     }
 
     Emit(opcode, 0, nullptr, input_count, inputs);
