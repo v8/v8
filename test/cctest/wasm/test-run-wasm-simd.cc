@@ -2338,8 +2338,8 @@ WASM_SIMD_TEST(I16x8ConvertI32x4) {
 
   FOR_INT32_INPUTS(x) {
     r.Call(x);
-    int16_t expected_signed = Saturate<int16_t>(x);
-    int16_t expected_unsigned = Saturate<uint16_t>(x);
+    int16_t expected_signed = base::saturated_cast<int16_t>(x);
+    int16_t expected_unsigned = base::saturated_cast<uint16_t>(x);
     for (int i = 0; i < 8; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g0[i]));
       CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int16_t>(&g1[i]));
@@ -2767,8 +2767,8 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
 
   FOR_INT16_INPUTS(x) {
     r.Call(x);
-    int8_t expected_signed = Saturate<int8_t>(x);
-    int8_t expected_unsigned = Saturate<uint8_t>(x);
+    int8_t expected_signed = base::saturated_cast<int8_t>(x);
+    int8_t expected_unsigned = base::saturated_cast<uint8_t>(x);
     for (int i = 0; i < 16; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int8_t>(&g0[i]));
       CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int8_t>(&g1[i]));

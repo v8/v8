@@ -3930,19 +3930,6 @@ U Widen(T value) {
 }
 
 template <typename T, typename U>
-U Narrow(T value) {
-  static_assert(sizeof(int8_t) < sizeof(T), "T must be int16_t or larger");
-  static_assert(sizeof(U) < sizeof(T), "T must larger than U");
-  static_assert(std::is_unsigned<T>() == std::is_unsigned<U>(),
-                "Signed-ness of T and U must match");
-  // Make sure value can be expressed in the smaller type; otherwise, the
-  // casted result is implementation defined.
-  DCHECK_LE(std::numeric_limits<T>::min(), value);
-  DCHECK_GE(std::numeric_limits<T>::max(), value);
-  return static_cast<U>(value);
-}
-
-template <typename T, typename U>
 void Widen(Simulator* simulator, int Vd, int Vm) {
   static const int kLanes = 8 / sizeof(T);
   T src[kLanes];
@@ -3974,19 +3961,7 @@ void SaturatingNarrow(Simulator* simulator, int Vd, int Vm) {
   U dst[kLanes];
   simulator->get_neon_register(Vm, src);
   for (int i = 0; i < kLanes; i++) {
-    dst[i] = Narrow<T, U>(Saturate<U>(src[i]));
-  }
-  simulator->set_neon_register<U, kDoubleSize>(Vd, dst);
-}
-
-template <typename T, typename U>
-void SaturatingUnsignedNarrow(Simulator* simulator, int Vd, int Vm) {
-  static const int kLanes = 16 / sizeof(T);
-  T src[kLanes];
-  U dst[kLanes];
-  simulator->get_neon_register(Vm, src);
-  for (int i = 0; i < kLanes; i++) {
-    dst[i] = Saturate<U>(src[i]);
+    dst[i] = base::saturated_cast<U>(src[i]);
   }
   simulator->set_neon_register<U, kDoubleSize>(Vd, dst);
 }
@@ -4731,7 +4706,7 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
           if (src_unsigned) {
             SaturatingNarrow<uint16_t, uint8_t>(this, Vd, Vm);
           } else if (dst_unsigned) {
-            SaturatingUnsignedNarrow<int16_t, uint8_t>(this, Vd, Vm);
+            SaturatingNarrow<int16_t, uint8_t>(this, Vd, Vm);
           } else {
             SaturatingNarrow<int16_t, int8_t>(this, Vd, Vm);
           }
@@ -4741,7 +4716,7 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
           if (src_unsigned) {
             SaturatingNarrow<uint32_t, uint16_t>(this, Vd, Vm);
           } else if (dst_unsigned) {
-            SaturatingUnsignedNarrow<int32_t, uint16_t>(this, Vd, Vm);
+            SaturatingNarrow<int32_t, uint16_t>(this, Vd, Vm);
           } else {
             SaturatingNarrow<int32_t, int16_t>(this, Vd, Vm);
           }
@@ -4751,7 +4726,7 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
           if (src_unsigned) {
             SaturatingNarrow<uint64_t, uint32_t>(this, Vd, Vm);
           } else if (dst_unsigned) {
-            SaturatingUnsignedNarrow<int64_t, uint32_t>(this, Vd, Vm);
+            SaturatingNarrow<int64_t, uint32_t>(this, Vd, Vm);
           } else {
             SaturatingNarrow<int64_t, int32_t>(this, Vd, Vm);
           }
