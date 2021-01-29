@@ -52,7 +52,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       marking_barrier_(new MarkingBarrier(this)),
       old_space_allocator_(this, heap->old_space()) {
   heap_->safepoint()->AddLocalHeap(this, [this] {
-    if (FLAG_local_heaps && !is_main_thread()) {
+    if (!is_main_thread()) {
       WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
         marking_barrier_->Activate(
@@ -75,7 +75,7 @@ LocalHeap::~LocalHeap() {
   heap_->safepoint()->RemoveLocalHeap(this, [this] {
     old_space_allocator_.FreeLinearAllocationArea();
 
-    if (FLAG_local_heaps && !is_main_thread()) {
+    if (!is_main_thread()) {
       marking_barrier_->Publish();
       WriteBarrier::ClearForThread(marking_barrier_.get());
     }

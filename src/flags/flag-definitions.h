@@ -1036,19 +1036,8 @@ DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
 DEFINE_BOOL(concurrent_array_buffer_sweeping, true,
             "concurrently sweep array buffers")
-DEFINE_BOOL(concurrent_allocation, true, "concurrently allocate in old space")
 DEFINE_BOOL(stress_concurrent_allocation, false,
             "start background threads that allocate memory")
-DEFINE_BOOL(local_heaps, true, "allow heap access from background tasks")
-// Since the local_heaps flag is enabled by default, we defined reverse
-// implications to simplify disabling the flag.
-DEFINE_NEG_NEG_IMPLICATION(local_heaps, turbo_direct_heap_access)
-DEFINE_NEG_NEG_IMPLICATION(local_heaps, stress_concurrent_inlining)
-DEFINE_NEG_NEG_IMPLICATION(local_heaps, concurrent_inlining)
-DEFINE_NEG_NEG_IMPLICATION(local_heaps, concurrent_allocation)
-DEFINE_NEG_NEG_IMPLICATION(concurrent_allocation,
-                           finalize_streaming_on_background)
-DEFINE_NEG_NEG_IMPLICATION(concurrent_allocation, stress_concurrent_allocation)
 DEFINE_BOOL(parallel_marking, V8_CONCURRENT_MARKING_BOOL,
             "use parallel marking in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,

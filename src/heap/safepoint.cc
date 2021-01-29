@@ -18,8 +18,6 @@ GlobalSafepoint::GlobalSafepoint(Heap* heap)
     : heap_(heap), local_heaps_head_(nullptr), active_safepoint_scopes_(0) {}
 
 void GlobalSafepoint::EnterSafepointScope() {
-  if (!FLAG_local_heaps) return;
-
   if (++active_safepoint_scopes_ > 1) return;
 
   TimedHistogramScope timer(
@@ -54,8 +52,6 @@ void GlobalSafepoint::EnterSafepointScope() {
 }
 
 void GlobalSafepoint::LeaveSafepointScope() {
-  if (!FLAG_local_heaps) return;
-
   DCHECK_GT(active_safepoint_scopes_, 0);
   if (--active_safepoint_scopes_ > 0) return;
 

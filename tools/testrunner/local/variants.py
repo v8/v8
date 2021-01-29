@@ -16,10 +16,6 @@ ALL_VARIANT_FLAGS = {
   "jitless": [["--jitless"]],
   "minor_mc": [["--minor-mc"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
-  "no_local_heaps": [[
-      "--no-local-heaps",
-      "--no-turbo-direct-heap-access",
-      "--no-finalize-streaming-on-background"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.

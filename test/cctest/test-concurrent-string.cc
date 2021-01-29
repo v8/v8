@@ -100,7 +100,6 @@ class ConcurrentStringThread final : public v8::base::Thread {
 
 // Inspect a one byte string, while the main thread externalizes it.
 TEST(InspectOneByteExternalizing) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -146,7 +145,6 @@ TEST(InspectOneByteExternalizing) {
 // Inspect a one byte string, while the main thread externalizes it into a two
 // bytes string.
 TEST(InspectOneIntoTwoByteExternalizing) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -189,7 +187,6 @@ TEST(InspectOneIntoTwoByteExternalizing) {
 
 // Inspect a two byte string, while the main thread externalizes it.
 TEST(InspectTwoByteExternalizing) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 

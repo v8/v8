@@ -1989,7 +1989,6 @@ GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
 size_t Heap::PerformGarbageCollection(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   DisallowJavascriptExecution no_js(isolate());
-  base::Optional<SafepointScope> optional_safepoint_scope;
 
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung(collector);
@@ -2008,9 +2007,7 @@ size_t Heap::PerformGarbageCollection(
 
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
-  if (FLAG_local_heaps) {
-    optional_safepoint_scope.emplace(this);
-  }
+  SafepointScope safepoint_scope(this);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -3289,7 +3286,6 @@ void Heap::MakeHeapIterable() {
 }
 
 void Heap::MakeLocalHeapLabsIterable() {
-  if (!FLAG_local_heaps) return;
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MakeLinearAllocationAreaIterable();
   });
@@ -4498,10 +4494,8 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     isolate_->handle_scope_implementer()->Iterate(v);
 #endif
 
-    if (FLAG_local_heaps) {
-      safepoint_->Iterate(&left_trim_visitor);
-      safepoint_->Iterate(v);
-    }
+    safepoint_->Iterate(&left_trim_visitor);
+    safepoint_->Iterate(v);
 
     isolate_->persistent_handles_list()->Iterate(&left_trim_visitor, isolate_);
     isolate_->persistent_handles_list()->Iterate(v, isolate_);
