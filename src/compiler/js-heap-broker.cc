@@ -3627,7 +3627,7 @@ base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
     Object value = object()->value(kAcquireLoad);
     if (!value.IsFeedbackVector()) return base::nullopt;
     auto vector_handle = broker()->CanonicalPersistentHandle(value);
-    ObjectData* vector = broker()->TryGetOrCreateData(vector_handle, false);
+    ObjectData* vector = broker()->TryGetOrCreateData(vector_handle);
     if (vector) {
       return FeedbackVectorRef(broker(), vector);
     }
@@ -4299,10 +4299,9 @@ base::Optional<FunctionTemplateInfoRef>
 SharedFunctionInfoRef::function_template_info() const {
   if (data_->should_access_heap()) {
     if (object()->IsApiFunction()) {
-      ObjectData* data = broker()->TryGetOrCreateData(
-          broker()->CanonicalPersistentHandle(
-              object()->function_data(kAcquireLoad)),
-          false);
+      ObjectData* data =
+          broker()->TryGetOrCreateData(broker()->CanonicalPersistentHandle(
+              object()->function_data(kAcquireLoad)));
       if (data == nullptr) return base::nullopt;
       return FunctionTemplateInfoRef(broker(), data, true);
     }
