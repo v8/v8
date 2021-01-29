@@ -542,6 +542,11 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   int position = frame_finder.frame()->position();
   isolate->set_context(instance->native_context());
 
+  // Stepping can repeatedly create code, and code GC requires stack guards to
+  // be executed on all involved isolates. Proactively do this here.
+  StackLimitCheck check(isolate);
+  if (check.InterruptRequested()) isolate->stack_guard()->HandleInterrupts();
+
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
 
