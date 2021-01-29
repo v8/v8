@@ -452,7 +452,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_function_literal_id(lit->function_literal_id());
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
-  shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   DCHECK_IMPLIES(lit->requires_instance_members_initializer(),
                  IsClassConstructor(lit->kind()));
   shared_info->set_requires_instance_members_initializer(

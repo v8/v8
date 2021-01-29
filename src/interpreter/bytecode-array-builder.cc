@@ -645,18 +645,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(AstBigInt bigint) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(AstSymbol symbol) {
-  size_t entry;
-  switch (symbol) {
-    case AstSymbol::kHomeObjectSymbol:
-      entry = HomeObjectSymbolConstantPoolEntry();
-      break;
-      // No default case so that we get a warning if AstSymbol changes
-  }
-  OutputLdaConstant(entry);
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadUndefined() {
   OutputLdaUndefined();
   return *this;
@@ -939,12 +927,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreInArrayLiteral(
     Register array, Register index, int feedback_slot) {
   OutputStaInArrayLiteral(array, index, feedback_slot);
   return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreHomeObjectProperty(
-    Register object, int feedback_slot, LanguageMode language_mode) {
-  size_t name_index = HomeObjectSymbolConstantPoolEntry();
-  return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreClassFieldsInitializer(
