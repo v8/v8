@@ -173,6 +173,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   DCHECK(!in_no_gc_scope());
   CHECK(!in_disallow_gc_scope());
   config_.stack_state = stack_state;
+  in_atomic_pause_ = true;
   {
     // This guards atomic pause marking, meaning that no internal method or
     // external callbacks are allowed to allocate new objects.
@@ -196,6 +197,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
       config_.sweeping_type,
       Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
   sweeper_.Start(sweeping_config);
+  in_atomic_pause_ = false;
   sweeper_.NotifyDoneIfNeeded();
 }
 

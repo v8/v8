@@ -143,9 +143,30 @@ class V8_EXPORT HeapState final {
    *
    * \param heap_handle The corresponding heap.
    * \returns true if the garbage collector is currently marking, and false
-   * otherwise.
+   *   otherwise.
    */
   static bool IsMarking(HeapHandle& heap_handle);
+
+  /*
+   * Returns whether the garbage collector is sweeping. This API is experimental
+   * and is expected to be removed in future.
+   *
+   * \param heap_handle The corresponding heap.
+   * \returns true if the garbage collector is currently sweeping, and false
+   *   otherwise.
+   */
+  static bool IsSweeping(HeapHandle& heap_handle);
+
+  /**
+   * Returns whether the garbage collector is in the atomic pause, i.e., the
+   * mutator is stopped from running. This API is experimental and is expected
+   * to be removed in future.
+   *
+   * \param heap_handle The corresponding heap.
+   * \returns true if the garbage collector is currently in the atomic pause,
+   *   and false otherwise.
+   */
+  static bool IsInAtomicPause(HeapHandle& heap_handle);
 
  private:
   HeapState() = delete;
@@ -177,7 +198,7 @@ class V8_EXPORT V8_NODISCARD DisallowGarbageCollectionScope final {
   static void Enter(HeapHandle& heap_handle);
 
   /**
-   * LEaves a disallow garbage collection scope. Must be paired with `Enter()`.
+   * Leaves a disallow garbage collection scope. Must be paired with `Enter()`.
    * Prefer a scope instance of `DisallowGarbageCollectionScope`.
    *
    * \param heap_handle The corresponding heap.

@@ -48,6 +48,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   bool SweepForAllocationIfRunning(NormalPageSpace* space, size_t size);
 
   bool IsSweepingOnMutatorThread() const;
+  bool IsSweepingInProgress() const;
 
  private:
   void WaitForConcurrentSweepingForTesting();

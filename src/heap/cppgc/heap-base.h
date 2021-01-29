@@ -108,6 +108,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   const ObjectAllocator& object_allocator() const { return object_allocator_; }
 
   Sweeper& sweeper() { return sweeper_; }
+  const Sweeper& sweeper() const { return sweeper_; }
 
   PersistentRegion& GetStrongPersistentRegion() {
     return strong_persistent_region_;
@@ -150,6 +151,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   void Terminate();
 
   bool in_disallow_gc_scope() const { return disallow_gc_scope_ > 0; }
+  bool in_atomic_pause() const { return in_atomic_pause_; }
 
  protected:
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
@@ -188,6 +190,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   size_t disallow_gc_scope_ = 0;
 
   const StackSupport stack_support_;
+
+  bool in_atomic_pause_ = false;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;

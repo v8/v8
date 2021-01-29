@@ -71,7 +71,6 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   Isolate& isolate_;
   bool marking_done_ = false;
-  bool is_in_final_pause_ = false;
 
   // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
   // atomic pause. Allocated bytes are buffer in case this is temporarily

@@ -11,6 +11,7 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/persistent.h"
+#include "include/cppgc/prefinalizer.h"
 #include "src/heap/cppgc/globals.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -186,15 +187,65 @@ TEST_F(GCHeapTest, IsGarbageCollectionAllowed) {
   }
 }
 
-TEST_F(GCHeapTest, IsIncrementalMarking) {
-  GarbageCollector::Config config =
-      GarbageCollector::Config::PreciseIncrementalConfig();
+TEST_F(GCHeapTest, IsMarking) {
+  GarbageCollector::Config config = GarbageCollector::Config::
+      PreciseIncrementalMarkingConcurrentSweepingConfig();
   auto* heap = Heap::From(GetHeap());
   EXPECT_FALSE(subtle::HeapState::IsMarking(*heap));
   heap->StartIncrementalGarbageCollection(config);
   EXPECT_TRUE(subtle::HeapState::IsMarking(*heap));
   heap->FinalizeIncrementalGarbageCollectionIfRunning(config);
   EXPECT_FALSE(subtle::HeapState::IsMarking(*heap));
+  heap->AsBase().sweeper().FinishIfRunning();
+  EXPECT_FALSE(subtle::HeapState::IsMarking(*heap));
+}
+
+TEST_F(GCHeapTest, IsSweeping) {
+  GarbageCollector::Config config = GarbageCollector::Config::
+      PreciseIncrementalMarkingConcurrentSweepingConfig();
+  auto* heap = Heap::From(GetHeap());
+  EXPECT_FALSE(subtle::HeapState::IsSweeping(*heap));
+  heap->StartIncrementalGarbageCollection(config);
+  EXPECT_FALSE(subtle::HeapState::IsSweeping(*heap));
+  heap->FinalizeIncrementalGarbageCollectionIfRunning(config);
+  EXPECT_TRUE(subtle::HeapState::IsSweeping(*heap));
+  heap->AsBase().sweeper().FinishIfRunning();
+  EXPECT_FALSE(subtle::HeapState::IsSweeping(*heap));
+}
+
+namespace {
+
+class ExpectAtomicPause final : public GarbageCollected<ExpectAtomicPause> {
+  CPPGC_USING_PRE_FINALIZER(ExpectAtomicPause, PreFinalizer);
+
+ public:
+  explicit ExpectAtomicPause(HeapHandle& handle) : handle_(handle) {}
+  ~ExpectAtomicPause() {
+    EXPECT_TRUE(subtle::HeapState::IsInAtomicPause(handle_));
+  }
+  void PreFinalizer() {
+    EXPECT_TRUE(subtle::HeapState::IsInAtomicPause(handle_));
+  }
+  void Trace(Visitor*) const {}
+
+ private:
+  HeapHandle& handle_;
+};
+
+}  // namespace
+
+TEST_F(GCHeapTest, IsInAtomicPause) {
+  GarbageCollector::Config config =
+      GarbageCollector::Config::PreciseIncrementalConfig();
+  auto* heap = Heap::From(GetHeap());
+  MakeGarbageCollected<ExpectAtomicPause>(heap->object_allocator(), *heap);
+  EXPECT_FALSE(subtle::HeapState::IsInAtomicPause(*heap));
+  heap->StartIncrementalGarbageCollection(config);
+  EXPECT_FALSE(subtle::HeapState::IsInAtomicPause(*heap));
+  heap->FinalizeIncrementalGarbageCollectionIfRunning(config);
+  EXPECT_FALSE(subtle::HeapState::IsInAtomicPause(*heap));
+  heap->AsBase().sweeper().FinishIfRunning();
+  EXPECT_FALSE(subtle::HeapState::IsInAtomicPause(*heap));
 }
 
 TEST_F(GCHeapTest, TerminateEmptyHeap) { Heap::From(GetHeap())->Terminate(); }

@@ -241,17 +241,16 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
   // accounting since this scope is also accounted under an outer v8 scope.
   // Make sure to only account this scope once.
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
-      AsBase(), is_in_final_pause_
+      AsBase(), in_atomic_pause_
                     ? cppgc::internal::StatsCollector::kAtomicMark
                     : cppgc::internal::StatsCollector::kIncrementalMark);
   v8::base::TimeDelta deadline =
-      is_in_final_pause_
-          ? v8::base::TimeDelta::Max()
-          : v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms);
+      in_atomic_pause_ ? v8::base::TimeDelta::Max()
+                       : v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms);
   // TODO(chromium:1056170): Replace when unified heap transitions to
   // bytes-based deadline.
   marking_done_ = marker_->AdvanceMarkingWithMaxDuration(deadline);
-  DCHECK_IMPLIES(is_in_final_pause_, marking_done_);
+  DCHECK_IMPLIES(in_atomic_pause_, marking_done_);
   return marking_done_;
 }
 
@@ -261,7 +260,7 @@ void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
       AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
-  is_in_final_pause_ = true;
+  in_atomic_pause_ = true;
   marker_->EnterAtomicPause(stack_state);
   if (compactor_.CancelIfShouldNotCompact(cppgc::Heap::MarkingType::kAtomic,
                                           stack_state)) {
@@ -270,14 +269,13 @@ void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
-  CHECK(is_in_final_pause_);
+  CHECK(in_atomic_pause_);
   CHECK(marking_done_);
   {
     cppgc::internal::StatsCollector::EnabledScope stats_scope(
         AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
-    is_in_final_pause_ = false;
   }
   {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
@@ -300,6 +298,7 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
         compactable_space_handling};
     sweeper().Start(sweeping_config);
   }
+  in_atomic_pause_ = false;
   sweeper().NotifyDoneIfNeeded();
 }
 

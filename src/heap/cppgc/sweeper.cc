@@ -654,6 +654,8 @@ class Sweeper::SweeperImpl final {
     return is_sweeping_on_mutator_thread_;
   }
 
+  bool IsSweepingInProgress() const { return is_in_progress_; }
+
  private:
   class MutatorThreadSweepingScope final {
    public:
@@ -789,6 +791,10 @@ bool Sweeper::SweepForAllocationIfRunning(NormalPageSpace* space, size_t size) {
 }
 bool Sweeper::IsSweepingOnMutatorThread() const {
   return impl_->IsSweepingOnMutatorThread();
+}
+
+bool Sweeper::IsSweepingInProgress() const {
+  return impl_->IsSweepingInProgress();
 }
 
 }  // namespace internal
