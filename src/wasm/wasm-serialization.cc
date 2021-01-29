@@ -822,12 +822,15 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!IsSupportedVersion(data)) return {};
 
-  ModuleWireBytes wire_bytes(wire_bytes_vec);
+  // Make the copy of the wire bytes early, so we use the same memory for
+  // decoding, lookup in the native module cache, and insertion into the cache.
+  auto owned_wire_bytes = OwnedVector<uint8_t>::Of(wire_bytes_vec);
+
   // TODO(titzer): module features should be part of the serialization format.
   WasmEngine* wasm_engine = isolate->wasm_engine();
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
-      enabled_features, wire_bytes.start(), wire_bytes.end(), false,
+      enabled_features, owned_wire_bytes.start(), owned_wire_bytes.end(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kDeserialize, wasm_engine->allocator());
@@ -836,7 +839,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   CHECK_NOT_NULL(module);
 
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
-      module->origin, wire_bytes_vec, isolate);
+      module->origin, owned_wire_bytes.as_vector(), isolate);
   if (shared_native_module == nullptr) {
     const bool kIncludeLiftoff = false;
     size_t code_size_estimate =
@@ -850,8 +853,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     // than the compilation ID of actual compilations, and also different than
     // the sentinel value of the CompilationState.
     shared_native_module->compilation_state()->set_compilation_id(-2);
-    shared_native_module->SetWireBytes(
-        OwnedVector<uint8_t>::Of(wire_bytes_vec));
+    shared_native_module->SetWireBytes(std::move(owned_wire_bytes));
 
     NativeModuleDeserializer deserializer(shared_native_module.get());
     Reader reader(data + WasmSerializer::kHeaderSize);
