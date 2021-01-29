@@ -22,7 +22,7 @@ class EntryFrameConstants : public AllStatic {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 7;
+  static constexpr int kNumberOfSavedGpParamRegs = 8;
   static constexpr int kNumberOfSavedFpParamRegs = 8;
 
   // FP-relative.
