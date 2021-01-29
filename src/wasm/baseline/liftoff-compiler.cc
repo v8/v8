@@ -3000,8 +3000,8 @@ class LiftoffCompiler {
         return EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_select);
       case wasm::kExprI8x16Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_neg);
-      case wasm::kExprV8x16AnyTrue:
-        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v8x16_anytrue);
+      case wasm::kExprV128AnyTrue:
+        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v128_anytrue);
       case wasm::kExprV8x16AllTrue:
         return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v8x16_alltrue);
       case wasm::kExprI8x16BitMask:
@@ -3039,8 +3039,6 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_max_u);
       case wasm::kExprI16x8Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_neg);
-      case wasm::kExprV16x8AnyTrue:
-        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v16x8_anytrue);
       case wasm::kExprV16x8AllTrue:
         return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v16x8_alltrue);
       case wasm::kExprI16x8BitMask:
@@ -3093,8 +3091,6 @@ class LiftoffCompiler {
             &LiftoffAssembler::emit_i16x8_q15mulr_sat_s);
       case wasm::kExprI32x4Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_neg);
-      case wasm::kExprV32x4AnyTrue:
-        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v32x4_anytrue);
       case wasm::kExprV32x4AllTrue:
         return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v32x4_alltrue);
       case wasm::kExprI32x4BitMask:

@@ -559,11 +559,9 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(S128Not, Operator::kNoProperties, 1, 0, 1)                             \
   V(S128Select, Operator::kNoProperties, 3, 0, 1)                          \
   V(S128AndNot, Operator::kNoProperties, 2, 0, 1)                          \
-  V(V32x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(V32x4AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(V16x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(V16x8AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(V8x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(V128AnyTrue, Operator::kNoProperties, 1, 0, 1)                         \
   V(V8x16AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(I8x16Swizzle, Operator::kNoProperties, 2, 0, 1)
 

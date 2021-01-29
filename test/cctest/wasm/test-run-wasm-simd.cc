@@ -3451,14 +3451,14 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
     byte reduced = r.AllocateLocal(kWasmI32);                                  \
     BUILD(r, WASM_LOCAL_SET(zero, WASM_SIMD_I##format##_SPLAT(int_type(0))),   \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
@@ -3482,14 +3482,14 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
                          WASM_SIMD_I##format##_REPLACE_LANE(                   \
                              lanes - 1, WASM_LOCAL_GET(zero), int_type(1))),   \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
@@ -4375,7 +4375,7 @@ WASM_SIMD_TEST_NO_LOWERING(S128Store64Lane) {
     BUILD(                                                                    \
         r,                                                                    \
         WASM_LOCAL_SET(simd, WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(0))), \
-        WASM_SIMD_UNOP(kExprV##format##AnyTrue, WASM_LOCAL_GET(simd)));       \
+        WASM_SIMD_UNOP(kExprV128AnyTrue, WASM_LOCAL_GET(simd)));              \
     CHECK_EQ(1, r.Call(max));                                                 \
     CHECK_EQ(1, r.Call(5));                                                   \
     CHECK_EQ(0, r.Call(0));                                                   \
@@ -4387,11 +4387,11 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
 // Special any true test cases that splats a -0.0 double into a i64x2.
 // This is specifically to ensure that our implementation correct handles that
 // 0.0 and -0.0 will be different in an anytrue (IEEE753 says they are equals).
-WASM_SIMD_TEST(V32x4AnytrueWithNegativeZero) {
+WASM_SIMD_TEST(V128AnytrueWithNegativeZero) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_LOCAL_SET(simd, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_SIMD_UNOP(kExprV32x4AnyTrue, WASM_LOCAL_GET(simd)));
+        WASM_SIMD_UNOP(kExprV128AnyTrue, WASM_LOCAL_GET(simd)));
   CHECK_EQ(1, r.Call(0x8000000000000000));
   CHECK_EQ(0, r.Call(0x0000000000000000));
 }
