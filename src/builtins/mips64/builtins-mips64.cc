@@ -928,7 +928,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Daddu(scratch2, bytecode_array, bytecode_offset);
   __ Lbu(bytecode, MemOperand(scratch2));
   __ Daddu(bytecode_size_table, bytecode_size_table,
-           Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+           Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount));
   __ jmp(&process_bytecode);
 
   __ bind(&extra_wide);
@@ -937,7 +937,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Daddu(scratch2, bytecode_array, bytecode_offset);
   __ Lbu(bytecode, MemOperand(scratch2));
   __ Daddu(bytecode_size_table, bytecode_size_table,
-           Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+           Operand(2 * kByteSize * interpreter::Bytecodes::kBytecodeCount));
 
   __ bind(&process_bytecode);
 
@@ -960,8 +960,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ Dlsa(scratch2, bytecode_size_table, bytecode, 2);
-  __ Lw(scratch2, MemOperand(scratch2));
+  __ Daddu(scratch2, bytecode_size_table, bytecode);
+  __ Lb(scratch2, MemOperand(scratch2));
   __ Daddu(bytecode_offset, bytecode_offset, scratch2);
 
   __ bind(&end);
