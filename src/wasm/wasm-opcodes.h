@@ -677,7 +677,16 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RttSub, 0xfb31, _)           \
   V(RefTest, 0xfb40, _)          \
   V(RefCast, 0xfb41, _)          \
-  V(BrOnCast, 0xfb42, _)
+  V(BrOnCast, 0xfb42, _)         \
+  V(RefIsFunc, 0xfb50, _)        \
+  V(RefIsData, 0xfb51, _)        \
+  V(RefIsI31, 0xfb52, _)         \
+  V(RefAsFunc, 0xfb58, _)        \
+  V(RefAsData, 0xfb59, _)        \
+  V(RefAsI31, 0xfb5a, _)         \
+  V(BrOnFunc, 0xfb60, _)         \
+  V(BrOnData, 0xfb61, _)         \
+  V(BrOnI31, 0xfb62, _)
 
 #define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
   /* AtomicFence does not target a particular linear memory. */ \

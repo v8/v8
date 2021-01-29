@@ -1154,6 +1154,15 @@ struct ControlBase : public PcForErrors<validate> {
   F(RefCast, const Value& obj, const Value& rtt, Value* result)                \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
     uint32_t depth)                                                            \
+  F(RefIsData, const Value& object, Value* result)                             \
+  F(RefAsData, const Value& object, Value* result)                             \
+  F(BrOnData, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
+  F(RefIsFunc, const Value& object, Value* result)                             \
+  F(RefAsFunc, const Value& object, Value* result)                             \
+  F(BrOnFunc, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
+  F(RefIsI31, const Value& object, Value* result)                              \
+  F(RefAsI31, const Value& object, Value* result)                              \
+  F(BrOnI31, const Value& object, Value* value_on_branch, uint32_t br_depth)   \
   F(Forward, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -4186,6 +4195,71 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (V8_LIKELY(check_result == kReachableBranch)) {
           CALL_INTERFACE(BrOnCast, obj, rtt, result_on_branch,
                          branch_depth.depth);
+          c->br_merge()->reached = true;
+        } else if (check_result == kInvalidStack) {
+          return 0;
+        }
+        Pop(0);  // Drop {result_on_branch}, restore original value.
+        Value* result_on_fallthrough = Push(obj.type);
+        *result_on_fallthrough = obj;
+        return opcode_length + branch_depth.length;
+      }
+#define ABSTRACT_TYPE_CHECK(heap_type)                          \
+  case kExprRefIs##heap_type: {                                 \
+    Value arg = Pop(0, kWasmAnyRef);                            \
+    Value* result = Push(kWasmI32);                             \
+    CALL_INTERFACE_IF_REACHABLE(RefIs##heap_type, arg, result); \
+    return opcode_length;                                       \
+  }
+
+        ABSTRACT_TYPE_CHECK(Data)
+        ABSTRACT_TYPE_CHECK(Func)
+        ABSTRACT_TYPE_CHECK(I31)
+#undef ABSTRACT_TYPE_CHECK
+
+#define ABSTRACT_TYPE_CAST(heap_type)                                 \
+  case kExprRefAs##heap_type: {                                       \
+    Value arg = Pop(0, kWasmAnyRef);                                  \
+    if (!arg.type.is_bottom()) {                                      \
+      Value* result =                                                 \
+          Push(ValueType::Ref(HeapType::k##heap_type, kNonNullable)); \
+      CALL_INTERFACE_IF_REACHABLE(RefAs##heap_type, arg, result);     \
+    }                                                                 \
+    return opcode_length;                                             \
+  }
+
+        ABSTRACT_TYPE_CAST(Data)
+        ABSTRACT_TYPE_CAST(Func)
+        ABSTRACT_TYPE_CAST(I31)
+#undef ABSTRACT_TYPE_CAST
+
+      case kExprBrOnData:
+      case kExprBrOnFunc:
+      case kExprBrOnI31: {
+        BranchDepthImmediate<validate> branch_depth(this,
+                                                    this->pc_ + opcode_length);
+        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
+                            control_.size())) {
+          return 0;
+        }
+
+        Value obj = Pop(0, kWasmAnyRef);
+        Control* c = control_at(branch_depth.depth);
+        HeapType::Representation heap_type =
+            opcode == kExprBrOnFunc
+                ? HeapType::kFunc
+                : opcode == kExprBrOnData ? HeapType::kData : HeapType::kI31;
+
+        Value* result_on_branch = Push(ValueType::Ref(heap_type, kNonNullable));
+        TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
+        if (V8_LIKELY(check_result == kReachableBranch)) {
+          if (opcode == kExprBrOnFunc) {
+            CALL_INTERFACE(BrOnFunc, obj, result_on_branch, branch_depth.depth);
+          } else if (opcode == kExprBrOnData) {
+            CALL_INTERFACE(BrOnData, obj, result_on_branch, branch_depth.depth);
+          } else {
+            CALL_INTERFACE(BrOnI31, obj, result_on_branch, branch_depth.depth);
+          }
           c->br_merge()->reached = true;
         } else if (check_result == kInvalidStack) {
           return 0;

@@ -437,12 +437,30 @@ class WasmGraphBuilder {
   Node* I31GetU(Node* input);
   Node* RttCanon(uint32_t type_index);
   Node* RttSub(uint32_t type_index, Node* parent_rtt);
+
   Node* RefTest(Node* object, Node* rtt, ObjectReferenceKnowledge config);
   Node* RefCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                 wasm::WasmCodePosition position);
   Node* BrOnCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                  Node** match_control, Node** match_effect,
                  Node** no_match_control, Node** no_match_effect);
+  Node* RefIsData(Node* object, bool object_can_be_null);
+  Node* RefAsData(Node* object, bool object_can_be_null,
+                  wasm::WasmCodePosition position);
+  Node* BrOnData(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                 Node** match_control, Node** match_effect,
+                 Node** no_match_control, Node** no_match_effect);
+  Node* RefIsFunc(Node* object, bool object_can_be_null);
+  Node* RefAsFunc(Node* object, bool object_can_be_null,
+                  wasm::WasmCodePosition position);
+  Node* BrOnFunc(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                 Node** match_control, Node** match_effect,
+                 Node** no_match_control, Node** no_match_effect);
+  Node* RefIsI31(Node* object);
+  Node* RefAsI31(Node* object, wasm::WasmCodePosition position);
+  Node* BrOnI31(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                Node** match_control, Node** match_effect,
+                Node** no_match_control, Node** no_match_effect);
 
   bool has_simd() const { return has_simd_; }
 
@@ -607,6 +625,12 @@ class WasmGraphBuilder {
 
   void TypeCheck(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                  bool null_succeeds, Callbacks callbacks);
+  void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
+  void FuncCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
+
+  Node* BrOnCastAbs(Node** match_control, Node** match_effect,
+                    Node** no_match_control, Node** no_match_effect,
+                    std::function<void(Callbacks)> type_checker);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);

@@ -5848,24 +5848,40 @@ void WasmGraphBuilder::TypeCheck(
   callbacks.fail_if_not(gasm_->TaggedEqual(maybe_match, rtt));
 }
 
-Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
-                                 ObjectReferenceKnowledge config,
-                                 Node** match_control, Node** match_effect,
-                                 Node** no_match_control,
-                                 Node** no_match_effect) {
+void WasmGraphBuilder::DataCheck(Node* object, bool object_can_be_null,
+                                 Callbacks callbacks) {
+  if (object_can_be_null) {
+    callbacks.fail_if(gasm_->WordEqual(object, RefNull()));
+  }
+  callbacks.fail_if(gasm_->IsI31(object));
+  Node* map = gasm_->LoadMap(object);
+  callbacks.fail_if_not(gasm_->IsDataRefMap(map));
+}
+
+void WasmGraphBuilder::FuncCheck(Node* object, bool object_can_be_null,
+                                 Callbacks callbacks) {
+  if (object_can_be_null) {
+    callbacks.fail_if(gasm_->WordEqual(object, RefNull()));
+  }
+  callbacks.fail_if(gasm_->IsI31(object));
+  callbacks.fail_if_not(gasm_->HasInstanceType(object, JS_FUNCTION_TYPE));
+}
+
+Node* WasmGraphBuilder::BrOnCastAbs(
+    Node** match_control, Node** match_effect, Node** no_match_control,
+    Node** no_match_effect, std::function<void(Callbacks)> type_checker) {
   SmallNodeVector no_match_controls, no_match_effects, match_controls,
       match_effects;
 
-  TypeCheck(object, rtt, config, false,
-            BranchCallbacks(no_match_controls, no_match_effects, match_controls,
-                            match_effects));
+  type_checker(BranchCallbacks(no_match_controls, no_match_effects,
+                               match_controls, match_effects));
 
   match_controls.emplace_back(control());
   match_effects.emplace_back(effect());
 
   // Wire up the control/effect nodes.
   unsigned count = static_cast<unsigned>(match_controls.size());
-  DCHECK_EQ(2, count);
+  DCHECK_EQ(match_controls.size(), match_effects.size());
   *match_control = Merge(count, match_controls.data());
   // EffectPhis need their control dependency as an additional input.
   match_effects.emplace_back(*match_control);
@@ -5900,6 +5916,106 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
   gasm_->Goto(&done);
   gasm_->Bind(&done);
   return object;
+}
+
+Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
+                                 ObjectReferenceKnowledge config,
+                                 Node** match_control, Node** match_effect,
+                                 Node** no_match_control,
+                                 Node** no_match_effect) {
+  return BrOnCastAbs(match_control, match_effect, no_match_control,
+                     no_match_effect, [=](Callbacks callbacks) -> void {
+                       return TypeCheck(object, rtt, config, false, callbacks);
+                     });
+}
+
+Node* WasmGraphBuilder::RefIsData(Node* object, bool object_can_be_null) {
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  DataCheck(object, object_can_be_null, TestCallbacks(&done));
+  gasm_->Goto(&done, gasm_->Int32Constant(1));
+  gasm_->Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* WasmGraphBuilder::RefAsData(Node* object, bool object_can_be_null,
+                                  wasm::WasmCodePosition position) {
+  auto done = gasm_->MakeLabel();
+  DataCheck(object, object_can_be_null, CastCallbacks(&done, position));
+  gasm_->Goto(&done);
+  gasm_->Bind(&done);
+  return object;
+}
+
+Node* WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
+                                 ObjectReferenceKnowledge config,
+                                 Node** match_control, Node** match_effect,
+                                 Node** no_match_control,
+                                 Node** no_match_effect) {
+  return BrOnCastAbs(match_control, match_effect, no_match_control,
+                     no_match_effect, [=](Callbacks callbacks) -> void {
+                       return DataCheck(object, config.object_can_be_null,
+                                        callbacks);
+                     });
+}
+
+Node* WasmGraphBuilder::RefIsFunc(Node* object, bool object_can_be_null) {
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  FuncCheck(object, object_can_be_null, TestCallbacks(&done));
+  gasm_->Goto(&done, gasm_->Int32Constant(1));
+  gasm_->Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* WasmGraphBuilder::RefAsFunc(Node* object, bool object_can_be_null,
+                                  wasm::WasmCodePosition position) {
+  auto done = gasm_->MakeLabel();
+  FuncCheck(object, object_can_be_null, CastCallbacks(&done, position));
+  gasm_->Goto(&done);
+  gasm_->Bind(&done);
+  return object;
+}
+
+Node* WasmGraphBuilder::BrOnFunc(Node* object, Node* /*rtt*/,
+                                 ObjectReferenceKnowledge config,
+                                 Node** match_control, Node** match_effect,
+                                 Node** no_match_control,
+                                 Node** no_match_effect) {
+  return BrOnCastAbs(match_control, match_effect, no_match_control,
+                     no_match_effect, [=](Callbacks callbacks) -> void {
+                       return FuncCheck(object, config.object_can_be_null,
+                                        callbacks);
+                     });
+}
+
+Node* WasmGraphBuilder::RefIsI31(Node* object) { return gasm_->IsI31(object); }
+
+Node* WasmGraphBuilder::RefAsI31(Node* object,
+                                 wasm::WasmCodePosition position) {
+  TrapIfFalse(wasm::kTrapIllegalCast, gasm_->IsI31(object), position);
+  return object;
+}
+
+Node* WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
+                                ObjectReferenceKnowledge /* config */,
+                                Node** match_control, Node** match_effect,
+                                Node** no_match_control,
+                                Node** no_match_effect) {
+  Node* branch =
+      graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
+                       gasm_->IsI31(object), control());
+  Node* if_true = graph()->NewNode(mcgraph()->common()->IfTrue(), branch);
+
+  Node* if_false = graph()->NewNode(mcgraph()->common()->IfFalse(), branch);
+
+  SetControl(if_false);
+
+  *match_control = if_true;
+  *match_effect = effect();
+  *no_match_control = if_false;
+  *no_match_effect = effect();
+
+  // Unused return value, needed for typing of BUILD in graph-builder-interface.
+  return nullptr;
 }
 
 Node* WasmGraphBuilder::StructGet(Node* struct_object,

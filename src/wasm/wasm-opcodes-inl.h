@@ -411,9 +411,17 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(RefTest, "ref.test")
     CASE_OP(RefCast, "ref.cast")
     CASE_OP(BrOnCast, "br_on_cast")
+    CASE_OP(RefIsFunc, "ref.is_func")
+    CASE_OP(RefIsData, "ref.is_data")
+    CASE_OP(RefIsI31, "ref.is_i31")
+    CASE_OP(RefAsFunc, "ref.as_func")
+    CASE_OP(RefAsData, "ref.as_data")
+    CASE_OP(RefAsI31, "ref.as_i31")
+    CASE_OP(BrOnFunc, "br_on_func")
+    CASE_OP(BrOnData, "br_on_data")
+    CASE_OP(BrOnI31, "br_on_i31")
     CASE_OP(RefEq, "ref.eq")
     CASE_OP(Let, "let")
-
 
     case kNumericPrefix:
     case kSimdPrefix:

@@ -1008,20 +1008,80 @@ class WasmGraphBuildingInterface {
         BUILD(RefCast, object.node, rtt.node, config, decoder->position());
   }
 
-  void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
-                Value* value_on_branch, uint32_t br_depth) {
+  template <TFNode* (compiler::WasmGraphBuilder::*branch_function)(
+      TFNode*, TFNode*, StaticKnowledge, TFNode**, TFNode**, TFNode**,
+      TFNode**)>
+  void BrOnCastAbs(FullDecoder* decoder, const Value& object, const Value& rtt,
+                   Value* value_on_branch, uint32_t br_depth) {
     StaticKnowledge config =
         ComputeStaticKnowledge(object.type, rtt.type, decoder->module_);
     SsaEnv* match_env = Split(decoder->zone(), ssa_env_);
     SsaEnv* no_match_env = Steal(decoder->zone(), ssa_env_);
     no_match_env->SetNotMerged();
-    BUILD(BrOnCast, object.node, rtt.node, config, &match_env->control,
-          &match_env->effect, &no_match_env->control, &no_match_env->effect);
+    DCHECK(decoder->ok());
+    CheckForException(
+        decoder,
+        (builder_->*branch_function)(
+            object.node, rtt.node, config, &match_env->control,
+            &match_env->effect, &no_match_env->control, &no_match_env->effect));
     builder_->SetControl(no_match_env->control);
     SetEnv(match_env);
     value_on_branch->node = object.node;
     BrOrRet(decoder, br_depth);
     SetEnv(no_match_env);
+  }
+
+  void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
+                Value* value_on_branch, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
+        decoder, object, rtt, value_on_branch, br_depth);
+  }
+
+  void RefIsData(FullDecoder* decoder, const Value& object, Value* result) {
+    result->node = BUILD(RefIsData, object.node, object.type.is_nullable());
+  }
+
+  void RefAsData(FullDecoder* decoder, const Value& object, Value* result) {
+    result->node = BUILD(RefAsData, object.node, object.type.is_nullable(),
+                         decoder->position());
+  }
+
+  void BrOnData(FullDecoder* decoder, const Value& object,
+                Value* value_on_branch, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnData>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch,
+        br_depth);
+  }
+
+  void RefIsFunc(FullDecoder* decoder, const Value& object, Value* result) {
+    result->node = BUILD(RefIsFunc, object.node, object.type.is_nullable());
+  }
+
+  void RefAsFunc(FullDecoder* decoder, const Value& object, Value* result) {
+    result->node = BUILD(RefAsFunc, object.node, object.type.is_nullable(),
+                         decoder->position());
+  }
+
+  void BrOnFunc(FullDecoder* decoder, const Value& object,
+                Value* value_on_branch, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnFunc>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch,
+        br_depth);
+  }
+
+  void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
+    result->node = BUILD(RefIsI31, object.node);
+  }
+
+  void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
+    result->node = BUILD(RefAsI31, object.node, decoder->position());
+  }
+
+  void BrOnI31(FullDecoder* decoder, const Value& object,
+               Value* value_on_branch, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch,
+        br_depth);
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {

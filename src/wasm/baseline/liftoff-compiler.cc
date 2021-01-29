@@ -4523,6 +4523,45 @@ class LiftoffCompiler {
     __ PushRegister(obj.type, obj_reg);
   }
 
+  void RefIsData(FullDecoder* decoder, const Value& object, Value* result) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.is_data");
+  }
+
+  void RefAsData(FullDecoder* decoder, const Value& object, Value* result) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.as_data");
+  }
+
+  void BrOnData(FullDecoder* decoder, const Value& object,
+                Value* value_on_branch, uint32_t br_depth) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "br_on_data");
+  }
+
+  void RefIsFunc(FullDecoder* decoder, const Value& object, Value* result) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.is_func");
+  }
+
+  void RefAsFunc(FullDecoder* decoder, const Value& object, Value* result) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.as_func");
+  }
+
+  void BrOnFunc(FullDecoder* decoder, const Value& object,
+                Value* value_on_branch, uint32_t br_depth) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "br_on_func");
+  }
+
+  void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.is_i31");
+  }
+
+  void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.as_i31");
+  }
+
+  void BrOnI31(FullDecoder* decoder, const Value& object,
+               Value* value_on_branch, uint32_t br_depth) {
+    unsupported(decoder, LiftoffBailoutReason::kGC, "br_on_i31");
+  }
+
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
     // Nothing to do here.
   }

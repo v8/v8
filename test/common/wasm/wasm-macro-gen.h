@@ -215,6 +215,7 @@
   val, cond, kExprBrIf, static_cast<byte>(depth), kExprDrop
 #define WASM_CONTINUE(depth) kExprBr, static_cast<byte>(depth)
 #define WASM_UNREACHABLE kExprUnreachable
+#define WASM_RETURN(...) __VA_ARGS__, kExprReturn
 
 #define WASM_BR_TABLE(key, count, ...) \
   key, kExprBrTable, U32V_1(count), __VA_ARGS__
@@ -497,7 +498,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   struct_obj, value, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
 #define WASM_REF_NULL(type_encoding) kExprRefNull, type_encoding
-#define WASM_REF_FUNC(val) kExprRefFunc, val
+#define WASM_REF_FUNC(index) kExprRefFunc, index
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 #define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
@@ -507,6 +508,19 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 // conditional branches.
 #define WASM_BR_ON_CAST(depth, rtt) \
   rtt, WASM_GC_OP(kExprBrOnCast), static_cast<byte>(depth)
+
+#define WASM_REF_IS_DATA(ref) ref, WASM_GC_OP(kExprRefIsData)
+#define WASM_REF_AS_DATA(ref) ref, WASM_GC_OP(kExprRefAsData)
+#define WASM_BR_ON_DATA(depth, ref) \
+  ref, WASM_GC_OP(kExprBrOnData), static_cast<byte>(depth)
+#define WASM_REF_IS_FUNC(ref) ref, WASM_GC_OP(kExprRefIsFunc)
+#define WASM_REF_AS_FUNC(ref) ref, WASM_GC_OP(kExprRefAsFunc)
+#define WASM_BR_ON_FUNC(depth, ref) \
+  ref, WASM_GC_OP(kExprBrOnFunc), static_cast<byte>(depth)
+#define WASM_REF_IS_I31(ref) ref, WASM_GC_OP(kExprRefIsI31)
+#define WASM_REF_AS_I31(ref) ref, WASM_GC_OP(kExprRefAsI31)
+#define WASM_BR_ON_I31(depth, ref) \
+  ref, WASM_GC_OP(kExprBrOnI31), static_cast<byte>(depth)
 
 #define WASM_ARRAY_NEW_WITH_RTT(index, default_value, length, rtt) \
   default_value, length, rtt, WASM_GC_OP(kExprArrayNewWithRtt),    \
