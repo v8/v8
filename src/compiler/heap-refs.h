@@ -73,6 +73,7 @@ enum class OddballType : uint8_t {
   V(CallHandlerInfo)                                \
   V(Cell)                                           \
   V(FeedbackCell)                                   \
+  V(FeedbackVector)                                 \
   V(SharedFunctionInfo)                             \
   V(TemplateObjectDescription)
 
@@ -117,7 +118,6 @@ enum class OddballType : uint8_t {
   V(AllocationSite)                           \
   V(Code)                                     \
   V(DescriptorArray)                          \
-  V(FeedbackVector)                           \
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
   V(JSReceiver)                               \
@@ -383,6 +383,10 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool serialized_code_and_feedback() const;
 
   // The following are available only after calling SerializeCodeAndFeedback().
+  // TODO(mvstanton): Once we allow inlining of functions we didn't see
+  // during serialization, we do need to ensure that any feedback vector
+  // we read here has been fully initialized (ie, store-ordered into the
+  // cell).
   FeedbackVectorRef feedback_vector() const;
   FeedbackCellRef raw_feedback_cell() const;
   CodeRef code() const;
@@ -546,6 +550,11 @@ class FeedbackCellRef : public HeapObjectRef {
 
   Handle<FeedbackCell> object() const;
   base::Optional<SharedFunctionInfoRef> shared_function_info() const;
+
+  // TODO(mvstanton): Once we allow inlining of functions we didn't see
+  // during serialization, we do need to ensure that any feedback vector
+  // we read here has been fully initialized (ie, store-ordered into the
+  // cell).
   base::Optional<FeedbackVectorRef> value() const;
 };
 

@@ -1486,7 +1486,9 @@ FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
                                        Handle<FeedbackVector> object)
     : HeapObjectData(broker, storage, object),
       invocation_count_(object->invocation_count()),
-      closure_feedback_cell_array_(broker->zone()) {}
+      closure_feedback_cell_array_(broker->zone()) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 ObjectData* FeedbackVectorData::GetClosureFeedbackCell(JSHeapBroker* broker,
                                                        int index) const {
@@ -3053,7 +3055,13 @@ OddballType MapRef::oddball_type() const {
 
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
   if (data_->should_access_heap()) {
-    return FeedbackCellRef(broker(), object()->GetClosureFeedbackCell(index));
+    FeedbackCell cell = object()->closure_feedback_cell(index);
+    Handle<FeedbackCell> cell_handle =
+        broker()->CanonicalPersistentHandle(cell);
+    // These should all be available because we request the cell for each
+    // CreateClosure bytecode.
+    ObjectData* cell_data = broker()->GetOrCreateData(cell_handle);
+    return FeedbackCellRef(broker(), cell_data);
   }
 
   return FeedbackCellRef(
@@ -4963,6 +4971,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
   base::Optional<HeapObjectRef> target_ref;
   {
+    // TODO(mvstanton): this read has a special danger when done on the
+    // background thread, because the CallIC has a site in generated code
+    // where a JSFunction is installed in this slot without store ordering.
+    // Therefore, we will need to check {maybe_target} to ensure that it
+    // has been store ordered by the heap's mechanism for store-ordering
+    // batches of new objects.
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
     if (maybe_target->GetHeapObject(&target_object)) {
