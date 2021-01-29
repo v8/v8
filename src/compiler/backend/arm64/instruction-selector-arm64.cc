@@ -751,10 +751,10 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
       opcode = kArm64S128Load32x2U;
       break;
     case LoadTransformation::kS128Load32Zero:
-      opcode = kArm64S128Load32Zero;
+      opcode = kArm64LdrS;
       break;
     case LoadTransformation::kS128Load64Zero:
-      opcode = kArm64S128Load64Zero;
+      opcode = kArm64LdrD;
       break;
     default:
       UNIMPLEMENTED();
