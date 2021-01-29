@@ -187,11 +187,10 @@ class DebugSideTableBuilder {
   };
 
   // Adds a new entry, and returns a pointer to a builder for modifying that
-  // entry ({stack_height} includes {num_locals}).
-  EntryBuilder* NewEntry(int pc_offset, int num_locals, int stack_height,
+  // entry.
+  EntryBuilder* NewEntry(int pc_offset, int stack_height,
                          LiftoffAssembler::VarState* stack_state,
                          AssumeSpilling assume_spilling) {
-    DCHECK_LE(num_locals, stack_height);
     // Record stack types.
     std::vector<DebugSideTable::Entry::Value> values(stack_height);
     for (int i = 0; i < stack_height; ++i) {
@@ -2748,8 +2747,8 @@ class LiftoffCompiler {
     if (V8_LIKELY(!debug_sidetable_builder_)) return nullptr;
     int stack_height = static_cast<int>(__ cache_state()->stack_height());
     return debug_sidetable_builder_->NewEntry(
-        __ pc_offset(), __ num_locals(), stack_height,
-        __ cache_state()->stack_state.begin(), assume_spilling);
+        __ pc_offset(), stack_height, __ cache_state()->stack_state.begin(),
+        assume_spilling);
   }
 
   enum CallKind : bool { kReturnCall = true, kNoReturnCall = false };
