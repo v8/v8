@@ -88,11 +88,11 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c08399273ef26aae019ce8983f004445aa19e52e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '568bd7641c0926ac004ddd58c6895b48ac93645f',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '558a30422e536c9592baa9fe6d06105ee59e02ec',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cb07c525c00132fc8cb52cdff78e1078c280a4a1',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'f0979063b1f779134f88ba192b84265a578b2a54',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'f4147b227f174e03f273053bb49fde33426d05bc',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '4d3867052d35b2171f2edbb3466fa8f7e2d11319',
   'buildtools':
@@ -184,7 +184,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '9d5ec46922405ae79512edaca638c6654d099105',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '91735e2e6775c098eb32840a8903e5a9111fad77',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': '2AjFHxe4t1iSrrSx8ayS9uaUpVgbf4uevQoAj-Pt5_0C'
+              'version': 'Y_rckHsnBv6dqNUbG4QoVkl3njqEx7ewCNGmqOE_h1MC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -256,7 +256,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'cc8d00af13867f79f0945717830d34341ca62996',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '9290907b4859b920e045bfafbbaecd0a13d06196',
   'tools/luci-go': {
       'packages': [
         {
@@ -290,7 +290,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '2c183c9f93a328bfb3121284da13cf89a0f7e64a',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c876c8f87101c5a75f6014b0f832499afeb65b73',
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '9059f5cad030ba11d37818847443a53918c327b1',
   'third_party/ittapi': {
