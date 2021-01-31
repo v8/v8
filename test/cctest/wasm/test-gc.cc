@@ -356,55 +356,63 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                            static_cast<HeapType::Representation>(type_index)));
   const byte kTestStruct = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kDataRefNull},
-      {WASM_BLOCK(WASM_LOCAL_SET(0, WASM_I32V(111)),
-                  // Pipe a struct through a local so it's statically typed
-                  // as eqref.
-                  WASM_LOCAL_SET(
-                      1, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(1),
-                                                  WASM_GLOBAL_GET(rtt_index))),
-                  WASM_LOCAL_GET(1),
-                  // The type check fails, so this branch isn't taken.
-                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(other_type_index)),
-                  WASM_LOCAL_SET(0, WASM_I32V(222)),  // Final result.
-                  // This branch is taken.
-                  WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
-                  // Not executed due to the branch.
-                  WASM_DROP, WASM_LOCAL_SET(0, WASM_I32V(333))),
-       WASM_LOCAL_GET(0), kExprEnd});
+      {WASM_BLOCK_R(ValueType::Ref(type_index, kNullable),
+                    WASM_LOCAL_SET(0, WASM_I32V(111)),
+                    // Pipe a struct through a local so it's statically typed
+                    // as dataref.
+                    WASM_LOCAL_SET(1, WASM_STRUCT_NEW_WITH_RTT(
+                                          other_type_index, WASM_F32(1.0),
+                                          WASM_RTT_CANON(other_type_index))),
+                    WASM_LOCAL_GET(1),
+                    // The type check fails, so this branch isn't taken.
+                    WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)), WASM_DROP,
+
+                    WASM_LOCAL_SET(0, WASM_I32V(221)),  // (Final result) - 1
+                    WASM_LOCAL_SET(1, WASM_STRUCT_NEW_WITH_RTT(
+                                          type_index, WASM_I32V(1),
+                                          WASM_GLOBAL_GET(rtt_index))),
+                    WASM_LOCAL_GET(1),
+                    // This branch is taken.
+                    WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
+                    WASM_GLOBAL_GET(rtt_index), WASM_GC_OP(kExprRefCast),
+
+                    // Not executed due to the branch.
+                    WASM_LOCAL_SET(0, WASM_I32V(333))),
+       WASM_GC_OP(kExprStructGet), type_index, 0, WASM_LOCAL_GET(0),
+       kExprI32Add, kExprEnd});
 
   const byte kTestNull = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kDataRefNull},
-      {WASM_BLOCK(WASM_LOCAL_SET(0, WASM_I32V(111)),
-                  WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
-                  // Neither of these branches is taken for nullref.
-                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(other_type_index)),
-                  WASM_LOCAL_SET(0, WASM_I32V(222)),
-                  WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)), WASM_DROP,
-                  WASM_LOCAL_SET(0, WASM_I32V(333))),  // Final result.
-       WASM_LOCAL_GET(0), kExprEnd});
+      {WASM_BLOCK_R(ValueType::Ref(type_index, kNullable),
+                    WASM_LOCAL_SET(0, WASM_I32V(111)),
+                    WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
+                    // Not taken for nullref.
+                    WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
+                    WASM_RTT_CANON(type_index), WASM_GC_OP(kExprRefCast),
+
+                    WASM_LOCAL_SET(0, WASM_I32V(222))),  // Final result.
+       WASM_DROP, WASM_LOCAL_GET(0), kExprEnd});
 
   const byte kTypedAfterBranch = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kDataRefNull},
       {WASM_LOCAL_SET(1, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
                                                   WASM_GLOBAL_GET(rtt_index))),
-       WASM_BLOCK(WASM_LOCAL_SET(
+       WASM_BLOCK_I(
+           // The inner block should take the early branch with a struct
+           // on the stack.
+           WASM_BLOCK_R(ValueType::Ref(type_index, kNonNullable),
+                        WASM_LOCAL_GET(1),
+                        WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
+                        // Returning 123 is the unreachable failure case.
+                        WASM_I32V(123), WASM_BR(1)),
            // The outer block catches the struct left behind by the inner block
            // and reads its field.
-           0,
-           WASM_STRUCT_GET(
-               type_index, 0,
-               // The inner block should take the early branch with a struct
-               // on the stack.
-               WASM_BLOCK_R(ValueType::Ref(type_index, kNonNullable),
-                            WASM_LOCAL_GET(1),
-                            WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
-                            // Returning 123 is the unreachable failure case.
-                            WASM_LOCAL_SET(0, WASM_I32V(123)), WASM_BR(1))))),
-       WASM_LOCAL_GET(0), kExprEnd});
+           WASM_GC_OP(kExprStructGet), type_index, 0),
+       kExprEnd});
 
   tester.CompileModule();
   tester.CheckResult(kTestStruct, 222);
-  tester.CheckResult(kTestNull, 333);
+  tester.CheckResult(kTestNull, 222);
   tester.CheckResult(kTypedAfterBranch, 42);
 }
 

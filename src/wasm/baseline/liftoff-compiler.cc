@@ -4423,8 +4423,7 @@ class LiftoffCompiler {
                         obj_reg.gp(), tmp1.gp());
     }
 
-    // At this point, the object is neither null nor an i31ref. Perform
-    // a regular type check. Check for exact match first.
+    // Perform a regular type check. Check for exact match first.
     __ LoadMap(tmp1.gp(), obj_reg.gp());
     // {tmp1} now holds the object's map.
     __ emit_cond_jump(kEqual, &match, rtt.type, tmp1.gp(), rtt_reg.gp());
