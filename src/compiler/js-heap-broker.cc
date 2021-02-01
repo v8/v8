@@ -3181,11 +3181,12 @@ bool MapRef::IsPrimitiveMap() const {
 }
 
 MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    Handle<Map> owner(
-        object()->FindFieldOwner(broker()->isolate(), descriptor_index),
-        broker()->isolate());
-    return MapRef(broker(), owner);
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // TODO(solanes, v8:7790): Consider caching the result of the field owner on
+    // the descriptor array. It would be useful for same map as well as any
+    // other map sharing that descriptor array.
+    return MapRef(broker(), broker()->GetOrCreateData(object()->FindFieldOwner(
+                                broker()->isolate(), descriptor_index)));
   }
   DescriptorArrayData* descriptors =
       data()->AsMap()->instance_descriptors()->AsDescriptorArray();
@@ -3476,7 +3477,7 @@ BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 BIMODAL_ACCESSOR(Map, HeapObject, prototype)
 BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR(Map, Object, GetConstructor)
-BIMODAL_ACCESSOR(Map, HeapObject, GetBackPointer)
+BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 
 BIMODAL_ACCESSOR_C(Code, unsigned, inlined_bytecode_size)
