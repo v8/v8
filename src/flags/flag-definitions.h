@@ -751,20 +751,10 @@ DEFINE_BOOL(turbo_nci, false,
 // TODO(v8:8888): Temporary until NCI caching is implemented or
 // feedback collection is made unconditional.
 DEFINE_IMPLICATION(turbo_nci, turbo_collect_feedback_in_generic_lowering)
-DEFINE_BOOL(turbo_nci_as_midtier, false,
-            "insert NCI as a midtier compiler for testing purposes.")
 DEFINE_BOOL(print_nci_code, false, "print native context independent code.")
 DEFINE_BOOL(trace_turbo_nci, false, "trace native context independent code.")
 DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,
             "enable experimental feedback collection in generic lowering.")
-// TODO(jgruber,v8:8888): Remove this flag once we've settled on a codegen
-// strategy.
-DEFINE_BOOL(turbo_nci_delayed_codegen, true,
-            "delay NCI codegen to reduce useless compilation work.")
-// TODO(jgruber,v8:8888): Remove this flag once we've settled on an ageing
-// strategy.
-DEFINE_BOOL(turbo_nci_cache_ageing, false,
-            "enable ageing of the NCI code cache.")
 // TODO(jgruber,v8:8888): Remove this flag once we've settled on an ageing
 // strategy.
 DEFINE_BOOL(isolate_script_cache_ageing, true,

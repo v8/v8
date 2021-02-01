@@ -109,8 +109,7 @@ inline OptimizationTier GetTierForCodeKind(CodeKind kind) {
                                      : OptimizationTier::kMidTier;
   }
   if (kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
-    return FLAG_turbo_nci_as_midtier ? OptimizationTier::kMidTier
-                                     : OptimizationTier::kTopTier;
+    return OptimizationTier::kTopTier;
   }
   return OptimizationTier::kNone;
 }

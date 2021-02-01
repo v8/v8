@@ -26,26 +26,9 @@ namespace {
 // Returns false iff an exception was thrown.
 bool MaybeSpawnNativeContextIndependentCompilationJob(
     Handle<JSFunction> function, ConcurrencyMode mode) {
-  if (!FLAG_turbo_nci || FLAG_turbo_nci_as_midtier) {
-    return true;  // Nothing to do.
-  }
-
-  // If delayed codegen is enabled, the first optimization request does not
-  // trigger NCI compilation, since we try to avoid compiling Code that
-  // remains unused in the future.  Repeated optimization (possibly in
-  // different native contexts) is taken as a signal that this SFI will
-  // continue to be used in the future, thus we trigger NCI compilation.
-  if (!FLAG_turbo_nci_delayed_codegen ||
-      function->shared().has_optimized_at_least_once()) {
-    if (!Compiler::CompileOptimized(function, mode,
-                                    CodeKind::NATIVE_CONTEXT_INDEPENDENT)) {
-      return false;
-    }
-  } else {
-    function->shared().set_has_optimized_at_least_once(true);
-  }
-
-  return true;
+  if (!FLAG_turbo_nci) return true;  // Nothing to do.
+  return Compiler::CompileOptimized(function, mode,
+                                    CodeKind::NATIVE_CONTEXT_INDEPENDENT);
 }
 
 Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,

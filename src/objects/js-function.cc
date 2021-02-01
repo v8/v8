@@ -150,9 +150,7 @@ bool JSFunction::ActiveTierIsMidtierTurboprop() const {
 }
 
 CodeKind JSFunction::NextTier() const {
-  if (V8_UNLIKELY(FLAG_turbo_nci_as_midtier && ActiveTierIsIgnition())) {
-    return CodeKind::NATIVE_CONTEXT_INDEPENDENT;
-  } else if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsMidtierTurboprop()) {
+  if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsMidtierTurboprop()) {
     return CodeKind::TURBOFAN;
   } else if (V8_UNLIKELY(FLAG_turboprop)) {
     DCHECK(ActiveTierIsIgnition());
