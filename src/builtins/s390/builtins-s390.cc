@@ -548,7 +548,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   }
 
   // save r6 to r1
-  __ mov(r1, r6);
+  __ mov(r0, r6);
 
   // Push a frame with special values setup to mark it as an entry frame.
   //   Bad FP (-1)
@@ -565,10 +565,17 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ mov(r8, Operand(StackFrame::TypeToMarker(type)));
   __ mov(r7, Operand(StackFrame::TypeToMarker(type)));
   // Save copies of the top frame descriptor on the stack.
-  __ Move(r6, ExternalReference::Create(
-                 IsolateAddressId::kCEntryFPAddress, masm->isolate()));
-  __ LoadU64(r6, MemOperand(r6));
+  __ Move(r1, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                        masm->isolate()));
+  __ LoadU64(r6, MemOperand(r1));
   __ StoreMultipleP(r6, r9, MemOperand(sp, kSystemPointerSize));
+
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ mov(r6, Operand::Zero());
+  __ StoreU64(r6, MemOperand(r1));
 
   Register scrach = r8;
 
@@ -581,7 +588,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
       EntryFrameConstants::kCallerFPOffset - kSystemPointerSize;
 
   // restore r6
-  __ mov(r6, r1);
+  __ mov(r6, r0);
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -2651,6 +2658,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    __ Move(r1, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                          masm->isolate()));
+    __ mov(r0, Operand::Zero());
+    __ StoreU64(r0, MemOperand(r1));
+  }
 
   // Compute the handler entry address and jump to it.
   __ Move(r3, pending_handler_entrypoint_address);
