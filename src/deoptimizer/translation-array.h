@@ -9,7 +9,7 @@
 #include "src/deoptimizer/translation-opcode.h"
 #include "src/objects/fixed-array.h"
 #include "src/wasm/value-type.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -103,7 +103,7 @@ class TranslationArrayBuilder {
 
   Zone* zone() const { return zone_; }
 
-  ZoneChunkList<uint8_t> contents_;
+  ZoneVector<uint8_t> contents_;
   Zone* const zone_;
 };
 

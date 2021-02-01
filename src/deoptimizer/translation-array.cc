@@ -55,7 +55,9 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
     Factory* factory) {
   Handle<TranslationArray> result =
       factory->NewByteArray(Size(), AllocationType::kOld);
-  contents_.CopyTo(result->GetDataStartAddress());
+
+  memcpy(result->GetDataStartAddress(), contents_.data(),
+         contents_.size() * sizeof(uint8_t));
   return result;
 }
 
