@@ -1004,7 +1004,19 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   const byte test = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmFuncRef},
       {WASM_LOCAL_SET(0, WASM_REF_FUNC(func_index)),
+       WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_RTT_CANON(sig_index)), kExprEnd});
+
+  const byte test_fail_1 = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmFuncRef},
+      {WASM_LOCAL_SET(0, WASM_REF_FUNC(func_index)),
        WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_RTT_CANON(other_sig_index)),
+       kExprEnd});
+
+  const byte test_fail_2 = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmFuncRef},
+      {WASM_LOCAL_SET(0, WASM_REF_FUNC(func_index)),
+       WASM_REF_TEST(WASM_LOCAL_GET(0),
+                     WASM_RTT_SUB(sig_index, WASM_RTT_CANON(sig_index))),
        kExprEnd});
 
   tester.CompileModule();
@@ -1028,7 +1040,9 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   CHECK_EQ(cast_function->code().raw_instruction_start(),
            cast_function_reference->code().raw_instruction_start());
 
-  tester.CheckResult(test, 0);
+  tester.CheckResult(test, 1);
+  tester.CheckResult(test_fail_1, 0);
+  tester.CheckResult(test_fail_2, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(CallRef) {

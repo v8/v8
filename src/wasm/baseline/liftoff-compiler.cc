@@ -4421,13 +4421,20 @@ class LiftoffCompiler {
     // Perform a regular type check. Check for exact match first.
     __ LoadMap(tmp1.gp(), obj_reg.gp());
     // {tmp1} now holds the object's map.
-    __ emit_cond_jump(kEqual, &match, rtt.type, tmp1.gp(), rtt_reg.gp());
 
-    // If the object isn't guaranteed to be an array or struct, check that.
-    // Subsequent code wouldn't handle e.g. funcrefs.
-    if (!is_data_ref_type(obj.type, decoder->module_)) {
-      EmitDataRefCheck(tmp1.gp(), no_match, tmp2, pinned);
+    if (decoder->module_->has_signature(rtt.type.ref_index())) {
+      // Function case: currently, the only way for a function to match an rtt
+      // is if its map is equal to that rtt.
+      __ emit_cond_jump(kUnequal, no_match, rtt.type, tmp1.gp(), rtt_reg.gp());
+      __ bind(&match);
+      return obj_reg;
     }
+
+    // Array/struct case until the rest of the function.
+
+    // Check for rtt equality, and if not, check if the rtt is a struct/array
+    // rtt.
+    __ emit_cond_jump(kEqual, &match, rtt.type, tmp1.gp(), rtt_reg.gp());
 
     // Constant-time subtyping check: load exactly one candidate RTT from the
     // supertypes list.

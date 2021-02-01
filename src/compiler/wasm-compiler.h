@@ -165,9 +165,13 @@ struct WasmInstanceCacheNodes {
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {
  public:
+  enum ReferenceKind : bool {  // --
+    kArrayOrStruct = true,
+    kFunction = false
+  };
   struct ObjectReferenceKnowledge {
     bool object_can_be_null;
-    bool object_must_be_data_ref;
+    ReferenceKind reference_kind;
     int8_t rtt_depth;
   };
   enum EnforceBoundsCheck : bool {  // --

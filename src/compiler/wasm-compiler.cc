@@ -5823,11 +5823,18 @@ void WasmGraphBuilder::TypeCheck(
   }
 
   Node* map = gasm_->LoadMap(object);
+
+  if (config.reference_kind == kFunction) {
+    // Currently, the only way for a function to match an rtt is if its map
+    // is equal to that rtt.
+    callbacks.fail_if_not(gasm_->TaggedEqual(map, rtt));
+    return;
+  }
+
+  DCHECK(config.reference_kind == kArrayOrStruct);
+
   callbacks.succeed_if(gasm_->TaggedEqual(map, rtt));
 
-  if (!config.object_must_be_data_ref) {
-    callbacks.fail_if_not(gasm_->IsDataRefMap(map));
-  }
   Node* type_info = gasm_->LoadWasmTypeInfo(map);
   Node* supertypes = gasm_->LoadSupertypes(type_info);
   Node* supertypes_length =

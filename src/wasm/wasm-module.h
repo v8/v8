@@ -479,14 +479,6 @@ inline int declared_function_index(const WasmModule* module, int func_index) {
   return declared_idx;
 }
 
-inline bool is_data_ref_type(ValueType type, const WasmModule* module) {
-  // TODO(7748): When we implement dataref (=any struct or array), support
-  // that here.
-  if (!type.has_index()) return false;
-  uint32_t index = type.ref_index();
-  return module->has_struct(index) || module->has_array(index);
-}
-
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.
 // Use like this:
