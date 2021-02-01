@@ -204,7 +204,6 @@ ValueType optref(uint32_t type_index) {
 
 WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
 
   const byte type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
@@ -277,7 +276,6 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
 // struct refs types in globals and if-results.
 WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
   ValueType kRefTypes[] = {ref(type_index)};
@@ -308,7 +306,6 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
 
 WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
   ValueType kRefTypes[] = {ref(type_index)};
@@ -346,7 +343,6 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
 
 WASM_COMPILED_EXEC_TEST(BrOnCast) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   ValueType kDataRefNull = ValueType::Ref(HeapType::kData, kNullable);
   const byte type_index = tester.DefineStruct({F(kWasmI32, true)});
   const byte other_type_index = tester.DefineStruct({F(kWasmF32, true)});
@@ -418,7 +414,6 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
 
 WASM_COMPILED_EXEC_TEST(WasmRefEq) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   byte type_index = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
   ValueType kRefTypes[] = {ref(type_index)};
   ValueType kOptRefType = optref(type_index);
@@ -458,7 +453,6 @@ WASM_COMPILED_EXEC_TEST(WasmRefEq) {
 
 WASM_COMPILED_EXEC_TEST(WasmPackedStructU) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
 
   const byte type_index = tester.DefineStruct(
       {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
@@ -496,7 +490,6 @@ WASM_COMPILED_EXEC_TEST(WasmPackedStructU) {
 
 WASM_COMPILED_EXEC_TEST(WasmPackedStructS) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
 
   const byte type_index = tester.DefineStruct(
       {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
@@ -614,7 +607,6 @@ TEST(WasmLetInstruction) {
 
 WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
 
   const byte type_index = tester.DefineArray(wasm::kWasmI32, true);
   ValueType kRefTypes[] = {ref(type_index)};
@@ -690,7 +682,6 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
 
 WASM_COMPILED_EXEC_TEST(WasmPackedArrayU) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte array_index = tester.DefineArray(kWasmI8, true);
   ValueType array_type = optref(array_index);
 
@@ -726,7 +717,6 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayU) {
 
 WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte array_index = tester.DefineArray(kWasmI16, true);
   ValueType array_type = optref(array_index);
 
@@ -762,7 +752,6 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
 
 WASM_COMPILED_EXEC_TEST(NewDefault) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte struct_type = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmF64, true), F(optref(0), true)});
   const byte array_type = tester.DefineArray(wasm::kWasmI32, true);
@@ -958,7 +947,6 @@ TEST(NoDepthRtt) {
 
 WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
 
   const byte type_index = tester.DefineArray(kWasmI32, true);
 
@@ -987,7 +975,6 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
 
 WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte func_index =
       tester.DefineFunction(tester.sigs.i_v(), {}, {WASM_I32V(42), kExprEnd});
   const byte sig_index = 0;
@@ -1046,7 +1033,6 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
 
 WASM_COMPILED_EXEC_TEST(CallRef) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   byte callee = tester.DefineFunction(
       tester.sigs.i_ii(), {},
       {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprEnd});
@@ -1066,7 +1052,6 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
 
 WASM_COMPILED_EXEC_TEST(RefTestCastNull) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
 
   const byte kRefTestNull = tester.DefineFunction(
@@ -1215,7 +1200,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 
 WASM_COMPILED_EXEC_TEST(BasicI31) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte kSigned = tester.DefineFunction(
       tester.sigs.i_i(), {},
       {WASM_I31_GET_S(WASM_I31_NEW(WASM_LOCAL_GET(0))), kExprEnd});
@@ -1237,7 +1221,6 @@ WASM_COMPILED_EXEC_TEST(BasicI31) {
 // be modified (made to run longer) to measure performance of casts.
 WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte SuperType = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte SubType =
       tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)});
@@ -1337,7 +1320,6 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
 
 WASM_COMPILED_EXEC_TEST(GlobalInitReferencingGlobal) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   const byte from = tester.AddGlobal(kWasmI32, false, WasmInitExpr(42));
   const byte to =
       tester.AddGlobal(kWasmI32, false, WasmInitExpr::GlobalGet(from));
@@ -1352,7 +1334,6 @@ WASM_COMPILED_EXEC_TEST(GlobalInitReferencingGlobal) {
 
 WASM_COMPILED_EXEC_TEST(IndirectNullSetManually) {
   WasmGCTester tester(execution_tier);
-  FLAG_experimental_liftoff_extern_ref = true;
   byte sig_index = tester.DefineSignature(tester.sigs.i_i());
   tester.DefineTable(ValueType::Ref(sig_index, kNullable), 1, 1);
   byte func_index = tester.DefineFunction(
@@ -1366,8 +1347,8 @@ WASM_COMPILED_EXEC_TEST(IndirectNullSetManually) {
   tester.CheckHasThrown(func_index, 42);
 }
 
-TEST(JsAccess) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(JsAccess) {
+  WasmGCTester tester(execution_tier);
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   ValueType kRefType = ref(type_index);
   ValueType kSupertypeToI[] = {kWasmI32, kWasmDataRef};
