@@ -2941,6 +2941,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // We are in unreachable code, the return value does not matter.
       case ValueType::kRef:
         // For non-nullable references, the result is always false.
+        CALL_INTERFACE_IF_REACHABLE(Drop);
         CALL_INTERFACE_IF_REACHABLE(I32Const, result, 0);
         return 1;
       default:
