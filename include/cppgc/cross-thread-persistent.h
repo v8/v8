@@ -44,7 +44,6 @@ class BasicCrossThreadPersistent final : public PersistentBase,
       T* raw, const SourceLocation& loc = SourceLocation::Current())
       : PersistentBase(raw), LocationPolicy(loc) {
     if (!IsValid(raw)) return;
-    PersistentRegionLock guard;
     PersistentRegion& region = this->GetPersistentRegion(raw);
     SetNode(region.AllocateNode(this, &Trace));
     this->CheckPointer(raw);
@@ -219,6 +218,27 @@ class BasicCrossThreadPersistent final : public PersistentBase,
    */
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }
+
+  template <typename U, typename OtherWeaknessPolicy = WeaknessPolicy,
+            typename OtherLocationPolicy = LocationPolicy,
+            typename OtherCheckingPolicy = CheckingPolicy>
+  BasicCrossThreadPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                             OtherCheckingPolicy>
+  To() const {
+    PersistentRegionLock guard;
+    return BasicCrossThreadPersistent<U, OtherWeaknessPolicy,
+                                      OtherLocationPolicy, OtherCheckingPolicy>(
+        static_cast<U*>(Get()));
+  }
+
+  template <typename U = T,
+            typename = typename std::enable_if<!BasicCrossThreadPersistent<
+                U, WeaknessPolicy>::IsStrongPersistent::value>::type>
+  BasicCrossThreadPersistent<U, internal::StrongCrossThreadPersistentPolicy>
+  Lock() const {
+    return BasicCrossThreadPersistent<
+        U, internal::StrongCrossThreadPersistentPolicy>(*this);
+  }
 
  private:
   static bool IsValid(const void* ptr) {

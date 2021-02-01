@@ -210,6 +210,16 @@ class BasicPersistent final : public PersistentBase,
     return result;
   }
 
+  template <typename U, typename OtherWeaknessPolicy = WeaknessPolicy,
+            typename OtherLocationPolicy = LocationPolicy,
+            typename OtherCheckingPolicy = CheckingPolicy>
+  BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                  OtherCheckingPolicy>
+  To() const {
+    return BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                           OtherCheckingPolicy>(static_cast<U*>(Get()));
+  }
+
  private:
   static void Trace(Visitor* v, const void* ptr) {
     const auto* persistent = static_cast<const BasicPersistent*>(ptr);
