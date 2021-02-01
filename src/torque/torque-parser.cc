@@ -1945,10 +1945,12 @@ base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   AnnotationSet annotations(child_results,
-                            {ANNOTATION_NO_VERIFIER, ANNOTATION_RELAXED_WRITE},
+                            {ANNOTATION_NO_VERIFIER, ANNOTATION_RELAXED_WRITE,
+                             ANNOTATION_RELAXED_READ},
                             {ANNOTATION_IF, ANNOTATION_IFNOT});
   bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
   bool relaxed_write = annotations.Contains(ANNOTATION_RELAXED_WRITE);
+  bool relaxed_read = annotations.Contains(ANNOTATION_RELAXED_READ);
   std::vector<ConditionalAnnotation> conditions;
   base::Optional<std::string> if_condition =
       annotations.GetStringParam(ANNOTATION_IF);
@@ -1972,6 +1974,7 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
                                           weak,
                                           const_qualified,
                                           generate_verify,
+                                          relaxed_read,
                                           relaxed_write}};
 }
 

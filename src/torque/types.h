@@ -229,6 +229,7 @@ struct Field {
   bool is_weak;
   bool const_qualified;
   bool generate_verify;
+  bool relaxed_read;
   bool relaxed_write;
 };
 
