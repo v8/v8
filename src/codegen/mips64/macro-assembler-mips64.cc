@@ -2011,6 +2011,31 @@ void TurboAssembler::MultiPopFPU(RegList regs) {
   daddiu(sp, sp, stack_offset);
 }
 
+void TurboAssembler::MultiPushMSA(RegList regs) {
+  int16_t num_to_push = base::bits::CountPopulation(regs);
+  int16_t stack_offset = num_to_push * kSimd128Size;
+
+  Dsubu(sp, sp, Operand(stack_offset));
+  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
+    if ((regs & (1 << i)) != 0) {
+      stack_offset -= kSimd128Size;
+      st_d(MSARegister::from_code(i), MemOperand(sp, stack_offset));
+    }
+  }
+}
+
+void TurboAssembler::MultiPopMSA(RegList regs) {
+  int16_t stack_offset = 0;
+
+  for (int16_t i = 0; i < kNumRegisters; i++) {
+    if ((regs & (1 << i)) != 0) {
+      ld_d(MSARegister::from_code(i), MemOperand(sp, stack_offset));
+      stack_offset += kSimd128Size;
+    }
+  }
+  daddiu(sp, sp, stack_offset);
+}
+
 void TurboAssembler::Ext(Register rt, Register rs, uint16_t pos,
                          uint16_t size) {
   DCHECK_LT(pos, 32);
@@ -5007,7 +5032,6 @@ void MacroAssembler::GetObjectType(Register object, Register map,
 void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
                                           InstanceType lower_limit,
                                           Register range) {
-  DCHECK_LT(lower_limit, higher_limit);
   Lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   Dsubu(range, type_reg, Operand(lower_limit));
 }

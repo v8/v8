@@ -2362,7 +2362,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     STATIC_ASSERT(num_to_push ==
                   WasmCompileLazyFrameConstants::kNumberOfSavedAllParamRegs);
     __ MultiPush(gp_regs);
-    __ MultiPushFPU(fp_regs);
+    if (CpuFeatures::IsSupported(MIPS_SIMD)) {
+      __ MultiPushMSA(fp_regs);
+    } else {
+      __ MultiPushFPU(fp_regs);
+      __ Dsubu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    }
 
     // Pass instance and function index as an explicit arguments to the runtime
     // function.
@@ -2373,7 +2378,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
 
     // Restore registers.
-    __ MultiPopFPU(fp_regs);
+    if (CpuFeatures::IsSupported(MIPS_SIMD)) {
+      __ MultiPopMSA(fp_regs);
+    } else {
+      __ Daddu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+      __ MultiPopFPU(fp_regs);
+    }
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.

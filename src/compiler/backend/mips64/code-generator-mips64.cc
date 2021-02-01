@@ -4422,7 +4422,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ dsll(t0, t0, kSystemPointerSizeLog2);
     __ Daddu(sp, sp, t0);
   } else if (additional_pop_count->IsImmediate()) {
-    DCHECK_EQ(Constant::kInt32, g.ToConstant(additional_pop_count).type());
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_count + additional_count);
   } else {

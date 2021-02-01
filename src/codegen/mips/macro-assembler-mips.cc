@@ -4562,7 +4562,6 @@ void MacroAssembler::GetObjectType(Register object, Register map,
 void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
                                           InstanceType lower_limit,
                                           Register range) {
-  DCHECK_LT(lower_limit, higher_limit);
   lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   Subu(range, type_reg, Operand(lower_limit));
 }
