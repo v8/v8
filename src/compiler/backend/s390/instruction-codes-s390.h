@@ -377,12 +377,10 @@ namespace compiler {
   V(S390_I8x16Shuffle)                      \
   V(S390_I8x16Swizzle)                      \
   V(S390_I8x16SignSelect)                   \
-  V(S390_V32x4AnyTrue)                      \
-  V(S390_V16x8AnyTrue)                      \
-  V(S390_V8x16AnyTrue)                      \
   V(S390_V32x4AllTrue)                      \
   V(S390_V16x8AllTrue)                      \
   V(S390_V8x16AllTrue)                      \
+  V(S390_V128AnyTrue)                       \
   V(S390_S128And)                           \
   V(S390_S128Or)                            \
   V(S390_S128Xor)                           \

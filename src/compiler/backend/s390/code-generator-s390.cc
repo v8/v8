@@ -3536,9 +3536,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector boolean unops
-    case kS390_V32x4AnyTrue:
-    case kS390_V16x8AnyTrue:
-    case kS390_V8x16AnyTrue: {
+    case kS390_V128AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
       Register dst = i.OutputRegister();
       Register temp = i.TempRegister(0);

@@ -324,12 +324,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I8x16Shuffle:
     case kS390_I8x16Swizzle:
     case kS390_I8x16SignSelect:
-    case kS390_V32x4AnyTrue:
-    case kS390_V16x8AnyTrue:
-    case kS390_V8x16AnyTrue:
     case kS390_V32x4AllTrue:
     case kS390_V16x8AllTrue:
     case kS390_V8x16AllTrue:
+    case kS390_V128AnyTrue:
     case kS390_S128And:
     case kS390_S128Or:
     case kS390_S128Xor:

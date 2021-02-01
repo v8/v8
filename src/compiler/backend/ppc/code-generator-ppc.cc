@@ -3033,10 +3033,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsububm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
       break;
     }
-    case kPPC_V64x2AnyTrue:
-    case kPPC_V32x4AnyTrue:
-    case kPPC_V16x8AnyTrue:
-    case kPPC_V8x16AnyTrue: {
+    case kPPC_V128AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
       Register dst = i.OutputRegister();
       constexpr int bit_number = 24;
