@@ -4468,7 +4468,7 @@ class LiftoffCompiler {
   }
 
   void RefTest(FullDecoder* decoder, const Value& obj, const Value& rtt,
-               Value* result_val) {
+               Value* /* result_val */) {
     Label return_false, done;
     LiftoffRegList pinned;
     LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, {}));
@@ -4522,43 +4522,180 @@ class LiftoffCompiler {
     __ PushRegister(obj.type, obj_reg);
   }
 
-  void RefIsData(FullDecoder* decoder, const Value& object, Value* result) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.is_data");
+  // Abstract type checkers. They all return the object register and fall
+  // through to match.
+  LiftoffRegister DataCheck(const Value& obj, Label* no_match,
+                            LiftoffRegList pinned, Register opt_scratch) {
+    LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
+
+    // Reserve all temporary registers up front, so that the cache state
+    // tracking doesn't get confused by the following conditional jumps.
+    LiftoffRegister tmp1 =
+        opt_scratch != no_reg
+            ? LiftoffRegister(opt_scratch)
+            : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+    if (obj.type.is_nullable()) {
+      LoadNullValue(tmp1.gp(), pinned);
+      __ emit_cond_jump(kEqual, no_match, obj.type, obj_reg.gp(), tmp1.gp());
+    }
+
+    __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
+
+    // Load the object's map and check if it is a struct/array map.
+    __ LoadMap(tmp1.gp(), obj_reg.gp());
+    EmitDataRefCheck(tmp1.gp(), no_match, tmp2, pinned);
+
+    return obj_reg;
   }
 
-  void RefAsData(FullDecoder* decoder, const Value& object, Value* result) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.as_data");
+  LiftoffRegister FuncCheck(const Value& obj, Label* no_match,
+                            LiftoffRegList pinned, Register opt_scratch) {
+    LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
+
+    // Reserve all temporary registers up front, so that the cache state
+    // tracking doesn't get confused by the following conditional jumps.
+    LiftoffRegister tmp1 =
+        opt_scratch != no_reg
+            ? LiftoffRegister(opt_scratch)
+            : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+    if (obj.type.is_nullable()) {
+      LoadNullValue(tmp1.gp(), pinned);
+      __ emit_cond_jump(kEqual, no_match, obj.type, obj_reg.gp(), tmp1.gp());
+    }
+
+    __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
+
+    // Load the object's map and check if its InstaceType field is that of a
+    // function.
+    __ LoadMap(tmp1.gp(), obj_reg.gp());
+    __ Load(tmp1, tmp1.gp(), no_reg,
+            wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
+            LoadType::kI32Load16U, pinned);
+    __ emit_i32_cond_jumpi(kUnequal, no_match, tmp1.gp(), JS_FUNCTION_TYPE);
+
+    return obj_reg;
   }
 
-  void BrOnData(FullDecoder* decoder, const Value& object,
-                Value* value_on_branch, uint32_t br_depth) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "br_on_data");
+  LiftoffRegister I31Check(const Value& object, Label* no_match,
+                           LiftoffRegList pinned, Register opt_scratch) {
+    LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
+
+    __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnNotSmi);
+
+    return obj_reg;
   }
 
-  void RefIsFunc(FullDecoder* decoder, const Value& object, Value* result) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.is_func");
+  using TypeChecker = LiftoffRegister (LiftoffCompiler::*)(
+      const Value& obj, Label* no_match, LiftoffRegList pinned,
+      Register opt_scratch);
+
+  template <TypeChecker type_checker>
+  void AbstractTypeCheck(const Value& object) {
+    Label match, no_match, done;
+    LiftoffRegList pinned;
+    LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, {}));
+
+    (this->*type_checker)(object, &no_match, pinned, result.gp());
+
+    __ bind(&match);
+    __ LoadConstant(result, WasmValue(1));
+    // TODO(jkummerow): Emit near jumps on platforms where it's more efficient.
+    __ emit_jump(&done);
+
+    __ bind(&no_match);
+    __ LoadConstant(result, WasmValue(0));
+    __ bind(&done);
+    __ PushRegister(kWasmI32, result);
   }
 
-  void RefAsFunc(FullDecoder* decoder, const Value& object, Value* result) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.as_func");
+  void RefIsData(FullDecoder* /* decoder */, const Value& object,
+                 Value* /* result_val */) {
+    return AbstractTypeCheck<&LiftoffCompiler::DataCheck>(object);
   }
 
-  void BrOnFunc(FullDecoder* decoder, const Value& object,
-                Value* value_on_branch, uint32_t br_depth) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "br_on_func");
+  void RefIsFunc(FullDecoder* /* decoder */, const Value& object,
+                 Value* /* result_val */) {
+    return AbstractTypeCheck<&LiftoffCompiler::FuncCheck>(object);
   }
 
-  void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.is_i31");
+  void RefIsI31(FullDecoder* decoder, const Value& object,
+                Value* /* result */) {
+    return AbstractTypeCheck<&LiftoffCompiler::I31Check>(object);
+  }
+
+  template <TypeChecker type_checker>
+  void AbstractTypeCast(const Value& object, FullDecoder* decoder,
+                        ValueType result_type) {
+    Label* trap_label = AddOutOfLineTrap(decoder->position(),
+                                         WasmCode::kThrowWasmTrapIllegalCast);
+    Label match;
+    LiftoffRegister obj_reg =
+        (this->*type_checker)(object, trap_label, {}, no_reg);
+    __ bind(&match);
+    __ PushRegister(result_type, obj_reg);
+  }
+
+  void RefAsData(FullDecoder* decoder, const Value& object,
+                 Value* /* result */) {
+    return AbstractTypeCast<&LiftoffCompiler::DataCheck>(object, decoder,
+                                                         kWasmDataRef);
+  }
+
+  void RefAsFunc(FullDecoder* decoder, const Value& object,
+                 Value* /* result */) {
+    return AbstractTypeCast<&LiftoffCompiler::FuncCheck>(
+        object, decoder, ValueType::Ref(HeapType::kFunc, kNonNullable));
   }
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "ref.as_i31");
+    return AbstractTypeCast<&LiftoffCompiler::I31Check>(object, decoder,
+                                                        kWasmI31Ref);
+  }
+
+  template <TypeChecker type_checker>
+  void BrOnAbstractType(const Value& object, FullDecoder* decoder,
+                        uint32_t br_depth, ValueType result_type) {
+    // Before branching, materialize all constants. This avoids repeatedly
+    // materializing them for each conditional branch.
+    if (br_depth != decoder->control_depth() - 1) {
+      __ MaterializeMergedConstants(
+          decoder->control_at(br_depth)->br_merge()->arity);
+    }
+
+    Label match, no_match;
+    LiftoffRegister obj_reg =
+        (this->*type_checker)(object, &no_match, {}, no_reg);
+
+    __ bind(&match);
+    __ PushRegister(result_type, obj_reg);
+    BrOrRet(decoder, br_depth);
+
+    __ bind(&no_match);
+    // Drop the branch's value, restore original value.
+    Drop(decoder);
+    __ PushRegister(object.type, obj_reg);
+  }
+
+  void BrOnData(FullDecoder* decoder, const Value& object,
+                Value* /* value_on_branch */, uint32_t br_depth) {
+    return BrOnAbstractType<&LiftoffCompiler::DataCheck>(
+        object, decoder, br_depth, kWasmDataRef);
+  }
+
+  void BrOnFunc(FullDecoder* decoder, const Value& object,
+                Value* /* value_on_branch */, uint32_t br_depth) {
+    return BrOnAbstractType<&LiftoffCompiler::FuncCheck>(
+        object, decoder, br_depth,
+        ValueType::Ref(HeapType::kFunc, kNonNullable));
   }
 
   void BrOnI31(FullDecoder* decoder, const Value& object,
-               Value* value_on_branch, uint32_t br_depth) {
-    unsupported(decoder, LiftoffBailoutReason::kGC, "br_on_i31");
+               Value* /* value_on_branch */, uint32_t br_depth) {
+    return BrOnAbstractType<&LiftoffCompiler::I31Check>(object, decoder,
+                                                        br_depth, kWasmI31Ref);
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {

@@ -1084,8 +1084,8 @@ WASM_COMPILED_EXEC_TEST(RefTestCastNull) {
   tester.CheckResult(kRefCastNull, 1);
 }
 
-TEST(AbstractTypeChecks) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
+  WasmGCTester tester(execution_tier);
 
   byte array_index = tester.DefineArray(kWasmI32, true);
   byte function_index =
