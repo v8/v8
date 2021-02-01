@@ -2304,6 +2304,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
       SIMD_BINOP_CASE(kArm64I64x2Eq, Cmeq, 2D);
+    case kArm64I64x2Ne: {
+      VRegister dst = i.OutputSimd128Register().V2D();
+      __ Cmeq(dst, i.InputSimd128Register(0).V2D(),
+              i.InputSimd128Register(1).V2D());
+      __ Mvn(dst, dst);
+      break;
+    }
     case kArm64I64x2ShrU: {
       ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 6, V2D, Ushl, X);
       break;
@@ -2803,6 +2810,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
       __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
+      break;
+    }
+    case kArm64V64x2AllTrue: {
+      UseScratchRegisterScope scope(tasm());
+      VRegister tmp = scope.AcquireV(kFormat2D);
+      __ Cmeq(tmp.V2D(), i.InputSimd128Register(0).V2D(), 0);
+      __ Addp(tmp.D(), tmp);
+      __ Fcmp(tmp.D(), tmp.D());
+      __ Cset(i.OutputRegister32(), eq);
       break;
     }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \

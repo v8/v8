@@ -2913,6 +2913,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(pcmpeqq);
       break;
     }
+    case kX64I64x2Ne: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
+      __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pcmpeqq(tmp, tmp);
+      __ Pxor(i.OutputSimd128Register(), tmp);
+      break;
+    }
     case kX64I64x2ShrU: {
       // Take shift value modulo 2^6.
       ASSEMBLE_SIMD_SHIFT(psrlq, 6);
@@ -4305,6 +4313,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
+    case kX64V64x2AllTrue: {
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqq);
+      break;
+    }
     case kX64V32x4AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;

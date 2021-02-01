@@ -678,6 +678,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I64x2Sub();
   const Operator* I64x2Mul();
   const Operator* I64x2Eq();
+  const Operator* I64x2Ne();
   const Operator* I64x2ShrU();
   const Operator* I64x2ExtMulLowI32x4S();
   const Operator* I64x2ExtMulHighI32x4S();
@@ -822,9 +823,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16Swizzle();
   const Operator* I8x16Shuffle(const uint8_t shuffle[16]);
 
+  const Operator* V128AnyTrue();
+  const Operator* V64x2AllTrue();
   const Operator* V32x4AllTrue();
   const Operator* V16x8AllTrue();
-  const Operator* V128AnyTrue();
   const Operator* V8x16AllTrue();
 
   // load [base + index]

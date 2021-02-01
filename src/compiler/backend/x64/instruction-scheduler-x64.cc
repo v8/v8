@@ -190,6 +190,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I64x2Sub:
     case kX64I64x2Mul:
     case kX64I64x2Eq:
+    case kX64I64x2Ne:
     case kX64I64x2ShrU:
     case kX64I64x2SignSelect:
     case kX64I64x2ExtMulLowI32x4S:
@@ -319,6 +320,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S128Zero:
     case kX64S128AllOnes:
     case kX64S128AndNot:
+    case kX64V64x2AllTrue:
     case kX64V32x4AllTrue:
     case kX64V16x8AllTrue:
     case kX64I8x16Swizzle:

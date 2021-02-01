@@ -2920,6 +2920,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16GeU)
 
 #define SIMD_BINOP_ONE_TEMP_LIST(V) \
+  V(I64x2Ne)                        \
   V(I32x4Ne)                        \
   V(I32x4GtU)                       \
   V(I16x8Ne)                        \
@@ -2978,6 +2979,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16ShrU)
 
 #define SIMD_ALLTRUE_LIST(V) \
+  V(V64x2AllTrue)            \
   V(V32x4AllTrue)            \
   V(V16x8AllTrue)            \
   V(V8x16AllTrue)

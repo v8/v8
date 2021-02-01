@@ -834,6 +834,7 @@
   V(I64x2Sub)                   \
   V(I64x2Mul)                   \
   V(I64x2Eq)                    \
+  V(I64x2Ne)                    \
   V(I64x2ShrU)                  \
   V(I64x2ExtMulLowI32x4S)       \
   V(I64x2ExtMulHighI32x4S)      \
@@ -980,9 +981,10 @@
   V(S128AndNot)                 \
   V(I8x16Swizzle)               \
   V(I8x16Shuffle)               \
+  V(V128AnyTrue)                \
+  V(V64x2AllTrue)               \
   V(V32x4AllTrue)               \
   V(V16x8AllTrue)               \
-  V(V128AnyTrue)                \
   V(V8x16AllTrue)               \
   V(LoadTransform)              \
   V(PrefetchTemporal)           \

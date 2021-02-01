@@ -3441,6 +3441,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16BitMask, kArm64I8x16BitMask)                       \
   V(S128Not, kArm64S128Not)                                 \
   V(V128AnyTrue, kArm64V128AnyTrue)                         \
+  V(V64x2AllTrue, kArm64V64x2AllTrue)                       \
   V(V32x4AllTrue, kArm64V32x4AllTrue)                       \
   V(V16x8AllTrue, kArm64V16x8AllTrue)                       \
   V(V8x16AllTrue, kArm64V8x16AllTrue)
@@ -3484,6 +3485,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Add, kArm64I64x2Add)                           \
   V(I64x2Sub, kArm64I64x2Sub)                           \
   V(I64x2Eq, kArm64I64x2Eq)                             \
+  V(I64x2Ne, kArm64I64x2Ne)                             \
   V(I32x4AddHoriz, kArm64I32x4AddHoriz)                 \
   V(I32x4Mul, kArm64I32x4Mul)                           \
   V(I32x4MinS, kArm64I32x4MinS)                         \
