@@ -1315,6 +1315,8 @@ torque_files = [
   "src/builtins/string-at.tq",
   "src/builtins/string-endswith.tq",
   "src/builtins/string-html.tq",
+  "src/builtins/string-includes.tq",
+  "src/builtins/string-indexof.tq",
   "src/builtins/string-iterator.tq",
   "src/builtins/string-pad.tq",
   "src/builtins/string-repeat.tq",

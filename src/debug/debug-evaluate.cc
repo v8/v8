@@ -308,8 +308,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowReferenceError)                      \
   V(ThrowSymbolIteratorInvalid)               \
   /* Strings */                               \
-  V(StringIncludes)                           \
-  V(StringIndexOf)                            \
   V(StringReplaceOneCharWithString)           \
   V(StringSubstring)                          \
   V(StringToNumber)                           \
@@ -351,7 +349,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringAdd)                                \
   V(StringCharCodeAt)                         \
   V(StringEqual)                              \
-  V(StringIndexOfUnchecked)                   \
   V(StringParseFloat)                         \
   V(StringParseInt)                           \
   V(SymbolDescriptiveString)                  \

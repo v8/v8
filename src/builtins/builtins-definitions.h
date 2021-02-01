@@ -110,7 +110,6 @@ namespace internal {
   TFC(StringEqual, Compare)                                                    \
   TFC(StringGreaterThan, Compare)                                              \
   TFC(StringGreaterThanOrEqual, Compare)                                       \
-  TFS(StringIndexOf, kReceiver, kSearchString, kPosition)                      \
   TFC(StringLessThan, Compare)                                                 \
   TFC(StringLessThanOrEqual, Compare)                                          \
   TFC(StringSubstring, StringSubstring)                                        \
@@ -750,10 +749,6 @@ namespace internal {
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
   TFJ(StringFromCharCode, kDontAdaptArgumentsSentinel)                         \
-  /* ES6 #sec-string.prototype.includes */                                     \
-  TFJ(StringPrototypeIncludes, kDontAdaptArgumentsSentinel)                    \
-  /* ES6 #sec-string.prototype.indexof */                                      \
-  TFJ(StringPrototypeIndexOf, kDontAdaptArgumentsSentinel)                     \
   /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf)                                              \
   /* ES6 #sec-string.prototype.match */                                        \
