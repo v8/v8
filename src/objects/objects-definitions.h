@@ -141,6 +141,8 @@ namespace internal {
   V(_, PROPERTY_DESCRIPTOR_OBJECT_TYPE, PropertyDescriptorObject,             \
     property_descriptor_object)                                               \
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
+  V(_, REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, RegExpBoilerplateDescription,    \
+    regexp_boilerplate_description)                                           \
   V(_, SCRIPT_TYPE, Script, script)                                           \
   V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,         \
     module_info_entry)                                                        \

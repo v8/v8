@@ -1706,6 +1706,15 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
   os << "\n";
 }
 
+void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, "RegExpBoilerplateDescription");
+  os << "\n - data: " << Brief(data());
+  os << "\n - source: " << Brief(source());
+  os << "\n - flags: " << flags();
+  os << "\n";
+}
+
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());

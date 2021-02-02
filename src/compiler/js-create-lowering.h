@@ -109,7 +109,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                     JSObjectRef boilerplate,
                                     AllocationType allocation);
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
-                              JSRegExpRef boilerplate);
+                              RegExpBoilerplateDescriptionRef boilerplate);
 
   Factory* factory() const;
   Graph* graph() const;

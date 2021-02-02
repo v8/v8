@@ -13,6 +13,7 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-regexp.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
@@ -733,6 +734,21 @@ template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     Isolate* isolate, ClassLiteral* expr);
 template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     LocalIsolate* isolate, ClassLiteral* expr);
+
+void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
+  os << " " << ElementsKindToString(elements_kind()) << ", "
+     << Brief(constant_elements());
+}
+
+void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
+  // Note: keep boilerplate layout synced with JSRegExp layout.
+  STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
+  STATIC_ASSERT(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
+  STATIC_ASSERT(JSRegExp::kFlagsOffset ==
+                JSRegExp::kSourceOffset + kTaggedSize);
+  STATIC_ASSERT(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
+  os << " " << Brief(data()) << ", " << Brief(source()) << ", " << flags();
+}
 
 }  // namespace internal
 }  // namespace v8

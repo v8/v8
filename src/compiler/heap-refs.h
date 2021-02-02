@@ -27,7 +27,6 @@ class InternalizedString;
 class JSBoundFunction;
 class JSDataView;
 class JSGlobalProxy;
-class JSRegExp;
 class JSTypedArray;
 class NativeContext;
 class ScriptContextTable;
@@ -74,6 +73,7 @@ enum class OddballType : uint8_t {
   V(Cell)                                           \
   V(FeedbackCell)                                   \
   V(FeedbackVector)                                 \
+  V(RegExpBoilerplateDescription)                   \
   V(SharedFunctionInfo)                             \
   V(TemplateObjectDescription)
 
@@ -100,7 +100,6 @@ enum class OddballType : uint8_t {
   V(JSFunction)                               \
   V(JSGlobalObject)                           \
   V(JSGlobalProxy)                            \
-  V(JSRegExp)                                 \
   V(JSTypedArray)                             \
   /* Subtypes of Context */                   \
   V(NativeContext)                            \
@@ -392,19 +391,17 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   CodeRef code() const;
 };
 
-class JSRegExpRef : public JSObjectRef {
+class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(JSRegExp, JSObjectRef)
+  DEFINE_REF_CONSTRUCTOR(RegExpBoilerplateDescription, HeapObjectRef)
 
-  Handle<JSRegExp> object() const;
+  Handle<RegExpBoilerplateDescription> object() const;
 
-  ObjectRef raw_properties_or_hash() const;
-  ObjectRef data() const;
-  ObjectRef source() const;
-  ObjectRef flags() const;
-  ObjectRef last_index() const;
+  void Serialize();
 
-  void SerializeAsRegExpBoilerplate();
+  FixedArrayRef data() const;
+  StringRef source() const;
+  int flags() const;
 };
 
 class HeapNumberRef : public HeapObjectRef {
