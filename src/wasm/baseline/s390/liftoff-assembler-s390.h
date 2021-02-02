@@ -240,7 +240,14 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
   UseScratchRegisterScope temps(this);
-  CHECK(is_int20(offset_imm));
+  if (!is_int20(offset_imm)) {
+    mov(ip, Operand(offset_imm));
+    if (offset_reg != no_reg) {
+      AddS64(ip, offset_reg);
+    }
+    offset_reg = ip;
+    offset_imm = 0;
+  }
   MemOperand src_op =
       MemOperand(src_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
   if (protected_load_pc) *protected_load_pc = pc_offset();
@@ -255,30 +262,62 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kI32Load16U:
     case LoadType::kI64Load16U:
-      LoadU16LE(dst.gp(), src_op);
+      if (is_load_mem) {
+        LoadU16LE(dst.gp(), src_op);
+      } else {
+        LoadU16(dst.gp(), src_op);
+      }
       break;
     case LoadType::kI32Load16S:
     case LoadType::kI64Load16S:
-      LoadS16LE(dst.gp(), src_op);
+      if (is_load_mem) {
+        LoadS16LE(dst.gp(), src_op);
+      } else {
+        LoadS16(dst.gp(), src_op);
+      }
       break;
     case LoadType::kI64Load32U:
-      LoadU32LE(dst.gp(), src_op);
+      if (is_load_mem) {
+        LoadU32LE(dst.gp(), src_op);
+      } else {
+        LoadU32(dst.gp(), src_op);
+      }
       break;
     case LoadType::kI32Load:
     case LoadType::kI64Load32S:
-      LoadS32LE(dst.gp(), src_op);
+      if (is_load_mem) {
+        LoadS32LE(dst.gp(), src_op);
+      } else {
+        LoadS32(dst.gp(), src_op);
+      }
       break;
     case LoadType::kI64Load:
-      LoadU64LE(dst.gp(), src_op);
+      if (is_load_mem) {
+        LoadU64LE(dst.gp(), src_op);
+      } else {
+        LoadU64(dst.gp(), src_op);
+      }
       break;
     case LoadType::kF32Load:
-      LoadF32LE(dst.fp(), src_op, r0);
+      if (is_load_mem) {
+        LoadF32LE(dst.fp(), src_op, r0);
+      } else {
+        LoadF32(dst.fp(), src_op);
+      }
       break;
     case LoadType::kF64Load:
-      LoadF64LE(dst.fp(), src_op, r0);
+      if (is_load_mem) {
+        LoadF64LE(dst.fp(), src_op, r0);
+      } else {
+        LoadF64(dst.fp(), src_op);
+      }
       break;
     case LoadType::kS128Load:
-      LoadV128LE(dst.fp(), src_op, r0, r1);
+      if (is_load_mem) {
+        LoadV128LE(dst.fp(), src_op, r0, r1);
+      } else {
+        LoadV128(dst.fp(), src_op, r0);
+      }
       break;
     default:
       UNREACHABLE();
@@ -289,7 +328,14 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  DCHECK(is_int20(offset_imm));
+  if (!is_int20(offset_imm)) {
+    mov(ip, Operand(offset_imm));
+    if (offset_reg != no_reg) {
+      AddS64(ip, offset_reg);
+    }
+    offset_reg = ip;
+    offset_imm = 0;
+  }
   MemOperand dst_op =
       MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
@@ -300,23 +346,47 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
-      StoreU16LE(src.gp(), dst_op, r1);
+      if (is_store_mem) {
+        StoreU16LE(src.gp(), dst_op, r1);
+      } else {
+        StoreU16(src.gp(), dst_op, r1);
+      }
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
-      StoreU32LE(src.gp(), dst_op, r1);
+      if (is_store_mem) {
+        StoreU32LE(src.gp(), dst_op, r1);
+      } else {
+        StoreU32(src.gp(), dst_op, r1);
+      }
       break;
     case StoreType::kI64Store:
-      StoreU64LE(src.gp(), dst_op, r1);
+      if (is_store_mem) {
+        StoreU64LE(src.gp(), dst_op, r1);
+      } else {
+        StoreU64(src.gp(), dst_op, r1);
+      }
       break;
     case StoreType::kF32Store:
-      StoreF32LE(src.fp(), dst_op, r1);
+      if (is_store_mem) {
+        StoreF32LE(src.fp(), dst_op, r1);
+      } else {
+        StoreF32(src.fp(), dst_op);
+      }
       break;
     case StoreType::kF64Store:
-      StoreF64LE(src.fp(), dst_op, r1);
+      if (is_store_mem) {
+        StoreF64LE(src.fp(), dst_op, r1);
+      } else {
+        StoreF64(src.fp(), dst_op);
+      }
       break;
     case StoreType::kS128Store: {
-      StoreV128LE(src.fp(), dst_op, r0, r1);
+      if (is_store_mem) {
+        StoreV128LE(src.fp(), dst_op, r0, r1);
+      } else {
+        StoreV128(src.fp(), dst_op, r1);
+      }
       break;
     }
     default:
