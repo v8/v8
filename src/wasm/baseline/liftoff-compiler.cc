@@ -417,7 +417,7 @@ class LiftoffCompiler {
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
                   ForDebugging for_debugging, int func_index,
-                  Vector<int> breakpoints = {}, int dead_breakpoint = 0)
+                  Vector<const int> breakpoints = {}, int dead_breakpoint = 0)
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
@@ -5253,8 +5253,8 @@ class LiftoffCompiler {
   // breakpoint, and a pointer after the list of breakpoints as end marker.
   // A single breakpoint at offset 0 indicates that we should prepare the
   // function for stepping by flooding it with breakpoints.
-  int* next_breakpoint_ptr_ = nullptr;
-  int* next_breakpoint_end_ = nullptr;
+  const int* next_breakpoint_ptr_ = nullptr;
+  const int* next_breakpoint_end_ = nullptr;
 
   // Introduce a dead breakpoint to ensure that the calculation of the return
   // address in OSR is correct.
@@ -5298,7 +5298,7 @@ class LiftoffCompiler {
 WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator* allocator, CompilationEnv* env,
     const FunctionBody& func_body, int func_index, ForDebugging for_debugging,
-    Counters* counters, WasmFeatures* detected, Vector<int> breakpoints,
+    Counters* counters, WasmFeatures* detected, Vector<const int> breakpoints,
     std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
@@ -5314,8 +5314,6 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
       wasm::WasmInstructionBuffer::New(128 + code_size_estimate * 4 / 3);
   std::unique_ptr<DebugSideTableBuilder> debug_sidetable_builder;
-  // If we are emitting breakpoints, we should also emit the debug side table.
-  DCHECK_IMPLIES(!breakpoints.empty(), debug_sidetable != nullptr);
   if (debug_sidetable) {
     debug_sidetable_builder = std::make_unique<DebugSideTableBuilder>();
   }
@@ -5367,16 +5365,21 @@ WasmCompilationResult ExecuteLiftoffCompilation(
 
 std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
     AccountingAllocator* allocator, CompilationEnv* env,
-    const FunctionBody& func_body, int func_index) {
+    const FunctionBody& func_body, int func_index, ForDebugging for_debugging) {
   Zone zone(allocator, "LiftoffDebugSideTableZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   DebugSideTableBuilder debug_sidetable_builder;
   WasmFeatures detected;
+  constexpr int kSteppingBreakpoints[] = {0};
+  DCHECK(for_debugging == kForDebugging || for_debugging == kForStepping);
+  Vector<const int> breakpoints = for_debugging == kForStepping
+                                      ? ArrayVector(kSteppingBreakpoints)
+                                      : Vector<const int>{};
   WasmFullDecoder<Decoder::kBooleanValidation, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, &detected, func_body,
       call_descriptor, env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
-      &debug_sidetable_builder, kForDebugging, func_index);
+      &debug_sidetable_builder, for_debugging, func_index, breakpoints);
   decoder.Decode();
   DCHECK(decoder.ok());
   DCHECK(!decoder.interface().did_bailout());

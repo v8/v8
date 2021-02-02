@@ -212,7 +212,8 @@ class DebugInfoImpl {
     return offset;
   }
 
-  WasmCode* RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
+  WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
+                                            Vector<const int> offsets,
                                             int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
     // Recompile the function with Liftoff, setting the new breakpoints.
@@ -228,22 +229,24 @@ class DebugInfoImpl {
     ForDebugging for_debugging = offsets.size() == 1 && offsets[0] == 0
                                      ? kForStepping
                                      : kWithBreakpoints;
+    // Debug side tables for stepping are generated lazily.
+    bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
     Counters* counters = nullptr;
     WasmFeatures unused_detected;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index,
-        for_debugging, counters, &unused_detected, offsets, &debug_sidetable,
-        dead_breakpoint);
+        for_debugging, counters, &unused_detected, offsets,
+        generate_debug_sidetable ? &debug_sidetable : nullptr, dead_breakpoint);
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
-    DCHECK_NOT_NULL(debug_sidetable);
+    DCHECK_EQ(generate_debug_sidetable, debug_sidetable != nullptr);
 
     WasmCode* new_code = native_module_->PublishCode(
         native_module_->AddCompiledCode(std::move(result)));
 
     DCHECK(new_code->is_inspectable());
-    {
+    if (generate_debug_sidetable) {
       base::MutexGuard lock(&debug_side_tables_mutex_);
       DCHECK_EQ(0, debug_side_tables_.count(new_code));
       debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
@@ -323,12 +326,12 @@ class DebugInfoImpl {
 
   void FloodWithBreakpoints(WasmFrame* frame, ReturnLocation return_location) {
     // 0 is an invalid offset used to indicate flooding.
-    int offset = 0;
+    constexpr int kFloodingBreakpoints[] = {0};
     DCHECK(frame->wasm_code()->is_liftoff());
     // Generate an additional source position for the current byte offset.
     base::MutexGuard guard(&mutex_);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
-        frame->function_index(), VectorOf(&offset, 1), 0);
+        frame->function_index(), ArrayVector(kFloodingBreakpoints), 0);
     UpdateReturnAddress(frame, new_code, return_location);
 
     per_isolate_data_[frame->isolate()].stepping_frame = frame->id();
@@ -448,11 +451,9 @@ class DebugInfoImpl {
         : code(debug_info->native_module_->engine()->code_manager()->LookupCode(
               pc)),
           pc_offset(static_cast<int>(pc - code->instruction_start())),
-          debug_side_table(
-              code->is_inspectable()
-                  ? debug_info->GetDebugSideTable(
-                        code, debug_info->native_module_->engine()->allocator())
-                  : nullptr),
+          debug_side_table(code->is_inspectable()
+                               ? debug_info->GetDebugSideTable(code)
+                               : nullptr),
           debug_side_table_entry(debug_side_table
                                      ? debug_side_table->GetEntry(pc_offset)
                                      : nullptr) {
@@ -468,8 +469,7 @@ class DebugInfoImpl {
     const DebugSideTable::Entry* debug_side_table_entry;
   };
 
-  const DebugSideTable* GetDebugSideTable(WasmCode* code,
-                                          AccountingAllocator* allocator) {
+  const DebugSideTable* GetDebugSideTable(WasmCode* code) {
     DCHECK(code->is_inspectable());
     {
       // Only hold the mutex temporarily. We can't hold it while generating the
@@ -481,6 +481,7 @@ class DebugInfoImpl {
 
     // Otherwise create the debug side table now.
     auto* module = native_module_->module();
+    auto* allocator = native_module_->engine()->allocator();
     auto* function = &module->functions[code->index()];
     ModuleWireBytes wire_bytes{native_module_->wire_bytes()};
     Vector<const byte> function_bytes = wire_bytes.GetFunctionBytes(function);
@@ -488,8 +489,8 @@ class DebugInfoImpl {
     FunctionBody func_body{function->sig, 0, function_bytes.begin(),
                            function_bytes.end()};
     std::unique_ptr<DebugSideTable> debug_side_table =
-        GenerateLiftoffDebugSideTable(allocator, &env, func_body,
-                                      code->index());
+        GenerateLiftoffDebugSideTable(allocator, &env, func_body, code->index(),
+                                      code->for_debugging());
     DebugSideTable* ret = debug_side_table.get();
 
     // Check cache again, maybe another thread concurrently generated a debug
