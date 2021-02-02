@@ -1763,48 +1763,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmPush: {
       int stack_decrement = i.InputInt32(0);
-      if (instr->InputAt(1)->IsFPRegister()) {
-        LocationOperand* op = LocationOperand::cast(instr->InputAt(1));
-        switch (op->representation()) {
-          case MachineRepresentation::kFloat32:
-            // 1 slot values are never padded.
-            DCHECK_EQ(stack_decrement, kSystemPointerSize);
-            __ vpush(i.InputFloatRegister(1));
-            frame_access_state()->IncreaseSPDelta(1);
-            break;
-          case MachineRepresentation::kFloat64:
-            // 2 slot values have up to 1 slot of padding.
-            DCHECK_GE(stack_decrement, kDoubleSize);
-            if (stack_decrement > kDoubleSize) {
-              DCHECK_EQ(stack_decrement, kDoubleSize + kSystemPointerSize);
-              __ AllocateStackSpace(kSystemPointerSize);
-            }
-            __ vpush(i.InputDoubleRegister(1));
-            frame_access_state()->IncreaseSPDelta(stack_decrement /
-                                                  kSystemPointerSize);
-            break;
-          case MachineRepresentation::kSimd128: {
-            // 4 slot values have up to 3 slots of padding.
-            DCHECK_GE(stack_decrement, kSimd128Size);
-            if (stack_decrement > kSimd128Size) {
-              int padding = stack_decrement - kSimd128Size;
-              DCHECK_LT(padding, kSimd128Size);
-              __ AllocateStackSpace(padding);
-            }
-            __ vpush(i.InputSimd128Register(1));
-            frame_access_state()->IncreaseSPDelta(stack_decrement /
-                                                  kSystemPointerSize);
-            break;
-          }
-          default:
-            UNREACHABLE();
-            break;
-        }
-      } else {
-        DCHECK_EQ(stack_decrement, kSystemPointerSize);
-        __ push(i.InputRegister(1));
-        frame_access_state()->IncreaseSPDelta(1);
+      int slots = stack_decrement / kSystemPointerSize;
+      LocationOperand* op = LocationOperand::cast(instr->InputAt(1));
+      MachineRepresentation rep = op->representation();
+      int pushed_slots = ElementSizeInPointers(rep);
+      // Slot-sized arguments are never padded but there may be a gap if
+      // the slot allocator reclaimed other padding slots. Adjust the stack
+      // here to skip any gap.
+      if (slots > pushed_slots) {
+        __ AllocateStackSpace(slots - pushed_slots);
       }
+      switch (rep) {
+        case MachineRepresentation::kFloat32:
+          __ vpush(i.InputFloatRegister(1));
+          break;
+        case MachineRepresentation::kFloat64:
+          __ vpush(i.InputDoubleRegister(1));
+          break;
+        case MachineRepresentation::kSimd128:
+          __ vpush(i.InputSimd128Register(1));
+          break;
+        default:
+          __ push(i.InputRegister(1));
+          break;
+      }
+      frame_access_state()->IncreaseSPDelta(slots);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }

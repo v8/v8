@@ -1783,28 +1783,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32PushFloat32: {
-      // 1 slot values are never padded.
-      DCHECK_EQ(i.InputInt32(0), kFloatSize);
+      int stack_decrement = i.InputInt32(0);
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ AllocateStackSpace(kFloatSize);
+        __ AllocateStackSpace(stack_decrement);
         __ Movss(Operand(esp, 0), i.InputDoubleRegister(1));
       } else if (HasImmediateInput(instr, 1)) {
-        __ AllocateStackSpace(kFloatSize);
         __ Move(kScratchDoubleReg, i.InputFloat32(1));
+        __ AllocateStackSpace(stack_decrement);
         __ Movss(Operand(esp, 0), kScratchDoubleReg);
       } else {
         __ Movss(kScratchDoubleReg, i.InputOperand(1));
-        __ AllocateStackSpace(kFloatSize);
+        __ AllocateStackSpace(stack_decrement);
         __ Movss(Operand(esp, 0), kScratchDoubleReg);
       }
-      int slots = kFloatSize / kSystemPointerSize;
+      int slots = stack_decrement / kSystemPointerSize;
       frame_access_state()->IncreaseSPDelta(slots);
       break;
     }
     case kIA32PushFloat64: {
       int stack_decrement = i.InputInt32(0);
-      // 2 slot values have up to 1 slot of padding.
-      DCHECK_GE(stack_decrement, kDoubleSize);
       if (instr->InputAt(1)->IsFPRegister()) {
         __ AllocateStackSpace(stack_decrement);
         __ Movsd(Operand(esp, 0), i.InputDoubleRegister(1));
@@ -1823,14 +1820,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32PushSimd128: {
       int stack_decrement = i.InputInt32(0);
-      // 4 slot values have up to 3 slots of padding.
-      DCHECK_GE(stack_decrement, kSimd128Size);
       if (instr->InputAt(1)->IsFPRegister()) {
         __ AllocateStackSpace(stack_decrement);
+        // TODO(bbudge) Use Movaps when slots are aligned.
         __ Movups(Operand(esp, 0), i.InputSimd128Register(1));
       } else {
         __ Movups(kScratchDoubleReg, i.InputOperand(1));
         __ AllocateStackSpace(stack_decrement);
+        // TODO(bbudge) Use Movaps when slots are aligned.
         __ Movups(Operand(esp, 0), kScratchDoubleReg);
       }
       int slots = stack_decrement / kSystemPointerSize;
@@ -1839,21 +1836,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32Push: {
       // TODO(bbudge) Merge the push opcodes into a single one, as on x64.
-      // 1 slot values are never padded.
-      DCHECK_EQ(i.InputInt32(0), kSystemPointerSize);
-      if (HasAddressingMode(instr)) {
-        size_t index = 1;
-        Operand operand = i.MemoryOperand(&index);
-        __ push(operand);
-      } else if (instr->InputAt(1)->IsFPRegister()) {
-        __ AllocateStackSpace(kSystemPointerSize);
+      int stack_decrement = i.InputInt32(0);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ AllocateStackSpace(stack_decrement);
         __ Movsd(Operand(esp, 0), i.InputDoubleRegister(1));
-      } else if (HasImmediateInput(instr, 1)) {
-        __ push(i.InputImmediate(1));
       } else {
-        __ push(i.InputOperand(1));
+        // Slot-sized arguments are never padded but there may be a gap if
+        // the slot allocator reclaimed other padding slots. Adjust the stack
+        // here to skip any gap.
+        if (stack_decrement > kSystemPointerSize) {
+          __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
+        }
+        if (HasAddressingMode(instr)) {
+          size_t index = 1;
+          Operand operand = i.MemoryOperand(&index);
+          __ push(operand);
+        } else if (HasImmediateInput(instr, 1)) {
+          __ push(i.InputImmediate(1));
+        } else {
+          __ push(i.InputOperand(1));
+        }
       }
-      frame_access_state()->IncreaseSPDelta(1);
+      int slots = stack_decrement / kSystemPointerSize;
+      frame_access_state()->IncreaseSPDelta(slots);
       break;
     }
     case kIA32Poke: {
