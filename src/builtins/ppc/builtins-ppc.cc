@@ -2404,6 +2404,15 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
         DoubleRegister::ListOf(d1, d2, d3, d4, d5, d6, d7, d8);
     constexpr RegList simd_regs =
         Simd128Register::ListOf(v1, v2, v3, v4, v5, v6, v7, v8);
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs ==
+                      NumRegs(gp_regs),
+                  "frame size mismatch");
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                      NumRegs(fp_regs),
+                  "frame size mismatch");
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                      NumRegs(simd_regs),
+                  "frame size mismatch");
     __ MultiPush(gp_regs);
     __ MultiPushDoubles(fp_regs);
     // V8 uses the same set of fp param registers as Simd param registers.
@@ -2412,6 +2421,14 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Check the comments under crrev.com/c/2645694 for more details.
     if (CpuFeatures::SupportsWasmSimd128()) {
       __ MultiPushV128(simd_regs);
+    } else {
+      // kFixedFrameSizeFromFp is hard coded to include space for Simd
+      // registers, so we still need to allocate space on the stack even if we
+      // are not pushing them.
+      __ addi(
+          sp, sp,
+          Operand(-static_cast<int8_t>(base::bits::CountPopulation(simd_regs)) *
+                  kSimd128Size));
     }
 
     // Pass instance and function index as explicit arguments to the runtime
@@ -2427,6 +2444,11 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Restore registers.
     if (CpuFeatures::SupportsWasmSimd128()) {
       __ MultiPopV128(simd_regs);
+    } else {
+      __ addi(
+          sp, sp,
+          Operand(static_cast<int8_t>(base::bits::CountPopulation(simd_regs)) *
+                  kSimd128Size));
     }
     __ MultiPopDoubles(fp_regs);
     __ MultiPop(gp_regs);
