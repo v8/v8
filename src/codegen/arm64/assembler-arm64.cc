@@ -574,8 +574,7 @@ void Assembler::bind(Label* label) {
       // Internal references do not get patched to an instruction but directly
       // to an address.
       internal_reference_positions_.push_back(linkoffset);
-      PatchingAssembler patcher(options(), reinterpret_cast<byte*>(link), 2);
-      patcher.dc64(reinterpret_cast<uintptr_t>(pc_));
+      base::Memcpy(link, &pc_, kSystemPointerSize);
     } else {
       link->SetImmPCOffsetTarget(options(),
                                  reinterpret_cast<Instruction*>(pc_));
