@@ -5075,13 +5075,12 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
         MachineType::Int32(), fast_api_call_stack_slot_,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
 
-    TNode<Boolean> cond = TNode<Boolean>::UncheckedCast(
-        __ Word32Equal(load, __ Int32Constant(0)));
+    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
     // Hint to true.
     auto if_success = __ MakeLabel();
     auto if_error = __ MakeDeferredLabel();
     auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-    __ Branch(cond, &if_success, &if_error);
+    __ Branch(is_zero, &if_success, &if_error);
 
     // Generate fast call.
     __ Bind(&if_success);
