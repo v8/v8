@@ -66,8 +66,6 @@ InspectorTest.runAsyncTestSuite([
         condition: breakpoint.cond
       }));
     }
-    // TODO(1173007): Implement conditional breakpoints for wasm.
-    InspectorTest.log('NOTE: The conditions are being ignored currently.');
     InspectorTest.log('Calling fib(5)');
     await WasmInspectorTest.evalWithUrl('instance.exports.fib(5)', 'runWasm');
     InspectorTest.log('fib returned!');

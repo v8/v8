@@ -40,50 +40,27 @@ Setting breakpoint at offset 46, condition "$var0==3"
         breakpointId : <breakpointId>
     }
 }
-NOTE: The conditions are being ignored currently.
 Calling fib(5)
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 5
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 5
-Script wasm://wasm/f00dbc56 byte offset 46: Wasm opcode 0x10 (kExprCallFunction)
-$var0: 5
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 4
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 4
-Script wasm://wasm/f00dbc56 byte offset 46: Wasm opcode 0x10 (kExprCallFunction)
-$var0: 4
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 3
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 3
 Script wasm://wasm/f00dbc56 byte offset 46: Wasm opcode 0x10 (kExprCallFunction)
 $var0: 3
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 2
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 2
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 1
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 1
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 2
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 2
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 3
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 3
 Script wasm://wasm/f00dbc56 byte offset 46: Wasm opcode 0x10 (kExprCallFunction)
 $var0: 3
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 2
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 2
-Script wasm://wasm/f00dbc56 byte offset 34: Wasm opcode 0x20 (kExprLocalGet)
-$var0: 1
 Script wasm://wasm/f00dbc56 byte offset 41: Wasm opcode 0x0d (kExprBrIf)
 $var0: 1
 fib returned!

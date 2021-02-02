@@ -12,6 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/factory.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
@@ -1064,10 +1065,34 @@ bool WasmScript::GetPossibleBreakpoints(
   return true;
 }
 
+namespace {
+
+bool CheckBreakPoint(Isolate* isolate, Handle<BreakPoint> break_point,
+                     StackFrameId frame_id) {
+  if (break_point->condition().length() == 0) return true;
+
+  HandleScope scope(isolate);
+  Handle<String> condition(break_point->condition(), isolate);
+  Handle<Object> result;
+  // The Wasm engine doesn't perform any sort of inlining.
+  const int inlined_jsframe_index = 0;
+  const bool throw_on_side_effect = false;
+  if (!DebugEvaluate::Local(isolate, frame_id, inlined_jsframe_index, condition,
+                            throw_on_side_effect)
+           .ToHandle(&result)) {
+    isolate->clear_pending_exception();
+    return false;
+  }
+  return result->BooleanValue(isolate);
+}
+
+}  // namespace
+
 // static
 MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
                                                      Handle<Script> script,
-                                                     int position) {
+                                                     int position,
+                                                     StackFrameId frame_id) {
   if (!script->has_wasm_breakpoint_infos()) return {};
 
   Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
@@ -1082,14 +1107,29 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
       Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 
-  // There is no support for conditional break points. Just assume that every
-  // break point always hits.
   Handle<Object> break_points(breakpoint_info->break_points(), isolate);
-  if (break_points->IsFixedArray()) {
-    return Handle<FixedArray>::cast(break_points);
+  if (!break_points->IsFixedArray()) {
+    if (!CheckBreakPoint(isolate, Handle<BreakPoint>::cast(break_points),
+                         frame_id)) {
+      return {};
+    }
+    Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
+    break_points_hit->set(0, *break_points);
+    return break_points_hit;
   }
-  Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
-  break_points_hit->set(0, *break_points);
+
+  Handle<FixedArray> array = Handle<FixedArray>::cast(break_points);
+  Handle<FixedArray> break_points_hit =
+      isolate->factory()->NewFixedArray(array->length());
+  int break_points_hit_count = 0;
+  for (int i = 0; i < array->length(); ++i) {
+    Handle<BreakPoint> break_point(BreakPoint::cast(array->get(i)), isolate);
+    if (CheckBreakPoint(isolate, break_point, frame_id)) {
+      break_points_hit->set(break_points_hit_count++, *break_point);
+    }
+  }
+  if (break_points_hit_count == 0) return {};
+  break_points_hit->Shrink(isolate, break_points_hit_count);
   return break_points_hit;
 }
 
