@@ -455,13 +455,81 @@ void LiftoffAssembler::AtomicFence() { bailout(kAtomics, "AtomicFence"); }
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  bailout(kUnsupportedArchitecture, "LoadCallerFrameSlot");
+  int32_t offset = (caller_slot_idx + 1) * 8;
+  switch (type.kind()) {
+    case ValueType::kI32: {
+#if defined(V8_TARGET_BIG_ENDIAN)
+      LoadS32(dst.gp(), MemOperand(fp, offset + 4));
+      break;
+#else
+      LoadS32(dst.gp(), MemOperand(fp, offset));
+      break;
+#endif
+    }
+    case ValueType::kRef:
+    case ValueType::kRtt:
+    case ValueType::kOptRef:
+    case ValueType::kI64: {
+      LoadU64(dst.gp(), MemOperand(fp, offset));
+      break;
+    }
+    case ValueType::kF32: {
+      LoadF32(dst.fp(), MemOperand(fp, offset));
+      break;
+    }
+    case ValueType::kF64: {
+      LoadF64(dst.fp(), MemOperand(fp, offset));
+      break;
+    }
+    case ValueType::kS128: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      LoadV128(dst.fp(), MemOperand(fp, offset), scratch);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
                                             ValueType type) {
-  bailout(kUnsupportedArchitecture, "StoreCallerFrameSlot");
+  int32_t offset = (caller_slot_idx + 1) * 8;
+  switch (type.kind()) {
+    case ValueType::kI32: {
+#if defined(V8_TARGET_BIG_ENDIAN)
+      StoreU32(src.gp(), MemOperand(fp, offset + 4));
+      break;
+#else
+      StoreU32(src.gp(), MemOperand(fp, offset));
+      break;
+#endif
+    }
+    case ValueType::kRef:
+    case ValueType::kRtt:
+    case ValueType::kOptRef:
+    case ValueType::kI64: {
+      StoreU64(src.gp(), MemOperand(fp, offset));
+      break;
+    }
+    case ValueType::kF32: {
+      StoreF32(src.fp(), MemOperand(fp, offset));
+      break;
+    }
+    case ValueType::kF64: {
+      StoreF64(src.fp(), MemOperand(fp, offset));
+      break;
+    }
+    case ValueType::kS128: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      StoreV128(src.fp(), MemOperand(fp, offset), scratch);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
