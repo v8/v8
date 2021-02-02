@@ -2402,8 +2402,17 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
         Register::ListOf(r3, r4, r5, r6, r7, r8, r9, r10);
     constexpr RegList fp_regs =
         DoubleRegister::ListOf(d1, d2, d3, d4, d5, d6, d7, d8);
+    constexpr RegList simd_regs =
+        Simd128Register::ListOf(v1, v2, v3, v4, v5, v6, v7, v8);
     __ MultiPush(gp_regs);
     __ MultiPushDoubles(fp_regs);
+    // V8 uses the same set of fp param registers as Simd param registers.
+    // As these registers are two different sets on ppc we must make
+    // sure to also save them when Simd is enabled.
+    // Check the comments under crrev.com/c/2645694 for more details.
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      __ MultiPushV128(simd_regs);
+    }
 
     // Pass instance and function index as explicit arguments to the runtime
     // function.
@@ -2416,6 +2425,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ mr(r11, kReturnRegister0);
 
     // Restore registers.
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      __ MultiPopV128(simd_regs);
+    }
     __ MultiPopDoubles(fp_regs);
     __ MultiPop(gp_regs);
   }
