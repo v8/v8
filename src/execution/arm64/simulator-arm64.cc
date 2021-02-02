@@ -3530,6 +3530,33 @@ bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       PrintF("Use `break <address>` to set or disable a breakpoint\n");
     }
 
+    // backtrace / bt
+    // ---------------------------------------------------------------
+  } else if (strcmp(cmd, "backtrace") == 0 || strcmp(cmd, "bt") == 0) {
+    Address pc = reinterpret_cast<Address>(pc_);
+    Address lr = reinterpret_cast<Address>(this->lr());
+    Address sp = static_cast<Address>(this->sp());
+    Address fp = static_cast<Address>(this->fp());
+
+    int i = 0;
+    while (true) {
+      PrintF("#%d: " V8PRIxPTR_FMT " (sp=" V8PRIxPTR_FMT ", fp=" V8PRIxPTR_FMT
+             ")\n",
+             i, pc, sp, fp);
+      pc = lr;
+      sp = fp;
+      if (pc == reinterpret_cast<Address>(kEndOfSimAddress)) {
+        break;
+      }
+      lr = *(reinterpret_cast<Address*>(fp) + 1);
+      fp = *reinterpret_cast<Address*>(fp);
+      i++;
+      if (i > 100) {
+        PrintF("Too many frames\n");
+        break;
+      }
+    }
+
     // gdb
     // -------------------------------------------------------------------
   } else if (strcmp(cmd, "gdb") == 0) {
@@ -3584,6 +3611,8 @@ bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
         "break / b\n"
         "    break : list all breakpoints\n"
         "    break <address> : set / enable / disable a breakpoint.\n"
+        "backtrace / bt\n"
+        "    Walk the frame pointers, dumping the pc/sp/fp for each frame.\n"
         "gdb\n"
         "    Enter gdb.\n"
         "sysregs\n"
