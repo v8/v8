@@ -26101,6 +26101,11 @@ TEST(CorrectEnteredContext) {
   object->ToString(currentContext.local()).ToLocalChecked();
 }
 
+// For testing only, the host-defined options are provided entirely by the host
+// and have an abritrary length. Use this constant here for testing that we get
+// the correct value during the tests.
+const int kCustomHostDefinedOptionsLengthForTesting = 7;
+
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<Context> context, Local<v8::ScriptOrModule> referrer,
     Local<String> specifier, Local<FixedArray> import_assertions) {
@@ -26108,10 +26113,8 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
   String::Utf8Value referrer_utf8(
       context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK(referrer->GetHostDefinedOptions()
-            ->Get(context->GetIsolate(), 0)
-            ->IsSymbol());
-
+  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+           kCustomHostDefinedOptionsLengthForTesting);
   CHECK(!specifier.IsEmpty());
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
   CHECK_EQ(0, strcmp("index.js", *specifier_utf8));
@@ -26137,12 +26140,10 @@ TEST(DynamicImport) {
   i::Handle<i::String> result(v8::Utils::OpenHandle(*v8_str("hello world")));
   i::Handle<i::String> source(v8::Utils::OpenHandle(*v8_str("foo")));
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(1);
-  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewSymbol();
-  options->set(0, *symbol);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*options);
+  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting));
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, i::MaybeHandle<i::Object>());
@@ -26159,9 +26160,8 @@ HostImportModuleDynamicallyWithAssertionsCallbackResolve(
   String::Utf8Value referrer_utf8(
       context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK(referrer->GetHostDefinedOptions()
-            ->Get(context->GetIsolate(), 0)
-            ->IsSymbol());
+  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+           kCustomHostDefinedOptionsLengthForTesting);
 
   CHECK(!specifier.IsEmpty());
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
@@ -26226,12 +26226,10 @@ TEST(DynamicImportWithAssertions) {
       v8::Utils::OpenHandle(*import_assertions);
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(1);
-  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewSymbol();
-  options->set(0, *symbol);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*options);
+  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting));
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
                                                         i_import_assertions);
