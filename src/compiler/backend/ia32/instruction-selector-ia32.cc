@@ -2256,20 +2256,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8GtU)              \
   V(I16x8GeU)              \
   V(I8x16SConvertI16x8)    \
-  V(I8x16Add)              \
-  V(I8x16AddSatS)          \
-  V(I8x16Sub)              \
-  V(I8x16SubSatS)          \
-  V(I8x16MinS)             \
-  V(I8x16MaxS)             \
-  V(I8x16Eq)               \
   V(I8x16Ne)               \
-  V(I8x16GtS)              \
   V(I8x16GeS)              \
-  V(I8x16AddSatU)          \
-  V(I8x16SubSatU)          \
-  V(I8x16MinU)             \
-  V(I8x16MaxU)             \
   V(I8x16GtU)              \
   V(I8x16GeU)              \
   V(S128And)               \
@@ -2287,6 +2275,18 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I64x2Eq)                               \
   V(I32x4DotI16x8S)                        \
   V(I16x8RoundingAverageU)                 \
+  V(I8x16Add)                              \
+  V(I8x16AddSatS)                          \
+  V(I8x16Sub)                              \
+  V(I8x16SubSatS)                          \
+  V(I8x16MinS)                             \
+  V(I8x16MaxS)                             \
+  V(I8x16Eq)                               \
+  V(I8x16GtS)                              \
+  V(I8x16AddSatU)                          \
+  V(I8x16SubSatU)                          \
+  V(I8x16MinU)                             \
+  V(I8x16MaxU)                             \
   V(I8x16RoundingAverageU)
 
 // These opcodes require all inputs to be registers because the codegen is

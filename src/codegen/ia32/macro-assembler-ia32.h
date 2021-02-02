@@ -442,6 +442,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Pavgb, pavgb)
   AVX_PACKED_OP3(Pavgw, pavgw)
   AVX_PACKED_OP3(Pand, pand)
+  AVX_PACKED_OP3(Pminub, pminub)
+  AVX_PACKED_OP3(Pmaxub, pmaxub)
+  AVX_PACKED_OP3(Paddusb, paddusb)
+  AVX_PACKED_OP3(Psubusb, psubusb)
+  AVX_PACKED_OP3(Pcmpgtb, pcmpgtb)
+  AVX_PACKED_OP3(Pcmpeqb, pcmpeqb)
+  AVX_PACKED_OP3(Paddb, paddb)
+  AVX_PACKED_OP3(Paddsb, paddsb)
+  AVX_PACKED_OP3(Psubb, psubb)
+  AVX_PACKED_OP3(Psubsb, psubsb)
+
 #undef AVX_PACKED_OP3
 
   AVX_PACKED_OP3_WITH_TYPE(Psllw, psllw, XMMRegister, uint8_t)
@@ -527,6 +538,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
   AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, XMMRegister, SSSE3)
+  AVX_OP3_XO_SSE4(Pminsb, pminsb)
+  AVX_OP3_XO_SSE4(Pmaxsb, pmaxsb)
 
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE

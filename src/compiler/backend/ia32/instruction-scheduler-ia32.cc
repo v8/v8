@@ -295,39 +295,27 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16Neg:
     case kIA32I8x16Shl:
     case kIA32I8x16ShrS:
-    case kSSEI8x16Add:
-    case kAVXI8x16Add:
-    case kSSEI8x16AddSatS:
-    case kAVXI8x16AddSatS:
-    case kSSEI8x16Sub:
-    case kAVXI8x16Sub:
-    case kSSEI8x16SubSatS:
-    case kAVXI8x16SubSatS:
+    case kIA32I8x16Add:
+    case kIA32I8x16AddSatS:
+    case kIA32I8x16Sub:
+    case kIA32I8x16SubSatS:
     case kSSEI8x16Mul:
     case kAVXI8x16Mul:
-    case kSSEI8x16MinS:
-    case kAVXI8x16MinS:
-    case kSSEI8x16MaxS:
-    case kAVXI8x16MaxS:
-    case kSSEI8x16Eq:
-    case kAVXI8x16Eq:
+    case kIA32I8x16MinS:
+    case kIA32I8x16MaxS:
+    case kIA32I8x16Eq:
     case kSSEI8x16Ne:
     case kAVXI8x16Ne:
-    case kSSEI8x16GtS:
-    case kAVXI8x16GtS:
+    case kIA32I8x16GtS:
     case kSSEI8x16GeS:
     case kAVXI8x16GeS:
     case kSSEI8x16UConvertI16x8:
     case kAVXI8x16UConvertI16x8:
-    case kSSEI8x16AddSatU:
-    case kAVXI8x16AddSatU:
-    case kSSEI8x16SubSatU:
-    case kAVXI8x16SubSatU:
+    case kIA32I8x16AddSatU:
+    case kIA32I8x16SubSatU:
     case kIA32I8x16ShrU:
-    case kSSEI8x16MinU:
-    case kAVXI8x16MinU:
-    case kSSEI8x16MaxU:
-    case kAVXI8x16MaxU:
+    case kIA32I8x16MinU:
+    case kIA32I8x16MaxU:
     case kSSEI8x16GtU:
     case kAVXI8x16GtU:
     case kSSEI8x16GeU:

@@ -313,39 +313,27 @@ namespace compiler {
   V(IA32I8x16Neg)                  \
   V(IA32I8x16Shl)                  \
   V(IA32I8x16ShrS)                 \
-  V(SSEI8x16Add)                   \
-  V(AVXI8x16Add)                   \
-  V(SSEI8x16AddSatS)               \
-  V(AVXI8x16AddSatS)               \
-  V(SSEI8x16Sub)                   \
-  V(AVXI8x16Sub)                   \
-  V(SSEI8x16SubSatS)               \
-  V(AVXI8x16SubSatS)               \
+  V(IA32I8x16Add)                  \
+  V(IA32I8x16AddSatS)              \
+  V(IA32I8x16Sub)                  \
+  V(IA32I8x16SubSatS)              \
   V(SSEI8x16Mul)                   \
   V(AVXI8x16Mul)                   \
-  V(SSEI8x16MinS)                  \
-  V(AVXI8x16MinS)                  \
-  V(SSEI8x16MaxS)                  \
-  V(AVXI8x16MaxS)                  \
-  V(SSEI8x16Eq)                    \
-  V(AVXI8x16Eq)                    \
+  V(IA32I8x16MinS)                 \
+  V(IA32I8x16MaxS)                 \
+  V(IA32I8x16Eq)                   \
   V(SSEI8x16Ne)                    \
   V(AVXI8x16Ne)                    \
-  V(SSEI8x16GtS)                   \
-  V(AVXI8x16GtS)                   \
+  V(IA32I8x16GtS)                  \
   V(SSEI8x16GeS)                   \
   V(AVXI8x16GeS)                   \
   V(SSEI8x16UConvertI16x8)         \
   V(AVXI8x16UConvertI16x8)         \
-  V(SSEI8x16AddSatU)               \
-  V(AVXI8x16AddSatU)               \
-  V(SSEI8x16SubSatU)               \
-  V(AVXI8x16SubSatU)               \
+  V(IA32I8x16AddSatU)              \
+  V(IA32I8x16SubSatU)              \
   V(IA32I8x16ShrU)                 \
-  V(SSEI8x16MinU)                  \
-  V(AVXI8x16MinU)                  \
-  V(SSEI8x16MaxU)                  \
-  V(AVXI8x16MaxU)                  \
+  V(IA32I8x16MinU)                 \
+  V(IA32I8x16MaxU)                 \
   V(SSEI8x16GtU)                   \
   V(AVXI8x16GtU)                   \
   V(SSEI8x16GeU)                   \
