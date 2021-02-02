@@ -2402,6 +2402,66 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Addp(i.OutputSimd128Register().V4S(), tmp1, tmp2);
       break;
     }
+    case kArm64I32x4WidenI8x16S: {
+      VRegister dst = i.OutputSimd128Register();
+      VRegister src = i.InputSimd128Register(0);
+      uint8_t laneidx = MiscField::decode(instr->opcode());
+      switch (laneidx) {
+        case 0: {
+          __ Sxtl(dst.V8H(), src.V8B());
+          __ Sxtl(dst.V4S(), dst.V4H());
+          break;
+        }
+        case 1: {
+          __ Sxtl(dst.V8H(), src.V8B());
+          __ Sxtl2(dst.V4S(), dst.V8H());
+          break;
+        }
+        case 2: {
+          __ Sxtl2(dst.V8H(), src.V16B());
+          __ Sxtl(dst.V4S(), dst.V4H());
+          break;
+        }
+        case 3: {
+          __ Sxtl2(dst.V8H(), src.V16B());
+          __ Sxtl2(dst.V4S(), dst.V8H());
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+      break;
+    }
+    case kArm64I32x4WidenI8x16U: {
+      VRegister dst = i.OutputSimd128Register();
+      VRegister src = i.InputSimd128Register(0);
+      uint8_t laneidx = MiscField::decode(instr->opcode());
+      switch (laneidx) {
+        case 0: {
+          __ Uxtl(dst.V8H(), src.V8B());
+          __ Uxtl(dst.V4S(), dst.V4H());
+          break;
+        }
+        case 1: {
+          __ Uxtl(dst.V8H(), src.V8B());
+          __ Uxtl2(dst.V4S(), dst.V8H());
+          break;
+        }
+        case 2: {
+          __ Uxtl2(dst.V8H(), src.V16B());
+          __ Uxtl(dst.V4S(), dst.V4H());
+          break;
+        }
+        case 3: {
+          __ Uxtl2(dst.V8H(), src.V16B());
+          __ Uxtl2(dst.V4S(), dst.V8H());
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+      break;
+    }
     case kArm64I16x8Splat: {
       __ Dup(i.OutputSimd128Register().V8H(), i.InputRegister32(0));
       break;

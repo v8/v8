@@ -2213,7 +2213,7 @@ WASM_SIMD_TEST(I32x4ShrU) {
                       LogicalShiftRight);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 // TODO(v8:11297) Prototype i32x4.widen_i8x16_{u,s}
 WASM_SIMD_TEST_NO_LOWERING(I32x4WidenI8x16U) {
   FLAG_SCOPE(wasm_simd_post_mvp);
@@ -2287,7 +2287,7 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4WidenI8x16S) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 // Tests both signed and unsigned conversion from I8x16 (unpacking).
 WASM_SIMD_TEST(I16x8ConvertI8x16) {
