@@ -342,6 +342,7 @@ namespace compiler {
   V(IA32I8x16Abs)                  \
   V(IA32I8x16BitMask)              \
   V(IA32I8x16SignSelect)           \
+  V(IA32I8x16Popcnt)               \
   V(IA32S128Const)                 \
   V(IA32S128Zero)                  \
   V(IA32S128AllOnes)               \

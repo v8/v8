@@ -3131,6 +3131,16 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   VisitRRSimd(this, node, kIA32I16x8ExtAddPairwiseI8x16U);
 }
 
+void InstructionSelector::VisitI8x16Popcnt(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+  Emit(kIA32I8x16Popcnt, dst, g.UseUniqueRegister(node->InputAt(0)),
+       arraysize(temps), temps);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

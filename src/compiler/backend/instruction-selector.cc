@@ -2759,11 +2759,6 @@ void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 || !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
-// TODO(v8:11002) Prototype i8x16.popcnt.
-void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
-
 #if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && \
     !V8_TARGET_ARCH_IA32
 // TODO(v8:11086) Prototype extended pairwise add.

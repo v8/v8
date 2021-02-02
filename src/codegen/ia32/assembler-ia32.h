@@ -1492,6 +1492,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vbroadcastss(XMMRegister dst, Operand src) {
     vinstr(0x18, dst, xmm0, src, k66, k0F38, kW0);
   }
+  void vmovdqa(XMMRegister dst, Operand src) {
+    vinstr(0x6F, dst, xmm0, src, k66, k0F, kWIG);
+  }
   void vmovdqu(XMMRegister dst, Operand src) {
     vinstr(0x6F, dst, xmm0, src, kF3, k0F, kWIG);
   }

@@ -324,6 +324,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16Abs:
     case kIA32I8x16BitMask:
     case kIA32I8x16SignSelect:
+    case kIA32I8x16Popcnt:
     case kIA32S128Const:
     case kIA32S128Zero:
     case kIA32S128AllOnes:
