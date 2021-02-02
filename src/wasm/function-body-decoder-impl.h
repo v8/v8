@@ -2538,6 +2538,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   DECODE(Delegate) {
+    CHECK_PROTOTYPE_OPCODE(eh);
     BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
     // -1 because the current try block is not included in the count.
     if (!this->Validate(this->pc_ + 1, imm, control_depth() - 1)) return 0;
@@ -2566,6 +2567,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   DECODE(CatchAll) {
+    CHECK_PROTOTYPE_OPCODE(eh);
     if (!VALIDATE(!control_.empty())) {
       this->error("catch-all does not match any try");
       return 0;
