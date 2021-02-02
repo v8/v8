@@ -2558,6 +2558,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vshufps(dst, dst, kScratchDoubleReg, 0x88);
         break;
       } else {
+        CpuFeatureScope scope(tasm(), SSE4_1);
         DCHECK_EQ(dst, src);
         __ xorps(kScratchDoubleReg, kScratchDoubleReg);
         __ maxpd(dst, kScratchDoubleReg);
