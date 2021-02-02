@@ -542,6 +542,7 @@ class DescriptorArrayRef : public HeapObjectRef {
   Handle<DescriptorArray> object() const;
 
   PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
+  NameRef GetPropertyKey(InternalIndex descriptor_index) const;
 };
 
 class FeedbackCellRef : public HeapObjectRef {

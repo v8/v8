@@ -3138,6 +3138,7 @@ void JSObjectRef::EnsureElementsTenured() {
 }
 
 FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap()) {
     return FieldIndex::ForDescriptor(*object(), descriptor_index);
   }
@@ -3155,19 +3156,13 @@ int MapRef::GetInObjectPropertyOffset(int i) const {
 
 PropertyDetails MapRef::GetPropertyDetails(
     InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   return instance_descriptors().GetPropertyDetails(descriptor_index);
 }
 
 NameRef MapRef::GetPropertyKey(InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    return NameRef(broker(), broker()->CanonicalPersistentHandle(
-                                 object()
-                                     ->instance_descriptors(kRelaxedLoad)
-                                     .GetKey(descriptor_index)));
-  }
-  DescriptorArrayData* descriptors =
-      data()->AsMap()->instance_descriptors()->AsDescriptorArray();
-  return NameRef(broker(), descriptors->GetPropertyKey(descriptor_index));
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
+  return instance_descriptors().GetPropertyKey(descriptor_index);
 }
 
 bool MapRef::IsFixedCowArrayMap() const {
@@ -3181,6 +3176,7 @@ bool MapRef::IsPrimitiveMap() const {
 }
 
 MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
     // TODO(solanes, v8:7790): Consider caching the result of the field owner on
     // the descriptor array. It would be useful for same map as well as any
@@ -3194,6 +3190,7 @@ MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
 }
 
 ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap()) {
     Handle<FieldType> field_type(object()
                                      ->instance_descriptors(kRelaxedLoad)
@@ -3207,6 +3204,7 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
 }
 
 bool MapRef::IsUnboxedDoubleField(InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap()) {
     return object()->IsUnboxedDoubleField(
         FieldIndex::ForDescriptor(*object(), descriptor_index));
@@ -3643,6 +3641,7 @@ base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
 
 base::Optional<ObjectRef> MapRef::GetStrongValue(
     InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap()) {
     MaybeObject value =
         object()->instance_descriptors(kRelaxedLoad).GetValue(descriptor_index);
@@ -4064,6 +4063,18 @@ PropertyDetails DescriptorArrayRef::GetPropertyDetails(
     return object()->GetDetails(descriptor_index);
   }
   return data()->AsDescriptorArray()->GetPropertyDetails(descriptor_index);
+}
+
+NameRef DescriptorArrayRef::GetPropertyKey(
+    InternalIndex descriptor_index) const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    NameRef result(broker(), broker()->CanonicalPersistentHandle(
+                                 object()->GetKey(descriptor_index)));
+    CHECK(result.IsUniqueName());
+    return result;
+  }
+  return NameRef(broker(),
+                 data()->AsDescriptorArray()->GetPropertyKey(descriptor_index));
 }
 
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
