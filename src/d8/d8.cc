@@ -3547,11 +3547,12 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
   Local<Object> global = context->Global();
 
   // Get the message handler.
-  MaybeLocal<Value> maybe_onmessage = global->Get(
-      context, String::NewFromUtf8Literal(isolate_, "onmessage",
-                                          NewStringType::kInternalized));
-  Local<Value> onmessage;
-  if (!maybe_onmessage.ToLocal(&onmessage) || !onmessage->IsFunction()) {
+  Local<Value> onmessage = global
+                               ->Get(context, String::NewFromUtf8Literal(
+                                                  isolate_, "onmessage",
+                                                  NewStringType::kInternalized))
+                               .ToLocalChecked();
+  if (!onmessage->IsFunction()) {
     return;
   }
   Local<Function> onmessage_fun = onmessage.As<Function>();
