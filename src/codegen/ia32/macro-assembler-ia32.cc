@@ -1810,8 +1810,22 @@ void TurboAssembler::Haddps(XMMRegister dst, XMMRegister src1, Operand src2) {
   }
 }
 
+void TurboAssembler::Pcmpeqq(XMMRegister dst, Operand src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpcmpeqq(dst, dst, src);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    pcmpeqq(dst, src);
+  }
+}
+
 void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1,
                              XMMRegister src2) {
+  Pcmpeqq(dst, src1, Operand(src2));
+}
+
+void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1, Operand src2) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpcmpeqq(dst, src1, src2);

@@ -114,6 +114,8 @@ void SimdScalarLowering::LowerGraph() {
   V(I64x2Splat)                   \
   V(I64x2ExtractLane)             \
   V(I64x2ReplaceLane)             \
+  V(I64x2Eq)                      \
+  V(I64x2Ne)                      \
   V(I64x2Neg)                     \
   V(I64x2Shl)                     \
   V(I64x2ShrS)                    \
@@ -166,6 +168,7 @@ void SimdScalarLowering::LowerGraph() {
   V(S128Not)                      \
   V(S128AndNot)                   \
   V(S128Select)                   \
+  V(V64x2AllTrue)                 \
   V(V32x4AllTrue)                 \
   V(V16x8AllTrue)                 \
   V(V128AnyTrue)                  \
@@ -1186,7 +1189,7 @@ Node* SimdScalarLowering::ConstructPhiForComparison(Diamond d,
                                                     int false_value) {
   // Close the given Diamond d using a Phi node, taking care of constructing the
   // right kind of constants (Int32 or Int64) based on rep_type.
-  if (rep_type == SimdType::kFloat64x2) {
+  if (rep_type == SimdType::kFloat64x2 || rep_type == SimdType::kInt64x2) {
     MachineRepresentation rep = MachineRepresentation::kWord64;
     return d.Phi(rep, mcgraph_->Int64Constant(true_value),
                  mcgraph_->Int64Constant(false_value));
@@ -1259,15 +1262,33 @@ void SimdScalarLowering::LowerAllTrueOp(Node* node, SimdType rep_type) {
   int num_lanes = NumLanes(rep_type);
   DCHECK_EQ(1, node->InputCount());
   Node** rep = GetReplacementsWithType(node->InputAt(0), rep_type);
+  Node* zero;
+  Node* tmp_result;
+  MachineRepresentation result_rep = MachineRepresentation::kWord32;
+  const Operator* equals;
+
+  if (SimdType::kInt64x2 == rep_type) {
+    zero = mcgraph_->Int64Constant(0);
+    tmp_result = mcgraph_->Int64Constant(1);
+    result_rep = MachineRepresentation::kWord64;
+    equals = machine()->Word64Equal();
+  } else {
+    zero = mcgraph_->Int32Constant(0);
+    tmp_result = mcgraph_->Int32Constant(1);
+    equals = machine()->Word32Equal();
+  }
 
   Node** rep_node = zone()->NewArray<Node*>(num_lanes);
-  Node* zero = mcgraph_->Int32Constant(0);
-  Node* tmp_result = mcgraph_->Int32Constant(1);
   for (int i = 0; i < num_lanes; ++i) {
-    Diamond d(graph(), common(),
-              graph()->NewNode(machine()->Word32Equal(), rep[i], zero));
-    tmp_result = d.Phi(MachineRepresentation::kWord32, zero, tmp_result);
+    Diamond d(graph(), common(), graph()->NewNode(equals, rep[i], zero));
+    tmp_result = d.Phi(result_rep, zero, tmp_result);
   }
+
+  if (SimdType::kInt64x2 == rep_type) {
+    tmp_result =
+        graph()->NewNode(machine()->TruncateInt64ToInt32(), tmp_result);
+  }
+
   rep_node[0] = tmp_result;
   ReplaceNode(node, rep_node, 1);
 }
@@ -2100,6 +2121,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       COMPARISON_CASE(Float32x4, kF32x4Le, Float32LessThanOrEqual, false)
       COMPARISON_CASE(Float32x4, kF32x4Gt, Float32LessThan, true)
       COMPARISON_CASE(Float32x4, kF32x4Ge, Float32LessThanOrEqual, true)
+      COMPARISON_CASE(Int64x2, kI64x2Eq, Word64Equal, false)
       COMPARISON_CASE(Int32x4, kI32x4Eq, Word32Equal, false)
       COMPARISON_CASE(Int32x4, kI32x4LtS, Int32LessThan, false)
       COMPARISON_CASE(Int32x4, kI32x4LeS, Int32LessThanOrEqual, false)
@@ -2134,6 +2156,10 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kF32x4Ne: {
       LowerNotEqual(node, SimdType::kFloat32x4, machine()->Float32Equal());
+      break;
+    }
+    case IrOpcode::kI64x2Ne: {
+      LowerNotEqual(node, SimdType::kInt64x2, machine()->Word64Equal());
       break;
     }
     case IrOpcode::kI32x4Ne: {
@@ -2236,6 +2262,10 @@ void SimdScalarLowering::LowerNode(Node* node) {
       }
       rep_node[0] = tmp_result;
       ReplaceNode(node, rep_node, 1);
+      break;
+    }
+    case IrOpcode::kV64x2AllTrue: {
+      LowerAllTrueOp(node, SimdType::kInt64x2);
       break;
     }
     case IrOpcode::kV32x4AllTrue: {

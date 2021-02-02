@@ -149,6 +149,7 @@ namespace compiler {
   V(IA32I64x2ShrU)                 \
   V(IA32I64x2BitMask)              \
   V(IA32I64x2Eq)                   \
+  V(IA32I64x2Ne)                   \
   V(IA32I64x2SignSelect)           \
   V(IA32I64x2ExtMulLowI32x4S)      \
   V(IA32I64x2ExtMulHighI32x4S)     \
@@ -403,6 +404,7 @@ namespace compiler {
   V(SSES8x2Reverse)                \
   V(AVXS8x2Reverse)                \
   V(IA32S128AnyTrue)               \
+  V(IA32V64x2AllTrue)              \
   V(IA32V32x4AllTrue)              \
   V(IA32V16x8AllTrue)              \
   V(IA32V8x16AllTrue)              \

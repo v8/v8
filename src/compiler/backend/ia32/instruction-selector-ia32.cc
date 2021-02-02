@@ -2273,6 +2273,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I64x2Add)                              \
   V(I64x2Sub)                              \
   V(I64x2Eq)                               \
+  V(I64x2Ne)                               \
   V(I32x4DotI16x8S)                        \
   V(I16x8RoundingAverageU)                 \
   V(I8x16Add)                              \
@@ -2337,6 +2338,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(S128Not)
 
 #define SIMD_ALLTRUE_LIST(V) \
+  V(V64x2AllTrue)            \
   V(V32x4AllTrue)            \
   V(V16x8AllTrue)            \
   V(V8x16AllTrue)

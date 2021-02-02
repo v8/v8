@@ -2231,6 +2231,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
+    case kIA32I64x2Ne: {
+      __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
+      __ Pcmpeqq(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ Pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      break;
+    }
     case kIA32I64x2SConvertI32x4Low: {
       __ Pmovsxdq(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -4274,6 +4281,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
+    case kIA32V64x2AllTrue:
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqq);
+      break;
     case kIA32V32x4AllTrue:
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;
