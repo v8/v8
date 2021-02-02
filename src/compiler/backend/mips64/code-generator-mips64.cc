@@ -3248,9 +3248,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0));
       break;
     }
-    case kMips64V32x4AnyTrue:
-    case kMips64V16x8AnyTrue:
-    case kMips64V8x16AnyTrue: {
+    case kMips64V128AnyTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_false;

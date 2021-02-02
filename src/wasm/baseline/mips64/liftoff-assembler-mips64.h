@@ -1939,8 +1939,8 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
   subv_b(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
-void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
+void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
+                                         LiftoffRegister src) {
   liftoff::EmitAnyTrue(this, dst, src);
 }
 
@@ -2069,11 +2069,6 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
   subv_h(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
-void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  liftoff::EmitAnyTrue(this, dst, src);
-}
-
 void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_H);
@@ -2196,11 +2191,6 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
   subv_w(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
-}
-
-void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
