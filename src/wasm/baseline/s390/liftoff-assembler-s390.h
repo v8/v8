@@ -534,7 +534,40 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
                                            ValueType type) {
-  bailout(kUnsupportedArchitecture, "LoadReturnStackSlot");
+  switch (type.kind()) {
+    case ValueType::kI32: {
+#if defined(V8_TARGET_BIG_ENDIAN)
+      LoadS32(dst.gp(), MemOperand(sp, offset + 4));
+      break;
+#else
+      LoadS32(dst.gp(), MemOperand(sp, offset));
+      break;
+#endif
+    }
+    case ValueType::kRef:
+    case ValueType::kRtt:
+    case ValueType::kOptRef:
+    case ValueType::kI64: {
+      LoadU64(dst.gp(), MemOperand(sp, offset));
+      break;
+    }
+    case ValueType::kF32: {
+      LoadF32(dst.fp(), MemOperand(sp, offset));
+      break;
+    }
+    case ValueType::kF64: {
+      LoadF64(dst.fp(), MemOperand(sp, offset));
+      break;
+    }
+    case ValueType::kS128: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      LoadV128(dst.fp(), MemOperand(sp, offset), scratch);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
