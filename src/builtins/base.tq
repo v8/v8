@@ -465,6 +465,7 @@ extern macro NameStringConstant(): String;
 extern macro NullConstant(): Null;
 extern macro NumberStringConstant(): String;
 extern macro ReturnStringConstant(): String;
+extern macro SearchSymbolConstant(): Symbol;
 extern macro StringStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;

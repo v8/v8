@@ -98,6 +98,14 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
       base::Optional<DescriptorIndexNameValue> additional_property_to_check,
       Label* if_isunmodified, Label* if_ismodified);
 
+  void BranchIfFastRegExpForSearch(TNode<Context> context,
+                                   TNode<HeapObject> object,
+                                   Label* if_isunmodified,
+                                   Label* if_ismodified);
+  void BranchIfFastRegExpForMatch(TNode<Context> context,
+                                  TNode<HeapObject> object,
+                                  Label* if_isunmodified, Label* if_ismodified);
+
   // Strict: Does not tolerate any changes to the prototype map.
   // Permissive: Allows changes to the prototype map except for the exec
   //             property.

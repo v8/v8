@@ -858,6 +858,29 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
   prototype_check_assembler.CheckAndBranch(prototype, if_isunmodified,
                                            if_ismodified);
 }
+void RegExpBuiltinsAssembler::BranchIfFastRegExpForSearch(
+    TNode<Context> context, TNode<HeapObject> object, Label* if_isunmodified,
+    Label* if_ismodified) {
+  BranchIfFastRegExp(
+      context, object, LoadMap(object),
+      PrototypeCheckAssembler::kCheckPrototypePropertyConstness,
+      DescriptorIndexNameValue{JSRegExp::kSymbolSearchFunctionDescriptorIndex,
+                               RootIndex::ksearch_symbol,
+                               Context::REGEXP_SEARCH_FUNCTION_INDEX},
+      if_isunmodified, if_ismodified);
+}
+
+void RegExpBuiltinsAssembler::BranchIfFastRegExpForMatch(
+    TNode<Context> context, TNode<HeapObject> object, Label* if_isunmodified,
+    Label* if_ismodified) {
+  BranchIfFastRegExp(
+      context, object, LoadMap(object),
+      PrototypeCheckAssembler::kCheckPrototypePropertyConstness,
+      DescriptorIndexNameValue{JSRegExp::kSymbolMatchFunctionDescriptorIndex,
+                               RootIndex::kmatch_symbol,
+                               Context::REGEXP_MATCH_FUNCTION_INDEX},
+      if_isunmodified, if_ismodified);
+}
 
 void RegExpBuiltinsAssembler::BranchIfFastRegExp_Strict(
     TNode<Context> context, TNode<HeapObject> object, Label* if_isunmodified,
