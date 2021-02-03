@@ -356,8 +356,8 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_mac64_rel",
     triggered_timeout = 7200,
-    cq_properties_trigger = {"cancel_stale": False},
-    cq_properties_triggered = {"cancel_stale": False},
+    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
