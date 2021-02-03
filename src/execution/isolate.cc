@@ -3979,11 +3979,6 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   Protectors::InvalidateNoElements(this);
 }
 
-bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
-  DisallowGarbageCollection no_gc;
-  return IsInAnyContext(*array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-}
-
 static base::RandomNumberGenerator* ensure_rng_exists(
     base::RandomNumberGenerator** rng, int seed) {
   if (*rng == nullptr) {

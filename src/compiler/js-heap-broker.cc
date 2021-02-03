@@ -1226,8 +1226,7 @@ bool SupportsFastArrayIteration(Isolate* isolate, Handle<Map> map) {
   return map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(map->elements_kind()) &&
          map->prototype().IsJSArray() &&
-         isolate->IsAnyInitialArrayPrototype(
-             handle(JSArray::cast(map->prototype()), isolate)) &&
+         isolate->IsAnyInitialArrayPrototype(JSArray::cast(map->prototype())) &&
          Protectors::IsNoElementsIntact(isolate);
 }
 

@@ -1304,7 +1304,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Returns true if array is the initial array prototype in any native context.
-  bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
+  inline bool IsAnyInitialArrayPrototype(JSArray array);
 
   std::unique_ptr<PersistentHandles> NewPersistentHandles();
 
