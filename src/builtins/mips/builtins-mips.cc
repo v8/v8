@@ -375,11 +375,17 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ li(t3, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ li(t2, Operand(StackFrame::TypeToMarker(type)));
   __ li(t1, Operand(StackFrame::TypeToMarker(type)));
-  __ li(t0, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+  __ li(t4, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                       masm->isolate()));
-  __ lw(t0, MemOperand(t0));
+  __ lw(t0, MemOperand(t4));
   __ Push(t3, t2, t1, t0);
   pushed_stack_space += 4 * kPointerSize;
+
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ Sw(zero_reg, MemOperand(t4));
 
   // Set up frame pointer for the frame to be pushed.
   __ addiu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
@@ -2466,6 +2472,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ li(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                             masm->isolate()));
+    __ Sw(zero_reg, MemOperand(scratch));
+  }
 
   // Compute the handler entry address and jump to it.
   __ li(t9, pending_handler_entrypoint_address);
