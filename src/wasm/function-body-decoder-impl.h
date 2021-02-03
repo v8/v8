@@ -35,7 +35,7 @@ struct WasmException;
     if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
 
-#define TRACE_INST_FORMAT "  @%-8d #%-20s|"
+#define TRACE_INST_FORMAT "  @%-8d #%-30s|"
 
 // Return the evaluation of `condition` if validate==true, DCHECK that it's
 // true and always return true otherwise.
