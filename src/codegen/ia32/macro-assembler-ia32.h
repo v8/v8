@@ -324,6 +324,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtdq2pd, cvtdq2pd, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtps2pd, cvtps2pd, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtpd2ps, cvtpd2ps, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvttps2dq, cvttps2dq, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Sqrtps, sqrtps, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, XMMRegister)
@@ -406,6 +409,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
   AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
 
+  AVX_PACKED_OP3(Unpcklps, unpcklps)
   AVX_PACKED_OP3(Addps, addps)
   AVX_PACKED_OP3(Addpd, addpd)
   AVX_PACKED_OP3(Subps, subps)

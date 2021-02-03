@@ -138,6 +138,9 @@ namespace compiler {
   V(IA32F64x2Pmin)                 \
   V(IA32F64x2Pmax)                 \
   V(IA32F64x2Round)                \
+  V(IA32F64x2ConvertLowI32x4S)     \
+  V(IA32F64x2ConvertLowI32x4U)     \
+  V(IA32F64x2PromoteLowF32x4)      \
   V(IA32I64x2SplatI32Pair)         \
   V(IA32I64x2ReplaceLaneI32Pair)   \
   V(IA32I64x2Neg)                  \
@@ -189,6 +192,7 @@ namespace compiler {
   V(IA32F32x4Pmin)                 \
   V(IA32F32x4Pmax)                 \
   V(IA32F32x4Round)                \
+  V(IA32F32x4DemoteF64x2Zero)      \
   V(IA32I32x4Splat)                \
   V(IA32I32x4ExtractLane)          \
   V(IA32I32x4SConvertF32x4)        \
@@ -240,6 +244,8 @@ namespace compiler {
   V(IA32I32x4ExtMulHighI16x8U)     \
   V(IA32I32x4ExtAddPairwiseI16x8S) \
   V(IA32I32x4ExtAddPairwiseI16x8U) \
+  V(IA32I32x4TruncSatF64x2SZero)   \
+  V(IA32I32x4TruncSatF64x2UZero)   \
   V(IA32I16x8Splat)                \
   V(IA32I16x8ExtractLaneS)         \
   V(IA32I16x8SConvertI8x16Low)     \

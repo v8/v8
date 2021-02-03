@@ -120,6 +120,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F64x2Pmin:
     case kIA32F64x2Pmax:
     case kIA32F64x2Round:
+    case kIA32F64x2ConvertLowI32x4S:
+    case kIA32F64x2ConvertLowI32x4U:
+    case kIA32F64x2PromoteLowF32x4:
     case kIA32I64x2SplatI32Pair:
     case kIA32I64x2ReplaceLaneI32Pair:
     case kIA32I64x2Neg:
@@ -171,6 +174,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F32x4Pmin:
     case kIA32F32x4Pmax:
     case kIA32F32x4Round:
+    case kIA32F32x4DemoteF64x2Zero:
     case kIA32I32x4Splat:
     case kIA32I32x4ExtractLane:
     case kIA32I32x4SConvertF32x4:
@@ -222,6 +226,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4ExtMulHighI16x8U:
     case kIA32I32x4ExtAddPairwiseI16x8S:
     case kIA32I32x4ExtAddPairwiseI16x8U:
+    case kIA32I32x4TruncSatF64x2SZero:
+    case kIA32I32x4TruncSatF64x2UZero:
     case kIA32I16x8Splat:
     case kIA32I16x8ExtractLaneS:
     case kIA32I16x8SConvertI8x16Low:
