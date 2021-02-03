@@ -4419,6 +4419,7 @@ v8_component("v8_libbase") {
 
   if (is_tsan && !build_with_chromium) {
     data += [ "tools/sanitizers/tsan_suppressions.txt" ]
+
     # llvm-symbolizer uses libstdc++ from the clang package.
     data += [ "//third_party/llvm-build/Release+Asserts/lib/libstdc++.so.6" ]
   }
@@ -4728,6 +4729,22 @@ v8_source_set("cppgc_base") {
     ":v8_libbase",
     ":v8_libplatform",
   ]
+}
+
+v8_source_set("cppgc_base_for_testing") {
+  visibility = [ ":*" ]
+
+  sources = [
+    "include/cppgc/testing.h",
+    "src/heap/cppgc/testing.cc",
+  ]
+
+  configs = [
+    ":internal_config",
+    ":cppgc_base_config",
+  ]
+
+  public_deps = [ ":cppgc_base" ]
 }
 
 ###############################################################################
@@ -5066,6 +5083,7 @@ if (is_component_build) {
     sources = [ "src/utils/v8dll-main.cc" ]
 
     public_deps = [
+      ":cppgc_base_for_testing",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
@@ -5082,12 +5100,11 @@ if (is_component_build) {
   v8_component("cppgc") {
     public_deps = [ ":cppgc_base" ]
 
-    configs = [ ":internal_config" ]
-
     if (!cppgc_is_standalone) {
       deps = [ ":v8" ]
     }
 
+    configs = []
     public_configs = [ ":external_config" ]
   }
 
@@ -5095,9 +5112,12 @@ if (is_component_build) {
     v8_component("cppgc_for_testing") {
       testonly = true
 
-      public_deps = [ ":cppgc_base" ]
+      public_deps = [
+        ":cppgc_base",
+        ":cppgc_base_for_testing",
+      ]
 
-      configs = [ ":internal_config" ]
+      configs = []
       public_configs = [ ":external_config" ]
     }
   }
@@ -5107,7 +5127,7 @@ if (is_component_build) {
 
     public_deps = [ ":v8_cppgc_shared" ]
 
-    configs = [ ":internal_config" ]
+    configs = []
     public_configs = [ ":external_config" ]
   }
 } else {
@@ -5124,6 +5144,7 @@ if (is_component_build) {
     testonly = true
 
     public_deps = [
+      ":cppgc_base_for_testing",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
@@ -5148,7 +5169,10 @@ if (is_component_build) {
     group("cppgc_for_testing") {
       testonly = true
 
-      public_deps = [ ":cppgc_base" ]
+      public_deps = [
+        ":cppgc_base",
+        ":cppgc_base_for_testing",
+      ]
 
       public_configs = [ ":external_config" ]
     }

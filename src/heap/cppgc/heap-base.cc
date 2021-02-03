@@ -53,6 +53,20 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 
 }  // namespace
 
+// static
+HeapBase& HeapBase::ForTesting(cppgc::HeapHandle& heap_handle) {
+  auto& heap = From(heap_handle);
+  CHECK(heap.TestingEnabled());
+  return heap;
+}
+
+// static
+const HeapBase& HeapBase::ForTesting(const cppgc::HeapHandle& heap_handle) {
+  const auto& heap = From(heap_handle);
+  CHECK(heap.TestingEnabled());
+  return heap;
+}
+
 HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,

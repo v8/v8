@@ -173,12 +173,15 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   DCHECK(!in_no_gc_scope());
   CHECK(!in_disallow_gc_scope());
   config_.stack_state = stack_state;
+  if (override_stack_state_) {
+    config_.stack_state = *override_stack_state_;
+  }
   in_atomic_pause_ = true;
   {
     // This guards atomic pause marking, meaning that no internal method or
     // external callbacks are allowed to allocate new objects.
     cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
-    marker_->FinishMarking(stack_state);
+    marker_->FinishMarking(config_.stack_state);
   }
   {
     // Pre finalizers are forbidden from allocating objects.
@@ -189,7 +192,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   MarkingVerifier verifier(*this);
-  verifier.Run(stack_state);
+  verifier.Run(config_.stack_state);
 #endif
 
   subtle::NoGarbageCollectionScope no_gc(*this);

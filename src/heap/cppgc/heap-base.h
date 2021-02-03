@@ -36,6 +36,10 @@ class DisallowGarbageCollectionScope;
 class NoGarbageCollectionScope;
 }  // namespace subtle
 
+namespace testing {
+class OverrideEmbedderStackStateScope;
+}  // namespace testing
+
 class Platform;
 
 class V8_EXPORT HeapHandle {
@@ -65,6 +69,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   static const HeapBase& From(const cppgc::HeapHandle& heap_handle) {
     return static_cast<const HeapBase&>(heap_handle);
   }
+
+  static HeapBase& ForTesting(cppgc::HeapHandle& heap_handle);
+  static const HeapBase& ForTesting(const cppgc::HeapHandle& heap_handle);
 
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
@@ -153,6 +160,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   bool in_disallow_gc_scope() const { return disallow_gc_scope_ > 0; }
   bool in_atomic_pause() const { return in_atomic_pause_; }
 
+  void EnableTestingAPIsForTesting() { testing_enabled_ = true; }
+  bool TestingEnabled() const { return testing_enabled_; }
+
  protected:
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
@@ -190,13 +200,16 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   size_t disallow_gc_scope_ = 0;
 
   const StackSupport stack_support_;
+  std::unique_ptr<EmbedderStackState> override_stack_state_;
 
   bool in_atomic_pause_ = false;
+  bool testing_enabled_ = false;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;
   friend class cppgc::subtle::NoGarbageCollectionScope;
+  friend class cppgc::testing::OverrideEmbedderStackStateScope;
 };
 
 }  // namespace internal

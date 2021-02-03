@@ -261,6 +261,9 @@ void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
       AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
   in_atomic_pause_ = true;
+  if (override_stack_state_) {
+    stack_state = *override_stack_state_;
+  }
   marker_->EnterAtomicPause(stack_state);
   if (compactor_.CancelIfShouldNotCompact(cppgc::Heap::MarkingType::kAtomic,
                                           stack_state)) {
