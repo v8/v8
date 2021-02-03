@@ -293,6 +293,8 @@
 ['arch == arm and not simulator_run', {
   # crbug.com/v8/7605
   'test-heap/OutOfMemorySmallObjects': [SKIP],
+  # TODO(v8:11391)
+  'test-code-generator/Regress_1171759': [SKIP],
 }],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
