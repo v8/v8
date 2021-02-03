@@ -2501,6 +2501,7 @@ void InstructionSelector::VisitI16x8ExtMulLowI8x16U(Node* node) {
 void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
   UNIMPLEMENTED();
 }
+void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,

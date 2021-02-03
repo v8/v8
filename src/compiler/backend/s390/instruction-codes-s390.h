@@ -378,6 +378,7 @@ namespace compiler {
   V(S390_I8x16Shuffle)                      \
   V(S390_I8x16Swizzle)                      \
   V(S390_I8x16SignSelect)                   \
+  V(S390_I8x16Popcnt)                       \
   V(S390_V64x2AllTrue)                      \
   V(S390_V32x4AllTrue)                      \
   V(S390_V16x8AllTrue)                      \

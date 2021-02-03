@@ -778,20 +778,21 @@ void Simulator::EvalTableInit() {
   V(vuplh, VUPLH, 0xE7D5) /* type = VRR_A VECTOR UNPACK LOGICAL HIGH  */       \
   V(vupl, VUPL, 0xE7D6)   /* type = VRR_A VECTOR UNPACK LOW  */                \
   V(vuph, VUPH, 0xE7D7)   /* type = VRR_A VECTOR UNPACK HIGH  */               \
-  V(vmnl, VMNL, 0xE7FC)   /* type = VRR_C VECTOR MINIMUM LOGICAL  */           \
-  V(vmxl, VMXL, 0xE7FD)   /* type = VRR_C VECTOR MAXIMUM LOGICAL  */           \
-  V(vmn, VMN, 0xE7FE)     /* type = VRR_C VECTOR MINIMUM  */                   \
-  V(vmx, VMX, 0xE7FF)     /* type = VRR_C VECTOR MAXIMUM  */                   \
-  V(vceq, VCEQ, 0xE7F8)   /* type = VRR_B VECTOR COMPARE EQUAL  */             \
-  V(vx, VX, 0xE76D)       /* type = VRR_C VECTOR EXCLUSIVE OR  */              \
-  V(vchl, VCHL, 0xE7F9)   /* type = VRR_B VECTOR COMPARE HIGH LOGICAL  */      \
-  V(vch, VCH, 0xE7FB)     /* type = VRR_B VECTOR COMPARE HIGH  */              \
-  V(vo, VO, 0xE76A)       /* type = VRR_C VECTOR OR  */                        \
-  V(vn, VN, 0xE768)       /* type = VRR_C VECTOR AND  */                       \
-  V(vno, VNO, 0xE768B)    /* type = VRR_C VECTOR NOR  */                       \
-  V(vlc, VLC, 0xE7DE)     /* type = VRR_A VECTOR LOAD COMPLEMENT  */           \
-  V(vsel, VSEL, 0xE78D)   /* type = VRR_E VECTOR SELECT  */                    \
-  V(vperm, VPERM, 0xE78C) /* type = VRR_E VECTOR PERMUTE  */                   \
+  V(vpopct, VPOPCT, 0xE750) /* type = VRR_A VECTOR POPULATION COUNT  */        \
+  V(vmnl, VMNL, 0xE7FC)     /* type = VRR_C VECTOR MINIMUM LOGICAL  */         \
+  V(vmxl, VMXL, 0xE7FD)     /* type = VRR_C VECTOR MAXIMUM LOGICAL  */         \
+  V(vmn, VMN, 0xE7FE)       /* type = VRR_C VECTOR MINIMUM  */                 \
+  V(vmx, VMX, 0xE7FF)       /* type = VRR_C VECTOR MAXIMUM  */                 \
+  V(vceq, VCEQ, 0xE7F8)     /* type = VRR_B VECTOR COMPARE EQUAL  */           \
+  V(vx, VX, 0xE76D)         /* type = VRR_C VECTOR EXCLUSIVE OR  */            \
+  V(vchl, VCHL, 0xE7F9)     /* type = VRR_B VECTOR COMPARE HIGH LOGICAL  */    \
+  V(vch, VCH, 0xE7FB)       /* type = VRR_B VECTOR COMPARE HIGH  */            \
+  V(vo, VO, 0xE76A)         /* type = VRR_C VECTOR OR  */                      \
+  V(vn, VN, 0xE768)         /* type = VRR_C VECTOR AND  */                     \
+  V(vno, VNO, 0xE768B)      /* type = VRR_C VECTOR NOR  */                     \
+  V(vlc, VLC, 0xE7DE)       /* type = VRR_A VECTOR LOAD COMPLEMENT  */         \
+  V(vsel, VSEL, 0xE78D)     /* type = VRR_E VECTOR SELECT  */                  \
+  V(vperm, VPERM, 0xE78C)   /* type = VRR_E VECTOR PERMUTE  */                 \
   V(vbperm, VBPERM, 0xE785) /* type = VRR_C VECTOR BIT PERMUTE   */            \
   V(vtm, VTM, 0xE7D8)       /* type = VRR_A VECTOR TEST UNDER MASK  */         \
   V(vesl, VESL, 0xE730)     /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */      \
@@ -3454,6 +3455,33 @@ EVALUATE(VUPLH) {
     CASE(0, uint8_t, uint16_t);
     CASE(1, uint16_t, uint32_t);
     CASE(2, uint32_t, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+template <class S>
+void VectorPopulationCount(Simulator* sim, int dst, int src) {
+  FOR_EACH_LANE(i, S) {
+    sim->set_simd_register_by_lane<S>(
+        dst, i,
+        base::bits::CountPopulation(sim->get_simd_register_by_lane<S>(src, i)));
+  }
+}
+
+#define CASE(i, S)                          \
+  case i:                                   \
+    VectorPopulationCount<S>(this, r1, r2); \
+    break;
+EVALUATE(VPOPCT) {
+  DCHECK_OPCODE(VPOPCT);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m5);
+  USE(m4);
+  switch (m3) {
+    CASE(0, uint8_t);
     default:
       UNREACHABLE();
   }

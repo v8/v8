@@ -4282,6 +4282,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef SIGN_SELECT
+    case kS390_I8x16Popcnt: {
+      __ vpopct(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                Condition(0), Condition(0), Condition(0));
+      break;
+    }
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
