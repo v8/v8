@@ -1604,10 +1604,10 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
       &WasmGenerator::memop<kExprS128Load64Splat>,
       &WasmGenerator::memop<kExprS128Load32Zero>,
       &WasmGenerator::memop<kExprS128Load64Zero>,
-      &WasmGenerator::simd_lane_memop<kExprS128Load8Lane, 16>,
-      &WasmGenerator::simd_lane_memop<kExprS128Load16Lane, 8>,
-      &WasmGenerator::simd_lane_memop<kExprS128Load32Lane, 4>,
-      &WasmGenerator::simd_lane_memop<kExprS128Load64Lane, 2>,
+      &WasmGenerator::simd_lane_memop<kExprS128Load8Lane, 16, ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Load16Lane, 8, ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Load32Lane, 4, ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Load64Lane, 2, ValueType::kS128>,
   };
 
   GenerateOneOf(alternatives, data);
