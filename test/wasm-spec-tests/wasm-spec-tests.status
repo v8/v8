@@ -18,9 +18,8 @@
   'data': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
-  'proposals/js-types/elem': [FAIL],
-  'proposals/js-types/globals': [FAIL],
   'proposals/js-types/imports': [FAIL],
+  'proposals/js-types/globals': [FAIL],
   'proposals/js-types/linking': [FAIL],
 
   # TODO(wasm): Roll newest tests into "tail-call" repository.
@@ -36,6 +35,10 @@
 
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
+
+  # TODO(v8:11331): Remove once spec tests are updated with v128.any_true.
+  'proposals/simd/simd_boolean': [FAIL],
+  'proposals/simd/simd_lane': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
