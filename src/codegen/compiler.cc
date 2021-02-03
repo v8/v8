@@ -3009,7 +3009,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
   DCHECK(!osr_offset.IsNone());
   DCHECK_NOT_NULL(osr_frame);
   return GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent,
-                          CodeKindForTopTier(), osr_offset, osr_frame);
+                          CodeKindForOSR(), osr_offset, osr_frame);
 }
 
 // static

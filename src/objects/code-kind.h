@@ -121,6 +121,13 @@ inline CodeKind CodeKindForTopTier() {
   return CodeKind::TURBOFAN;
 }
 
+inline CodeKind CodeKindForOSR() {
+  if (V8_UNLIKELY(FLAG_turboprop)) {
+    return CodeKind::TURBOPROP;
+  }
+  return CodeKind::TURBOFAN;
+}
+
 // The dedicated CodeKindFlag enum represents all code kinds in a format
 // suitable for bit sets.
 enum class CodeKindFlag {
