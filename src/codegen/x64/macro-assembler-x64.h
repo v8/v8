@@ -162,7 +162,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Addss, addss)
   AVX_OP(Addsd, addsd)
   AVX_OP(Mulsd, mulsd)
-  AVX_OP(Unpcklps, unpcklps)
   AVX_OP(Andps, andps)
   AVX_OP(Andnps, andnps)
   AVX_OP(Andpd, andpd)
@@ -542,6 +541,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
+  void Unpcklps(XMMRegister dst, XMMRegister src1, Operand src2);
   // Shufps that will mov src1 into dst if AVX is not supported.
   void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8);
 

@@ -10,7 +10,9 @@
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/backend/instruction.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -2931,7 +2933,6 @@ VISIT_ATOMIC_BINOP(Xor)
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Sqrt)              \
   V(F64x2ConvertLowI32x4S)  \
-  V(F64x2ConvertLowI32x4U)  \
   V(F64x2PromoteLowF32x4)   \
   V(F32x4SConvertI32x4)     \
   V(F32x4Abs)               \
@@ -3724,6 +3725,13 @@ void InstructionSelector::VisitI8x16Popcnt(Node* node) {
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I8x16Popcnt, dst, g.UseUniqueRegister(node->InputAt(0)),
        arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kX64F64x2ConvertLowI32x4U, dst, g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {

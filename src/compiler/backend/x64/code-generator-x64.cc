@@ -2483,13 +2483,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F64x2ConvertLowI32x4U: {
       XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
       // dst = [ src_low, 0x43300000, src_high, 0x4330000 ];
       // 0x43300000'00000000 is a special double where the significand bits
       // precisely represents all uint32 numbers.
       __ Unpcklps(
-          dst, __ ExternalReferenceAsOperand(
-                   ExternalReference::
-                       address_of_wasm_f64x2_convert_low_i32x4_u_int_mask()));
+          dst, src,
+          __ ExternalReferenceAsOperand(
+              ExternalReference::
+                  address_of_wasm_f64x2_convert_low_i32x4_u_int_mask()));
       __ Subpd(dst,
                __ ExternalReferenceAsOperand(
                    ExternalReference::address_of_wasm_double_2_power_52()));

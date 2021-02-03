@@ -1825,6 +1825,16 @@ void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
   }
 }
 
+void TurboAssembler::Unpcklps(XMMRegister dst, XMMRegister src1, Operand src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vunpcklps(dst, src1, src2);
+  } else {
+    DCHECK_EQ(dst, src1);
+    unpcklps(dst, src2);
+  }
+}
+
 void TurboAssembler::Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                             byte imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
