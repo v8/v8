@@ -1771,7 +1771,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // the slot allocator reclaimed other padding slots. Adjust the stack
       // here to skip any gap.
       if (slots > pushed_slots) {
-        __ AllocateStackSpace(slots - pushed_slots);
+        __ AllocateStackSpace((slots - pushed_slots) * kSystemPointerSize);
       }
       switch (rep) {
         case MachineRepresentation::kFloat32:
