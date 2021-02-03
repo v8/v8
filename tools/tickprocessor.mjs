@@ -418,7 +418,7 @@ export class TickProcessor extends LogReader {
     print(`Statistical profiling result from ${this.lastLogFileName_}` +
       `, (${this.ticks_.total} ticks, ${this.ticks_.unaccounted} unaccounted, ` +
       `${this.ticks_.excluded} excluded).`);
- 
+
 
     if (this.ticks_.total == 0) return;
 
@@ -607,7 +607,7 @@ class CppEntriesProvider {
         lastUnknownSize.start < funcInfo.start) {
         // Try to update lastUnknownSize based on new entries start position.
         lastUnknownSize.end = funcInfo.start;
-        if ((!lastAdded || 
+        if ((!lastAdded ||
             !this.inRange(lastUnknownSize, lastAdded.start, lastAdded.end)) &&
             this.inRange(lastUnknownSize, libStart, libEnd)) {
           processorFunc(
