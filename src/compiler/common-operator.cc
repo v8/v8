@@ -1625,6 +1625,17 @@ CommonOperatorBuilder::CreateFrameStateFunctionInfo(
                                              shared_info);
 }
 
+const FrameStateFunctionInfo*
+CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
+    FrameStateType type, int parameter_count, int local_count,
+    Handle<SharedFunctionInfo> shared_info,
+    const wasm::FunctionSig* signature) {
+  DCHECK_EQ(type, FrameStateType::kJSToWasmBuiltinContinuation);
+  DCHECK_NOT_NULL(signature);
+  return zone()->New<JSToWasmFrameStateFunctionInfo>(
+      type, parameter_count, local_count, shared_info, signature);
+}
+
 const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
   return zone()->New<Operator1<MachineRepresentation>>(  // --
       IrOpcode::kDeadValue, Operator::kPure,             // opcode

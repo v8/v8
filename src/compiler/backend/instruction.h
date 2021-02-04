@@ -1319,6 +1319,7 @@ class FrameStateDescriptor : public ZoneObject {
   bool HasContext() const {
     return FrameStateFunctionInfo::IsJSFunctionType(type_) ||
            type_ == FrameStateType::kBuiltinContinuation ||
+           type_ == FrameStateType::kJSToWasmBuiltinContinuation ||
            type_ == FrameStateType::kConstructStub;
   }
 
@@ -1356,6 +1357,25 @@ class FrameStateDescriptor : public ZoneObject {
   StateValueList values_;
   MaybeHandle<SharedFunctionInfo> const shared_info_;
   FrameStateDescriptor* const outer_state_;
+};
+
+class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
+ public:
+  JSToWasmFrameStateDescriptor(Zone* zone, FrameStateType type,
+                               BytecodeOffset bailout_id,
+                               OutputFrameStateCombine state_combine,
+                               size_t parameters_count, size_t locals_count,
+                               size_t stack_count,
+                               MaybeHandle<SharedFunctionInfo> shared_info,
+                               FrameStateDescriptor* outer_state,
+                               const wasm::FunctionSig* wasm_signature);
+
+  base::Optional<wasm::ValueType::Kind> return_type() const {
+    return return_type_;
+  }
+
+ private:
+  base::Optional<wasm::ValueType::Kind> return_type_;
 };
 
 // A deoptimization entry is a pair of the reason why we deoptimize and the

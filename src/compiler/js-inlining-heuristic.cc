@@ -138,6 +138,12 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 }
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
+  if (mode() == kWasmOnly) {
+    return (node->opcode() == IrOpcode::kJSWasmCall)
+               ? inliner_.ReduceJSWasmCall(node)
+               : NoChange();
+  }
+  DCHECK_EQ(mode(), kJSOnly);
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
   if (total_inlined_bytecode_size_ >= FLAG_max_inlined_bytecode_size_absolute) {
@@ -666,6 +672,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool small_function) {
   int const num_calls = candidate.num_functions;
   Node* const node = candidate.node;
+  DCHECK_NE(node->opcode(), IrOpcode::kJSWasmCall);
   if (num_calls == 1) {
     Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {

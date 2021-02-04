@@ -164,6 +164,9 @@ class Deoptimizer : public Malloced {
   static Builtins::Name TrampolineForBuiltinContinuation(
       BuiltinContinuationMode mode, bool must_handle_result);
 
+  TranslatedValue TranslatedValueForWasmReturnType(
+      base::Optional<wasm::ValueType::Kind> wasm_call_return_type);
+
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
                                     int frame_index,
                                     BuiltinContinuationMode mode);

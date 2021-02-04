@@ -746,6 +746,7 @@ DEFINE_BOOL(turbo_dynamic_map_checks, true,
             "if all handlers in an IC are the same for turboprop and NCI")
 DEFINE_BOOL(turbo_compress_translation_arrays, false,
             "compress translation arrays (experimental)")
+DEFINE_BOOL(turbo_inline_js_wasm_calls, false, "inline JS->Wasm calls")
 
 // Native context independent (NCI) code.
 DEFINE_BOOL(turbo_nci, false,

@@ -4,6 +4,7 @@
 
 #include "src/deoptimizer/translation-array.h"
 
+#include "src/deoptimizer/translated-state.h"
 #include "src/objects/fixed-array-inl.h"
 #include "third_party/zlib/google/compression_utils_portable.h"
 
@@ -19,6 +20,13 @@ constexpr int kUncompressedSizeSize = kInt32Size;
 constexpr int kCompressedDataOffset =
     kUncompressedSizeOffset + kUncompressedSizeSize;
 constexpr int kTranslationArrayElementSize = kInt32Size;
+
+// Encodes the return type of a Wasm function as the integer value of
+// wasm::ValueType::Kind, or kNoWasmReturnType if the function returns void.
+int EncodeWasmReturnType(base::Optional<wasm::ValueType::Kind> return_type) {
+  return return_type ? static_cast<int>(return_type.value())
+                     : kNoWasmReturnType;
+}
 
 }  // namespace
 
@@ -134,6 +142,18 @@ void TranslationArrayBuilder::BeginBuiltinContinuationFrame(
   Add(literal_id);
   Add(height);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
+}
+
+void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
+    BytecodeOffset bytecode_offset, int literal_id, unsigned height,
+    base::Optional<wasm::ValueType::Kind> return_type) {
+  auto opcode = TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME;
+  Add(opcode);
+  Add(bytecode_offset.ToInt());
+  Add(literal_id);
+  Add(height);
+  Add(EncodeWasmReturnType(return_type));
+  DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
 }
 
 void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationFrame(

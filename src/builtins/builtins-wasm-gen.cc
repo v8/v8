@@ -107,5 +107,20 @@ TF_BUILTIN(WasmI64AtomicWait32, WasmBuiltinsAssembler) {
   Return(Unsigned(SmiToInt32(result_smi)));
 }
 
+TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
+  // Reset thread_in_wasm_flag.
+  TNode<ExternalReference> thread_in_wasm_flag_address_address =
+      ExternalConstant(
+          ExternalReference::thread_in_wasm_flag_address_address(isolate()));
+  auto thread_in_wasm_flag_address =
+      Load<RawPtrT>(thread_in_wasm_flag_address_address);
+  StoreNoWriteBarrier(MachineRepresentation::kWord32,
+                      thread_in_wasm_flag_address, Int32Constant(0));
+
+  // Return the argument.
+  auto value = Parameter<Object>(Descriptor::kArgument);
+  Return(value);
+}
+
 }  // namespace internal
 }  // namespace v8

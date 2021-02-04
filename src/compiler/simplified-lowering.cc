@@ -28,6 +28,7 @@
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/address-map.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -1827,6 +1828,105 @@ class RepresentationSelector {
     MachineType return_type =
         MachineTypeFor(c_signature->ReturnInfo().GetType());
     SetOutput<T>(node, return_type.representation());
+  }
+
+  static MachineType MachineTypeForWasmReturnType(wasm::ValueType type) {
+    switch (type.kind()) {
+      case wasm::ValueType::kI32:
+        return MachineType::Int32();
+      case wasm::ValueType::kF32:
+        return MachineType::Float32();
+      case wasm::ValueType::kF64:
+        return MachineType::Float64();
+      case wasm::ValueType::kI64:
+        // Not used for i64, see VisitJSWasmCall().
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  UseInfo UseInfoForJSWasmCallArgument(Node* input, wasm::ValueType type,
+                                       FeedbackSource const& feedback) {
+    // If the input type is a Number or Oddball, we can directly convert the
+    // input into the Wasm native type of the argument. If not, we return
+    // UseInfo::AnyTagged to signal that WasmWrapperGraphBuilder will need to
+    // add Nodes to perform the conversion (in WasmWrapperGraphBuilder::FromJS).
+    switch (type.kind()) {
+      case wasm::ValueType::kI32:
+        return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
+      case wasm::ValueType::kI64:
+        return UseInfo::AnyTagged();
+      case wasm::ValueType::kF32:
+      case wasm::ValueType::kF64:
+        // For Float32, TruncateFloat64ToFloat32 will be inserted later in
+        // WasmWrapperGraphBuilder::BuildJSToWasmWrapper.
+        return UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
+                                                        feedback);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  template <Phase T>
+  void VisitJSWasmCall(Node* node, SimplifiedLowering* lowering) {
+    DCHECK_EQ(JSWasmCallNode::TargetIndex(), 0);
+    DCHECK_EQ(JSWasmCallNode::ReceiverIndex(), 1);
+    DCHECK_EQ(JSWasmCallNode::FirstArgumentIndex(), 2);
+
+    JSWasmCallNode n(node);
+
+    JSWasmCallParameters const& params = n.Parameters();
+    const wasm::FunctionSig* wasm_signature = params.signature();
+    int wasm_arg_count = static_cast<int>(wasm_signature->parameter_count());
+    DCHECK_EQ(wasm_arg_count, n.ArgumentCount());
+
+    base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
+        wasm_arg_count);
+
+    // Visit JSFunction and Receiver nodes.
+    ProcessInput<T>(node, JSWasmCallNode::TargetIndex(), UseInfo::Any());
+    ProcessInput<T>(node, JSWasmCallNode::ReceiverIndex(), UseInfo::Any());
+
+    // Propagate representation information from TypeInfo.
+    for (int i = 0; i < wasm_arg_count; i++) {
+      TNode<Object> input = n.Argument(i);
+      DCHECK_NOT_NULL(input);
+      arg_use_info[i] = UseInfoForJSWasmCallArgument(
+          input, wasm_signature->GetParam(i), params.feedback());
+      ProcessInput<T>(node, JSWasmCallNode::ArgumentIndex(i), arg_use_info[i]);
+    }
+
+    // Visit value, context and frame state inputs as tagged.
+    int first_effect_index = NodeProperties::FirstEffectIndex(node);
+    DCHECK(first_effect_index >
+           JSWasmCallNode::FirstArgumentIndex() + wasm_arg_count);
+    for (int i = JSWasmCallNode::FirstArgumentIndex() + wasm_arg_count;
+         i < first_effect_index; i++) {
+      ProcessInput<T>(node, i, UseInfo::AnyTagged());
+    }
+
+    // Effect and Control.
+    ProcessRemainingInputs<T>(node, NodeProperties::FirstEffectIndex(node));
+
+    if (wasm_signature->return_count() == 1) {
+      if (wasm_signature->GetReturn().kind() == wasm::ValueType::kI64) {
+        // Conversion between negative int64 and BigInt not supported yet.
+        // Do not bypass the type conversion when the result type is i64.
+        SetOutput<T>(node, MachineRepresentation::kTagged);
+      } else {
+        MachineType return_type =
+            MachineTypeForWasmReturnType(wasm_signature->GetReturn());
+        SetOutput<T>(
+            node, return_type.representation(),
+            JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn()));
+      }
+    } else {
+      DCHECK_EQ(wasm_signature->return_count(), 0);
+      SetOutput<T>(node, MachineRepresentation::kTagged);
+    }
+
+    // The actual lowering of JSWasmCall nodes happens later, in the subsequent
+    // "wasm-inlining" phase.
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -3740,7 +3840,8 @@ class RepresentationSelector {
       case IrOpcode::kArgumentsLengthState:
       case IrOpcode::kUnreachable:
       case IrOpcode::kRuntimeAbort:
-// All JavaScript operators except JSToNumber have uniform handling.
+// All JavaScript operators except JSToNumber, JSToNumberConvertBigInt,
+// kJSToNumeric and JSWasmCall have uniform handling.
 #define OPCODE_CASE(name, ...) case IrOpcode::k##name:
         JS_SIMPLE_BINOP_LIST(OPCODE_CASE)
         JS_OBJECT_OP_LIST(OPCODE_CASE)
@@ -3756,6 +3857,9 @@ class RepresentationSelector {
       case IrOpcode::kJSToObject:
       case IrOpcode::kJSToString:
       case IrOpcode::kJSParseInt:
+        if (node->opcode() == IrOpcode::kJSWasmCall) {
+          return VisitJSWasmCall<T>(node, lowering);
+        }
         VisitInputs<T>(node);
         // Assume the output is tagged.
         return SetOutput<T>(node, MachineRepresentation::kTagged);

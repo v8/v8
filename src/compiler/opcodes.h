@@ -196,7 +196,8 @@
   V(JSCall)                \
   V(JSCallForwardVarargs)  \
   V(JSCallWithArrayLike)   \
-  V(JSCallWithSpread)
+  V(JSCallWithSpread)      \
+  V(JSWasmCall)
 
 #define JS_CONSTRUCT_OP_LIST(V) \
   V(JSConstructForwardVarargs)  \
