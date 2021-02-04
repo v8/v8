@@ -5410,11 +5410,13 @@ EVALUATE(SRL) {
   DCHECK_OPCODE(SRL);
   DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
   // only takes rightmost 6bits
-  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   uint32_t r1_val = get_low_register<uint32_t>(r1);
   uint32_t alu_out = 0;
-  alu_out = r1_val >> shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r1_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -5423,11 +5425,13 @@ EVALUATE(SLL) {
   DCHECK_OPCODE(SLL);
   DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2)
   // only takes rightmost 6bits
-  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   uint32_t r1_val = get_low_register<uint32_t>(r1);
   uint32_t alu_out = 0;
-  alu_out = r1_val << shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r1_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -5439,9 +5443,11 @@ EVALUATE(SRA) {
   int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
   int32_t r1_val = get_low_register<int32_t>(r1);
-  int32_t alu_out = 0;
+  int32_t alu_out = -1;
   bool isOF = false;
-  alu_out = r1_val >> shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r1_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -5458,7 +5464,9 @@ EVALUATE(SLA) {
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForShiftLeft(r1_val, shiftBits);
-  alu_out = r1_val << shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r1_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -10446,9 +10454,11 @@ EVALUATE(SRAK) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
   int32_t r3_val = get_low_register<int32_t>(r3);
-  int32_t alu_out = 0;
+  int32_t alu_out = -1;
   bool isOF = false;
-  alu_out = r3_val >> shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r3_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -10466,7 +10476,9 @@ EVALUATE(SLAK) {
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForShiftLeft(r3_val, shiftBits);
-  alu_out = r3_val << shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r3_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -10482,12 +10494,14 @@ EVALUATE(SRLK) {
   // unchanged in general register R3.
   DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
   // only takes rightmost 6 bits
-  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   // unsigned
   uint32_t r3_val = get_low_register<uint32_t>(r3);
   uint32_t alu_out = 0;
-  alu_out = r3_val >> shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r3_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -10501,12 +10515,14 @@ EVALUATE(SLLK) {
   // unchanged in general register R3.
   DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
   // only takes rightmost 6 bits
-  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   // unsigned
   uint32_t r3_val = get_low_register<uint32_t>(r3);
   uint32_t alu_out = 0;
-  alu_out = r3_val << shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r3_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
