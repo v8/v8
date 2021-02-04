@@ -1401,7 +1401,15 @@ void InstructionSelector::EmitPrepareArguments(
       if (input.node == nullptr) continue;
       InstructionOperand decrement = g.UseImmediate(stack_decrement);
       stack_decrement = 0;
-      if (g.CanBeMemoryOperand(kIA32Push, node, input.node, effect_level)) {
+      if (g.CanBeImmediate(input.node)) {
+        Emit(kIA32Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
+      } else if (IsSupported(ATOM) ||
+                 sequence()->IsFP(GetVirtualRegister(input.node))) {
+        // TODO(bbudge): IA32Push cannot handle stack->stack double moves
+        // because there is no way to encode fixed double slots.
+        Emit(kIA32Push, g.NoOutput(), decrement, g.UseRegister(input.node));
+      } else if (g.CanBeMemoryOperand(kIA32Push, node, input.node,
+                                      effect_level)) {
         InstructionOperand outputs[1];
         InstructionOperand inputs[5];
         size_t input_count = 0;
@@ -1411,22 +1419,7 @@ void InstructionSelector::EmitPrepareArguments(
         InstructionCode opcode = kIA32Push | AddressingModeField::encode(mode);
         Emit(opcode, 0, outputs, input_count, inputs);
       } else {
-        InstructionOperand value =
-            g.CanBeImmediate(input.node)
-                ? g.UseImmediate(input.node)
-                : IsSupported(ATOM) ||
-                          sequence()->IsFP(GetVirtualRegister(input.node))
-                      ? g.UseRegister(input.node)
-                      : g.Use(input.node);
-        if (input.location.GetType() == MachineType::Float32()) {
-          Emit(kIA32PushFloat32, g.NoOutput(), decrement, value);
-        } else if (input.location.GetType() == MachineType::Float64()) {
-          Emit(kIA32PushFloat64, g.NoOutput(), decrement, value);
-        } else if (input.location.GetType() == MachineType::Simd128()) {
-          Emit(kIA32PushSimd128, g.NoOutput(), decrement, value);
-        } else {
-          Emit(kIA32Push, g.NoOutput(), decrement, value);
-        }
+        Emit(kIA32Push, g.NoOutput(), decrement, g.UseAny(input.node));
       }
     }
   }

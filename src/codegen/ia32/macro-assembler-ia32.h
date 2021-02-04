@@ -96,7 +96,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void AllocateStackSpace(int bytes);
 #else
   void AllocateStackSpace(Register bytes) { sub(esp, bytes); }
-  void AllocateStackSpace(int bytes) { sub(esp, Immediate(bytes)); }
+  void AllocateStackSpace(int bytes) {
+    DCHECK_GE(bytes, 0);
+    if (bytes == 0) return;
+    sub(esp, Immediate(bytes));
+  }
 #endif
 
   // Print a message to stdout and abort execution.

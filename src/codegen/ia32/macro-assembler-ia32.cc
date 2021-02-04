@@ -1038,11 +1038,13 @@ void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
 }
 
 void TurboAssembler::AllocateStackSpace(int bytes) {
+  DCHECK_GE(bytes, 0);
   while (bytes > kStackPageSize) {
     sub(esp, Immediate(kStackPageSize));
     mov(Operand(esp, 0), Immediate(0));
     bytes -= kStackPageSize;
   }
+  if (bytes == 0) return;
   sub(esp, Immediate(bytes));
 }
 #endif

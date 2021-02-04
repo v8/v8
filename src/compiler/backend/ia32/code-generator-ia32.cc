@@ -1782,82 +1782,55 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kIA32PushFloat32: {
-      int stack_decrement = i.InputInt32(0);
-      if (instr->InputAt(1)->IsFPRegister()) {
-        __ AllocateStackSpace(stack_decrement);
-        __ Movss(Operand(esp, 0), i.InputDoubleRegister(1));
-      } else if (HasImmediateInput(instr, 1)) {
-        __ Move(kScratchDoubleReg, i.InputFloat32(1));
-        __ AllocateStackSpace(stack_decrement);
-        __ Movss(Operand(esp, 0), kScratchDoubleReg);
-      } else {
-        __ Movss(kScratchDoubleReg, i.InputOperand(1));
-        __ AllocateStackSpace(stack_decrement);
-        __ Movss(Operand(esp, 0), kScratchDoubleReg);
-      }
-      int slots = stack_decrement / kSystemPointerSize;
-      frame_access_state()->IncreaseSPDelta(slots);
-      break;
-    }
-    case kIA32PushFloat64: {
-      int stack_decrement = i.InputInt32(0);
-      if (instr->InputAt(1)->IsFPRegister()) {
-        __ AllocateStackSpace(stack_decrement);
-        __ Movsd(Operand(esp, 0), i.InputDoubleRegister(1));
-      } else if (HasImmediateInput(instr, 1)) {
-        __ Move(kScratchDoubleReg, i.InputDouble(1));
-        __ AllocateStackSpace(stack_decrement);
-        __ Movsd(Operand(esp, 0), kScratchDoubleReg);
-      } else {
-        __ Movsd(kScratchDoubleReg, i.InputOperand(1));
-        __ AllocateStackSpace(stack_decrement);
-        __ Movsd(Operand(esp, 0), kScratchDoubleReg);
-      }
-      int slots = stack_decrement / kSystemPointerSize;
-      frame_access_state()->IncreaseSPDelta(slots);
-      break;
-    }
-    case kIA32PushSimd128: {
-      int stack_decrement = i.InputInt32(0);
-      if (instr->InputAt(1)->IsFPRegister()) {
-        __ AllocateStackSpace(stack_decrement);
-        // TODO(bbudge) Use Movaps when slots are aligned.
-        __ Movups(Operand(esp, 0), i.InputSimd128Register(1));
-      } else {
-        __ Movups(kScratchDoubleReg, i.InputOperand(1));
-        __ AllocateStackSpace(stack_decrement);
-        // TODO(bbudge) Use Movaps when slots are aligned.
-        __ Movups(Operand(esp, 0), kScratchDoubleReg);
-      }
-      int slots = stack_decrement / kSystemPointerSize;
-      frame_access_state()->IncreaseSPDelta(slots);
-      break;
-    }
     case kIA32Push: {
-      // TODO(bbudge) Merge the push opcodes into a single one, as on x64.
       int stack_decrement = i.InputInt32(0);
-      if (instr->InputAt(1)->IsFPRegister()) {
-        __ AllocateStackSpace(stack_decrement);
-        __ Movsd(Operand(esp, 0), i.InputDoubleRegister(1));
+      int slots = stack_decrement / kSystemPointerSize;
+      // Whenever codegen uses push, we need to check if stack_decrement
+      // contains any extra padding and adjust the stack before the push.
+      if (HasImmediateInput(instr, 1)) {
+        __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
+        __ push(i.InputImmediate(1));
+      } else if (HasAddressingMode(instr)) {
+        // Only single slot pushes from memory are supported.
+        __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
+        size_t index = 1;
+        Operand operand = i.MemoryOperand(&index);
+        __ push(operand);
       } else {
-        // Slot-sized arguments are never padded but there may be a gap if
-        // the slot allocator reclaimed other padding slots. Adjust the stack
-        // here to skip any gap.
-        if (stack_decrement > kSystemPointerSize) {
+        InstructionOperand* input = instr->InputAt(1);
+        if (input->IsRegister()) {
           __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
-        }
-        if (HasAddressingMode(instr)) {
-          size_t index = 1;
-          Operand operand = i.MemoryOperand(&index);
-          __ push(operand);
-        } else if (HasImmediateInput(instr, 1)) {
-          __ push(i.InputImmediate(1));
-        } else {
+          __ push(i.InputRegister(1));
+        } else if (input->IsFloatRegister()) {
+          DCHECK_GE(stack_decrement, kFloatSize);
+          __ AllocateStackSpace(stack_decrement);
+          __ Movss(Operand(esp, 0), i.InputDoubleRegister(1));
+        } else if (input->IsDoubleRegister()) {
+          DCHECK_GE(stack_decrement, kDoubleSize);
+          __ AllocateStackSpace(stack_decrement);
+          __ Movsd(Operand(esp, 0), i.InputDoubleRegister(1));
+        } else if (input->IsSimd128Register()) {
+          DCHECK_GE(stack_decrement, kSimd128Size);
+          __ AllocateStackSpace(stack_decrement);
+          // TODO(bbudge) Use Movaps when slots are aligned.
+          __ Movups(Operand(esp, 0), i.InputSimd128Register(1));
+        } else if (input->IsStackSlot() || input->IsFloatStackSlot()) {
+          __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
           __ push(i.InputOperand(1));
+        } else if (input->IsDoubleStackSlot()) {
+          DCHECK_GE(stack_decrement, kDoubleSize);
+          __ Movsd(kScratchDoubleReg, i.InputOperand(1));
+          __ AllocateStackSpace(stack_decrement);
+          __ Movsd(Operand(esp, 0), kScratchDoubleReg);
+        } else {
+          DCHECK(input->IsSimd128StackSlot());
+          DCHECK_GE(stack_decrement, kSimd128Size);
+          // TODO(bbudge) Use Movaps when slots are aligned.
+          __ Movups(kScratchDoubleReg, i.InputOperand(1));
+          __ AllocateStackSpace(stack_decrement);
+          __ Movups(Operand(esp, 0), kScratchDoubleReg);
         }
       }
-      int slots = stack_decrement / kSystemPointerSize;
       frame_access_state()->IncreaseSPDelta(slots);
       break;
     }

@@ -425,9 +425,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return kIsLoadOperation;
 
     case kIA32Push:
-    case kIA32PushFloat32:
-    case kIA32PushFloat64:
-    case kIA32PushSimd128:
     case kIA32Poke:
     case kIA32MFence:
     case kIA32LFence:
