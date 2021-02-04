@@ -744,6 +744,8 @@ DEFINE_INT(reuse_opt_code_count, 0,
 DEFINE_BOOL(turbo_dynamic_map_checks, true,
             "use dynamic map checks when generating code for property accesses "
             "if all handlers in an IC are the same for turboprop and NCI")
+DEFINE_BOOL(turbo_compress_translation_arrays, false,
+            "compress translation arrays (experimental)")
 
 // Native context independent (NCI) code.
 DEFINE_BOOL(turbo_nci, false,
