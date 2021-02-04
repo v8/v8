@@ -264,6 +264,7 @@ v8_source_set("cctest_sources") {
     "test-persistent-handles.cc",
     "test-platform.cc",
     "test-profile-generator.cc",
+    "test-property-details.cc",
     "test-random-number-generator.cc",
     "test-regexp.cc",
     "test-representation.cc",
