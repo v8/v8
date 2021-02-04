@@ -1422,6 +1422,11 @@ void Module::ModuleVerify(Isolate* isolate) {
     CHECK_EQ(JSModuleNamespace::cast(module_namespace()).module(), *this);
   }
 
+  if (!(status() == kErrored || status() == kEvaluating ||
+        status() == kEvaluated)) {
+    CHECK(top_level_capability().IsUndefined());
+  }
+
   CHECK_NE(hash(), 0);
 }
 
@@ -1455,7 +1460,6 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
     } else if (status() == kUninstantiated) {
       CHECK(code().IsSharedFunctionInfo());
     }
-    CHECK(top_level_capability().IsUndefined());
     CHECK(!AsyncParentModuleCount());
     CHECK(!pending_async_dependencies());
     CHECK(!async_evaluating());

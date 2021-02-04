@@ -1724,7 +1724,7 @@ class V8_EXPORT Module : public Data {
   /*
    * Callback defined in the embedder.  This is responsible for setting
    * the module's exported values with calls to SetSyntheticModuleExport().
-   * The callback must return a Value to indicate success (where no
+   * The callback must return a resolved Promise to indicate success (where no
    * exception was thrown) and return an empy MaybeLocal to indicate falure
    * (where an exception was thrown).
    */

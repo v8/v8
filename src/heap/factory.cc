@@ -2335,10 +2335,10 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_requested_modules(*requested_modules);
   module->set_status(Module::kUninstantiated);
   module->set_exception(roots.the_hole_value());
+  module->set_top_level_capability(roots.undefined_value());
   module->set_import_meta(roots.the_hole_value());
   module->set_dfs_index(-1);
   module->set_dfs_ancestor_index(-1);
-  module->set_top_level_capability(roots.undefined_value());
   module->set_flags(0);
   module->set_async(IsAsyncModule(sfi->kind()));
   module->set_async_evaluating(false);
@@ -2365,6 +2365,7 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   module->set_module_namespace(roots.undefined_value());
   module->set_status(Module::kUninstantiated);
   module->set_exception(roots.the_hole_value());
+  module->set_top_level_capability(roots.undefined_value());
   module->set_name(*module_name);
   module->set_export_names(*export_names);
   module->set_exports(*exports);
