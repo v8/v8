@@ -5364,22 +5364,32 @@ WasmCompilationResult ExecuteLiftoffCompilation(
 }
 
 std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
-    AccountingAllocator* allocator, CompilationEnv* env,
-    const FunctionBody& func_body, int func_index, ForDebugging for_debugging) {
+    const WasmCode* code) {
+  auto* native_module = code->native_module();
+  auto* function = &native_module->module()->functions[code->index()];
+  ModuleWireBytes wire_bytes{native_module->wire_bytes()};
+  Vector<const byte> function_bytes = wire_bytes.GetFunctionBytes(function);
+  CompilationEnv env = native_module->CreateCompilationEnv();
+  FunctionBody func_body{function->sig, 0, function_bytes.begin(),
+                         function_bytes.end()};
+
+  AccountingAllocator* allocator = native_module->engine()->allocator();
   Zone zone(allocator, "LiftoffDebugSideTableZone");
-  auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
+  auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, function->sig);
   DebugSideTableBuilder debug_sidetable_builder;
   WasmFeatures detected;
   constexpr int kSteppingBreakpoints[] = {0};
-  DCHECK(for_debugging == kForDebugging || for_debugging == kForStepping);
-  Vector<const int> breakpoints = for_debugging == kForStepping
+  DCHECK(code->for_debugging() == kForDebugging ||
+         code->for_debugging() == kForStepping);
+  Vector<const int> breakpoints = code->for_debugging() == kForStepping
                                       ? ArrayVector(kSteppingBreakpoints)
                                       : Vector<const int>{};
   WasmFullDecoder<Decoder::kBooleanValidation, LiftoffCompiler> decoder(
-      &zone, env->module, env->enabled_features, &detected, func_body,
-      call_descriptor, env, &zone,
+      &zone, native_module->module(), env.enabled_features, &detected,
+      func_body, call_descriptor, &env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
-      &debug_sidetable_builder, for_debugging, func_index, breakpoints);
+      &debug_sidetable_builder, code->for_debugging(), code->index(),
+      breakpoints);
   decoder.Decode();
   DCHECK(decoder.ok());
   DCHECK(!decoder.interface().did_bailout());

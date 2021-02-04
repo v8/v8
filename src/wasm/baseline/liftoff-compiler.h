@@ -60,8 +60,7 @@ V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
     std::unique_ptr<DebugSideTable>* = nullptr, int dead_breakpoint = 0);
 
 V8_EXPORT_PRIVATE std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
-    AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index,
-    ForDebugging);
+    const WasmCode*);
 
 }  // namespace wasm
 }  // namespace internal

@@ -481,17 +481,8 @@ class DebugInfoImpl {
     }
 
     // Otherwise create the debug side table now.
-    auto* module = native_module_->module();
-    auto* allocator = native_module_->engine()->allocator();
-    auto* function = &module->functions[code->index()];
-    ModuleWireBytes wire_bytes{native_module_->wire_bytes()};
-    Vector<const byte> function_bytes = wire_bytes.GetFunctionBytes(function);
-    CompilationEnv env = native_module_->CreateCompilationEnv();
-    FunctionBody func_body{function->sig, 0, function_bytes.begin(),
-                           function_bytes.end()};
     std::unique_ptr<DebugSideTable> debug_side_table =
-        GenerateLiftoffDebugSideTable(allocator, &env, func_body, code->index(),
-                                      code->for_debugging());
+        GenerateLiftoffDebugSideTable(code);
     DebugSideTable* ret = debug_side_table.get();
 
     // Check cache again, maybe another thread concurrently generated a debug

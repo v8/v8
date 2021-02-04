@@ -20,15 +20,16 @@ class LiftoffCompileEnvironment {
       : isolate_(CcTest::InitIsolateOnce()),
         handle_scope_(isolate_),
         zone_(isolate_->allocator(), ZONE_NAME),
-        module_builder_(&zone_, nullptr, TestExecutionTier::kLiftoff,
-                        kRuntimeExceptionSupport, kNoLowerSimd) {
+        wasm_runner_(nullptr, TestExecutionTier::kLiftoff, 0,
+                     kRuntimeExceptionSupport, kNoLowerSimd) {
     // Add a table of length 1, for indirect calls.
-    module_builder_.AddIndirectFunctionTable(nullptr, 1);
+    wasm_runner_.builder().AddIndirectFunctionTable(nullptr, 1);
+    // Set tiered down such that we generate debugging code.
+    wasm_runner_.builder().SetTieredDown();
   }
 
   struct TestFunction {
-    OwnedVector<uint8_t> body_bytes;
-    WasmFunction* function;
+    WasmCode* code;
     FunctionBody body;
   };
 
@@ -39,17 +40,15 @@ class LiftoffCompileEnvironment {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
     // Now compile the function with Liftoff two times.
-    CompilationEnv env = module_builder_.CreateCompilationEnv();
+    CompilationEnv env = wasm_runner_.builder().CreateCompilationEnv();
     WasmFeatures detected1;
     WasmFeatures detected2;
-    WasmCompilationResult result1 =
-        ExecuteLiftoffCompilation(isolate_->allocator(), &env, test_func.body,
-                                  test_func.function->func_index, kNoDebugging,
-                                  isolate_->counters(), &detected1);
-    WasmCompilationResult result2 =
-        ExecuteLiftoffCompilation(isolate_->allocator(), &env, test_func.body,
-                                  test_func.function->func_index, kNoDebugging,
-                                  isolate_->counters(), &detected2);
+    WasmCompilationResult result1 = ExecuteLiftoffCompilation(
+        isolate_->allocator(), &env, test_func.body, test_func.code->index(),
+        kNoDebugging, isolate_->counters(), &detected1);
+    WasmCompilationResult result2 = ExecuteLiftoffCompilation(
+        isolate_->allocator(), &env, test_func.body, test_func.code->index(),
+        kNoDebugging, isolate_->counters(), &detected2);
 
     CHECK(result1.succeeded());
     CHECK(result2.succeeded());
@@ -70,20 +69,20 @@ class LiftoffCompileEnvironment {
       std::vector<int> breakpoints = {}) {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
-    CompilationEnv env = module_builder_.CreateCompilationEnv();
+    CompilationEnv env = wasm_runner_.builder().CreateCompilationEnv();
     WasmFeatures detected;
     std::unique_ptr<DebugSideTable> debug_side_table_via_compilation;
-    ExecuteLiftoffCompilation(CcTest::i_isolate()->allocator(), &env,
-                              test_func.body, 0, kForDebugging, nullptr,
-                              &detected, VectorOf(breakpoints),
-                              &debug_side_table_via_compilation);
+    auto result = ExecuteLiftoffCompilation(
+        CcTest::i_isolate()->allocator(), &env, test_func.body, 0,
+        kForDebugging, nullptr, &detected, VectorOf(breakpoints),
+        &debug_side_table_via_compilation);
+    CHECK(result.succeeded());
 
     // If there are no breakpoint, then {ExecuteLiftoffCompilation} should
     // provide the same debug side table.
     if (breakpoints.empty()) {
       std::unique_ptr<DebugSideTable> debug_side_table =
-          GenerateLiftoffDebugSideTable(CcTest::i_isolate()->allocator(), &env,
-                                        test_func.body, 0, kForDebugging);
+          GenerateLiftoffDebugSideTable(test_func.code);
       CheckTableEquals(*debug_side_table, *debug_side_table_via_compilation);
     }
 
@@ -94,6 +93,7 @@ class LiftoffCompileEnvironment {
   static void CheckTableEquals(const DebugSideTable& a,
                                const DebugSideTable& b) {
     CHECK_EQ(a.num_locals(), b.num_locals());
+    CHECK_EQ(a.entries().size(), b.entries().size());
     CHECK(std::equal(a.entries().begin(), a.entries().end(),
                      b.entries().begin(), b.entries().end(),
                      &CheckEntryEquals));
@@ -125,19 +125,6 @@ class LiftoffCompileEnvironment {
     return true;
   }
 
-  OwnedVector<uint8_t> GenerateFunctionBody(
-      std::initializer_list<uint8_t> raw_function_bytes) {
-    // Build the function bytes by prepending the locals decl and appending an
-    // "end" opcode.
-    OwnedVector<uint8_t> function_bytes =
-        OwnedVector<uint8_t>::New(raw_function_bytes.size() + 2);
-    function_bytes[0] = WASM_NO_LOCALS;
-    std::copy(raw_function_bytes.begin(), raw_function_bytes.end(),
-              &function_bytes[1]);
-    function_bytes[raw_function_bytes.size() + 1] = WASM_END;
-    return function_bytes;
-  }
-
   FunctionSig* AddSig(std::initializer_list<ValueType> return_types,
                       std::initializer_list<ValueType> param_types) {
     ValueType* storage =
@@ -147,30 +134,41 @@ class LiftoffCompileEnvironment {
               storage + return_types.size());
     FunctionSig* sig = zone_.New<FunctionSig>(return_types.size(),
                                               param_types.size(), storage);
-    module_builder_.AddSignature(sig);
     return sig;
   }
 
   TestFunction AddFunction(std::initializer_list<ValueType> return_types,
                            std::initializer_list<ValueType> param_types,
-                           std::initializer_list<uint8_t> raw_function_bytes) {
-    OwnedVector<uint8_t> function_bytes =
-        GenerateFunctionBody(raw_function_bytes);
+                           std::initializer_list<uint8_t> function_bytes) {
     FunctionSig* sig = AddSig(return_types, param_types);
-    int func_index =
-        module_builder_.AddFunction(sig, "f", TestingModuleBuilder::kWasm);
-    WasmFunction* function = module_builder_.GetFunctionAt(func_index);
-    function->code = {module_builder_.AddBytes(function_bytes.as_vector()),
-                      static_cast<uint32_t>(function_bytes.size())};
-    FunctionBody body{function->sig, 0, function_bytes.begin(),
-                      function_bytes.end()};
-    return {std::move(function_bytes), function, body};
+    // Compile the function so we can get the WasmCode* which is later used to
+    // generate the debug side table lazily.
+    auto& func_compiler = wasm_runner_.NewFunction(sig, "f");
+    func_compiler.Build(function_bytes.begin(), function_bytes.end());
+
+    WasmCode* code =
+        wasm_runner_.builder().GetFunctionCode(func_compiler.function_index());
+
+    // Get the wire bytes created by the function compiler (including locals
+    // declaration and the trailing "end" opcode).
+    NativeModule* native_module = code->native_module();
+    auto* function = &native_module->module()->functions[code->index()];
+    Vector<const uint8_t> function_wire_bytes =
+        native_module->wire_bytes().SubVector(function->code.offset(),
+                                              function->code.end_offset());
+
+    FunctionBody body{sig, 0, function_wire_bytes.begin(),
+                      function_wire_bytes.end()};
+    return {code, body};
   }
 
   Isolate* isolate_;
   HandleScope handle_scope_;
   Zone zone_;
-  TestingModuleBuilder module_builder_;
+  // wasm_runner_ is used to build actual code objects needed to request lazy
+  // generation of debug side tables.
+  WasmRunnerBase wasm_runner_;
+  WasmCodeRefScope code_ref_scope_;
 };
 
 struct DebugSideTableEntry {
