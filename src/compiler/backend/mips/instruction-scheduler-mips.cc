@@ -229,6 +229,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI8x16SubSatU:
     case kMipsI8x16UConvertI16x8:
     case kMipsI8x16Abs:
+    case kMipsI8x16Popcnt:
     case kMipsI8x16BitMask:
     case kMipsIns:
     case kMipsLsa:

@@ -292,6 +292,7 @@ namespace compiler {
   V(MipsI8x16GeU)                  \
   V(MipsI8x16RoundingAverageU)     \
   V(MipsI8x16Abs)                  \
+  V(MipsI8x16Popcnt)               \
   V(MipsI8x16BitMask)              \
   V(MipsS128And)                   \
   V(MipsS128Or)                    \

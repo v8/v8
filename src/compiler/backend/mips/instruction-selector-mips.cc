@@ -2151,6 +2151,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8UConvertI8x16Low, kMipsI16x8UConvertI8x16Low)   \
   V(I16x8UConvertI8x16High, kMipsI16x8UConvertI8x16High) \
   V(I8x16Neg, kMipsI8x16Neg)                             \
+  V(I8x16Popcnt, kMipsI8x16Popcnt)                       \
   V(I8x16BitMask, kMipsI8x16BitMask)                     \
   V(S128Not, kMipsS128Not)                               \
   V(V32x4AllTrue, kMipsV32x4AllTrue)                     \

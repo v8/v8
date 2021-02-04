@@ -250,6 +250,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I8x16SubSatU:
     case kMips64I8x16RoundingAverageU:
     case kMips64I8x16Abs:
+    case kMips64I8x16Popcnt:
     case kMips64I8x16BitMask:
     case kMips64Ins:
     case kMips64Lsa:
