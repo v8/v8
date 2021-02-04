@@ -1415,9 +1415,9 @@ DEFINE_BOOL(trace_sim_messages, false,
 
 #if defined V8_TARGET_ARCH_ARM64
 // pointer-auth-arm64.cc
-DEFINE_DEBUG_BOOL(sim_abort_on_bad_auth, false,
-                  "Stop execution when a pointer authentication fails in the "
-                  "ARM64 simulator.")
+DEFINE_BOOL(sim_abort_on_bad_auth, true,
+            "Stop execution when a pointer authentication fails in the "
+            "ARM64 simulator.")
 #endif
 
 // isolate.cc

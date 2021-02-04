@@ -1199,10 +1199,6 @@ void MacroAssembler::PeekPair(const CPURegister& dst1, const CPURegister& dst2,
 }
 
 void MacroAssembler::PushCalleeSavedRegisters() {
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Pacibsp();
-#endif
-
   {
     // Ensure that the macro-assembler doesn't use any scratch registers.
     InstructionAccurateScope scope(this);
@@ -1224,6 +1220,12 @@ void MacroAssembler::PushCalleeSavedRegisters() {
         EntryFrameConstants::kCalleeSavedRegisterBytesPushedBeforeFpLrPair ==
         18 * kSystemPointerSize);
 
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+    // Use the stack pointer's value immediately before pushing the LR as the
+    // context for signing it. This is what the StackFrameIterator expects.
+    pacibsp();
+#endif
+
     stp(x29, x30, tos);  // fp, lr
 
     STATIC_ASSERT(
@@ -1240,6 +1242,12 @@ void MacroAssembler::PopCalleeSavedRegisters() {
 
     ldp(x29, x30, tos);  // fp, lr
 
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+    // The context (stack pointer value) for authenticating the LR here must
+    // match the one used for signing it (see `PushCalleeSavedRegisters`).
+    autibsp();
+#endif
+
     ldp(x19, x20, tos);
     ldp(x21, x22, tos);
     ldp(x23, x24, tos);
@@ -1251,10 +1259,6 @@ void MacroAssembler::PopCalleeSavedRegisters() {
     ldp(d12, d13, tos);
     ldp(d14, d15, tos);
   }
-
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Autibsp();
-#endif
 }
 
 void TurboAssembler::AssertSpAligned() {
