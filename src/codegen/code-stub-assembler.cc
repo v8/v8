@@ -8052,12 +8052,21 @@ template <>
 void CodeStubAssembler::InsertEntry<NameDictionary>(
     TNode<NameDictionary> dictionary, TNode<Name> name, TNode<Object> value,
     TNode<IntPtrT> index, TNode<Smi> enum_index) {
+  // This should only be used for adding, not updating existing mappings.
+  CSA_ASSERT(this,
+             Word32Or(TaggedEqual(LoadFixedArrayElement(dictionary, index),
+                                  UndefinedConstant()),
+                      TaggedEqual(LoadFixedArrayElement(dictionary, index),
+                                  TheHoleConstant())));
+
   // Store name and value.
   StoreFixedArrayElement(dictionary, index, name);
   StoreValueByKeyIndex<NameDictionary>(dictionary, index, value);
 
   // Prepare details of the new property.
-  PropertyDetails d(kData, NONE, PropertyCellType::kNoCell);
+  PropertyDetails d(kData, NONE,
+                    PropertyDetails::kConstIfDictConstnessTracking);
+
   enum_index =
       SmiShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
   // We OR over the actual index below, so we expect the initial value to be 0.

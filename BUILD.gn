@@ -294,6 +294,12 @@ declare_args() {
   # will not be available, and embedder APIs to generate WebAssembly modules
   # will fail.
   v8_enable_webassembly = true
+
+  # Experimental feature for tracking constness of properties in non-global
+  # dictionaries. Enabling this also always keeps prototypes in dict mode,
+  # meaning that they are not switched to fast mode.
+  # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
+  v8_dict_property_const_tracking = false
 }
 
 # Derived defaults.
@@ -766,6 +772,9 @@ config("features") {
   }
   if (v8_enable_webassembly) {
     defines += [ "V8_ENABLE_WEBASSEMBLY" ]
+  }
+  if (v8_dict_property_const_tracking) {
+    defines += [ "V8_DICT_PROPERTY_CONST_TRACKING" ]
   }
 }
 

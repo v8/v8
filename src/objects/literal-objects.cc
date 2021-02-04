@@ -173,7 +173,7 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
     Handle<Object> value_handle;
     PropertyDetails details(
         value_kind != ClassBoilerplate::kData ? kAccessor : kData, DONT_ENUM,
-        PropertyCellType::kNoCell, enum_order);
+        PropertyDetails::kConstIfDictConstnessTracking, enum_order);
     if (value_kind == ClassBoilerplate::kData) {
       value_handle = handle(value, isolate);
     } else {
@@ -224,8 +224,9 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
           // Either both getter and setter were defined before the computed
           // method or just one of them was defined before while the other one
           // was not defined yet, so overwrite property to kData.
-          PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                  enum_order_existing);
+          PropertyDetails details(
+              kData, DONT_ENUM, PropertyDetails::kConstIfDictConstnessTracking,
+              enum_order_existing);
           dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
 
@@ -281,8 +282,9 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
         if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
           // Overwrite existing value because it was defined before the computed
           // one (AccessorInfo "length" property is always defined before).
-          PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                  enum_order_existing);
+          PropertyDetails details(
+              kData, DONT_ENUM, PropertyDetails::kConstIfDictConstnessTracking,
+              enum_order_existing);
           dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
         } else {
@@ -292,9 +294,11 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
             // The enum index is unused by elements dictionaries,
             // which is why we don't need to update the property details if
             // |is_elements_dictionary| holds.
+            PropertyDetails details(
+                kData, DONT_ENUM,
+                PropertyDetails::kConstIfDictConstnessTracking,
+                enum_order_computed);
 
-            PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                    enum_order_computed);
             dictionary->DetailsAtPut(entry, details);
           }
         }
@@ -320,9 +324,10 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
             // which is why we don't need to update the property details if
             // |is_elements_dictionary| holds.
 
-            PropertyDetails details(kAccessor, DONT_ENUM,
-                                    PropertyCellType::kNoCell,
-                                    enum_order_computed);
+            PropertyDetails details(
+                kAccessor, DONT_ENUM,
+                PropertyDetails::kConstIfDictConstnessTracking,
+                enum_order_computed);
             dictionary->DetailsAtPut(entry, details);
           }
         }
@@ -336,9 +341,10 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
           // the computed accessor property.
           Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
           pair->set(component, value);
-          PropertyDetails details(kAccessor, DONT_ENUM,
-                                  PropertyCellType::kNoCell,
-                                  enum_order_existing);
+          PropertyDetails details(
+              kAccessor, DONT_ENUM,
+              PropertyDetails::kConstIfDictConstnessTracking,
+              enum_order_existing);
           dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, *pair);
         } else {
@@ -350,9 +356,11 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
             // The enum index is unused by elements dictionaries,
             // which is why we don't need to update the property details if
             // |is_elements_dictionary| holds.
+            PropertyDetails details(
+                kData, DONT_ENUM,
+                PropertyDetails::kConstIfDictConstnessTracking,
+                enum_order_computed);
 
-            PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                    enum_order_computed);
             dictionary->DetailsAtPut(entry, details);
           }
         }

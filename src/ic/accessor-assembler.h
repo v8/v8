@@ -243,6 +243,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                          TNode<Object> value, Label* slow,
                                          bool do_transitioning_store);
 
+  TNode<BoolT> IsPropertyDetailsConst(TNode<Uint32T> details);
+
   void CheckFieldType(TNode<DescriptorArray> descriptors,
                       TNode<IntPtrT> name_index, TNode<Word32T> representation,
                       TNode<Object> value, Label* bailout);
@@ -454,7 +456,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
                        Label* miss, ExitPoint* exit_point,
                        LoadAccessMode access_mode = LoadAccessMode::kLoad);
-  TNode<BoolT> IsPropertyDetailsConst(TNode<Uint32T> details);
 
   // Stub cache access helpers.
 

@@ -452,7 +452,8 @@ bool AddDescriptorsByTemplate(
   if (install_name_accessor) {
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-    PropertyDetails details(kAccessor, attribs, PropertyCellType::kNoCell);
+    PropertyDetails details(kAccessor, attribs,
+                            PropertyDetails::kConstIfDictConstnessTracking);
     Handle<Dictionary> dict = ToHandle(Dictionary::Add(
         isolate, properties_dictionary, isolate->factory()->name_string(),
         isolate->factory()->function_name_accessor(), details));

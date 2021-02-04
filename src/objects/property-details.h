@@ -6,9 +6,10 @@
 #define V8_OBJECTS_PROPERTY_DETAILS_H_
 
 #include "include/v8.h"
-#include "src/utils/allocation.h"
 #include "src/base/bit-field.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -224,13 +225,27 @@ std::ostream& operator<<(std::ostream& os, PropertyCellType type);
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails {
  public:
-  // Property details for dictionary mode properties/elements.
+  // Property details for global dictionary properties.
   PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                   PropertyCellType cell_type, int dictionary_index = 0) {
     value_ = KindField::encode(kind) | LocationField::encode(kField) |
              AttributesField::encode(attributes) |
+             // We track PropertyCell constness via PropertyCellTypeField,
+             // so we set ConstnessField to kMutable to simplify DCHECKs related
+             // to non-global property constness tracking.
+             ConstnessField::encode(PropertyConstness::kMutable) |
              DictionaryStorageField::encode(dictionary_index) |
              PropertyCellTypeField::encode(cell_type);
+  }
+
+  // Property details for dictionary mode properties/elements.
+  PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
+                  PropertyConstness constness, int dictionary_index = 0) {
+    value_ = KindField::encode(kind) | LocationField::encode(kField) |
+             AttributesField::encode(attributes) |
+             ConstnessField::encode(constness) |
+             DictionaryStorageField::encode(dictionary_index) |
+             PropertyCellTypeField::encode(PropertyCellType::kNoCell);
   }
 
   // Property details for fast mode properties.
@@ -357,6 +372,10 @@ class PropertyDetails {
   STATIC_ASSERT(FieldIndexField::kLastUsedBit < 31);
 
   static const int kInitialIndex = 1;
+
+  static constexpr PropertyConstness kConstIfDictConstnessTracking =
+      V8_DICT_PROPERTY_CONST_TRACKING_BOOL ? PropertyConstness::kConst
+                                           : PropertyConstness::kMutable;
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.

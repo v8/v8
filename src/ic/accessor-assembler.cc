@@ -941,6 +941,8 @@ void AccessorAssembler::HandleLoadICProtoHandler(
 
   BIND(&is_smi);
   {
+    // If the "maybe_holder_or_constant" in the handler is a smi, then it's
+    // guaranteed that it's not a holder object, but a constant value.
     CSA_ASSERT(
         this,
         WordEqual(
@@ -1066,6 +1068,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         properties, CAST(p->name()), &dictionary_found, &var_name_index, miss);
     BIND(&dictionary_found);
     {
+      Label if_constant(this), done(this);
       TNode<Uint32T> details =
           LoadDetailsByKeyIndex(properties, var_name_index.value());
       // Check that the property is a writable data property (no accessor).
@@ -1074,9 +1077,26 @@ void AccessorAssembler::HandleStoreICHandlerCase(
       STATIC_ASSERT(kData == 0);
       GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
+      if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+        GotoIf(IsPropertyDetailsConst(details), &if_constant);
+      }
+
       StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
                                            p->value());
       Return(p->value());
+
+      if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+        BIND(&if_constant);
+        {
+          TNode<Object> prev_value =
+              LoadValueByKeyIndex(properties, var_name_index.value());
+          BranchIfSameValue(prev_value, p->value(), &done, miss,
+                            SameValueMode::kNumbersOnly);
+        }
+
+        BIND(&done);
+        Return(p->value());
+      }
     }
 
     BIND(&if_fast_smi);
@@ -1297,8 +1317,9 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
 }
 
 TNode<BoolT> AccessorAssembler::IsPropertyDetailsConst(TNode<Uint32T> details) {
-  return Word32Equal(DecodeWord32<PropertyDetails::ConstnessField>(details),
-                     Int32Constant(static_cast<int32_t>(VariableMode::kConst)));
+  return Word32Equal(
+      DecodeWord32<PropertyDetails::ConstnessField>(details),
+      Int32Constant(static_cast<int32_t>(PropertyConstness::kConst)));
 }
 
 void AccessorAssembler::OverwriteExistingFastDataProperty(
