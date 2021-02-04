@@ -299,6 +299,8 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (function->raw_feedback_cell() == isolate->heap()->many_closures_cell()) {
     Handle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
+    feedback_cell->set_interrupt_budget(
+        function->raw_feedback_cell().interrupt_budget());
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
   } else {
     function->raw_feedback_cell().set_value(*feedback_cell_array,
