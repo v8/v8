@@ -404,10 +404,6 @@ void CompilationDependencies::DependOnStableMap(const MapRef& map) {
   }
 }
 
-void CompilationDependencies::DependOnTransition(const MapRef& target_map) {
-  RecordDependency(TransitionDependencyOffTheRecord(target_map));
-}
-
 AllocationType CompilationDependencies::DependOnPretenureMode(
     const AllocationSiteRef& site) {
   DCHECK(!site.IsNeverSerializedHeapObject());
@@ -439,16 +435,6 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   DCHECK_EQ(constness, PropertyConstness::kConst);
   RecordDependency(zone_->New<FieldConstnessDependency>(owner, descriptor));
   return PropertyConstness::kConst;
-}
-
-void CompilationDependencies::DependOnFieldRepresentation(
-    const MapRef& map, InternalIndex descriptor) {
-  RecordDependency(FieldRepresentationDependencyOffTheRecord(map, descriptor));
-}
-
-void CompilationDependencies::DependOnFieldType(const MapRef& map,
-                                                InternalIndex descriptor) {
-  RecordDependency(FieldTypeDependencyOffTheRecord(map, descriptor));
 }
 
 void CompilationDependencies::DependOnGlobalProperty(
@@ -512,13 +498,6 @@ void CompilationDependencies::DependOnElementsKind(
   if (AllocationSite::ShouldTrack(kind)) {
     RecordDependency(zone_->New<ElementsKindDependency>(site, kind));
   }
-}
-
-bool CompilationDependencies::AreValid() const {
-  for (auto dep : dependencies_) {
-    if (!dep->IsValid()) return false;
-  }
-  return true;
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {
