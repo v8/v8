@@ -278,6 +278,23 @@ transitioning builtin WasmAllocateObjectWrapper(implicit context: Context)(
   return wrapper;
 }
 
+builtin WasmSubtypeCheck(objectSupertypes: FixedArray, rtt: Map): int32 {
+  const rttSupertypeLength: Smi =
+      %RawDownCast<WasmTypeInfo>(
+          rtt.constructor_or_back_pointer_or_native_context)
+          .supertypes.length;
+
+  if (objectSupertypes.length <= rttSupertypeLength) {
+    return 0;
+  }
+
+  const supertype: Map = %RawDownCast<Map>(
+      LoadFixedArrayElement(objectSupertypes, rttSupertypeLength));
+
+  if (supertype == rtt) return 1;
+  return 0;
+}
+
 builtin WasmInt32ToNumber(value: int32): Number {
   return ChangeInt32ToTagged(value);
 }

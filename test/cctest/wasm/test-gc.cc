@@ -868,8 +868,8 @@ TEST(BasicRtt) {
   tester.CheckResult(kRefCast, 43);
 }
 
-TEST(NoDepthRtt) {
-  WasmGCTester tester;
+WASM_EXEC_TEST(NoDepthRtt) {
+  WasmGCTester tester(execution_tier);
 
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte subtype_index =

@@ -4521,18 +4521,33 @@ class LiftoffCompiler {
     if (rtt.type.has_depth()) {
       __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
                              rtt.type.depth());
+      // Step 4: load the candidate list slot into {tmp1}, and compare it.
+      __ LoadTaggedPointer(
+          tmp1.gp(), tmp1.gp(), no_reg,
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(rtt.type.depth()),
+          pinned);
+      __ emit_cond_jump(kUnequal, no_match, rtt.type, tmp1.gp(), rtt_reg.gp());
     } else {
-      unsupported(decoder, kGC, "rtt without depth");
+      // Preserve {obj_reg} across the call.
+      LiftoffRegList saved_regs = LiftoffRegList::ForRegs(obj_reg);
+      __ PushRegisters(saved_regs);
+      WasmCode::RuntimeStubId target = WasmCode::kWasmSubtypeCheck;
+      compiler::CallDescriptor* call_descriptor =
+          GetBuiltinCallDescriptor<WasmSubtypeCheckDescriptor>(
+              compilation_zone_);
+      ValueType sig_reps[] = {kWasmI32, kWasmAnyRef, rtt.type};
+      FunctionSig sig(1, 2, sig_reps);
+      LiftoffAssembler::VarState rtt_state(kPointerValueType, rtt_reg, 0);
+      LiftoffAssembler::VarState tmp1_state(kPointerValueType, tmp1, 0);
+      __ PrepareBuiltinCall(&sig, call_descriptor, {tmp1_state, rtt_state});
+      __ CallRuntimeStub(target);
+      DefineSafepoint();
+      __ PopRegisters(saved_regs);
+      __ Move(tmp1.gp(), kReturnRegister0, kWasmI32);
+      __ emit_i32_cond_jumpi(kEqual, no_match, tmp1.gp(), 0);
     }
 
-    // Step 4: load the candidate list slot into {tmp1}, and compare it.
-    __ LoadTaggedPointer(
-        tmp1.gp(), tmp1.gp(), no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(rtt.type.depth()),
-        pinned);
-    __ emit_cond_jump(kUnequal, no_match, rtt.type, tmp1.gp(), rtt_reg.gp());
     // Fall through to {match}.
-
     __ bind(&match);
     return obj_reg;
   }
