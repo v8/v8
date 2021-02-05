@@ -2742,7 +2742,6 @@ WASM_SIMD_TEST(I8x16Abs) {
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   // Global to hold output.
   int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
