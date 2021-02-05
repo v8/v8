@@ -3771,74 +3771,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I8x16Popcnt: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register scratch = i.TempRegister(1);
-
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vmovdqa(tmp,
-                   __ ExternalReferenceAsOperand(
-                       ExternalReference::address_of_wasm_i8x16_splat_0x0f(),
-                       scratch));
-        __ vpandn(kScratchDoubleReg, tmp, src);
-        __ vpand(dst, tmp, src);
-        __ vmovdqa(tmp,
-                   __ ExternalReferenceAsOperand(
-                       ExternalReference::address_of_wasm_i8x16_popcnt_mask(),
-                       scratch));
-        __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 4);
-        __ vpshufb(dst, tmp, dst);
-        __ vpshufb(kScratchDoubleReg, tmp, kScratchDoubleReg);
-        __ vpaddb(dst, dst, kScratchDoubleReg);
-      } else if (CpuFeatures::IsSupported(ATOM)) {
-        // Pre-Goldmont low-power Intel microarchitectures have very slow
-        // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
-        // algorithm on these processors. ATOM CPU feature captures exactly
-        // the right set of processors.
-        __ xorps(tmp, tmp);
-        __ pavgb(tmp, src);
-        if (dst != src) {
-          __ movaps(dst, src);
-        }
-        __ andps(tmp, __ ExternalReferenceAsOperand(
-                          ExternalReference::address_of_wasm_i8x16_splat_0x55(),
-                          scratch));
-        __ psubb(dst, tmp);
-        Operand splat_0x33 = __ ExternalReferenceAsOperand(
-            ExternalReference::address_of_wasm_i8x16_splat_0x33(), scratch);
-        __ movaps(tmp, dst);
-        __ andps(dst, splat_0x33);
-        __ psrlw(tmp, 2);
-        __ andps(tmp, splat_0x33);
-        __ paddb(dst, tmp);
-        __ movaps(tmp, dst);
-        __ psrlw(dst, 4);
-        __ paddb(dst, tmp);
-        __ andps(dst, __ ExternalReferenceAsOperand(
-                          ExternalReference::address_of_wasm_i8x16_splat_0x0f(),
-                          scratch));
-      } else {
-        CpuFeatureScope sse_scope(tasm(), SSSE3);
-        __ movaps(tmp,
-                  __ ExternalReferenceAsOperand(
-                      ExternalReference::address_of_wasm_i8x16_splat_0x0f(),
-                      scratch));
-        Operand mask = __ ExternalReferenceAsOperand(
-            ExternalReference::address_of_wasm_i8x16_popcnt_mask(), scratch);
-        if (kScratchDoubleReg != tmp) {
-          __ movaps(kScratchDoubleReg, tmp);
-        }
-        __ andps(tmp, src);
-        __ andnps(kScratchDoubleReg, src);
-        __ psrlw(kScratchDoubleReg, 4);
-        __ movaps(dst, mask);
-        __ pshufb(dst, tmp);
-        __ movaps(tmp, mask);
-        __ pshufb(tmp, kScratchDoubleReg);
-        __ paddb(dst, tmp);
-      }
+      __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     kScratchDoubleReg, i.TempSimd128Register(0),
+                     i.TempRegister(1));
       break;
     }
     case kIA32S128Const: {

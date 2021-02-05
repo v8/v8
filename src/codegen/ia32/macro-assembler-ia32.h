@@ -662,6 +662,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                         XMMRegister scratch);
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
+  void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
+                   XMMRegister tmp2, Register scratch);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }

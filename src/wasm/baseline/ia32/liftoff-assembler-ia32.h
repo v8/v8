@@ -2876,7 +2876,11 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
-  bailout(kSimd, "i8x16.popcnt");
+  Register scratch = GetUnusedRegister(RegClass::kGpReg, {}).gp();
+  XMMRegister tmp =
+      GetUnusedRegister(RegClass::kFpReg, LiftoffRegList::ForRegs(dst, src))
+          .fp();
+  I8x16Popcnt(dst.fp(), src.fp(), liftoff::kScratchDoubleReg, tmp, scratch);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,

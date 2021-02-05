@@ -798,6 +798,75 @@ void TurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
   }
 }
 
+void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
+                                 XMMRegister tmp1, XMMRegister tmp2,
+                                 Register scratch) {
+  DCHECK_NE(dst, tmp1);
+  DCHECK_NE(src, tmp1);
+  DCHECK_NE(dst, tmp2);
+  DCHECK_NE(src, tmp2);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vmovdqa(tmp1, ExternalReferenceAsOperand(
+                      ExternalReference::address_of_wasm_i8x16_splat_0x0f(),
+                      scratch));
+    vpandn(tmp2, tmp1, src);
+    vpand(dst, tmp1, src);
+    vmovdqa(tmp1, ExternalReferenceAsOperand(
+                      ExternalReference::address_of_wasm_i8x16_popcnt_mask(),
+                      scratch));
+    vpsrlw(tmp2, tmp2, 4);
+    vpshufb(dst, tmp1, dst);
+    vpshufb(tmp2, tmp1, tmp2);
+    vpaddb(dst, dst, tmp2);
+  } else if (CpuFeatures::IsSupported(ATOM)) {
+    // Pre-Goldmont low-power Intel microarchitectures have very slow
+    // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
+    // algorithm on these processors. ATOM CPU feature captures exactly
+    // the right set of processors.
+    xorps(tmp1, tmp1);
+    pavgb(tmp1, src);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    andps(tmp1,
+          ExternalReferenceAsOperand(
+              ExternalReference::address_of_wasm_i8x16_splat_0x55(), scratch));
+    psubb(dst, tmp1);
+    Operand splat_0x33 = ExternalReferenceAsOperand(
+        ExternalReference::address_of_wasm_i8x16_splat_0x33(), scratch);
+    movaps(tmp1, dst);
+    andps(dst, splat_0x33);
+    psrlw(tmp1, 2);
+    andps(tmp1, splat_0x33);
+    paddb(dst, tmp1);
+    movaps(tmp1, dst);
+    psrlw(dst, 4);
+    paddb(dst, tmp1);
+    andps(dst,
+          ExternalReferenceAsOperand(
+              ExternalReference::address_of_wasm_i8x16_splat_0x0f(), scratch));
+  } else {
+    CpuFeatureScope sse_scope(this, SSSE3);
+    movaps(tmp1,
+           ExternalReferenceAsOperand(
+               ExternalReference::address_of_wasm_i8x16_splat_0x0f(), scratch));
+    Operand mask = ExternalReferenceAsOperand(
+        ExternalReference::address_of_wasm_i8x16_popcnt_mask(), scratch);
+    if (tmp2 != tmp1) {
+      movaps(tmp2, tmp1);
+    }
+    andps(tmp1, src);
+    andnps(tmp2, src);
+    psrlw(tmp2, 4);
+    movaps(dst, mask);
+    pshufb(dst, tmp1);
+    movaps(tmp1, mask);
+    pshufb(tmp1, tmp2);
+    paddb(dst, tmp1);
+  }
+}
+
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   DCHECK_GE(63, shift);
   if (shift >= 32) {
