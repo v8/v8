@@ -3931,67 +3931,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16Popcnt: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      XMMRegister tmp = i.TempSimd128Register(0);
-
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vmovdqa(tmp,
-                   __ ExternalReferenceAsOperand(
-                       ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
-        __ vpandn(kScratchDoubleReg, tmp, src);
-        __ vpand(dst, tmp, src);
-        __ vmovdqa(tmp,
-                   __ ExternalReferenceAsOperand(
-                       ExternalReference::address_of_wasm_i8x16_popcnt_mask()));
-        __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 4);
-        __ vpshufb(dst, tmp, dst);
-        __ vpshufb(kScratchDoubleReg, tmp, kScratchDoubleReg);
-        __ vpaddb(dst, dst, kScratchDoubleReg);
-      } else if (CpuFeatures::IsSupported(ATOM)) {
-        // Pre-Goldmont low-power Intel microarchitectures have very slow
-        // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
-        // algorithm on these processors. ATOM CPU feature captures exactly
-        // the right set of processors.
-        __ xorps(tmp, tmp);
-        __ pavgb(tmp, src);
-        if (dst != src) {
-          __ movaps(dst, src);
-        }
-        __ andps(tmp,
-                 __ ExternalReferenceAsOperand(
-                     ExternalReference::address_of_wasm_i8x16_splat_0x55()));
-        __ psubb(dst, tmp);
-        Operand splat_0x33 = __ ExternalReferenceAsOperand(
-            ExternalReference::address_of_wasm_i8x16_splat_0x33());
-        __ movaps(tmp, dst);
-        __ andps(dst, splat_0x33);
-        __ psrlw(tmp, 2);
-        __ andps(tmp, splat_0x33);
-        __ paddb(dst, tmp);
-        __ movaps(tmp, dst);
-        __ psrlw(dst, 4);
-        __ paddb(dst, tmp);
-        __ andps(dst,
-                 __ ExternalReferenceAsOperand(
-                     ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
-      } else {
-        __ movaps(tmp,
-                  __ ExternalReferenceAsOperand(
-                      ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
-        Operand mask = __ ExternalReferenceAsOperand(
-            ExternalReference::address_of_wasm_i8x16_popcnt_mask());
-        __ Move(kScratchDoubleReg, tmp);
-        __ andps(tmp, src);
-        __ andnps(kScratchDoubleReg, src);
-        __ psrlw(kScratchDoubleReg, 4);
-        __ movaps(dst, mask);
-        __ pshufb(dst, tmp);
-        __ movaps(tmp, mask);
-        __ pshufb(tmp, kScratchDoubleReg);
-        __ paddb(dst, tmp);
-      }
+      __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.TempSimd128Register(0));
       break;
     }
     case kX64S128Load8Splat: {
