@@ -1443,7 +1443,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
                            int inobject_properties) {
   map.set_instance_type(type);
   map.set_prototype(*null_value(), SKIP_WRITE_BARRIER);
-  map.set_constructor_or_backpointer(*null_value(), SKIP_WRITE_BARRIER);
+  map.set_constructor_or_back_pointer(*null_value(), SKIP_WRITE_BARRIER);
   map.set_instance_size(instance_size);
   if (map.IsJSObjectMap()) {
     DCHECK(!ReadOnlyHeap::Contains(map));

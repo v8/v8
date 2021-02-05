@@ -609,7 +609,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
   for (int i = 0; i < num_transitions; ++i) {
     transitions.GetTarget(i).DeprecateTransitionTree(isolate);
   }
-  DCHECK(!constructor_or_backpointer().IsFunctionTemplateInfo());
+  DCHECK(!constructor_or_back_pointer().IsFunctionTemplateInfo());
   DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
   if (FLAG_log_maps) {
@@ -1459,7 +1459,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
       inobject_properties);
   Handle<HeapObject> prototype(map->prototype(), isolate);
   Map::SetPrototype(isolate, result, prototype);
-  result->set_constructor_or_backpointer(map->GetConstructor());
+  result->set_constructor_or_back_pointer(map->GetConstructor());
   result->set_bit_field(map->bit_field());
   result->set_bit_field2(map->bit_field2());
   int new_bit_field3 = map->bit_field3();

@@ -712,7 +712,7 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 }
 
 DEF_GETTER(Map, GetBackPointer, HeapObject) {
-  Object object = constructor_or_backpointer(isolate);
+  Object object = constructor_or_back_pointer(isolate);
   // This is the equivalent of IsMap() but avoids reading the instance type so
   // it can be used concurrently without acquire load.
   if (object.IsHeapObject() && HeapObject::cast(object).map(isolate) ==
@@ -729,8 +729,8 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
   CHECK(value.IsMap());
   CHECK(GetBackPointer().IsUndefined());
   CHECK_IMPLIES(value.IsMap(), Map::cast(value).GetConstructor() ==
-                                   constructor_or_backpointer());
-  set_constructor_or_backpointer(value, mode);
+                                   constructor_or_back_pointer());
+  set_constructor_or_back_pointer(value, mode);
 }
 
 // static
@@ -742,7 +742,7 @@ Map Map::ElementsTransitionMap(Isolate* isolate) {
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
-ACCESSORS_CHECKED2(Map, constructor_or_backpointer, Object,
+ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
                    kConstructorOrBackPointerOrNativeContextOffset,
                    !IsContextMap(), value.IsNull() || !IsContextMap())
 ACCESSORS_CHECKED(Map, native_context, NativeContext,
@@ -760,22 +760,22 @@ bool Map::IsPrototypeValidityCellValid() const {
 }
 
 DEF_GETTER(Map, GetConstructor, Object) {
-  Object maybe_constructor = constructor_or_backpointer(isolate);
+  Object maybe_constructor = constructor_or_back_pointer(isolate);
   // Follow any back pointers.
   while (maybe_constructor.IsMap(isolate)) {
     maybe_constructor =
-        Map::cast(maybe_constructor).constructor_or_backpointer(isolate);
+        Map::cast(maybe_constructor).constructor_or_back_pointer(isolate);
   }
   return maybe_constructor;
 }
 
 Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
-  Object maybe_constructor = constructor_or_backpointer(isolate);
+  Object maybe_constructor = constructor_or_back_pointer(isolate);
   // Follow any back pointers.
   while (maybe_constructor.IsMap(isolate)) {
     if (max_steps-- == 0) return Smi::FromInt(0);
     maybe_constructor =
-        Map::cast(maybe_constructor).constructor_or_backpointer(isolate);
+        Map::cast(maybe_constructor).constructor_or_back_pointer(isolate);
   }
   return maybe_constructor;
 }
@@ -793,8 +793,8 @@ DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
 
 void Map::SetConstructor(Object constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.
-  CHECK(!constructor_or_backpointer().IsMap());
-  set_constructor_or_backpointer(constructor, mode);
+  CHECK(!constructor_or_back_pointer().IsMap());
+  set_constructor_or_back_pointer(constructor, mode);
 }
 
 Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map) {
