@@ -92,8 +92,9 @@ void DebugSideTable::Print(std::ostream& os) const {
 }
 
 void DebugSideTable::Entry::Print(std::ostream& os) const {
-  os << std::setw(6) << std::hex << pc_offset_ << std::dec << " [";
-  for (auto& value : values_) {
+  os << std::setw(6) << std::hex << pc_offset_ << std::dec << " stack height "
+     << stack_height_ << " [";
+  for (auto& value : changed_values_) {
     os << " " << value.type.name() << ":";
     switch (value.kind) {
       case kConstant:
@@ -127,25 +128,26 @@ class DebugInfoImpl {
   WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp) {
     FrameInspectionScope scope(this, pc);
-    return GetValue(scope.debug_side_table_entry, local, fp, debug_break_fp);
+    return GetValue(scope.debug_side_table, scope.debug_side_table_entry, local,
+                    fp, debug_break_fp);
   }
 
   int GetStackDepth(Address pc) {
     FrameInspectionScope scope(this, pc);
     if (!scope.is_inspectable()) return 0;
-    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
-    int value_count = scope.debug_side_table_entry->num_values();
-    return value_count - num_locals;
+    int num_locals = scope.debug_side_table->num_locals();
+    int stack_height = scope.debug_side_table_entry->stack_height();
+    return stack_height - num_locals;
   }
 
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp) {
     FrameInspectionScope scope(this, pc);
-    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
-    int value_count = scope.debug_side_table_entry->num_values();
+    int num_locals = scope.debug_side_table->num_locals();
+    int value_count = scope.debug_side_table_entry->stack_height();
     if (num_locals + index >= value_count) return {};
-    return GetValue(scope.debug_side_table_entry, num_locals + index, fp,
-                    debug_break_fp);
+    return GetValue(scope.debug_side_table, scope.debug_side_table_entry,
+                    num_locals + index, fp, debug_break_fp);
   }
 
   const WasmFunction& GetFunctionAtAddress(Address pc) {
@@ -501,35 +503,34 @@ class DebugInfoImpl {
 
   // Get the value of a local (including parameters) or stack value. Stack
   // values follow the locals in the same index space.
-  WasmValue GetValue(const DebugSideTable::Entry* debug_side_table_entry,
+  WasmValue GetValue(const DebugSideTable* debug_side_table,
+                     const DebugSideTable::Entry* debug_side_table_entry,
                      int index, Address stack_frame_base,
                      Address debug_break_fp) const {
-    ValueType type = debug_side_table_entry->value_type(index);
-    if (debug_side_table_entry->is_constant(index)) {
-      DCHECK(type == kWasmI32 || type == kWasmI64);
-      return type == kWasmI32
-                 ? WasmValue(debug_side_table_entry->i32_constant(index))
-                 : WasmValue(
-                       int64_t{debug_side_table_entry->i32_constant(index)});
+    const auto* value =
+        debug_side_table->FindValue(debug_side_table_entry, index);
+    if (value->is_constant()) {
+      DCHECK(value->type == kWasmI32 || value->type == kWasmI64);
+      return value->type == kWasmI32 ? WasmValue(value->i32_const)
+                                     : WasmValue(int64_t{value->i32_const});
     }
 
-    if (debug_side_table_entry->is_register(index)) {
-      LiftoffRegister reg = LiftoffRegister::from_liftoff_code(
-          debug_side_table_entry->register_code(index));
+    if (value->is_register()) {
+      auto reg = LiftoffRegister::from_liftoff_code(value->reg_code);
       auto gp_addr = [debug_break_fp](Register reg) {
         return debug_break_fp +
                WasmDebugBreakFrameConstants::GetPushedGpRegisterOffset(
                    reg.code());
       };
       if (reg.is_gp_pair()) {
-        DCHECK_EQ(kWasmI64, type);
+        DCHECK_EQ(kWasmI64, value->type);
         uint32_t low_word = ReadUnalignedValue<uint32_t>(gp_addr(reg.low_gp()));
         uint32_t high_word =
             ReadUnalignedValue<uint32_t>(gp_addr(reg.high_gp()));
         return WasmValue((uint64_t{high_word} << 32) | low_word);
       }
       if (reg.is_gp()) {
-        return type == kWasmI32
+        return value->type == kWasmI32
                    ? WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())))
                    : WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
       }
@@ -543,11 +544,11 @@ class DebugInfoImpl {
       Address spilled_addr =
           debug_break_fp +
           WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(code);
-      if (type == kWasmF32) {
+      if (value->type == kWasmF32) {
         return WasmValue(ReadUnalignedValue<float>(spilled_addr));
-      } else if (type == kWasmF64) {
+      } else if (value->type == kWasmF64) {
         return WasmValue(ReadUnalignedValue<double>(spilled_addr));
-      } else if (type == kWasmS128) {
+      } else if (value->type == kWasmS128) {
         return WasmValue(Simd128(ReadUnalignedValue<int16>(spilled_addr)));
       } else {
         // All other cases should have been handled above.
@@ -556,9 +557,8 @@ class DebugInfoImpl {
     }
 
     // Otherwise load the value from the stack.
-    Address stack_address =
-        stack_frame_base - debug_side_table_entry->stack_offset(index);
-    switch (type.kind()) {
+    Address stack_address = stack_frame_base - value->stack_offset;
+    switch (value->type.kind()) {
       case ValueType::kI32:
         return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
       case ValueType::kI64:

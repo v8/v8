@@ -156,6 +156,9 @@ constexpr LiftoffCondition GetCompareCondition(WasmOpcode opcode) {
 
 // Builds a {DebugSideTable}.
 class DebugSideTableBuilder {
+  using Entry = DebugSideTable::Entry;
+  using Value = Entry::Value;
+
  public:
   enum AssumeSpilling {
     // All register values will be spilled before the pc covered by the debug
@@ -170,12 +173,28 @@ class DebugSideTableBuilder {
 
   class EntryBuilder {
    public:
-    explicit EntryBuilder(int pc_offset,
-                          std::vector<DebugSideTable::Entry::Value> values)
-        : pc_offset_(pc_offset), values_(std::move(values)) {}
+    explicit EntryBuilder(int pc_offset, int stack_height,
+                          std::vector<Value> changed_values)
+        : pc_offset_(pc_offset),
+          stack_height_(stack_height),
+          changed_values_(std::move(changed_values)) {}
 
-    DebugSideTable::Entry ToTableEntry() {
-      return DebugSideTable::Entry{pc_offset_, std::move(values_)};
+    Entry ToTableEntry() {
+      return Entry{pc_offset_, stack_height_, std::move(changed_values_)};
+    }
+
+    void MinimizeBasedOnPreviousStack(const std::vector<Value>& last_values) {
+      auto dst = changed_values_.begin();
+      auto end = changed_values_.end();
+      for (auto src = dst; src != end; ++src) {
+        if (src->index < static_cast<int>(last_values.size()) &&
+            *src == last_values[src->index]) {
+          continue;
+        }
+        if (dst != src) *dst = *src;
+        ++dst;
+      }
+      changed_values_.erase(dst, end);
     }
 
     int pc_offset() const { return pc_offset_; }
@@ -183,42 +202,27 @@ class DebugSideTableBuilder {
 
    private:
     int pc_offset_;
-    std::vector<DebugSideTable::Entry::Value> values_;
+    int stack_height_;
+    std::vector<Value> changed_values_;
   };
 
-  // Adds a new entry, and returns a pointer to a builder for modifying that
-  // entry.
-  EntryBuilder* NewEntry(int pc_offset, int stack_height,
-                         LiftoffAssembler::VarState* stack_state,
-                         AssumeSpilling assume_spilling) {
-    // Record stack types.
-    std::vector<DebugSideTable::Entry::Value> values(stack_height);
-    for (int i = 0; i < stack_height; ++i) {
-      const auto& slot = stack_state[i];
-      values[i].type = slot.type();
-      values[i].stack_offset = slot.offset();
-      switch (slot.loc()) {
-        case kIntConst:
-          values[i].kind = DebugSideTable::Entry::kConstant;
-          values[i].i32_const = slot.i32_const();
-          break;
-        case kRegister:
-          DCHECK_NE(kDidSpill, assume_spilling);
-          if (assume_spilling == kAllowRegisters) {
-            values[i].kind = DebugSideTable::Entry::kRegister;
-            values[i].reg_code = slot.reg().liftoff_code();
-            break;
-          }
-          DCHECK_EQ(kAssumeSpilling, assume_spilling);
-          V8_FALLTHROUGH;
-        case kStack:
-          values[i].kind = DebugSideTable::Entry::kStack;
-          values[i].stack_offset = slot.offset();
-          break;
-      }
-    }
-    entries_.emplace_back(pc_offset, std::move(values));
-    return &entries_.back();
+  // Adds a new entry in regular code.
+  void NewEntry(int pc_offset, Vector<LiftoffAssembler::VarState> stack_state,
+                AssumeSpilling assume_spilling) {
+    entries_.emplace_back(
+        pc_offset, static_cast<int>(stack_state.size()),
+        GetChangedStackValues(last_values_, stack_state, assume_spilling));
+  }
+
+  // Adds a new entry for OOL code, and returns a pointer to a builder for
+  // modifying that entry.
+  EntryBuilder* NewOOLEntry(Vector<LiftoffAssembler::VarState> stack_state,
+                            AssumeSpilling assume_spilling) {
+    constexpr int kNoPcOffsetYet = -1;
+    ool_entries_.emplace_back(
+        kNoPcOffsetYet, static_cast<int>(stack_state.size()),
+        GetChangedStackValues(last_ool_values_, stack_state, assume_spilling));
+    return &ool_entries_.back();
   }
 
   void SetNumLocals(int num_locals) {
@@ -229,19 +233,78 @@ class DebugSideTableBuilder {
 
   std::unique_ptr<DebugSideTable> GenerateDebugSideTable() {
     DCHECK_LE(0, num_locals_);
-    std::vector<DebugSideTable::Entry> entries;
-    entries.reserve(entries_.size());
+
+    // Connect {entries_} and {ool_entries_} by removing redundant stack
+    // information from the first {ool_entries_} entry (based on
+    // {last_values_}).
+    if (!entries_.empty() && !ool_entries_.empty()) {
+      ool_entries_.front().MinimizeBasedOnPreviousStack(last_values_);
+    }
+
+    std::vector<Entry> entries;
+    entries.reserve(entries_.size() + ool_entries_.size());
     for (auto& entry : entries_) entries.push_back(entry.ToTableEntry());
-    std::sort(entries.begin(), entries.end(),
-              [](DebugSideTable::Entry& a, DebugSideTable::Entry& b) {
-                return a.pc_offset() < b.pc_offset();
-              });
+    for (auto& entry : ool_entries_) entries.push_back(entry.ToTableEntry());
+    DCHECK(std::is_sorted(
+        entries.begin(), entries.end(),
+        [](Entry& a, Entry& b) { return a.pc_offset() < b.pc_offset(); }));
     return std::make_unique<DebugSideTable>(num_locals_, std::move(entries));
   }
 
  private:
+  static std::vector<Value> GetChangedStackValues(
+      std::vector<Value>& last_values,
+      Vector<LiftoffAssembler::VarState> stack_state,
+      AssumeSpilling assume_spilling) {
+    std::vector<Value> changed_values;
+    int old_stack_size = static_cast<int>(last_values.size());
+    last_values.resize(stack_state.size());
+
+    int index = 0;
+    for (const auto& slot : stack_state) {
+      Value new_value;
+      new_value.index = index;
+      new_value.type = slot.type();
+      switch (slot.loc()) {
+        case kIntConst:
+          new_value.kind = Entry::kConstant;
+          new_value.i32_const = slot.i32_const();
+          break;
+        case kRegister:
+          DCHECK_NE(kDidSpill, assume_spilling);
+          if (assume_spilling == kAllowRegisters) {
+            new_value.kind = Entry::kRegister;
+            new_value.reg_code = slot.reg().liftoff_code();
+            break;
+          }
+          DCHECK_EQ(kAssumeSpilling, assume_spilling);
+          V8_FALLTHROUGH;
+        case kStack:
+          new_value.kind = Entry::kStack;
+          new_value.stack_offset = slot.offset();
+          break;
+      }
+
+      if (index >= old_stack_size || last_values[index] != new_value) {
+        changed_values.push_back(new_value);
+        last_values[index] = new_value;
+      }
+      ++index;
+    }
+    return changed_values;
+  }
+
   int num_locals_ = -1;
-  std::list<EntryBuilder> entries_;
+  // Keep a snapshot of the stack of the last entry, to generate a delta to the
+  // next entry.
+  std::vector<Value> last_values_;
+  std::vector<EntryBuilder> entries_;
+  // Keep OOL code entries separate so we can do proper delta-encoding (more
+  // entries might be added between the existing {entries_} and the
+  // {ool_entries_}). Store the entries in a list so the pointer is not
+  // invalidated by adding more entries.
+  std::vector<Value> last_ool_values_;
+  std::list<EntryBuilder> ool_entries_;
 };
 
 void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
@@ -592,7 +655,7 @@ class LiftoffCompiler {
     }
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
         position, regs_to_save, spilled_regs, safepoint_info,
-        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
+        RegisterOOLDebugSideTableEntry()));
     OutOfLineCode& ool = out_of_line_code_.back();
     LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize);
     __ StackCheck(ool.label.get(), limit_address);
@@ -2313,8 +2376,7 @@ class LiftoffCompiler {
         stub, position,
         V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersForInspection()
                                     : nullptr,
-        safepoint_info, pc,
-        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
+        safepoint_info, pc, RegisterOOLDebugSideTableEntry()));
     return out_of_line_code_.back().label.get();
   }
 
@@ -2742,13 +2804,19 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, result);
   }
 
-  DebugSideTableBuilder::EntryBuilder* RegisterDebugSideTableEntry(
+  void RegisterDebugSideTableEntry(
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
+    if (V8_LIKELY(!debug_sidetable_builder_)) return;
+    debug_sidetable_builder_->NewEntry(__ pc_offset(),
+                                       VectorOf(__ cache_state()->stack_state),
+                                       assume_spilling);
+  }
+
+  DebugSideTableBuilder::EntryBuilder* RegisterOOLDebugSideTableEntry() {
     if (V8_LIKELY(!debug_sidetable_builder_)) return nullptr;
-    int stack_height = static_cast<int>(__ cache_state()->stack_height());
-    return debug_sidetable_builder_->NewEntry(
-        __ pc_offset(), stack_height, __ cache_state()->stack_state.begin(),
-        assume_spilling);
+    return debug_sidetable_builder_->NewOOLEntry(
+        VectorOf(__ cache_state()->stack_state),
+        DebugSideTableBuilder::kAssumeSpilling);
   }
 
   enum CallKind : bool { kReturnCall = true, kNoReturnCall = false };

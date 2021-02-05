@@ -102,26 +102,8 @@ class LiftoffCompileEnvironment {
   static bool CheckEntryEquals(const DebugSideTable::Entry& a,
                                const DebugSideTable::Entry& b) {
     CHECK_EQ(a.pc_offset(), b.pc_offset());
-    CHECK(std::equal(a.values().begin(), a.values().end(), b.values().begin(),
-                     b.values().end(), &CheckValueEquals));
-    return true;
-  }
-
-  static bool CheckValueEquals(const DebugSideTable::Entry::Value& a,
-                               const DebugSideTable::Entry::Value& b) {
-    CHECK_EQ(a.type, b.type);
-    CHECK_EQ(a.kind, b.kind);
-    switch (a.kind) {
-      case DebugSideTable::Entry::kConstant:
-        CHECK_EQ(a.i32_const, b.i32_const);
-        break;
-      case DebugSideTable::Entry::kRegister:
-        CHECK_EQ(a.reg_code, b.reg_code);
-        break;
-      case DebugSideTable::Entry::kStack:
-        CHECK_EQ(a.stack_offset, b.stack_offset);
-        break;
-    }
+    CHECK_EQ(a.stack_height(), b.stack_height());
+    CHECK_EQ(a.changed_values(), b.changed_values());
     return true;
   }
 
@@ -172,38 +154,42 @@ class LiftoffCompileEnvironment {
 };
 
 struct DebugSideTableEntry {
-  std::vector<DebugSideTable::Entry::Value> values;
+  int stack_height;
+  std::vector<DebugSideTable::Entry::Value> changed_values;
 
   // Construct via vector or implicitly via initializer list.
-  explicit DebugSideTableEntry(std::vector<DebugSideTable::Entry::Value> values)
-      : values(std::move(values)) {}
+  DebugSideTableEntry(int stack_height,
+                      std::vector<DebugSideTable::Entry::Value> changed_values)
+      : stack_height(stack_height), changed_values(std::move(changed_values)) {}
+
   DebugSideTableEntry(
-      std::initializer_list<DebugSideTable::Entry::Value> values)
-      : values(values) {}
+      int stack_height,
+      std::initializer_list<DebugSideTable::Entry::Value> changed_values)
+      : stack_height(stack_height), changed_values(changed_values) {}
 
   bool operator==(const DebugSideTableEntry& other) const {
-    if (values.size() != other.values.size()) return false;
-    for (size_t i = 0; i < values.size(); ++i) {
-      if (values[i].type != other.values[i].type) return false;
-      if (values[i].kind != other.values[i].kind) return false;
-      // Stack offsets and register codes are platform dependent, so only check
-      // constants here.
-      if (values[i].kind == DebugSideTable::Entry::kConstant &&
-          values[i].i32_const != other.values[i].i32_const) {
-        return false;
-      }
-    }
-    return true;
+    return stack_height == other.stack_height &&
+           std::equal(changed_values.begin(), changed_values.end(),
+                      other.changed_values.begin(), other.changed_values.end(),
+                      CheckValueEquals);
+  }
+
+  // Check for equality, but ignore exact register and stack offset.
+  static bool CheckValueEquals(const DebugSideTable::Entry::Value& a,
+                               const DebugSideTable::Entry::Value& b) {
+    return a.index == b.index && a.type == b.type && a.kind == b.kind &&
+           (a.kind != DebugSideTable::Entry::kConstant ||
+            a.i32_const == b.i32_const);
   }
 };
 
 // Debug builds will print the vector of DebugSideTableEntry.
 #ifdef DEBUG
 std::ostream& operator<<(std::ostream& out, const DebugSideTableEntry& entry) {
-  out << "{";
+  out << "stack height " << entry.stack_height << ", changed: {";
   const char* comma = "";
-  for (auto& v : entry.values) {
-    out << comma << v.type.name() << " ";
+  for (auto& v : entry.changed_values) {
+    out << comma << v.index << ":" << v.type.name() << " ";
     switch (v.kind) {
       case DebugSideTable::Entry::kConstant:
         out << "const:" << v.i32_const;
@@ -227,21 +213,25 @@ std::ostream& operator<<(std::ostream& out,
 #endif  // DEBUG
 
 // Named constructors to make the tests more readable.
-DebugSideTable::Entry::Value Constant(ValueType type, int32_t constant) {
+DebugSideTable::Entry::Value Constant(int index, ValueType type,
+                                      int32_t constant) {
   DebugSideTable::Entry::Value value;
+  value.index = index;
   value.type = type;
   value.kind = DebugSideTable::Entry::kConstant;
   value.i32_const = constant;
   return value;
 }
-DebugSideTable::Entry::Value Register(ValueType type) {
+DebugSideTable::Entry::Value Register(int index, ValueType type) {
   DebugSideTable::Entry::Value value;
+  value.index = index;
   value.type = type;
   value.kind = DebugSideTable::Entry::kRegister;
   return value;
 }
-DebugSideTable::Entry::Value Stack(ValueType type) {
+DebugSideTable::Entry::Value Stack(int index, ValueType type) {
   DebugSideTable::Entry::Value value;
+  value.index = index;
   value.type = type;
   value.kind = DebugSideTable::Entry::kStack;
   return value;
@@ -251,10 +241,10 @@ void CheckDebugSideTable(std::vector<DebugSideTableEntry> expected_entries,
                          const wasm::DebugSideTable* debug_side_table) {
   std::vector<DebugSideTableEntry> entries;
   for (auto& entry : debug_side_table->entries()) {
-    auto values = entry.values();
-    entries.push_back(
-        DebugSideTableEntry{std::vector<DebugSideTable::Entry::Value>{
-            values.begin(), values.end()}});
+    entries.emplace_back(
+        entry.stack_height(),
+        std::vector<DebugSideTable::Entry::Value>{
+            entry.changed_values().begin(), entry.changed_values().end()});
   }
   CHECK_EQ(expected_entries, entries);
 }
@@ -306,9 +296,9 @@ TEST(Liftoff_debug_side_table_simple) {
   CheckDebugSideTable(
       {
           // function entry, locals in registers.
-          {Register(kWasmI32), Register(kWasmI32)},
-          // OOL stack check, locals spilled, stack empty.
-          {Stack(kWasmI32), Stack(kWasmI32)},
+          {2, {Register(0, kWasmI32), Register(1, kWasmI32)}},
+          // OOL stack check, locals spilled, stack still empty.
+          {2, {Stack(0, kWasmI32), Stack(1, kWasmI32)}},
       },
       debug_side_table.get());
 }
@@ -322,11 +312,11 @@ TEST(Liftoff_debug_side_table_call) {
   CheckDebugSideTable(
       {
           // function entry, local in register.
-          {Register(kWasmI32)},
+          {1, {Register(0, kWasmI32)}},
           // call, local spilled, stack empty.
-          {Stack(kWasmI32)},
-          // OOL stack check, local spilled, stack empty.
-          {Stack(kWasmI32)},
+          {1, {Stack(0, kWasmI32)}},
+          // OOL stack check, local spilled as before, stack empty.
+          {1, {}},
       },
       debug_side_table.get());
 }
@@ -342,11 +332,11 @@ TEST(Liftoff_debug_side_table_call_const) {
   CheckDebugSideTable(
       {
           // function entry, local in register.
-          {Register(kWasmI32)},
+          {1, {Register(0, kWasmI32)}},
           // call, local is kConst.
-          {Constant(kWasmI32, kConst)},
+          {1, {Constant(0, kWasmI32, kConst)}},
           // OOL stack check, local spilled.
-          {Stack(kWasmI32)},
+          {1, {Stack(0, kWasmI32)}},
       },
       debug_side_table.get());
 }
@@ -361,15 +351,15 @@ TEST(Liftoff_debug_side_table_indirect_call) {
   CheckDebugSideTable(
       {
           // function entry, local in register.
-          {Register(kWasmI32)},
+          {1, {Register(0, kWasmI32)}},
           // indirect call, local spilled, stack empty.
-          {Stack(kWasmI32)},
-          // OOL stack check, local spilled, stack empty.
-          {Stack(kWasmI32)},
-          // OOL trap (invalid index), local spilled, stack has {kConst}.
-          {Stack(kWasmI32), Constant(kWasmI32, kConst)},
-          // OOL trap (sig mismatch), local spilled, stack has {kConst}.
-          {Stack(kWasmI32), Constant(kWasmI32, kConst)},
+          {1, {Stack(0, kWasmI32)}},
+          // OOL stack check, local still spilled.
+          {1, {}},
+          // OOL trap (invalid index), local still spilled, stack has {kConst}.
+          {2, {Constant(1, kWasmI32, kConst)}},
+          // OOL trap (sig mismatch), stack unmodified.
+          {2, {}},
       },
       debug_side_table.get());
 }
@@ -383,11 +373,11 @@ TEST(Liftoff_debug_side_table_loop) {
   CheckDebugSideTable(
       {
           // function entry, local in register.
-          {Register(kWasmI32)},
+          {1, {Register(0, kWasmI32)}},
           // OOL stack check, local spilled, stack empty.
-          {Stack(kWasmI32)},
-          // OOL loop stack check, local spilled, stack has {kConst}.
-          {Stack(kWasmI32), Constant(kWasmI32, kConst)},
+          {1, {Stack(0, kWasmI32)}},
+          // OOL loop stack check, local still spilled, stack has {kConst}.
+          {2, {Constant(1, kWasmI32, kConst)}},
       },
       debug_side_table.get());
 }
@@ -400,13 +390,13 @@ TEST(Liftoff_debug_side_table_trap) {
   CheckDebugSideTable(
       {
           // function entry, locals in registers.
-          {Register(kWasmI32), Register(kWasmI32)},
+          {2, {Register(0, kWasmI32), Register(1, kWasmI32)}},
           // OOL stack check, local spilled, stack empty.
-          {Stack(kWasmI32), Stack(kWasmI32)},
-          // OOL trap (div by zero), locals spilled, stack empty.
-          {Stack(kWasmI32), Stack(kWasmI32)},
-          // OOL trap (result unrepresentable), locals spilled, stack empty.
-          {Stack(kWasmI32), Stack(kWasmI32)},
+          {2, {Stack(0, kWasmI32), Stack(1, kWasmI32)}},
+          // OOL trap (div by zero), stack as before.
+          {2, {}},
+          // OOL trap (unrepresentable), stack as before.
+          {2, {}},
       },
       debug_side_table.get());
 }
@@ -424,12 +414,11 @@ TEST(Liftoff_breakpoint_simple) {
   CheckDebugSideTable(
       {
           // First break point, locals in registers.
-          {Register(kWasmI32), Register(kWasmI32)},
-          // Second break point, locals and two stack values in registers.
-          {Register(kWasmI32), Register(kWasmI32), Register(kWasmI32),
-           Register(kWasmI32)},
+          {2, {Register(0, kWasmI32), Register(1, kWasmI32)}},
+          // Second break point, locals unchanged, two register stack values.
+          {4, {Register(2, kWasmI32), Register(3, kWasmI32)}},
           // OOL stack check, locals spilled, stack empty.
-          {Stack(kWasmI32), Stack(kWasmI32)},
+          {2, {Stack(0, kWasmI32), Stack(1, kWasmI32)}},
       },
       debug_side_table.get());
 }
