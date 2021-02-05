@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "cppgc/custom-space.h"
+#include "cppgc/internal/process-heap.h"
 #include "cppgc/internal/write-barrier.h"
 #include "cppgc/visitor.h"
 #include "v8-internal.h"  // NOLINT(build/include_directory)
@@ -97,12 +98,30 @@ class V8_EXPORT JSHeapConsistency final {
    * \param params Parameters that may be used for actual write barrier calls.
    *   Only filled if return value indicates that a write barrier is needed. The
    *   contents of the `params` are an implementation detail.
+   * \param callback Callback returning the corresponding heap handle. The
+   *   callback is only invoked if the heap cannot otherwise be figured out. The
+   *   callback must not allocate.
    * \returns whether a write barrier is needed and which barrier to invoke.
    */
-  static V8_INLINE WriteBarrierType GetWriteBarrierType(
-      const TracedReferenceBase& ref, WriteBarrierParams& params) {
+  template <typename HeapHandleCallback>
+  static V8_INLINE WriteBarrierType
+  GetWriteBarrierType(const TracedReferenceBase& ref,
+                      WriteBarrierParams& params, HeapHandleCallback callback) {
     if (ref.IsEmpty()) return WriteBarrierType::kNone;
-    return cppgc::internal::WriteBarrier::GetWriteBarrierType(&ref, params);
+
+    if (V8_LIKELY(!cppgc::internal::ProcessHeap::
+                      IsAnyIncrementalOrConcurrentMarking())) {
+      return cppgc::internal::WriteBarrier::Type::kNone;
+    }
+    cppgc::HeapHandle& handle = callback();
+    if (!cppgc::subtle::HeapState::IsMarking(handle)) {
+      return cppgc::internal::WriteBarrier::Type::kNone;
+    }
+    params.heap = &handle;
+#if V8_ENABLE_CHECKS
+    params.type = cppgc::internal::WriteBarrier::Type::kMarking;
+#endif  // !V8_ENABLE_CHECKS
+    return cppgc::internal::WriteBarrier::Type::kMarking;
   }
 
   /**
@@ -117,16 +136,21 @@ class V8_EXPORT JSHeapConsistency final {
    * \param params Parameters that may be used for actual write barrier calls.
    *   Only filled if return value indicates that a write barrier is needed. The
    *   contents of the `params` are an implementation detail.
+   * \param callback Callback returning the corresponding heap handle. The
+   *   callback is only invoked if the heap cannot otherwise be figured out. The
+   *   callback must not allocate.
    * \returns whether a write barrier is needed and which barrier to invoke.
    */
-  static V8_INLINE WriteBarrierType
-  GetWriteBarrierType(v8::Local<v8::Object>& wrapper, int wrapper_index,
-                      const void* wrappable, WriteBarrierParams& params) {
+  template <typename HeapHandleCallback>
+  static V8_INLINE WriteBarrierType GetWriteBarrierType(
+      v8::Local<v8::Object>& wrapper, int wrapper_index, const void* wrappable,
+      WriteBarrierParams& params, HeapHandleCallback callback) {
 #if V8_ENABLE_CHECKS
     CheckWrapper(wrapper, wrapper_index, wrappable);
 #endif  // V8_ENABLE_CHECKS
     return cppgc::internal::WriteBarrier::
-        GetWriteBarrierTypeForExternallyReferencedObject(wrappable, params);
+        GetWriteBarrierTypeForExternallyReferencedObject(wrappable, params,
+                                                         callback);
   }
 
   /**

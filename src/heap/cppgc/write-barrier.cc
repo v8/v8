@@ -125,7 +125,7 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
   // Record slot.
   local_data.heap_base->remembered_slots().insert(const_cast<void*>(slot));
 }
-#endif
+#endif  // CPPGC_YOUNG_GENERATION
 
 #if V8_ENABLE_CHECKS
 // static
@@ -133,6 +133,36 @@ void WriteBarrier::CheckParams(Type expected_type, const Params& params) {
   CHECK_EQ(expected_type, params.type);
 }
 #endif  // V8_ENABLE_CHECKS
+
+// static
+bool WriteBarrierTypeForNonCagedHeapPolicy::IsMarking(const void* object,
+                                                      HeapHandle** handle) {
+  // Large objects cannot have mixins, so we are guaranteed to always have
+  // a pointer on the same page.
+  const auto* page = BasePage::FromPayload(object);
+  *handle = page->heap();
+  return page->heap()->marker();
+}
+
+#if defined(CPPGC_CAGED_HEAP)
+
+// static
+bool WriteBarrierTypeForCagedHeapPolicy::IsMarking(
+    const HeapHandle& heap_handle, WriteBarrier::Params& params) {
+  const auto& heap_base = internal::HeapBase::From(heap_handle);
+  if (heap_base.marker()) {
+    return true;
+  }
+  // Also set caged heap start here to avoid another call immediately after
+  // checking IsMarking().
+#if defined(CPPGC_YOUNG_GENERATION)
+  params.start =
+      reinterpret_cast<uintptr_t>(&heap_base.caged_heap().local_data());
+#endif  // !CPPGC_YOUNG_GENERATION
+  return false;
+}
+
+#endif  // CPPGC_CAGED_HEAP
 
 }  // namespace internal
 }  // namespace cppgc

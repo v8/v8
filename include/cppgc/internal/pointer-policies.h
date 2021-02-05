@@ -136,22 +136,7 @@ template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
           typename CheckingPolicy = DefaultCheckingPolicy>
 class BasicMember;
 
-// Special tag type used to denote some sentinel member. The semantics of the
-// sentinel is defined by the embedder.
-struct SentinelPointer {
-  template <typename T>
-  operator T*() const {  // NOLINT
-    static constexpr intptr_t kSentinelValue = 1;
-    return reinterpret_cast<T*>(kSentinelValue);
-  }
-  // Hidden friends.
-  friend bool operator==(SentinelPointer, SentinelPointer) { return true; }
-  friend bool operator!=(SentinelPointer, SentinelPointer) { return false; }
-};
-
 }  // namespace internal
-
-constexpr internal::SentinelPointer kSentinelPointer;
 
 }  // namespace cppgc
 

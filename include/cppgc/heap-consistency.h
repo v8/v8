@@ -50,17 +50,22 @@ class HeapConsistency final {
   /**
    * Gets the required write barrier type for a specific write.
    *
-   * \param slot Slot containing the pointer to some part of an object object
-   *   that has been allocated using `MakeGarbageCollected()`. Does not consider
-   *   the value of `slot`.
+   * \param slot Slot to some part of an object. The object must not necessarily
+       have been allocated using `MakeGarbageCollected()` but can also live
+       off-heap or on stack.
    * \param params Parameters that may be used for actual write barrier calls.
    *   Only filled if return value indicates that a write barrier is needed. The
    *   contents of the `params` are an implementation detail.
+   * \param callback Callback returning the corresponding heap handle. The
+   *   callback is only invoked if the heap cannot otherwise be figured out. The
+   *   callback must not allocate.
    * \returns whether a write barrier is needed and which barrier to invoke.
    */
+  template <typename HeapHandleCallback>
   static V8_INLINE WriteBarrierType
-  GetWriteBarrierType(const void* slot, WriteBarrierParams& params) {
-    return internal::WriteBarrier::GetWriteBarrierType(slot, params);
+  GetWriteBarrierType(const void* slot, WriteBarrierParams& params,
+                      HeapHandleCallback callback) {
+    return internal::WriteBarrier::GetWriteBarrierType(slot, params, callback);
   }
 
   /**
@@ -81,7 +86,6 @@ class HeapConsistency final {
    * elements if they have not yet been processed.
    *
    * \param params The parameters retrieved from `GetWriteBarrierType()`.
-   * \param heap The corresponding heap.
    * \param first_element Pointer to the first element that should be processed.
    *   The slot itself must reside in an object that has been allocated using
    *   `MakeGarbageCollected()`.
@@ -92,11 +96,11 @@ class HeapConsistency final {
    *   element if necessary.
    */
   static V8_INLINE void DijkstraWriteBarrierRange(
-      const WriteBarrierParams& params, HeapHandle& heap,
-      const void* first_element, size_t element_size, size_t number_of_elements,
+      const WriteBarrierParams& params, const void* first_element,
+      size_t element_size, size_t number_of_elements,
       TraceCallback trace_callback) {
     internal::WriteBarrier::DijkstraMarkingBarrierRange(
-        params, heap, first_element, element_size, number_of_elements,
+        params, first_element, element_size, number_of_elements,
         trace_callback);
   }
 
@@ -130,46 +134,6 @@ class HeapConsistency final {
 
  private:
   HeapConsistency() = delete;
-};
-
-/**
- * Helpers to peek into heap-internal state.
- */
-class V8_EXPORT HeapState final {
- public:
-  /**
-   * Returns whether the garbage collector is marking. This API is experimental
-   * and is expected to be removed in future.
-   *
-   * \param heap_handle The corresponding heap.
-   * \returns true if the garbage collector is currently marking, and false
-   *   otherwise.
-   */
-  static bool IsMarking(HeapHandle& heap_handle);
-
-  /*
-   * Returns whether the garbage collector is sweeping. This API is experimental
-   * and is expected to be removed in future.
-   *
-   * \param heap_handle The corresponding heap.
-   * \returns true if the garbage collector is currently sweeping, and false
-   *   otherwise.
-   */
-  static bool IsSweeping(HeapHandle& heap_handle);
-
-  /**
-   * Returns whether the garbage collector is in the atomic pause, i.e., the
-   * mutator is stopped from running. This API is experimental and is expected
-   * to be removed in future.
-   *
-   * \param heap_handle The corresponding heap.
-   * \returns true if the garbage collector is currently in the atomic pause,
-   *   and false otherwise.
-   */
-  static bool IsInAtomicPause(HeapHandle& heap_handle);
-
- private:
-  HeapState() = delete;
 };
 
 /**

@@ -62,23 +62,5 @@ NoGarbageCollectionScope::NoGarbageCollectionScope(
 
 NoGarbageCollectionScope::~NoGarbageCollectionScope() { Leave(heap_handle_); }
 
-// static
-bool HeapState::IsMarking(HeapHandle& heap_handle) {
-  const auto& heap_base = internal::HeapBase::From(heap_handle);
-  return heap_base.marker();
-}
-
-// static
-bool HeapState::IsSweeping(HeapHandle& heap_handle) {
-  const auto& heap_base = internal::HeapBase::From(heap_handle);
-  return heap_base.sweeper().IsSweepingInProgress();
-}
-
-// static
-bool HeapState::IsInAtomicPause(HeapHandle& heap_handle) {
-  const auto& heap_base = internal::HeapBase::From(heap_handle);
-  return heap_base.in_atomic_pause();
-}
-
 }  // namespace subtle
 }  // namespace cppgc
