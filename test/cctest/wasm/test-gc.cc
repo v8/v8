@@ -783,8 +783,8 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
   tester.CheckResult(allocate_array, 0);
 }
 
-TEST(BasicRtt) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(BasicRtt) {
+  WasmGCTester tester(execution_tier);
 
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte subtype_index =
@@ -811,31 +811,26 @@ TEST(BasicRtt) {
        kExprEnd});
 
   const int kFieldIndex = 1;
-  const int kStructIndexCode = 1;  // Shifted in 'let' block.
-  const int kRttIndexCode = 0;     // Let-bound, hence first local.
+  const int kStructIndexCode = 0;
   // This implements the following function:
   //   var local_struct: type0;
-  //   let (local_rtt = rtt.sub(rtt.canon(type0), type1) in {
-  //     local_struct = new type1 with rtt 'local_rtt';
-  //     return (ref.test local_struct local_rtt) +
-  //            ((ref.cast local_struct local_rtt)[field0]);
+  //   local_struct = new type1 with rtt 'kRttSub()';
+  //   return (ref.test local_struct kRttSub()) +
+  //          ((ref.cast local_struct kRttSub())[field0]);
   //   }
   // The expected return value is 1+42 = 43.
   const byte kRefCast = tester.DefineFunction(
       tester.sigs.i_v(), {optref(type_index)},
-      {WASM_LET_1_I(
-           WASM_RTT_WITH_DEPTH(1, subtype_index),
-           WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index)),
-           WASM_LOCAL_SET(kStructIndexCode,
-                          WASM_STRUCT_NEW_WITH_RTT(
-                              subtype_index, WASM_I32V(11), WASM_I32V(42),
-                              WASM_LOCAL_GET(kRttIndexCode))),
-           WASM_I32_ADD(
-               WASM_REF_TEST(WASM_LOCAL_GET(kStructIndexCode),
-                             WASM_LOCAL_GET(kRttIndexCode)),
-               WASM_STRUCT_GET(subtype_index, kFieldIndex,
-                               WASM_REF_CAST(WASM_LOCAL_GET(kStructIndexCode),
-                                             WASM_LOCAL_GET(kRttIndexCode))))),
+      {WASM_LOCAL_SET(
+           kStructIndexCode,
+           WASM_STRUCT_NEW_WITH_RTT(subtype_index, WASM_I32V(11), WASM_I32V(42),
+                                    WASM_CALL_FUNCTION0(kRttSub))),
+       WASM_I32_ADD(
+           WASM_REF_TEST(WASM_LOCAL_GET(kStructIndexCode),
+                         WASM_CALL_FUNCTION0(kRttSub)),
+           WASM_STRUCT_GET(subtype_index, kFieldIndex,
+                           WASM_REF_CAST(WASM_LOCAL_GET(kStructIndexCode),
+                                         WASM_CALL_FUNCTION0(kRttSub)))),
        kExprEnd});
 
   tester.CompileModule();
