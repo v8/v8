@@ -572,7 +572,42 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
-  bailout(kUnsupportedArchitecture, "MoveStackValue");
+  DCHECK_NE(dst_offset, src_offset);
+  int length = 0;
+  switch (type.kind()) {
+    case ValueType::kI32:
+    case ValueType::kF32:
+      length = 4;
+      break;
+    case ValueType::kI64:
+    case ValueType::kOptRef:
+    case ValueType::kRef:
+    case ValueType::kRtt:
+    case ValueType::kF64:
+      length = 8;
+      break;
+    case ValueType::kS128:
+      length = 16;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  if (is_int20(dst_offset)) {
+    lay(ip, liftoff::GetStackSlot(dst_offset));
+  } else {
+    mov(ip, Operand(-dst_offset));
+    lay(ip, MemOperand(fp, ip));
+  }
+
+  if (is_int20(src_offset)) {
+    lay(r1, liftoff::GetStackSlot(src_offset));
+  } else {
+    mov(r1, Operand(-src_offset));
+    lay(r1, MemOperand(fp, r1));
+  }
+
+  MoveChar(MemOperand(ip), MemOperand(r1), Operand(length));
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
