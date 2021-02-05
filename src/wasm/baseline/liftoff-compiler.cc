@@ -5336,11 +5336,6 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     // Register the bailout reason (can also be {kSuccess}).
     counters->liftoff_bailout_reasons()->AddSample(
         static_cast<int>(compiler->bailout_reason()));
-    if (compiler->did_bailout()) {
-      counters->liftoff_unsupported_functions()->Increment();
-    } else {
-      counters->liftoff_compiled_functions()->Increment();
-    }
   }
 
   if (compiler->did_bailout()) return WasmCompilationResult{};
