@@ -3149,6 +3149,45 @@ void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
+// TODO(v8:9780)
+// These double precision conversion instructions need a low Q register (q0-q7)
+// because the codegen accesses the S registers they overlap with.
+void InstructionSelector::VisitF64x2ConvertLowI32x4S(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmF64x2ConvertLowI32x4S, g.DefineAsRegister(node),
+       g.UseFixed(node->InputAt(0), q0));
+}
+
+void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmF64x2ConvertLowI32x4U, g.DefineAsRegister(node),
+       g.UseFixed(node->InputAt(0), q0));
+}
+
+void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmI32x4TruncSatF64x2SZero, g.DefineAsFixed(node, q0),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmI32x4TruncSatF64x2UZero, g.DefineAsFixed(node, q0),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitF32x4DemoteF64x2Zero(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmF32x4DemoteF64x2Zero, g.DefineAsFixed(node, q0),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmF64x2PromoteLowF32x4, g.DefineAsRegister(node),
+       g.UseFixed(node->InputAt(0), q0));
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

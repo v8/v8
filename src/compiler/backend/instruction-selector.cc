@@ -2787,27 +2787,6 @@ void InstructionSelector::VisitI64x2SignSelect(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
-void InstructionSelector::VisitF64x2ConvertLowI32x4S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitF32x4DemoteF64x2Zero(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
-  UNIMPLEMENTED();
-}
-#endif  //! V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
-
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 // TODO(v8:11297) Prototype i32x4.widen_i8x16_u
 void InstructionSelector::VisitI32x4WidenI8x16S(Node* node) { UNIMPLEMENTED(); }

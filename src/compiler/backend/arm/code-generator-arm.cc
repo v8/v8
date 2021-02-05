@@ -2065,6 +2065,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vrintn(dst.high(), src.high());
       break;
     }
+    case kArmF64x2ConvertLowI32x4S: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ vcvt_f64_s32(dst.low(), SwVfpRegister::from_code(src.code() * 4));
+      __ vcvt_f64_s32(dst.high(), SwVfpRegister::from_code(src.code() * 4 + 1));
+      break;
+    }
+    case kArmF64x2ConvertLowI32x4U: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ vcvt_f64_u32(dst.low(), SwVfpRegister::from_code(src.code() * 4));
+      __ vcvt_f64_u32(dst.high(), SwVfpRegister::from_code(src.code() * 4 + 1));
+      break;
+    }
+    case kArmF64x2PromoteLowF32x4: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ vcvt_f64_f32(dst.low(), SwVfpRegister::from_code(src.code() * 4));
+      __ vcvt_f64_f32(dst.high(), SwVfpRegister::from_code(src.code() * 4 + 1));
+      break;
+    }
     case kArmI64x2SplatI32Pair: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vdup(Neon32, dst, i.InputRegister(0));
@@ -2339,6 +2360,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vbsl(dst, rhs, lhs);
       break;
     }
+    case kArmF32x4DemoteF64x2Zero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ vcvt_f32_f64(SwVfpRegister::from_code(dst.code() * 4), src.low());
+      __ vcvt_f32_f64(SwVfpRegister::from_code(dst.code() * 4 + 1), src.high());
+      __ vmov(dst.high(), 0);
+      break;
+    }
     case kArmI32x4Splat: {
       __ vdup(Neon32, i.OutputSimd128Register(), i.InputRegister(0));
       break;
@@ -2504,6 +2533,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmull(NeonS16, scratch, lhs.high(), rhs.high());
       __ vpadd(Neon32, dst.low(), tmp1.low(), tmp1.high());
       __ vpadd(Neon32, dst.high(), scratch.low(), scratch.high());
+      break;
+    }
+    case kArmI32x4TruncSatF64x2SZero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ vcvt_s32_f64(SwVfpRegister::from_code(dst.code() * 4), src.low());
+      __ vcvt_s32_f64(SwVfpRegister::from_code(dst.code() * 4 + 1), src.high());
+      __ vmov(dst.high(), 0);
+      break;
+    }
+    case kArmI32x4TruncSatF64x2UZero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ vcvt_u32_f64(SwVfpRegister::from_code(dst.code() * 4), src.low());
+      __ vcvt_u32_f64(SwVfpRegister::from_code(dst.code() * 4 + 1), src.high());
+      __ vmov(dst.high(), 0);
       break;
     }
     case kArmI16x8Splat: {
