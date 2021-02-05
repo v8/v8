@@ -3658,24 +3658,7 @@ base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
 base::Optional<ObjectRef> MapRef::GetStrongValue(
     InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap()) {
-    MaybeObject value =
-        object()->instance_descriptors(kRelaxedLoad).GetValue(descriptor_index);
-    HeapObject object;
-    if (value.GetHeapObjectIfStrong(&object)) {
-      return ObjectRef(broker(), broker()->CanonicalPersistentHandle((object)));
-    }
-    return base::nullopt;
-  }
-  ObjectData* value = data()
-                          ->AsMap()
-                          ->instance_descriptors()
-                          ->AsDescriptorArray()
-                          ->GetStrongValue(descriptor_index);
-  if (!value) {
-    return base::nullopt;
-  }
-  return ObjectRef(broker(), value);
+  return instance_descriptors().GetStrongValue(descriptor_index);
 }
 
 DescriptorArrayRef MapRef::instance_descriptors() const {
@@ -4091,6 +4074,33 @@ NameRef DescriptorArrayRef::GetPropertyKey(
   }
   return NameRef(broker(),
                  data()->AsDescriptorArray()->GetPropertyKey(descriptor_index));
+}
+
+base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
+    InternalIndex descriptor_index) const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    HeapObject heap_object;
+    if (object()
+            ->GetValue(descriptor_index)
+            .GetHeapObjectIfStrong(&heap_object)) {
+      // Since the descriptors in the descriptor array can be changed in-place
+      // via DescriptorArray::Replace, we might get a value that we haven't seen
+      // before.
+      ObjectData* data = broker()->TryGetOrCreateData(
+          broker()->CanonicalPersistentHandle(heap_object));
+      if (data) return ObjectRef(broker(), data);
+
+      TRACE_BROKER_MISSING(broker(), "strong value for descriptor array "
+                                         << *this << " at index "
+                                         << descriptor_index.as_int());
+      // Fall through to the base::nullopt below.
+    }
+    return base::nullopt;
+  }
+  ObjectData* value =
+      data()->AsDescriptorArray()->GetStrongValue(descriptor_index);
+  if (!value) return base::nullopt;
+  return ObjectRef(broker(), value);
 }
 
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
