@@ -64,6 +64,7 @@ enum InstanceType : uint16_t;
   V(SmallOrderedNameDictionary)    \
   V(SourceTextModule)              \
   V(Struct)                        \
+  V(SwissNameDictionary)           \
   V(Symbol)                        \
   V(SyntheticModule)               \
   V(TransitionArray)               \

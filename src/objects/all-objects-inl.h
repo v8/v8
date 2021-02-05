@@ -78,6 +78,7 @@
 #include "src/objects/string-set-inl.h"
 #include "src/objects/string-table-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/tagged-impl-inl.h"

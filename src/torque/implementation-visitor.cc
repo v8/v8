@@ -4911,6 +4911,7 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
     cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";
     cc_contents << "#include \"src/objects/property-descriptor-object.h\"\n";
+    cc_contents << "#include \"src/objects/swiss-name-dictionary.h\"\n";
     cc_contents << "#include \"src/objects/synthetic-module.h\"\n";
     cc_contents << "#include \"src/objects/template-objects.h\"\n";
     {

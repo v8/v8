@@ -207,6 +207,7 @@ class ZoneForwardList;
   V(StringSet)                                 \
   V(StringWrapper)                             \
   V(Struct)                                    \
+  V(SwissNameDictionary)                       \
   V(Symbol)                                    \
   V(SymbolWrapper)                             \
   V(SyntheticModule)                           \

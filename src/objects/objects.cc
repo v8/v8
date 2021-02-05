@@ -2285,6 +2285,10 @@ int HeapObject::SizeFromMap(Map map) const {
     return SmallOrderedNameDictionary::SizeFor(
         SmallOrderedNameDictionary::unchecked_cast(*this).Capacity());
   }
+  if (instance_type == SWISS_NAME_DICTIONARY_TYPE) {
+    return SwissNameDictionary::SizeFor(
+        SwissNameDictionary::unchecked_cast(*this).Capacity());
+  }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
         PropertyArray::cast(*this).synchronized_length());

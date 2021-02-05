@@ -21,6 +21,7 @@
 #include "src/objects/promise.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
 #include "torque-generated/exported-macros-assembler.h"

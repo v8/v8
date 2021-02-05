@@ -19,6 +19,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/source-text-module.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
@@ -400,6 +401,38 @@ class V8_EXPORT_PRIVATE SmallOrderedHashTable<Derived>::BodyDescriptor final
   static inline int SizeOf(Map map, HeapObject obj) {
     Derived table = Derived::cast(obj);
     return Derived::SizeFor(table.Capacity());
+  }
+};
+
+class V8_EXPORT_PRIVATE SwissNameDictionary::BodyDescriptor final
+    : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    // Using |unchecked_cast| here and elsewhere in this class because the
+    // Scavenger may be calling us while the map word contains the forwarding
+    // address (a Smi) rather than a map.
+
+    SwissNameDictionary table = SwissNameDictionary::unchecked_cast(obj);
+    STATIC_ASSERT(MetaTablePointerOffset() + kTaggedSize ==
+                  DataTableStartOffset());
+    return offset >= MetaTablePointerOffset() &&
+           (offset < table.DataTableEndOffset(table.Capacity()));
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    SwissNameDictionary table = SwissNameDictionary::unchecked_cast(obj);
+    STATIC_ASSERT(MetaTablePointerOffset() + kTaggedSize ==
+                  DataTableStartOffset());
+    int start_offset = MetaTablePointerOffset();
+    int end_offset = table.DataTableEndOffset(table.Capacity());
+    IteratePointers(obj, start_offset, end_offset, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject obj) {
+    SwissNameDictionary table = SwissNameDictionary::unchecked_cast(obj);
+    return SwissNameDictionary::SizeFor(table.Capacity());
   }
 };
 
@@ -1050,6 +1083,11 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<
           SmallOrderedHashTable<SmallOrderedNameDictionary>::BodyDescriptor>(
           p1, p2, p3, p4);
+
+    case SWISS_NAME_DICTIONARY_TYPE:
+      return Op::template apply<SwissNameDictionary::BodyDescriptor>(p1, p2, p3,
+                                                                     p4);
+
     case CODE_DATA_CONTAINER_TYPE:
       return Op::template apply<CodeDataContainer::BodyDescriptor>(p1, p2, p3,
                                                                    p4);

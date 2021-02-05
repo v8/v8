@@ -945,6 +945,11 @@ void OrderedNameDictionary::OrderedNameDictionaryPrint(std::ostream& os) {
   PrintDictionaryContentsFull(os, *this);
 }
 
+void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
+  // Here to satisfy compiler, implemented in follow-up CL.
+  UNREACHABLE();
+}
+
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "PropertyArray");
   os << "\n - length: " << length();

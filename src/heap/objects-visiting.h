@@ -47,6 +47,7 @@ namespace internal {
   V(SmallOrderedHashSet)         \
   V(SmallOrderedNameDictionary)  \
   V(SourceTextModule)            \
+  V(SwissNameDictionary)         \
   V(Symbol)                      \
   V(SyntheticModule)             \
   V(TransitionArray)             \

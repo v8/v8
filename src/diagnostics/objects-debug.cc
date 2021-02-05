@@ -69,6 +69,7 @@
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/torque-defined-classes-inl.h"
@@ -1253,6 +1254,11 @@ void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
             (PropertyDetails::Empty().AsSmi() == Smi::cast(val)));
     }
   }
+}
+
+void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate) {
+  // TODO(v8:11388) Here to satisfy compiler, implemented in follow-up CL.
+  UNREACHABLE();
 }
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {

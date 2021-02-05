@@ -108,6 +108,7 @@ class Symbol;
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
+  V(Map, swiss_name_dictionary_map, SwissNameDictionaryMap)                    \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
   V(Map, wasm_type_info_map, WasmTypeInfoMap)                                  \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
