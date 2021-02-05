@@ -1121,6 +1121,10 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
 
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->InvokeGCEpilogueCallbacksInSafepoint();
+  });
+
 #define UPDATE_COUNTERS_FOR_SPACE(space)                \
   isolate_->counters()->space##_bytes_available()->Set( \
       static_cast<int>(space()->Available()));          \
