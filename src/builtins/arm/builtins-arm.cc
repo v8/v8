@@ -2317,9 +2317,24 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs = Register::ListOf(r0, r1, r2, r3);
-    constexpr DwVfpRegister lowest_fp_reg = d0;
-    constexpr DwVfpRegister highest_fp_reg = d7;
+    RegList gp_regs = 0;
+    for (Register gp_param_reg : wasm::kGpParamRegisters) {
+      gp_regs |= gp_param_reg.bit();
+    }
+    DwVfpRegister lowest_fp_reg = std::begin(wasm::kFpParamRegisters)[0];
+    DwVfpRegister highest_fp_reg = std::end(wasm::kFpParamRegisters)[-1];
+    for (DwVfpRegister fp_param_reg : wasm::kFpParamRegisters) {
+      CHECK(fp_param_reg.code() >= lowest_fp_reg.code() &&
+            fp_param_reg.code() <= highest_fp_reg.code());
+    }
+
+    CHECK_EQ(NumRegs(gp_regs), arraysize(wasm::kGpParamRegisters));
+    CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
+             arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(NumRegs(gp_regs),
+             WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs);
+    CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
+             WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs);
 
     __ stm(db_w, sp, gp_regs);
     __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
