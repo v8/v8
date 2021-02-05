@@ -2874,6 +2874,11 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   Pshufb(dst.fp(), lhs.fp(), mask);
 }
 
+void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
+                                         LiftoffRegister src) {
+  bailout(kSimd, "i8x16.popcnt");
+}
+
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
