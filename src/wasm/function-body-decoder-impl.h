@@ -2509,13 +2509,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK_PROTOTYPE_OPCODE(eh);
     ExceptionIndexImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    if (!VALIDATE(!control_.empty())) {
-      this->DecodeError("catch does not match any try");
-      return 0;
-    }
+    DCHECK(!control_.empty());
     Control* c = &control_.back();
     if (!VALIDATE(c->is_try())) {
-      this->DecodeError("catch does not match any try");
+      this->DecodeError("catch does not match a try");
       return 0;
     }
     if (!VALIDATE(!c->is_try_catchall())) {
@@ -2568,13 +2565,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(Unwind) {
     CHECK_PROTOTYPE_OPCODE(eh);
-    if (!VALIDATE(!control_.empty())) {
-      this->DecodeError("unwind does not match any try");
-      return 0;
-    }
+    DCHECK(!control_.empty());
     Control* c = &control_.back();
     if (!VALIDATE(c->is_try())) {
-      this->DecodeError("unwind does not match any try");
+      this->DecodeError("unwind does not match a try");
       return 0;
     }
     if (!VALIDATE(!c->is_try_catch() && !c->is_try_catchall())) {
@@ -2687,13 +2681,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   // Alias for "catch_all" if the current block is a try.
   DECODE(Else) {
-    if (!VALIDATE(!control_.empty())) {
-      this->DecodeError("else/catch_all does not match any if/try");
-      return 0;
-    }
+    DCHECK(!control_.empty());
     Control* c = &control_.back();
     if (!VALIDATE(c->is_if() || c->is_try())) {
-      this->DecodeError("else/catch_all does not match any if/try");
+      this->DecodeError("else/catch_all does not match an if/try");
       return 0;
     }
     if (c->is_if()) {
@@ -2725,10 +2716,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   DECODE(End) {
-    if (!VALIDATE(!control_.empty())) {
-      this->DecodeError("end does not match any if, try, or block");
-      return 0;
-    }
+    DCHECK(!control_.empty());
     Control* c = &control_.back();
     if (!VALIDATE(!c->is_incomplete_try())) {
       this->DecodeError("missing catch or catch-all in try");
@@ -3386,7 +3374,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     // Set up initial function block.
     {
-      Control* c = PushControl(kControlBlock);
+      DCHECK(control_.empty());
+      control_.emplace_back(kControlBlock, 0, 0, this->pc_, kReachable);
+      Control* c = &control_.back();
       InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
       InitMerge(&c->end_merge,
                 static_cast<uint32_t>(this->sig_->return_count()),
@@ -3485,8 +3475,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   Control* PushControl(ControlKind kind, uint32_t locals_count = 0) {
-    Reachability reachability =
-        control_.empty() ? kReachable : control_.back().innerReachability();
+    DCHECK(!control_.empty());
+    Reachability reachability = control_.back().innerReachability();
     control_.emplace_back(kind, locals_count, stack_size(), this->pc_,
                           reachability);
     current_code_reachable_ = this->ok() && reachability == kReachable;
@@ -3494,6 +3484,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   void PopControl(Control* c) {
+    // This cannot be the outermost control block.
+    DCHECK_LT(1, control_.size());
+
     DCHECK_EQ(c, &control_.back());
     CALL_INTERFACE_IF_PARENT_REACHABLE(PopControl, c);
 
