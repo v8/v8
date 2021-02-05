@@ -657,7 +657,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void AllocateStackSpace(int bytes);
 #else
   void AllocateStackSpace(Register bytes) { subq(rsp, bytes); }
-  void AllocateStackSpace(int bytes) { subq(rsp, Immediate(bytes)); }
+  void AllocateStackSpace(int bytes) {
+    DCHECK_GE(bytes, 0);
+    if (bytes == 0) return;
+    subq(rsp, Immediate(bytes));
+  }
 #endif
 
   // Removes current frame and its arguments from the stack preserving the
