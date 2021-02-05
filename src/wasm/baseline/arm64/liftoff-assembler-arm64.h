@@ -2454,7 +2454,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
-  bailout(kSimd, "i8x16.popcnt");
+  Cnt(dst.fp().V16B(), src.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,

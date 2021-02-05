@@ -3404,7 +3404,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
-  bailout(kSimd, "i8x16.popcnt");
+  vcnt(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
