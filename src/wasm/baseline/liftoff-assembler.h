@@ -887,7 +887,6 @@ class LiftoffAssembler : public TurboAssembler {
                                  bool is_swizzle);
   inline void emit_i8x16_swizzle(LiftoffRegister dst, LiftoffRegister lhs,
                                  LiftoffRegister rhs);
-  inline void emit_i8x16_popcnt(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i16x8_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i32x4_splat(LiftoffRegister dst, LiftoffRegister src);

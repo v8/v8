@@ -608,8 +608,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
   void S128Store64Lane(Operand dst, XMMRegister src, uint8_t laneidx);
 
-  void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp);
-
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);
 
