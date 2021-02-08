@@ -229,8 +229,8 @@ struct Field {
   bool is_weak;
   bool const_qualified;
   bool generate_verify;
-  bool relaxed_read;
-  bool relaxed_write;
+  FieldSynchronization read_synchronization;
+  FieldSynchronization write_synchronization;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);

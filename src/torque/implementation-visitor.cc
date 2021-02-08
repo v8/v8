@@ -4195,13 +4195,26 @@ void CppClassGenerator::EmitLoadFieldStatement(const Field& f) {
   inl_ << "  value = ";
 
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    if (f.relaxed_read) {
+    if (f.read_synchronization == FieldSynchronization::kAcquireRelease) {
+      ReportError("Torque doesn't support @acquireRead on untagged data");
+    } else if (f.read_synchronization == FieldSynchronization::kRelaxed) {
       ReportError("Torque doesn't support @relaxedRead on untagged data");
     }
     inl_ << "this->template ReadField<" << type_name << ">(" << offset
          << ");\n";
   } else {
-    const char* load = f.relaxed_read ? "Relaxed_Load" : "load";
+    const char* load;
+    switch (f.read_synchronization) {
+      case FieldSynchronization::kNone:
+        load = "load";
+        break;
+      case FieldSynchronization::kRelaxed:
+        load = "Relaxed_Load";
+        break;
+      case FieldSynchronization::kAcquireRelease:
+        load = "Acquire_Load";
+        break;
+    }
     bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
     const std::string load_type = is_smi ? "Smi" : type_name;
     const char* postfix = is_smi ? ".value()" : "";
@@ -4237,10 +4250,25 @@ void CppClassGenerator::EmitStoreFieldStatement(const Field& f) {
   } else {
     bool strong_pointer = field_type->IsSubtypeOf(TypeOracle::GetObjectType());
     bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
-    const char* write_macro =
-        strong_pointer
-            ? (f.relaxed_write ? "RELAXED_WRITE_FIELD" : "WRITE_FIELD")
-            : "RELAXED_WRITE_WEAK_FIELD";
+    const char* write_macro;
+    if (!strong_pointer) {
+      if (f.write_synchronization == FieldSynchronization::kAcquireRelease) {
+        ReportError("Torque doesn't support @releaseWrite on weak fields");
+      }
+      write_macro = "RELAXED_WRITE_WEAK_FIELD";
+    } else {
+      switch (f.write_synchronization) {
+        case FieldSynchronization::kNone:
+          write_macro = "WRITE_FIELD";
+          break;
+        case FieldSynchronization::kRelaxed:
+          write_macro = "RELAXED_WRITE_FIELD";
+          break;
+        case FieldSynchronization::kAcquireRelease:
+          write_macro = "RELEASE_WRITE_FIELD";
+          break;
+      }
+    }
     const std::string value_to_write = is_smi ? "Smi::FromInt(value)" : "value";
 
     if (!is_smi) {

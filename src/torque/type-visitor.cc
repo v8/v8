@@ -208,8 +208,8 @@ const StructType* TypeVisitor::ComputeType(
             false,
             field.const_qualified,
             false,
-            false,
-            false};
+            FieldSynchronization::kNone,
+            FieldSynchronization::kNone};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
     // Offsets are assigned based on an assumption of no space between members.
@@ -430,8 +430,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          field_expression.weak,
          field_expression.const_qualified,
          field_expression.generate_verify,
-         field_expression.relaxed_read,
-         field_expression.relaxed_write});
+         field_expression.read_synchronization,
+         field_expression.write_synchronization});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {
       // Validate that a value at any index in a packed array is aligned

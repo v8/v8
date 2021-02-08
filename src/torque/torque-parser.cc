@@ -1946,11 +1946,22 @@ base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   AnnotationSet annotations(child_results,
                             {ANNOTATION_NO_VERIFIER, ANNOTATION_RELAXED_WRITE,
-                             ANNOTATION_RELAXED_READ},
+                             ANNOTATION_RELAXED_READ, ANNOTATION_RELEASE_WRITE,
+                             ANNOTATION_ACQUIRE_READ},
                             {ANNOTATION_IF, ANNOTATION_IFNOT});
   bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
-  bool relaxed_write = annotations.Contains(ANNOTATION_RELAXED_WRITE);
-  bool relaxed_read = annotations.Contains(ANNOTATION_RELAXED_READ);
+  FieldSynchronization write_synchronization = FieldSynchronization::kNone;
+  if (annotations.Contains(ANNOTATION_RELEASE_WRITE)) {
+    write_synchronization = FieldSynchronization::kAcquireRelease;
+  } else if (annotations.Contains(ANNOTATION_RELAXED_WRITE)) {
+    write_synchronization = FieldSynchronization::kRelaxed;
+  }
+  FieldSynchronization read_synchronization = FieldSynchronization::kNone;
+  if (annotations.Contains(ANNOTATION_ACQUIRE_READ)) {
+    read_synchronization = FieldSynchronization::kAcquireRelease;
+  } else if (annotations.Contains(ANNOTATION_RELAXED_READ)) {
+    read_synchronization = FieldSynchronization::kRelaxed;
+  }
   std::vector<ConditionalAnnotation> conditions;
   base::Optional<std::string> if_condition =
       annotations.GetStringParam(ANNOTATION_IF);
@@ -1974,8 +1985,8 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
                                           weak,
                                           const_qualified,
                                           generate_verify,
-                                          relaxed_read,
-                                          relaxed_write}};
+                                          read_synchronization,
+                                          write_synchronization}};
 }
 
 base::Optional<ParseResult> MakeStructField(
