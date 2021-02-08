@@ -79,7 +79,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/index-prop-desc': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
@@ -583,6 +582,13 @@
 
   # Temporarily disabled until upstream tests are changed to use /d
   'built-ins/RegExp/match-indices/*': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11411
+  'intl402/DateTimeFormat/prototype/formatRange/date-same-returns-single-date': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/date-same-returns-single-date': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11412
+  'language/statements/for-of/head-lhs-async-invalid': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
