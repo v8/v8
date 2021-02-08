@@ -111,7 +111,7 @@ void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
 
   WrapperInfo info =
       LocalEmbedderHeapTracer::ExtractWrapperInfo(tracer_->isolate_, js_object);
-  if (VerboseWrapperInfo(info).is_valid()) {
+  if (!VerboseWrapperInfo(info).is_empty()) {
     wrapper_cache_.push_back(std::move(info));
   }
   FlushWrapperCacheIfFull();

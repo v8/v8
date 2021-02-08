@@ -24,15 +24,16 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   // internals in a named way. See ProcessingScope::TracePossibleJSWrapper()
   // below on how a V8 object is parsed to gather the information.
   struct VerboseWrapperInfo {
-    explicit VerboseWrapperInfo(const WrapperInfo& raw_info)
+    constexpr explicit VerboseWrapperInfo(const WrapperInfo& raw_info)
         : raw_info(raw_info) {}
 
     // Information describing the type pointed to via instance().
     void* type_info() const { return raw_info.first; }
     // Direct pointer to an instance described by type_info().
     void* instance() const { return raw_info.second; }
-
-    bool is_valid() const { return type_info(); }
+    // Returns whether the info is empty and thus does not keep a C++ object
+    // alive.
+    bool is_empty() const { return !type_info() || !instance(); }
 
     const WrapperInfo& raw_info;
   };
