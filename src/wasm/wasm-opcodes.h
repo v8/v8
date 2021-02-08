@@ -441,6 +441,8 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4ExtMulHighI16x8S, 0xfdbd, s_ss)     \
   V(I32x4ExtMulLowI16x8U, 0xfdbe, s_ss)      \
   V(I32x4ExtMulHighI16x8U, 0xfdbf, s_ss)     \
+  V(I32x4TruncSatF64x2SZero, 0xfd55, s_s)    \
+  V(I32x4TruncSatF64x2UZero, 0xfd56, s_s)    \
   V(I64x2Neg, 0xfdc1, s_s)                   \
   V(V64x2AllTrue, 0xfdcf, i_s)               \
   V(I64x2BitMask, 0xfdc4, i_s)               \
@@ -469,6 +471,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F32x4Max, 0xfde9, s_ss)                  \
   V(F32x4Pmin, 0xfdea, s_ss)                 \
   V(F32x4Pmax, 0xfdeb, s_ss)                 \
+  V(F32x4DemoteF64x2Zero, 0xfd57, s_s)       \
   V(F64x2Abs, 0xfdec, s_s)                   \
   V(F64x2Neg, 0xfded, s_s)                   \
   V(F64x2Sqrt, 0xfdef, s_s)                  \
@@ -491,7 +494,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F64x2Ceil, 0xfddc, s_s)                  \
   V(F64x2Floor, 0xfddd, s_s)                 \
   V(F64x2Trunc, 0xfdde, s_s)                 \
-  V(F64x2NearestInt, 0xfddf, s_s)
+  V(F64x2NearestInt, 0xfddf, s_s)            \
+  V(F64x2ConvertLowI32x4S, 0xfd53, s_s)      \
+  V(F64x2ConvertLowI32x4U, 0xfd54, s_s)      \
+  V(F64x2PromoteLowF32x4, 0xfd69, s_s)
 
 #define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
   V(PrefetchT, 0xfdc5, v_i)                 \
@@ -516,13 +522,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4AddHoriz, 0xfdb0, s_ss)            \
   V(F32x4AddHoriz, 0xfdb2, s_ss)            \
   V(F32x4RecipApprox, 0xfdb3, s_s)          \
-  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)      \
-  V(F64x2ConvertLowI32x4S, 0xfd53, s_s)     \
-  V(F64x2ConvertLowI32x4U, 0xfd54, s_s)     \
-  V(I32x4TruncSatF64x2SZero, 0xfd55, s_s)   \
-  V(I32x4TruncSatF64x2UZero, 0xfd56, s_s)   \
-  V(F32x4DemoteF64x2Zero, 0xfd57, s_s)      \
-  V(F64x2PromoteLowF32x4, 0xfd69, s_s)
+  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)
 
 #define FOREACH_SIMD_POST_MVP_ONE_OPERAND_OPCODE(V) \
   V(I32x4WidenI8x16S, 0xfd67, s_s)                  \

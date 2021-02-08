@@ -1279,8 +1279,6 @@ WASM_SIMD_TEST(F64x2NearestInt) {
 template <typename SrcType>
 void RunF64x2ConvertLowI32x4Test(TestExecutionTier execution_tier,
                                  LowerSimd lower_simd, WasmOpcode opcode) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-
   WasmRunner<int32_t, SrcType> r(execution_tier, lower_simd);
   double* g = r.builder().template AddGlobal<double>(kWasmS128);
   // TODO(zhin): set top lanes to 0 to assert conversion happens on low lanes.
@@ -1313,8 +1311,6 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ConvertLowI32x4U) {
 template <typename SrcType>
 void RunI32x4TruncSatF64x2Test(TestExecutionTier execution_tier,
                                LowerSimd lower_simd, WasmOpcode opcode) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-
   WasmRunner<int32_t, double> r(execution_tier, lower_simd);
   SrcType* g = r.builder().AddGlobal<SrcType>(kWasmS128);
   BUILD(
@@ -1348,8 +1344,6 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4TruncSatF64x2UZero) {
 }
 
 WASM_SIMD_TEST_NO_LOWERING(F32x4DemoteF64x2Zero) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-
   WasmRunner<int32_t, double> r(execution_tier, lower_simd);
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   BUILD(r,
@@ -1373,8 +1367,6 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4DemoteF64x2Zero) {
 }
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2PromoteLowF32x4) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-
   WasmRunner<int32_t, float> r(execution_tier, lower_simd);
   double* g = r.builder().AddGlobal<double>(kWasmS128);
   BUILD(r,
