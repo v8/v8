@@ -1737,29 +1737,6 @@ class RepresentationSelector {
     }
   }
 
-  static MachineType MachineTypeFor(CTypeInfo::Type type) {
-    switch (type) {
-      case CTypeInfo::Type::kVoid:
-        return MachineType::AnyTagged();
-      case CTypeInfo::Type::kBool:
-        return MachineType::Bool();
-      case CTypeInfo::Type::kInt32:
-        return MachineType::Int32();
-      case CTypeInfo::Type::kUint32:
-        return MachineType::Uint32();
-      case CTypeInfo::Type::kInt64:
-        return MachineType::Int64();
-      case CTypeInfo::Type::kUint64:
-        return MachineType::Uint64();
-      case CTypeInfo::Type::kFloat32:
-        return MachineType::Float32();
-      case CTypeInfo::Type::kFloat64:
-        return MachineType::Float64();
-      case CTypeInfo::Type::kV8Value:
-        return MachineType::AnyTagged();
-    }
-  }
-
   UseInfo UseInfoForFastApiCallArgument(CTypeInfo::Type type,
                                         FeedbackSource const& feedback) {
     switch (type) {
@@ -1824,10 +1801,7 @@ class RepresentationSelector {
       ProcessInput<T>(node, i, UseInfo::AnyTagged());
     }
     ProcessRemainingInputs<T>(node, value_input_count);
-
-    MachineType return_type =
-        MachineTypeFor(c_signature->ReturnInfo().GetType());
-    SetOutput<T>(node, return_type.representation());
+    SetOutput<T>(node, MachineRepresentation::kTagged);
   }
 
   static MachineType MachineTypeForWasmReturnType(wasm::ValueType type) {

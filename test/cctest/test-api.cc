@@ -27589,18 +27589,19 @@ UNINITIALIZED_TEST(NestedIsolates) {
 
 #ifndef V8_LITE_MODE
 namespace {
-template <typename Value, typename Impl>
+
+template <typename Value, typename Impl, typename Ret>
 struct BasicApiChecker {
-  static void FastCallback(v8::ApiObject receiver, Value argument,
-                           v8::FastApiCallbackOptions& options) {
+  static Ret FastCallback(v8::ApiObject receiver, Value argument,
+                          v8::FastApiCallbackOptions& options) {
     const v8::Value* data = reinterpret_cast<const v8::Value*>(&options.data);
     CHECK(data->IsNumber());
     CHECK_EQ(reinterpret_cast<const v8::Number*>(data)->Value(), 42.0);
-    Impl::FastCallback(receiver, argument, options);
+    return Impl::FastCallback(receiver, argument, options);
   }
-  static void FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
+  static Ret FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
     v8::FastApiCallbackOptions options = {false, {0}};
-    Impl::FastCallback(receiver, argument, options);
+    return Impl::FastCallback(receiver, argument, options);
   }
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Impl::SlowCallback(info);
@@ -27624,7 +27625,7 @@ enum class FallbackPolicy {
 };
 
 template <typename T>
-struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
+struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
   explicit ApiNumberChecker(
       T value, Behavior raise_exception = Behavior::kNoException,
       FallbackPolicy write_to_fallback = FallbackPolicy::kDontRequestFallback,
@@ -27684,7 +27685,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
 };
 
 struct UnexpectedObjectChecker
-    : BasicApiChecker<v8::ApiObject, UnexpectedObjectChecker> {
+    : BasicApiChecker<v8::ApiObject, UnexpectedObjectChecker, void> {
   static void FastCallback(v8::ApiObject receiver, v8::ApiObject argument,
                            v8::FastApiCallbackOptions& options) {
     v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
@@ -27712,24 +27713,26 @@ struct UnexpectedObjectChecker
   }
 };
 
-template <typename Value, typename Impl>
+template <typename Value, typename Impl, typename Ret>
 bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
-               BasicApiChecker<Value, Impl>* checker, const char* source_code,
-               bool supports_fallback = true, bool accept_any_receiver = true) {
+               BasicApiChecker<Value, Impl, Ret>* checker,
+               const char* source_code, bool supports_fallback = true,
+               bool accept_any_receiver = true) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
 
   v8::CFunction c_func;
   if (supports_fallback) {
-    c_func = v8::CFunction::Make(BasicApiChecker<Value, Impl>::FastCallback);
+    c_func =
+        v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback);
   } else {
     c_func = v8::CFunction::Make(
-        BasicApiChecker<Value, Impl>::FastCallbackNoFallback);
+        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback);
   }
   CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
-      isolate, BasicApiChecker<Value, Impl>::SlowCallback,
+      isolate, BasicApiChecker<Value, Impl, Ret>::SlowCallback,
       v8::Number::New(isolate, 42), v8::Local<v8::Signature>(), 1,
       v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
       &c_func);
@@ -27755,10 +27758,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
             ->Global()
             ->Set(env->local(), v8_str("value"), initial_value)
             .FromJust());
-  v8::Local<v8::Value> result = CompileRun(source_code);
-  if (!try_catch.HasCaught()) {
-    CHECK(result->IsUndefined());
-  }
+  USE(CompileRun(source_code));
   return try_catch.HasCaught();
 }
 
@@ -27799,7 +27799,7 @@ void CallAndCheck(
   ApiNumberChecker<T> checker(expected_value, raise_exception,
                               write_to_fallback);
 
-  bool has_caught = SetupTest<T, ApiNumberChecker<T>>(
+  bool has_caught = SetupTest<T, ApiNumberChecker<T>, void>(
       initial_value, &env, &checker,
       "function func(arg) { return receiver.api_func(arg); }"
       "%PrepareFunctionForOptimization(func);"
@@ -27808,9 +27808,12 @@ void CallAndCheck(
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
-  CompileRun(
+  v8::Local<v8::Value> result = CompileRun(
       "%OptimizeFunctionOnNextCall(func);"
       "func(value);");
+  if (!try_catch.HasCaught()) {
+    CHECK(result->IsUndefined());
+  }
 
   CHECK_EQ(expected_behavior == Behavior::kException, has_caught);
   CHECK_EQ(expected_path == ApiCheckerResult::kSlowCalled,
@@ -27819,6 +27822,7 @@ void CallAndCheck(
            !checker.DidCallSlow());
 
   if (expected_path & ApiCheckerResult::kSlowCalled) {
+    CHECK(checker.DidCallSlow());
     if (expected_behavior != Behavior::kException) {
       CheckEqual(checker.slow_value_.ToChecked(), expected_value);
     }
@@ -27827,6 +27831,56 @@ void CallAndCheck(
     CHECK(checker.DidCallFast());
     CheckEqual(checker.fast_value_, expected_value);
   }
+}
+
+template <typename T>
+struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
+  static T FastCallback(v8::ApiObject receiver, T arg,
+                        v8::FastApiCallbackOptions& options) {
+    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    ReturnValueChecker<T>* receiver_ptr =
+        GetInternalField<ReturnValueChecker<T>, kV8WrapperObjectIndex>(
+            receiver_obj);
+    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+    return arg;
+  }
+
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    ReturnValueChecker<T>* receiver_ptr =
+        GetInternalField<ReturnValueChecker<T>, kV8WrapperObjectIndex>(
+            receiver_obj);
+    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+    info.GetReturnValue().Set(info[0]);
+  }
+};
+
+template <typename T>
+void CheckFastReturnValue(v8::Local<v8::Value> expected_value,
+                          ApiCheckerResultFlags expected_path) {
+  LocalContext env;
+  ReturnValueChecker<T> checker{};
+
+  bool has_caught = SetupTest<T, ReturnValueChecker<T>, T>(
+      expected_value, &env, &checker,
+      "function func(arg) { return receiver.api_func(arg); }"
+      "%PrepareFunctionForOptimization(func);"
+      "func(value);");
+  CHECK(!has_caught);
+  checker.result_ = ApiCheckerResult::kNotCalled;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::TryCatch try_catch(isolate);
+  v8::Local<v8::Value> result = CompileRun(
+      "%OptimizeFunctionOnNextCall(func);"
+      "func(value);");
+
+  CHECK_EQ(expected_path == ApiCheckerResult::kSlowCalled,
+           !checker.DidCallFast());
+  CHECK_EQ(expected_path == ApiCheckerResult::kFastCalled,
+           !checker.DidCallSlow());
+
+  CHECK(result->StrictEquals(expected_value));
 }
 
 void CallAndDeopt() {
@@ -28414,6 +28468,24 @@ TEST(FastApiCalls) {
                      v8::BigInt::New(isolate, 42));
   CallAndCheck<bool>(true, Behavior::kNoException,
                      ApiCheckerResult::kFastCalled, v8::Object::New(isolate));
+
+  // Test return values
+  CheckFastReturnValue<bool>(v8::Boolean::New(isolate, true),
+                             ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<bool>(v8::Boolean::New(isolate, false),
+                             ApiCheckerResult::kFastCalled);
+
+  CheckFastReturnValue<int32_t>(v8_num(0), ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<int32_t>(v8_num(std::numeric_limits<int32_t>::min()),
+                                ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<int32_t>(v8_num(std::numeric_limits<int32_t>::max()),
+                                ApiCheckerResult::kFastCalled);
+
+  CheckFastReturnValue<uint32_t>(v8_num(0), ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<uint32_t>(v8_num(std::numeric_limits<uint32_t>::min()),
+                                 ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<uint32_t>(v8_num(std::numeric_limits<uint32_t>::max()),
+                                 ApiCheckerResult::kFastCalled);
 
   // Check for the deopt loop protection
   CallAndDeopt();

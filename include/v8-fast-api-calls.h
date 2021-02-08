@@ -148,7 +148,11 @@
  *   receiver := the {embedder_object} from above
  *   param := 42
  *
- * Currently only void return types are supported.
+ * Currently supported return types:
+ *   - void
+ *   - bool
+ *   - int32_t
+ *   - uint32_t
  * Currently supported argument types:
  *  - pointer to an embedder type
  *  - bool
@@ -378,9 +382,12 @@ class CFunctionInfoImpl : public CFunctionInfo {
                   "Only one options parameter is supported.");
     static_assert(sizeof...(Args) >= kOptionsArgCount + kReceiverCount,
                   "The receiver or the fallback argument is missing.");
+    constexpr CTypeInfo::Type type = internal::GetCType<R>::Get().GetType();
     static_assert(
-        internal::GetCType<R>::Get().GetType() == CTypeInfo::Type::kVoid,
-        "Only void return types are currently supported.");
+        type == CTypeInfo::Type::kVoid || type == CTypeInfo::Type::kBool ||
+            type == CTypeInfo::Type::kInt32 || type == CTypeInfo::Type::kUint32,
+        "floating point, 64-bit, and api object values are not currently "
+        "supported.");
   }
 
   const CTypeInfo& ReturnInfo() const override { return return_info_; }

@@ -250,6 +250,9 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
 
   CHECK_GE(2, locations.return_count_);
   if (locations.return_count_ > 0) {
+    // TODO(chromium:1052746): Use the correctly sized register here (e.g. "al"
+    // if the return type is kBit), so we don't have to use a hacky bitwise AND
+    // elsewhere.
     locations.AddReturn(LinkageLocation::ForRegister(kReturnRegister0.code(),
                                                      msig->GetReturn(0)));
   }

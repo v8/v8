@@ -1139,9 +1139,10 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
   static constexpr int kHolderInputCount = 1;
   static constexpr int kContextAndFrameStateInputCount = 2;
   static constexpr int kEffectAndControlInputCount = 2;
-  static constexpr int kFastCallExtraInputCount = kFastTargetInputCount +
-                                                  kHasOptionsInputCount +
-                                                  kEffectAndControlInputCount;
+  static constexpr int kFastCallExtraInputCount =
+      kFastTargetInputCount + kEffectAndControlInputCount;
+  static constexpr int kFastCallExtraInputCountWithOptions =
+      kFastCallExtraInputCount + kHasOptionsInputCount;
   static constexpr int kSlowCallExtraInputCount =
       kSlowTargetInputCount + kArityInputCount + kNewTargetInputCount +
       kSlowReceiverInputCount + kHolderInputCount +

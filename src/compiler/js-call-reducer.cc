@@ -3508,6 +3508,10 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 namespace {
 bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
+  if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
+      c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64) {
+    return true;
+  }
   for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
     if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
@@ -3522,6 +3526,10 @@ bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
 #ifndef V8_TARGET_ARCH_64_BIT
 namespace {
 bool Has64BitIntegerParamsInSignature(const CFunctionInfo* c_signature) {
+  if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kInt64 ||
+      c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kUint64) {
+    return true;
+  }
   for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
     if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kInt64 ||
         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kUint64) {
