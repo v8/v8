@@ -138,7 +138,7 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
     if (!TryGetCagedHeap(value, value, params)) {
       return WriteBarrier::Type::kNone;
     }
-    if (V8_UNLIKELY(params.caged_heap().is_marking_in_progress)) {
+    if (V8_UNLIKELY(params.caged_heap().is_incremental_marking_in_progress)) {
       return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
     }
     return SetAndReturnType<WriteBarrier::Type::kNone>(params);
@@ -182,7 +182,7 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
     if (!within_cage) {
       return WriteBarrier::Type::kNone;
     }
-    if (V8_LIKELY(!params.caged_heap().is_marking_in_progress)) {
+    if (V8_LIKELY(!params.caged_heap().is_incremental_marking_in_progress)) {
 #if defined(CPPGC_YOUNG_GENERATION)
       params.heap = reinterpret_cast<HeapHandle*>(params.start);
       params.slot_offset = reinterpret_cast<uintptr_t>(slot) - params.start;
@@ -246,28 +246,19 @@ class V8_EXPORT WriteBarrierTypeForNonCagedHeapPolicy final {
   static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
       const void* value, WriteBarrier::Params& params,
       HeapHandleCallback callback) {
-    return GetInternal(params, callback);
+    // The slot will never be used in `Get()` below.
+    return Get<WriteBarrier::ValueMode::kValuePresent>(nullptr, value, params,
+                                                       callback);
   }
 
  private:
   template <WriteBarrier::ValueMode value_mode>
   struct ValueModeDispatch;
 
-  template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type GetInternal(WriteBarrier::Params& params,
-                                                  HeapHandleCallback callback) {
-    if (V8_UNLIKELY(ProcessHeap::IsAnyIncrementalOrConcurrentMarking())) {
-      HeapHandle& handle = callback();
-      if (subtle::HeapState::IsMarking(handle)) {
-        params.heap = &handle;
-        return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
-      }
-    }
-    return WriteBarrier::Type::kNone;
-  }
-
   // TODO(chromium:1056170): Create fast path on API.
   static bool IsMarking(const void*, HeapHandle**);
+  // TODO(chromium:1056170): Create fast path on API.
+  static bool IsMarking(HeapHandle&);
 
   WriteBarrierTypeForNonCagedHeapPolicy() = delete;
 };
@@ -294,10 +285,17 @@ template <>
 struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
     WriteBarrier::ValueMode::kNoValuePresent> {
   template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type Get(const void* slot, const void*,
+  static V8_INLINE WriteBarrier::Type Get(const void*, const void*,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
-    return GetInternal(params, callback);
+    if (V8_UNLIKELY(ProcessHeap::IsAnyIncrementalOrConcurrentMarking())) {
+      HeapHandle& handle = callback();
+      if (IsMarking(handle)) {
+        params.heap = &handle;
+        return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
+      }
+    }
+    return WriteBarrier::Type::kNone;
   }
 };
 

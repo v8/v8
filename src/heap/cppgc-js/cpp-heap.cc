@@ -280,11 +280,11 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
   }
+  marker_.reset();
   {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     prefinalizer_handler()->InvokePreFinalizers();
   }
-  marker_.reset();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   UnifiedHeapMarkingVerifier verifier(*this);

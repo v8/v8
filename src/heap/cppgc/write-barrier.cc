@@ -28,7 +28,7 @@ void ProcessMarkValue(HeapObjectHeader& header, MarkerBase* marker,
   DCHECK(reinterpret_cast<CagedHeapLocalData*>(
              reinterpret_cast<uintptr_t>(value) &
              ~(kCagedHeapReservationAlignment - 1))
-             ->is_marking_in_progress);
+             ->is_incremental_marking_in_progress);
 #endif
   DCHECK(header.IsMarked<AccessMode::kAtomic>());
   DCHECK(marker);
@@ -61,9 +61,10 @@ void WriteBarrier::DijkstraMarkingBarrierSlow(const void* value) {
   const BasePage* page = BasePage::FromPayload(value);
   const auto* heap = page->heap();
 
-  // Marker being not set up means that no incremental/concurrent marking is in
-  // progress.
-  if (!heap->marker()) return;
+  // GetWriteBarrierType() checks marking state.
+  DCHECK(heap->marker());
+  // No write barriers should be executed from atomic pause marking.
+  DCHECK(!heap->in_atomic_pause());
 
   auto& header =
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
@@ -77,10 +78,11 @@ void WriteBarrier::DijkstraMarkingBarrierRangeSlow(
     HeapHandle& heap_handle, const void* first_element, size_t element_size,
     size_t number_of_elements, TraceCallback trace_callback) {
   auto& heap_base = HeapBase::From(heap_handle);
-  MarkerBase* marker = heap_base.marker();
-  if (!marker) {
-    return;
-  }
+
+  // GetWriteBarrierType() checks marking state.
+  DCHECK(heap_base.marker());
+  // No write barriers should be executed from atomic pause marking.
+  DCHECK(!heap_base.in_atomic_pause());
 
   cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_base);
   const char* array = static_cast<const char*>(first_element);
@@ -103,9 +105,10 @@ void WriteBarrier::SteeleMarkingBarrierSlow(const void* value) {
   const BasePage* page = BasePage::FromPayload(value);
   const auto* heap = page->heap();
 
-  // Marker being not set up means that no incremental/concurrent marking is in
-  // progress.
-  if (!heap->marker()) return;
+  // GetWriteBarrierType() checks marking state.
+  DCHECK(heap->marker());
+  // No write barriers should be executed from atomic pause marking.
+  DCHECK(!heap->in_atomic_pause());
 
   auto& header =
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
@@ -120,6 +123,11 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
                                            const AgeTable& age_table,
                                            const void* slot,
                                            uintptr_t value_offset) {
+  // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
+  // of the barrier. This is a result of the order of bailouts where not marking
+  // results in applying the generational barrier.
+  if (local_data.heap_base->in_atomic_pause()) return;
+
   if (value_offset > 0 && age_table[value_offset] == AgeTable::Age::kOld)
     return;
   // Record slot.
@@ -142,6 +150,12 @@ bool WriteBarrierTypeForNonCagedHeapPolicy::IsMarking(const void* object,
   const auto* page = BasePage::FromPayload(object);
   *handle = page->heap();
   return page->heap()->marker();
+}
+
+// static
+bool WriteBarrierTypeForNonCagedHeapPolicy::IsMarking(HeapHandle& heap_handle) {
+  const auto& heap_base = internal::HeapBase::From(heap_handle);
+  return heap_base.marker();
 }
 
 #if defined(CPPGC_CAGED_HEAP)

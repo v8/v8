@@ -86,6 +86,10 @@ class TestWithHeap : public TestWithPlatform {
     return Heap::From(GetHeap())->marker_;
   }
 
+  const std::unique_ptr<MarkerBase>& GetMarkerRef() const {
+    return Heap::From(GetHeap())->marker_;
+  }
+
   void ResetLinearAllocationBuffers();
 
  private:
