@@ -133,6 +133,10 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   static unsigned icache_line_size_;
   static unsigned dcache_line_size_;
   static bool initialized_;
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  static bool supports_wasm_simd_128_;
 };
 
 }  // namespace internal

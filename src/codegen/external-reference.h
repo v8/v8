@@ -245,6 +245,7 @@ class StatsCounter;
   V(wasm_memory_fill, "wasm::memory_fill")                                     \
   V(address_of_wasm_f64x2_convert_low_i32x4_u_int_mask,                        \
     "wasm_f64x2_convert_low_i32x4_u_int_mask")                                 \
+  V(supports_wasm_simd_128_address, "wasm::supports_wasm_simd_128_address")    \
   V(address_of_wasm_double_2_power_52, "wasm_double_2_power_52")               \
   V(address_of_wasm_int32_max_as_double, "wasm_int32_max_as_double")           \
   V(address_of_wasm_uint32_max_as_double, "wasm_uint32_max_as_double")         \
