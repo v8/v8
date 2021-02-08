@@ -639,7 +639,8 @@
   'v8_mac64_asan_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 4},
@@ -648,7 +649,8 @@
   'v8_mac64_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -660,7 +662,8 @@
   'v8_mac64_gc_stress_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 4},
@@ -669,7 +672,8 @@
   'v8_mac64_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -711,7 +715,8 @@
   'v8_mac_arm64_sim_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
@@ -720,7 +725,8 @@
   'v8_mac_arm64_sim_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
@@ -729,7 +735,8 @@
   'v8_mac_arm64_sim_nodcheck_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
@@ -1298,7 +1305,8 @@
   'V8 Mac64': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1310,7 +1318,8 @@
   'V8 Mac64 - debug': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1322,7 +1331,8 @@
   'V8 Mac64 ASAN': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 5},
@@ -1331,7 +1341,8 @@
   'V8 Mac64 GC Stress': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'tests': [
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 4},
@@ -1356,7 +1367,8 @@
   'V8 Mac - arm64 - sim - debug': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'swarming_task_attrs': {
       'expiration': 14400,
@@ -1370,7 +1382,8 @@
   'V8 Mac - arm64 - sim - release': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-10.13',
+      'os': 'Mac-10.15',
+      'gpu': 'none',
     },
     'swarming_task_attrs': {
       'expiration': 14400,
