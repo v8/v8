@@ -495,6 +495,15 @@
   static_cast<int8_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
 
+#define RELAXED_READ_UINT16_FIELD(p, offset) \
+  static_cast<uint16_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic16*>(FIELD_ADDR(p, offset))))
+
+#define RELAXED_WRITE_UINT16_FIELD(p, offset, value)            \
+  base::Relaxed_Store(                                          \
+      reinterpret_cast<base::Atomic16*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic16>(value));
+
 #define RELAXED_READ_INT16_FIELD(p, offset) \
   static_cast<int16_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::Atomic16*>(FIELD_ADDR(p, offset))))

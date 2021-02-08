@@ -322,11 +322,12 @@ Handle<Map> Map::AddMissingTransitionsForTesting(
 }
 
 InstanceType Map::instance_type() const {
-  return static_cast<InstanceType>(ReadField<uint16_t>(kInstanceTypeOffset));
+  return static_cast<InstanceType>(
+      RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
 }
 
 void Map::set_instance_type(InstanceType value) {
-  WriteField<uint16_t>(kInstanceTypeOffset, value);
+  RELAXED_WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
 }
 
 int Map::UnusedPropertyFields() const {
