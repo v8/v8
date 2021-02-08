@@ -495,6 +495,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Popcnt64(Register dst, Register src);
 #endif
 
+  // CountLeadingZeros will corrupt the scratch register pair (eg. r0:r1)
+  void CountLeadingZerosU32(Register dst, Register src, Register scratch_pair);
+  void CountLeadingZerosU64(Register dst, Register src, Register scratch_pair);
   void mov(Register dst, const Operand& src);
   void mov(Register dst, Register src);
 

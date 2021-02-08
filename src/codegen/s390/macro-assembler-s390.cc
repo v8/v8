@@ -4697,6 +4697,21 @@ void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
 void TurboAssembler::Trap() { stop(); }
 void TurboAssembler::DebugBreak() { stop(); }
 
+void TurboAssembler::CountLeadingZerosU32(Register dst, Register src,
+                                          Register scratch_pair) {
+  llgfr(dst, src);
+  flogr(scratch_pair,
+        dst);  // will modify a register pair scratch and scratch + 1
+  AddS32(dst, scratch_pair, Operand(-32));
+}
+
+void TurboAssembler::CountLeadingZerosU64(Register dst, Register src,
+                                          Register scratch_pair) {
+  flogr(scratch_pair,
+        src);  // will modify a register pair scratch and scratch + 1
+  mov(dst, scratch_pair);
+}
+
 }  // namespace internal
 }  // namespace v8
 

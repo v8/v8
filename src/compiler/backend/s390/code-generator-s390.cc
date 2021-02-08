@@ -1891,16 +1891,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_UNARY_OP(D_DInstr(lcdbr), nullInstr, nullInstr);
       break;
     case kS390_Cntlz32: {
-      __ llgfr(i.OutputRegister(), i.InputRegister(0));
-      __ flogr(r0, i.OutputRegister());
-      __ AddS32(i.OutputRegister(), r0, Operand(-32));
-      // No need to zero-ext b/c llgfr is done already
+      __ CountLeadingZerosU32(i.OutputRegister(), i.InputRegister(0), r0);
       break;
     }
 #if V8_TARGET_ARCH_S390X
     case kS390_Cntlz64: {
-      __ flogr(r0, i.InputRegister(0));
-      __ mov(i.OutputRegister(), r0);
+      __ CountLeadingZerosU64(i.OutputRegister(), i.InputRegister(0), r0);
       break;
     }
 #endif
