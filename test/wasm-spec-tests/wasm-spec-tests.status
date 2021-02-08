@@ -18,8 +18,9 @@
   'data': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
-  'proposals/js-types/imports': [FAIL],
+  'proposals/js-types/elem': [FAIL],
   'proposals/js-types/globals': [FAIL],
+  'proposals/js-types/imports': [FAIL],
   'proposals/js-types/linking': [FAIL],
 
   # TODO(wasm): Roll newest tests into "tail-call" repository.
@@ -36,10 +37,30 @@
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
 
-  # TODO(v8:11331): Remove once spec tests are updated with v128.any_true.
-  'proposals/simd/simd_boolean': [FAIL],
-  'proposals/simd/simd_lane': [FAIL],
+  # TODO(v8:11331): Remove once nosse is fixed.
+  'proposals/simd/simd_boolean': [FAIL, PASS],
+  'proposals/simd/simd_load16_lane': [FAIL, PASS],
+  'proposals/simd/simd_load32_lane': [FAIL, PASS],
+  'proposals/simd/simd_load64_lane': [FAIL, PASS],
+  'proposals/simd/simd_load8_lane': [FAIL, PASS],
+
+  # TODO(v8:11401): Fix memory64 spec tests / the v8 implementation (whatever
+  # is broken).
+  'proposals/memory64/address64': [FAIL],
+  'proposals/memory64/data': [FAIL],
+  'proposals/memory64/elem': [FAIL],
+  'proposals/memory64/float_memory64': [FAIL],
+  'proposals/memory64/imports': [FAIL],
+  'proposals/memory64/load64': [FAIL],
+  'proposals/memory64/memory64': [FAIL],
+  'proposals/memory64/memory_grow64': [FAIL],
+  'proposals/memory64/memory_trap64': [FAIL],
 }],  # ALWAYS
+
+['arch == arm', {
+  # TODO(zhin): Fails on arm, hitting UNIMPLEMENTED in instruction selector.
+  'proposals/simd/simd_i64x2_cmp': [FAIL],
+}],  # arch == arm
 
 ['arch == arm and not simulator_run', {
   # See https://crbug.com/v8/10938 denormals not handled correctly on ARM.
