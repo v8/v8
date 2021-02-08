@@ -192,6 +192,7 @@ namespace compiler {
   V(ArmI64x2ShrU)                  \
   V(ArmI64x2BitMask)               \
   V(ArmI64x2Eq)                    \
+  V(ArmI64x2Ne)                    \
   V(ArmI64x2SConvertI32x4Low)      \
   V(ArmI64x2SConvertI32x4High)     \
   V(ArmI64x2UConvertI32x4Low)      \
@@ -333,6 +334,7 @@ namespace compiler {
   V(ArmS8x8Reverse)                \
   V(ArmS8x4Reverse)                \
   V(ArmS8x2Reverse)                \
+  V(ArmV64x2AllTrue)               \
   V(ArmV32x4AllTrue)               \
   V(ArmV16x8AllTrue)               \
   V(ArmV128AnyTrue)                \

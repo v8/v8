@@ -4504,6 +4504,25 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       get_neon_register(vm, q_data);
       for (int i = 0; i < 4; i++) q_data[i] = ~q_data[i];
       set_neon_register(vd, q_data);
+    } else if (opc1 == 0b01 && opc2 == 0b0010) {
+      // vceq.<dt> Qd, Qm, #0 (signed integers).
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      switch (size) {
+        case Neon8:
+          Unop<int8_t>(this, Vd, Vm, [](int8_t x) { return x == 0 ? -1 : 0; });
+          break;
+        case Neon16:
+          Unop<int16_t>(this, Vd, Vm,
+                        [](int16_t x) { return x == 0 ? -1 : 0; });
+          break;
+        case Neon32:
+          Unop<int32_t>(this, Vd, Vm,
+                        [](int32_t x) { return x == 0 ? -1 : 0; });
+          break;
+        case Neon64:
+          UNREACHABLE();
+      }
     } else if (opc1 == 0b01 && opc2 == 0b0100) {
       // vclt.<dt> Qd, Qm, #0 (signed integers).
       int Vd = instr->VFPDRegValue(kSimd128Precision);
@@ -4521,7 +4540,6 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
         case Neon64:
           UNREACHABLE();
       }
-
     } else if (opc1 == 0b01 && (opc2 & 0b0111) == 0b110) {
       // vabs<type>.<size> Qd, Qm
       int Vd = instr->VFPDRegValue(kSimd128Precision);

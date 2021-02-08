@@ -57,11 +57,6 @@
   'proposals/memory64/memory_trap64': [FAIL],
 }],  # ALWAYS
 
-['arch == arm', {
-  # TODO(zhin): Fails on arm, hitting UNIMPLEMENTED in instruction selector.
-  'proposals/simd/simd_i64x2_cmp': [FAIL],
-}],  # arch == arm
-
 ['arch == arm and not simulator_run', {
   # See https://crbug.com/v8/10938 denormals not handled correctly on ARM.
   'proposals/simd/simd_f32x4': [PASS, FAIL],

@@ -4001,6 +4001,7 @@ enum UnaryOp {
   VRSQRTE,
   VPADDL_S,
   VPADDL_U,
+  VCEQ0,
   VCLT0,
   VCNT
 };
@@ -4076,6 +4077,10 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
       break;
     case VPADDL_U:
       op_encoding = 0x5 * B7;
+      break;
+    case VCEQ0:
+      // Only support integers.
+      op_encoding = 0x1 * B16 | 0x2 * B7;
       break;
     case VCLT0:
       // Only support signed integers.
@@ -4808,6 +4813,15 @@ void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vceq(Qn, Qm) SIMD integer compare equal.
   // Instruction details available in ARM DDI 0406C.b, A8-844.
   emit(EncodeNeonBinOp(VCEQ, size, dst, src1, src2));
+}
+
+void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+                     int value) {
+  DCHECK(IsEnabled(NEON));
+  DCHECK_EQ(0, value);
+  // Qd = vceq(Qn, Qm, #0) Vector Compare Equal to Zero.
+  // Instruction details available in ARM DDI 0406C.d, A8-847.
+  emit(EncodeNeonUnaryOp(VCEQ0, NEON_Q, size, dst.code(), src1.code()));
 }
 
 void Assembler::vcge(QwNeonRegister dst, QwNeonRegister src1,

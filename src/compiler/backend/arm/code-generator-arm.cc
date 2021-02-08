@@ -2441,6 +2441,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
+    case kArmI64x2Ne: {
+      Simd128Register dst = i.OutputSimd128Register();
+      UseScratchRegisterScope temps(tasm());
+      Simd128Register tmp = temps.AcquireQ();
+      __ vceq(Neon32, dst, i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      __ vrev64(Neon32, tmp, dst);
+      __ vand(dst, dst, tmp);
+      __ vmvn(dst, dst);
+      break;
+    }
     case kArmI32x4Eq: {
       __ vceq(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -3248,6 +3259,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ExtractLane(i.OutputRegister(), scratch, NeonS32, 0);
       __ cmp(i.OutputRegister(), Operand(0));
       __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
+      break;
+    }
+    case kArmV64x2AllTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      UseScratchRegisterScope temps(tasm());
+      QwNeonRegister tmp = temps.AcquireQ();
+      Register dst = i.OutputRegister();
+      // src = | a | b | c | d |
+      // tmp = | max(a,b) | max(c,d) | ...
+      __ vpmax(NeonU32, tmp.low(), src.low(), src.high());
+      // tmp = | max(a,b) == 0 | max(c,d) == 0 | ...
+      __ vceq(Neon32, tmp, tmp, 0);
+      // tmp = | max(a,b) == 0 or max(c,d) == 0 | ...
+      __ vpmax(NeonU32, tmp.low(), tmp.low(), tmp.low());
+      // dst = (max(a,b) == 0 || max(c,d) == 0)
+      // dst will either be -1 or 0.
+      __ vmov(NeonS32, dst, tmp.low(), 0);
+      // dst = !dst (-1 -> 0, 0 -> 1)
+      __ add(dst, dst, Operand(1));
+      // This works because:
+      // !dst
+      // = !(max(a,b) == 0 || max(c,d) == 0)
+      // = max(a,b) != 0 && max(c,d) != 0
+      // = (a != 0 || b != 0) && (c != 0 || d != 0)
+      // = defintion of i64x2.all_true.
       break;
     }
     case kArmV32x4AllTrue: {

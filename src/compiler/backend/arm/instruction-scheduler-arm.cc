@@ -172,6 +172,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI64x2ShrU:
     case kArmI64x2BitMask:
     case kArmI64x2Eq:
+    case kArmI64x2Ne:
     case kArmI64x2SConvertI32x4Low:
     case kArmI64x2SConvertI32x4High:
     case kArmI64x2UConvertI32x4Low:
@@ -313,6 +314,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmS8x8Reverse:
     case kArmS8x4Reverse:
     case kArmS8x2Reverse:
+    case kArmV64x2AllTrue:
     case kArmV32x4AllTrue:
     case kArmV16x8AllTrue:
     case kArmV128AnyTrue:
