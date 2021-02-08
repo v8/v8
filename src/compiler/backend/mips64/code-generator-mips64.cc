@@ -313,8 +313,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                    InstructionCode opcode, Instruction* instr,
                                    MipsOperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     codegen->tasm()->And(value, value, kSpeculationPoisonRegister);
@@ -3207,6 +3206,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   kSimd128RegZero);
       break;
     }
+    case kMips64I8x16Popcnt: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ pcnt_b(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kMips64I8x16BitMask: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
@@ -3249,9 +3253,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0));
       break;
     }
-    case kMips64V32x4AnyTrue:
-    case kMips64V16x8AnyTrue:
-    case kMips64V8x16AnyTrue: {
+    case kMips64V128AnyTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_false;
@@ -4425,7 +4427,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ dsll(t0, t0, kSystemPointerSizeLog2);
     __ Daddu(sp, sp, t0);
   } else if (additional_pop_count->IsImmediate()) {
-    DCHECK_EQ(Constant::kInt32, g.ToConstant(additional_pop_count).type());
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_count + additional_count);
   } else {

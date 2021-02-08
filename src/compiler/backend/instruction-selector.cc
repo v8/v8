@@ -2040,6 +2040,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI64x2Mul(node);
     case IrOpcode::kI64x2Eq:
       return MarkAsSimd128(node), VisitI64x2Eq(node);
+    case IrOpcode::kI64x2Ne:
+      return MarkAsSimd128(node), VisitI64x2Ne(node);
     case IrOpcode::kI64x2ShrU:
       return MarkAsSimd128(node), VisitI64x2ShrU(node);
     case IrOpcode::kI64x2ExtMulLowI32x4S:
@@ -2304,16 +2306,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Swizzle(node);
     case IrOpcode::kI8x16Shuffle:
       return MarkAsSimd128(node), VisitI8x16Shuffle(node);
-    case IrOpcode::kV32x4AnyTrue:
-      return MarkAsWord32(node), VisitV32x4AnyTrue(node);
+    case IrOpcode::kV128AnyTrue:
+      return MarkAsWord32(node), VisitV128AnyTrue(node);
+    case IrOpcode::kV64x2AllTrue:
+      return MarkAsWord32(node), VisitV64x2AllTrue(node);
     case IrOpcode::kV32x4AllTrue:
       return MarkAsWord32(node), VisitV32x4AllTrue(node);
-    case IrOpcode::kV16x8AnyTrue:
-      return MarkAsWord32(node), VisitV16x8AnyTrue(node);
     case IrOpcode::kV16x8AllTrue:
       return MarkAsWord32(node), VisitV16x8AllTrue(node);
-    case IrOpcode::kV8x16AnyTrue:
-      return MarkAsWord32(node), VisitV8x16AnyTrue(node);
     case IrOpcode::kV8x16AllTrue:
       return MarkAsWord32(node), VisitV8x16AllTrue(node);
     default:
@@ -2759,11 +2759,6 @@ void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 || !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
-// TODO(v8:11002) Prototype i8x16.popcnt.
-void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
-
 #if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && \
     !V8_TARGET_ARCH_IA32
 // TODO(v8:11086) Prototype extended pairwise add.
@@ -2792,7 +2787,7 @@ void InstructionSelector::VisitI64x2SignSelect(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitF64x2ConvertLowI32x4S(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2811,14 +2806,19 @@ void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
 void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  //! V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
+#endif  //! V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 // TODO(v8:11297) Prototype i32x4.widen_i8x16_u
 void InstructionSelector::VisitI32x4WidenI8x16S(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4WidenI8x16U(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
+
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
+void InstructionSelector::VisitI64x2Ne(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV64x2AllTrue(Node* node) { UNIMPLEMENTED(); }
+#endif  //! V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
@@ -3321,6 +3321,15 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
   if (state.has_outer_frame_state()) {
     outer_state =
         GetFrameStateDescriptorInternal(zone, state.outer_frame_state());
+  }
+
+  if (state_info.type() == FrameStateType::kJSToWasmBuiltinContinuation) {
+    auto function_info = static_cast<const JSToWasmFrameStateFunctionInfo*>(
+        state_info.function_info());
+    return zone->New<JSToWasmFrameStateDescriptor>(
+        zone, state_info.type(), state_info.bailout_id(),
+        state_info.state_combine(), parameters, locals, stack,
+        state_info.shared_info(), outer_state, function_info->signature());
   }
 
   return zone->New<FrameStateDescriptor>(

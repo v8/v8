@@ -64,6 +64,8 @@ _TEST_CODE_EXCLUDED_PATHS = (
     r'src[\\\/]extensions[\\\/]gc-extension\.cc',
     # Runtime functions used for testing.
     r'src[\\\/]runtime[\\\/]runtime-test\.cc',
+    # Testing helpers.
+    r'src[\\\/]heap[\\\/]cppgc[\\\/]testing\.cc',
 )
 
 

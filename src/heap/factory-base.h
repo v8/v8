@@ -23,6 +23,7 @@ class SeqTwoByteString;
 class FreshlyAllocatedBigInt;
 class ObjectBoilerplateDescription;
 class ArrayBoilerplateDescription;
+class RegExpBoilerplateDescription;
 class TemplateObjectDescription;
 class SourceTextModuleInfo;
 class PreparseData;
@@ -136,6 +137,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   // Create a new ArrayBoilerplateDescription struct.
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
       ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
+
+  Handle<RegExpBoilerplateDescription> NewRegExpBoilerplateDescription(
+      Handle<FixedArray> data, Handle<String> source, Smi flags);
 
   // Create a new TemplateObjectDescription struct.
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(

@@ -928,7 +928,15 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     code = entry->code;
     safepoint_entry = entry->safepoint_entry;
     stack_slots = code.stack_slots();
-    has_tagged_params = code.has_tagged_params();
+
+    // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
+    // directly call a Wasm function from JavaScript. In this case the
+    // parameters we pass to the callee are not tagged.
+    wasm::WasmCode* wasm_callee =
+        isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc());
+    bool is_wasm_call = (wasm_callee != nullptr);
+
+    has_tagged_params = !is_wasm_call && code.has_tagged_params();
   }
   uint32_t slot_space = stack_slots * kSystemPointerSize;
 
@@ -1778,8 +1786,6 @@ int BuiltinFrame::ComputeParametersCount() const {
   return Smi::ToInt(Object(base::Memory<Address>(fp() + offset)));
 }
 
-Code InternalFrame::unchecked_code() const { return Code(); }
-
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                       int index) const {
   PrintIndex(accumulator, mode, index);
@@ -1808,10 +1814,6 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
-Code WasmFrame::unchecked_code() const {
-  return isolate()->FindCodeObject(pc());
-}
-
 wasm::WasmCode* WasmFrame::wasm_code() const {
   return isolate()->wasm_engine()->code_manager()->LookupCode(pc());
 }
@@ -1831,7 +1833,8 @@ WasmModuleObject WasmFrame::module_object() const {
 }
 
 uint32_t WasmFrame::function_index() const {
-  return FrameSummary::GetSingle(this).AsWasm().function_index();
+  wasm::WasmCodeRefScope code_ref_scope;
+  return wasm_code()->index();
 }
 
 Script WasmFrame::script() const { return module_object().script(); }

@@ -416,55 +416,53 @@ V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
 
 using DebugObjectCache = std::vector<Handle<HeapObject>>;
 
-#define ISOLATE_INIT_LIST(V)                                                   \
-  /* Assembler state. */                                                       \
-  V(FatalErrorCallback, exception_behavior, nullptr)                           \
-  V(OOMErrorCallback, oom_behavior, nullptr)                                   \
-  V(LogEventCallback, event_logger, nullptr)                                   \
-  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr)  \
-  V(ModifyCodeGenerationFromStringsCallback, modify_code_gen_callback,         \
-    nullptr)                                                                   \
-  V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback2,       \
-    nullptr)                                                                   \
-  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)    \
-  V(ExtensionCallback, wasm_module_callback, &NoExtension)                     \
-  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                   \
-  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                   \
-  V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)        \
-  V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)         \
-  V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)              \
-  /* State for Relocatable. */                                                 \
-  V(Relocatable*, relocatable_top, nullptr)                                    \
-  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)              \
-  V(Object, string_stream_current_security_token, Object())                    \
-  V(const intptr_t*, api_external_references, nullptr)                         \
-  V(AddressToIndexHashMap*, external_reference_map, nullptr)                   \
-  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                        \
-  V(MicrotaskQueue*, default_microtask_queue, nullptr)                         \
-  V(CompilationStatistics*, turbo_statistics, nullptr)                         \
-  V(CodeTracer*, code_tracer, nullptr)                                         \
-  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
-  V(PromiseRejectCallback, promise_reject_callback, nullptr)                   \
-  V(const v8::StartupData*, snapshot_blob, nullptr)                            \
-  V(int, code_and_metadata_size, 0)                                            \
-  V(int, bytecode_and_metadata_size, 0)                                        \
-  V(int, external_script_source_size, 0)                                       \
-  /* Number of CPU profilers running on the isolate. */                        \
-  V(size_t, num_cpu_profilers, 0)                                              \
-  /* true if a trace is being formatted through Error.prepareStackTrace. */    \
-  V(bool, formatting_stack_trace, false)                                       \
-  /* Perform side effect checks on function call and API callbacks. */         \
-  V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)   \
-  /* Current code coverage mode */                                             \
-  V(debug::CoverageMode, code_coverage_mode, debug::CoverageMode::kBestEffort) \
-  V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone)  \
-  V(bool, disable_bytecode_flushing, false)                                    \
-  V(int, last_console_context_id, 0)                                           \
-  V(v8_inspector::V8Inspector*, inspector, nullptr)                            \
-  V(bool, next_v8_call_is_safe_for_termination, false)                         \
-  V(bool, only_terminate_in_safe_scope, false)                                 \
-  V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)    \
-  V(int, embedder_wrapper_type_index, -1)                                      \
+#define ISOLATE_INIT_LIST(V)                                                  \
+  /* Assembler state. */                                                      \
+  V(FatalErrorCallback, exception_behavior, nullptr)                          \
+  V(OOMErrorCallback, oom_behavior, nullptr)                                  \
+  V(LogEventCallback, event_logger, nullptr)                                  \
+  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
+  V(ModifyCodeGenerationFromStringsCallback, modify_code_gen_callback,        \
+    nullptr)                                                                  \
+  V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback2,      \
+    nullptr)                                                                  \
+  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)   \
+  V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
+  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
+  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
+  V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)       \
+  V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
+  V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)             \
+  /* State for Relocatable. */                                                \
+  V(Relocatable*, relocatable_top, nullptr)                                   \
+  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
+  V(Object, string_stream_current_security_token, Object())                   \
+  V(const intptr_t*, api_external_references, nullptr)                        \
+  V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
+  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
+  V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
+  V(CompilationStatistics*, turbo_statistics, nullptr)                        \
+  V(CodeTracer*, code_tracer, nullptr)                                        \
+  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
+  V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
+  V(const v8::StartupData*, snapshot_blob, nullptr)                           \
+  V(int, code_and_metadata_size, 0)                                           \
+  V(int, bytecode_and_metadata_size, 0)                                       \
+  V(int, external_script_source_size, 0)                                      \
+  /* Number of CPU profilers running on the isolate. */                       \
+  V(size_t, num_cpu_profilers, 0)                                             \
+  /* true if a trace is being formatted through Error.prepareStackTrace. */   \
+  V(bool, formatting_stack_trace, false)                                      \
+  /* Perform side effect checks on function call and API callbacks. */        \
+  V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)  \
+  V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone) \
+  V(bool, disable_bytecode_flushing, false)                                   \
+  V(int, last_console_context_id, 0)                                          \
+  V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
+  V(bool, next_v8_call_is_safe_for_termination, false)                        \
+  V(bool, only_terminate_in_safe_scope, false)                                \
+  V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)   \
+  V(int, embedder_wrapper_type_index, -1)                                     \
   V(int, embedder_wrapper_object_index, -1)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \
@@ -1090,6 +1088,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         isolate_root_bias());
   }
 
+  THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
+
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
   }
@@ -1304,7 +1304,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Returns true if array is the initial array prototype in any native context.
-  bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
+  inline bool IsAnyInitialArrayPrototype(JSArray array);
 
   std::unique_ptr<PersistentHandles> NewPersistentHandles();
 
@@ -1586,6 +1586,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   RAILMode rail_mode() { return rail_mode_.load(); }
 
+  void set_code_coverage_mode(debug::CoverageMode coverage_mode) {
+    code_coverage_mode_.store(coverage_mode, std::memory_order_relaxed);
+  }
+  debug::CoverageMode code_coverage_mode() const {
+    return code_coverage_mode_.load(std::memory_order_relaxed);
+  }
+
   double LoadStartTimeMs();
 
   void IsolateInForegroundNotification();
@@ -1840,6 +1847,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       host_import_module_dynamically_callback_ = nullptr;
   HostImportModuleDynamicallyWithImportAssertionsCallback
       host_import_module_dynamically_with_import_assertions_callback_ = nullptr;
+  std::atomic<debug::CoverageMode> code_coverage_mode_{
+      debug::CoverageMode::kBestEffort};
 
   // Helper function for RunHostImportModuleDynamicallyCallback.
   // Unpacks import assertions, if present, from the second argument to dynamic

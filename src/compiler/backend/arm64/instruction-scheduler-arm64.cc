@@ -202,6 +202,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I64x2Sub:
     case kArm64I64x2Mul:
     case kArm64I64x2Eq:
+    case kArm64I64x2Ne:
     case kArm64I64x2ShrU:
     case kArm64I64x2BitMask:
     case kArm64I32x4Splat:
@@ -238,6 +239,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I32x4DotI16x8S:
     case kArm64I32x4TruncSatF64x2SZero:
     case kArm64I32x4TruncSatF64x2UZero:
+    case kArm64I32x4WidenI8x16S:
+    case kArm64I32x4WidenI8x16U:
     case kArm64I16x8Splat:
     case kArm64I16x8ExtractLaneU:
     case kArm64I16x8ExtractLaneS:
@@ -343,6 +346,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S8x4Reverse:
     case kArm64S8x2Reverse:
     case kArm64V128AnyTrue:
+    case kArm64V64x2AllTrue:
     case kArm64V32x4AllTrue:
     case kArm64V16x8AllTrue:
     case kArm64V8x16AllTrue:
@@ -374,8 +378,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128Load16x4U:
     case kArm64S128Load32x2S:
     case kArm64S128Load32x2U:
-    case kArm64S128Load32Zero:
-    case kArm64S128Load64Zero:
       return kIsLoadOperation;
 
     case kArm64Claim:

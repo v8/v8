@@ -3311,8 +3311,6 @@ TEST_F(WasmModuleVerifyTest, Memory64DataSegment) {
 #undef NOP_BODY
 #undef SIG_ENTRY_i_i
 #undef UNKNOWN_SECTION
-#undef COUNT_ARGS
-#undef CHECK_LEB1
 #undef ADD_COUNT
 #undef SECTION
 #undef TYPE_SECTION

@@ -15,6 +15,7 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
+#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -227,9 +228,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, has_optimized_at_least_once,
-                    SharedFunctionInfo::HasOptimizedAtLeastOnceBit)
-
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, may_have_cached_code,
                     SharedFunctionInfo::MayHaveCachedCodeBit)
 
@@ -304,17 +302,6 @@ bool SharedFunctionInfo::is_wrapped() const {
   return syntax_kind() == FunctionSyntaxKind::kWrapped;
 }
 
-bool SharedFunctionInfo::needs_home_object() const {
-  return NeedsHomeObjectBit::decode(flags());
-}
-
-void SharedFunctionInfo::set_needs_home_object(bool value) {
-  int hints = flags();
-  hints = NeedsHomeObjectBit::update(hints, value);
-  set_flags(hints);
-  UpdateFunctionMapIndex();
-}
-
 bool SharedFunctionInfo::construct_as_builtin() const {
   return ConstructAsBuiltinBit::decode(flags());
 }
@@ -358,8 +345,8 @@ void SharedFunctionInfo::clear_padding() {
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
-  int map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), HasSharedName(), needs_home_object());
+  int map_index =
+      Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
   set_function_map_index(map_index);
 }
 
@@ -700,6 +687,22 @@ bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
 
 bool SharedFunctionInfo::HasWasmJSFunctionData() const {
   return function_data(kAcquireLoad).IsWasmJSFunctionData();
+}
+
+const wasm::WasmModule* SharedFunctionInfo::wasm_module() const {
+  if (!HasWasmExportedFunctionData()) return nullptr;
+  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
+  const WasmInstanceObject& wasm_instance = function_data.instance();
+  const WasmModuleObject& wasm_module_object = wasm_instance.module_object();
+  return wasm_module_object.module();
+}
+
+const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {
+  const wasm::WasmModule* module = wasm_module();
+  if (!module) return nullptr;
+  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
+  DCHECK_LT(function_data.function_index(), module->functions.size());
+  return module->functions[function_data.function_index()].sig;
 }
 
 bool SharedFunctionInfo::HasWasmCapiFunctionData() const {

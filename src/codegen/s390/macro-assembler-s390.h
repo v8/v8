@@ -184,6 +184,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void AddS64(Register dst, const Operand& imm);
   void AddS32(Register dst, Register src, const Operand& imm);
   void AddS64(Register dst, Register src, const Operand& imm);
+  void AddS32(Register dst, Register src, int32_t imm);
+  void AddS64(Register dst, Register src, int32_t imm);
 
   // Add (Register - Register)
   void AddS32(Register dst, Register src);
@@ -215,6 +217,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SubS64(Register dst, const Operand& imm);
   void SubS32(Register dst, Register src, const Operand& imm);
   void SubS64(Register dst, Register src, const Operand& imm);
+  void SubS32(Register dst, Register src, int32_t imm);
+  void SubS64(Register dst, Register src, int32_t imm);
 
   // Subtract (Register - Register)
   void SubS32(Register dst, Register src);
@@ -390,6 +394,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreF32LE(DoubleRegister src, const MemOperand& opnd, Register scratch);
   void StoreV128LE(Simd128Register src, const MemOperand& mem,
                    Register scratch1, Register scratch2);
+
+  void AddF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs);
+  void SubF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs);
+  void MulF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs);
+  void DivF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs);
+
+  void AddF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs);
+  void SubF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs);
+  void MulF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs);
+  void DivF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs);
 
   void AddFloat32(DoubleRegister dst, const MemOperand& opnd,
                   DoubleRegister scratch);

@@ -385,6 +385,20 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
 }
 
 template <typename Impl>
+Handle<RegExpBoilerplateDescription>
+FactoryBase<Impl>::NewRegExpBoilerplateDescription(Handle<FixedArray> data,
+                                                   Handle<String> source,
+                                                   Smi flags) {
+  Handle<RegExpBoilerplateDescription> result =
+      Handle<RegExpBoilerplateDescription>::cast(NewStruct(
+          REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld));
+  result->set_data(*data);
+  result->set_source(*source);
+  result->set_flags(flags.value());
+  return result;
+}
+
+template <typename Impl>
 Handle<TemplateObjectDescription>
 FactoryBase<Impl>::NewTemplateObjectDescription(
     Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings) {

@@ -20,6 +20,7 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/oddball.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/wasm/wasm-linkage.h"
 
 namespace v8 {
 
@@ -935,6 +936,7 @@ void Deoptimizer::DoComputeOutputFrames() {
         DoComputeConstructStubFrame(translated_frame, frame_index);
         break;
       case TranslatedFrame::kBuiltinContinuation:
+      case TranslatedFrame::kJSToWasmBuiltinContinuation:
         DoComputeBuiltinContinuation(translated_frame, frame_index,
                                      BuiltinContinuationMode::STUB);
         break;
@@ -1554,6 +1556,36 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
   UNREACHABLE();
 }
 
+TranslatedValue Deoptimizer::TranslatedValueForWasmReturnType(
+    base::Optional<wasm::ValueType::Kind> wasm_call_return_type) {
+  if (wasm_call_return_type) {
+    switch (wasm_call_return_type.value()) {
+      case wasm::ValueType::kI32:
+        return TranslatedValue::NewInt32(
+            &translated_state_,
+            (int32_t)input_->GetRegister(kReturnRegister0.code()));
+      case wasm::ValueType::kI64:
+        return TranslatedValue::NewInt64ToBigInt(
+            &translated_state_,
+            (int64_t)input_->GetRegister(kReturnRegister0.code()));
+      case wasm::ValueType::kF32:
+        return TranslatedValue::NewFloat(
+            &translated_state_,
+            Float32(*reinterpret_cast<float*>(
+                input_->GetDoubleRegister(wasm::kFpReturnRegisters[0].code())
+                    .get_bits_address())));
+      case wasm::ValueType::kF64:
+        return TranslatedValue::NewDouble(
+            &translated_state_,
+            input_->GetDoubleRegister(wasm::kFpReturnRegisters[0].code()));
+      default:
+        UNREACHABLE();
+    }
+  }
+  return TranslatedValue::NewTagged(&translated_state_,
+                                    ReadOnlyRoots(isolate()).undefined_value());
+}
+
 // BuiltinContinuationFrames capture the machine state that is expected as input
 // to a builtin, including both input register values and stack parameters. When
 // the frame is reactivated (i.e. the frame below it returns), a
@@ -1615,6 +1647,21 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
 void Deoptimizer::DoComputeBuiltinContinuation(
     TranslatedFrame* translated_frame, int frame_index,
     BuiltinContinuationMode mode) {
+  TranslatedFrame::iterator result_iterator = translated_frame->end();
+
+  bool is_js_to_wasm_builtin_continuation =
+      translated_frame->kind() == TranslatedFrame::kJSToWasmBuiltinContinuation;
+  if (is_js_to_wasm_builtin_continuation) {
+    // For JSToWasmBuiltinContinuations, add a TranslatedValue with the result
+    // of the Wasm call, extracted from the input FrameDescription.
+    // This TranslatedValue will be written in the output frame in place of the
+    // hole and we'll use ContinueToCodeStubBuiltin in place of
+    // ContinueToCodeStubBuiltinWithResult.
+    TranslatedValue result = TranslatedValueForWasmReturnType(
+        translated_frame->wasm_call_return_type());
+    translated_frame->Add(result);
+  }
+
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
 
   const BytecodeOffset bytecode_offset = translated_frame->bytecode_offset();
@@ -1699,9 +1746,15 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
     }
     if (frame_info.frame_has_result_stack_slot()) {
-      frame_writer.PushRawObject(
-          roots.the_hole_value(),
-          "placeholder for return result on lazy deopt\n");
+      if (is_js_to_wasm_builtin_continuation) {
+        frame_writer.PushTranslatedValue(result_iterator,
+                                         "return result on lazy deopt\n");
+      } else {
+        DCHECK_EQ(result_iterator, translated_frame->end());
+        frame_writer.PushRawObject(
+            roots.the_hole_value(),
+            "placeholder for return result on lazy deopt\n");
+      }
     }
   } else {
     // JavaScript builtin.
@@ -1796,7 +1849,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   frame_writer.PushRawObject(Smi::FromInt(output_frame_size_above_fp),
                              "frame height at deoptimization\n");
 
-  // The context even if this is a stub contininuation frame. We can't use the
+  // The context even if this is a stub continuation frame. We can't use the
   // usual context slot, because we must store the frame marker there.
   frame_writer.PushTranslatedValue(context_register_value,
                                    "builtin JavaScript context\n");
@@ -1849,7 +1902,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     }
   }
 
-  CHECK_EQ(translated_frame->end(), value_iterator);
+  CHECK_EQ(result_iterator, value_iterator);
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Clear the context register. The context might be a de-materialized object
@@ -1865,10 +1918,13 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // will build its own frame once we continue to it.
   Register fp_reg = JavaScriptFrame::fp_register();
   output_frame->SetRegister(fp_reg.code(), fp_value);
-
+  // For JSToWasmBuiltinContinuations use ContinueToCodeStubBuiltin, and not
+  // ContinueToCodeStubBuiltinWithResult because we don't want to overwrite the
+  // return value that we have already set.
   Code continue_to_builtin =
       isolate()->builtins()->builtin(TrampolineForBuiltinContinuation(
-          mode, frame_info.frame_has_result_stack_slot()));
+          mode, frame_info.frame_has_result_stack_slot() &&
+                    !is_js_to_wasm_builtin_continuation));
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
     // authenticated at the end of the DeoptimizationEntry builtin.

@@ -151,7 +151,7 @@ class V8_EXPORT Visitor {
    */
   template <typename K, typename V>
   void Trace(const EphemeronPair<K, V>& ephemeron_pair) {
-    TraceEphemeron(ephemeron_pair.key, ephemeron_pair.value.GetRawAtomic());
+    TraceEphemeron(ephemeron_pair.key, &ephemeron_pair.value);
   }
 
   /**
@@ -164,6 +164,7 @@ class V8_EXPORT Visitor {
   template <typename K, typename V>
   void TraceEphemeron(const WeakMember<K>& key, const V* value) {
     TraceDescriptor value_desc = TraceTrait<V>::GetTraceDescriptor(value);
+    if (!value_desc.base_object_payload) return;
     VisitEphemeron(key, value_desc);
   }
 
@@ -315,6 +316,14 @@ class V8_EXPORT Visitor {
   friend class internal::BasicPersistent;
   friend class internal::ConservativeTracingVisitor;
   friend class internal::VisitorBase;
+};
+
+template <typename T>
+struct TraceTrait<Member<T>> {
+  static TraceDescriptor GetTraceDescriptor(const void* self) {
+    return TraceTrait<T>::GetTraceDescriptor(
+        static_cast<const Member<T>*>(self)->GetRawAtomic());
+  }
 };
 
 }  // namespace cppgc

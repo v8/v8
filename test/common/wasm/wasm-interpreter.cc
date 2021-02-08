@@ -2309,6 +2309,7 @@ class WasmInterpreterInternals {
       CMPOP_CASE(F32x4Lt, f32x4, float4, int4, 4, a < b)
       CMPOP_CASE(F32x4Le, f32x4, float4, int4, 4, a <= b)
       CMPOP_CASE(I64x2Eq, i64x2, int2, int2, 2, a == b)
+      CMPOP_CASE(I64x2Ne, i64x2, int2, int2, 2, a != b)
       CMPOP_CASE(I32x4Eq, i32x4, int4, int4, 4, a == b)
       CMPOP_CASE(I32x4Ne, i32x4, int4, int4, 4, a != b)
       CMPOP_CASE(I32x4GtS, i32x4, int4, int4, 4, a > b)
@@ -2512,28 +2513,25 @@ class WasmInterpreterInternals {
         CONVERT_CASE(F64x2PromoteLowF32x4, float4, f32x4, float2, 2, 0, float,
                      static_cast<double>(a))
 #undef CONVERT_CASE
-#define PACK_CASE(op, src_type, name, dst_type, count, ctype, dst_ctype) \
-  case kExpr##op: {                                                      \
-    WasmValue v2 = Pop();                                                \
-    WasmValue v1 = Pop();                                                \
-    src_type s1 = v1.to_s128().to_##name();                              \
-    src_type s2 = v2.to_s128().to_##name();                              \
-    dst_type res;                                                        \
-    int64_t min = std::numeric_limits<ctype>::min();                     \
-    int64_t max = std::numeric_limits<ctype>::max();                     \
-    for (size_t i = 0; i < count; ++i) {                                 \
-      int64_t v = i < count / 2 ? s1.val[LANE(i, s1)]                    \
-                                : s2.val[LANE(i - count / 2, s2)];       \
-      res.val[LANE(i, res)] =                                            \
-          static_cast<dst_ctype>(std::max(min, std::min(max, v)));       \
-    }                                                                    \
-    Push(WasmValue(Simd128(res)));                                       \
-    return true;                                                         \
+#define PACK_CASE(op, src_type, name, dst_type, count, dst_ctype)  \
+  case kExpr##op: {                                                \
+    WasmValue v2 = Pop();                                          \
+    WasmValue v1 = Pop();                                          \
+    src_type s1 = v1.to_s128().to_##name();                        \
+    src_type s2 = v2.to_s128().to_##name();                        \
+    dst_type res;                                                  \
+    for (size_t i = 0; i < count; ++i) {                           \
+      int64_t v = i < count / 2 ? s1.val[LANE(i, s1)]              \
+                                : s2.val[LANE(i - count / 2, s2)]; \
+      res.val[LANE(i, res)] = base::saturated_cast<dst_ctype>(v);  \
+    }                                                              \
+    Push(WasmValue(Simd128(res)));                                 \
+    return true;                                                   \
   }
-        PACK_CASE(I16x8SConvertI32x4, int4, i32x4, int8, 8, int16_t, int16_t)
-        PACK_CASE(I16x8UConvertI32x4, int4, i32x4, int8, 8, uint16_t, int16_t)
-        PACK_CASE(I8x16SConvertI16x8, int8, i16x8, int16, 16, int8_t, int8_t)
-        PACK_CASE(I8x16UConvertI16x8, int8, i16x8, int16, 16, uint8_t, int8_t)
+        PACK_CASE(I16x8SConvertI32x4, int4, i32x4, int8, 8, int16_t)
+        PACK_CASE(I16x8UConvertI32x4, int4, i32x4, int8, 8, uint16_t)
+        PACK_CASE(I8x16SConvertI16x8, int8, i16x8, int16, 16, int8_t)
+        PACK_CASE(I8x16UConvertI16x8, int8, i16x8, int16, 16, uint8_t)
 #undef PACK_CASE
       case kExprS128Select: {
         int4 bool_val = Pop().to_s128().to_i32x4();
@@ -2622,9 +2620,7 @@ class WasmInterpreterInternals {
         Push(WasmValue(Simd128(res)));
         return true;
       }
-      case kExprV32x4AnyTrue:
-      case kExprV16x8AnyTrue:
-      case kExprV8x16AnyTrue: {
+      case kExprV128AnyTrue: {
         int4 s = Pop().to_s128().to_i32x4();
         bool res = s.val[LANE(0, s)] | s.val[LANE(1, s)] | s.val[LANE(2, s)] |
                    s.val[LANE(3, s)];
@@ -2641,6 +2637,7 @@ class WasmInterpreterInternals {
     Push(WasmValue(res));                                 \
     return true;                                          \
   }
+        REDUCTION_CASE(V64x2AllTrue, i64x2, int2, 2, &)
         REDUCTION_CASE(V32x4AllTrue, i32x4, int4, 4, &)
         REDUCTION_CASE(V16x8AllTrue, i16x8, int8, 8, &)
         REDUCTION_CASE(V8x16AllTrue, i8x16, int16, 16, &)
@@ -3026,7 +3023,11 @@ class WasmInterpreterInternals {
               encoded_values->set(encoded_index++, *externref);
               break;
             }
+            case HeapType::kBottom:
+              UNREACHABLE();
             case HeapType::kEq:
+            case HeapType::kData:
+            case HeapType::kI31:
             default:
               // TODO(7748): Implement these.
               UNIMPLEMENTED();

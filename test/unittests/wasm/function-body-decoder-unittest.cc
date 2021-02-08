@@ -2871,19 +2871,30 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   WASM_FEATURE_SCOPE(eh);
   byte ex = builder.AddException(sigs.v_v());
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprEnd});
-  ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprCatchAll, kExprCatch, ex, kExprEnd});
-  ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_OP, kExprCatch, ex, kExprElse, kExprEnd});
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprElse, kExprCatch, ex, kExprEnd});
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprElse, kExprElse, kExprEnd});
   ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprEnd});    // Missing catch.
   ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex});  // Missing end.
   ExpectFailure(sigs.v_v(), {kExprCatch, kExprEnd});     // Missing try.
 }
 
+TEST_F(FunctionBodyDecoderTest, TryUnwind) {
+  WASM_FEATURE_SCOPE(eh);
+  byte ex = builder.AddException(sigs.v_v());
+  ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprUnwind, kExprEnd});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprUnwind, kExprCatch, ex, kExprEnd});
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprElse, kExprUnwind, kExprEnd});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprCatch, ex, kExprUnwind, kExprEnd});
+}
+
 TEST_F(FunctionBodyDecoderTest, Rethrow) {
   WASM_FEATURE_SCOPE(eh);
   ExpectValidates(sigs.v_v(),
-                  {WASM_TRY_OP, kExprCatchAll, kExprRethrow, 0, kExprEnd});
+                  {WASM_TRY_OP, kExprElse, kExprRethrow, 0, kExprEnd});
   ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprRethrow, kExprCatch, kExprEnd});
   ExpectFailure(sigs.v_v(), {WASM_BLOCK(kExprRethrow)});
   ExpectFailure(sigs.v_v(), {kExprRethrow});
@@ -2896,15 +2907,22 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP,
                                WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0),
                                kExprCatch, ex, kExprEnd});
-  ExpectValidates(sigs.v_v(),
-                  {WASM_TRY_OP,
-                   WASM_BLOCK(WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0)),
-                   kExprCatch, ex, kExprEnd});
   ExpectValidates(
       sigs.v_v(),
       {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 2),
                   kExprCatch, ex, kExprEnd)});
 
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP,
+                 WASM_BLOCK(WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0)),
+                 kExprCatch, ex, kExprEnd},
+                kAppendEnd,
+                "delegate target must be a try block or the function block");
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprCatch, ex,
+                 WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
+                kAppendEnd,
+                "cannot delegate inside the catch handler of the target");
   ExpectFailure(
       sigs.v_v(),
       {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 3),
@@ -2916,7 +2934,7 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
       kAppendEnd, "delegate does not match a try");
   ExpectFailure(
       sigs.v_v(),
-      {WASM_TRY_OP, WASM_TRY_OP, kExprCatchAll, kExprDelegate, 1, kExprEnd},
+      {WASM_TRY_OP, WASM_TRY_OP, kExprElse, kExprDelegate, 1, kExprEnd},
       kAppendEnd, "delegate does not match a try");
 }
 
@@ -4229,12 +4247,19 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       static_cast<HeapType::Representation>(
           builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}));
 
+  HeapType::Representation func_heap_1 =
+      static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_i()));
+
+  HeapType::Representation func_heap_2 =
+      static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
+
   // Passing/failing tests due to static subtyping.
   std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
-      {{HeapType::kAny, array_heap, true},
-       {HeapType::kAny, super_struct_heap, true},
-       {HeapType::kEq, array_heap, true},
-       {HeapType::kEq, super_struct_heap, true},
+      {{HeapType::kData, array_heap, true},
+       {HeapType::kData, super_struct_heap, true},
+       {HeapType::kFunc, func_heap_1, true},
+       {func_heap_1, func_heap_1, true},
+       {func_heap_1, func_heap_2, false},
        {super_struct_heap, sub_struct_heap, true},
        {sub_struct_heap, super_struct_heap, false},
        {sub_struct_heap, array_heap, false},
@@ -4259,30 +4284,28 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
 
     if (should_pass) {
       ExpectValidates(&test_sig,
-                      {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                      {WASM_REF_TEST(WASM_LOCAL_GET(0),
                                      WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
       ExpectValidates(&cast_sig_with_depth,
-                      {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                      {WASM_REF_CAST(WASM_LOCAL_GET(0),
                                      WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
       ExpectValidates(&cast_sig,
-                      {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
-                                     WASM_LOCAL_GET(1))});
+                      {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
     } else {
       std::string error_message = "[0] expected supertype of type " +
                                   std::to_string(to_heap.ref_index()) +
                                   ", found local.get of type " +
                                   test_reps[1].name();
       ExpectFailure(&test_sig,
-                    {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                    {WASM_REF_TEST(WASM_LOCAL_GET(0),
                                    WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
                     kAppendEnd, ("ref.test" + error_message).c_str());
       ExpectFailure(&cast_sig_with_depth,
-                    {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                    {WASM_REF_CAST(WASM_LOCAL_GET(0),
                                    WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
                     kAppendEnd, ("ref.cast" + error_message).c_str());
       ExpectFailure(&cast_sig,
-                    {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
-                                   WASM_LOCAL_GET(1))},
+                    {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
                     kAppendEnd, ("ref.cast" + error_message).c_str());
     }
   }
@@ -4290,56 +4313,30 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   // Trivial type error.
   ExpectFailure(
       sigs.v_v(),
-      {WASM_REF_TEST(static_cast<byte>(array_heap), WASM_I32V(1),
-                     WASM_RTT_CANON(array_heap)),
-       kExprDrop},
+      {WASM_REF_TEST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
       kAppendEnd,
-      "ref.test[0] expected type anyref, found i32.const of type i32");
+      "ref.test[0] expected subtype of (ref null func) or (ref null data), "
+      "found i32.const of type i32");
   ExpectFailure(
       sigs.v_v(),
-      {WASM_REF_CAST(static_cast<byte>(array_heap), WASM_I32V(1),
-                     WASM_RTT_CANON(array_heap)),
-       kExprDrop},
+      {WASM_REF_CAST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
       kAppendEnd,
-      "ref.cast[0] expected type anyref, found i32.const of type i32");
-
-  // Mismached object heap immediate.
-  {
-    ValueType arg_type = ValueType::Ref(HeapType::kEq, kNonNullable);
-    FunctionSig sig(0, 1, &arg_type);
-    ExpectFailure(
-        &sig,
-        {WASM_REF_TEST(static_cast<byte>(array_heap), WASM_LOCAL_GET(0),
-                       WASM_RTT_CANON(sub_struct_heap)),
-         kExprDrop},
-        kAppendEnd,
-        "ref.test[1] expected rtt for type 0, found rtt.canon of type (rtt 0 "
-        "2)");
-    ExpectFailure(
-        &sig,
-        {WASM_REF_CAST(static_cast<byte>(array_heap), WASM_LOCAL_GET(0),
-                       WASM_RTT_CANON(sub_struct_heap)),
-         kExprDrop},
-        kAppendEnd,
-        "ref.cast[1] expected rtt for type 0, found rtt.canon of type (rtt 0 "
-        "2)");
-  }
+      "ref.cast[0] expected subtype of (ref null func) or (ref null data), "
+      "found i32.const of type i32");
 
   // Trivial type error.
   ExpectFailure(
       sigs.v_v(),
-      {WASM_REF_TEST(static_cast<byte>(array_heap), WASM_I32V(1),
-                     WASM_RTT_CANON(array_heap)),
-       kExprDrop},
+      {WASM_REF_TEST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
       kAppendEnd,
-      "ref.test[0] expected type anyref, found i32.const of type i32");
+      "ref.test[0] expected subtype of (ref null func) or (ref null data), "
+      "found i32.const of type i32");
   ExpectFailure(
       sigs.v_v(),
-      {WASM_REF_CAST(static_cast<byte>(array_heap), WASM_I32V(1),
-                     WASM_RTT_CANON(array_heap)),
-       kExprDrop},
+      {WASM_REF_CAST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
       kAppendEnd,
-      "ref.cast[0] expected type anyref, found i32.const of type i32");
+      "ref.cast[0] expected subtype of (ref null func) or (ref null data), "
+      "found i32.const of type i32");
 }
 
 // This tests that num_locals_ in decoder remains consistent, even if we fail

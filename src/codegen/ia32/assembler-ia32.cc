@@ -2171,11 +2171,42 @@ void Assembler::cvtdq2ps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::cvtdq2pd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0xE6);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::cvtps2pd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x5A);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::cvtpd2ps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x5A);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::cvttps2dq(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF3);
   EMIT(0x0F);
   EMIT(0x5B);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::cvttpd2dq(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xE6);
   emit_sse_operand(dst, src);
 }
 

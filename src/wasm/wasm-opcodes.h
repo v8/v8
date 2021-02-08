@@ -38,7 +38,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(Catch, 0x07, _ /* eh_prototype */)          \
   V(Throw, 0x08, _ /* eh_prototype */)          \
   V(Rethrow, 0x09, _ /* eh_prototype */)        \
-  V(CatchAll, 0x0a, _ /* eh_prototype */)       \
+  V(Unwind, 0x0a, _ /* eh_prototype */)         \
   V(End, 0x0b, _)                               \
   V(Br, 0x0c, _)                                \
   V(BrIf, 0x0d, _)                              \
@@ -348,6 +348,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4GeS, 0xfd3f, s_ss)                  \
   V(I32x4GeU, 0xfd40, s_ss)                  \
   V(I64x2Eq, 0xfdc0, s_ss)                   \
+  V(I64x2Ne, 0xfdd0, s_ss)                   \
   V(F32x4Eq, 0xfd41, s_ss)                   \
   V(F32x4Ne, 0xfd42, s_ss)                   \
   V(F32x4Lt, 0xfd43, s_ss)                   \
@@ -368,7 +369,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(S128Select, 0xfd52, s_sss)               \
   V(I8x16Abs, 0xfd60, s_s)                   \
   V(I8x16Neg, 0xfd61, s_s)                   \
-  V(V8x16AnyTrue, 0xfd62, i_s)               \
+  V(V128AnyTrue, 0xfd62, i_s)                \
   V(V8x16AllTrue, 0xfd63, i_s)               \
   V(I8x16BitMask, 0xfd64, i_s)               \
   V(I8x16SConvertI16x8, 0xfd65, s_ss)        \
@@ -389,7 +390,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I8x16RoundingAverageU, 0xfd7b, s_ss)     \
   V(I16x8Abs, 0xfd80, s_s)                   \
   V(I16x8Neg, 0xfd81, s_s)                   \
-  V(V16x8AnyTrue, 0xfd82, i_s)               \
   V(V16x8AllTrue, 0xfd83, i_s)               \
   V(I16x8BitMask, 0xfd84, i_s)               \
   V(I16x8SConvertI32x4, 0xfd85, s_ss)        \
@@ -420,7 +420,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I16x8Q15MulRSatS, 0xfd9c, s_ss)          \
   V(I32x4Abs, 0xfda0, s_s)                   \
   V(I32x4Neg, 0xfda1, s_s)                   \
-  V(V32x4AnyTrue, 0xfda2, i_s)               \
   V(V32x4AllTrue, 0xfda3, i_s)               \
   V(I32x4BitMask, 0xfda4, i_s)               \
   V(I32x4SConvertI16x8Low, 0xfda7, s_s)      \
@@ -443,6 +442,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4ExtMulLowI16x8U, 0xfdbe, s_ss)      \
   V(I32x4ExtMulHighI16x8U, 0xfdbf, s_ss)     \
   V(I64x2Neg, 0xfdc1, s_s)                   \
+  V(V64x2AllTrue, 0xfdcf, i_s)               \
   V(I64x2BitMask, 0xfdc4, i_s)               \
   V(I64x2Shl, 0xfdcb, s_si)                  \
   V(I64x2ShrS, 0xfdcc, s_si)                 \
@@ -677,7 +677,16 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RttSub, 0xfb31, _)           \
   V(RefTest, 0xfb40, _)          \
   V(RefCast, 0xfb41, _)          \
-  V(BrOnCast, 0xfb42, _)
+  V(BrOnCast, 0xfb42, _)         \
+  V(RefIsFunc, 0xfb50, _)        \
+  V(RefIsData, 0xfb51, _)        \
+  V(RefIsI31, 0xfb52, _)         \
+  V(RefAsFunc, 0xfb58, _)        \
+  V(RefAsData, 0xfb59, _)        \
+  V(RefAsI31, 0xfb5a, _)         \
+  V(BrOnFunc, 0xfb60, _)         \
+  V(BrOnData, 0xfb61, _)         \
+  V(BrOnI31, 0xfb62, _)
 
 #define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
   /* AtomicFence does not target a particular linear memory. */ \

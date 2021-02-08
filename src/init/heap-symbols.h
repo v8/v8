@@ -175,8 +175,10 @@
   V(_, dot_default_string, ".default")                               \
   V(_, dot_for_string, ".for")                                       \
   V(_, dot_generator_object_string, ".generator_object")             \
+  V(_, dot_home_object_string, ".home_object")                       \
   V(_, dot_result_string, ".result")                                 \
   V(_, dot_repl_result_string, ".repl_result")                       \
+  V(_, dot_static_home_object_string, "._static_home_object")        \
   V(_, dot_string, ".")                                              \
   V(_, dot_switch_tag_string, ".switch_tag")                         \
   V(_, dotAll_string, "dotAll")                                      \
@@ -335,6 +337,7 @@
   V(_, zero_string, "0")
 
 #define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)    \
+  V(_, array_buffer_wasm_memory_symbol)        \
   V(_, call_site_frame_array_symbol)           \
   V(_, call_site_frame_index_symbol)           \
   V(_, console_context_id_symbol)              \
@@ -347,7 +350,6 @@
   V(_, error_script_symbol)                    \
   V(_, error_start_pos_symbol)                 \
   V(_, frozen_symbol)                          \
-  V(_, home_object_symbol)                     \
   V(_, interpreter_trampoline_symbol)          \
   V(_, megamorphic_symbol)                     \
   V(_, native_context_index_symbol)            \
@@ -510,7 +512,7 @@
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
   F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
-  F(STOP_THE_WORLD)                                  \
+  F(TIME_TO_SAFEPOINT)                               \
   F(UNMAPPER)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \

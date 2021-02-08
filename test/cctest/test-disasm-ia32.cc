@@ -401,6 +401,7 @@ TEST(DisasmIa320) {
     __ movlps(Operand(ebx, ecx, times_4, 10000), xmm0);
     __ movhps(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movhps(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ unpcklps(xmm0, xmm1);
 
     // logic operation
     __ andps(xmm0, xmm1);
@@ -467,8 +468,12 @@ TEST(DisasmIa320) {
     __ cvtss2sd(xmm1, xmm0);
     __ cvtdq2ps(xmm1, xmm0);
     __ cvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ cvtdq2pd(xmm1, xmm0);
+    __ cvtps2pd(xmm1, xmm0);
+    __ cvtpd2ps(xmm1, xmm0);
     __ cvttps2dq(xmm1, xmm0);
     __ cvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ cvttpd2dq(xmm1, xmm0);
     __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
     // 128 bit move instructions.
@@ -800,13 +805,18 @@ TEST(DisasmIa320) {
 
       __ vcvtdq2ps(xmm1, xmm0);
       __ vcvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vcvtdq2pd(xmm1, xmm0);
+      __ vcvtps2pd(xmm1, xmm0);
+      __ vcvtpd2ps(xmm1, xmm0);
       __ vcvttps2dq(xmm1, xmm0);
       __ vcvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vcvttpd2dq(xmm1, xmm0);
 
       __ vmovddup(xmm1, xmm2);
       __ vmovddup(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmovshdup(xmm1, xmm2);
       __ vbroadcastss(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
       __ vmovd(xmm0, edi);

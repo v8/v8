@@ -82,7 +82,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_CLASSES(F, I)    \
   F(DefineClass, -1 /* >= 3 */, 1)          \
-  F(HomeObjectSymbol, 0, 1)                 \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
   F(StoreKeyedToSuper, 4, 1)                \
@@ -432,9 +431,6 @@ namespace internal {
   F(StringEscapeQuotes, 1, 1)             \
   F(StringGreaterThan, 2, 1)              \
   F(StringGreaterThanOrEqual, 2, 1)       \
-  F(StringIncludes, 3, 1)                 \
-  F(StringIndexOf, 3, 1)                  \
-  F(StringIndexOfUnchecked, 3, 1)         \
   F(StringLastIndexOf, 2, 1)              \
   F(StringLessThan, 2, 1)                 \
   F(StringLessThanOrEqual, 2, 1)          \
@@ -487,6 +483,7 @@ namespace internal {
   F(HasElementsInALargeObjectSpace, 1, 1)     \
   F(HasFastElements, 1, 1)                    \
   F(HasFastProperties, 1, 1)                  \
+  F(HasOwnConstDataProperty, 2, 1)            \
   F(HasFixedBigInt64Elements, 1, 1)           \
   F(HasFixedBigUint64Elements, 1, 1)          \
   F(HasFixedFloat32Elements, 1, 1)            \
@@ -512,6 +509,7 @@ namespace internal {
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsBeingInterpreted, 0, 1)                 \
   F(IsConcurrentRecompilationSupported, 0, 1) \
+  F(IsDictPropertyConstTrackingEnabled, 0, 1) \
   F(IsLiftoffFunction, 1, 1)                  \
   F(IsThreadInWasm, 0, 1)                     \
   F(IsWasmCode, 1, 1)                         \

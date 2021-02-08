@@ -418,6 +418,13 @@ class WasmGenerator {
     builder_->EmitByte(data->get<byte>() % lanes);
   }
 
+  template <WasmOpcode Op, int lanes, ValueType::Kind... Args>
+  void simd_lane_memop(DataRange* data) {
+    // Simd load/store instructions that have a lane immediate.
+    memop<Op, Args...>(data);
+    builder_->EmitByte(data->get<byte>() % lanes);
+  }
+
   void simd_shuffle(DataRange* data) {
     Generate<ValueType::kS128, ValueType::kS128>(data);
     builder_->EmitWithPrefix(kExprI8x16Shuffle);
@@ -784,6 +791,14 @@ void WasmGenerator::Generate<ValueType::kStmt>(DataRange* data) {
       &WasmGenerator::memop<kExprI64AtomicStore16U, ValueType::kI64>,
       &WasmGenerator::memop<kExprI64AtomicStore32U, ValueType::kI64>,
       &WasmGenerator::memop<kExprS128StoreMem, ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Store8Lane, 16,
+                                      ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Store16Lane, 8,
+                                      ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Store32Lane, 4,
+                                      ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Store64Lane, 2,
+                                      ValueType::kS128>,
 
       &WasmGenerator::drop,
 
@@ -934,13 +949,11 @@ void WasmGenerator::Generate<ValueType::kI32>(DataRange* data) {
                                 ValueType::kI32, ValueType::kI32,
                                 ValueType::kI32>,
 
-      &WasmGenerator::op_with_prefix<kExprV8x16AnyTrue, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprV128AnyTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprV8x16AllTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16BitMask, ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprV16x8AnyTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprV16x8AllTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI16x8BitMask, ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprV32x4AnyTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprV32x4AllTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI32x4BitMask, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI64x2BitMask, ValueType::kS128>,
@@ -1591,6 +1604,10 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
       &WasmGenerator::memop<kExprS128Load64Splat>,
       &WasmGenerator::memop<kExprS128Load32Zero>,
       &WasmGenerator::memop<kExprS128Load64Zero>,
+      &WasmGenerator::simd_lane_memop<kExprS128Load8Lane, 16, ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Load16Lane, 8, ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Load32Lane, 4, ValueType::kS128>,
+      &WasmGenerator::simd_lane_memop<kExprS128Load64Lane, 2, ValueType::kS128>,
   };
 
   GenerateOneOf(alternatives, data);

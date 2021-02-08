@@ -375,11 +375,17 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ li(t3, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ li(t2, Operand(StackFrame::TypeToMarker(type)));
   __ li(t1, Operand(StackFrame::TypeToMarker(type)));
-  __ li(t0, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+  __ li(t4, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                       masm->isolate()));
-  __ lw(t0, MemOperand(t0));
+  __ lw(t0, MemOperand(t4));
   __ Push(t3, t2, t1, t0);
   pushed_stack_space += 4 * kPointerSize;
+
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ Sw(zero_reg, MemOperand(t4));
 
   // Set up frame pointer for the frame to be pushed.
   __ addiu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
@@ -912,7 +918,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Addu(scratch2, bytecode_array, bytecode_offset);
   __ lbu(bytecode, MemOperand(scratch2));
   __ Addu(bytecode_size_table, bytecode_size_table,
-          Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+          Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount));
   __ jmp(&process_bytecode);
 
   __ bind(&extra_wide);
@@ -921,7 +927,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Addu(scratch2, bytecode_array, bytecode_offset);
   __ lbu(bytecode, MemOperand(scratch2));
   __ Addu(bytecode_size_table, bytecode_size_table,
-          Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+          Operand(2 * kByteSize * interpreter::Bytecodes::kBytecodeCount));
 
   __ bind(&process_bytecode);
 
@@ -944,8 +950,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ Lsa(scratch2, bytecode_size_table, bytecode, 2);
-  __ lw(scratch2, MemOperand(scratch2));
+  __ Addu(scratch2, bytecode_size_table, bytecode);
+  __ lb(scratch2, MemOperand(scratch2));
   __ Addu(bytecode_offset, bytecode_offset, scratch2);
 
   __ bind(&end);
@@ -2286,7 +2292,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
     constexpr RegList gp_regs = Register::ListOf(a0, a2, a3);
@@ -2466,6 +2472,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ li(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                             masm->isolate()));
+    __ Sw(zero_reg, MemOperand(scratch));
+  }
 
   // Compute the handler entry address and jump to it.
   __ li(t9, pending_handler_entrypoint_address);

@@ -245,6 +245,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<Object> FetchValue(AllocationPolicy allocation_policy =
                                 AllocationPolicy::kAllocationAllowed) const;
   bool IsConstFieldValueEqualTo(Object value) const;
+  bool IsConstDictValueEqualTo(Object value) const;
+
   template <bool is_element>
   void ReloadPropertyInformation();
 

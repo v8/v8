@@ -3785,13 +3785,20 @@ class CppClassGenerator {
  private:
   void GenerateClassConstructors();
   void GenerateFieldAccessor(const Field& f);
-  void GenerateFieldAccessorForUntagged(const Field& f);
-  void GenerateFieldAccessorForSmi(const Field& f);
-  void GenerateFieldAccessorForTagged(const Field& f);
 
   void GenerateClassCasts();
 
   std::string GetFieldOffsetForAccessor(const Field& f);
+
+  // Gets the C++ type name that should be used in accessors for referring to
+  // the value of a class field.
+  std::string GetTypeNameForAccessor(const Field& f);
+
+  bool CanContainHeapObjects(const Type* t);
+
+  void EmitLoadFieldStatement(const Field& f);
+
+  void EmitStoreFieldStatement(const Field& f);
 
   const ClassType* type_;
   const ClassType* super_;
@@ -4073,20 +4080,68 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
     return;
   }
 
-  if (!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    return GenerateFieldAccessorForUntagged(f);
-  }
-  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType())) {
-    return GenerateFieldAccessorForSmi(f);
-  }
-  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    return GenerateFieldAccessorForTagged(f);
+  std::string type_name = GetTypeNameForAccessor(f);
+  bool can_contain_heap_objects = CanContainHeapObjects(field_type);
+  const std::string& name = f.name_and_type.name;
+
+  // Generate declarations in header.
+  if (can_contain_heap_objects && !field_type->IsClassType() &&
+      !field_type->IsStructType() &&
+      field_type != TypeOracle::GetObjectType()) {
+    hdr_ << "  // Torque type: " << field_type->ToString() << "\n";
   }
 
-  Error("Generation of field accessor for ", type_->name(),
-        "::", f.name_and_type.name, " failed (type ", *field_type,
-        " is not supported).")
-      .Position(f.pos);
+  hdr_ << "  inline " << type_name << " " << name << "("
+       << (f.index ? "int i" : "") << ") const;\n";
+  if (can_contain_heap_objects) {
+    hdr_ << "  inline " << type_name << " " << name << "(IsolateRoot isolate"
+         << (f.index ? ", int i" : "") << ") const;\n";
+  }
+  hdr_ << "  inline void set_" << name << "(" << (f.index ? "int i, " : "")
+       << type_name << " value"
+       << (can_contain_heap_objects
+               ? ", WriteBarrierMode mode = UPDATE_WRITE_BARRIER"
+               : "")
+       << ");\n\n";
+
+  // For tagged data, generate the extra getter that derives an IsolateRoot from
+  // the current object's pointer.
+  if (can_contain_heap_objects) {
+    inl_ << "template <class D, class P>\n";
+    inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "("
+         << (f.index ? "int i" : "") << ") const {\n";
+    inl_ << "  IsolateRoot isolate = GetIsolateForPtrCompr(*this);\n";
+    inl_ << "  return " << gen_name_ << "::" << name << "(isolate"
+         << (f.index ? ", i" : "") << ");\n";
+    inl_ << "}\n";
+  }
+
+  // Generate the getter implementation.
+  inl_ << "template <class D, class P>\n";
+  inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "(";
+  if (can_contain_heap_objects) inl_ << "IsolateRoot isolate";
+  if (can_contain_heap_objects && f.index) inl_ << ", ";
+  if (f.index) inl_ << "int i";
+  inl_ << ") const {\n";
+
+  inl_ << "  " << type_name << " value;\n";
+  EmitLoadFieldStatement(f);
+  inl_ << "  return value;\n";
+  inl_ << "}\n";
+
+  // Generate the setter implementation.
+  inl_ << "template <class D, class P>\n";
+  inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(";
+  if (f.index) {
+    inl_ << "int i, ";
+  }
+  inl_ << type_name << " value";
+  if (can_contain_heap_objects) {
+    inl_ << ", WriteBarrierMode mode";
+  }
+  inl_ << ") {\n";
+  EmitStoreFieldStatement(f);
+  inl_ << "}\n\n";
 }
 
 std::string CppClassGenerator::GetFieldOffsetForAccessor(const Field& f) {
@@ -4096,200 +4151,112 @@ std::string CppClassGenerator::GetFieldOffsetForAccessor(const Field& f) {
   return CamelifyString(f.name_and_type.name) + "Offset()";
 }
 
-void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
-  DCHECK(!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType()));
+std::string CppClassGenerator::GetTypeNameForAccessor(const Field& f) {
   const Type* field_type = f.name_and_type.type;
-  if (field_type == TypeOracle::GetVoidType()) return;
-  const Type* constexpr_version = field_type->ConstexprVersion();
-  if (!constexpr_version) {
-    Error("Field accessor for ", type_->name(), ":: ", f.name_and_type.name,
-          " cannot be generated because its type ", *field_type,
-          " is neither a subclass of Object nor does the type have a constexpr "
-          "version.")
-        .Position(f.pos);
-    return;
+  if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    const Type* constexpr_version = field_type->ConstexprVersion();
+    if (!constexpr_version) {
+      Error("Field accessor for ", type_->name(), ":: ", f.name_and_type.name,
+            " cannot be generated because its type ", *field_type,
+            " is neither a subclass of Object nor does the type have a "
+            "constexpr "
+            "version.")
+          .Position(f.pos)
+          .Throw();
+    }
+    return constexpr_version->GetGeneratedTypeName();
   }
-  const std::string& name = f.name_and_type.name;
-  const std::string type = constexpr_version->GetGeneratedTypeName();
-  std::string offset = GetFieldOffsetForAccessor(f);
+  if (field_type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+    // Follow the convention to create Smi accessors with type int.
+    return "int";
+  }
+  return field_type->UnhandlifiedCppTypeName();
+}
 
-  // Generate declarations in header.
-  if (f.index) {
-    hdr_ << "  inline " << type << " " << name << "(int i) const;\n";
-    hdr_ << "  inline void set_" << name << "(int i, " << type
-         << " value);\n\n";
-  } else {
-    hdr_ << "  inline " << type << " " << name << "() const;\n";
-    hdr_ << "  inline void set_" << name << "(" << type << " value);\n\n";
-  }
+bool CppClassGenerator::CanContainHeapObjects(const Type* t) {
+  return t->IsSubtypeOf(TypeOracle::GetTaggedType()) &&
+         !t->IsSubtypeOf(TypeOracle::GetSmiType());
+}
 
-  // Generate implementation in inline header.
-  inl_ << "template <class D, class P>\n";
-  inl_ << type << " " << gen_name_ << "<D, P>::" << name << "(";
-  if (f.index) {
-    inl_ << "int i";
-  }
-  inl_ << ") const {\n";
+void CppClassGenerator::EmitLoadFieldStatement(const Field& f) {
+  const Type* field_type = f.name_and_type.type;
+  std::string type_name = GetTypeNameForAccessor(f);
+  std::string class_field_offset = GetFieldOffsetForAccessor(f);
+  const std::string field_size = std::get<1>(f.GetFieldSizeInformation());
+
+  std::string offset = class_field_offset;
   if (f.index) {
     GenerateBoundsDCheck(inl_, "i", type_, f);
-    size_t field_size;
-    std::string size_string;
-    std::tie(field_size, size_string) = f.GetFieldSizeInformation();
-    inl_ << "  int offset = " << offset << " + i * " << field_size << ";\n";
-    inl_ << "  return this->template ReadField<" << type << ">(offset);\n";
+    inl_ << "  int offset = " << class_field_offset << " + i * " << field_size
+         << ";\n";
+    offset = "offset";
+  }
+
+  inl_ << "  value = ";
+
+  if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    if (f.relaxed_read) {
+      ReportError("Torque doesn't support @relaxedRead on untagged data");
+    }
+    inl_ << "this->template ReadField<" << type_name << ">(" << offset
+         << ");\n";
   } else {
-    inl_ << "  return this->template ReadField<" << type << ">(" << offset
+    const char* load = f.relaxed_read ? "Relaxed_Load" : "load";
+    bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
+    const std::string load_type = is_smi ? "Smi" : type_name;
+    const char* postfix = is_smi ? ".value()" : "";
+    const char* optional_isolate = is_smi ? "" : "isolate, ";
+
+    inl_ << "TaggedField<" << load_type << ">::" << load << "("
+         << optional_isolate << "*this, " << offset << ")" << postfix << ";\n";
+  }
+
+  if (CanContainHeapObjects(field_type)) {
+    inl_ << "  DCHECK(" << GenerateRuntimeTypeCheck(field_type, "value")
          << ");\n";
   }
-  inl_ << "}\n";
-
-  inl_ << "template <class D, class P>\n";
-  inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(";
-  if (f.index) {
-    inl_ << "int i, ";
-  }
-  inl_ << type << " value) {\n";
-  if (f.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, f);
-    size_t field_size;
-    std::string size_string;
-    std::tie(field_size, size_string) = f.GetFieldSizeInformation();
-    inl_ << "  int offset = " << offset << " + i * " << field_size << ";\n";
-    inl_ << "  this->template WriteField<" << type << ">(offset, value);\n";
-  } else {
-    inl_ << "  this->template WriteField<" << type << ">(" << offset
-         << ", value);\n";
-  }
-  inl_ << "}\n\n";
 }
 
-void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
-  DCHECK(f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType()));
-  // Follow the convention to create Smi accessors with type int.
-  const std::string type = "int";
-  const std::string& name = f.name_and_type.name;
-  const std::string offset = GetFieldOffsetForAccessor(f);
-
-  // Generate declarations in header.
-  if (f.index) {
-    hdr_ << "  inline " << type << " " << name << "(int i) const;\n";
-    hdr_ << "  inline void set_" << name << "(int i, " << type
-         << " value);\n\n";
-  }
-  hdr_ << "  inline " << type << " " << name << "() const;\n";
-  hdr_ << "  inline void set_" << name << "(" << type << " value);\n\n";
-
-  // Generate implementation in inline header.
-  inl_ << "template <class D, class P>\n";
-  inl_ << type << " " << gen_name_ << "<D, P>::" << name << "(";
-  if (f.index) {
-    inl_ << "int i";
-  }
-  inl_ << ") const {\n";
-  if (f.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, f);
-    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  return TaggedField<Smi>::load(*this, offset).value();\n";
-    inl_ << "}\n";
-  } else {
-    inl_ << "  return TaggedField<Smi, " << offset
-         << ">::load(*this).value();\n";
-    inl_ << "}\n";
-  }
-
-  inl_ << "template <class D, class P>\n";
-  inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(";
-  if (f.index) {
-    inl_ << "int i, ";
-  }
-  inl_ << type << " value) {\n";
-  const char* write_macro =
-      f.relaxed_write ? "RELAXED_WRITE_FIELD" : "WRITE_FIELD";
-  if (f.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, f);
-    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  " << write_macro << "(*this, offset, Smi::FromInt(value));\n";
-  } else {
-    inl_ << "  " << write_macro << "(*this, " << offset
-         << ", Smi::FromInt(value));\n";
-  }
-  inl_ << "}\n\n";
-}
-
-void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
+void CppClassGenerator::EmitStoreFieldStatement(const Field& f) {
   const Type* field_type = f.name_and_type.type;
-  DCHECK(field_type->IsSubtypeOf(TypeOracle::GetTaggedType()));
-  const std::string& name = f.name_and_type.name;
-  std::string offset = GetFieldOffsetForAccessor(f);
-  bool strong_pointer = field_type->IsSubtypeOf(TypeOracle::GetObjectType());
+  std::string type_name = GetTypeNameForAccessor(f);
+  std::string class_field_offset = GetFieldOffsetForAccessor(f);
+  const std::string field_size = std::get<1>(f.GetFieldSizeInformation());
 
-  std::string type = field_type->UnhandlifiedCppTypeName();
-  // Generate declarations in header.
-  if (!field_type->IsClassType() && field_type != TypeOracle::GetObjectType()) {
-    hdr_ << "  // Torque type: " << field_type->ToString() << "\n";
-  }
-
-  hdr_ << "  inline " << type << " " << name << "(" << (f.index ? "int i" : "")
-       << ") const;\n";
-  hdr_ << "  inline " << type << " " << name << "(IsolateRoot isolates"
-       << (f.index ? ", int i" : "") << ") const;\n";
-  hdr_ << "  inline void set_" << name << "(" << (f.index ? "int i, " : "")
-       << type << " value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
-
-  std::string type_check = GenerateRuntimeTypeCheck(field_type, "value");
-
-  // Generate implementation in inline header.
-  inl_ << "template <class D, class P>\n";
-  inl_ << type << " " << gen_name_ << "<D, P>::" << name << "("
-       << (f.index ? "int i" : "") << ") const {\n";
-  inl_ << "  IsolateRoot isolate = GetIsolateForPtrCompr(*this);\n";
-  inl_ << "  return " << gen_name_ << "::" << name << "(isolate"
-       << (f.index ? ", i" : "") << ");\n";
-  inl_ << "}\n";
-
-  inl_ << "template <class D, class P>\n";
-  inl_ << type << " " << gen_name_ << "<D, P>::" << name
-       << "(IsolateRoot isolate" << (f.index ? ", int i" : "") << ") const {\n";
-
+  std::string offset = class_field_offset;
   if (f.index) {
     GenerateBoundsDCheck(inl_, "i", type_, f);
-    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  auto value = TaggedField<" << type
-         << ">::Relaxed_Load(isolate, *this, offset);\n";
-  } else {
-    inl_ << "  auto value = TaggedField<" << type << ", " << offset
-         << ">::load(isolate, *this);\n";
-  }
-  if (!type_check.empty()) {
-    inl_ << "  DCHECK(" << type_check << ");\n";
-  }
-  inl_ << "  return value;\n";
-  inl_ << "}\n";
-
-  inl_ << "template <class D, class P>\n";
-  inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(";
-  if (f.index) {
-    inl_ << "int i, ";
-  }
-  inl_ << type << " value, WriteBarrierMode mode) {\n";
-  if (!type_check.empty()) {
-    inl_ << "  SLOW_DCHECK(" << type_check << ");\n";
-  }
-  const char* write_macro =
-      strong_pointer ? (f.relaxed_write ? "RELAXED_WRITE_FIELD" : "WRITE_FIELD")
-                     : "RELAXED_WRITE_WEAK_FIELD";
-  if (f.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, f);
-    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
+    inl_ << "  int offset = " << class_field_offset << " + i * " << field_size
+         << ";\n";
     offset = "offset";
-    inl_ << "  " << write_macro << "(*this, offset, value);\n";
-  } else {
-    inl_ << "  " << write_macro << "(*this, " << offset << ", value);\n";
   }
-  const char* write_barrier = strong_pointer ? "CONDITIONAL_WRITE_BARRIER"
-                                             : "CONDITIONAL_WEAK_WRITE_BARRIER";
-  inl_ << "  " << write_barrier << "(*this, " << offset << ", value, mode);\n";
-  inl_ << "}\n\n";
+
+  if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    inl_ << "  this->template WriteField<" << type_name << ">(" << offset
+         << ", value);\n";
+  } else {
+    bool strong_pointer = field_type->IsSubtypeOf(TypeOracle::GetObjectType());
+    bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
+    const char* write_macro =
+        strong_pointer
+            ? (f.relaxed_write ? "RELAXED_WRITE_FIELD" : "WRITE_FIELD")
+            : "RELAXED_WRITE_WEAK_FIELD";
+    const std::string value_to_write = is_smi ? "Smi::FromInt(value)" : "value";
+
+    if (!is_smi) {
+      inl_ << "  SLOW_DCHECK(" << GenerateRuntimeTypeCheck(field_type, "value")
+           << ");\n";
+    }
+    inl_ << "  " << write_macro << "(*this, " << offset << ", "
+         << value_to_write << ");\n";
+    if (!is_smi) {
+      const char* write_barrier = strong_pointer
+                                      ? "CONDITIONAL_WRITE_BARRIER"
+                                      : "CONDITIONAL_WEAK_WRITE_BARRIER";
+      inl_ << "  " << write_barrier << "(*this, " << offset
+           << ", value, mode);\n";
+    }
+  }
 }
 
 void GenerateStructLayoutDescription(std::ostream& header,

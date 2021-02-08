@@ -1038,11 +1038,13 @@ void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
 }
 
 void TurboAssembler::AllocateStackSpace(int bytes) {
+  DCHECK_GE(bytes, 0);
   while (bytes > kStackPageSize) {
     sub(esp, Immediate(kStackPageSize));
     mov(Operand(esp, 0), Immediate(0));
     bytes -= kStackPageSize;
   }
+  if (bytes == 0) return;
   sub(esp, Immediate(bytes));
 }
 #endif
@@ -1810,8 +1812,22 @@ void TurboAssembler::Haddps(XMMRegister dst, XMMRegister src1, Operand src2) {
   }
 }
 
+void TurboAssembler::Pcmpeqq(XMMRegister dst, Operand src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpcmpeqq(dst, dst, src);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    pcmpeqq(dst, src);
+  }
+}
+
 void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1,
                              XMMRegister src2) {
+  Pcmpeqq(dst, src1, Operand(src2));
+}
+
+void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1, Operand src2) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpcmpeqq(dst, src1, src2);

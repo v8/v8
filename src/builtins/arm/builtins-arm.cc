@@ -530,12 +530,19 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // r0: root_register_value
   __ mov(r7, Operand(StackFrame::TypeToMarker(type)));
   __ mov(r6, Operand(StackFrame::TypeToMarker(type)));
-  __ Move(r5, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+  __ Move(r4, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                         masm->isolate()));
-  __ ldr(r5, MemOperand(r5));
+  __ ldr(r5, MemOperand(r4));
 
   __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | fp.bit() | lr.bit());
   pushed_stack_space += 5 * kPointerSize /* r5, r6, r7, fp, lr */;
+
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ mov(r5, Operand::Zero());
+  __ str(r5, MemOperand(r4));
 
   Register scratch = r6;
 
@@ -2307,12 +2314,27 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs = Register::ListOf(r0, r1, r2, r3);
-    constexpr DwVfpRegister lowest_fp_reg = d0;
-    constexpr DwVfpRegister highest_fp_reg = d7;
+    RegList gp_regs = 0;
+    for (Register gp_param_reg : wasm::kGpParamRegisters) {
+      gp_regs |= gp_param_reg.bit();
+    }
+    DwVfpRegister lowest_fp_reg = std::begin(wasm::kFpParamRegisters)[0];
+    DwVfpRegister highest_fp_reg = std::end(wasm::kFpParamRegisters)[-1];
+    for (DwVfpRegister fp_param_reg : wasm::kFpParamRegisters) {
+      CHECK(fp_param_reg.code() >= lowest_fp_reg.code() &&
+            fp_param_reg.code() <= highest_fp_reg.code());
+    }
+
+    CHECK_EQ(NumRegs(gp_regs), arraysize(wasm::kGpParamRegisters));
+    CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
+             arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(NumRegs(gp_regs),
+             WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs);
+    CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
+             WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs);
 
     __ stm(db_w, sp, gp_regs);
     __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
@@ -2501,6 +2523,16 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ Move(scratch, ExternalReference::Create(
+                         IsolateAddressId::kCEntryFPAddress, masm->isolate()));
+    __ mov(r1, Operand::Zero());
+    __ str(r1, MemOperand(scratch));
+  }
 
   // Compute the handler entry address and jump to it.
   ConstantPoolUnavailableScope constant_pool_unavailable(masm);

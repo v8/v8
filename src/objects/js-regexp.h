@@ -79,7 +79,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
       Isolate* isolate, Handle<String> source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
-  static Handle<JSRegExp> Copy(Handle<JSRegExp> regexp);
 
   static MaybeHandle<JSRegExp> Initialize(
       Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
@@ -146,6 +145,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   /* This is already an in-object field. */
   // TODO(v8:8944): improve handling of in-object fields
   static constexpr int kLastIndexOffset = kHeaderSize;
+
+  // The initial value of the last_index field on a new JSRegExp instance.
+  static constexpr int kInitialLastIndexValue = 0;
 
   // Indices in the data array.
   static const int kTagIndex = 0;
@@ -214,6 +216,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;
   static const int kInObjectFieldCount = 1;
+
+  // The actual object size including in-object fields.
+  static int Size() { return kHeaderSize + kInObjectFieldCount * kTaggedSize; }
 
   // Descriptor array index to important methods in the prototype.
   static const int kExecFunctionDescriptorIndex = 1;

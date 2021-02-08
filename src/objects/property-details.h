@@ -6,9 +6,10 @@
 #define V8_OBJECTS_PROPERTY_DETAILS_H_
 
 #include "include/v8.h"
-#include "src/utils/allocation.h"
 #include "src/base/bit-field.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -210,27 +211,39 @@ static const int kInvalidEnumCacheSentinel =
 // A PropertyCell's property details contains a cell type that is meaningful if
 // the cell is still valid (does not hold the hole).
 enum class PropertyCellType {
+  kMutable,       // Cell will no longer be tracked as constant.
   kUndefined,     // The PREMONOMORPHIC of property cells.
   kConstant,      // Cell has been assigned only once.
   kConstantType,  // Cell has been assigned only one type.
-  kMutable,       // Cell will no longer be tracked as constant.
-  // Arbitrary choice for dictionaries not holding cells.
+  // Value for dictionaries not holding cells, must have value 0:
   kNoCell = kMutable,
 };
-
-std::ostream& operator<<(std::ostream& os, PropertyCellType type);
 
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails {
  public:
-  // Property details for dictionary mode properties/elements.
+  // Property details for global dictionary properties.
   PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                   PropertyCellType cell_type, int dictionary_index = 0) {
     value_ = KindField::encode(kind) | LocationField::encode(kField) |
              AttributesField::encode(attributes) |
+             // We track PropertyCell constness via PropertyCellTypeField,
+             // so we set ConstnessField to kMutable to simplify DCHECKs related
+             // to non-global property constness tracking.
+             ConstnessField::encode(PropertyConstness::kMutable) |
              DictionaryStorageField::encode(dictionary_index) |
              PropertyCellTypeField::encode(cell_type);
+  }
+
+  // Property details for dictionary mode properties/elements.
+  PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
+                  PropertyConstness constness, int dictionary_index = 0) {
+    value_ = KindField::encode(kind) | LocationField::encode(kField) |
+             AttributesField::encode(attributes) |
+             ConstnessField::encode(constness) |
+             DictionaryStorageField::encode(dictionary_index) |
+             PropertyCellTypeField::encode(PropertyCellType::kNoCell);
   }
 
   // Property details for fast mode properties.
@@ -328,6 +341,8 @@ class PropertyDetails {
     return PropertyCellTypeField::decode(value_);
   }
 
+  bool operator==(const PropertyDetails& b) const { return value_ == b.value_; }
+
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
   using KindField = base::BitField<PropertyKind, 0, 1>;
@@ -341,7 +356,7 @@ class PropertyDetails {
   static const int kAttributesDontEnumMask =
       (DONT_ENUM << AttributesField::kShift);
 
-  // Bit fields for normalized objects.
+  // Bit fields for normalized/dictionary mode objects.
   using PropertyCellTypeField = AttributesField::Next<PropertyCellType, 2>;
   using DictionaryStorageField = PropertyCellTypeField::Next<uint32_t, 23>;
 
@@ -356,7 +371,22 @@ class PropertyDetails {
   STATIC_ASSERT(DictionaryStorageField::kLastUsedBit < 31);
   STATIC_ASSERT(FieldIndexField::kLastUsedBit < 31);
 
+  // DictionaryStorageField must be the last field, so that overflowing it
+  // doesn't overwrite other fields.
+  STATIC_ASSERT(DictionaryStorageField::kLastUsedBit == 30);
+
+  // All bits for non-global dictionary mode objects except enumeration index
+  // must fit in a byte.
+  STATIC_ASSERT(KindField::kLastUsedBit < 8);
+  STATIC_ASSERT(ConstnessField::kLastUsedBit < 8);
+  STATIC_ASSERT(AttributesField::kLastUsedBit < 8);
+  STATIC_ASSERT(LocationField::kLastUsedBit < 8);
+
   static const int kInitialIndex = 1;
+
+  static constexpr PropertyConstness kConstIfDictConstnessTracking =
+      V8_DICT_PROPERTY_CONST_TRACKING_BOOL ? PropertyConstness::kConst
+                                           : PropertyConstness::kMutable;
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
@@ -376,6 +406,42 @@ class PropertyDetails {
   void PrintAsSlowTo(std::ostream& out, bool print_dict_index);
   void PrintAsFastTo(std::ostream& out, PrintMode mode = kPrintFull);
 
+  // Encodes those property details for non-global dictionary properties
+  // with an enumeration index of 0 as a single byte.
+  uint8_t ToByte() {
+    // We only care about the value of KindField, ConstnessField, and
+    // AttributesField. LocationField is also stored, but it will always be
+    // kField. We've statically asserted earlier that all those fields fit into
+    // a byte together.
+
+    // PropertyCellTypeField comes next, its value must be kNoCell == 0 for
+    // dictionary mode PropertyDetails anyway.
+    DCHECK_EQ(PropertyCellType::kNoCell, cell_type());
+    STATIC_ASSERT(static_cast<int>(PropertyCellType::kNoCell) == 0);
+
+    // Only to be used when the enum index isn't actually maintained
+    // by the PropertyDetails:
+    DCHECK_EQ(0, dictionary_index());
+
+    return value_;
+  }
+
+  // Only to be used for bytes obtained by ToByte. In particular, only used for
+  // non-global dictionary properties.
+  static PropertyDetails FromByte(uint8_t encoded_details) {
+    // The 0-extension to 32bit sets PropertyCellType to kNoCell and
+    // enumeration index to 0, as intended. Everything else is obtained from
+    // |encoded_details|.
+
+    PropertyDetails details(encoded_details);
+
+    DCHECK_EQ(0, details.dictionary_index());
+    DCHECK_EQ(PropertyLocation::kField, details.location());
+    DCHECK_EQ(PropertyCellType::kNoCell, details.cell_type());
+
+    return details;
+  }
+
  private:
   PropertyDetails(int value, int pointer) {
     value_ = DescriptorPointer::update(value, pointer);
@@ -390,6 +456,8 @@ class PropertyDetails {
   PropertyDetails(int value, PropertyAttributes attributes) {
     value_ = AttributesField::update(value, attributes);
   }
+
+  explicit PropertyDetails(uint32_t value) : value_{value} {}
 
   uint32_t value_;
 };
@@ -415,6 +483,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const PropertyAttributes& attributes);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            PropertyConstness constness);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           PropertyCellType type);
 }  // namespace internal
 }  // namespace v8
 

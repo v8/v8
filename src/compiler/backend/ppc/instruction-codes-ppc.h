@@ -376,14 +376,11 @@ namespace compiler {
   V(PPC_I8x16Swizzle)                \
   V(PPC_I8x16BitMask)                \
   V(PPC_I8x16SignSelect)             \
-  V(PPC_V64x2AnyTrue)                \
-  V(PPC_V32x4AnyTrue)                \
-  V(PPC_V16x8AnyTrue)                \
-  V(PPC_V8x16AnyTrue)                \
   V(PPC_V64x2AllTrue)                \
   V(PPC_V32x4AllTrue)                \
   V(PPC_V16x8AllTrue)                \
   V(PPC_V8x16AllTrue)                \
+  V(PPC_V128AnyTrue)                 \
   V(PPC_S128And)                     \
   V(PPC_S128Or)                      \
   V(PPC_S128Xor)                     \

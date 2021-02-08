@@ -249,7 +249,6 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
-  V(harmony_regexp_match_indices, "harmony regexp match indices")              \
   V(harmony_import_assertions, "harmony import assertions")
 
 #ifdef V8_INTL_SUPPORT
@@ -261,9 +260,10 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                          \
-  V(harmony_top_level_await, "harmony top level await") \
-  V(harmony_relative_indexing_methods, "harmony relative indexing methods")
+#define HARMONY_STAGED_BASE(V)                                              \
+  V(harmony_top_level_await, "harmony top level await")                     \
+  V(harmony_relative_indexing_methods, "harmony relative indexing methods") \
+  V(harmony_regexp_match_indices, "harmony regexp match indices")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)               \
@@ -582,8 +582,14 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
+DEFINE_BOOL(stress_concurrent_inlining, false,
+            "makes concurrent inlining more likely to trigger in tests")
 DEFINE_BOOL(turbo_direct_heap_access, false,
             "access kNeverSerialized objects directly from the heap")
+DEFINE_IMPLICATION(stress_concurrent_inlining, concurrent_inlining)
+DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, lazy_feedback_allocation)
+DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
+                              15 * KB)
 DEFINE_IMPLICATION(concurrent_inlining, turbo_direct_heap_access)
 DEFINE_INT(max_serializer_nesting, 25,
            "maximum levels for nesting child serializers")
@@ -738,6 +744,9 @@ DEFINE_INT(reuse_opt_code_count, 0,
 DEFINE_BOOL(turbo_dynamic_map_checks, true,
             "use dynamic map checks when generating code for property accesses "
             "if all handlers in an IC are the same for turboprop and NCI")
+DEFINE_BOOL(turbo_compress_translation_arrays, false,
+            "compress translation arrays (experimental)")
+DEFINE_BOOL(turbo_inline_js_wasm_calls, false, "inline JS->Wasm calls")
 
 // Native context independent (NCI) code.
 DEFINE_BOOL(turbo_nci, false,
@@ -745,20 +754,10 @@ DEFINE_BOOL(turbo_nci, false,
 // TODO(v8:8888): Temporary until NCI caching is implemented or
 // feedback collection is made unconditional.
 DEFINE_IMPLICATION(turbo_nci, turbo_collect_feedback_in_generic_lowering)
-DEFINE_BOOL(turbo_nci_as_midtier, false,
-            "insert NCI as a midtier compiler for testing purposes.")
 DEFINE_BOOL(print_nci_code, false, "print native context independent code.")
 DEFINE_BOOL(trace_turbo_nci, false, "trace native context independent code.")
 DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,
             "enable experimental feedback collection in generic lowering.")
-// TODO(jgruber,v8:8888): Remove this flag once we've settled on a codegen
-// strategy.
-DEFINE_BOOL(turbo_nci_delayed_codegen, true,
-            "delay NCI codegen to reduce useless compilation work.")
-// TODO(jgruber,v8:8888): Remove this flag once we've settled on an ageing
-// strategy.
-DEFINE_BOOL(turbo_nci_cache_ageing, false,
-            "enable ageing of the NCI code cache.")
 // TODO(jgruber,v8:8888): Remove this flag once we've settled on an ageing
 // strategy.
 DEFINE_BOOL(isolate_script_cache_ageing, true,
@@ -1030,18 +1029,8 @@ DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
 DEFINE_BOOL(concurrent_array_buffer_sweeping, true,
             "concurrently sweep array buffers")
-DEFINE_BOOL(concurrent_allocation, true, "concurrently allocate in old space")
 DEFINE_BOOL(stress_concurrent_allocation, false,
             "start background threads that allocate memory")
-DEFINE_BOOL(local_heaps, true, "allow heap access from background tasks")
-// Since the local_heaps flag is enabled by default, we defined reverse
-// implications to simplify disabling the flag.
-DEFINE_NEG_NEG_IMPLICATION(local_heaps, turbo_direct_heap_access)
-DEFINE_NEG_NEG_IMPLICATION(local_heaps, concurrent_inlining)
-DEFINE_NEG_NEG_IMPLICATION(local_heaps, concurrent_allocation)
-DEFINE_NEG_NEG_IMPLICATION(concurrent_allocation,
-                           finalize_streaming_on_background)
-DEFINE_NEG_NEG_IMPLICATION(concurrent_allocation, stress_concurrent_allocation)
 DEFINE_BOOL(parallel_marking, V8_CONCURRENT_MARKING_BOOL,
             "use parallel marking in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,
@@ -1426,9 +1415,9 @@ DEFINE_BOOL(trace_sim_messages, false,
 
 #if defined V8_TARGET_ARCH_ARM64
 // pointer-auth-arm64.cc
-DEFINE_DEBUG_BOOL(sim_abort_on_bad_auth, false,
-                  "Stop execution when a pointer authentication fails in the "
-                  "ARM64 simulator.")
+DEFINE_BOOL(sim_abort_on_bad_auth, true,
+            "Stop execution when a pointer authentication fails in the "
+            "ARM64 simulator.")
 #endif
 
 // isolate.cc
@@ -1905,6 +1894,7 @@ DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
 DEFINE_IMPLICATION(single_threaded, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(single_threaded, compiler_dispatcher)
+DEFINE_NEG_IMPLICATION(single_threaded, stress_concurrent_inlining)
 
 //
 // Parallel and concurrent GC (Orinoco) related flags.

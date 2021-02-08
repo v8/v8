@@ -31,6 +31,7 @@ namespace internal {
   V(INTERPRETED_FRAME, 5)                                 \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME, 3)            \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME, 3) \
+  V(JS_TO_WASM_BUILTIN_CONTINUATION_FRAME, 4)             \
   V(LITERAL, 1)                                           \
   V(REGISTER, 1)                                          \
   V(STACK_SLOT, 1)                                        \

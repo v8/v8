@@ -43,6 +43,14 @@ class AlignedSlotAllocatorUnitTest : public ::testing::Test {
   AlignedSlotAllocator allocator_;
 };
 
+TEST_F(AlignedSlotAllocatorUnitTest, NumSlotsForWidth) {
+  constexpr int kSlotBytes = AlignedSlotAllocator::kSlotSize;
+  for (int slot_size = 1; slot_size <= 4 * kSlotBytes; ++slot_size) {
+    EXPECT_EQ(AlignedSlotAllocator::NumSlotsForWidth(slot_size),
+              (slot_size + kSlotBytes - 1) / kSlotBytes);
+  }
+}
+
 TEST_F(AlignedSlotAllocatorUnitTest, Allocate1) {
   Allocate(1, 0);
   EXPECT_EQ(2, allocator_.NextSlot(2));

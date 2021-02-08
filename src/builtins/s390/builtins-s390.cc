@@ -548,7 +548,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   }
 
   // save r6 to r1
-  __ mov(r1, r6);
+  __ mov(r0, r6);
 
   // Push a frame with special values setup to mark it as an entry frame.
   //   Bad FP (-1)
@@ -565,10 +565,17 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ mov(r8, Operand(StackFrame::TypeToMarker(type)));
   __ mov(r7, Operand(StackFrame::TypeToMarker(type)));
   // Save copies of the top frame descriptor on the stack.
-  __ Move(r6, ExternalReference::Create(
-                 IsolateAddressId::kCEntryFPAddress, masm->isolate()));
-  __ LoadU64(r6, MemOperand(r6));
+  __ Move(r1, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                        masm->isolate()));
+  __ LoadU64(r6, MemOperand(r1));
   __ StoreMultipleP(r6, r9, MemOperand(sp, kSystemPointerSize));
+
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ mov(r6, Operand::Zero());
+  __ StoreU64(r6, MemOperand(r1));
 
   Register scrach = r8;
 
@@ -581,7 +588,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
       EntryFrameConstants::kCallerFPOffset - kSystemPointerSize;
 
   // restore r6
-  __ mov(r6, r1);
+  __ mov(r6, r0);
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -1011,7 +1018,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ AddS64(bytecode_offset, bytecode_offset, Operand(1));
   __ LoadU8(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ AddS64(bytecode_size_table, bytecode_size_table,
-            Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+            Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount));
   __ b(&process_bytecode);
 
   __ bind(&extra_wide);
@@ -1019,7 +1026,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ AddS64(bytecode_offset, bytecode_offset, Operand(1));
   __ LoadU8(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ AddS64(bytecode_size_table, bytecode_size_table,
-            Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+            Operand(2 * kByteSize * interpreter::Bytecodes::kBytecodeCount));
 
   // Load the size of the current bytecode.
   __ bind(&process_bytecode);
@@ -1045,8 +1052,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ ShiftLeftU64(scratch3, bytecode, Operand(2));
-  __ LoadU32(scratch3, MemOperand(bytecode_size_table, scratch3));
+  __ LoadU8(scratch3, MemOperand(bytecode_size_table, bytecode));
   __ AddS64(bytecode_offset, bytecode_offset, scratch3);
 
   __ bind(&end);
@@ -2439,7 +2445,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
     constexpr RegList gp_regs = Register::ListOf(r2, r3, r4, r5, r6);
@@ -2448,6 +2454,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 #else
     constexpr RegList fp_regs = DoubleRegister::ListOf(d0, d2);
 #endif
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs ==
+                      NumRegs(gp_regs),
+                  "frame size mismatch");
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                      NumRegs(fp_regs),
+                  "frame size mismatch");
     __ MultiPush(gp_regs);
     __ MultiPushV128(fp_regs);
 
@@ -2652,6 +2664,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    __ Move(r1, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                          masm->isolate()));
+    __ mov(r0, Operand::Zero());
+    __ StoreU64(r0, MemOperand(r1));
+  }
 
   // Compute the handler entry address and jump to it.
   __ Move(r3, pending_handler_entrypoint_address);

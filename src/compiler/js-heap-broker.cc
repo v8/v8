@@ -96,6 +96,20 @@ bool IsReadOnlyHeapObject(Object object) {
          (object.IsHeapObject() &&
           ReadOnlyHeap::Contains(HeapObject::cast(object)));
 }
+
+template <class T>
+constexpr bool IsSerializedHeapObject() {
+  return false;
+}
+
+#define DEFINE_MARKER(Name)                       \
+  template <>                                     \
+  constexpr bool IsSerializedHeapObject<Name>() { \
+    return true;                                  \
+  }                                               \
+  STATIC_ASSERT(IsSerializedHeapObject<Name>());
+HEAP_BROKER_SERIALIZED_OBJECT_LIST(DEFINE_MARKER)
+#undef DEFINE_MARKER
 }  // namespace
 
 class ObjectData : public ZoneObject {
@@ -666,28 +680,31 @@ class JSFunctionData : public JSObjectData {
   int initial_map_instance_size_with_min_slack_;
 };
 
-class JSRegExpData : public JSObjectData {
+class RegExpBoilerplateDescriptionData : public HeapObjectData {
  public:
-  JSRegExpData(JSHeapBroker* broker, ObjectData** storage,
-               Handle<JSRegExp> object)
-      : JSObjectData(broker, storage, object) {}
+  RegExpBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
+                                   Handle<RegExpBoilerplateDescription> object)
+      : HeapObjectData(broker, storage, object) {}
 
-  void SerializeAsRegExpBoilerplate(JSHeapBroker* broker);
-
-  ObjectData* raw_properties_or_hash() const { return raw_properties_or_hash_; }
-  ObjectData* data() const { return data_; }
-  ObjectData* source() const { return source_; }
-  ObjectData* flags() const { return flags_; }
-  ObjectData* last_index() const { return last_index_; }
+  void Serialize(JSHeapBroker* broker);
+  ObjectData* data() const {
+    CHECK(serialized_);
+    return data_;
+  }
+  ObjectData* source() const {
+    CHECK(serialized_);
+    return source_;
+  }
+  int flags() const {
+    CHECK(serialized_);
+    return flags_;
+  }
 
  private:
-  bool serialized_as_reg_exp_boilerplate_ = false;
-
-  ObjectData* raw_properties_or_hash_ = nullptr;
+  bool serialized_ = false;
   ObjectData* data_ = nullptr;
   ObjectData* source_ = nullptr;
-  ObjectData* flags_ = nullptr;
-  ObjectData* last_index_ = nullptr;
+  int flags_;
 };
 
 class HeapNumberData : public HeapObjectData {
@@ -1226,8 +1243,7 @@ bool SupportsFastArrayIteration(Isolate* isolate, Handle<Map> map) {
   return map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(map->elements_kind()) &&
          map->prototype().IsJSArray() &&
-         isolate->IsAnyInitialArrayPrototype(
-             handle(JSArray::cast(map->prototype()), isolate)) &&
+         isolate->IsAnyInitialArrayPrototype(JSArray::cast(map->prototype())) &&
          Protectors::IsNoElementsIntact(isolate);
 }
 
@@ -1486,7 +1502,9 @@ FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
                                        Handle<FeedbackVector> object)
     : HeapObjectData(broker, storage, object),
       invocation_count_(object->invocation_count()),
-      closure_feedback_cell_array_(broker->zone()) {}
+      closure_feedback_cell_array_(broker->zone()) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 ObjectData* FeedbackVectorData::GetClosureFeedbackCell(JSHeapBroker* broker,
                                                        int index) const {
@@ -2367,21 +2385,17 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
   if (IsJSArray()) AsJSArray()->Serialize(broker);
 }
 
-void JSRegExpData::SerializeAsRegExpBoilerplate(JSHeapBroker* broker) {
-  if (serialized_as_reg_exp_boilerplate_) return;
-  serialized_as_reg_exp_boilerplate_ = true;
+void RegExpBoilerplateDescriptionData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return;  // Only serialize once.
+  serialized_ = true;
 
-  TraceScope tracer(broker, this, "JSRegExpData::SerializeAsRegExpBoilerplate");
-  Handle<JSRegExp> boilerplate = Handle<JSRegExp>::cast(object());
+  TraceScope tracer(broker, this,
+                    "RegExpBoilerplateDescriptionData::Serialize");
+  auto boilerplate = Handle<RegExpBoilerplateDescription>::cast(object());
 
-  SerializeElements(broker);
-
-  raw_properties_or_hash_ =
-      broker->GetOrCreateData(boilerplate->raw_properties_or_hash());
   data_ = broker->GetOrCreateData(boilerplate->data());
   source_ = broker->GetOrCreateData(boilerplate->source());
-  flags_ = broker->GetOrCreateData(boilerplate->flags());
-  last_index_ = broker->GetOrCreateData(boilerplate->last_index());
+  flags_ = boilerplate->flags();
 }
 
 #ifdef DEBUG
@@ -3053,7 +3067,13 @@ OddballType MapRef::oddball_type() const {
 
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
   if (data_->should_access_heap()) {
-    return FeedbackCellRef(broker(), object()->GetClosureFeedbackCell(index));
+    FeedbackCell cell = object()->closure_feedback_cell(index);
+    Handle<FeedbackCell> cell_handle =
+        broker()->CanonicalPersistentHandle(cell);
+    // These should all be available because we request the cell for each
+    // CreateClosure bytecode.
+    ObjectData* cell_data = broker()->GetOrCreateData(cell_handle);
+    return FeedbackCellRef(broker(), cell_data);
   }
 
   return FeedbackCellRef(
@@ -3130,6 +3150,7 @@ void JSObjectRef::EnsureElementsTenured() {
 }
 
 FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap()) {
     return FieldIndex::ForDescriptor(*object(), descriptor_index);
   }
@@ -3147,19 +3168,13 @@ int MapRef::GetInObjectPropertyOffset(int i) const {
 
 PropertyDetails MapRef::GetPropertyDetails(
     InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   return instance_descriptors().GetPropertyDetails(descriptor_index);
 }
 
 NameRef MapRef::GetPropertyKey(InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    return NameRef(broker(), broker()->CanonicalPersistentHandle(
-                                 object()
-                                     ->instance_descriptors(kRelaxedLoad)
-                                     .GetKey(descriptor_index)));
-  }
-  DescriptorArrayData* descriptors =
-      data()->AsMap()->instance_descriptors()->AsDescriptorArray();
-  return NameRef(broker(), descriptors->GetPropertyKey(descriptor_index));
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
+  return instance_descriptors().GetPropertyKey(descriptor_index);
 }
 
 bool MapRef::IsFixedCowArrayMap() const {
@@ -3173,11 +3188,13 @@ bool MapRef::IsPrimitiveMap() const {
 }
 
 MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    Handle<Map> owner(
-        object()->FindFieldOwner(broker()->isolate(), descriptor_index),
-        broker()->isolate());
-    return MapRef(broker(), owner);
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // TODO(solanes, v8:7790): Consider caching the result of the field owner on
+    // the descriptor array. It would be useful for same map as well as any
+    // other map sharing that descriptor array.
+    return MapRef(broker(), broker()->GetOrCreateData(object()->FindFieldOwner(
+                                broker()->isolate(), descriptor_index)));
   }
   DescriptorArrayData* descriptors =
       data()->AsMap()->instance_descriptors()->AsDescriptorArray();
@@ -3185,6 +3202,7 @@ MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
 }
 
 ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap()) {
     Handle<FieldType> field_type(object()
                                      ->instance_descriptors(kRelaxedLoad)
@@ -3198,6 +3216,7 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
 }
 
 bool MapRef::IsUnboxedDoubleField(InternalIndex descriptor_index) const {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap()) {
     return object()->IsUnboxedDoubleField(
         FieldIndex::ForDescriptor(*object(), descriptor_index));
@@ -3468,7 +3487,7 @@ BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 BIMODAL_ACCESSOR(Map, HeapObject, prototype)
 BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR(Map, Object, GetConstructor)
-BIMODAL_ACCESSOR(Map, HeapObject, GetBackPointer)
+BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 
 BIMODAL_ACCESSOR_C(Code, unsigned, inlined_bytecode_size)
@@ -3482,6 +3501,10 @@ BIMODAL_ACCESSOR_C(ObjectBoilerplateDescription, int, size)
 
 BIMODAL_ACCESSOR(PropertyCell, Object, value)
 BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
+
+BIMODAL_ACCESSOR(RegExpBoilerplateDescription, FixedArray, data)
+BIMODAL_ACCESSOR(RegExpBoilerplateDescription, String, source)
+BIMODAL_ACCESSOR_C(RegExpBoilerplateDescription, int, flags)
 
 base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
   if (data_->should_access_heap()) {
@@ -3619,7 +3642,7 @@ base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
     Object value = object()->value(kAcquireLoad);
     if (!value.IsFeedbackVector()) return base::nullopt;
     auto vector_handle = broker()->CanonicalPersistentHandle(value);
-    ObjectData* vector = broker()->TryGetOrCreateData(vector_handle, false);
+    ObjectData* vector = broker()->TryGetOrCreateData(vector_handle);
     if (vector) {
       return FeedbackVectorRef(broker(), vector);
     }
@@ -3634,24 +3657,8 @@ base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
 
 base::Optional<ObjectRef> MapRef::GetStrongValue(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    MaybeObject value =
-        object()->instance_descriptors(kRelaxedLoad).GetValue(descriptor_index);
-    HeapObject object;
-    if (value.GetHeapObjectIfStrong(&object)) {
-      return ObjectRef(broker(), broker()->CanonicalPersistentHandle((object)));
-    }
-    return base::nullopt;
-  }
-  ObjectData* value = data()
-                          ->AsMap()
-                          ->instance_descriptors()
-                          ->AsDescriptorArray()
-                          ->GetStrongValue(descriptor_index);
-  if (!value) {
-    return base::nullopt;
-  }
-  return ObjectRef(broker(), value);
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
+  return instance_descriptors().GetStrongValue(descriptor_index);
 }
 
 DescriptorArrayRef MapRef::instance_descriptors() const {
@@ -4057,6 +4064,45 @@ PropertyDetails DescriptorArrayRef::GetPropertyDetails(
   return data()->AsDescriptorArray()->GetPropertyDetails(descriptor_index);
 }
 
+NameRef DescriptorArrayRef::GetPropertyKey(
+    InternalIndex descriptor_index) const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    NameRef result(broker(), broker()->CanonicalPersistentHandle(
+                                 object()->GetKey(descriptor_index)));
+    CHECK(result.IsUniqueName());
+    return result;
+  }
+  return NameRef(broker(),
+                 data()->AsDescriptorArray()->GetPropertyKey(descriptor_index));
+}
+
+base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
+    InternalIndex descriptor_index) const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    HeapObject heap_object;
+    if (object()
+            ->GetValue(descriptor_index)
+            .GetHeapObjectIfStrong(&heap_object)) {
+      // Since the descriptors in the descriptor array can be changed in-place
+      // via DescriptorArray::Replace, we might get a value that we haven't seen
+      // before.
+      ObjectData* data = broker()->TryGetOrCreateData(
+          broker()->CanonicalPersistentHandle(heap_object));
+      if (data) return ObjectRef(broker(), data);
+
+      TRACE_BROKER_MISSING(broker(), "strong value for descriptor array "
+                                         << *this << " at index "
+                                         << descriptor_index.as_int());
+      // Fall through to the base::nullopt below.
+    }
+    return base::nullopt;
+  }
+  ObjectData* value =
+      data()->AsDescriptorArray()->GetStrongValue(descriptor_index);
+  if (!value) return base::nullopt;
+  return ObjectRef(broker(), value);
+}
+
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
     const {
   if (value()) {
@@ -4084,36 +4130,23 @@ bool NameRef::IsUniqueName() const {
   return IsInternalizedString() || IsSymbol();
 }
 
-ObjectRef JSRegExpRef::data() const {
-  IF_ACCESS_FROM_HEAP(Object, data);
-  return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->data());
-}
-
-ObjectRef JSRegExpRef::flags() const {
-  IF_ACCESS_FROM_HEAP(Object, flags);
-  return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->flags());
-}
-
-ObjectRef JSRegExpRef::last_index() const {
-  IF_ACCESS_FROM_HEAP(Object, last_index);
-  return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->last_index());
-}
-
-ObjectRef JSRegExpRef::raw_properties_or_hash() const {
-  IF_ACCESS_FROM_HEAP(Object, raw_properties_or_hash);
-  return ObjectRef(broker(),
-                   ObjectRef::data()->AsJSRegExp()->raw_properties_or_hash());
-}
-
-ObjectRef JSRegExpRef::source() const {
-  IF_ACCESS_FROM_HEAP(Object, source);
-  return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->source());
-}
-
-void JSRegExpRef::SerializeAsRegExpBoilerplate() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  JSObjectRef::data()->AsJSRegExp()->SerializeAsRegExpBoilerplate(broker());
+void RegExpBoilerplateDescriptionRef::Serialize() {
+  if (data_->should_access_heap()) {
+    // Even if the regexp boilerplate object itself is no longer serialized,
+    // both `data` and `source` fields still are and thus we need to make sure
+    // to visit them.
+    // TODO(jgruber,v8:7790): Remove once these are no longer serialized types.
+    STATIC_ASSERT(IsSerializedHeapObject<FixedArray>());
+    FixedArrayRef data_ref{
+        broker(), broker()->CanonicalPersistentHandle(object()->data())};
+    STATIC_ASSERT(IsSerializedHeapObject<String>());
+    StringRef source_ref{
+        broker(), broker()->CanonicalPersistentHandle(object()->source())};
+  } else {
+    CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+    HeapObjectRef::data()->AsRegExpBoilerplateDescription()->Serialize(
+        broker());
+  }
 }
 
 Handle<Object> ObjectRef::object() const {
@@ -4291,10 +4324,9 @@ base::Optional<FunctionTemplateInfoRef>
 SharedFunctionInfoRef::function_template_info() const {
   if (data_->should_access_heap()) {
     if (object()->IsApiFunction()) {
-      ObjectData* data = broker()->TryGetOrCreateData(
-          broker()->CanonicalPersistentHandle(
-              object()->function_data(kAcquireLoad)),
-          false);
+      ObjectData* data =
+          broker()->TryGetOrCreateData(broker()->CanonicalPersistentHandle(
+              object()->function_data(kAcquireLoad)));
       if (data == nullptr) return base::nullopt;
       return FunctionTemplateInfoRef(broker(), data, true);
     }
@@ -4937,9 +4969,9 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  JSRegExpRef regexp(this, handle(object, isolate()));
-  regexp.SerializeAsRegExpBoilerplate();
-  return *zone()->New<RegExpLiteralFeedback>(regexp, nexus.kind());
+  RegExpBoilerplateDescriptionRef boilerplate(this, handle(object, isolate()));
+  boilerplate.Serialize();
+  return *zone()->New<RegExpLiteralFeedback>(boilerplate, nexus.kind());
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
@@ -4963,6 +4995,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
   base::Optional<HeapObjectRef> target_ref;
   {
+    // TODO(mvstanton): this read has a special danger when done on the
+    // background thread, because the CallIC has a site in generated code
+    // where a JSFunction is installed in this slot without store ordering.
+    // Therefore, we will need to check {maybe_target} to ensure that it
+    // has been store ordered by the heap's mechanism for store-ordering
+    // batches of new objects.
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
     if (maybe_target->GetHeapObject(&target_object)) {

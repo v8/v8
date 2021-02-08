@@ -505,7 +505,7 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
 
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
-
+  DCHECK_LE(args.length(), 2);
   // Append any worker thread runtime call stats to the main table before
   // printing.
   isolate->counters()->worker_thread_runtime_call_stats()->AddToMainTable(
@@ -513,47 +513,42 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
 
   if (args.length() == 0) {
     // Without arguments, the result is returned as a string.
-    DCHECK_EQ(0, args.length());
     std::stringstream stats_stream;
     isolate->counters()->runtime_call_stats()->Print(stats_stream);
     Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(
         stats_stream.str().c_str());
     isolate->counters()->runtime_call_stats()->Reset();
     return *result;
-  } else {
-    DCHECK_LE(args.length(), 2);
-    std::FILE* f;
-    if (args[0].IsString()) {
-      // With a string argument, the results are appended to that file.
-      CONVERT_ARG_HANDLE_CHECKED(String, arg0, 0);
-      DisallowGarbageCollection no_gc;
-      String::FlatContent flat = arg0->GetFlatContent(no_gc);
-      const char* filename =
-          reinterpret_cast<const char*>(&(flat.ToOneByteVector()[0]));
-      f = std::fopen(filename, "a");
-      DCHECK_NOT_NULL(f);
-    } else {
-      // With an integer argument, the results are written to stdout/stderr.
-      CONVERT_SMI_ARG_CHECKED(fd, 0);
-      DCHECK(fd == 1 || fd == 2);
-      f = fd == 1 ? stdout : stderr;
-    }
-    // The second argument (if any) is a message header to be printed.
-    if (args.length() >= 2) {
-      CONVERT_ARG_HANDLE_CHECKED(String, arg1, 1);
-      arg1->PrintOn(f);
-      std::fputc('\n', f);
-      std::fflush(f);
-    }
-    OFStream stats_stream(f);
-    isolate->counters()->runtime_call_stats()->Print(stats_stream);
-    isolate->counters()->runtime_call_stats()->Reset();
-    if (args[0].IsString())
-      std::fclose(f);
-    else
-      std::fflush(f);
-    return ReadOnlyRoots(isolate).undefined_value();
   }
+
+  std::FILE* f;
+  if (args[0].IsString()) {
+    // With a string argument, the results are appended to that file.
+    CONVERT_ARG_HANDLE_CHECKED(String, filename, 0);
+    f = std::fopen(filename->ToCString().get(), "a");
+    DCHECK_NOT_NULL(f);
+  } else {
+    // With an integer argument, the results are written to stdout/stderr.
+    CONVERT_SMI_ARG_CHECKED(fd, 0);
+    DCHECK(fd == 1 || fd == 2);
+    f = fd == 1 ? stdout : stderr;
+  }
+  // The second argument (if any) is a message header to be printed.
+  if (args.length() >= 2) {
+    CONVERT_ARG_HANDLE_CHECKED(String, message, 1);
+    message->PrintOn(f);
+    std::fputc('\n', f);
+    std::fflush(f);
+  }
+  OFStream stats_stream(f);
+  isolate->counters()->runtime_call_stats()->Print(stats_stream);
+  isolate->counters()->runtime_call_stats()->Reset();
+  if (args[0].IsString()) {
+    std::fclose(f);
+  } else {
+    std::fflush(f);
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {

@@ -171,23 +171,28 @@ void Heap::StartGarbageCollection(Config config) {
 void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   DCHECK(IsMarking());
   DCHECK(!in_no_gc_scope());
+  CHECK(!in_disallow_gc_scope());
   config_.stack_state = stack_state;
+  if (override_stack_state_) {
+    config_.stack_state = *override_stack_state_;
+  }
+  in_atomic_pause_ = true;
   {
     // This guards atomic pause marking, meaning that no internal method or
     // external callbacks are allowed to allocate new objects.
-    ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
-    marker_->FinishMarking(stack_state);
+    cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
+    marker_->FinishMarking(config_.stack_state);
   }
   {
     // Pre finalizers are forbidden from allocating objects.
-    ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
+    cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
     prefinalizer_handler_->InvokePreFinalizers();
   }
   marker_.reset();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   MarkingVerifier verifier(*this);
-  verifier.Run(stack_state);
+  verifier.Run(config_.stack_state);
 #endif
 
   subtle::NoGarbageCollectionScope no_gc(*this);
@@ -195,6 +200,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
       config_.sweeping_type,
       Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
   sweeper_.Start(sweeping_config);
+  in_atomic_pause_ = false;
   sweeper_.NotifyDoneIfNeeded();
 }
 

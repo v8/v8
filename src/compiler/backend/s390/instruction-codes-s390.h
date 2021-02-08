@@ -264,6 +264,7 @@ namespace compiler {
   V(S390_I64x2UConvertI32x4Low)             \
   V(S390_I64x2UConvertI32x4High)            \
   V(S390_I64x2SignSelect)                   \
+  V(S390_I64x2Ne)                           \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
@@ -377,12 +378,12 @@ namespace compiler {
   V(S390_I8x16Shuffle)                      \
   V(S390_I8x16Swizzle)                      \
   V(S390_I8x16SignSelect)                   \
-  V(S390_V32x4AnyTrue)                      \
-  V(S390_V16x8AnyTrue)                      \
-  V(S390_V8x16AnyTrue)                      \
+  V(S390_I8x16Popcnt)                       \
+  V(S390_V64x2AllTrue)                      \
   V(S390_V32x4AllTrue)                      \
   V(S390_V16x8AllTrue)                      \
   V(S390_V8x16AllTrue)                      \
+  V(S390_V128AnyTrue)                       \
   V(S390_S128And)                           \
   V(S390_S128Or)                            \
   V(S390_S128Xor)                           \

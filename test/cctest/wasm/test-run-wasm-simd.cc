@@ -1038,6 +1038,12 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Eq) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Eq, Equal);
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
+WASM_SIMD_TEST_NO_LOWERING(I64x2Ne) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Ne, NotEqual);
+}
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
+
 WASM_SIMD_TEST(F64x2Splat) {
   WasmRunner<int32_t, double> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
@@ -1273,7 +1279,7 @@ WASM_SIMD_TEST(F64x2NearestInt) {
 }
 
 // TODO(v8:11265): Prototyping double precision conversions.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 template <typename SrcType>
 void RunF64x2ConvertLowI32x4Test(TestExecutionTier execution_tier,
                                  LowerSimd lower_simd, WasmOpcode opcode) {
@@ -1390,7 +1396,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2PromoteLowF32x4) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 
 void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, DoubleBinOp expected_op) {
@@ -2207,7 +2213,7 @@ WASM_SIMD_TEST(I32x4ShrU) {
                       LogicalShiftRight);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 // TODO(v8:11297) Prototype i32x4.widen_i8x16_{u,s}
 WASM_SIMD_TEST_NO_LOWERING(I32x4WidenI8x16U) {
   FLAG_SCOPE(wasm_simd_post_mvp);
@@ -2281,7 +2287,7 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4WidenI8x16S) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 // Tests both signed and unsigned conversion from I8x16 (unpacking).
 WASM_SIMD_TEST(I16x8ConvertI8x16) {
@@ -2338,8 +2344,8 @@ WASM_SIMD_TEST(I16x8ConvertI32x4) {
 
   FOR_INT32_INPUTS(x) {
     r.Call(x);
-    int16_t expected_signed = Saturate<int16_t>(x);
-    int16_t expected_unsigned = Saturate<uint16_t>(x);
+    int16_t expected_signed = base::saturated_cast<int16_t>(x);
+    int16_t expected_unsigned = base::saturated_cast<uint16_t>(x);
     for (int i = 0; i < 8; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g0[i]));
       CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int16_t>(&g1[i]));
@@ -2722,8 +2728,6 @@ WASM_SIMD_TEST(I8x16Abs) {
   RunI8x16UnOpTest(execution_tier, lower_simd, kExprI8x16Abs, Abs);
 }
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
-// TODO(v8:11002) Prototype i8x16.popcnt.
 WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
@@ -2745,14 +2749,13 @@ WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
 // Tests both signed and unsigned conversion from I16x8 (packing).
 WASM_SIMD_TEST(I8x16ConvertI16x8) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   // Create output vectors to hold signed and unsigned results.
-  int8_t* g0 = r.builder().AddGlobal<int8_t>(kWasmS128);
-  int8_t* g1 = r.builder().AddGlobal<int8_t>(kWasmS128);
+  int8_t* g_s = r.builder().AddGlobal<int8_t>(kWasmS128);
+  uint8_t* g_u = r.builder().AddGlobal<uint8_t>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
@@ -2767,11 +2770,11 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
 
   FOR_INT16_INPUTS(x) {
     r.Call(x);
-    int8_t expected_signed = Saturate<int8_t>(x);
-    int8_t expected_unsigned = Saturate<uint8_t>(x);
+    int8_t expected_signed = base::saturated_cast<int8_t>(x);
+    uint8_t expected_unsigned = base::saturated_cast<uint8_t>(x);
     for (int i = 0; i < 16; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int8_t>(&g0[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int8_t>(&g1[i]));
+      CHECK_EQ(expected_signed, ReadLittleEndianValue<int8_t>(&g_s[i]));
+      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<uint8_t>(&g_u[i]));
     }
   }
 }
@@ -3451,14 +3454,14 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
     byte reduced = r.AllocateLocal(kWasmI32);                                  \
     BUILD(r, WASM_LOCAL_SET(zero, WASM_SIMD_I##format##_SPLAT(int_type(0))),   \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
@@ -3482,14 +3485,14 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
                          WASM_SIMD_I##format##_REPLACE_LANE(                   \
                              lanes - 1, WASM_LOCAL_GET(zero), int_type(1))),   \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
@@ -3513,6 +3516,9 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
     CHECK_EQ(1, r.Call());                                                     \
   }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
+WASM_SIMD_BOOL_REDUCTION_TEST(64x2, 2, WASM_I64V)
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_BOOL_REDUCTION_TEST(32x4, 4, WASM_I32V)
 WASM_SIMD_BOOL_REDUCTION_TEST(16x8, 8, WASM_I32V)
 WASM_SIMD_BOOL_REDUCTION_TEST(8x16, 16, WASM_I32V)
@@ -4375,7 +4381,7 @@ WASM_SIMD_TEST_NO_LOWERING(S128Store64Lane) {
     BUILD(                                                                    \
         r,                                                                    \
         WASM_LOCAL_SET(simd, WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(0))), \
-        WASM_SIMD_UNOP(kExprV##format##AnyTrue, WASM_LOCAL_GET(simd)));       \
+        WASM_SIMD_UNOP(kExprV128AnyTrue, WASM_LOCAL_GET(simd)));              \
     CHECK_EQ(1, r.Call(max));                                                 \
     CHECK_EQ(1, r.Call(5));                                                   \
     CHECK_EQ(0, r.Call(0));                                                   \
@@ -4387,11 +4393,11 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
 // Special any true test cases that splats a -0.0 double into a i64x2.
 // This is specifically to ensure that our implementation correct handles that
 // 0.0 and -0.0 will be different in an anytrue (IEEE753 says they are equals).
-WASM_SIMD_TEST(V32x4AnytrueWithNegativeZero) {
+WASM_SIMD_TEST(V128AnytrueWithNegativeZero) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_LOCAL_SET(simd, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_SIMD_UNOP(kExprV32x4AnyTrue, WASM_LOCAL_GET(simd)));
+        WASM_SIMD_UNOP(kExprV128AnyTrue, WASM_LOCAL_GET(simd)));
   CHECK_EQ(1, r.Call(0x8000000000000000));
   CHECK_EQ(0, r.Call(0x0000000000000000));
 }
@@ -4410,6 +4416,9 @@ WASM_SIMD_TEST(V32x4AnytrueWithNegativeZero) {
     CHECK_EQ(1, r.Call(0x1));                                                 \
     CHECK_EQ(0, r.Call(0));                                                   \
   }
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
+WASM_SIMD_ALLTRUE_TEST(64x2, 2, 0xffffffffffffffff, int64_t)
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
 WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff, int32_t)
 WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff, int32_t)

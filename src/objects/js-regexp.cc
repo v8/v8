@@ -162,12 +162,6 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
 }
 
-// static
-Handle<JSRegExp> JSRegExp::Copy(Handle<JSRegExp> regexp) {
-  Isolate* const isolate = regexp->GetIsolate();
-  return Handle<JSRegExp>::cast(isolate->factory()->CopyJSObject(regexp));
-}
-
 Object JSRegExp::Code(bool is_latin1) const {
   DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
   return DataAt(code_index(is_latin1));
@@ -416,14 +410,16 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   if (constructor.IsJSFunction() &&
       JSFunction::cast(constructor).initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex, Smi::zero(),
+    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
+                                  Smi::FromInt(kInitialLastIndexValue),
                                   SKIP_WRITE_BARRIER);
   } else {
     // Map has changed, so use generic, but slower, method.
     RETURN_ON_EXCEPTION(
         isolate,
-        Object::SetProperty(isolate, regexp, factory->lastIndex_string(),
-                            Handle<Smi>(Smi::zero(), isolate)),
+        Object::SetProperty(
+            isolate, regexp, factory->lastIndex_string(),
+            Handle<Smi>(Smi::FromInt(kInitialLastIndexValue), isolate)),
         JSRegExp);
   }
 

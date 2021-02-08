@@ -3040,8 +3040,11 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
       value = handle(descs->GetStrongValue(isolate, i), isolate);
     }
     DCHECK(!value.is_null());
-    PropertyDetails d(details.kind(), details.attributes(),
-                      PropertyCellType::kNoCell);
+    PropertyConstness constness = V8_DICT_PROPERTY_CONST_TRACKING_BOOL
+                                      ? details.constness()
+                                      : PropertyConstness::kMutable;
+    PropertyDetails d(details.kind(), details.attributes(), constness);
+
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       ord_dictionary =
           OrderedNameDictionary::Add(isolate, ord_dictionary, key, value, d)
@@ -3603,7 +3606,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     }
 
     DCHECK_EQ(kField, details.location());
-    DCHECK_EQ(PropertyConstness::kMutable, details.constness());
+    DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                   details.constness() == PropertyConstness::kMutable);
 
     Descriptor d;
     if (details.kind() == kData) {
@@ -3612,6 +3616,10 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
       PropertyConstness constness = is_transitionable_elements_kind
                                         ? PropertyConstness::kMutable
                                         : PropertyConstness::kConst;
+      // TODO(v8:11248): Consider always setting constness to kMutable
+      // once all prototypes stay in dictionary mode and we are not interested
+      // in tracking constness for fast mode properties anymore.
+
       d = Descriptor::DataField(
           key, current_offset, details.attributes(), constness,
           // TODO(verwaest): value->OptimalRepresentation();
@@ -4456,7 +4464,9 @@ static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
   DisallowGarbageCollection no_gc;
   if (!object->HasFastProperties()) return false;
   if (object->IsJSGlobalProxy()) return false;
+  // TODO(v8:11248) make bootstrapper create dict mode prototypes, too?
   if (object->GetIsolate()->bootstrapper()->IsActive()) return false;
+  if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return true;
   return !object->map().is_prototype_map() ||
          !object->map().should_be_fast_prototype_map();
 }
@@ -4472,14 +4482,31 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                   "NormalizeAsPrototype");
   }
   if (object->map().is_prototype_map()) {
-    if (object->map().should_be_fast_prototype_map() &&
+    if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL &&
+        object->map().should_be_fast_prototype_map() &&
         !object->HasFastProperties()) {
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
     }
   } else {
     Handle<Map> new_map =
         Map::Copy(isolate, handle(object->map(), isolate), "CopyAsPrototype");
+
     JSObject::MigrateToMap(isolate, object, new_map);
+
+    if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && !object->HasFastProperties()) {
+      Handle<NameDictionary> dict =
+          handle(object->property_dictionary(), isolate);
+      ReadOnlyRoots roots(isolate);
+      for (InternalIndex index : dict->IterateEntries()) {
+        Object k;
+        if (!dict->ToKey(roots, index, &k)) continue;
+
+        PropertyDetails details = dict->DetailsAt(index);
+        details = details.CopyWithConstness(PropertyConstness::kConst);
+        dict->DetailsAtPut(index, details);
+      }
+    }
+
     object->map().set_is_prototype_map(true);
 
     // Replace the pointer to the exact constructor with the Object function
@@ -4495,6 +4522,12 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
       }
     }
   }
+#ifdef DEBUG
+  bool should_be_dictionary = V8_DICT_PROPERTY_CONST_TRACKING_BOOL &&
+                              enable_setup_mode && !object->IsJSGlobalProxy() &&
+                              !object->GetIsolate()->bootstrapper()->IsActive();
+  DCHECK_IMPLIES(should_be_dictionary, object->map().is_dictionary_map());
+#endif
 }
 
 // static

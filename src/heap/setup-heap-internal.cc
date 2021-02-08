@@ -197,7 +197,7 @@ void Heap::FinalizePartialMap(Map map) {
                               kReleaseStore);
   }
   map.set_prototype(roots.null_value());
-  map.set_constructor_or_backpointer(roots.null_value());
+  map.set_constructor_or_back_pointer(roots.null_value());
 }
 
 AllocationResult Heap::Allocate(Map map, AllocationType allocation_type) {

@@ -2975,11 +2975,6 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
        liftoff::GetSimd128Register(src));
 }
 
-void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  liftoff::EmitAnyTrue(this, dst, src);
-}
-
 void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   UseScratchRegisterScope temps(this);
@@ -3150,11 +3145,6 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   vneg(Neon16, liftoff::GetSimd128Register(dst),
        liftoff::GetSimd128Register(src));
-}
-
-void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
@@ -3444,8 +3434,8 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
        liftoff::GetSimd128Register(src));
 }
 
-void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
+void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
+                                         LiftoffRegister src) {
   liftoff::EmitAnyTrue(this, dst, src);
 }
 
@@ -4142,7 +4132,9 @@ void LiftoffStackSlots::Construct() {
           // split into two i32 registers
           case ValueType::kI32:
           case ValueType::kI64:
-          case ValueType::kF32: {
+          case ValueType::kF32:
+          case ValueType::kRef:
+          case ValueType::kOptRef: {
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
             asm_->ldr(scratch,

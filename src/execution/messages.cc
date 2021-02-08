@@ -18,7 +18,6 @@
 #include "src/objects/foreign-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/keys.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/parsing/parse-info.h"
@@ -389,21 +388,92 @@ Handle<PrimitiveHeapObject> JSStackFrame::GetFunctionName() {
 
 namespace {
 
-bool CheckMethodName(Isolate* isolate, Handle<JSReceiver> receiver,
-                     Handle<Name> name, Handle<JSFunction> fun,
-                     LookupIterator::Configuration config) {
-  LookupIterator::Key key(isolate, name);
-  LookupIterator iter(isolate, receiver, key, config);
-  if (iter.state() == LookupIterator::DATA) {
-    return iter.GetDataValue().is_identical_to(fun);
-  } else if (iter.state() == LookupIterator::ACCESSOR) {
-    Handle<Object> accessors = iter.GetAccessors();
-    if (accessors->IsAccessorPair()) {
-      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
-      return pair->getter() == *fun || pair->setter() == *fun;
+PrimitiveHeapObject InferMethodNameFromFastObject(Isolate* isolate,
+                                                  JSObject receiver,
+                                                  JSFunction fun,
+                                                  PrimitiveHeapObject name) {
+  ReadOnlyRoots roots(isolate);
+  Map map = receiver.map();
+  DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
+  for (auto i : map.IterateOwnDescriptors()) {
+    PrimitiveHeapObject key = descriptors.GetKey(i);
+    if (key.IsSymbol()) continue;
+    auto details = descriptors.GetDetails(i);
+    if (details.IsDontEnum()) continue;
+    Object value;
+    if (details.location() == kField) {
+      auto field_index = FieldIndex::ForPropertyIndex(
+          map, details.field_index(), details.representation());
+      if (field_index.is_double()) continue;
+      value = receiver.RawFastPropertyAt(isolate, field_index);
+    } else {
+      value = descriptors.GetStrongValue(i);
+    }
+    if (value != fun) {
+      if (!value.IsAccessorPair()) continue;
+      auto pair = AccessorPair::cast(value);
+      if (pair.getter() != fun && pair.setter() != fun) continue;
+    }
+    if (name != key) {
+      name = name.IsUndefined(isolate) ? key : roots.null_value();
     }
   }
-  return false;
+  return name;
+}
+
+template <typename Dictionary>
+PrimitiveHeapObject InferMethodNameFromDictionary(Isolate* isolate,
+                                                  Dictionary dictionary,
+                                                  JSFunction fun,
+                                                  PrimitiveHeapObject name) {
+  ReadOnlyRoots roots(isolate);
+  for (auto i : dictionary.IterateEntries()) {
+    Object key;
+    if (!dictionary.ToKey(roots, i, &key)) continue;
+    if (key.IsSymbol()) continue;
+    auto details = dictionary.DetailsAt(i);
+    if (details.IsDontEnum()) continue;
+    auto value = dictionary.ValueAt(i);
+    if (value != fun) {
+      if (!value.IsAccessorPair()) continue;
+      auto pair = AccessorPair::cast(value);
+      if (pair.getter() != fun && pair.setter() != fun) continue;
+    }
+    if (name != key) {
+      name = name.IsUndefined(isolate) ? PrimitiveHeapObject::cast(key)
+                                       : roots.null_value();
+    }
+  }
+  return name;
+}
+
+PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
+                                    JSFunction fun) {
+  DisallowGarbageCollection no_gc;
+  ReadOnlyRoots roots(isolate);
+  PrimitiveHeapObject name = roots.undefined_value();
+  for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
+       it.Advance()) {
+    auto current = it.GetCurrent();
+    if (!current.IsJSObject()) break;
+    auto object = JSObject::cast(current);
+    if (object.IsAccessCheckNeeded()) break;
+    if (object.HasFastProperties()) {
+      name = InferMethodNameFromFastObject(isolate, object, fun, name);
+    } else if (object.IsJSGlobalObject()) {
+      name = InferMethodNameFromDictionary(
+          isolate, JSGlobalObject::cast(object).global_dictionary(kAcquireLoad),
+          fun, name);
+    } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      name = InferMethodNameFromDictionary(
+          isolate, object.property_dictionary_ordered(), fun, name);
+    } else {
+      name = InferMethodNameFromDictionary(
+          isolate, object.property_dictionary(), fun, name);
+    }
+  }
+  if (name.IsUndefined(isolate)) return roots.null_value();
+  return name;
 }
 
 Handle<Object> ScriptNameOrSourceUrl(Handle<Script> script, Isolate* isolate) {
@@ -446,37 +516,41 @@ Handle<PrimitiveHeapObject> JSStackFrame::GetMethodName() {
   if (name->HasOneBytePrefix(CStrVector("get ")) ||
       name->HasOneBytePrefix(CStrVector("set "))) {
     name = isolate_->factory()->NewProperSubString(name, 4, name->length());
-  }
-  if (CheckMethodName(isolate_, receiver, name, function_,
-                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
-    return name;
-  }
-
-  HandleScope outer_scope(isolate_);
-  Handle<PrimitiveHeapObject> result;
-  for (PrototypeIterator iter(isolate_, receiver, kStartAtReceiver);
-       !iter.IsAtEnd(); iter.Advance()) {
-    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
-    if (!current->IsJSObject()) break;
-    Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
-    if (current_obj->IsAccessCheckNeeded()) break;
-    Handle<FixedArray> keys =
-        KeyAccumulator::GetOwnEnumPropertyKeys(isolate_, current_obj);
-    for (int i = 0; i < keys->length(); i++) {
-      HandleScope inner_scope(isolate_);
-      if (!keys->get(i).IsName()) continue;
-      Handle<Name> name_key(Name::cast(keys->get(i)), isolate_);
-      if (!CheckMethodName(isolate_, current_obj, name_key, function_,
-                           LookupIterator::OWN_SKIP_INTERCEPTOR))
-        continue;
-      // Return null in case of duplicates to avoid confusion.
-      if (!result.is_null()) return isolate_->factory()->null_value();
-      result = inner_scope.CloseAndEscape(name_key);
+  } else if (name->length() == 0) {
+    // The function doesn't have a meaningful "name" property, however
+    // the parser does store an inferred name "o.foo" for the common
+    // case of `o.foo = function() {...}`, so see if we can derive a
+    // property name to guess from that.
+    name = handle(function_->shared().inferred_name(), isolate_);
+    for (int index = name->length(); --index >= 0;) {
+      if (name->Get(index, isolate_) == '.') {
+        name = isolate_->factory()->NewProperSubString(name, index + 1,
+                                                       name->length());
+        break;
+      }
     }
   }
 
-  if (!result.is_null()) return outer_scope.CloseAndEscape(result);
-  return isolate_->factory()->null_value();
+  if (name->length() != 0) {
+    LookupIterator::Key key(isolate_, Handle<Name>::cast(name));
+    LookupIterator it(isolate_, receiver, key,
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+    if (it.state() == LookupIterator::DATA) {
+      if (it.GetDataValue().is_identical_to(function_)) {
+        return name;
+      }
+    } else if (it.state() == LookupIterator::ACCESSOR) {
+      Handle<Object> accessors = it.GetAccessors();
+      if (accessors->IsAccessorPair()) {
+        Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
+        if (pair->getter() == *function_ || pair->setter() == *function_) {
+          return name;
+        }
+      }
+    }
+  }
+
+  return handle(InferMethodName(isolate_, *receiver, *function_), isolate_);
 }
 
 Handle<PrimitiveHeapObject> JSStackFrame::GetTypeName() {

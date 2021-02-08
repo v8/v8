@@ -75,7 +75,8 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
     WrapperHelper::SetWrappableConnection(api_object, wrappable, wrappable);
     JSHeapConsistency::WriteBarrierParams params;
     auto barrier_type = JSHeapConsistency::GetWriteBarrierType(
-        api_object, 1, wrappable, params);
+        api_object, 1, wrappable, params,
+        [this]() -> cppgc::HeapHandle& { return cpp_heap().GetHeapHandle(); });
     EXPECT_EQ(JSHeapConsistency::WriteBarrierType::kMarking, barrier_type);
     JSHeapConsistency::DijkstraMarkingBarrier(
         params, cpp_heap().GetHeapHandle(), wrappable);
@@ -105,8 +106,9 @@ TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
     api_object->SetAlignedPointerInInternalField(1, kMagicAddress);
     wrappable->SetWrapper(v8_isolate(), api_object);
     JSHeapConsistency::WriteBarrierParams params;
-    auto barrier_type =
-        JSHeapConsistency::GetWriteBarrierType(wrappable->wrapper(), params);
+    auto barrier_type = JSHeapConsistency::GetWriteBarrierType(
+        wrappable->wrapper(), params,
+        [this]() -> cppgc::HeapHandle& { return cpp_heap().GetHeapHandle(); });
     EXPECT_EQ(JSHeapConsistency::WriteBarrierType::kMarking, barrier_type);
     JSHeapConsistency::DijkstraMarkingBarrier(
         params, cpp_heap().GetHeapHandle(), wrappable->wrapper());

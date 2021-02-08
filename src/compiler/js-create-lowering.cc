@@ -1172,7 +1172,8 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
   ProcessedFeedback const& feedback =
       broker()->GetFeedbackForRegExpLiteral(p.feedback());
   if (!feedback.IsInsufficient()) {
-    JSRegExpRef literal = feedback.AsRegExpLiteral().value();
+    RegExpBoilerplateDescriptionRef literal =
+        feedback.AsRegExpLiteral().value();
     Node* value = effect = AllocateLiteralRegExp(effect, control, literal);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
@@ -1785,36 +1786,34 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
   return builder.Finish();
 }
 
-Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
-                                              JSRegExpRef boilerplate) {
-  MapRef boilerplate_map = boilerplate.map();
+Node* JSCreateLowering::AllocateLiteralRegExp(
+    Node* effect, Node* control, RegExpBoilerplateDescriptionRef boilerplate) {
+  MapRef initial_map = native_context().regexp_function().initial_map();
 
   // Sanity check that JSRegExp object layout hasn't changed.
-  STATIC_ASSERT(static_cast<int>(JSRegExp::kDataOffset) ==
-                static_cast<int>(JSObject::kHeaderSize));
+  STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
   STATIC_ASSERT(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
   STATIC_ASSERT(JSRegExp::kFlagsOffset ==
                 JSRegExp::kSourceOffset + kTaggedSize);
   STATIC_ASSERT(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
   STATIC_ASSERT(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
-  STATIC_ASSERT(JSRegExp::kInObjectFieldCount == 1);  // LastIndex.
-
-  const AllocationType allocation = AllocationType::kYoung;
-  const int size =
-      JSRegExp::kHeaderSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
+  DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
 
   AllocationBuilder builder(jsgraph(), effect, control);
-  builder.Allocate(size, allocation, Type::For(boilerplate_map));
-  builder.Store(AccessBuilder::ForMap(), boilerplate_map);
+  builder.Allocate(JSRegExp::Size(), AllocationType::kYoung,
+                   Type::For(initial_map));
+  builder.Store(AccessBuilder::ForMap(), initial_map);
   builder.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
-                boilerplate.raw_properties_or_hash());
-  builder.Store(AccessBuilder::ForJSObjectElements(), boilerplate.elements());
+                jsgraph()->EmptyFixedArrayConstant());
+  builder.Store(AccessBuilder::ForJSObjectElements(),
+                jsgraph()->EmptyFixedArrayConstant());
 
   builder.Store(AccessBuilder::ForJSRegExpData(), boilerplate.data());
   builder.Store(AccessBuilder::ForJSRegExpSource(), boilerplate.source());
-  builder.Store(AccessBuilder::ForJSRegExpFlags(), boilerplate.flags());
+  builder.Store(AccessBuilder::ForJSRegExpFlags(),
+                jsgraph()->SmiConstant(boilerplate.flags()));
   builder.Store(AccessBuilder::ForJSRegExpLastIndex(),
-                boilerplate.last_index());
+                jsgraph()->SmiConstant(JSRegExp::kInitialLastIndexValue));
 
   return builder.Finish();
 }

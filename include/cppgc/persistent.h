@@ -9,6 +9,7 @@
 
 #include "cppgc/internal/persistent-node.h"
 #include "cppgc/internal/pointer-policies.h"
+#include "cppgc/sentinel-pointer.h"
 #include "cppgc/source-location.h"
 #include "cppgc/type-traits.h"
 #include "cppgc/visitor.h"
@@ -208,6 +209,16 @@ class BasicPersistent final : public PersistentBase,
     T* result = Get();
     Clear();
     return result;
+  }
+
+  template <typename U, typename OtherWeaknessPolicy = WeaknessPolicy,
+            typename OtherLocationPolicy = LocationPolicy,
+            typename OtherCheckingPolicy = CheckingPolicy>
+  BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                  OtherCheckingPolicy>
+  To() const {
+    return BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                           OtherCheckingPolicy>(static_cast<U*>(Get()));
   }
 
  private:

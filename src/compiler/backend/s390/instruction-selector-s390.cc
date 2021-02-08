@@ -703,7 +703,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   opcode |= AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
 }
@@ -2533,6 +2533,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I16x8UConvertI8x16High) \
   V(I8x16Neg)               \
   V(I8x16Abs)               \
+  V(I8x16Popcnt)            \
   V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \
@@ -2550,9 +2551,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16ShrU)
 
 #define SIMD_BOOL_LIST(V) \
-  V(V32x4AnyTrue)         \
-  V(V16x8AnyTrue)         \
-  V(V8x16AnyTrue)         \
+  V(V128AnyTrue)          \
   V(V32x4AllTrue)         \
   V(V16x8AllTrue)         \
   V(V8x16AllTrue)

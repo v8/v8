@@ -294,6 +294,12 @@ declare_args() {
   # will not be available, and embedder APIs to generate WebAssembly modules
   # will fail.
   v8_enable_webassembly = true
+
+  # Experimental feature for tracking constness of properties in non-global
+  # dictionaries. Enabling this also always keeps prototypes in dict mode,
+  # meaning that they are not switched to fast mode.
+  # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
+  v8_dict_property_const_tracking = false
 }
 
 # Derived defaults.
@@ -766,6 +772,9 @@ config("features") {
   }
   if (v8_enable_webassembly) {
     defines += [ "V8_ENABLE_WEBASSEMBLY" ]
+  }
+  if (v8_dict_property_const_tracking) {
+    defines += [ "V8_DICT_PROPERTY_CONST_TRACKING" ]
   }
 }
 
@@ -1315,6 +1324,8 @@ torque_files = [
   "src/builtins/string-at.tq",
   "src/builtins/string-endswith.tq",
   "src/builtins/string-html.tq",
+  "src/builtins/string-includes.tq",
+  "src/builtins/string-indexof.tq",
   "src/builtins/string-iterator.tq",
   "src/builtins/string-pad.tq",
   "src/builtins/string-repeat.tq",
@@ -2463,6 +2474,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/api/api-arguments-inl.h",
     "src/api/api-arguments.cc",
     "src/api/api-arguments.h",
+    "src/api/api-inl.h",
+    "src/api/api-macros.h",
     "src/api/api-natives.cc",
     "src/api/api-natives.h",
     "src/api/api.cc",
@@ -2627,6 +2640,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/debug/debug-evaluate.h",
     "src/debug/debug-frames.cc",
     "src/debug/debug-frames.h",
+    "src/debug/debug-interface.cc",
     "src/debug/debug-interface.h",
     "src/debug/debug-property-iterator.cc",
     "src/debug/debug-property-iterator.h",
@@ -3548,6 +3562,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/streaming-decoder.h",
     "src/wasm/struct-types.h",
     "src/wasm/sync-streaming-decoder.cc",
+    "src/wasm/value-type.cc",
     "src/wasm/value-type.h",
     "src/wasm/wasm-arguments.h",
     "src/wasm/wasm-code-manager.cc",
@@ -3805,6 +3820,13 @@ v8_source_set("v8_base_without_compiler") {
     ]
     if (v8_control_flow_integrity) {
       sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
+    }
+    if (current_cpu == "arm64" && is_mac) {
+      sources += [
+        "src/trap-handler/handler-inside-posix.cc",
+        "src/trap-handler/handler-inside-posix.h",
+        "src/trap-handler/handler-outside-posix.cc",
+      ]
     }
     if (is_win) {
       sources += [
@@ -4592,6 +4614,7 @@ v8_source_set("cppgc_base") {
     "include/cppgc/ephemeron-pair.h",
     "include/cppgc/garbage-collected.h",
     "include/cppgc/heap-consistency.h",
+    "include/cppgc/heap-state.h",
     "include/cppgc/heap.h",
     "include/cppgc/internal/api-constants.h",
     "include/cppgc/internal/atomic-entry-flag.h",
@@ -4612,6 +4635,7 @@ v8_source_set("cppgc_base") {
     "include/cppgc/persistent.h",
     "include/cppgc/platform.h",
     "include/cppgc/prefinalizer.h",
+    "include/cppgc/sentinel-pointer.h",
     "include/cppgc/source-location.h",
     "include/cppgc/trace-trait.h",
     "include/cppgc/type-traits.h",
@@ -4643,6 +4667,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/heap-page.h",
     "src/heap/cppgc/heap-space.cc",
     "src/heap/cppgc/heap-space.h",
+    "src/heap/cppgc/heap-state.cc",
     "src/heap/cppgc/heap-visitor.h",
     "src/heap/cppgc/heap.cc",
     "src/heap/cppgc/heap.h",
@@ -4719,6 +4744,22 @@ v8_source_set("cppgc_base") {
     ":v8_libbase",
     ":v8_libplatform",
   ]
+}
+
+v8_source_set("cppgc_base_for_testing") {
+  visibility = [ ":*" ]
+
+  sources = [
+    "include/cppgc/testing.h",
+    "src/heap/cppgc/testing.cc",
+  ]
+
+  configs = [
+    ":internal_config",
+    ":cppgc_base_config",
+  ]
+
+  public_deps = [ ":cppgc_base" ]
 }
 
 ###############################################################################
@@ -5057,6 +5098,7 @@ if (is_component_build) {
     sources = [ "src/utils/v8dll-main.cc" ]
 
     public_deps = [
+      ":cppgc_base_for_testing",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
@@ -5073,12 +5115,11 @@ if (is_component_build) {
   v8_component("cppgc") {
     public_deps = [ ":cppgc_base" ]
 
-    configs = [ ":internal_config" ]
-
     if (!cppgc_is_standalone) {
       deps = [ ":v8" ]
     }
 
+    configs = []
     public_configs = [ ":external_config" ]
   }
 
@@ -5086,9 +5127,12 @@ if (is_component_build) {
     v8_component("cppgc_for_testing") {
       testonly = true
 
-      public_deps = [ ":cppgc_base" ]
+      public_deps = [
+        ":cppgc_base",
+        ":cppgc_base_for_testing",
+      ]
 
-      configs = [ ":internal_config" ]
+      configs = []
       public_configs = [ ":external_config" ]
     }
   }
@@ -5098,7 +5142,7 @@ if (is_component_build) {
 
     public_deps = [ ":v8_cppgc_shared" ]
 
-    configs = [ ":internal_config" ]
+    configs = []
     public_configs = [ ":external_config" ]
   }
 } else {
@@ -5115,6 +5159,7 @@ if (is_component_build) {
     testonly = true
 
     public_deps = [
+      ":cppgc_base_for_testing",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
@@ -5139,7 +5184,10 @@ if (is_component_build) {
     group("cppgc_for_testing") {
       testonly = true
 
-      public_deps = [ ":cppgc_base" ]
+      public_deps = [
+        ":cppgc_base",
+        ":cppgc_base_for_testing",
+      ]
 
       public_configs = [ ":external_config" ]
     }

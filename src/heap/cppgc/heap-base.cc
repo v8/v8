@@ -53,6 +53,20 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 
 }  // namespace
 
+// static
+HeapBase& HeapBase::ForTesting(cppgc::HeapHandle& heap_handle) {
+  auto& heap = From(heap_handle);
+  CHECK(heap.TestingEnabled());
+  return heap;
+}
+
+// static
+const HeapBase& HeapBase::ForTesting(const cppgc::HeapHandle& heap_handle) {
+  const auto& heap = From(heap_handle);
+  CHECK(heap.TestingEnabled());
+  return heap;
+}
+
 HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
@@ -92,6 +106,7 @@ void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
 void HeapBase::Terminate() {
   DCHECK(!IsMarking());
   DCHECK(!in_no_gc_scope());
+  CHECK(!in_disallow_gc_scope());
 
   sweeper().FinishIfRunning();
 
@@ -116,6 +131,7 @@ void HeapBase::Terminate() {
   } while (strong_persistent_region_.NodesInUse() > 0);
 
   object_allocator().Terminate();
+  disallow_gc_scope_++;
 }
 
 }  // namespace internal

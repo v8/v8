@@ -15,13 +15,7 @@ ALL_VARIANT_FLAGS = {
   "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
   "jitless": [["--jitless"]],
   "minor_mc": [["--minor-mc"]],
-  "nci": [["--turbo-nci"]],
-  "nci_as_midtier": [["--turbo-nci-as-midtier"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
-  "no_local_heaps": [[
-      "--no-local-heaps",
-      "--no-turbo-direct-heap-access",
-      "--no-finalize-streaming-on-background"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
@@ -33,6 +27,7 @@ ALL_VARIANT_FLAGS = {
   "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--no-liftoff", "--stress-lazy-source-positions"]],
   "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
+  "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],
   "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
                                          "--finalize-streaming-on-background",
                                          "--stress-wasm-code-gc"]],
@@ -59,6 +54,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "nooptimization": ["--opt", "--always-opt", "--no-liftoff", "--wasm-tier-up"],
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
+  "stress_concurrent_inlining": ["--single-threaded", "--predictable"],
   "stress_incremental_marking": ["--no-stress-incremental-marking"],
   "future": ["--parallel-compile-tasks"],
   "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile", "--parallel-compile-tasks"],
@@ -98,6 +94,7 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
   "--no-enable-sse4-1": ["--enable-sse4-1"],
   "--optimize-for-size": ["--max-semi-space-size=*"],
   "--stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
+  "--stress_concurrent_inlining": ["--single-threaded", "--predictable"],
   "--stress-flush-bytecode": ["--no-stress-flush-bytecode"],
   "--future": ["--parallel-compile-tasks"],
   "--stress-incremental-marking": INCOMPATIBLE_FLAGS_PER_VARIANT["stress_incremental_marking"],

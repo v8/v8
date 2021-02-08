@@ -9,7 +9,7 @@
 #include "src/deoptimizer/translation-opcode.h"
 #include "src/objects/fixed-array.h"
 #include "src/wasm/value-type.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -36,15 +36,15 @@ class TranslationArrayIterator {
   }
 
  private:
+  std::vector<int32_t> uncompressed_contents_;
   TranslationArray buffer_;
   int index_;
 };
 
 class TranslationArrayBuilder {
  public:
-  explicit TranslationArrayBuilder(Zone* zone) : contents_(zone), zone_(zone) {}
-
-  int Size() const { return static_cast<int>(contents_.size()); }
+  explicit TranslationArrayBuilder(Zone* zone)
+      : contents_(zone), contents_for_compression_(zone), zone_(zone) {}
 
   Handle<TranslationArray> ToTranslationArray(Factory* factory);
 
@@ -101,9 +101,21 @@ class TranslationArrayBuilder {
   void Add(int32_t value);
   void Add(TranslationOpcode opcode) { Add(static_cast<int32_t>(opcode)); }
 
+  int Size() const {
+    return V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)
+               ? static_cast<int>(contents_for_compression_.size())
+               : static_cast<int>(contents_.size());
+  }
+  int SizeInBytes() const {
+    return V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)
+               ? Size() * kInt32Size
+               : Size();
+  }
+
   Zone* zone() const { return zone_; }
 
-  ZoneChunkList<uint8_t> contents_;
+  ZoneVector<uint8_t> contents_;
+  ZoneVector<int32_t> contents_for_compression_;
   Zone* const zone_;
 };
 

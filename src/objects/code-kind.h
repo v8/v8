@@ -109,14 +109,20 @@ inline OptimizationTier GetTierForCodeKind(CodeKind kind) {
                                      : OptimizationTier::kMidTier;
   }
   if (kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
-    return FLAG_turbo_nci_as_midtier ? OptimizationTier::kMidTier
-                                     : OptimizationTier::kTopTier;
+    return OptimizationTier::kTopTier;
   }
   return OptimizationTier::kNone;
 }
 
 inline CodeKind CodeKindForTopTier() {
   if (V8_UNLIKELY(FLAG_turboprop_as_toptier)) {
+    return CodeKind::TURBOPROP;
+  }
+  return CodeKind::TURBOFAN;
+}
+
+inline CodeKind CodeKindForOSR() {
+  if (V8_UNLIKELY(FLAG_turboprop)) {
     return CodeKind::TURBOPROP;
   }
   return CodeKind::TURBOFAN;

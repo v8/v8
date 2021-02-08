@@ -26101,6 +26101,11 @@ TEST(CorrectEnteredContext) {
   object->ToString(currentContext.local()).ToLocalChecked();
 }
 
+// For testing only, the host-defined options are provided entirely by the host
+// and have an abritrary length. Use this constant here for testing that we get
+// the correct value during the tests.
+const int kCustomHostDefinedOptionsLengthForTesting = 7;
+
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<Context> context, Local<v8::ScriptOrModule> referrer,
     Local<String> specifier, Local<FixedArray> import_assertions) {
@@ -26108,10 +26113,8 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
   String::Utf8Value referrer_utf8(
       context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK(referrer->GetHostDefinedOptions()
-            ->Get(context->GetIsolate(), 0)
-            ->IsSymbol());
-
+  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+           kCustomHostDefinedOptionsLengthForTesting);
   CHECK(!specifier.IsEmpty());
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
   CHECK_EQ(0, strcmp("index.js", *specifier_utf8));
@@ -26137,12 +26140,10 @@ TEST(DynamicImport) {
   i::Handle<i::String> result(v8::Utils::OpenHandle(*v8_str("hello world")));
   i::Handle<i::String> source(v8::Utils::OpenHandle(*v8_str("foo")));
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(1);
-  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewSymbol();
-  options->set(0, *symbol);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*options);
+  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting));
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, i::MaybeHandle<i::Object>());
@@ -26159,38 +26160,39 @@ HostImportModuleDynamicallyWithAssertionsCallbackResolve(
   String::Utf8Value referrer_utf8(
       context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK(referrer->GetHostDefinedOptions()
-            ->Get(context->GetIsolate(), 0)
-            ->IsSymbol());
+  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+           kCustomHostDefinedOptionsLengthForTesting);
 
   CHECK(!specifier.IsEmpty());
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
   CHECK_EQ(0, strcmp("index.js", *specifier_utf8));
 
-  // clang-format off
-  const char* expected_assertions[][2] = {
-    {"a", "z"},
-    {"aa", "x"},
-    {"b", "w"},
-    {"c", "y"}
-  };
-
-  // clang-format on
   CHECK_EQ(8, import_assertions->Length());
-  constexpr size_t kAssertionEntrySizeForDynamicImport = 2;
-  for (int i = 0; i < static_cast<int>(arraysize(expected_assertions)); ++i) {
+  constexpr int kAssertionEntrySizeForDynamicImport = 2;
+  for (int i = 0;
+       i < import_assertions->Length() / kAssertionEntrySizeForDynamicImport;
+       ++i) {
     Local<String> assertion_key =
         import_assertions
             ->Get(context, (i * kAssertionEntrySizeForDynamicImport))
             .As<Value>()
             .As<String>();
-    CHECK(v8_str(expected_assertions[i][0])->StrictEquals(assertion_key));
     Local<String> assertion_value =
         import_assertions
             ->Get(context, (i * kAssertionEntrySizeForDynamicImport) + 1)
             .As<Value>()
             .As<String>();
-    CHECK(v8_str(expected_assertions[i][1])->StrictEquals(assertion_value));
+    if (v8_str("a")->StrictEquals(assertion_key)) {
+      CHECK(v8_str("z")->StrictEquals(assertion_value));
+    } else if (v8_str("aa")->StrictEquals(assertion_key)) {
+      CHECK(v8_str("x")->StrictEquals(assertion_value));
+    } else if (v8_str("b")->StrictEquals(assertion_key)) {
+      CHECK(v8_str("w")->StrictEquals(assertion_value));
+    } else if (v8_str("c")->StrictEquals(assertion_key)) {
+      CHECK(v8_str("y")->StrictEquals(assertion_value));
+    } else {
+      UNREACHABLE();
+    }
   }
 
   Local<v8::Promise::Resolver> resolver =
@@ -26224,12 +26226,10 @@ TEST(DynamicImportWithAssertions) {
       v8::Utils::OpenHandle(*import_assertions);
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(1);
-  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewSymbol();
-  options->set(0, *symbol);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*options);
+  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting));
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
                                                         i_import_assertions);
@@ -27589,126 +27589,6 @@ UNINITIALIZED_TEST(NestedIsolates) {
 
 #ifndef V8_LITE_MODE
 namespace {
-template <typename T>
-struct ConvertJSValue {
-  static Maybe<T> Get(v8::Local<v8::Value> value,
-                      v8::Local<v8::Context> context);
-};
-
-template <>
-struct ConvertJSValue<int32_t> {
-  static Maybe<int32_t> Get(v8::Local<v8::Value> value,
-                            v8::Local<v8::Context> context) {
-    return value->Int32Value(context);
-  }
-};
-
-template <>
-struct ConvertJSValue<uint32_t> {
-  static Maybe<uint32_t> Get(v8::Local<v8::Value> value,
-                             v8::Local<v8::Context> context) {
-    return value->Uint32Value(context);
-  }
-};
-
-// NaNs and +/-Infinity should be 0, otherwise (modulo 2^64) - 2^63.
-// Step 8 - 12 of https://heycam.github.io/webidl/#abstract-opdef-converttoint
-// The int64_t and uint64_t implementations below are copied from Blink:
-// https://source.chromium.org/chromium/chromium/src/+/master:third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h;l=249?q=doubletointeger&sq=&ss=chromium%2Fchromium%2Fsrc
-template <>
-struct ConvertJSValue<int64_t> {
-  static Maybe<int64_t> Get(v8::Local<v8::Value> value,
-                            v8::Local<v8::Context> context) {
-    Maybe<double> double_value = value->NumberValue(context);
-    if (!double_value.IsJust()) {
-      return v8::Nothing<int64_t>();
-    }
-    double result = double_value.ToChecked();
-    if (std::isinf(result) || std::isnan(result)) {
-      return v8::Just(int64_t(0));
-    }
-    result = trunc(result);
-
-    constexpr uint64_t kMaxULL = std::numeric_limits<uint64_t>::max();
-
-    // -2^{64} < fmod_value < 2^{64}.
-    double fmod_value = fmod(result, kMaxULL + 1.0);
-    if (fmod_value >= 0) {
-      if (fmod_value < pow(2, 63)) {
-        // 0 <= fmod_value < 2^{63}.
-        // 0 <= value < 2^{63}. This cast causes no loss.
-        return v8::Just(static_cast<int64_t>(fmod_value));
-      } else {
-        // 2^{63} <= fmod_value < 2^{64}.
-        // 2^{63} <= value < 2^{64}. This cast causes no loss.
-        return v8::Just(static_cast<int64_t>(fmod_value - pow(2, 64)));
-      }
-    }
-    // -2^{64} < fmod_value < 0.
-    // 0 < fmod_value_uint64 < 2^{64}. This cast causes no loss.
-    uint64_t fmod_value_uint64 = static_cast<uint64_t>(-fmod_value);
-    // -1 < (kMaxULL - fmod_value_uint64) < 2^{64} - 1.
-    // 0 < value < 2^{64}.
-    return v8::Just(static_cast<int64_t>(kMaxULL - fmod_value_uint64 + 1));
-  }
-};
-
-template <>
-struct ConvertJSValue<uint64_t> {
-  static Maybe<uint64_t> Get(v8::Local<v8::Value> value,
-                             v8::Local<v8::Context> context) {
-    Maybe<double> double_value = value->NumberValue(context);
-    if (!double_value.IsJust()) {
-      return v8::Nothing<uint64_t>();
-    }
-    double result = double_value.ToChecked();
-    if (std::isinf(result) || std::isnan(result)) {
-      return v8::Just(uint64_t(0));
-    }
-    result = trunc(result);
-
-    constexpr uint64_t kMaxULL = std::numeric_limits<uint64_t>::max();
-
-    // -2^{64} < fmod_value < 2^{64}.
-    double fmod_value = fmod(result, kMaxULL + 1.0);
-    if (fmod_value >= 0) {
-      return v8::Just(static_cast<uint64_t>(fmod_value));
-    }
-    // -2^{64} < fmod_value < 0.
-    // 0 < fmod_value_uint64 < 2^{64}. This cast causes no loss.
-    uint64_t fmod_value_uint64 = static_cast<uint64_t>(-fmod_value);
-    // -1 < (kMaxULL - fmod_value_uint64) < 2^{64} - 1.
-    // 0 < value < 2^{64}.
-    return v8::Just(static_cast<uint64_t>(kMaxULL - fmod_value_uint64 + 1));
-  }
-};
-
-template <>
-struct ConvertJSValue<float> {
-  static Maybe<float> Get(v8::Local<v8::Value> value,
-                          v8::Local<v8::Context> context) {
-    Maybe<double> val = value->NumberValue(context);
-    if (val.IsNothing()) return v8::Nothing<float>();
-    return v8::Just(static_cast<float>(val.ToChecked()));
-  }
-};
-
-template <>
-struct ConvertJSValue<double> {
-  static Maybe<double> Get(v8::Local<v8::Value> value,
-                           v8::Local<v8::Context> context) {
-    return value->NumberValue(context);
-  }
-};
-
-template <>
-struct ConvertJSValue<bool> {
-  static Maybe<bool> Get(v8::Local<v8::Value> value,
-                         v8::Local<v8::Context> context) {
-    return v8::Just<bool>(value->BooleanValue(CcTest::isolate()));
-  }
-};
-
 template <typename Value, typename Impl>
 struct BasicApiChecker {
   static void FastCallback(v8::ApiObject receiver, Value argument,

@@ -125,11 +125,10 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            Register offset, T offset_imm) {
   if (offset.is_valid()) {
     if (offset_imm == 0) return MemOperand(addr.X(), offset.W(), UXTW);
-    Register tmp = temps->AcquireW();
-    // TODO(clemensb): Do a 64-bit addition if memory64 is used.
+    Register tmp = temps->AcquireX();
     DCHECK_GE(kMaxUInt32, offset_imm);
-    assm->Add(tmp, offset.W(), offset_imm);
-    return MemOperand(addr.X(), tmp, UXTW);
+    assm->Add(tmp, offset.X(), offset_imm);
+    return MemOperand(addr.X(), tmp);
   }
   return MemOperand(addr.X(), offset_imm);
 }
@@ -2123,11 +2122,6 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
   Neg(dst.fp().V4S(), src.fp().V4S());
 }
 
-void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  liftoff::EmitAnyTrue(this, dst, src);
-}
-
 void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, kFormat4S);
@@ -2292,11 +2286,6 @@ void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   Neg(dst.fp().V8H(), src.fp().V8H());
-}
-
-void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
@@ -2495,8 +2484,8 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
   Neg(dst.fp().V16B(), src.fp().V16B());
 }
 
-void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
+void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
+                                         LiftoffRegister src) {
   liftoff::EmitAnyTrue(this, dst, src);
 }
 

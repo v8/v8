@@ -40,6 +40,7 @@ enum ValueTypeCode : uint8_t {
   kI31RefCode = 0x6a,
   kRttWithDepthCode = 0x69,
   kRttCode = 0x68,
+  kDataRefCode = 0x67,
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;

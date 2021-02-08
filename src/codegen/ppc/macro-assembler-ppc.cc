@@ -429,6 +429,21 @@ void TurboAssembler::MultiPushDoubles(RegList dregs, Register location) {
   }
 }
 
+void TurboAssembler::MultiPushV128(RegList dregs, Register location) {
+  int16_t num_to_push = base::bits::CountPopulation(dregs);
+  int16_t stack_offset = num_to_push * kSimd128Size;
+
+  subi(location, location, Operand(stack_offset));
+  for (int16_t i = Simd128Register::kNumRegisters - 1; i >= 0; i--) {
+    if ((dregs & (1 << i)) != 0) {
+      Simd128Register dreg = Simd128Register::from_code(i);
+      stack_offset -= kSimd128Size;
+      li(ip, Operand(stack_offset));
+      StoreSimd128(dreg, MemOperand(location, ip), r0, kScratchSimd128Reg);
+    }
+  }
+}
+
 void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
   int16_t stack_offset = 0;
 
@@ -437,6 +452,20 @@ void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
       DoubleRegister dreg = DoubleRegister::from_code(i);
       lfd(dreg, MemOperand(location, stack_offset));
       stack_offset += kDoubleSize;
+    }
+  }
+  addi(location, location, Operand(stack_offset));
+}
+
+void TurboAssembler::MultiPopV128(RegList dregs, Register location) {
+  int16_t stack_offset = 0;
+
+  for (int16_t i = 0; i < Simd128Register::kNumRegisters; i++) {
+    if ((dregs & (1 << i)) != 0) {
+      Simd128Register dreg = Simd128Register::from_code(i);
+      li(ip, Operand(stack_offset));
+      LoadSimd128(dreg, MemOperand(location, ip), r0, kScratchSimd128Reg);
+      stack_offset += kSimd128Size;
     }
   }
   addi(location, location, Operand(stack_offset));

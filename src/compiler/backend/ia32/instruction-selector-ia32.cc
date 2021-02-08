@@ -560,7 +560,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    code |= MiscField::encode(kMemoryAccessPoisoned);
+    code |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs);
 }
@@ -1401,7 +1401,15 @@ void InstructionSelector::EmitPrepareArguments(
       if (input.node == nullptr) continue;
       InstructionOperand decrement = g.UseImmediate(stack_decrement);
       stack_decrement = 0;
-      if (g.CanBeMemoryOperand(kIA32Push, node, input.node, effect_level)) {
+      if (g.CanBeImmediate(input.node)) {
+        Emit(kIA32Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
+      } else if (IsSupported(ATOM) ||
+                 sequence()->IsFP(GetVirtualRegister(input.node))) {
+        // TODO(bbudge): IA32Push cannot handle stack->stack double moves
+        // because there is no way to encode fixed double slots.
+        Emit(kIA32Push, g.NoOutput(), decrement, g.UseRegister(input.node));
+      } else if (g.CanBeMemoryOperand(kIA32Push, node, input.node,
+                                      effect_level)) {
         InstructionOperand outputs[1];
         InstructionOperand inputs[5];
         size_t input_count = 0;
@@ -1411,22 +1419,7 @@ void InstructionSelector::EmitPrepareArguments(
         InstructionCode opcode = kIA32Push | AddressingModeField::encode(mode);
         Emit(opcode, 0, outputs, input_count, inputs);
       } else {
-        InstructionOperand value =
-            g.CanBeImmediate(input.node)
-                ? g.UseImmediate(input.node)
-                : IsSupported(ATOM) ||
-                          sequence()->IsFP(GetVirtualRegister(input.node))
-                      ? g.UseRegister(input.node)
-                      : g.Use(input.node);
-        if (input.location.GetType() == MachineType::Float32()) {
-          Emit(kIA32PushFloat32, g.NoOutput(), decrement, value);
-        } else if (input.location.GetType() == MachineType::Float64()) {
-          Emit(kIA32PushFloat64, g.NoOutput(), decrement, value);
-        } else if (input.location.GetType() == MachineType::Simd128()) {
-          Emit(kIA32PushSimd128, g.NoOutput(), decrement, value);
-        } else {
-          Emit(kIA32Push, g.NoOutput(), decrement, value);
-        }
+        Emit(kIA32Push, g.NoOutput(), decrement, g.UseAny(input.node));
       }
     }
   }
@@ -2256,20 +2249,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8GtU)              \
   V(I16x8GeU)              \
   V(I8x16SConvertI16x8)    \
-  V(I8x16Add)              \
-  V(I8x16AddSatS)          \
-  V(I8x16Sub)              \
-  V(I8x16SubSatS)          \
-  V(I8x16MinS)             \
-  V(I8x16MaxS)             \
-  V(I8x16Eq)               \
   V(I8x16Ne)               \
-  V(I8x16GtS)              \
   V(I8x16GeS)              \
-  V(I8x16AddSatU)          \
-  V(I8x16SubSatU)          \
-  V(I8x16MinU)             \
-  V(I8x16MaxU)             \
   V(I8x16GtU)              \
   V(I8x16GeU)              \
   V(S128And)               \
@@ -2285,8 +2266,21 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I64x2Add)                              \
   V(I64x2Sub)                              \
   V(I64x2Eq)                               \
+  V(I64x2Ne)                               \
   V(I32x4DotI16x8S)                        \
   V(I16x8RoundingAverageU)                 \
+  V(I8x16Add)                              \
+  V(I8x16AddSatS)                          \
+  V(I8x16Sub)                              \
+  V(I8x16SubSatS)                          \
+  V(I8x16MinS)                             \
+  V(I8x16MaxS)                             \
+  V(I8x16Eq)                               \
+  V(I8x16GtS)                              \
+  V(I8x16AddSatU)                          \
+  V(I8x16SubSatU)                          \
+  V(I8x16MinU)                             \
+  V(I8x16MaxU)                             \
   V(I8x16RoundingAverageU)
 
 // These opcodes require all inputs to be registers because the codegen is
@@ -2307,6 +2301,9 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8Q15MulRSatS)
 
 #define SIMD_UNOP_LIST(V)   \
+  V(F64x2ConvertLowI32x4S)  \
+  V(F64x2PromoteLowF32x4)   \
+  V(F32x4DemoteF64x2Zero)   \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
   V(F32x4Sqrt)              \
@@ -2336,12 +2333,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16BitMask)           \
   V(S128Not)
 
-#define SIMD_ANYTRUE_LIST(V) \
-  V(V32x4AnyTrue)            \
-  V(V16x8AnyTrue)            \
-  V(V8x16AnyTrue)
-
 #define SIMD_ALLTRUE_LIST(V) \
+  V(V64x2AllTrue)            \
   V(V32x4AllTrue)            \
   V(V16x8AllTrue)            \
   V(V8x16AllTrue)
@@ -2638,17 +2631,12 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-// The implementation of AnyTrue is the same for all shapes.
-#define VISIT_SIMD_ANYTRUE(Opcode)                                  \
-  void InstructionSelector::Visit##Opcode(Node* node) {             \
-    IA32OperandGenerator g(this);                                   \
-    InstructionOperand temps[] = {g.TempRegister()};                \
-    Emit(kIA32S128AnyTrue, g.DefineAsRegister(node),                \
-         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
-  }
-SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
-#undef VISIT_SIMD_ANYTRUE
-#undef SIMD_ANYTRUE_LIST
+void InstructionSelector::VisitV128AnyTrue(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kIA32S128AnyTrue, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+}
 
 #define VISIT_SIMD_ALLTRUE(Opcode)                                            \
   void InstructionSelector::Visit##Opcode(Node* node) {                       \
@@ -3139,6 +3127,47 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   VisitRRSimd(this, node, kIA32I16x8ExtAddPairwiseI8x16U);
+}
+
+void InstructionSelector::VisitI8x16Popcnt(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+  Emit(kIA32I8x16Popcnt, dst, g.UseUniqueRegister(node->InputAt(0)),
+       arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kIA32F64x2ConvertLowI32x4U, dst, g.UseRegister(node->InputAt(0)),
+       arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  if (IsSupported(AVX)) {
+    // Requires dst != src.
+    Emit(kIA32I32x4TruncSatF64x2SZero, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
+  } else {
+    Emit(kIA32I32x4TruncSatF64x2SZero, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+  }
+}
+
+void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kIA32I32x4TruncSatF64x2UZero, dst, g.UseRegister(node->InputAt(0)),
+       arraysize(temps), temps);
 }
 
 // static

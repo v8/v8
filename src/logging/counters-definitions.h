@@ -140,8 +140,9 @@ namespace internal {
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
-  HT(stop_the_world, V8.StopTheWorld, 10000, MICROSECOND)                      \
-  HT(time_to_collection, V8.TimeToCollection, 10000, MICROSECOND)              \
+  HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
+  HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
+     10000000, MICROSECOND)                                                    \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \
@@ -314,12 +315,10 @@ namespace internal {
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
-#define STATS_COUNTER_TS_LIST(SC)                                    \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)            \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                             \
-  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions) \
-  SC(liftoff_compiled_functions, V8.LiftoffCompiledFunctions)        \
-  SC(liftoff_unsupported_functions, V8.LiftoffUnsupportedFunctions)
+#define STATS_COUNTER_TS_LIST(SC)                         \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes) \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                  \
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
 
 // List of counters that can be incremented from generated code. We need them in
 // a separate list to be able to relocate them.

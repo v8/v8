@@ -993,7 +993,8 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       }
       if (lookup->constness() == PropertyConstness::kConst &&
           !holder_is_lookup_start_object) {
-        DCHECK(!lookup->is_dictionary_holder());
+        DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                       !lookup->is_dictionary_holder());
 
         Handle<Object> value = lookup->GetDataValue();
 
@@ -1803,6 +1804,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));
+        DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                       lookup->constness() == PropertyConstness::kMutable);
         // TODO(v8:11167) don't create slow hanlder once OrderedNameDictionary
         // supported.
         Handle<Smi> handler = V8_DICT_MODE_PROTOTYPES_BOOL

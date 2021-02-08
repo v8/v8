@@ -292,6 +292,7 @@ namespace compiler {
   V(MipsI8x16GeU)                  \
   V(MipsI8x16RoundingAverageU)     \
   V(MipsI8x16Abs)                  \
+  V(MipsI8x16Popcnt)               \
   V(MipsI8x16BitMask)              \
   V(MipsS128And)                   \
   V(MipsS128Or)                    \
@@ -299,12 +300,10 @@ namespace compiler {
   V(MipsS128Not)                   \
   V(MipsS128Select)                \
   V(MipsS128AndNot)                \
-  V(MipsV32x4AnyTrue)              \
   V(MipsV32x4AllTrue)              \
-  V(MipsV16x8AnyTrue)              \
   V(MipsV16x8AllTrue)              \
-  V(MipsV8x16AnyTrue)              \
   V(MipsV8x16AllTrue)              \
+  V(MipsV128AnyTrue)               \
   V(MipsS32x4InterleaveRight)      \
   V(MipsS32x4InterleaveLeft)       \
   V(MipsS32x4PackEven)             \

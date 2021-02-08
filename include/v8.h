@@ -8479,7 +8479,7 @@ class V8_EXPORT Isolate {
      */
     std::shared_ptr<CppHeapCreateParams> cpp_heap_params;
 
-    V8_DEPRECATE_SOON(
+    V8_DEPRECATED(
         "Setting this has no effect. Embedders should ignore import assertions "
         "that they do not use.")
     std::vector<std::string> supported_import_assertions;
@@ -8719,6 +8719,7 @@ class V8_EXPORT Isolate {
     kWasmRefTypes = 108,
     kWasmBulkMemory = 109,  // Unused.
     kWasmMultiValue = 110,
+    kWasmExceptionHandling = 111,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to

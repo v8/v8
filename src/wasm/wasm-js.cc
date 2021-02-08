@@ -1368,10 +1368,15 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
           }
           break;
         }
+        case internal::wasm::HeapType::kBottom:
+          UNREACHABLE();
         case i::wasm::HeapType::kEq:
+        case internal::wasm::HeapType::kI31:
+        case internal::wasm::HeapType::kData:
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();
+          break;
       }
       break;
     }
@@ -1840,6 +1845,10 @@ void WebAssemblyGlobalGetValueCommon(
         case i::wasm::HeapType::kAny:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
+        case internal::wasm::HeapType::kBottom:
+          UNREACHABLE();
+        case internal::wasm::HeapType::kI31:
+        case internal::wasm::HeapType::kData:
         case i::wasm::HeapType::kEq:
         default:
           // TODO(7748): Implement these.
@@ -1932,7 +1941,10 @@ void WebAssemblyGlobalSetValue(
           }
           break;
         }
-
+        case internal::wasm::HeapType::kBottom:
+          UNREACHABLE();
+        case internal::wasm::HeapType::kI31:
+        case internal::wasm::HeapType::kData:
         case i::wasm::HeapType::kEq:
         default:
           // TODO(7748): Implement these.

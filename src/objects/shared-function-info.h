@@ -18,6 +18,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
 #include "src/roots/roots.h"
+#include "src/wasm/value-type.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 #include "torque-generated/bit-fields.h"
 #include "torque-generated/field-offsets.h"
@@ -34,9 +35,15 @@ class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
 class IsCompiledScope;
+template <typename>
+class Signature;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
+
+namespace wasm {
+struct WasmModule;
+}  // namespace wasm
 
 #include "torque-generated/src/objects/shared-function-info-tq.inc"
 
@@ -320,6 +327,9 @@ class SharedFunctionInfo
   inline bool HasWasmCapiFunctionData() const;
   WasmCapiFunctionData wasm_capi_function_data() const;
 
+  inline const wasm::WasmModule* wasm_module() const;
+  inline const wasm::FunctionSig* wasm_function_signature() const;
+
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.
   inline void ClearPreparseData();
@@ -389,10 +399,6 @@ class SharedFunctionInfo
   // private instance methdos.
   DECL_BOOLEAN_ACCESSORS(class_scope_has_private_brand)
   DECL_BOOLEAN_ACCESSORS(has_static_private_methods_or_accessors)
-
-  // True if this SFI has been (non-OSR) optimized in the past. This is used to
-  // guide native-context-independent codegen.
-  DECL_BOOLEAN_ACCESSORS(has_optimized_at_least_once)
 
   // True if a Code object associated with this SFI has been inserted into the
   // compilation cache. Note that the cache entry may be removed by aging,
@@ -622,11 +628,6 @@ class SharedFunctionInfo
   STATIC_ASSERT(FunctionSyntaxKind::kLastFunctionSyntaxKind <=
                 FunctionSyntaxKindBits::kMax);
 
-  // Indicates that this function uses a super property (or an eval that may
-  // use a super property).
-  // This is needed to set up the [[HomeObject]] on the function instance.
-  inline bool needs_home_object() const;
-
   // Sets the bytecode in {shared}'s DebugInfo as the bytecode to
   // be returned by following calls to GetActiveBytecodeArray. Stores a
   // reference to the original bytecode in the DebugInfo.
@@ -659,8 +660,6 @@ class SharedFunctionInfo
   DECL_BOOLEAN_ACCESSORS(is_oneshot_iife_or_properties_are_final)
 
   inline void set_kind(FunctionKind kind);
-
-  inline void set_needs_home_object(bool value);
 
   inline uint16_t get_property_estimate_from_literal(FunctionLiteral* literal);
 

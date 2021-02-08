@@ -305,8 +305,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                    InstructionCode opcode, Instruction* instr,
                                    MipsOperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     codegen->tasm()->And(value, value, kSpeculationPoisonRegister);
@@ -3007,6 +3006,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   kSimd128RegZero);
       break;
     }
+    case kMipsI8x16Popcnt: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ pcnt_b(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kMipsI8x16BitMask: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
@@ -3049,9 +3053,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0));
       break;
     }
-    case kMipsV32x4AnyTrue:
-    case kMipsV16x8AnyTrue:
-    case kMipsV8x16AnyTrue: {
+    case kMipsV128AnyTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_false;

@@ -10,9 +10,6 @@
 namespace v8 {
 namespace internal {
 
-// Define storage so we can use things like std::min that may take an address.
-constexpr int AlignedSlotAllocator::kSlotSize;
-
 int AlignedSlotAllocator::NextSlot(int n) const {
   DCHECK(n == 1 || n == 2 || n == 4);
   if (n <= 1 && IsValid(next1_)) return next1_;

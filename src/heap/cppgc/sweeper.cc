@@ -526,8 +526,7 @@ class Sweeper::SweeperImpl final {
       : heap_(heap),
         stats_collector_(stats_collector),
         space_states_(heap->size()),
-        platform_(platform),
-        foreground_task_runner_(platform_->GetForegroundTaskRunner()) {}
+        platform_(platform) {}
 
   ~SweeperImpl() { CancelSweepers(); }
 
@@ -654,6 +653,8 @@ class Sweeper::SweeperImpl final {
     return is_sweeping_on_mutator_thread_;
   }
 
+  bool IsSweepingInProgress() const { return is_in_progress_; }
+
  private:
   class MutatorThreadSweepingScope final {
    public:
@@ -728,12 +729,11 @@ class Sweeper::SweeperImpl final {
 
   void ScheduleIncrementalSweeping() {
     DCHECK(platform_);
-    if (!foreground_task_runner_ ||
-        !foreground_task_runner_->IdleTasksEnabled())
-      return;
+    auto runner = platform_->GetForegroundTaskRunner();
+    if (!runner || !runner->IdleTasksEnabled()) return;
 
     incremental_sweeper_handle_ =
-        IncrementalSweepTask::Post(this, foreground_task_runner_.get());
+        IncrementalSweepTask::Post(this, runner.get());
   }
 
   void ScheduleConcurrentSweeping() {
@@ -761,7 +761,6 @@ class Sweeper::SweeperImpl final {
   StatsCollector* stats_collector_;
   SpaceStates space_states_;
   cppgc::Platform* platform_;
-  std::shared_ptr<cppgc::TaskRunner> foreground_task_runner_;
   IncrementalSweepTask::Handle incremental_sweeper_handle_;
   std::unique_ptr<cppgc::JobHandle> concurrent_sweeper_handle_;
   // Indicates whether the sweeping phase is in progress.
@@ -789,6 +788,10 @@ bool Sweeper::SweepForAllocationIfRunning(NormalPageSpace* space, size_t size) {
 }
 bool Sweeper::IsSweepingOnMutatorThread() const {
   return impl_->IsSweepingOnMutatorThread();
+}
+
+bool Sweeper::IsSweepingInProgress() const {
+  return impl_->IsSweepingInProgress();
 }
 
 }  // namespace internal

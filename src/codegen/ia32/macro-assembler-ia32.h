@@ -96,7 +96,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void AllocateStackSpace(int bytes);
 #else
   void AllocateStackSpace(Register bytes) { sub(esp, bytes); }
-  void AllocateStackSpace(int bytes) { sub(esp, Immediate(bytes)); }
+  void AllocateStackSpace(int bytes) {
+    DCHECK_GE(bytes, 0);
+    if (bytes == 0) return;
+    sub(esp, Immediate(bytes));
+  }
 #endif
 
   // Print a message to stdout and abort execution.
@@ -324,6 +328,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtdq2pd, cvtdq2pd, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtps2pd, cvtps2pd, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtpd2ps, cvtpd2ps, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvttps2dq, cvttps2dq, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Sqrtps, sqrtps, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, XMMRegister)
@@ -406,6 +413,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
   AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
 
+  AVX_PACKED_OP3(Unpcklps, unpcklps)
   AVX_PACKED_OP3(Addps, addps)
   AVX_PACKED_OP3(Addpd, addpd)
   AVX_PACKED_OP3(Subps, subps)
@@ -442,6 +450,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Pavgb, pavgb)
   AVX_PACKED_OP3(Pavgw, pavgw)
   AVX_PACKED_OP3(Pand, pand)
+  AVX_PACKED_OP3(Pminub, pminub)
+  AVX_PACKED_OP3(Pmaxub, pmaxub)
+  AVX_PACKED_OP3(Paddusb, paddusb)
+  AVX_PACKED_OP3(Psubusb, psubusb)
+  AVX_PACKED_OP3(Pcmpgtb, pcmpgtb)
+  AVX_PACKED_OP3(Pcmpeqb, pcmpeqb)
+  AVX_PACKED_OP3(Paddb, paddb)
+  AVX_PACKED_OP3(Paddsb, paddsb)
+  AVX_PACKED_OP3(Psubb, psubb)
+  AVX_PACKED_OP3(Psubsb, psubsb)
+
 #undef AVX_PACKED_OP3
 
   AVX_PACKED_OP3_WITH_TYPE(Psllw, psllw, XMMRegister, uint8_t)
@@ -527,11 +546,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
   AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, XMMRegister, SSSE3)
+  AVX_OP3_XO_SSE4(Pminsb, pminsb)
+  AVX_OP3_XO_SSE4(Pmaxsb, pmaxsb)
 
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
 
   void Haddps(XMMRegister dst, XMMRegister src1, Operand src2);
+  void Pcmpeqq(XMMRegister dst, Operand src2);
+  void Pcmpeqq(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pcmpeqq(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, dst, src); }
   void Pshufb(XMMRegister dst, Operand src) { Pshufb(dst, dst, src); }

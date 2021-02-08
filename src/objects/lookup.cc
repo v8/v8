@@ -327,15 +327,13 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   DCHECK(HolderIsReceiverOrHiddenPrototype());
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
-  // JSProxy does not have fast properties so we do an early return.
-  DCHECK_IMPLIES(holder->IsJSProxy(isolate_),
-                 !holder->HasFastProperties(isolate_));
+  // We are not interested in tracking constness of a JSProxy's direct
+  // properties.
   DCHECK_IMPLIES(holder->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
   if (holder->IsJSProxy(isolate_)) return;
 
-  Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
-
   if (IsElement(*holder)) {
+    Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
     ElementsKind kind = holder_obj->GetElementsKind(isolate_);
     ElementsKind to = value->OptimalElementsKind(isolate_);
     if (IsHoleyElementsKind(kind)) to = GetHoleyElementsKind(to);
@@ -353,10 +351,9 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     return;
   }
 
-  if (holder_obj->IsJSGlobalObject(isolate_)) {
+  if (holder->IsJSGlobalObject(isolate_)) {
     Handle<GlobalDictionary> dictionary(
-        JSGlobalObject::cast(*holder_obj)
-            .global_dictionary(isolate_, kAcquireLoad),
+        JSGlobalObject::cast(*holder).global_dictionary(isolate_, kAcquireLoad),
         isolate());
     Handle<PropertyCell> cell(dictionary->CellAt(isolate_, dictionary_entry()),
                               isolate());
@@ -365,22 +362,44 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
                                   value, property_details_);
     return;
   }
-  if (!holder_obj->HasFastProperties(isolate_)) return;
 
   PropertyConstness new_constness = PropertyConstness::kConst;
   if (constness() == PropertyConstness::kConst) {
     DCHECK_EQ(kData, property_details_.kind());
     // Check that current value matches new value otherwise we should make
     // the property mutable.
-    if (!IsConstFieldValueEqualTo(*value))
-      new_constness = PropertyConstness::kMutable;
+    if (holder->HasFastProperties(isolate_)) {
+      if (!IsConstFieldValueEqualTo(*value)) {
+        new_constness = PropertyConstness::kMutable;
+      }
+    } else if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+      if (!IsConstDictValueEqualTo(*value)) {
+        property_details_ =
+            property_details_.CopyWithConstness(PropertyConstness::kMutable);
+
+        // We won't reach the map updating code after Map::Update below, because
+        // that's only for the case that the existing map is a fast mode map.
+        // Therefore, we need to perform the necessary updates to the property
+        // details and the prototype validity cell directly.
+        NameDictionary dict = holder->property_dictionary();
+        dict.DetailsAtPut(dictionary_entry(), property_details_);
+
+        Map old_map = holder->map(isolate_);
+        if (old_map.is_prototype_map()) {
+          JSObject::InvalidatePrototypeChains(old_map);
+        }
+      }
+      return;
+    }
   }
 
-  Handle<Map> old_map(holder_obj->map(isolate_), isolate_);
-  DCHECK(!old_map->is_dictionary_map());
+  if (!holder->HasFastProperties(isolate_)) return;
+
+  Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
+  Handle<Map> old_map(holder->map(isolate_), isolate_);
 
   Handle<Map> new_map = Map::Update(isolate_, old_map);
-  if (!new_map->is_dictionary_map()) {
+  if (!new_map->is_dictionary_map()) {  // fast -> fast
     new_map = Map::PrepareForDataProperty(
         isolate(), new_map, descriptor_number(), new_constness, value);
 
@@ -400,6 +419,22 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   JSObject::MigrateToMap(isolate_, holder_obj, new_map);
   ReloadPropertyInformation<false>();
+
+  // If we transitioned from fast to slow and the property changed from kConst
+  // to kMutable, then this change in the constness is indicated by neither the
+  // old or the new map. We need to update the constness ourselves.
+  DCHECK(!old_map->is_dictionary_map());
+  if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && new_map->is_dictionary_map() &&
+      new_constness == PropertyConstness::kMutable) {  // fast -> slow
+    property_details_ =
+        property_details_.CopyWithConstness(PropertyConstness::kMutable);
+
+    NameDictionary dict = holder_obj->property_dictionary();
+    dict.DetailsAtPut(dictionary_entry(), property_details_);
+
+    DCHECK_IMPLIES(new_map->is_prototype_map(),
+                   !new_map->IsPrototypeValidityCellValid());
+  }
 }
 
 void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
@@ -442,7 +477,6 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   }
 
   if (!IsElement(*holder) && !holder_obj->HasFastProperties(isolate_)) {
-    PropertyDetails details(kData, attributes, PropertyCellType::kMutable);
     if (holder_obj->map(isolate_).is_prototype_map() &&
         (property_details_.attributes() & READ_ONLY) == 0 &&
         (attributes & READ_ONLY) != 0) {
@@ -452,6 +486,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       JSObject::InvalidatePrototypeChains(holder->map(isolate_));
     }
     if (holder_obj->IsJSGlobalObject(isolate_)) {
+      PropertyDetails details(kData, attributes, PropertyCellType::kMutable);
       Handle<GlobalDictionary> dictionary(
           JSGlobalObject::cast(*holder_obj)
               .global_dictionary(isolate_, kAcquireLoad),
@@ -462,6 +497,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       cell->set_value(*value);
       property_details_ = cell->property_details();
     } else {
+      PropertyDetails details(kData, attributes, PropertyConstness::kMutable);
       if (V8_DICT_MODE_PROTOTYPES_BOOL) {
         Handle<OrderedNameDictionary> dictionary(
             holder_obj->property_dictionary_ordered(isolate_), isolate());
@@ -528,8 +564,8 @@ void LookupIterator::PrepareTransitionToDataProperty(
       has_property_ = true;
     } else {
       // Don't set enumeration index (it will be set during value store).
-      property_details_ =
-          PropertyDetails(kData, attributes, PropertyCellType::kNoCell);
+      property_details_ = PropertyDetails(
+          kData, attributes, PropertyDetails::kConstIfDictConstnessTracking);
       transition_ = map;
     }
     return;
@@ -542,9 +578,10 @@ void LookupIterator::PrepareTransitionToDataProperty(
   transition_ = transition;
 
   if (transition->is_dictionary_map()) {
+    DCHECK(!transition->IsJSGlobalObjectMap());
     // Don't set enumeration index (it will be set during value store).
-    property_details_ =
-        PropertyDetails(kData, attributes, PropertyCellType::kNoCell);
+    property_details_ = PropertyDetails(
+        kData, attributes, PropertyDetails::kConstIfDictConstnessTracking);
   } else {
     property_details_ = transition->GetLastDescriptorDetails(isolate_);
     has_property_ = true;
@@ -883,6 +920,33 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
   }
 }
 
+bool LookupIterator::IsConstDictValueEqualTo(Object value) const {
+  DCHECK(!IsElement(*holder_));
+  DCHECK(!holder_->HasFastProperties(isolate_));
+  DCHECK(!holder_->IsJSGlobalObject());
+  DCHECK(!holder_->IsJSProxy());
+  DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
+
+  DisallowHeapAllocation no_gc;
+
+  if (value.IsUninitialized(isolate())) {
+    // Storing uninitialized value means that we are preparing for a computed
+    // property value in an object literal. The initializing store will follow
+    // and it will properly update constness based on the actual value.
+    return true;
+  }
+  Handle<JSReceiver> holder = GetHolder<JSReceiver>();
+  NameDictionary dict = holder->property_dictionary();
+
+  Object current_value = dict.ValueAt(dictionary_entry());
+
+  if (current_value.IsUninitialized(isolate()) || current_value == value) {
+    return true;
+  }
+  return current_value.IsNumber(isolate_) && value.IsNumber(isolate_) &&
+         Object::SameNumberValue(current_value.Number(), value.Number());
+}
+
 int LookupIterator::GetFieldDescriptorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
@@ -975,6 +1039,12 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     dictionary.CellAt(isolate_, dictionary_entry()).set_value(*value);
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
+    // Check similar to fast mode case above.
+    DCHECK_IMPLIES(
+        V8_DICT_PROPERTY_CONST_TRACKING_BOOL && !initializing_store &&
+            property_details_.constness() == PropertyConstness::kConst,
+        holder->IsJSProxy(isolate_) || IsConstDictValueEqualTo(*value));
+
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       OrderedNameDictionary dictionary =
           holder->property_dictionary_ordered(isolate_);

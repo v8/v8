@@ -858,11 +858,9 @@ void MarkCompactCollector::Prepare() {
     space->PrepareForMarkCompact();
   }
 
-  if (FLAG_local_heaps) {
-    // Fill and reset all background thread LABs
-    heap_->safepoint()->IterateLocalHeaps(
-        [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
-  }
+  // Fill and reset all background thread LABs
+  heap_->safepoint()->IterateLocalHeaps(
+      [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
 
   // All objects are guaranteed to be initialized in atomic pause
   heap()->new_lo_space()->ResetPendingObject();
@@ -2117,7 +2115,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
 
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   DCHECK(non_atomic_marking_state()->IsWhite(dead_target));
-  Object potential_parent = dead_target.constructor_or_backpointer();
+  Object potential_parent = dead_target.constructor_or_back_pointer();
   if (potential_parent.IsMap()) {
     Map parent = Map::cast(potential_parent);
     DisallowGarbageCollection no_gc_obviously;
@@ -2255,14 +2253,14 @@ void MarkCompactCollector::ClearFullMapTransitions() {
       // filled. Allow it.
       if (array.GetTargetIfExists(0, isolate(), &map)) {
         DCHECK(!map.is_null());  // Weak pointers aren't cleared yet.
-        Object constructor_or_backpointer = map.constructor_or_backpointer();
-        if (constructor_or_backpointer.IsSmi()) {
+        Object constructor_or_back_pointer = map.constructor_or_back_pointer();
+        if (constructor_or_back_pointer.IsSmi()) {
           DCHECK(isolate()->has_active_deserializer());
-          DCHECK_EQ(constructor_or_backpointer,
+          DCHECK_EQ(constructor_or_back_pointer,
                     Deserializer::uninitialized_field_value());
           continue;
         }
-        Map parent = Map::cast(map.constructor_or_backpointer());
+        Map parent = Map::cast(map.constructor_or_back_pointer());
         bool parent_is_alive =
             non_atomic_marking_state()->IsBlackOrGrey(parent);
         DescriptorArray descriptors =
@@ -2324,7 +2322,7 @@ bool MarkCompactCollector::CompactTransitionArray(Map map,
   // Compact all live transitions to the left.
   for (int i = 0; i < num_transitions; ++i) {
     Map target = transitions.GetTarget(i);
-    DCHECK_EQ(target.constructor_or_backpointer(), map);
+    DCHECK_EQ(target.constructor_or_back_pointer(), map);
     if (non_atomic_marking_state()->IsWhite(target)) {
       if (!descriptors.is_null() &&
           target.instance_descriptors(kRelaxedLoad) == descriptors) {

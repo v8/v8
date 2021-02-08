@@ -326,7 +326,8 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case HeapType::kAny:
       return super_heap == HeapType::kAny;
     case HeapType::kI31:
-      return super_heap == HeapType::kI31 || super_heap == HeapType::kEq ||
+    case HeapType::kData:
+      return super_heap == sub_heap || super_heap == HeapType::kEq ||
              super_heap == HeapType::kAny;
     case HeapType::kBottom:
       UNREACHABLE();
@@ -342,6 +343,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case HeapType::kFunc:
       return sub_module->has_signature(sub_index);
     case HeapType::kEq:
+    case HeapType::kData:
       return !sub_module->has_signature(sub_index);
     case HeapType::kExtern:
     case HeapType::kI31:

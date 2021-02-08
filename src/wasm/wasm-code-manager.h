@@ -730,6 +730,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
   WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
 
+  // Transfer owned code from {new_owned_code_} to {owned_code_}.
+  void TransferNewOwnedCodeLocked() const;
+
   // -- Fields of {NativeModule} start here.
 
   WasmEngine* const engine_;
@@ -788,9 +791,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {allocation_mutex_}:
 
-  // Holds all allocated code objects. For lookup based on pc, the key is the
-  // instruction start address of the value.
-  std::map<Address, std::unique_ptr<WasmCode>> owned_code_;
+  // Holds allocated code objects for fast lookup and deletion. For lookup based
+  // on pc, the key is the instruction start address of the value. Filled lazily
+  // from {new_owned_code_} (below).
+  mutable std::map<Address, std::unique_ptr<WasmCode>> owned_code_;
+
+  // Holds owned code which is not inserted into {owned_code_} yet. It will be
+  // inserted on demand. This has much better performance than inserting
+  // individual code objects.
+  mutable std::vector<std::unique_ptr<WasmCode>> new_owned_code_;
 
   // Table of the latest code object per function, updated on initial
   // compilation and tier up. The number of entries is

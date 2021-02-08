@@ -540,7 +540,13 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
       frame_finder(isolate);
   auto instance = handle(frame_finder.frame()->wasm_instance(), isolate);
   int position = frame_finder.frame()->position();
+  auto frame_id = frame_finder.frame()->id();
   isolate->set_context(instance->native_context());
+
+  // Stepping can repeatedly create code, and code GC requires stack guards to
+  // be executed on all involved isolates. Proactively do this here.
+  StackLimitCheck check(isolate);
+  if (check.InterruptRequested()) isolate->stack_guard()->HandleInterrupts();
 
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
@@ -559,7 +565,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   // Check whether we hit a breakpoint.
   Handle<Script> script(instance->module_object().script(), isolate);
   Handle<FixedArray> breakpoints;
-  if (WasmScript::CheckBreakPoints(isolate, script, position)
+  if (WasmScript::CheckBreakPoints(isolate, script, position, frame_id)
           .ToHandle(&breakpoints)) {
     debug_info->ClearStepping(isolate);
     StepAction stepAction = isolate->debug()->last_step_action();

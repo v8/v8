@@ -637,6 +637,52 @@ TEST_F(PersistentTest, HeterogeneousConversion) {
   HeterogeneousConversion<WeakPersistent, Persistent>(heap);
 }
 
+namespace {
+
+class Parent : public GarbageCollected<Parent> {
+ public:
+  virtual void Trace(Visitor*) const {}
+  void ParentFoo() { /* Dummy method to trigger vtable check on UBSan. */
+  }
+};
+class Child : public Parent {
+ public:
+  void ChildFoo() { /* Dummy method to trigger vtable check on UBSan. */
+  }
+};
+
+template <template <typename> class PersistentType>
+void ImplicitUpcast(cppgc::Heap* heap) {
+  PersistentType<Child> child;
+  PersistentType<Parent> parent = child;
+}
+
+template <template <typename> class PersistentType>
+void ExplicitDowncast(cppgc::Heap* heap) {
+  PersistentType<Parent> parent{
+      MakeGarbageCollected<Child>(heap->GetAllocationHandle())};
+  PersistentType<Child> child = parent.template To<Child>();
+  child->ChildFoo();
+}
+
+}  // namespace
+
+TEST_F(PersistentTest, ImplicitUpcast) {
+  auto* heap = GetHeap();
+  ImplicitUpcast<Persistent>(heap);
+  ImplicitUpcast<WeakPersistent>(heap);
+  ImplicitUpcast<subtle::CrossThreadPersistent>(heap);
+  ImplicitUpcast<subtle::WeakCrossThreadPersistent>(heap);
+}
+
+TEST_F(PersistentTest, ExplicitDowncast) {
+  auto* heap = GetHeap();
+  ExplicitDowncast<Persistent>(heap);
+  ExplicitDowncast<WeakPersistent>(heap);
+  ExplicitDowncast<subtle::CrossThreadPersistent>(heap);
+  ExplicitDowncast<subtle::WeakCrossThreadPersistent>(heap);
+}
+
 TEST_F(PersistentTest, TraceStrong) {
   auto* heap = GetHeap();
   static constexpr size_t kItems = 512;
@@ -875,6 +921,11 @@ TEST_F(PersistentTest, EmptyPersistentConstructDestructWithoutCompleteType) {
   WeakPersistent<IncompleteType> p2;
   subtle::CrossThreadPersistent<IncompleteType> p3;
   subtle::WeakCrossThreadPersistent<IncompleteType> p4;
+}
+
+TEST_F(PersistentTest, Lock) {
+  subtle::WeakCrossThreadPersistent<GCed> weak;
+  auto strong = weak.Lock();
 }
 
 }  // namespace internal

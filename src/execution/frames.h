@@ -516,7 +516,7 @@ class CommonFrame : public StackFrame {
 
 class TypedFrame : public CommonFrame {
  public:
-  Code unchecked_code() const override { return Code(); }
+  Code unchecked_code() const override { return {}; }
   void Iterate(RootVisitor* v) const override { IterateCompiledFrame(v); }
 
  protected:
@@ -897,9 +897,6 @@ class WasmFrame : public TypedFrame {
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable();
 
-  // Determine the code for the frame.
-  Code unchecked_code() const override;
-
   // Accessors.
   V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
@@ -1027,9 +1024,6 @@ class InternalFrame : public TypedFrame {
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
-
-  // Determine the code for the frame.
-  Code unchecked_code() const override;
 
   static InternalFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_internal());

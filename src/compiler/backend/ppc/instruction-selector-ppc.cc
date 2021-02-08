@@ -230,7 +230,7 @@ void InstructionSelector::VisitLoad(Node* node) {
 
   if (node->opcode() == IrOpcode::kPoisonedLoad &&
       poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
-    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
 
   bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
@@ -2297,9 +2297,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16ShrU)
 
 #define SIMD_BOOL_LIST(V) \
-  V(V32x4AnyTrue)         \
-  V(V16x8AnyTrue)         \
-  V(V8x16AnyTrue)         \
+  V(V128AnyTrue)          \
   V(V32x4AllTrue)         \
   V(V16x8AllTrue)         \
   V(V8x16AllTrue)
@@ -2503,6 +2501,7 @@ void InstructionSelector::VisitI16x8ExtMulLowI8x16U(Node* node) {
 void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
   UNIMPLEMENTED();
 }
+void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,

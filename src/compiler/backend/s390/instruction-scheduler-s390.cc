@@ -211,6 +211,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I64x2UConvertI32x4Low:
     case kS390_I64x2UConvertI32x4High:
     case kS390_I64x2SignSelect:
+    case kS390_I64x2Ne:
     case kS390_I32x4Splat:
     case kS390_I32x4ExtractLane:
     case kS390_I32x4ReplaceLane:
@@ -324,12 +325,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I8x16Shuffle:
     case kS390_I8x16Swizzle:
     case kS390_I8x16SignSelect:
-    case kS390_V32x4AnyTrue:
-    case kS390_V16x8AnyTrue:
-    case kS390_V8x16AnyTrue:
+    case kS390_I8x16Popcnt:
+    case kS390_V64x2AllTrue:
     case kS390_V32x4AllTrue:
     case kS390_V16x8AllTrue:
     case kS390_V8x16AllTrue:
+    case kS390_V128AnyTrue:
     case kS390_S128And:
     case kS390_S128Or:
     case kS390_S128Xor:

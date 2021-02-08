@@ -166,7 +166,9 @@ class ClosureFeedbackCellArray : public FixedArray {
 
   V8_EXPORT_PRIVATE static Handle<ClosureFeedbackCellArray> New(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
+
   inline Handle<FeedbackCell> GetFeedbackCell(int index);
+  inline FeedbackCell cell(int index);
 
   DECL_VERIFIER(ClosureFeedbackCellArray)
   DECL_PRINTER(ClosureFeedbackCellArray)
@@ -249,6 +251,7 @@ class FeedbackVector
   // Returns the feedback cell at |index| that is used to create the
   // closure.
   inline Handle<FeedbackCell> GetClosureFeedbackCell(int index) const;
+  inline FeedbackCell closure_feedback_cell(int index) const;
 
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot slots_start();

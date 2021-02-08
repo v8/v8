@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "cppgc/internal/pointer-policies.h"
+#include "cppgc/sentinel-pointer.h"
 #include "cppgc/type-traits.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -203,6 +204,8 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   void ClearFromGC() const { MemberBase::ClearFromGC(); }
 
   friend class cppgc::Visitor;
+  template <typename U>
+  friend struct cppgc::TraceTrait;
 };
 
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,

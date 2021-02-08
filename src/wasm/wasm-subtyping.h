@@ -45,10 +45,14 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
 // - ref(ht1) <: ref/optref(ht2) iff ht1 <: ht2.
 // - rtt1 <: rtt2 iff rtt1 ~ rtt2.
 // For heap types, the following subtyping rules hold:
-// - Each generic heap type is a subtype of itself.
-// - All heap types are subtypes of any.
+// - The abstract heap types form the following type hierarchy:
+//           any
+//         /  |  \
+//       eq func  extern
+//      / \
+//   i31   data
+// - All structs and arrays are subtypes of data.
 // - All functions are subtypes of func.
-// - i31, structs and arrays are subtypes of eq.
 // - Struct subtyping: Subtype must have at least as many fields as supertype,
 //   covariance for immutable fields, equivalence for mutable fields.
 // - Array subtyping (mutable only) is the equivalence relation.

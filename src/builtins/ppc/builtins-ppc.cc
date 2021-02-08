@@ -554,6 +554,13 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ LoadP(r0, MemOperand(r3));
   __ push(r0);
 
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ li(r0, Operand::Zero());
+  __ StoreP(r0, MemOperand(r3));
+
   Register scratch = r9;
   // Set up frame pointer for the frame to be pushed.
   __ addi(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
@@ -953,7 +960,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ addi(bytecode_offset, bytecode_offset, Operand(1));
   __ lbzx(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ addi(bytecode_size_table, bytecode_size_table,
-          Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+          Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount));
   __ b(&process_bytecode);
 
   __ bind(&extra_wide);
@@ -961,7 +968,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ addi(bytecode_offset, bytecode_offset, Operand(1));
   __ lbzx(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ addi(bytecode_size_table, bytecode_size_table,
-          Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+          Operand(2 * kByteSize * interpreter::Bytecodes::kBytecodeCount));
 
   // Load the size of the current bytecode.
   __ bind(&process_bytecode);
@@ -987,8 +994,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ ShiftLeftImm(scratch3, bytecode, Operand(2));
-  __ lwzx(scratch3, MemOperand(bytecode_size_table, scratch3));
+  __ lbzx(scratch3, MemOperand(bytecode_size_table, bytecode));
   __ add(bytecode_offset, bytecode_offset, scratch3);
 
   __ bind(&end);
@@ -2389,15 +2395,41 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
     constexpr RegList gp_regs =
         Register::ListOf(r3, r4, r5, r6, r7, r8, r9, r10);
     constexpr RegList fp_regs =
         DoubleRegister::ListOf(d1, d2, d3, d4, d5, d6, d7, d8);
+    constexpr RegList simd_regs =
+        Simd128Register::ListOf(v1, v2, v3, v4, v5, v6, v7, v8);
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs ==
+                      NumRegs(gp_regs),
+                  "frame size mismatch");
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                      NumRegs(fp_regs),
+                  "frame size mismatch");
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                      NumRegs(simd_regs),
+                  "frame size mismatch");
     __ MultiPush(gp_regs);
     __ MultiPushDoubles(fp_regs);
+    // V8 uses the same set of fp param registers as Simd param registers.
+    // As these registers are two different sets on ppc we must make
+    // sure to also save them when Simd is enabled.
+    // Check the comments under crrev.com/c/2645694 for more details.
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      __ MultiPushV128(simd_regs);
+    } else {
+      // kFixedFrameSizeFromFp is hard coded to include space for Simd
+      // registers, so we still need to allocate space on the stack even if we
+      // are not pushing them.
+      __ addi(
+          sp, sp,
+          Operand(-static_cast<int8_t>(base::bits::CountPopulation(simd_regs)) *
+                  kSimd128Size));
+    }
 
     // Pass instance and function index as explicit arguments to the runtime
     // function.
@@ -2410,6 +2442,14 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ mr(r11, kReturnRegister0);
 
     // Restore registers.
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      __ MultiPopV128(simd_regs);
+    } else {
+      __ addi(
+          sp, sp,
+          Operand(static_cast<int8_t>(base::bits::CountPopulation(simd_regs)) *
+                  kSimd128Size));
+    }
     __ MultiPopDoubles(fp_regs);
     __ MultiPop(gp_regs);
   }
@@ -2598,6 +2638,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    __ Move(ip, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                          masm->isolate()));
+    __ mov(r0, Operand::Zero());
+    __ StoreP(r0, MemOperand(ip));
+  }
 
   // Compute the handler entry address and jump to it.
   ConstantPoolUnavailableScope constant_pool_unavailable(masm);

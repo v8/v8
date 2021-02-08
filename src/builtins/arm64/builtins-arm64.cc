@@ -643,6 +643,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                                         masm->isolate()));
   __ Ldr(x10, MemOperand(x11));  // x10 = C entry FP.
 
+  // Clear c_entry_fp, now we've loaded its value to be pushed on the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ Str(xzr, MemOperand(x11));
+
   // Set js_entry_sp if this is the outermost JS call.
   Label done;
   ExternalReference js_entry_sp = ExternalReference::Create(
@@ -2689,13 +2695,31 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs =
-        Register::ListOf(x0, x1, x2, x3, x4, x5, x6, x7);
-    constexpr RegList fp_regs =
-        Register::ListOf(d0, d1, d2, d3, d4, d5, d6, d7);
+    RegList gp_regs = 0;
+    for (Register gp_param_reg : wasm::kGpParamRegisters) {
+      gp_regs |= gp_param_reg.bit();
+    }
+    // Also push x1, because we must push multiples of 16 bytes (see
+    // {TurboAssembler::PushCPURegList}.
+    CHECK_EQ(1, NumRegs(gp_regs) % 2);
+    gp_regs |= x1.bit();
+    CHECK_EQ(0, NumRegs(gp_regs) % 2);
+
+    RegList fp_regs = 0;
+    for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
+      fp_regs |= fp_param_reg.bit();
+    }
+
+    CHECK_EQ(NumRegs(gp_regs), arraysize(wasm::kGpParamRegisters) + 1);
+    CHECK_EQ(NumRegs(fp_regs), arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
+             NumRegs(gp_regs));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
+             NumRegs(fp_regs));
+
     __ PushXRegList(gp_regs);
     __ PushQRegList(fp_regs);
 
@@ -2940,6 +2964,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  {
+    // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch, ExternalReference::Create(
+                        IsolateAddressId::kCEntryFPAddress, masm->isolate()));
+    __ Str(xzr, MemOperand(scratch));
+  }
 
   // Compute the handler entry address and jump to it. We use x17 here for the
   // jump target, as this jump can occasionally end up at the start of

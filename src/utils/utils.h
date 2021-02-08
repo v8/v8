@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <cmath>
 #include <string>
 #include <type_traits>
@@ -17,6 +18,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/safe_conversions.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
@@ -123,15 +125,6 @@ inline double Modulo(double x, double y) {
 }
 
 template <typename T>
-T Saturate(int64_t value) {
-  static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
-  int64_t min = static_cast<int64_t>(std::numeric_limits<T>::min());
-  int64_t max = static_cast<int64_t>(std::numeric_limits<T>::max());
-  int64_t clamped = std::max(min, std::min(max, value));
-  return static_cast<T>(clamped);
-}
-
-template <typename T>
 T SaturateAdd(T a, T b) {
   if (std::is_signed<T>::value) {
     if (a > 0 && b > 0) {
@@ -187,7 +180,7 @@ T SaturateRoundingQMul(T a, T b) {
   int64_t product = a * b;
   product += round_const;
   product >>= (size_in_bits - 1);
-  return Saturate<T>(product);
+  return base::saturated_cast<T>(product);
 }
 
 // Multiply two numbers, returning a result that is twice as wide, no overflow.

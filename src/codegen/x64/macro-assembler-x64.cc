@@ -1825,6 +1825,16 @@ void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
   }
 }
 
+void TurboAssembler::Unpcklps(XMMRegister dst, XMMRegister src1, Operand src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vunpcklps(dst, src1, src2);
+  } else {
+    DCHECK_EQ(dst, src1);
+    unpcklps(dst, src2);
+  }
+}
+
 void TurboAssembler::Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                             byte imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -3008,11 +3018,13 @@ void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
 }
 
 void TurboAssembler::AllocateStackSpace(int bytes) {
+  DCHECK_GE(bytes, 0);
   while (bytes > kStackPageSize) {
     subq(rsp, Immediate(kStackPageSize));
     movb(Operand(rsp, 0), Immediate(0));
     bytes -= kStackPageSize;
   }
+  if (bytes == 0) return;
   subq(rsp, Immediate(bytes));
 }
 #endif

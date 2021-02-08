@@ -201,7 +201,7 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsCorrectValues) {
   }
   EndGC(300);
   // Check durations.
-  static constexpr int64_t kDurationComparisonTolerance = 50;
+  static constexpr int64_t kDurationComparisonTolerance = 500;
   EXPECT_LT(std::abs(MetricRecorderImpl::CppGCFullCycle_event
                          .main_thread_incremental.mark_duration_us -
                      10000),

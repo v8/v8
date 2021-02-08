@@ -22,7 +22,7 @@ class EntryFrameConstants : public AllStatic {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 7;
+  static constexpr int kNumberOfSavedGpParamRegs = 8;
   static constexpr int kNumberOfSavedFpParamRegs = 8;
 
   // FP-relative.
@@ -30,7 +30,8 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
   static constexpr int kFixedFrameSizeFromFp =
       TypedFrameConstants::kFixedFrameSizeFromFp +
       kNumberOfSavedGpParamRegs * kSystemPointerSize +
-      kNumberOfSavedFpParamRegs * kDoubleSize;
+      kNumberOfSavedFpParamRegs * kDoubleSize +
+      kNumberOfSavedFpParamRegs * kSimd128Size;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.

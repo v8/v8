@@ -208,6 +208,7 @@ const StructType* TypeVisitor::ComputeType(
             false,
             field.const_qualified,
             false,
+            false,
             false};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
@@ -429,6 +430,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          field_expression.weak,
          field_expression.const_qualified,
          field_expression.generate_verify,
+         field_expression.relaxed_read,
          field_expression.relaxed_write});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {

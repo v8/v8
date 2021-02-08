@@ -12,6 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/factory.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
@@ -91,8 +92,9 @@ void DebugSideTable::Print(std::ostream& os) const {
 }
 
 void DebugSideTable::Entry::Print(std::ostream& os) const {
-  os << std::setw(6) << std::hex << pc_offset_ << std::dec << " [";
-  for (auto& value : values_) {
+  os << std::setw(6) << std::hex << pc_offset_ << std::dec << " stack height "
+     << stack_height_ << " [";
+  for (auto& value : changed_values_) {
     os << " " << value.type.name() << ":";
     switch (value.kind) {
       case kConstant:
@@ -126,25 +128,26 @@ class DebugInfoImpl {
   WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp) {
     FrameInspectionScope scope(this, pc);
-    return GetValue(scope.debug_side_table_entry, local, fp, debug_break_fp);
+    return GetValue(scope.debug_side_table, scope.debug_side_table_entry, local,
+                    fp, debug_break_fp);
   }
 
   int GetStackDepth(Address pc) {
     FrameInspectionScope scope(this, pc);
     if (!scope.is_inspectable()) return 0;
-    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
-    int value_count = scope.debug_side_table_entry->num_values();
-    return value_count - num_locals;
+    int num_locals = scope.debug_side_table->num_locals();
+    int stack_height = scope.debug_side_table_entry->stack_height();
+    return stack_height - num_locals;
   }
 
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp) {
     FrameInspectionScope scope(this, pc);
-    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
-    int value_count = scope.debug_side_table_entry->num_values();
+    int num_locals = scope.debug_side_table->num_locals();
+    int value_count = scope.debug_side_table_entry->stack_height();
     if (num_locals + index >= value_count) return {};
-    return GetValue(scope.debug_side_table_entry, num_locals + index, fp,
-                    debug_break_fp);
+    return GetValue(scope.debug_side_table, scope.debug_side_table_entry,
+                    num_locals + index, fp, debug_break_fp);
   }
 
   const WasmFunction& GetFunctionAtAddress(Address pc) {
@@ -212,7 +215,8 @@ class DebugInfoImpl {
     return offset;
   }
 
-  WasmCode* RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
+  WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
+                                            Vector<const int> offsets,
                                             int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
     // Recompile the function with Liftoff, setting the new breakpoints.
@@ -228,22 +232,24 @@ class DebugInfoImpl {
     ForDebugging for_debugging = offsets.size() == 1 && offsets[0] == 0
                                      ? kForStepping
                                      : kWithBreakpoints;
+    // Debug side tables for stepping are generated lazily.
+    bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
     Counters* counters = nullptr;
     WasmFeatures unused_detected;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index,
-        for_debugging, counters, &unused_detected, offsets, &debug_sidetable,
-        dead_breakpoint);
+        for_debugging, counters, &unused_detected, offsets,
+        generate_debug_sidetable ? &debug_sidetable : nullptr, dead_breakpoint);
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
-    DCHECK_NOT_NULL(debug_sidetable);
+    DCHECK_EQ(generate_debug_sidetable, debug_sidetable != nullptr);
 
     WasmCode* new_code = native_module_->PublishCode(
         native_module_->AddCompiledCode(std::move(result)));
 
     DCHECK(new_code->is_inspectable());
-    {
+    if (generate_debug_sidetable) {
       base::MutexGuard lock(&debug_side_tables_mutex_);
       DCHECK_EQ(0, debug_side_tables_.count(new_code));
       debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
@@ -323,12 +329,12 @@ class DebugInfoImpl {
 
   void FloodWithBreakpoints(WasmFrame* frame, ReturnLocation return_location) {
     // 0 is an invalid offset used to indicate flooding.
-    int offset = 0;
+    constexpr int kFloodingBreakpoints[] = {0};
     DCHECK(frame->wasm_code()->is_liftoff());
     // Generate an additional source position for the current byte offset.
     base::MutexGuard guard(&mutex_);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
-        frame->function_index(), VectorOf(&offset, 1), 0);
+        frame->function_index(), ArrayVector(kFloodingBreakpoints), 0);
     UpdateReturnAddress(frame, new_code, return_location);
 
     per_isolate_data_[frame->isolate()].stepping_frame = frame->id();
@@ -448,11 +454,9 @@ class DebugInfoImpl {
         : code(debug_info->native_module_->engine()->code_manager()->LookupCode(
               pc)),
           pc_offset(static_cast<int>(pc - code->instruction_start())),
-          debug_side_table(
-              code->is_inspectable()
-                  ? debug_info->GetDebugSideTable(
-                        code, debug_info->native_module_->engine()->allocator())
-                  : nullptr),
+          debug_side_table(code->is_inspectable()
+                               ? debug_info->GetDebugSideTable(code)
+                               : nullptr),
           debug_side_table_entry(debug_side_table
                                      ? debug_side_table->GetEntry(pc_offset)
                                      : nullptr) {
@@ -468,8 +472,7 @@ class DebugInfoImpl {
     const DebugSideTable::Entry* debug_side_table_entry;
   };
 
-  const DebugSideTable* GetDebugSideTable(WasmCode* code,
-                                          AccountingAllocator* allocator) {
+  const DebugSideTable* GetDebugSideTable(WasmCode* code) {
     DCHECK(code->is_inspectable());
     {
       // Only hold the mutex temporarily. We can't hold it while generating the
@@ -480,16 +483,8 @@ class DebugInfoImpl {
     }
 
     // Otherwise create the debug side table now.
-    auto* module = native_module_->module();
-    auto* function = &module->functions[code->index()];
-    ModuleWireBytes wire_bytes{native_module_->wire_bytes()};
-    Vector<const byte> function_bytes = wire_bytes.GetFunctionBytes(function);
-    CompilationEnv env = native_module_->CreateCompilationEnv();
-    FunctionBody func_body{function->sig, 0, function_bytes.begin(),
-                           function_bytes.end()};
     std::unique_ptr<DebugSideTable> debug_side_table =
-        GenerateLiftoffDebugSideTable(allocator, &env, func_body,
-                                      code->index());
+        GenerateLiftoffDebugSideTable(code);
     DebugSideTable* ret = debug_side_table.get();
 
     // Check cache again, maybe another thread concurrently generated a debug
@@ -508,35 +503,34 @@ class DebugInfoImpl {
 
   // Get the value of a local (including parameters) or stack value. Stack
   // values follow the locals in the same index space.
-  WasmValue GetValue(const DebugSideTable::Entry* debug_side_table_entry,
+  WasmValue GetValue(const DebugSideTable* debug_side_table,
+                     const DebugSideTable::Entry* debug_side_table_entry,
                      int index, Address stack_frame_base,
                      Address debug_break_fp) const {
-    ValueType type = debug_side_table_entry->value_type(index);
-    if (debug_side_table_entry->is_constant(index)) {
-      DCHECK(type == kWasmI32 || type == kWasmI64);
-      return type == kWasmI32
-                 ? WasmValue(debug_side_table_entry->i32_constant(index))
-                 : WasmValue(
-                       int64_t{debug_side_table_entry->i32_constant(index)});
+    const auto* value =
+        debug_side_table->FindValue(debug_side_table_entry, index);
+    if (value->is_constant()) {
+      DCHECK(value->type == kWasmI32 || value->type == kWasmI64);
+      return value->type == kWasmI32 ? WasmValue(value->i32_const)
+                                     : WasmValue(int64_t{value->i32_const});
     }
 
-    if (debug_side_table_entry->is_register(index)) {
-      LiftoffRegister reg = LiftoffRegister::from_liftoff_code(
-          debug_side_table_entry->register_code(index));
+    if (value->is_register()) {
+      auto reg = LiftoffRegister::from_liftoff_code(value->reg_code);
       auto gp_addr = [debug_break_fp](Register reg) {
         return debug_break_fp +
                WasmDebugBreakFrameConstants::GetPushedGpRegisterOffset(
                    reg.code());
       };
       if (reg.is_gp_pair()) {
-        DCHECK_EQ(kWasmI64, type);
+        DCHECK_EQ(kWasmI64, value->type);
         uint32_t low_word = ReadUnalignedValue<uint32_t>(gp_addr(reg.low_gp()));
         uint32_t high_word =
             ReadUnalignedValue<uint32_t>(gp_addr(reg.high_gp()));
         return WasmValue((uint64_t{high_word} << 32) | low_word);
       }
       if (reg.is_gp()) {
-        return type == kWasmI32
+        return value->type == kWasmI32
                    ? WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())))
                    : WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
       }
@@ -550,11 +544,11 @@ class DebugInfoImpl {
       Address spilled_addr =
           debug_break_fp +
           WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(code);
-      if (type == kWasmF32) {
+      if (value->type == kWasmF32) {
         return WasmValue(ReadUnalignedValue<float>(spilled_addr));
-      } else if (type == kWasmF64) {
+      } else if (value->type == kWasmF64) {
         return WasmValue(ReadUnalignedValue<double>(spilled_addr));
-      } else if (type == kWasmS128) {
+      } else if (value->type == kWasmS128) {
         return WasmValue(Simd128(ReadUnalignedValue<int16>(spilled_addr)));
       } else {
         // All other cases should have been handled above.
@@ -563,9 +557,8 @@ class DebugInfoImpl {
     }
 
     // Otherwise load the value from the stack.
-    Address stack_address =
-        stack_frame_base - debug_side_table_entry->stack_offset(index);
-    switch (type.kind()) {
+    Address stack_address = stack_frame_base - value->stack_offset;
+    switch (value->type.kind()) {
       case ValueType::kI32:
         return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
       case ValueType::kI64:
@@ -1063,10 +1056,34 @@ bool WasmScript::GetPossibleBreakpoints(
   return true;
 }
 
+namespace {
+
+bool CheckBreakPoint(Isolate* isolate, Handle<BreakPoint> break_point,
+                     StackFrameId frame_id) {
+  if (break_point->condition().length() == 0) return true;
+
+  HandleScope scope(isolate);
+  Handle<String> condition(break_point->condition(), isolate);
+  Handle<Object> result;
+  // The Wasm engine doesn't perform any sort of inlining.
+  const int inlined_jsframe_index = 0;
+  const bool throw_on_side_effect = false;
+  if (!DebugEvaluate::Local(isolate, frame_id, inlined_jsframe_index, condition,
+                            throw_on_side_effect)
+           .ToHandle(&result)) {
+    isolate->clear_pending_exception();
+    return false;
+  }
+  return result->BooleanValue(isolate);
+}
+
+}  // namespace
+
 // static
 MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
                                                      Handle<Script> script,
-                                                     int position) {
+                                                     int position,
+                                                     StackFrameId frame_id) {
   if (!script->has_wasm_breakpoint_infos()) return {};
 
   Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
@@ -1081,14 +1098,29 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
       Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 
-  // There is no support for conditional break points. Just assume that every
-  // break point always hits.
   Handle<Object> break_points(breakpoint_info->break_points(), isolate);
-  if (break_points->IsFixedArray()) {
-    return Handle<FixedArray>::cast(break_points);
+  if (!break_points->IsFixedArray()) {
+    if (!CheckBreakPoint(isolate, Handle<BreakPoint>::cast(break_points),
+                         frame_id)) {
+      return {};
+    }
+    Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
+    break_points_hit->set(0, *break_points);
+    return break_points_hit;
   }
-  Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
-  break_points_hit->set(0, *break_points);
+
+  Handle<FixedArray> array = Handle<FixedArray>::cast(break_points);
+  Handle<FixedArray> break_points_hit =
+      isolate->factory()->NewFixedArray(array->length());
+  int break_points_hit_count = 0;
+  for (int i = 0; i < array->length(); ++i) {
+    Handle<BreakPoint> break_point(BreakPoint::cast(array->get(i)), isolate);
+    if (CheckBreakPoint(isolate, break_point, frame_id)) {
+      break_points_hit->set(break_points_hit_count++, *break_point);
+    }
+  }
+  if (break_points_hit_count == 0) return {};
+  break_points_hit->Shrink(isolate, break_points_hit_count);
   return break_points_hit;
 }
 

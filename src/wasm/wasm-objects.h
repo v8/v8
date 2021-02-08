@@ -838,7 +838,8 @@ class WasmScript : public AllStatic {
   // Return an empty handle if no breakpoint is hit at that location, or a
   // FixedArray with all hit breakpoint objects.
   static MaybeHandle<FixedArray> CheckBreakPoints(Isolate*, Handle<Script>,
-                                                  int position);
+                                                  int position,
+                                                  StackFrameId stack_frame_id);
 
  private:
   // Helper functions that update the breakpoint info list.

@@ -119,7 +119,7 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
   DCHECK_EQ(0, size & kAllocationMask);
   DCHECK_LE(kFreeListEntrySize, size);
   // Out-of-line allocation allows for checking this is all situations.
-  CHECK(is_allocation_allowed());
+  CHECK(!in_disallow_gc_scope());
 
   // 1. If this allocation is big enough, allocate a large object.
   if (size >= kLargeObjectSizeThreshold) {
@@ -194,18 +194,10 @@ void ObjectAllocator::ResetLinearAllocationBuffers() {
 
 void ObjectAllocator::Terminate() {
   ResetLinearAllocationBuffers();
-  // OutOfLineAllocateImpl checks is_allocation_allowed() unconditionally.
-  no_allocation_scope_++;
 }
 
-ObjectAllocator::NoAllocationScope::NoAllocationScope(
-    ObjectAllocator& allocator)
-    : allocator_(allocator) {
-  allocator.no_allocation_scope_++;
-}
-
-ObjectAllocator::NoAllocationScope::~NoAllocationScope() {
-  allocator_.no_allocation_scope_--;
+bool ObjectAllocator::in_disallow_gc_scope() const {
+  return raw_heap_->heap()->in_disallow_gc_scope();
 }
 
 }  // namespace internal

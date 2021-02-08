@@ -942,10 +942,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     cvtdq2ps(dst, Operand(src));
   }
   void cvtdq2ps(XMMRegister dst, Operand src);
+  void cvtdq2pd(XMMRegister dst, XMMRegister src);
+  void cvtps2pd(XMMRegister dst, XMMRegister src);
+  void cvtpd2ps(XMMRegister dst, XMMRegister src);
   void cvttps2dq(XMMRegister dst, XMMRegister src) {
     cvttps2dq(dst, Operand(src));
   }
   void cvttps2dq(XMMRegister dst, Operand src);
+  void cvttpd2dq(XMMRegister dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src) { addsd(dst, Operand(src)); }
   void addsd(XMMRegister dst, Operand src);
@@ -1473,11 +1477,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vcvtdq2ps(XMMRegister dst, Operand src) {
     vinstr(0x5B, dst, xmm0, src, kNone, k0F, kWIG);
   }
+  void vcvtdq2pd(XMMRegister dst, XMMRegister src) {
+    vinstr(0xE6, dst, xmm0, src, kF3, k0F, kWIG);
+  }
+  void vcvtps2pd(XMMRegister dst, XMMRegister src) {
+    vinstr(0x5A, dst, xmm0, src, kNone, k0F, kWIG);
+  }
+  void vcvtpd2ps(XMMRegister dst, XMMRegister src) {
+    vinstr(0x5A, dst, xmm0, src, k66, k0F, kWIG);
+  }
   void vcvttps2dq(XMMRegister dst, XMMRegister src) {
     vcvttps2dq(dst, Operand(src));
   }
   void vcvttps2dq(XMMRegister dst, Operand src) {
     vinstr(0x5B, dst, xmm0, src, kF3, k0F, kWIG);
+  }
+  void vcvttpd2dq(XMMRegister dst, XMMRegister src) {
+    vinstr(0xE6, dst, xmm0, src, k66, k0F, kWIG);
   }
 
   void vmovddup(XMMRegister dst, Operand src) {
@@ -1491,6 +1507,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vbroadcastss(XMMRegister dst, Operand src) {
     vinstr(0x18, dst, xmm0, src, k66, k0F38, kW0);
+  }
+  void vmovdqa(XMMRegister dst, Operand src) {
+    vinstr(0x6F, dst, xmm0, src, k66, k0F, kWIG);
   }
   void vmovdqu(XMMRegister dst, Operand src) {
     vinstr(0x6F, dst, xmm0, src, kF3, k0F, kWIG);
@@ -1593,6 +1612,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pd(byte op, XMMRegister dst, Operand src);
 
 #define PACKED_OP_LIST(V) \
+  V(unpckl, 0x14)         \
   V(and, 0x54)            \
   V(andn, 0x55)           \
   V(or, 0x56)             \

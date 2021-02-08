@@ -524,9 +524,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ li(s3, Operand(StackFrame::TypeToMarker(type)));
   ExternalReference c_entry_fp = ExternalReference::Create(
       IsolateAddressId::kCEntryFPAddress, masm->isolate());
-  __ li(s4, c_entry_fp);
-  __ Ld(s4, MemOperand(s4));
+  __ li(s5, c_entry_fp);
+  __ Ld(s4, MemOperand(s5));
   __ Push(s1, s2, s3, s4);
+
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ Sd(zero_reg, MemOperand(s5));
+
   // Set up frame pointer for the frame to be pushed.
   __ daddiu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
 
@@ -928,7 +935,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Daddu(scratch2, bytecode_array, bytecode_offset);
   __ Lbu(bytecode, MemOperand(scratch2));
   __ Daddu(bytecode_size_table, bytecode_size_table,
-           Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+           Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount));
   __ jmp(&process_bytecode);
 
   __ bind(&extra_wide);
@@ -937,7 +944,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Daddu(scratch2, bytecode_array, bytecode_offset);
   __ Lbu(bytecode, MemOperand(scratch2));
   __ Daddu(bytecode_size_table, bytecode_size_table,
-           Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+           Operand(2 * kByteSize * interpreter::Bytecodes::kBytecodeCount));
 
   __ bind(&process_bytecode);
 
@@ -960,8 +967,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ Dlsa(scratch2, bytecode_size_table, bytecode, 2);
-  __ Lw(scratch2, MemOperand(scratch2));
+  __ Daddu(scratch2, bytecode_size_table, bytecode);
+  __ Lb(scratch2, MemOperand(scratch2));
   __ Daddu(bytecode_offset, bytecode_offset, scratch2);
 
   __ bind(&end);
@@ -2348,7 +2355,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
     constexpr RegList gp_regs =
@@ -2362,7 +2369,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     STATIC_ASSERT(num_to_push ==
                   WasmCompileLazyFrameConstants::kNumberOfSavedAllParamRegs);
     __ MultiPush(gp_regs);
-    __ MultiPushFPU(fp_regs);
+    if (CpuFeatures::IsSupported(MIPS_SIMD)) {
+      __ MultiPushMSA(fp_regs);
+    } else {
+      __ MultiPushFPU(fp_regs);
+      __ Dsubu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    }
 
     // Pass instance and function index as an explicit arguments to the runtime
     // function.
@@ -2373,7 +2385,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
 
     // Restore registers.
-    __ MultiPopFPU(fp_regs);
+    if (CpuFeatures::IsSupported(MIPS_SIMD)) {
+      __ MultiPopMSA(fp_regs);
+    } else {
+      __ Daddu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+      __ MultiPopFPU(fp_regs);
+    }
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.
@@ -2529,6 +2546,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ li(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                             masm->isolate()));
+    __ Sd(zero_reg, MemOperand(scratch));
+  }
 
   // Compute the handler entry address and jump to it.
   __ li(t9, pending_handler_entrypoint_address);

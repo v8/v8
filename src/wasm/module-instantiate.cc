@@ -184,29 +184,34 @@ class RttSubtypes : public ArrayList {
 Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
                            Handle<Map> parent) {
-  // Check for an existing RTT first.
-  DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap());
-  Handle<ArrayList> cache(parent->wasm_type_info().subtypes(), isolate);
-  Map maybe_cached = RttSubtypes::SearchSubtype(cache, type);
-  if (!maybe_cached.is_null()) return handle(maybe_cached, isolate);
+  DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap() ||
+         parent->IsJSFunctionMap());
 
-  // Allocate a fresh RTT otherwise.
   const wasm::WasmModule* module = instance->module();
-  Handle<Map> rtt;
-  if (module->has_struct(type)) {
-    rtt = wasm::CreateStructMap(isolate, module, type, parent);
-  } else if (module->has_array(type)) {
-    rtt = wasm::CreateArrayMap(isolate, module, type, parent);
-  } else {
-    DCHECK(module->has_signature(type));
+  if (module->has_signature(type)) {
     // Currently, parent rtts for functions are meaningless,
     // since (rtt.test func rtt) iff (func.map == rtt).
     // Therefore, we simply create a fresh function map here.
     // TODO(7748): Canonicalize rtts to make them work for identical function
     // types.
-    rtt = Map::Copy(isolate, isolate->wasm_exported_function_map(),
-                    "fresh function map for AllocateSubRtt");
+    return Map::Copy(isolate, isolate->wasm_exported_function_map(),
+                     "fresh function map for AllocateSubRtt");
   }
+
+  // Check for an existing RTT first.
+  Handle<ArrayList> cache(parent->wasm_type_info().subtypes(), isolate);
+  Map maybe_cached = RttSubtypes::SearchSubtype(cache, type);
+  if (!maybe_cached.is_null()) return handle(maybe_cached, isolate);
+
+  // Allocate a fresh RTT otherwise.
+  Handle<Map> rtt;
+  if (module->has_struct(type)) {
+    rtt = wasm::CreateStructMap(isolate, module, type, parent);
+  } else {
+    DCHECK(module->has_array(type));
+    rtt = wasm::CreateArrayMap(isolate, module, type, parent);
+  }
+
   cache = RttSubtypes::Insert(isolate, cache, type, rtt);
   parent->wasm_type_info().set_subtypes(*cache);
   return rtt;

@@ -1053,8 +1053,7 @@ void AdjustStackPointerForTailCall(
 
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
                                    S390OperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
+  const MemoryAccessMode access_mode = AccessModeField::decode(instr->opcode());
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     codegen->tasm()->AndP(value, kSpeculationPoisonRegister);
@@ -1963,52 +1962,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_Push: {
       int stack_decrement = i.InputInt32(0);
-      if (instr->InputAt(1)->IsFPRegister()) {
-        LocationOperand* op = LocationOperand::cast(instr->InputAt(1));
-        switch (op->representation()) {
-          case MachineRepresentation::kFloat32:
-            // 1 slot values are never padded.
-            DCHECK_EQ(stack_decrement, kSystemPointerSize);
-            __ lay(sp, MemOperand(sp, -kSystemPointerSize));
-            __ StoreF32(i.InputDoubleRegister(1), MemOperand(sp));
-            frame_access_state()->IncreaseSPDelta(1);
-            break;
-          case MachineRepresentation::kFloat64:
-            // 2 slot values have up to 1 slot of padding.
-            DCHECK_GE(stack_decrement, kDoubleSize);
-            if (stack_decrement > kDoubleSize) {
-              DCHECK_EQ(stack_decrement, kDoubleSize + kSystemPointerSize);
-              __ lay(sp, MemOperand(sp, -kSystemPointerSize));
-            }
-            __ lay(sp, MemOperand(sp, -kDoubleSize));
-            __ StoreF64(i.InputDoubleRegister(1), MemOperand(sp));
-            frame_access_state()->IncreaseSPDelta(stack_decrement /
-                                                  kSystemPointerSize);
-            break;
-          case MachineRepresentation::kSimd128: {
-            // 4 slot values have up to 3 slots of padding.
-            DCHECK_GE(stack_decrement, kSimd128Size);
-            if (stack_decrement > kSimd128Size) {
-              int padding = stack_decrement - kSimd128Size;
-              DCHECK_LT(padding, kSimd128Size);
-              __ lay(sp, MemOperand(sp, -padding));
-            }
-            __ lay(sp, MemOperand(sp, -kSimd128Size));
-            __ StoreV128(i.InputDoubleRegister(1), MemOperand(sp), kScratchReg);
-            frame_access_state()->IncreaseSPDelta(stack_decrement /
-                                                  kSystemPointerSize);
-            break;
-          }
-          default:
-            UNREACHABLE();
-            break;
-        }
-      } else {
-        DCHECK_EQ(stack_decrement, kSystemPointerSize);
-        __ Push(i.InputRegister(1));
-        frame_access_state()->IncreaseSPDelta(1);
+      int slots = stack_decrement / kSystemPointerSize;
+      LocationOperand* op = LocationOperand::cast(instr->InputAt(1));
+      MachineRepresentation rep = op->representation();
+      int pushed_slots = ElementSizeInPointers(rep);
+      // Slot-sized arguments are never padded but there may be a gap if
+      // the slot allocator reclaimed other padding slots. Adjust the stack
+      // here to skip any gap.
+      if (slots > pushed_slots) {
+        __ lay(sp,
+               MemOperand(sp, -((slots - pushed_slots) * kSystemPointerSize)));
       }
-    } break;
+      switch (rep) {
+        case MachineRepresentation::kFloat32:
+          __ lay(sp, MemOperand(sp, -kSystemPointerSize));
+          __ StoreF32(i.InputDoubleRegister(1), MemOperand(sp));
+          break;
+        case MachineRepresentation::kFloat64:
+          __ lay(sp, MemOperand(sp, -kDoubleSize));
+          __ StoreF64(i.InputDoubleRegister(1), MemOperand(sp));
+          break;
+        case MachineRepresentation::kSimd128:
+          __ lay(sp, MemOperand(sp, -kSimd128Size));
+          __ StoreV128(i.InputDoubleRegister(1), MemOperand(sp), kScratchReg);
+          break;
+        default:
+          __ Push(i.InputRegister(1));
+          break;
+      }
+      frame_access_state()->IncreaseSPDelta(slots);
+      break;
+    }
     case kS390_PushFrame: {
       int num_slots = i.InputInt32(1);
       __ lay(sp, MemOperand(sp, -num_slots * kSystemPointerSize));
@@ -3258,6 +3242,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              Condition(0), Condition(0), Condition(2));
       break;
     }
+    case kS390_I64x2Ne: {
+      __ vceq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1), Condition(0), Condition(3));
+      __ vno(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             i.OutputSimd128Register(), Condition(0), Condition(0),
+             Condition(3));
+      break;
+    }
     case kS390_I32x4Ne: {
       __ vceq(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1), Condition(0), Condition(2));
@@ -3537,9 +3529,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector boolean unops
-    case kS390_V32x4AnyTrue:
-    case kS390_V16x8AnyTrue:
-    case kS390_V8x16AnyTrue: {
+    case kS390_V128AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
       Register dst = i.OutputRegister();
       Register temp = i.TempRegister(0);
@@ -3562,6 +3552,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ vtm(kScratchDoubleReg, kScratchDoubleReg, Condition(0), Condition(0),     \
          Condition(0));                                                        \
   __ locgr(Condition(8), dst, temp);
+    case kS390_V64x2AllTrue: {
+      SIMD_ALL_TRUE(3)
+      break;
+    }
     case kS390_V32x4AllTrue: {
       SIMD_ALL_TRUE(2)
       break;
@@ -4273,6 +4267,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef SIGN_SELECT
+    case kS390_I8x16Popcnt: {
+      __ vpopct(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                Condition(0), Condition(0), Condition(0));
+      break;
+    }
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;

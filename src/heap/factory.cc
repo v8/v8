@@ -1443,7 +1443,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
                            int inobject_properties) {
   map.set_instance_type(type);
   map.set_prototype(*null_value(), SKIP_WRITE_BARRIER);
-  map.set_constructor_or_backpointer(*null_value(), SKIP_WRITE_BARRIER);
+  map.set_constructor_or_back_pointer(*null_value(), SKIP_WRITE_BARRIER);
   map.set_instance_size(instance_size);
   if (map.IsJSObjectMap()) {
     DCHECK(!ReadOnlyHeap::Contains(map));
@@ -2342,6 +2342,7 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_flags(0);
   module->set_async(IsAsyncModule(sfi->kind()));
   module->set_async_evaluating(false);
+  module->set_cycle_root(roots.the_hole_value());
   module->set_async_parent_modules(*async_parent_modules);
   module->set_pending_async_dependencies(0);
   return module;
@@ -3323,7 +3324,6 @@ Handle<Map> Factory::CreateStrictFunctionMap(
   } else {
     ++descriptors_count;  // name accessor.
   }
-  if (IsFunctionModeWithHomeObject(function_mode)) ++inobject_properties_count;
   descriptors_count += inobject_properties_count;
 
   Handle<Map> map = NewMap(
@@ -3366,15 +3366,6 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     // Add name accessor.
     Descriptor d = Descriptor::AccessorConstant(
         name_string(), function_name_accessor(), roc_attribs);
-    map->AppendDescriptor(isolate(), &d);
-  }
-
-  STATIC_ASSERT(JSFunction::kMaybeHomeObjectDescriptorIndex == 2);
-  if (IsFunctionModeWithHomeObject(function_mode)) {
-    // Add home object field.
-    Handle<Name> name = isolate()->factory()->home_object_symbol();
-    Descriptor d = Descriptor::DataField(isolate(), name, field_index++,
-                                         DONT_ENUM, Representation::Tagged());
     map->AppendDescriptor(isolate(), &d);
   }
 

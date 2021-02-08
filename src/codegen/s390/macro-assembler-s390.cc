@@ -2652,6 +2652,10 @@ void TurboAssembler::AddS64(Register dst, const Operand& opnd) {
     agfi(dst, opnd);
 }
 
+void TurboAssembler::AddS32(Register dst, Register src, int32_t opnd) {
+  AddS32(dst, src, Operand(opnd));
+}
+
 // Add 32-bit (Register dst = Register src + Immediate opnd)
 void TurboAssembler::AddS32(Register dst, Register src, const Operand& opnd) {
   if (dst != src) {
@@ -2662,6 +2666,10 @@ void TurboAssembler::AddS32(Register dst, Register src, const Operand& opnd) {
     lr(dst, src);
   }
   AddS32(dst, opnd);
+}
+
+void TurboAssembler::AddS64(Register dst, Register src, int32_t opnd) {
+  AddS64(dst, src, Operand(opnd));
 }
 
 // Add Pointer Size (Register dst = Register src + Immediate opnd)
@@ -2823,9 +2831,17 @@ void TurboAssembler::SubS64(Register dst, const Operand& imm) {
   AddS64(dst, Operand(-(imm.immediate())));
 }
 
+void TurboAssembler::SubS32(Register dst, Register src, int32_t imm) {
+  SubS32(dst, src, Operand(imm));
+}
+
 // Subtract 32-bit (Register dst = Register src - Immediate opnd)
 void TurboAssembler::SubS32(Register dst, Register src, const Operand& imm) {
   AddS32(dst, src, Operand(-(imm.immediate())));
+}
+
+void TurboAssembler::SubS64(Register dst, Register src, int32_t imm) {
+  SubS64(dst, src, Operand(imm));
 }
 
 // Subtract Pointer Sized (Register dst = Register src - Immediate opnd)
@@ -3961,6 +3977,112 @@ void TurboAssembler::StoreV128(Simd128Register src, const MemOperand& mem,
     DCHECK(is_int20(mem.offset()));
     lay(scratch, mem);
     vst(src, MemOperand(scratch), Condition(0));
+  }
+}
+
+void TurboAssembler::AddF32(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs) {
+  if (dst == lhs) {
+    aebr(dst, rhs);
+  } else if (dst == rhs) {
+    aebr(dst, lhs);
+  } else {
+    ler(dst, lhs);
+    aebr(dst, rhs);
+  }
+}
+
+void TurboAssembler::SubF32(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs) {
+  if (dst == lhs) {
+    sebr(dst, rhs);
+  } else if (dst == rhs) {
+    sebr(dst, lhs);
+    lcebr(dst, dst);
+  } else {
+    ler(dst, lhs);
+    sebr(dst, rhs);
+  }
+}
+
+void TurboAssembler::MulF32(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs) {
+  if (dst == lhs) {
+    meebr(dst, rhs);
+  } else if (dst == rhs) {
+    meebr(dst, lhs);
+  } else {
+    ler(dst, lhs);
+    meebr(dst, rhs);
+  }
+}
+
+void TurboAssembler::DivF32(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs) {
+  if (dst == lhs) {
+    debr(dst, rhs);
+  } else if (dst == rhs) {
+    lay(sp, MemOperand(sp, -kSystemPointerSize));
+    StoreF32(dst, MemOperand(sp));
+    ler(dst, lhs);
+    deb(dst, MemOperand(sp));
+    la(sp, MemOperand(sp, kSystemPointerSize));
+  } else {
+    ler(dst, lhs);
+    debr(dst, rhs);
+  }
+}
+
+void TurboAssembler::AddF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs) {
+  if (dst == lhs) {
+    adbr(dst, rhs);
+  } else if (dst == rhs) {
+    adbr(dst, lhs);
+  } else {
+    ldr(dst, lhs);
+    adbr(dst, rhs);
+  }
+}
+
+void TurboAssembler::SubF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs) {
+  if (dst == lhs) {
+    sdbr(dst, rhs);
+  } else if (dst == rhs) {
+    sdbr(dst, lhs);
+    lcdbr(dst, dst);
+  } else {
+    ldr(dst, lhs);
+    sdbr(dst, rhs);
+  }
+}
+
+void TurboAssembler::MulF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs) {
+  if (dst == lhs) {
+    mdbr(dst, rhs);
+  } else if (dst == rhs) {
+    mdbr(dst, lhs);
+  } else {
+    ldr(dst, lhs);
+    mdbr(dst, rhs);
+  }
+}
+
+void TurboAssembler::DivF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs) {
+  if (dst == lhs) {
+    ddbr(dst, rhs);
+  } else if (dst == rhs) {
+    lay(sp, MemOperand(sp, -kSystemPointerSize));
+    StoreF64(dst, MemOperand(sp));
+    ldr(dst, lhs);
+    ddb(dst, MemOperand(sp));
+    la(sp, MemOperand(sp, kSystemPointerSize));
+  } else {
+    ldr(dst, lhs);
+    ddbr(dst, rhs);
   }
 }
 

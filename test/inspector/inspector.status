@@ -66,6 +66,7 @@
   'debugger/asm-js-breakpoint-during-exec': [SKIP],
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
+  'runtime/get-properties': [SKIP],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
@@ -127,6 +128,10 @@
 ['tsan == True', {
   # TSan handles SIGPROF incorrectly (https://crbug.com/v8/9869).
   'cpu-profiler/console-profile-wasm': [SKIP],
+
+  # This test is just slow on TSan, and TSan coverage is not needed to test
+  # that we do not run OOM. Thus skip it on TSan.
+  'debugger/wasm-step-a-lot': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################

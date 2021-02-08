@@ -504,8 +504,6 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kRttSub:
       // The operand to rtt.sub must be emitted first.
       WriteGlobalInitializer(buffer, *init.operand(), kWasmBottom);
-      // TODO(7748): If immediates for rtts remain in the standard, adapt this
-      // to emit them.
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprRttSub));

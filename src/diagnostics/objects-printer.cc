@@ -1462,9 +1462,6 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
-  if (needs_home_object()) {
-    os << "\n - needs_home_object";
-  }
   os << "\n - function_map_index: " << function_map_index();
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties: " << expected_nof_properties();
@@ -1666,6 +1663,7 @@ void SourceTextModule::SourceTextModulePrint(std::ostream& os) {  // NOLINT
   os << "\n - origin: " << Brief(script.GetNameOrSourceURL());
   os << "\n - requested_modules: " << Brief(requested_modules());
   os << "\n - import_meta: " << Brief(import_meta());
+  os << "\n - cycle_root: " << Brief(cycle_root());
   os << "\n";
 }
 
@@ -1705,6 +1703,15 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
   PrintHeader(os, "ArrayBoilerplateDescription");
   os << "\n - elements kind: " << elements_kind();
   os << "\n - constant elements: " << Brief(constant_elements());
+  os << "\n";
+}
+
+void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, "RegExpBoilerplateDescription");
+  os << "\n - data: " << Brief(data());
+  os << "\n - source: " << Brief(source());
+  os << "\n - flags: " << flags();
   os << "\n";
 }
 
@@ -2747,12 +2754,12 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 
   if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
-      !isolate->heap()->InSpaceSlow(address, i::LO_SPACE) &&
+      !isolate->heap()->InSpaceSlow(address, i::CODE_LO_SPACE) &&
       !i::InstructionStream::PcIsOffHeap(isolate, address) &&
       !i::ReadOnlyHeap::Contains(address)) {
     i::PrintF(
-        "%p is not within the current isolate's large object, code, read_only "
-        "or embedded spaces\n",
+        "%p is not within the current isolate's code, read_only or embedded "
+        "spaces\n",
         object);
     return;
   }

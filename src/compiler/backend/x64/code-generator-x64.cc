@@ -2143,7 +2143,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Movdqu: {
-      CpuFeatureScope sse_scope(tasm(), SSSE3);
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         __ Movdqu(i.OutputSimd128Register(), i.MemoryOperand());
@@ -2265,48 +2264,44 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX64Push: {
       int stack_decrement = i.InputInt32(0);
-      if (HasAddressingMode(instr)) {
-        // 1 slot values are never padded.
-        DCHECK_EQ(stack_decrement, kSystemPointerSize);
+      int slots = stack_decrement / kSystemPointerSize;
+      // Whenever codegen uses pushq, we need to check if stack_decrement
+      // contains any extra padding and adjust the stack before the pushq.
+      if (HasImmediateInput(instr, 1)) {
+        __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
+        __ pushq(i.InputImmediate(1));
+      } else if (HasAddressingMode(instr)) {
+        __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
         size_t index = 1;
         Operand operand = i.MemoryOperand(&index);
         __ pushq(operand);
-      } else if (HasImmediateInput(instr, 1)) {
-        // 1 slot values are never padded.
-        DCHECK_EQ(stack_decrement, kSystemPointerSize);
-        __ pushq(i.InputImmediate(1));
-      } else if (HasRegisterInput(instr, 1)) {
-        // 1 slot values are never padded.
-        DCHECK_EQ(stack_decrement, kSystemPointerSize);
-        __ pushq(i.InputRegister(1));
-      } else if (instr->InputAt(1)->IsFloatRegister() ||
-                 instr->InputAt(1)->IsDoubleRegister()) {
-        // 1 slot values are never padded.
-        DCHECK_EQ(stack_decrement, kSystemPointerSize);
-        __ AllocateStackSpace(kSystemPointerSize);
-        __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(1));
-      } else if (instr->InputAt(1)->IsSimd128Register()) {
-        // 2 slot values have up to 1 slot of padding.
-        DCHECK_GE(stack_decrement, kSimd128Size);
-        __ AllocateStackSpace(stack_decrement);
-        // TODO(bbudge) Use Movaps when slots are aligned.
-        __ Movups(Operand(rsp, 0), i.InputSimd128Register(1));
-      } else if (instr->InputAt(1)->IsStackSlot() ||
-                 instr->InputAt(1)->IsFloatStackSlot() ||
-                 instr->InputAt(1)->IsDoubleStackSlot()) {
-        // 1 slot values are never padded.
-        DCHECK_EQ(stack_decrement, kSystemPointerSize);
-        __ pushq(i.InputOperand(1));
       } else {
-        DCHECK(instr->InputAt(1)->IsSimd128StackSlot());
-        // 2 slot values have up to 1 slot of padding.
-        DCHECK_GE(stack_decrement, kSimd128Size);
-        // TODO(bbudge) Use Movaps when slots are aligned.
-        __ Movups(kScratchDoubleReg, i.InputOperand(1));
-        __ AllocateStackSpace(stack_decrement);
-        __ Movups(Operand(rsp, 0), kScratchDoubleReg);
+        InstructionOperand* input = instr->InputAt(1);
+        if (input->IsRegister()) {
+          __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
+          __ pushq(i.InputRegister(1));
+        } else if (input->IsFloatRegister() || input->IsDoubleRegister()) {
+          DCHECK_GE(stack_decrement, kSystemPointerSize);
+          __ AllocateStackSpace(stack_decrement);
+          __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(1));
+        } else if (input->IsSimd128Register()) {
+          DCHECK_GE(stack_decrement, kSimd128Size);
+          __ AllocateStackSpace(stack_decrement);
+          // TODO(bbudge) Use Movaps when slots are aligned.
+          __ Movups(Operand(rsp, 0), i.InputSimd128Register(1));
+        } else if (input->IsStackSlot() || input->IsFloatStackSlot() ||
+                   input->IsDoubleStackSlot()) {
+          __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
+          __ pushq(i.InputOperand(1));
+        } else {
+          DCHECK(input->IsSimd128StackSlot());
+          DCHECK_GE(stack_decrement, kSimd128Size);
+          // TODO(bbudge) Use Movaps when slots are aligned.
+          __ Movups(kScratchDoubleReg, i.InputOperand(1));
+          __ AllocateStackSpace(stack_decrement);
+          __ Movups(Operand(rsp, 0), kScratchDoubleReg);
+        }
       }
-      int slots = stack_decrement / kSystemPointerSize;
       frame_access_state()->IncreaseSPDelta(slots);
       unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                        stack_decrement);
@@ -2484,13 +2479,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F64x2ConvertLowI32x4U: {
       XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
       // dst = [ src_low, 0x43300000, src_high, 0x4330000 ];
       // 0x43300000'00000000 is a special double where the significand bits
       // precisely represents all uint32 numbers.
       __ Unpcklps(
-          dst, __ ExternalReferenceAsOperand(
-                   ExternalReference::
-                       address_of_wasm_f64x2_convert_low_i32x4_u_int_mask()));
+          dst, src,
+          __ ExternalReferenceAsOperand(
+              ExternalReference::
+                  address_of_wasm_f64x2_convert_low_i32x4_u_int_mask()));
       __ Subpd(dst,
                __ ExternalReferenceAsOperand(
                    ExternalReference::address_of_wasm_double_2_power_52()));
@@ -2559,6 +2556,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vshufps(dst, dst, kScratchDoubleReg, 0x88);
         break;
       } else {
+        CpuFeatureScope scope(tasm(), SSE4_1);
         DCHECK_EQ(dst, src);
         __ xorps(kScratchDoubleReg, kScratchDoubleReg);
         __ maxpd(dst, kScratchDoubleReg);
@@ -2652,11 +2650,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (dst == src) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ Psrld(kScratchDoubleReg, byte{1});
-        __ Andps(i.OutputSimd128Register(), kScratchDoubleReg);
+        __ Andps(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
         __ Psrld(dst, byte{1});
-        __ Andps(dst, i.InputSimd128Register(0));
+        __ Andps(dst, src);
       }
       break;
     }
@@ -2666,11 +2664,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (dst == src) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ Pslld(kScratchDoubleReg, byte{31});
-        __ Xorps(i.OutputSimd128Register(), kScratchDoubleReg);
+        __ Xorps(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
         __ Pslld(dst, byte{31});
-        __ Xorps(dst, i.InputSimd128Register(0));
+        __ Xorps(dst, src);
       }
       break;
     }
@@ -2912,6 +2910,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2Eq: {
       ASSEMBLE_SIMD_BINOP(pcmpeqq);
+      break;
+    }
+    case kX64I64x2Ne: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
+      __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pcmpeqq(tmp, tmp);
+      __ Pxor(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I64x2ShrU: {
@@ -3291,9 +3297,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8Ne: {
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ Pcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pcmpeqw(dst, i.InputSimd128Register(1));
       __ Pcmpeqw(tmp, tmp);
-      __ Pxor(i.OutputSimd128Register(), tmp);
+      __ Pxor(dst, tmp);
       break;
     }
     case kX64I16x8GtS: {
@@ -3624,9 +3631,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16Ne: {
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ Pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pcmpeqb(dst, i.InputSimd128Register(1));
       __ Pcmpeqb(tmp, tmp);
-      __ Pxor(i.OutputSimd128Register(), tmp);
+      __ Pxor(dst, tmp);
       break;
     }
     case kX64I8x16GtS: {
@@ -3941,6 +3949,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vpshufb(dst, tmp, dst);
         __ vpshufb(kScratchDoubleReg, tmp, kScratchDoubleReg);
         __ vpaddb(dst, dst, kScratchDoubleReg);
+      } else if (CpuFeatures::IsSupported(ATOM)) {
+        // Pre-Goldmont low-power Intel microarchitectures have very slow
+        // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
+        // algorithm on these processors. ATOM CPU feature captures exactly
+        // the right set of processors.
+        __ xorps(tmp, tmp);
+        __ pavgb(tmp, src);
+        if (dst != src) {
+          __ movaps(dst, src);
+        }
+        __ andps(tmp,
+                 __ ExternalReferenceAsOperand(
+                     ExternalReference::address_of_wasm_i8x16_splat_0x55()));
+        __ psubb(dst, tmp);
+        Operand splat_0x33 = __ ExternalReferenceAsOperand(
+            ExternalReference::address_of_wasm_i8x16_splat_0x33());
+        __ movaps(tmp, dst);
+        __ andps(dst, splat_0x33);
+        __ psrlw(tmp, 2);
+        __ andps(tmp, splat_0x33);
+        __ paddb(dst, tmp);
+        __ movaps(tmp, dst);
+        __ psrlw(dst, 4);
+        __ paddb(dst, tmp);
+        __ andps(dst,
+                 __ ExternalReferenceAsOperand(
+                     ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
       } else {
         __ movaps(tmp,
                   __ ExternalReferenceAsOperand(
@@ -4264,9 +4299,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Por(dst, kScratchDoubleReg);
       break;
     }
-    case kX64V32x4AnyTrue:
-    case kX64V16x8AnyTrue:
-    case kX64V8x16AnyTrue: {
+    case kX64V128AnyTrue: {
       Register dst = i.OutputRegister();
       XMMRegister src = i.InputSimd128Register(0);
 
@@ -4279,6 +4312,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
+    case kX64V64x2AllTrue: {
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqq);
+      break;
+    }
     case kX64V32x4AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;

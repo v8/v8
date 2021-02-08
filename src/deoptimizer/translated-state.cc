@@ -98,6 +98,20 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
         break;
       }
 
+      case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
+        int bailout_id = iterator.Next();
+        int shared_info_id = iterator.Next();
+        Object shared_info = literal_array.get(shared_info_id);
+        unsigned height = iterator.Next();
+        int wasm_return_type = iterator.Next();
+        os << "{bailout_id=" << bailout_id << ", function="
+           << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
+           << ", height=" << height << ", wasm_return_type=" << wasm_return_type
+           << "}";
+        break;
+      }
+
       case TranslationOpcode::ARGUMENTS_ADAPTOR_FRAME: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
         int shared_info_id = iterator.Next();
@@ -251,6 +265,19 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
   }
 }
 
+namespace {
+
+// Decodes the return type of a Wasm function as the integer value of
+// wasm::ValueType::Kind, or kNoWasmReturnType if the function returns void.
+base::Optional<wasm::ValueType::Kind> DecodeWasmReturnType(int code) {
+  if (code != kNoWasmReturnType) {
+    return {static_cast<wasm::ValueType::Kind>(code)};
+  }
+  return {};
+}
+
+}  // namespace
+
 // static
 TranslatedValue TranslatedValue::NewDeferredObject(TranslatedState* container,
                                                    int length,
@@ -301,6 +328,14 @@ TranslatedValue TranslatedValue::NewInt64(TranslatedState* container,
 }
 
 // static
+TranslatedValue TranslatedValue::NewInt64ToBigInt(TranslatedState* container,
+                                                  int64_t value) {
+  TranslatedValue slot(container, kInt64ToBigInt);
+  slot.int64_value_ = value;
+  return slot;
+}
+
+// static
 TranslatedValue TranslatedValue::NewUInt32(TranslatedState* container,
                                            uint32_t value) {
   TranslatedValue slot(container, kUInt32);
@@ -342,7 +377,7 @@ int32_t TranslatedValue::int32_value() const {
 }
 
 int64_t TranslatedValue::int64_value() const {
-  DCHECK_EQ(kInt64, kind());
+  DCHECK(kInt64 == kind() || kInt64ToBigInt == kind());
   return int64_value_;
 }
 
@@ -403,6 +438,10 @@ Object TranslatedValue::GetRawValue() const {
       }
       break;
     }
+
+    case kInt64ToBigInt:
+      // Return the arguments marker.
+      break;
 
     case kUInt32: {
       bool is_smi = (uint32_value() <= static_cast<uintptr_t>(Smi::kMaxValue));
@@ -493,28 +532,37 @@ Handle<Object> TranslatedValue::GetValue() {
     return container_->InitializeObjectAt(this);
   }
 
-  double number;
+  double number = 0;
+  Handle<HeapObject> heap_object;
   switch (kind()) {
     case TranslatedValue::kInt32:
       number = int32_value();
+      heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     case TranslatedValue::kInt64:
       number = int64_value();
+      heap_object = isolate()->factory()->NewHeapNumber(number);
+      break;
+    case TranslatedValue::kInt64ToBigInt:
+      heap_object = BigInt::FromInt64(isolate(), int64_value());
       break;
     case TranslatedValue::kUInt32:
       number = uint32_value();
+      heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     case TranslatedValue::kFloat:
       number = float_value().get_scalar();
+      heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     case TranslatedValue::kDouble:
       number = double_value().get_scalar();
+      heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     default:
       UNREACHABLE();
   }
-  DCHECK(!IsSmiDouble(number));
-  set_initialized_storage(isolate()->factory()->NewHeapNumber(number));
+  DCHECK(!IsSmiDouble(number) || kind() == TranslatedValue::kInt64ToBigInt);
+  set_initialized_storage(heap_object);
   return storage_;
 }
 
@@ -608,6 +656,15 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
   return frame;
 }
 
+TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
+    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
+    base::Optional<wasm::ValueType::Kind> return_type) {
+  TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
+  frame.bytecode_offset_ = bytecode_offset;
+  frame.return_type_ = return_type;
+  return frame;
+}
+
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
     int height) {
@@ -654,6 +711,7 @@ int TranslatedFrame::GetValueCount() {
 
     case kConstructStub:
     case kBuiltinContinuation:
+    case kJSToWasmBuiltinContinuation:
     case kJavaScriptBuiltinContinuation:
     case kJavaScriptBuiltinContinuationWithCatch: {
       static constexpr int kTheContext = 1;
@@ -745,6 +803,26 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       }
       return TranslatedFrame::BuiltinContinuationFrame(bytecode_offset,
                                                        shared_info, height);
+    }
+
+    case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
+      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
+      SharedFunctionInfo shared_info =
+          SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
+      int height = iterator->Next();
+      base::Optional<wasm::ValueType::Kind> return_type =
+          DecodeWasmReturnType(iterator->Next());
+      if (trace_file != nullptr) {
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        PrintF(trace_file, "  reading JS to Wasm builtin continuation frame %s",
+               name.get());
+        PrintF(trace_file,
+               " => bailout_id=%d, height=%d return_type=%d; inputs:\n",
+               bailout_id.ToInt(), height,
+               return_type.has_value() ? return_type.value() : -1);
+      }
+      return TranslatedFrame::JSToWasmBuiltinContinuationFrame(
+          bailout_id, shared_info, height, return_type);
     }
 
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
@@ -902,6 +980,7 @@ int TranslatedState::CreateNextTranslatedValue(
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
     case TranslationOpcode::BUILTIN_CONTINUATION_FRAME:
+    case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME:
     case TranslationOpcode::UPDATE_FEEDBACK:
       // Peeled off before getting here.
       break;

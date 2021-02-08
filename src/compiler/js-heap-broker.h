@@ -161,7 +161,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // Gets data only if we have it. However, thin wrappers will be created for
   // smis, read-only objects and never-serialized objects.
   ObjectData* TryGetOrCreateData(
-      Handle<Object>, bool crash_on_error,
+      Handle<Object>, bool crash_on_error = false,
       ObjectRef::BackgroundSerialization background_serialization =
           ObjectRef::BackgroundSerialization::kDisallowed);
 

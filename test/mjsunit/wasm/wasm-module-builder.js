@@ -216,7 +216,7 @@ const kWasmOpcodes = {
   'Catch': 0x07,
   'Throw': 0x08,
   'Rethrow': 0x09,
-  'CatchAll': 0x0a,
+  'Unwind': 0x0a,
   'End': 0x0b,
   'Br': 0x0c,
   'BrIf': 0x0d,
@@ -623,7 +623,7 @@ let kExprS128Xor = 0x51;
 let kExprS128Select = 0x52;
 let kExprI8x16Abs = 0x60;
 let kExprI8x16Neg = 0x61;
-let kExprV8x16AnyTrue = 0x62;
+let kExprV128AnyTrue = 0x62;
 let kExprV8x16AllTrue = 0x63;
 let kExprI8x16SConvertI16x8 = 0x65;
 let kExprI8x16UConvertI16x8 = 0x66;
@@ -643,7 +643,6 @@ let kExprI8x16MaxU = 0x79;
 let kExprI8x16RoundingAverageU = 0x7b;
 let kExprI16x8Abs = 0x80;
 let kExprI16x8Neg = 0x81;
-let kExprV16x8AnyTrue = 0x82;
 let kExprV16x8AllTrue = 0x83;
 let kExprI16x8SConvertI32x4 = 0x85;
 let kExprI16x8UConvertI32x4 = 0x86;
@@ -668,7 +667,6 @@ let kExprI16x8MaxU = 0x99;
 let kExprI16x8RoundingAverageU = 0x9b;
 let kExprI32x4Abs = 0xa0;
 let kExprI32x4Neg = 0xa1;
-let kExprV32x4AnyTrue = 0xa2;
 let kExprV32x4AllTrue = 0xa3;
 let kExprI32x4SConvertI16x8Low = 0xa7;
 let kExprI32x4SConvertI16x8High = 0xa8;

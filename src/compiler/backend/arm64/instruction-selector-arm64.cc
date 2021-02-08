@@ -673,6 +673,9 @@ void InstructionSelector::VisitLoadLane(Node* node) {
 
   InstructionCode opcode = kArm64LoadLane;
   opcode |= LaneSizeField::encode(params.rep.MemSize() * kBitsPerByte);
+  if (params.kind == MemoryAccessKind::kProtected) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+  }
 
   Arm64OperandGenerator g(this);
   InstructionOperand addr = EmitAddBeforeLoadOrStore(this, node, &opcode);
@@ -688,6 +691,9 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   InstructionCode opcode = kArm64StoreLane;
   opcode |=
       LaneSizeField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
+  if (params.kind == MemoryAccessKind::kProtected) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+  }
 
   Arm64OperandGenerator g(this);
   InstructionOperand addr = EmitAddBeforeLoadOrStore(this, node, &opcode);
@@ -745,10 +751,10 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
       opcode = kArm64S128Load32x2U;
       break;
     case LoadTransformation::kS128Load32Zero:
-      opcode = kArm64S128Load32Zero;
+      opcode = kArm64LdrS;
       break;
     case LoadTransformation::kS128Load64Zero:
-      opcode = kArm64S128Load64Zero;
+      opcode = kArm64LdrD;
       break;
     default:
       UNIMPLEMENTED();
@@ -774,6 +780,9 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
     opcode |= AddressingModeField::encode(kMode_MRI);
   } else {
     opcode |= AddressingModeField::encode(kMode_MRR);
+  }
+  if (params.kind == MemoryAccessKind::kProtected) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
   }
   Emit(opcode, 1, outputs, 2, inputs);
 }
@@ -847,16 +856,16 @@ void InstructionSelector::VisitLoad(Node* node) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
     opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
+  if (node->opcode() == IrOpcode::kProtectedLoad) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtected);
+  }
 
   EmitLoad(this, node, opcode, immediate_mode, rep);
 }
 
 void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
-void InstructionSelector::VisitProtectedLoad(Node* node) {
-  // TODO(eholk)
-  UNIMPLEMENTED();
-}
+void InstructionSelector::VisitProtectedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitStore(Node* node) {
   Arm64OperandGenerator g(this);
@@ -988,14 +997,15 @@ void InstructionSelector::VisitStore(Node* node) {
       opcode |= AddressingModeField::encode(kMode_MRR);
     }
 
+    if (node->opcode() == IrOpcode::kProtectedStore) {
+      opcode |= AccessModeField::encode(kMemoryAccessProtected);
+    }
+
     Emit(opcode, 0, nullptr, input_count, inputs);
   }
 }
 
-void InstructionSelector::VisitProtectedStore(Node* node) {
-  // TODO(eholk)
-  UNIMPLEMENTED();
-}
+void InstructionSelector::VisitProtectedStore(Node* node) { VisitStore(node); }
 
 void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
   UNREACHABLE();
@@ -3430,11 +3440,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Abs, kArm64I8x16Abs)                               \
   V(I8x16BitMask, kArm64I8x16BitMask)                       \
   V(S128Not, kArm64S128Not)                                 \
-  V(V32x4AnyTrue, kArm64V128AnyTrue)                        \
+  V(V128AnyTrue, kArm64V128AnyTrue)                         \
+  V(V64x2AllTrue, kArm64V64x2AllTrue)                       \
   V(V32x4AllTrue, kArm64V32x4AllTrue)                       \
-  V(V16x8AnyTrue, kArm64V128AnyTrue)                        \
   V(V16x8AllTrue, kArm64V16x8AllTrue)                       \
-  V(V8x16AnyTrue, kArm64V128AnyTrue)                        \
   V(V8x16AllTrue, kArm64V8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
@@ -3476,6 +3485,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Add, kArm64I64x2Add)                           \
   V(I64x2Sub, kArm64I64x2Sub)                           \
   V(I64x2Eq, kArm64I64x2Eq)                             \
+  V(I64x2Ne, kArm64I64x2Ne)                             \
   V(I32x4AddHoriz, kArm64I32x4AddHoriz)                 \
   V(I32x4Mul, kArm64I32x4Mul)                           \
   V(I32x4MinS, kArm64I32x4MinS)                         \
@@ -3951,6 +3961,24 @@ void InstructionSelector::VisitI8x16Popcnt(Node* node) {
   InstructionCode code = kArm64Cnt;
   code |= LaneSizeField::encode(8);
   VisitRR(this, code, node);
+}
+
+void InstructionSelector::VisitI32x4WidenI8x16S(Node* node) {
+  InstructionCode opcode = kArm64I32x4WidenI8x16S;
+  uint8_t laneidx = OpParameter<uint8_t>(node->op());
+  DCHECK_GT(4, laneidx);
+  opcode |= LaneSizeField::encode(laneidx);
+  Arm64OperandGenerator g(this);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x4WidenI8x16U(Node* node) {
+  InstructionCode opcode = kArm64I32x4WidenI8x16U;
+  uint8_t laneidx = OpParameter<uint8_t>(node->op());
+  DCHECK_GT(4, laneidx);
+  opcode |= LaneSizeField::encode(laneidx);
+  Arm64OperandGenerator g(this);
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 // static

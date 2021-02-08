@@ -10,7 +10,9 @@
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/backend/instruction.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -2920,6 +2922,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16GeU)
 
 #define SIMD_BINOP_ONE_TEMP_LIST(V) \
+  V(I64x2Ne)                        \
   V(I32x4Ne)                        \
   V(I32x4GtU)                       \
   V(I16x8Ne)                        \
@@ -2930,7 +2933,6 @@ VISIT_ATOMIC_BINOP(Xor)
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Sqrt)              \
   V(F64x2ConvertLowI32x4S)  \
-  V(F64x2ConvertLowI32x4U)  \
   V(F64x2PromoteLowF32x4)   \
   V(F32x4SConvertI32x4)     \
   V(F32x4Abs)               \
@@ -2977,12 +2979,8 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16Shl)                        \
   V(I8x16ShrU)
 
-#define SIMD_ANYTRUE_LIST(V) \
-  V(V32x4AnyTrue)            \
-  V(V16x8AnyTrue)            \
-  V(V8x16AnyTrue)
-
 #define SIMD_ALLTRUE_LIST(V) \
+  V(V64x2AllTrue)            \
   V(V32x4AllTrue)            \
   V(V16x8AllTrue)            \
   V(V8x16AllTrue)
@@ -3172,15 +3170,11 @@ SIMD_BINOP_ONE_TEMP_LIST(VISIT_SIMD_BINOP_ONE_TEMP)
 #undef VISIT_SIMD_BINOP_ONE_TEMP
 #undef SIMD_BINOP_ONE_TEMP_LIST
 
-#define VISIT_SIMD_ANYTRUE(Opcode)                      \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    X64OperandGenerator g(this);                        \
-    Emit(kX64##Opcode, g.DefineAsRegister(node),        \
-         g.UseUniqueRegister(node->InputAt(0)));        \
-  }
-SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
-#undef VISIT_SIMD_ANYTRUE
-#undef SIMD_ANYTRUE_LIST
+void InstructionSelector::VisitV128AnyTrue(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64V128AnyTrue, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
 
 #define VISIT_SIMD_ALLTRUE(Opcode)                                        \
   void InstructionSelector::Visit##Opcode(Node* node) {                   \
@@ -3731,6 +3725,13 @@ void InstructionSelector::VisitI8x16Popcnt(Node* node) {
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I8x16Popcnt, dst, g.UseUniqueRegister(node->InputAt(0)),
        arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kX64F64x2ConvertLowI32x4U, dst, g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
