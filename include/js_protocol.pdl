@@ -1030,6 +1030,7 @@ domain Runtime
         arraybuffer
         dataview
         webassemblymemory
+        wasmvalue
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).

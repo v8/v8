@@ -5,6 +5,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
+#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/combined-heap.h"
@@ -227,6 +228,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectVerify(isolate);
+      break;
+    case WASM_VALUE_OBJECT_TYPE:
+      WasmValueObject::cast(*this).WasmValueObjectVerify(isolate);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -1537,6 +1541,12 @@ void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
        offset += kTaggedSize) {
     VerifyObjectField(isolate, offset);
   }
+}
+
+void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
+  CHECK(IsWasmValueObject());
+  CHECK(type().IsString());
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(

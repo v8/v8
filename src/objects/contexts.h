@@ -237,7 +237,7 @@ enum ContextLookupFlags {
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, SimpleNumberDictionary,          \
     slow_template_instantiations_cache)                                        \
   V(ATOMICS_WAITASYNC_PROMISES, OrderedHashSet, atomics_waitasync_promises)    \
-  V(WASM_DEBUG_PROXY_MAPS, FixedArray, wasm_debug_proxy_maps)                  \
+  V(WASM_DEBUG_MAPS, FixedArray, wasm_debug_maps)                              \
   /* Fast Path Protectors */                                                   \
   V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \

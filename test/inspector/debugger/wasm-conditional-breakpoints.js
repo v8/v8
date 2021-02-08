@@ -29,7 +29,7 @@ const find_offset = opcode => fib.body_offset + fib_body.indexOf(opcode);
 const breakpoints = [
   {loc: find_offset(kExprLocalGet), cond: 'false'},
   {loc: find_offset(kExprBrIf), cond: 'true'},
-  {loc: find_offset(kExprCallFunction), cond: '$var0==3'}
+  {loc: find_offset(kExprCallFunction), cond: '$var0.value==3'}
 ];
 
 Protocol.Debugger.onPaused(async msg => {
@@ -40,8 +40,10 @@ Protocol.Debugger.onPaused(async msg => {
     if (scope.type != 'local') continue;
     var properties = await Protocol.Runtime.getProperties(
         {'objectId': scope.object.objectId});
-    InspectorTest.log(properties.result.result.map(
-        value => `${value.name}: ${value.value.value}`));
+    for (var {name, value} of properties.result.result) {
+      value = await WasmInspectorTest.getWasmValue(value);
+      InspectorTest.log(`${name}: ${value}`);
+    }
   }
   Protocol.Debugger.resume();
 });

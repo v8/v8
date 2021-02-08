@@ -10,7 +10,7 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
-#include "src/debug/debug-wasm-support.h"
+#include "src/debug/debug-wasm-objects.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/arguments-inl.h"

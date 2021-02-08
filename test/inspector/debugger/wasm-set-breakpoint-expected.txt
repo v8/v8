@@ -14,15 +14,15 @@ at wasm_A (0:38):
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 3 (number)
+   $var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Setting breakpoint at offset 39 on script v8://test/runWasm
@@ -43,15 +43,15 @@ at wasm_A (0:39):
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 3 (number)
+   $var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -60,11 +60,11 @@ Scope:
 at wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 3 (number)
+   $var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -72,13 +72,13 @@ Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04 (kExprIf)
 Scope:
 at wasm_B (0:47):
  - scope (wasm-expression-stack):
-   0: 3 (number)
+   0: 3 (i32)
  - scope (local):
-   $var0: 3 (number)
+   $var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -87,11 +87,11 @@ Scope:
 at wasm_B (0:49):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 3 (number)
+   $var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -99,13 +99,13 @@ Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at wasm_B (0:51):
  - scope (wasm-expression-stack):
-   0: 3 (number)
+   0: 3 (i32)
  - scope (local):
-   $var0: 3 (number)
+   $var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -113,14 +113,14 @@ Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b (kExprI32Sub)
 Scope:
 at wasm_B (0:53):
  - scope (wasm-expression-stack):
-   0: 3 (number)
-   1: 1 (number)
+   0: 3 (i32)
+   1: 1 (i32)
  - scope (local):
-   $var0: 3 (number)
+   $var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -128,13 +128,13 @@ Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at wasm_B (0:54):
  - scope (wasm-expression-stack):
-   0: 2 (number)
+   0: 2 (i32)
  - scope (local):
-   $var0: 3 (number)
+   $var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -146,15 +146,15 @@ at wasm_A (0:38):
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 2 (number)
+   $var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -166,15 +166,15 @@ at wasm_A (0:39):
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 2 (number)
+   $var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -183,11 +183,11 @@ Scope:
 at wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 2 (number)
+   $var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -195,13 +195,13 @@ Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04 (kExprIf)
 Scope:
 at wasm_B (0:47):
  - scope (wasm-expression-stack):
-   0: 2 (number)
+   0: 2 (i32)
  - scope (local):
-   $var0: 2 (number)
+   $var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -210,11 +210,11 @@ Scope:
 at wasm_B (0:49):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 2 (number)
+   $var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -222,13 +222,13 @@ Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at wasm_B (0:51):
  - scope (wasm-expression-stack):
-   0: 2 (number)
+   0: 2 (i32)
  - scope (local):
-   $var0: 2 (number)
+   $var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -236,14 +236,14 @@ Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b (kExprI32Sub)
 Scope:
 at wasm_B (0:53):
  - scope (wasm-expression-stack):
-   0: 2 (number)
-   1: 1 (number)
+   0: 2 (i32)
+   1: 1 (i32)
  - scope (local):
-   $var0: 2 (number)
+   $var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -251,13 +251,13 @@ Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at wasm_B (0:54):
  - scope (wasm-expression-stack):
-   0: 1 (number)
+   0: 1 (i32)
  - scope (local):
-   $var0: 2 (number)
+   $var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -269,15 +269,15 @@ at wasm_A (0:38):
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 1 (number)
+   $var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -289,15 +289,15 @@ at wasm_A (0:39):
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 1 (number)
+   $var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -306,11 +306,11 @@ Scope:
 at wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 1 (number)
+   $var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -318,13 +318,13 @@ Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04 (kExprIf)
 Scope:
 at wasm_B (0:47):
  - scope (wasm-expression-stack):
-   0: 1 (number)
+   0: 1 (i32)
  - scope (local):
-   $var0: 1 (number)
+   $var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -333,11 +333,11 @@ Scope:
 at wasm_B (0:49):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 1 (number)
+   $var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -345,13 +345,13 @@ Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at wasm_B (0:51):
  - scope (wasm-expression-stack):
-   0: 1 (number)
+   0: 1 (i32)
  - scope (local):
-   $var0: 1 (number)
+   $var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -359,14 +359,14 @@ Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b (kExprI32Sub)
 Scope:
 at wasm_B (0:53):
  - scope (wasm-expression-stack):
-   0: 1 (number)
-   1: 1 (number)
+   0: 1 (i32)
+   1: 1 (i32)
  - scope (local):
-   $var0: 1 (number)
+   $var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -374,13 +374,13 @@ Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at wasm_B (0:54):
  - scope (wasm-expression-stack):
-   0: 0 (number)
+   0: 0 (i32)
  - scope (local):
-   $var0: 1 (number)
+   $var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -392,15 +392,15 @@ at wasm_A (0:38):
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 0 (number)
+   $var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -412,15 +412,15 @@ at wasm_A (0:39):
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 0 (number)
+   $var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -429,11 +429,11 @@ Scope:
 at wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 0 (number)
+   $var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -441,13 +441,13 @@ Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04 (kExprIf)
 Scope:
 at wasm_B (0:47):
  - scope (wasm-expression-stack):
-   0: 0 (number)
+   0: 0 (i32)
  - scope (local):
-   $var0: 0 (number)
+   $var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -456,11 +456,11 @@ Scope:
 at wasm_B (0:61):
  - scope (wasm-expression-stack):
  - scope (local):
-   $var0: 0 (number)
+   $var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
-   functions: "$wasm_A" (Function), "$wasm_B" (Function)
+   functions: "$wasm_A": (Function), "$wasm_B": (Function)
 at (anonymous) (0:17):
    -- skipped
 exports.main returned!

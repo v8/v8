@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/compiler/node.h"
+#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
@@ -174,6 +175,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
+      break;
+    case WASM_VALUE_OBJECT_TYPE:
+      WasmValueObject::cast(*this).WasmValueObjectPrint(os);
       break;
     case CODE_TYPE:
       Code::cast(*this).CodePrint(os);
@@ -1892,6 +1896,13 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - maximum_length: " << Brief(maximum_length());
   os << "\n - dispatch_tables: " << Brief(dispatch_tables());
   os << "\n - raw_type: " << raw_type();
+  os << "\n";
+}
+
+void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmValueObject");
+  os << "\n - type: " << Brief(type());
+  os << "\n - value: " << Brief(value());
   os << "\n";
 }
 

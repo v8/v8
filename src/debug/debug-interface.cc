@@ -9,6 +9,7 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
 #include "src/debug/debug-type-profile.h"
+#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -740,6 +741,12 @@ void AccessorPair::CheckCast(Value* that) {
                   "Value is not a v8::debug::AccessorPair");
 }
 
+void WasmValueObject::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsWasmValueObject(), "v8::debug::WasmValueObject::Cast",
+                  "Value is not a v8::debug::WasmValueObject");
+}
+
 Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
@@ -1100,6 +1107,27 @@ Local<Value> AccessorPair::setter() {
 bool AccessorPair::IsAccessorPair(Local<Value> that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*that);
   return obj->IsAccessorPair();
+}
+
+bool WasmValueObject::IsWasmValueObject(Local<Value> that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(*that);
+  return obj->IsWasmValueObject();
+}
+
+Local<String> WasmValueObject::type() const {
+  i::Handle<i::WasmValueObject> object =
+      i::Handle<i::WasmValueObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = object->GetIsolate();
+  i::Handle<i::String> type(object->type(), isolate);
+  return Utils::ToLocal(type);
+}
+
+Local<Value> WasmValueObject::value() const {
+  i::Handle<i::WasmValueObject> object =
+      i::Handle<i::WasmValueObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = object->GetIsolate();
+  i::Handle<i::Object> value(object->value(), isolate);
+  return Utils::ToLocal(value);
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {

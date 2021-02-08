@@ -10,7 +10,7 @@
 #include "src/common/globals.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
-#include "src/debug/debug-wasm-support.h"
+#include "src/debug/debug-wasm-objects.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"

@@ -309,6 +309,7 @@ VisitorId Map::GetVisitorId(Map map) {
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_VALUE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE: {
       const bool has_raw_data_fields =
           (FLAG_unbox_double_fields && !map.HasFastPointerLayout()) ||
