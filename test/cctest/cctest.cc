@@ -27,6 +27,7 @@
 
 #include "test/cctest/cctest.h"
 
+#include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 #include "src/codegen/compiler.h"
@@ -333,6 +334,7 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
+  cppgc::InitializeProcess(platform->GetPageAllocator());
   using HelpOptions = v8::internal::FlagList::HelpOptions;
   v8::internal::FlagList::SetFlagsFromCommandLine(
       &argc, argv, true, HelpOptions(HelpOptions::kExit, usage.c_str()));

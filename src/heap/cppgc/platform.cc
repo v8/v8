@@ -16,7 +16,10 @@ TracingController* Platform::GetTracingController() {
 }
 
 void InitializeProcess(PageAllocator* page_allocator) {
+  static PageAllocator* allocator = nullptr;
+  CHECK(!allocator);
   internal::GlobalGCInfoTable::Create(page_allocator);
+  allocator = page_allocator;
 }
 
 void ShutdownProcess() {}

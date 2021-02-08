@@ -125,7 +125,7 @@ class V8_EXPORT Platform {
 
 /**
  * Process-global initialization of the garbage collector. Must be called before
- * creating a Heap.
+ * creating a Heap. Must only be called once per process.
  */
 V8_EXPORT void InitializeProcess(PageAllocator*);
 
