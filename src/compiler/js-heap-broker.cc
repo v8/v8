@@ -2912,7 +2912,6 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
       object_data = zone()->New<ObjectData>(                              \
         this, &(entry->value), object, kNeverSerializedHeapObject);       \
     } else if (mode() == kSerializing) {                                  \
-      AllowHandleAllocation handle_allocation;                            \
       entry = refs_->LookupOrInsert(object.address());                    \
       object_data = zone()->New<name##Data>(this, &(entry->value),        \
                                             Handle<name>::cast(object));  \
@@ -2930,7 +2929,6 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
         CHECK(!crash_on_error);                                           \
         return nullptr;                                                   \
       }                                                                   \
-      AllowHandleAllocation handle_allocation;                            \
       entry = refs_->LookupOrInsert(object.address());                    \
       object_data = zone()->New<name##Data>(this, &(entry->value),        \
                                               Handle<name>::cast(object));
@@ -2945,7 +2943,6 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
           this, &(entry->value), Handle<name>::cast(object),              \
           kBackgroundSerializedHeapObject);                               \
     } else if (mode() == kSerializing) {                                  \
-      AllowHandleAllocation handle_allocation;                            \
       entry = refs_->LookupOrInsert(object.address());                    \
       object_data = zone()->New<name##Data>(this, &(entry->value),        \
                                             Handle<name>::cast(object));  \
@@ -2960,7 +2957,6 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
   } else if (object->Is##name()) {                                        \
     if (mode() == kSerializing) {                                         \
       entry = refs_->LookupOrInsert(object.address());                    \
-      AllowHandleAllocation handle_allocation;                            \
       object_data = zone()->New<name##Data>(this, &(entry->value),        \
                                             Handle<name>::cast(object));  \
     } else {                                                              \
