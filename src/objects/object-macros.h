@@ -48,13 +48,9 @@
     return GetIsolateFromWritableObject(*this);                            \
   }
 
-#define DECL_PRIMITIVE_GETTER(name, type) inline type name() const;
-
-#define DECL_PRIMITIVE_SETTER(name, type) inline void set_##name(type value);
-
 #define DECL_PRIMITIVE_ACCESSORS(name, type) \
-  DECL_PRIMITIVE_GETTER(name, type)          \
-  DECL_PRIMITIVE_SETTER(name, type)
+  inline type name() const;                  \
+  inline void set_##name(type value);
 
 #define DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, type) \
   inline type synchronized_##name() const;                \
