@@ -2991,7 +2991,9 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     base::Optional<PropertyCellRef> cell = global_object.GetPropertyCell(
         name, SerializationPolicy::kSerializeIfNeeded);
     if (access_mode == AccessMode::kLoad && cell.has_value()) {
-      result_hints->AddConstant(cell->value().object(), zone(), broker());
+      result_hints->AddConstant(
+          handle(cell->object()->value(), broker()->isolate()), zone(),
+          broker());
     }
   }
 

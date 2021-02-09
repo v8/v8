@@ -1524,11 +1524,11 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "PropertyCell");
   os << "\n - name: ";
   name().NamePrint(os);
-  os << "\n - value: " << Brief(value());
+  os << "\n - value: " << Brief(value(kAcquireLoad));
   os << "\n - details: ";
-  property_details().PrintAsSlowTo(os, true);
-  PropertyCellType cell_type = property_details().cell_type();
-  os << "\n - cell_type: " << cell_type;
+  PropertyDetails details = property_details(kAcquireLoad);
+  details.PrintAsSlowTo(os, true);
+  os << "\n - cell_type: " << details.cell_type();
   os << "\n";
 }
 

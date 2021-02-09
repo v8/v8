@@ -594,6 +594,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
     PropertyCellRef string_length_protector(
         broker(), factory()->string_length_protector());
+    string_length_protector.SerializeAsProtector();
+
     if (string_length_protector.value().AsSmi() ==
         Protectors::kProtectorValid) {
       // We can just deoptimize if the {length} is out-of-bounds. Besides

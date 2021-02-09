@@ -2453,19 +2453,16 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
     if (entry.is_not_found()) {
       DCHECK_IMPLIES(global_obj->map().is_prototype_map(),
                      Map::IsPrototypeChainInvalidated(global_obj->map()));
-      auto cell = isolate->factory()->NewPropertyCell(name);
-      cell->set_value(*value);
       auto cell_type = value->IsUndefined(roots) ? PropertyCellType::kUndefined
                                                  : PropertyCellType::kConstant;
       details = details.set_cell_type(cell_type);
-      value = cell;
+      auto cell = isolate->factory()->NewPropertyCell(name, details, value);
       dictionary =
-          GlobalDictionary::Add(isolate, dictionary, name, value, details);
+          GlobalDictionary::Add(isolate, dictionary, name, cell, details);
       global_obj->set_global_dictionary(*dictionary, kReleaseStore);
     } else {
-      Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
-          isolate, dictionary, entry, value, details);
-      cell->set_value(*value);
+      PropertyCell::PrepareForValue(isolate, dictionary, entry, value, details);
+      DCHECK_EQ(dictionary->CellAt(entry).value(), *value);
     }
   } else {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {

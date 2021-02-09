@@ -494,8 +494,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
       Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
           isolate(), dictionary, dictionary_entry(), value, details);
-      cell->set_value(*value);
       property_details_ = cell->property_details();
+      DCHECK_EQ(cell->value(), *value);
     } else {
       PropertyDetails details(kData, attributes, PropertyConstness::kMutable);
       if (V8_DICT_MODE_PROTOTYPES_BOOL) {
@@ -554,13 +554,12 @@ void LookupIterator::PrepareTransitionToDataProperty(
   if (map->is_dictionary_map()) {
     state_ = TRANSITION;
     if (map->IsJSGlobalObjectMap()) {
-      Handle<PropertyCell> cell = isolate_->factory()->NewPropertyCell(name());
-      DCHECK(cell->value(isolate_).IsTheHole(isolate_));
       DCHECK(!value->IsTheHole(isolate_));
       // Don't set enumeration index (it will be set during value store).
       property_details_ = PropertyDetails(
           kData, attributes, PropertyCell::InitialType(isolate_, value));
-      transition_ = cell;
+      transition_ = isolate_->factory()->NewPropertyCell(
+          name(), property_details_, value);
       has_property_ = true;
     } else {
       // Don't set enumeration index (it will be set during value store).
@@ -1034,9 +1033,13 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
       DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
     }
   } else if (holder->IsJSGlobalObject(isolate_)) {
+    // PropertyCell::PrepareForValue already wrote the value into the cell.
+#ifdef DEBUG
     GlobalDictionary dictionary =
         JSGlobalObject::cast(*holder).global_dictionary(isolate_, kAcquireLoad);
-    dictionary.CellAt(isolate_, dictionary_entry()).set_value(*value);
+    PropertyCell cell = dictionary.CellAt(isolate_, dictionary_entry());
+    DCHECK_EQ(cell.value(), *value);
+#endif  // DEBUG
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
     // Check similar to fast mode case above.
@@ -1141,7 +1144,9 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         number_ = dict.FindEntry(isolate(), name_);
         if (number_.is_not_found()) return NOT_FOUND;
         PropertyCell cell = dict.CellAt(isolate_, number_);
-        if (cell.value(isolate_).IsTheHole(isolate_)) return NOT_FOUND;
+        if (cell.value(isolate_).IsTheHole(isolate_)) {
+          return NOT_FOUND;
+        }
         property_details_ = cell.property_details();
         has_property_ = true;
         switch (property_details_.kind()) {

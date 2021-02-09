@@ -881,7 +881,8 @@ void TestNameDictionaryLookup() {
   };
 
   for (size_t i = 0; i < arraysize(keys); i++) {
-    Handle<Object> value = factory->NewPropertyCell(keys[i]);
+    Handle<Object> value =
+        factory->NewPropertyCell(keys[i], fake_details, keys[i]);
     dictionary =
         Dictionary::Add(isolate, dictionary, keys[i], value, fake_details);
   }

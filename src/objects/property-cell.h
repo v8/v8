@@ -20,16 +20,24 @@ class PropertyCell : public HeapObject {
   DECL_GETTER(name, Name)
 
   // [property_details]: details of the global property.
-  DECL_ACCESSORS(property_details_raw, Smi)
+  DECL_GETTER(property_details_raw, Smi)
+  DECL_ACQUIRE_GETTER(property_details_raw, Smi)
+  inline PropertyDetails property_details() const;
+  inline PropertyDetails property_details(AcquireLoadTag tag) const;
+  inline void UpdatePropertyDetailsExceptCellType(PropertyDetails details);
 
   // [value]: value of the global property.
-  DECL_ACCESSORS(value, Object)
+  DECL_GETTER(value, Object)
+  DECL_ACQUIRE_GETTER(value, Object)
 
   // [dependent_code]: code that depends on the type of the global property.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
-  inline PropertyDetails property_details() const;
-  inline void set_property_details(PropertyDetails details);
+  // Changes the value and/or property details.
+  // For global properties:
+  inline void Transition(PropertyDetails new_details, Handle<Object> new_value);
+  // For protectors:
+  void InvalidateProtector();
 
   static PropertyCellType InitialType(Isolate* isolate, Handle<Object> value);
 
@@ -52,9 +60,9 @@ class PropertyCell : public HeapObject {
       Isolate* isolate, Handle<GlobalDictionary> dictionary,
       InternalIndex entry);
 
-  static void SetValueWithInvalidation(Isolate* isolate, const char* cell_name,
-                                       Handle<PropertyCell> cell,
-                                       Handle<Object> new_value);
+  // Whether or not the {details} and {value} fit together. This is an
+  // approximation with false positives.
+  static bool CheckDataIsCompatible(PropertyDetails details, Object value);
 
   DECL_CAST(PropertyCell)
   DECL_PRINTER(PropertyCell)
@@ -71,6 +79,16 @@ class PropertyCell : public HeapObject {
   friend class Factory;
 
   DECL_SETTER(name, Name)
+  DECL_SETTER(value, Object)
+  DECL_RELEASE_SETTER(value, Object)
+  DECL_SETTER(property_details_raw, Smi)
+  DECL_RELEASE_SETTER(property_details_raw, Smi)
+
+#ifdef DEBUG
+  // Whether the property cell can transition to the given state. This is an
+  // approximation with false positives.
+  bool CanTransitionTo(PropertyDetails new_details, Object new_value) const;
+#endif  // DEBUG
 };
 
 }  // namespace internal

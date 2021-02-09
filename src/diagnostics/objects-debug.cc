@@ -967,11 +967,9 @@ void Oddball::OddballVerify(Isolate* isolate) {
 }
 
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
-  // TODO(torque): replace with USE_TORQUE_VERIFIER(PropertyCell) once
-  // it supports UniqueName type.
   TorqueGeneratedClassVerifiers::PropertyCellVerify(*this, isolate);
-
   CHECK(name().IsUniqueName());
+  CheckDataIsCompatible(property_details(), value());
 }
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {

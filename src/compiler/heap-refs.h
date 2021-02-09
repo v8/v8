@@ -99,6 +99,13 @@ enum class OddballType : uint8_t {
 
 // This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
+// Types in this list can be serialized on demand from the background thread.
+#define HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(V) \
+  /* Subtypes of HeapObject */                           \
+  V(PropertyCell)
+
+// This list is sorted such that subtypes appear before their supertypes.
+// DO NOT VIOLATE THIS PROPERTY!
 #define HEAP_BROKER_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of JSObject */                  \
   V(JSArray)                                  \
@@ -128,7 +135,6 @@ enum class OddballType : uint8_t {
   V(FunctionTemplateInfo)                     \
   V(JSReceiver)                               \
   V(Name)                                     \
-  V(PropertyCell)                             \
   V(SourceTextModule)                         \
   /* Subtypes of Object */                    \
   V(HeapObject)
@@ -142,6 +148,7 @@ class PropertyAccessInfo;
 #define FORWARD_DECL(Name) class Name##Ref;
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
+HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
@@ -171,12 +178,14 @@ class V8_EXPORT_PRIVATE ObjectRef {
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
   HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
+  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
 
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
   HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
+  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
@@ -300,9 +309,16 @@ class PropertyCellRef : public HeapObjectRef {
 
   Handle<PropertyCell> object() const;
 
-  PropertyDetails property_details() const;
+  // Can be called from a background thread.
+  V8_WARN_UNUSED_RESULT bool Serialize() const;
+  void SerializeAsProtector() const {
+    bool serialized = Serialize();
+    // A protector always holds a Smi value and its cell type never changes, so
+    // Serialize can't fail.
+    CHECK(serialized);
+  }
 
-  void Serialize();
+  PropertyDetails property_details() const;
   ObjectRef value() const;
 };
 
