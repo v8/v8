@@ -4255,15 +4255,15 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
 
   // Passing/failing tests due to static subtyping.
   std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
-      {{HeapType::kData, array_heap, true},
-       {HeapType::kData, super_struct_heap, true},
-       {HeapType::kFunc, func_heap_1, true},
-       {func_heap_1, func_heap_1, true},
-       {func_heap_1, func_heap_2, false},
-       {super_struct_heap, sub_struct_heap, true},
-       {sub_struct_heap, super_struct_heap, false},
-       {sub_struct_heap, array_heap, false},
-       {HeapType::kFunc, array_heap, false}};
+      {std::make_tuple(HeapType::kData, array_heap, true),
+       std::make_tuple(HeapType::kData, super_struct_heap, true),
+       std::make_tuple(HeapType::kFunc, func_heap_1, true),
+       std::make_tuple(func_heap_1, func_heap_1, true),
+       std::make_tuple(func_heap_1, func_heap_2, false),
+       std::make_tuple(super_struct_heap, sub_struct_heap, true),
+       std::make_tuple(sub_struct_heap, super_struct_heap, false),
+       std::make_tuple(sub_struct_heap, array_heap, false),
+       std::make_tuple(HeapType::kFunc, array_heap, false)};
 
   for (auto test : tests) {
     HeapType from_heap = HeapType(std::get<0>(test));
