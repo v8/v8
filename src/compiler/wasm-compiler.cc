@@ -8153,8 +8153,9 @@ class LinkageLocationAllocator {
  public:
   template <size_t kNumGpRegs, size_t kNumFpRegs>
   constexpr LinkageLocationAllocator(const Register (&gp)[kNumGpRegs],
-                                     const DoubleRegister (&fp)[kNumFpRegs])
-      : allocator_(wasm::LinkageAllocator(gp, fp)) {}
+                                     const DoubleRegister (&fp)[kNumFpRegs],
+                                     int slot_offset)
+      : allocator_(wasm::LinkageAllocator(gp, fp)), slot_offset_(slot_offset) {}
 
   LinkageLocation Next(MachineRepresentation rep) {
     MachineType type = MachineType::TypeForRepresentation(rep);
@@ -8168,16 +8169,19 @@ class LinkageLocationAllocator {
       return LinkageLocation::ForRegister(reg_code, type);
     }
     // Cannot use register; use stack slot.
-    int index = -1 - allocator_.NextStackSlot(rep);
+    int index = -1 - (slot_offset_ + allocator_.NextStackSlot(rep));
     return LinkageLocation::ForCallerFrameSlot(index, type);
   }
 
-  void SetStackOffset(int offset) { allocator_.SetStackOffset(offset); }
   int NumStackSlots() const { return allocator_.NumStackSlots(); }
   void EndSlotArea() { allocator_.EndSlotArea(); }
 
  private:
   wasm::LinkageAllocator allocator_;
+  // Since params and returns are in different stack frames, we must allocate
+  // them separately. Parameter slots don't need an offset, but return slots
+  // must be offset to just before the param slots, using this |slot_offset_|.
+  int slot_offset_;
 };
 }  // namespace
 
@@ -8195,8 +8199,8 @@ CallDescriptor* GetWasmCallDescriptor(
                                        fsig->parameter_count() + extra_params);
 
   // Add register and/or stack parameter(s).
-  LinkageLocationAllocator params(wasm::kGpParamRegisters,
-                                  wasm::kFpParamRegisters);
+  LinkageLocationAllocator params(
+      wasm::kGpParamRegisters, wasm::kFpParamRegisters, 0 /* no slot offset */);
 
   // The instance object.
   locations.AddParam(params.Next(MachineRepresentation::kTaggedPointer));
@@ -8232,21 +8236,20 @@ CallDescriptor* GetWasmCallDescriptor(
         kJSFunctionRegister.code(), MachineType::TaggedPointer()));
   }
 
-  // Add return location(s).
-  LinkageLocationAllocator rets(wasm::kGpReturnRegisters,
-                                wasm::kFpReturnRegisters);
-
   int parameter_slots = params.NumStackSlots();
   if (ShouldPadArguments(parameter_slots)) parameter_slots++;
 
-  rets.SetStackOffset(parameter_slots);
+  // Add return location(s).
+  LinkageLocationAllocator rets(wasm::kGpReturnRegisters,
+                                wasm::kFpReturnRegisters, parameter_slots);
 
   const int return_count = static_cast<int>(locations.return_count_);
   for (int i = 0; i < return_count; i++) {
     MachineRepresentation ret = fsig->GetReturn(i).machine_representation();
-    auto l = rets.Next(ret);
-    locations.AddReturn(l);
+    locations.AddReturn(rets.Next(ret));
   }
+
+  int return_slots = rets.NumStackSlots();
 
   const RegList kCalleeSaveRegisters = 0;
   const RegList kCalleeSaveFPRegisters = 0;
@@ -8274,7 +8277,7 @@ CallDescriptor* GetWasmCallDescriptor(
       target_type,                        // target MachineType
       target_loc,                         // target location
       locations.Build(),                  // location_sig
-      parameter_slots,                    // stack_parameter_count
+      parameter_slots,                    // parameter slot count
       compiler::Operator::kNoProperties,  // properties
       kCalleeSaveRegisters,               // callee-saved registers
       kCalleeSaveFPRegisters,             // callee-saved fp regs
@@ -8282,7 +8285,7 @@ CallDescriptor* GetWasmCallDescriptor(
       "wasm-call",                        // debug name
       StackArgumentOrder::kDefault,       // order of the arguments in the stack
       0,                                  // allocatable registers
-      rets.NumStackSlots() - parameter_slots);  // stack_return_count
+      return_slots);                      // return slot count
 }
 
 namespace {
@@ -8315,8 +8318,9 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       (call_descriptor->GetInputLocation(call_descriptor->InputCount() - 1) ==
        LinkageLocation::ForRegister(kJSFunctionRegister.code(),
                                     MachineType::TaggedPointer()));
-  LinkageLocationAllocator params(wasm::kGpParamRegisters,
-                                  wasm::kFpParamRegisters);
+  LinkageLocationAllocator params(
+      wasm::kGpParamRegisters, wasm::kFpParamRegisters, 0 /* no slot offset */);
+
   for (size_t i = 0, e = call_descriptor->ParameterCount() -
                          (has_callable_param ? 1 : 0);
        i < e; i++) {
@@ -8334,9 +8338,12 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
         kJSFunctionRegister.code(), MachineType::TaggedPointer()));
   }
 
+  int parameter_slots = params.NumStackSlots();
+  if (ShouldPadArguments(parameter_slots)) parameter_slots++;
+
   LinkageLocationAllocator rets(wasm::kGpReturnRegisters,
-                                wasm::kFpReturnRegisters);
-  rets.SetStackOffset(params.NumStackSlots());
+                                wasm::kFpReturnRegisters, parameter_slots);
+
   for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
     if (call_descriptor->GetReturnType(i) == input_type) {
       for (size_t j = 0; j < num_replacements; j++) {
@@ -8348,20 +8355,22 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
     }
   }
 
-  return zone->New<CallDescriptor>(                    // --
-      call_descriptor->kind(),                         // kind
-      call_descriptor->GetInputType(0),                // target MachineType
-      call_descriptor->GetInputLocation(0),            // target location
-      locations.Build(),                               // location_sig
-      params.NumStackSlots(),                          // stack_parameter_count
-      call_descriptor->properties(),                   // properties
-      call_descriptor->CalleeSavedRegisters(),         // callee-saved registers
-      call_descriptor->CalleeSavedFPRegisters(),       // callee-saved fp regs
-      call_descriptor->flags(),                        // flags
-      call_descriptor->debug_name(),                   // debug name
-      call_descriptor->GetStackArgumentOrder(),        // stack order
-      call_descriptor->AllocatableRegisters(),         // allocatable registers
-      rets.NumStackSlots() - params.NumStackSlots());  // stack_return_count
+  int return_slots = rets.NumStackSlots();
+
+  return zone->New<CallDescriptor>(               // --
+      call_descriptor->kind(),                    // kind
+      call_descriptor->GetInputType(0),           // target MachineType
+      call_descriptor->GetInputLocation(0),       // target location
+      locations.Build(),                          // location_sig
+      parameter_slots,                            // parameter slot count
+      call_descriptor->properties(),              // properties
+      call_descriptor->CalleeSavedRegisters(),    // callee-saved registers
+      call_descriptor->CalleeSavedFPRegisters(),  // callee-saved fp regs
+      call_descriptor->flags(),                   // flags
+      call_descriptor->debug_name(),              // debug name
+      call_descriptor->GetStackArgumentOrder(),   // stack order
+      call_descriptor->AllocatableRegisters(),    // allocatable registers
+      return_slots);                              // return slot count
 }
 }  // namespace
 
