@@ -241,7 +241,14 @@ class Register : public CPURegister {
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
 
-constexpr bool kPadArguments = true;
+// Stack frame alignment and padding.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // Stack frames are aligned to 16 bytes.
+  constexpr int kStackFrameAlignment = 16;
+  constexpr int alignment_mask = kStackFrameAlignment / kSystemPointerSize - 1;
+  return argument_count & alignment_mask;
+}
+
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
