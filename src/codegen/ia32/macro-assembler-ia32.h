@@ -553,7 +553,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef AVX_OP3_WITH_TYPE_SCOPE
 
   void Haddps(XMMRegister dst, XMMRegister src1, Operand src2);
-  void Pcmpeqq(XMMRegister dst, Operand src2);
+  void Pcmpeqq(XMMRegister dst, Operand src);
+  void Pcmpeqq(XMMRegister dst, XMMRegister src) { Pcmpeqq(dst, Operand(src)); }
   void Pcmpeqq(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pcmpeqq(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, dst, src); }
