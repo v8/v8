@@ -2649,6 +2649,29 @@ void TurboAssembler::I64x2Eq(QwNeonRegister dst, QwNeonRegister src1,
   vand(dst, dst, scratch);
 }
 
+void TurboAssembler::V64x2AllTrue(Register dst, QwNeonRegister src) {
+  UseScratchRegisterScope temps(this);
+  QwNeonRegister tmp = temps.AcquireQ();
+  // src = | a | b | c | d |
+  // tmp = | max(a,b) | max(c,d) | ...
+  vpmax(NeonU32, tmp.low(), src.low(), src.high());
+  // tmp = | max(a,b) == 0 | max(c,d) == 0 | ...
+  vceq(Neon32, tmp, tmp, 0);
+  // tmp = | max(a,b) == 0 or max(c,d) == 0 | ...
+  vpmax(NeonU32, tmp.low(), tmp.low(), tmp.low());
+  // dst = (max(a,b) == 0 || max(c,d) == 0)
+  // dst will either be -1 or 0.
+  vmov(NeonS32, dst, tmp.low(), 0);
+  // dst = !dst (-1 -> 0, 0 -> 1)
+  add(dst, dst, Operand(1));
+  // This works because:
+  // !dst
+  // = !(max(a,b) == 0 || max(c,d) == 0)
+  // = max(a,b) != 0 && max(c,d) != 0
+  // = (a != 0 || b != 0) && (c != 0 || d != 0)
+  // = defintion of i64x2.all_true.
+}
+
 }  // namespace internal
 }  // namespace v8
 
