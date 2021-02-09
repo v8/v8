@@ -516,32 +516,29 @@ ObjectData* JSObjectData::GetOwnDataProperty(JSHeapBroker* broker,
 class JSTypedArrayData : public JSObjectData {
  public:
   JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<JSTypedArray> object);
+                   Handle<JSTypedArray> object)
+      : JSObjectData(broker, storage, object) {}
+
+  // TODO(v8:7790): Once JSObject is no longer serialized, also make
+  // JSTypedArrayRef never-serialized.
+  STATIC_ASSERT(IsSerializedHeapObject<JSObject>());
+
+  void Serialize(JSHeapBroker* broker);
+  bool serialized() const { return serialized_; }
 
   bool is_on_heap() const { return is_on_heap_; }
   size_t length() const { return length_; }
   void* data_ptr() const { return data_ptr_; }
 
-  void Serialize(JSHeapBroker* broker);
-  bool serialized() const { return serialized_; }
-
   ObjectData* buffer() const { return buffer_; }
 
  private:
-  bool const is_on_heap_;
-  size_t const length_;
-  void* const data_ptr_;
-
   bool serialized_ = false;
+  bool is_on_heap_ = false;
+  size_t length_ = 0;
+  void* data_ptr_ = nullptr;
   ObjectData* buffer_ = nullptr;
 };
-
-JSTypedArrayData::JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
-                                   Handle<JSTypedArray> object)
-    : JSObjectData(broker, storage, object),
-      is_on_heap_(object->is_on_heap()),
-      length_(object->length()),
-      data_ptr_(object->DataPtr()) {}
 
 void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
   if (serialized_) return;
@@ -549,6 +546,10 @@ void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
 
   TraceScope tracer(broker, this, "JSTypedArrayData::Serialize");
   Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object());
+
+  is_on_heap_ = typed_array->is_on_heap();
+  length_ = typed_array->length();
+  data_ptr_ = typed_array->DataPtr();
 
   if (!is_on_heap()) {
     DCHECK_NULL(buffer_);
@@ -3455,10 +3456,6 @@ BIMODAL_ACCESSOR(JSFunction, Code, code)
 
 BIMODAL_ACCESSOR_C(JSGlobalObject, bool, IsDetached)
 
-BIMODAL_ACCESSOR_C(JSTypedArray, bool, is_on_heap)
-BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length)
-BIMODAL_ACCESSOR(JSTypedArray, HeapObject, buffer)
-
 BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field2, elements_kind,
                              Map::Bits2::ElementsKindBits)
 BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field3, is_dictionary_map,
@@ -3690,8 +3687,50 @@ base::Optional<MapRef> MapRef::FindRootMap() const {
   return base::nullopt;
 }
 
+bool JSTypedArrayRef::is_on_heap() const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // Safe to read concurrently because:
+    // - host object seen by serializer.
+    // - underlying field written 1. during initialization or 2. with
+    //   release-store.
+    return object()->is_on_heap(kAcquireLoad);
+  }
+  return data()->AsJSTypedArray()->data_ptr();
+}
+
+size_t JSTypedArrayRef::length() const {
+  CHECK(!is_on_heap());
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // Safe to read concurrently because:
+    // - immutable after initialization.
+    // - host object seen by serializer.
+    return object()->length();
+  }
+  return data()->AsJSTypedArray()->length();
+}
+
+HeapObjectRef JSTypedArrayRef::buffer() const {
+  CHECK(!is_on_heap());
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // Safe to read concurrently because:
+    // - immutable after initialization.
+    // - host object seen by serializer.
+    Handle<JSArrayBuffer> value(object()->buffer(), broker()->isolate());
+    return JSObjectRef{broker(), value};
+  }
+  return HeapObjectRef{broker(), data()->AsJSTypedArray()->buffer()};
+}
+
 void* JSTypedArrayRef::data_ptr() const {
-  if (data_->should_access_heap()) {
+  CHECK(!is_on_heap());
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // Safe to read concurrently because:
+    // - host object seen by serializer.
+    // - underlying field written 1. during initialization or 2. protected by
+    //   the is_on_heap release/acquire semantics (external_pointer store
+    //   happens-before base_pointer store, and this external_pointer load
+    //   happens-after base_pointer load).
+    STATIC_ASSERT(JSTypedArray::kOffHeapDataPtrEqualsExternalPointer);
     return object()->DataPtr();
   }
   return data()->AsJSTypedArray()->data_ptr();
@@ -4413,9 +4452,20 @@ void NativeContextRef::SerializeOnBackground() {
 }
 
 void JSTypedArrayRef::Serialize() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsJSTypedArray()->Serialize(broker());
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // Even if the typed array object itself is no longer serialized (besides
+    // the JSObject parts), the `buffer` field still is and thus we need to
+    // make sure to visit it.
+    // TODO(jgruber,v8:7790): Remove once JSObject is no longer serialized.
+    static_assert(
+        std::is_base_of<JSObject, decltype(object()->buffer())>::value, "");
+    STATIC_ASSERT(IsSerializedHeapObject<JSObject>());
+    JSObjectRef data_ref{
+        broker(), broker()->CanonicalPersistentHandle(object()->buffer())};
+  } else {
+    CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+    data()->AsJSTypedArray()->Serialize(broker());
+  }
 }
 
 bool JSTypedArrayRef::serialized() const {
