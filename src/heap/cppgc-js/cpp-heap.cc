@@ -4,6 +4,8 @@
 
 #include "src/heap/cppgc-js/cpp-heap.h"
 
+#include <cstdint>
+
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
 #include "include/v8-platform.h"
@@ -280,12 +282,14 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
       AsBase(), in_atomic_pause_
                     ? cppgc::internal::StatsCollector::kAtomicMark
                     : cppgc::internal::StatsCollector::kIncrementalMark);
-  v8::base::TimeDelta deadline =
+  const v8::base::TimeDelta deadline =
       in_atomic_pause_ ? v8::base::TimeDelta::Max()
                        : v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms);
+  const size_t marked_bytes_limit = in_atomic_pause_ ? SIZE_MAX : 0;
   // TODO(chromium:1056170): Replace when unified heap transitions to
   // bytes-based deadline.
-  marking_done_ = marker_->AdvanceMarkingWithMaxDuration(deadline);
+  marking_done_ =
+      marker_->AdvanceMarkingWithLimits(deadline, marked_bytes_limit);
   DCHECK_IMPLIES(in_atomic_pause_, marking_done_);
   return marking_done_;
 }

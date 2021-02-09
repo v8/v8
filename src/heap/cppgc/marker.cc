@@ -4,11 +4,13 @@
 
 #include "src/heap/cppgc/marker.h"
 
+#include <cstdint>
 #include <memory>
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/process-heap.h"
 #include "include/cppgc/platform.h"
+#include "src/base/platform/time.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
@@ -278,8 +280,7 @@ void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
   DCHECK(is_marking_started_);
   StatsCollector::EnabledScope stats_scope(heap(), StatsCollector::kAtomicMark);
   EnterAtomicPause(stack_state);
-  CHECK(ProcessWorklistsWithDeadline(std::numeric_limits<size_t>::max(),
-                                     v8::base::TimeTicks::Max()));
+  CHECK(AdvanceMarkingWithLimits(v8::base::TimeDelta::Max(), SIZE_MAX));
   mutator_marking_state_.Publish();
   LeaveAtomicPause();
 }
@@ -358,34 +359,34 @@ bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state) {
   }
   config_.stack_state = stack_state;
 
-  return AdvanceMarkingWithDeadline();
+  return AdvanceMarkingWithLimits();
 }
 
 void MarkerBase::AdvanceMarkingOnAllocation() {
-  if (AdvanceMarkingWithDeadline()) {
+  if (AdvanceMarkingWithLimits()) {
     // Schedule another incremental task for finalizing without a stack.
     ScheduleIncrementalMarkingTask();
   }
 }
 
-bool MarkerBase::AdvanceMarkingWithMaxDuration(
-    v8::base::TimeDelta max_duration) {
-  return AdvanceMarkingWithDeadline(max_duration);
-}
-
-bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
+bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
+                                          size_t marked_bytes_limit) {
   bool is_done = false;
-  if (!incremental_marking_disabled_for_testing_) {
-    size_t step_size_in_bytes =
-        GetNextIncrementalStepDuration(schedule_, heap_);
+  if (!main_marking_disabled_for_testing_) {
+    const bool with_schedule = marked_bytes_limit == 0;
+    if (with_schedule) {
+      marked_bytes_limit = mutator_marking_state_.marked_bytes() +
+                           GetNextIncrementalStepDuration(schedule_, heap_);
+    }
     StatsCollector::EnabledScope deadline_scope(
         heap(), StatsCollector::kMarkTransitiveClosureWithDeadline,
         "deadline_ms", max_duration.InMillisecondsF());
     is_done = ProcessWorklistsWithDeadline(
-        mutator_marking_state_.marked_bytes() + step_size_in_bytes,
-        v8::base::TimeTicks::Now() + max_duration);
-    schedule_.UpdateIncrementalMarkedBytes(
-        mutator_marking_state_.marked_bytes());
+        marked_bytes_limit, v8::base::TimeTicks::Now() + max_duration);
+    if (with_schedule) {
+      schedule_.UpdateIncrementalMarkedBytes(
+          mutator_marking_state_.marked_bytes());
+    }
   }
   mutator_marking_state_.Publish();
   if (!is_done) {
@@ -515,8 +516,8 @@ void MarkerBase::ClearAllWorklistsForTesting() {
   if (compaction_worklists) compaction_worklists->ClearForTesting();
 }
 
-void MarkerBase::DisableIncrementalMarkingForTesting() {
-  incremental_marking_disabled_for_testing_ = true;
+void MarkerBase::SetMainThreadMarkingDisabledForTesting(bool value) {
+  main_marking_disabled_for_testing_ = value;
 }
 
 void MarkerBase::WaitForConcurrentMarkingForTesting() {
