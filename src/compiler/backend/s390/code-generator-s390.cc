@@ -4268,6 +4268,90 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 Condition(0), Condition(0), Condition(0));
       break;
     }
+    case kS390_F64x2ConvertLowI32x4S: {
+      __ vupl(kScratchDoubleReg, i.InputSimd128Register(0), Condition(0),
+              Condition(0), Condition(2));
+      __ vcdg(i.OutputSimd128Register(), kScratchDoubleReg, Condition(5),
+              Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2ConvertLowI32x4U: {
+      __ vupll(kScratchDoubleReg, i.InputSimd128Register(0), Condition(0),
+               Condition(0), Condition(2));
+      __ vcdlg(i.OutputSimd128Register(), kScratchDoubleReg, Condition(5),
+               Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2PromoteLowF32x4: {
+      Register holder = r1;
+      for (int index = 0; index < 2; ++index) {
+#ifdef V8_TARGET_BIG_ENDIAN
+        __ vlgv(r0, i.InputSimd128Register(0), MemOperand(r0, index + 2),
+                Condition(2));
+#else
+        __ vlgv(r0, i.InputSimd128Register(0), MemOperand(r0, index),
+                Condition(2));
+#endif
+        __ MovIntToFloat(kScratchDoubleReg, r0);
+        __ ldebr(kScratchDoubleReg, kScratchDoubleReg);
+        __ MovDoubleToInt64(holder, kScratchDoubleReg);
+        holder = ip;
+      }
+      __ vlvgp(i.OutputSimd128Register(), r1, ip);
+      break;
+    }
+    case kS390_F32x4DemoteF64x2Zero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Register holder = r1;
+      for (int index = 0; index < 2; ++index) {
+        __ vlgv(r0, i.InputSimd128Register(0), MemOperand(r0, index),
+                Condition(3));
+        __ MovInt64ToDouble(kScratchDoubleReg, r0);
+        __ ledbr(kScratchDoubleReg, kScratchDoubleReg);
+        __ MovFloatToInt(holder, kScratchDoubleReg);
+        holder = ip;
+      }
+      __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ vlvg(dst, r1, MemOperand(r0, 2), Condition(2));
+      __ vlvg(dst, ip, MemOperand(r0, 3), Condition(2));
+#else
+      __ vlvg(dst, r1, MemOperand(r0, 0), Condition(2));
+      __ vlvg(dst, ip, MemOperand(r0, 1), Condition(2));
+#endif
+      break;
+    }
+    case kS390_I32x4TruncSatF64x2SZero: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      // NaN to 0
+      __ vlr(kScratchDoubleReg, src, Condition(0), Condition(0), Condition(0));
+      __ vfce(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
+              Condition(0), Condition(0), Condition(3));
+      __ vn(kScratchDoubleReg, src, kScratchDoubleReg, Condition(0),
+            Condition(0), Condition(0));
+      __ vcgd(kScratchDoubleReg, kScratchDoubleReg, Condition(5), Condition(0),
+              Condition(3));
+      __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ vpks(dst, dst, kScratchDoubleReg, Condition(0), Condition(3));
+#else
+      __ vpks(dst, kScratchDoubleReg, dst, Condition(0), Condition(3));
+#endif
+      break;
+    }
+    case kS390_I32x4TruncSatF64x2UZero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vclgd(kScratchDoubleReg, i.InputSimd128Register(0), Condition(5),
+               Condition(0), Condition(3));
+      __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ vpkls(dst, dst, kScratchDoubleReg, Condition(0), Condition(3));
+#else
+      __ vpkls(dst, kScratchDoubleReg, dst, Condition(0), Condition(3));
+#endif
+      break;
+    }
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;

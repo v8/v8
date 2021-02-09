@@ -214,6 +214,9 @@ namespace compiler {
   V(S390_F64x2Floor)                        \
   V(S390_F64x2Trunc)                        \
   V(S390_F64x2NearestInt)                   \
+  V(S390_F64x2ConvertLowI32x4S)             \
+  V(S390_F64x2ConvertLowI32x4U)             \
+  V(S390_F64x2PromoteLowF32x4)              \
   V(S390_F32x4Splat)                        \
   V(S390_F32x4ExtractLane)                  \
   V(S390_F32x4ReplaceLane)                  \
@@ -243,6 +246,7 @@ namespace compiler {
   V(S390_F32x4Floor)                        \
   V(S390_F32x4Trunc)                        \
   V(S390_F32x4NearestInt)                   \
+  V(S390_F32x4DemoteF64x2Zero)              \
   V(S390_I64x2Neg)                          \
   V(S390_I64x2Add)                          \
   V(S390_I64x2Sub)                          \
@@ -302,6 +306,8 @@ namespace compiler {
   V(S390_I32x4ExtAddPairwiseI16x8S)         \
   V(S390_I32x4ExtAddPairwiseI16x8U)         \
   V(S390_I32x4SignSelect)                   \
+  V(S390_I32x4TruncSatF64x2SZero)           \
+  V(S390_I32x4TruncSatF64x2UZero)           \
   V(S390_I16x8Splat)                        \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \

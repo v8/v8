@@ -2502,6 +2502,24 @@ void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
   UNIMPLEMENTED();
 }
 void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2ConvertLowI32x4S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitF32x4DemoteF64x2Zero(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,

@@ -779,6 +779,10 @@ void Simulator::EvalTableInit() {
   V(vupl, VUPL, 0xE7D6)   /* type = VRR_A VECTOR UNPACK LOW  */                \
   V(vuph, VUPH, 0xE7D7)   /* type = VRR_A VECTOR UNPACK HIGH  */               \
   V(vpopct, VPOPCT, 0xE750) /* type = VRR_A VECTOR POPULATION COUNT  */        \
+  V(vcdg, VCDG, 0xE7C3)     /* VECTOR FP CONVERT FROM FIXED  */                \
+  V(vcdlg, VCDLG, 0xE7C1)   /* VECTOR FP CONVERT FROM LOGICAL  */              \
+  V(vcgd, VCGD, 0xE7C2)     /* VECTOR FP CONVERT TO FIXED */                   \
+  V(vclgd, VCLGD, 0xE7C0)   /* VECTOR FP CONVERT TO LOGICAL */                 \
   V(vmnl, VMNL, 0xE7FC)     /* type = VRR_C VECTOR MINIMUM LOGICAL  */         \
   V(vmxl, VMXL, 0xE7FD)     /* type = VRR_C VECTOR MAXIMUM LOGICAL  */         \
   V(vmn, VMN, 0xE7FE)       /* type = VRR_C VECTOR MINIMUM  */                 \
@@ -1654,6 +1658,56 @@ T Simulator::get_high_register(int reg) const {
   if (reg >= kNumGPRs) return 0;
   // End stupid code.
   return static_cast<T>(registers_[reg] >> 32);
+}
+
+template <class T, class R>
+static R ComputeSignedRoundingResult(T a, T n) {
+  constexpr T NINF = -std::numeric_limits<T>::infinity();
+  constexpr T PINF = std::numeric_limits<T>::infinity();
+  constexpr long double MN =
+      static_cast<long double>(std::numeric_limits<R>::min());
+  constexpr long double MP =
+      static_cast<long double>(std::numeric_limits<R>::max());
+
+  if (NINF <= a && a < MN && n < MN) {
+    return std::numeric_limits<R>::min();
+  } else if (NINF < a && a < MN && n == MN) {
+    return std::numeric_limits<R>::min();
+  } else if (MN <= a && a < 0.0) {
+    return static_cast<R>(n);
+  } else if (a == 0.0) {
+    return 0;
+  } else if (0.0 < a && a <= MP) {
+    return static_cast<R>(n);
+  } else if (MP < a && a <= PINF && n == MP) {
+    return std::numeric_limits<R>::max();
+  } else if (MP < a && a <= PINF && n > MP) {
+    return std::numeric_limits<R>::max();
+  } else if (std::isnan(a)) {
+    return std::numeric_limits<R>::min();
+  }
+  UNIMPLEMENTED();
+  return 0;
+}
+
+template <class T, class R>
+static R ComputeLogicalRoundingResult(T a, T n) {
+  constexpr T NINF = -std::numeric_limits<T>::infinity();
+  constexpr T PINF = std::numeric_limits<T>::infinity();
+  constexpr long double MP =
+      static_cast<long double>(std::numeric_limits<R>::max());
+
+  if (NINF <= a && a <= 0.0) {
+    return 0;
+  } else if (0.0 < a && a <= MP) {
+    return static_cast<R>(n);
+  } else if (MP < a && a <= PINF) {
+    return std::numeric_limits<R>::max();
+  } else if (std::isnan(a)) {
+    return 0;
+  }
+  UNIMPLEMENTED();
+  return 0;
 }
 
 void Simulator::set_low_register(int reg, uint32_t value) {
@@ -3482,6 +3536,81 @@ EVALUATE(VPOPCT) {
   USE(m4);
   switch (m3) {
     CASE(0, uint8_t);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+#define CASE(i, S, D)                                                          \
+  case i: {                                                                    \
+    FOR_EACH_LANE(index, S) {                                                  \
+      set_simd_register_by_lane<D>(                                            \
+          r1, index, static_cast<D>(get_simd_register_by_lane<S>(r2, index))); \
+    }                                                                          \
+    break;                                                                     \
+  }
+EVALUATE(VCDG) {
+  DCHECK_OPCODE(VCDG);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  USE(m5);
+  switch (m3) {
+    CASE(2, int32_t, float);
+    CASE(3, int64_t, double);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+
+EVALUATE(VCDLG) {
+  DCHECK_OPCODE(VCDLG);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  USE(m5);
+  switch (m3) {
+    CASE(2, uint32_t, float);
+    CASE(3, uint64_t, double);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+#define CASE(i, S, D, type)                                           \
+  case i: {                                                           \
+    FOR_EACH_LANE(index, S) {                                         \
+      S a = get_simd_register_by_lane<S>(r2, index);                  \
+      S n = ComputeRounding<S>(a, m5);                                \
+      set_simd_register_by_lane<D>(                                   \
+          r1, index,                                                  \
+          static_cast<D>(Compute##type##RoundingResult<S, D>(a, n))); \
+    }                                                                 \
+    break;                                                            \
+  }
+EVALUATE(VCGD) {
+  DCHECK_OPCODE(VCDG);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  switch (m3) {
+    CASE(2, float, int32_t, Signed);
+    CASE(3, double, int64_t, Signed);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+
+EVALUATE(VCLGD) {
+  DCHECK_OPCODE(VCLGD);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  switch (m3) {
+    CASE(2, float, uint32_t, Logical);
+    CASE(3, double, uint64_t, Logical);
     default:
       UNREACHABLE();
   }
@@ -7447,36 +7576,6 @@ static int ComputeSignedRoundingConditionCode(T a, T n) {
   return 0;
 }
 
-template <class T, class R>
-static R ComputeSignedRoundingResult(T a, T n) {
-  constexpr T NINF = -std::numeric_limits<T>::infinity();
-  constexpr T PINF = std::numeric_limits<T>::infinity();
-  constexpr long double MN =
-      static_cast<long double>(std::numeric_limits<R>::min());
-  constexpr long double MP =
-      static_cast<long double>(std::numeric_limits<R>::max());
-
-  if (NINF <= a && a < MN && n < MN) {
-    return std::numeric_limits<R>::min();
-  } else if (NINF < a && a < MN && n == MN) {
-    return std::numeric_limits<R>::min();
-  } else if (MN <= a && a < 0.0) {
-    return static_cast<R>(n);
-  } else if (a == 0.0) {
-    return 0;
-  } else if (0.0 < a && a <= MP) {
-    return static_cast<R>(n);
-  } else if (MP < a && a <= PINF && n == MP) {
-    return std::numeric_limits<R>::max();
-  } else if (MP < a && a <= PINF && n > MP) {
-    return std::numeric_limits<R>::max();
-  } else if (std::isnan(a)) {
-    return std::numeric_limits<R>::min();
-  }
-  UNIMPLEMENTED();
-  return 0;
-}
-
 EVALUATE(CFDBRA) {
   DCHECK_OPCODE(CFDBRA);
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
@@ -7562,26 +7661,6 @@ static int ComputeLogicalRoundingConditionCode(T a, T n) {
     return n == MP ? 0x2 : 0x1;
   } else if (std::isnan(a)) {
     return 0x1;
-  }
-  UNIMPLEMENTED();
-  return 0;
-}
-
-template <class T, class R>
-static R ComputeLogicalRoundingResult(T a, T n) {
-  constexpr T NINF = -std::numeric_limits<T>::infinity();
-  constexpr T PINF = std::numeric_limits<T>::infinity();
-  constexpr long double MP =
-      static_cast<long double>(std::numeric_limits<R>::max());
-
-  if (NINF <= a && a <= 0.0) {
-    return 0;
-  } else if (0.0 < a && a <= MP) {
-    return static_cast<R>(n);
-  } else if (MP < a && a <= PINF) {
-    return std::numeric_limits<R>::max();
-  } else if (std::isnan(a)) {
-    return 0;
   }
   UNIMPLEMENTED();
   return 0;
