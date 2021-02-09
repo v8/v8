@@ -44,6 +44,10 @@ namespace compiler {
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
 
+inline bool IsAnyStore(AccessMode mode) {
+  return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral;
+}
+
 enum class SerializationPolicy { kAssumeSerialized, kSerializeIfNeeded };
 
 enum class OddballType : uint8_t {
