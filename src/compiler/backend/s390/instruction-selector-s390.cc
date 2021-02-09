@@ -2428,6 +2428,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I64x2ExtMulLowI32x4U)  \
   V(I64x2ExtMulHighI32x4U) \
   V(I16x8Q15MulRSatS)      \
+  V(I64x2Ne)               \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2540,6 +2541,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16Neg)                \
   V(I8x16Abs)                \
   V(I8x16Popcnt)             \
+  V(V64x2AllTrue)            \
   V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \

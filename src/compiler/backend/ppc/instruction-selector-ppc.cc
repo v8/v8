@@ -2177,6 +2177,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Sub)              \
   V(I64x2Mul)              \
   V(I64x2Eq)               \
+  V(I64x2Ne)               \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2280,6 +2281,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8SConvertI8x16High) \
   V(I16x8UConvertI8x16Low)  \
   V(I16x8UConvertI8x16High) \
+  V(V64x2AllTrue)           \
   V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \
