@@ -85,6 +85,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   bool is_main_thread() const { return heap_.is_main_thread(); }
 
+  LocalIsolate* AsLocalIsolate() { return this; }
+
  private:
   friend class v8::internal::LocalFactory;
 

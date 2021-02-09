@@ -12,6 +12,8 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
+#include "src/execution/local-isolate.h"
+#include "src/heap/parked-scope.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecode-generator.h"
@@ -31,10 +33,10 @@ namespace interpreter {
 
 class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
  public:
-  InterpreterCompilationJob(
-      ParseInfo* parse_info, FunctionLiteral* literal,
-      AccountingAllocator* allocator,
-      std::vector<FunctionLiteral*>* eager_inner_literals);
+  InterpreterCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
+                            AccountingAllocator* allocator,
+                            std::vector<FunctionLiteral*>* eager_inner_literals,
+                            LocalIsolate* local_isolate);
   InterpreterCompilationJob(const InterpreterCompilationJob&) = delete;
   InterpreterCompilationJob& operator=(const InterpreterCompilationJob&) =
       delete;
@@ -59,6 +61,7 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
 
   Zone zone_;
   UnoptimizedCompilationInfo compilation_info_;
+  LocalIsolate* local_isolate_;
   BytecodeGenerator generator_;
 };
 
@@ -156,11 +159,13 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 InterpreterCompilationJob::InterpreterCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
-    std::vector<FunctionLiteral*>* eager_inner_literals)
+    std::vector<FunctionLiteral*>* eager_inner_literals,
+    LocalIsolate* local_isolate)
     : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
                                 &compilation_info_),
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
+      local_isolate_(local_isolate),
       generator_(&zone_, &compilation_info_, parse_info->ast_string_constants(),
                  eager_inner_literals) {}
 
@@ -175,6 +180,9 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   // Print AST if flag is enabled. Note, if compiling on a background thread
   // then ASTs from different functions may be intersperse when printed.
   MaybePrintAst(parse_info(), compilation_info());
+
+  base::Optional<ParkedScope> parked_scope;
+  if (local_isolate_) parked_scope.emplace(local_isolate_);
 
   generator()->GenerateBytecode(stack_limit());
 
@@ -284,17 +292,19 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 std::unique_ptr<UnoptimizedCompilationJob> Interpreter::NewCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
-    std::vector<FunctionLiteral*>* eager_inner_literals) {
+    std::vector<FunctionLiteral*>* eager_inner_literals,
+    LocalIsolate* local_isolate) {
   return std::make_unique<InterpreterCompilationJob>(
-      parse_info, literal, allocator, eager_inner_literals);
+      parse_info, literal, allocator, eager_inner_literals, local_isolate);
 }
 
 std::unique_ptr<UnoptimizedCompilationJob>
 Interpreter::NewSourcePositionCollectionJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
-    Handle<BytecodeArray> existing_bytecode, AccountingAllocator* allocator) {
-  auto job = std::make_unique<InterpreterCompilationJob>(parse_info, literal,
-                                                         allocator, nullptr);
+    Handle<BytecodeArray> existing_bytecode, AccountingAllocator* allocator,
+    LocalIsolate* local_isolate) {
+  auto job = std::make_unique<InterpreterCompilationJob>(
+      parse_info, literal, allocator, nullptr, local_isolate);
   job->compilation_info()->SetBytecodeArray(existing_bytecode);
   return job;
 }

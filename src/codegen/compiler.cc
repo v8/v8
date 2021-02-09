@@ -30,6 +30,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate.h"
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/maybe-handles.h"
@@ -619,7 +620,8 @@ std::unique_ptr<UnoptimizedCompilationJob>
 ExecuteSingleUnoptimizedCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
-    std::vector<FunctionLiteral*>* eager_inner_literals) {
+    std::vector<FunctionLiteral*>* eager_inner_literals,
+    LocalIsolate* local_isolate) {
   if (UseAsmWasm(literal, parse_info->flags().is_asm_wasm_broken())) {
     std::unique_ptr<UnoptimizedCompilationJob> asm_job(
         AsmJs::NewCompilationJob(parse_info, literal, allocator));
@@ -634,7 +636,7 @@ ExecuteSingleUnoptimizedCompilationJob(
   }
   std::unique_ptr<UnoptimizedCompilationJob> job(
       interpreter::Interpreter::NewCompilationJob(
-          parse_info, literal, allocator, eager_inner_literals));
+          parse_info, literal, allocator, eager_inner_literals, local_isolate));
 
   if (job->ExecuteJob() != CompilationJob::SUCCEEDED) {
     // Compilation failed, return null.
@@ -649,9 +651,13 @@ bool RecursivelyExecuteUnoptimizedCompilationJobs(
     AccountingAllocator* allocator,
     UnoptimizedCompilationJobList* function_jobs) {
   std::vector<FunctionLiteral*> eager_inner_literals;
+
+  // We need to pass nullptr here because we are on the background
+  // thread but don't have a LocalIsolate.
+  DCHECK_NULL(LocalHeap::Current());
   std::unique_ptr<UnoptimizedCompilationJob> job =
       ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, allocator,
-                                             &eager_inner_literals);
+                                             &eager_inner_literals, nullptr);
 
   if (!job) return false;
 
@@ -690,7 +696,9 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
 
     std::unique_ptr<UnoptimizedCompilationJob> job =
         ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, allocator,
-                                               &functions_to_compile);
+                                               &functions_to_compile,
+                                               isolate->AsLocalIsolate());
+
     if (!job) return false;
 
     UpdateSharedFunctionFlagsAfterCompilation(literal, *shared_info);
@@ -716,8 +724,8 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
         DCHECK((!std::is_same<LocalIsolate, Isolate>::value));
         DCHECK_NOT_NULL(jobs_to_retry_finalization_on_main_thread);
 
-        // Clear the literal and ParseInfo to prevent further attempts to access
-        // them.
+        // Clear the literal and ParseInfo to prevent further attempts to
+        // access them.
         job->compilation_info()->ClearLiteral();
         job->ClearParseInfo();
         jobs_to_retry_finalization_on_main_thread->emplace_back(
@@ -1553,36 +1561,38 @@ void BackgroundCompileTask::Run() {
   } else {
     DCHECK(info_->flags().is_toplevel());
 
-    LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
-    UnparkedScope unparked_scope(isolate.heap());
-    LocalHandleScope handle_scope(&isolate);
+    {
+      LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
+      UnparkedScope unparked_scope(&isolate);
+      LocalHandleScope handle_scope(&isolate);
 
-    info_->ast_value_factory()->Internalize(&isolate);
+      info_->ast_value_factory()->Internalize(&isolate);
 
-    // We don't have the script source, origin, or details yet, so use default
-    // values for them. These will be fixed up during the main-thread merge.
-    Handle<Script> script = info_->CreateScript(
-        &isolate, isolate.factory()->empty_string(), kNullMaybeHandle,
-        ScriptOriginOptions(false, false, false, info_->flags().is_module()));
+      // We don't have the script source, origin, or details yet, so use default
+      // values for them. These will be fixed up during the main-thread merge.
+      Handle<Script> script = info_->CreateScript(
+          &isolate, isolate.factory()->empty_string(), kNullMaybeHandle,
+          ScriptOriginOptions(false, false, false, info_->flags().is_module()));
 
-    parser_->HandleSourceURLComments(&isolate, script);
+      parser_->HandleSourceURLComments(&isolate, script);
 
-    MaybeHandle<SharedFunctionInfo> maybe_result;
-    if (info_->literal() != nullptr) {
-      maybe_result = CompileAndFinalizeOnBackgroundThread(
-          info_.get(), compile_state_.allocator(), script, &isolate,
-          &finalize_unoptimized_compilation_data_,
-          &jobs_to_retry_finalization_on_main_thread_, &is_compiled_scope_);
-    } else {
-      DCHECK(compile_state_.pending_error_handler()->has_pending_error());
-      PreparePendingException(&isolate, info_.get());
+      MaybeHandle<SharedFunctionInfo> maybe_result;
+      if (info_->literal() != nullptr) {
+        maybe_result = CompileAndFinalizeOnBackgroundThread(
+            info_.get(), compile_state_.allocator(), script, &isolate,
+            &finalize_unoptimized_compilation_data_,
+            &jobs_to_retry_finalization_on_main_thread_, &is_compiled_scope_);
+      } else {
+        DCHECK(compile_state_.pending_error_handler()->has_pending_error());
+        PreparePendingException(&isolate, info_.get());
+      }
+
+      outer_function_sfi_ =
+          isolate.heap()->NewPersistentMaybeHandle(maybe_result);
+      script_ = isolate.heap()->NewPersistentHandle(script);
+
+      persistent_handles_ = isolate.heap()->DetachPersistentHandles();
     }
-
-    outer_function_sfi_ =
-        isolate.heap()->NewPersistentMaybeHandle(maybe_result);
-    script_ = isolate.heap()->NewPersistentHandle(script);
-
-    persistent_handles_ = isolate.heap()->DetachPersistentHandles();
 
     {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -1683,7 +1693,8 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   std::unique_ptr<UnoptimizedCompilationJob> job;
   {
     job = interpreter::Interpreter::NewSourcePositionCollectionJob(
-        &parse_info, parse_info.literal(), bytecode, isolate->allocator());
+        &parse_info, parse_info.literal(), bytecode, isolate->allocator(),
+        isolate->main_thread_local_isolate());
 
     if (!job || job->ExecuteJob() != CompilationJob::SUCCEEDED ||
         job->FinalizeJob(shared_info, isolate) != CompilationJob::SUCCEEDED) {

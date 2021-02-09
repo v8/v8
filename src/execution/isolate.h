@@ -1659,6 +1659,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return main_thread_local_isolate_.get();
   }
 
+  LocalIsolate* AsLocalIsolate() { return main_thread_local_isolate(); }
+
   LocalHeap* main_thread_local_heap();
   LocalHeap* CurrentLocalHeap();
 
