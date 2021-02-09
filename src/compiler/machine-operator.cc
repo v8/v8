@@ -439,6 +439,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I64x2Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(I64x2Eq, Operator::kCommutative, 2, 0, 1)                              \
   V(I64x2Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(I64x2GtS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I64x2GeS, Operator::kNoProperties, 2, 0, 1)                            \
   V(I64x2ShrU, Operator::kNoProperties, 2, 0, 1)                           \
   V(I64x2ExtMulLowI32x4S, Operator::kCommutative, 2, 0, 1)                 \
   V(I64x2ExtMulHighI32x4S, Operator::kCommutative, 2, 0, 1)                \

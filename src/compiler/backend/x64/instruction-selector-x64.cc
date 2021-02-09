@@ -3774,6 +3774,37 @@ void InstructionSelector::VisitI32x4WidenI8x16U(Node* node) {
   VisitWiden(this, node, kX64I32x4WidenI8x16U);
 }
 
+void InstructionSelector::VisitI64x2GtS(Node* node) {
+  X64OperandGenerator g(this);
+  if (CpuFeatures::IsSupported(AVX)) {
+    Emit(kX64I64x2GtS, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    Emit(kX64I64x2GtS, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  } else {
+    Emit(kX64I64x2GtS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+  }
+}
+
+void InstructionSelector::VisitI64x2GeS(Node* node) {
+  X64OperandGenerator g(this);
+  if (CpuFeatures::IsSupported(AVX)) {
+    Emit(kX64I64x2GeS, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    Emit(kX64I64x2GeS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)));
+  } else {
+    Emit(kX64I64x2GeS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+  }
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

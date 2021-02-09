@@ -348,6 +348,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4GeS, 0xfd3f, s_ss)                  \
   V(I32x4GeU, 0xfd40, s_ss)                  \
   V(I64x2Eq, 0xfdc0, s_ss)                   \
+  V(I64x2LtS, 0xfd74, s_ss)                  \
+  V(I64x2GtS, 0xfd7a, s_ss)                  \
+  V(I64x2LeS, 0xfdee, s_ss)                  \
+  V(I64x2GeS, 0xfde2, s_ss)                  \
   V(I64x2Ne, 0xfdd0, s_ss)                   \
   V(F32x4Eq, 0xfd41, s_ss)                   \
   V(F32x4Ne, 0xfd42, s_ss)                   \

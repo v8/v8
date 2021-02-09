@@ -679,6 +679,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I64x2Mul();
   const Operator* I64x2Eq();
   const Operator* I64x2Ne();
+  const Operator* I64x2GtS();
+  const Operator* I64x2GeS();
   const Operator* I64x2ShrU();
   const Operator* I64x2ExtMulLowI32x4S();
   const Operator* I64x2ExtMulHighI32x4S();

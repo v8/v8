@@ -836,6 +836,8 @@
   V(I64x2Mul)                   \
   V(I64x2Eq)                    \
   V(I64x2Ne)                    \
+  V(I64x2GtS)                   \
+  V(I64x2GeS)                   \
   V(I64x2ShrU)                  \
   V(I64x2ExtMulLowI32x4S)       \
   V(I64x2ExtMulHighI32x4S)      \

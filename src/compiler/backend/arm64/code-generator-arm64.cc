@@ -2311,6 +2311,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mvn(dst, dst);
       break;
     }
+      SIMD_BINOP_CASE(kArm64I64x2GtS, Cmgt, 2D);
+      SIMD_BINOP_CASE(kArm64I64x2GeS, Cmge, 2D);
     case kArm64I64x2ShrU: {
       ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 6, V2D, Ushl, X);
       break;

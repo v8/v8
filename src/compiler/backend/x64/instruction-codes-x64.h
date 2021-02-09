@@ -214,6 +214,8 @@ namespace compiler {
   V(X64I64x2Sub)                          \
   V(X64I64x2Mul)                          \
   V(X64I64x2Eq)                           \
+  V(X64I64x2GtS)                          \
+  V(X64I64x2GeS)                          \
   V(X64I64x2Ne)                           \
   V(X64I64x2ShrU)                         \
   V(X64I64x2SignSelect)                   \
