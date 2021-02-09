@@ -93,7 +93,6 @@ class Utils;
 class Value;
 class WasmMemoryObject;
 class WasmModuleObject;
-struct CppHeapCreateParams;
 template <class K, class V, class T>
 class GlobalValueMap;
 template <class K, class V, class T>
@@ -8469,16 +8468,6 @@ class V8_EXPORT Isolate {
     int embedder_wrapper_type_index = -1;
     int embedder_wrapper_object_index = -1;
 
-    /**
-     * If parameters are set, V8 creates a managed C++ heap as extension to its
-     * JavaScript heap.
-     *
-     * See v8::Isolate::GetCppHeap() for working with the heap.
-     *
-     * This is an experimental feature and may still change significantly.
-     */
-    std::shared_ptr<CppHeapCreateParams> cpp_heap_params;
-
     V8_DEPRECATED(
         "Setting this has no effect. Embedders should ignore import assertions "
         "that they do not use.")
@@ -9100,8 +9089,26 @@ class V8_EXPORT Isolate {
   EmbedderHeapTracer* GetEmbedderHeapTracer();
 
   /**
-   * \returns the C++ heap managed by V8. Only available if the Isolate was
-   *   created with proper CreatePrams::cpp_heap_params option.
+   * Attaches a managed C++ heap as an extension to the JavaScript heap. The
+   * embedder maintains ownership of the CppHeap. At most one C++ heap can be
+   * attached to V8.
+   *
+   * This is an experimental feature and may still change significantly.
+   */
+  void AttachCppHeap(CppHeap*);
+
+  /**
+   * Detaches a managed C++ heap if one was attached using `AttachCppHeap()`.
+   *
+   * This is an experimental feature and may still change significantly.
+   */
+  void DetachCppHeap();
+
+  /**
+   * This is an experimental feature and may still change significantly.
+
+   * \returns the C++ heap managed by V8. Only available if such a heap has been
+   *   attached using `AttachCppHeap()`.
    */
   CppHeap* GetCppHeap() const;
 

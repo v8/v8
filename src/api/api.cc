@@ -8223,6 +8223,16 @@ EmbedderHeapTracer* Isolate::GetEmbedderHeapTracer() {
   return isolate->heap()->GetEmbedderHeapTracer();
 }
 
+void Isolate::AttachCppHeap(CppHeap* cpp_heap) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->AttachCppHeap(cpp_heap);
+}
+
+void Isolate::DetachCppHeap() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->DetachCppHeap();
+}
+
 CppHeap* Isolate::GetCppHeap() const {
   const i::Isolate* isolate = reinterpret_cast<const i::Isolate*>(this);
   return isolate->heap()->cpp_heap();
@@ -8335,9 +8345,6 @@ void Isolate::Initialize(Isolate* isolate,
   i_isolate->set_allow_atomics_wait(params.allow_atomics_wait);
 
   i_isolate->heap()->ConfigureHeap(params.constraints);
-  if (params.cpp_heap_params) {
-    i_isolate->heap()->ConfigureCppHeap(params.cpp_heap_params);
-  }
   if (params.constraints.stack_limit() != nullptr) {
     uintptr_t limit =
         reinterpret_cast<uintptr_t>(params.constraints.stack_limit());

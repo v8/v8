@@ -10,6 +10,7 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/cppgc/sweeper.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/heap/unified-heap-utils.h"
@@ -38,6 +39,8 @@ class Wrappable final : public cppgc::GarbageCollected<Wrappable> {
 };
 
 size_t Wrappable::destructor_callcount = 0;
+
+using UnifiedHeapDetachedTest = TestWithHeapInternals;
 
 }  // namespace
 
@@ -117,6 +120,30 @@ TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   EXPECT_EQ(kMagicAddress,
             wrappable->wrapper()->GetAlignedPointerFromInternalField(1));
+}
+
+TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
+  auto heap =
+      v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{});
+  auto* object =
+      cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
+  cppgc::WeakPersistent<Wrappable> weak_holder{object};
+
+  auto& js_heap = *isolate()->heap();
+  js_heap.AttachCppHeap(heap.get());
+  auto& cpp_heap = *CppHeap::From(isolate()->heap()->cpp_heap());
+  {
+    CollectGarbage(OLD_SPACE);
+    cpp_heap.AsBase().sweeper().FinishIfRunning();
+    EXPECT_TRUE(weak_holder);
+  }
+  {
+    js_heap.SetEmbedderStackStateForNextFinalization(
+        EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
+    CollectGarbage(OLD_SPACE);
+    cpp_heap.AsBase().sweeper().FinishIfRunning();
+    EXPECT_FALSE(weak_holder);
+  }
 }
 
 }  // namespace internal

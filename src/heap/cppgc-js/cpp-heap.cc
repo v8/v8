@@ -35,6 +35,12 @@
 
 namespace v8 {
 
+// static
+std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
+                                         const CppHeapCreateParams& params) {
+  return std::make_unique<internal::CppHeap>(platform, params.custom_spaces);
+}
+
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
   return internal::CppHeap::From(this)->object_allocator();
 }
@@ -63,8 +69,7 @@ namespace {
 
 class CppgcPlatformAdapter final : public cppgc::Platform {
  public:
-  explicit CppgcPlatformAdapter(v8::Isolate* isolate)
-      : platform_(V8::GetCurrentPlatform()), isolate_(isolate) {}
+  explicit CppgcPlatformAdapter(v8::Platform* platform) : platform_(platform) {}
 
   CppgcPlatformAdapter(const CppgcPlatformAdapter&) = delete;
   CppgcPlatformAdapter& operator=(const CppgcPlatformAdapter&) = delete;
@@ -90,9 +95,11 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
     return platform_->GetTracingController();
   }
 
+  void SetIsolate(v8::Isolate* isolate) { isolate_ = isolate; }
+
  private:
   v8::Platform* platform_;
-  v8::Isolate* isolate_;
+  v8::Isolate* isolate_ = nullptr;
 };
 
 class UnifiedHeapConcurrentMarker
@@ -169,36 +176,65 @@ void UnifiedHeapMarker::AddObject(void* object) {
 }  // namespace
 
 CppHeap::CppHeap(
-    v8::Isolate* isolate,
+    v8::Platform* platform,
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
     std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder)
-    : cppgc::internal::HeapBase(std::make_shared<CppgcPlatformAdapter>(isolate),
-                                custom_spaces,
-                                cppgc::internal::HeapBase::StackSupport::
-                                    kSupportsConservativeStackScan,
-                                std::move(metric_recorder)),
-      isolate_(*reinterpret_cast<Isolate*>(isolate)) {
-  if (isolate_.heap_profiler()) {
-    isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(
-        &CppGraphBuilder::Run, this);
-  }
+    : cppgc::internal::HeapBase(
+          std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
+          cppgc::internal::HeapBase::StackSupport::
+              kSupportsConservativeStackScan,
+          std::move(metric_recorder)) {
+  // Enter no GC scope. `AttachIsolate()` removes this and allows triggering
+  // garbage collections.
+  no_gc_scope_++;
   stats_collector()->RegisterObserver(this);
 }
 
 CppHeap::~CppHeap() {
-  if (isolate_.heap_profiler()) {
-    isolate_.heap_profiler()->RemoveBuildEmbedderGraphCallback(
-        &CppGraphBuilder::Run, this);
+  if (isolate_) {
+    isolate_->heap()->DetachCppHeap();
   }
 }
 
 void CppHeap::Terminate() {
-  FinalizeIncrementalGarbageCollectionIfNeeded(
-      cppgc::Heap::StackState::kNoHeapPointers);
-  // Any future garbage collections will ignore the V8->C++ references.
-  isolate()->SetEmbedderHeapTracer(nullptr);
+  // Must not be attached to a heap when invoking termination GCs.
+  CHECK(!isolate_);
   // Gracefully terminate the C++ heap invoking destructors.
   HeapBase::Terminate();
+}
+
+void CppHeap::AttachIsolate(Isolate* isolate) {
+  CHECK_NULL(isolate_);
+  isolate_ = isolate;
+  static_cast<CppgcPlatformAdapter*>(platform())
+      ->SetIsolate(reinterpret_cast<v8::Isolate*>(isolate_));
+  if (isolate_->heap_profiler()) {
+    isolate_->heap_profiler()->AddBuildEmbedderGraphCallback(
+        &CppGraphBuilder::Run, this);
+  }
+  isolate_->heap()->SetEmbedderHeapTracer(this);
+  no_gc_scope_--;
+}
+
+void CppHeap::DetachIsolate() {
+  // TODO(chromium:1056170): Investigate whether this can be enforced with a
+  // CHECK across all relevant embedders and setups.
+  if (!isolate_) return;
+
+  // Delegate to existing EmbedderHeapTracer API to finish any ongoing garbage
+  // collection.
+  FinalizeTracing();
+  sweeper_.FinishIfRunning();
+
+  if (isolate_->heap_profiler()) {
+    isolate_->heap_profiler()->RemoveBuildEmbedderGraphCallback(
+        &CppGraphBuilder::Run, this);
+  }
+  isolate_ = nullptr;
+  // Any future garbage collections will ignore the V8->C++ references.
+  isolate()->SetEmbedderHeapTracer(nullptr);
+  // Enter no GC scope.
+  no_gc_scope_++;
 }
 
 void CppHeap::RegisterV8References(
@@ -231,7 +267,7 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   }
   marker_ =
       cppgc::internal::MarkerFactory::CreateAndStartMarking<UnifiedHeapMarker>(
-          *isolate_.heap(), AsBase(), platform_.get(), marking_config);
+          *isolate_->heap(), AsBase(), platform_.get(), marking_config);
   marking_done_ = false;
 }
 

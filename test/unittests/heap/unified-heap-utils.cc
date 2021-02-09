@@ -14,8 +14,10 @@
 namespace v8 {
 namespace internal {
 
-UnifiedHeapTest::UnifiedHeapTest() {
-  isolate()->heap()->ConfigureCppHeap(std::make_unique<CppHeapCreateParams>());
+UnifiedHeapTest::UnifiedHeapTest()
+    : cpp_heap_(v8::CppHeap::Create(V8::GetCurrentPlatform(),
+                                    CppHeapCreateParams{})) {
+  isolate()->heap()->AttachCppHeap(cpp_heap_.get());
 }
 
 void UnifiedHeapTest::CollectGarbageWithEmbedderStack(

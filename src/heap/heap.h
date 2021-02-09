@@ -1137,10 +1137,10 @@ class Heap {
   // Unified heap (C++) support. ===============================================
   // ===========================================================================
 
-  V8_EXPORT_PRIVATE void ConfigureCppHeap(
-      std::shared_ptr<CppHeapCreateParams> params);
+  V8_EXPORT_PRIVATE void AttachCppHeap(v8::CppHeap* cpp_heap);
+  V8_EXPORT_PRIVATE void DetachCppHeap();
 
-  v8::CppHeap* cpp_heap() const { return cpp_heap_.get(); }
+  v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
   // ===========================================================================
   // External string table API. ================================================
@@ -2236,7 +2236,9 @@ class Heap {
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
-  std::unique_ptr<v8::CppHeap> cpp_heap_;
+
+  // The embedder owns the C++ heap.
+  v8::CppHeap* cpp_heap_ = nullptr;
 
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;

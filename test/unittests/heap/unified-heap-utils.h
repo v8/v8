@@ -10,6 +10,9 @@
 #include "test/unittests/heap/heap-utils.h"
 
 namespace v8 {
+
+class CppHeap;
+
 namespace internal {
 
 class CppHeap;
@@ -27,6 +30,9 @@ class UnifiedHeapTest : public TestWithHeapInternals {
 
   CppHeap& cpp_heap() const;
   cppgc::AllocationHandle& allocation_handle();
+
+ private:
+  std::unique_ptr<v8::CppHeap> cpp_heap_;
 };
 
 class WrapperHelper {

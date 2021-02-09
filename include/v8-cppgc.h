@@ -35,6 +35,9 @@ struct V8_EXPORT CppHeapCreateParams {
  */
 class V8_EXPORT CppHeap {
  public:
+  static std::unique_ptr<CppHeap> Create(v8::Platform* platform,
+                                         const CppHeapCreateParams& params);
+
   virtual ~CppHeap() = default;
 
   /**

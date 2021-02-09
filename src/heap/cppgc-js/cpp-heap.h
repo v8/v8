@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   }
 
   CppHeap(
-      v8::Isolate* isolate,
+      v8::Platform* platform,
       const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
       std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder =
           nullptr);
@@ -43,6 +43,9 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   HeapBase& AsBase() { return *this; }
   const HeapBase& AsBase() const { return *this; }
+
+  void AttachIsolate(Isolate* isolate);
+  void DetachIsolate();
 
   void Terminate();
 
@@ -69,7 +72,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void ReportBufferedAllocationSizeIfPossible();
 
-  Isolate& isolate_;
+  Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
 
   // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC

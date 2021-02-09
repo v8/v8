@@ -4732,12 +4732,6 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   configured_ = true;
 }
 
-void Heap::ConfigureCppHeap(std::shared_ptr<CppHeapCreateParams> params) {
-  cpp_heap_ = std::make_unique<CppHeap>(
-      reinterpret_cast<v8::Isolate*>(isolate()), params->custom_spaces);
-  SetEmbedderHeapTracer(CppHeap::From(cpp_heap_.get()));
-}
-
 void Heap::AddToRingBuffer(const char* string) {
   size_t first_part =
       std::min(strlen(string), kTraceRingBufferSize - ring_buffer_end_);
@@ -5379,11 +5373,23 @@ void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
 
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   DCHECK_EQ(gc_state(), HeapState::NOT_IN_GC);
+  // Setting a tracer is only supported when CppHeap is not used.
+  DCHECK_IMPLIES(tracer, !cpp_heap_);
   local_embedder_heap_tracer()->SetRemoteTracer(tracer);
 }
 
 EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
   return local_embedder_heap_tracer()->remote_tracer();
+}
+
+void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
+  CppHeap::From(cpp_heap)->AttachIsolate(isolate());
+  cpp_heap_ = cpp_heap;
+}
+
+void Heap::DetachCppHeap() {
+  CppHeap::From(cpp_heap_)->DetachIsolate();
+  cpp_heap_ = nullptr;
 }
 
 EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {
@@ -5512,7 +5518,10 @@ void Heap::TearDown() {
   dead_object_stats_.reset();
 
   local_embedder_heap_tracer_.reset();
-  cpp_heap_.reset();
+  if (cpp_heap_) {
+    CppHeap::From(cpp_heap_)->DetachIsolate();
+    cpp_heap_ = nullptr;
+  }
 
   external_string_table_.TearDown();
 

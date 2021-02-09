@@ -105,7 +105,6 @@ void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
 
 void HeapBase::Terminate() {
   DCHECK(!IsMarking());
-  DCHECK(!in_no_gc_scope());
   CHECK(!in_disallow_gc_scope());
 
   sweeper().FinishIfRunning();
