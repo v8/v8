@@ -51,7 +51,7 @@ HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
-// There are five kinds of ObjectData values.
+// There are several kinds of ObjectData values.
 //
 // kSmi: The underlying V8 object is a Smi and the data is an instance of the
 //   base class (ObjectData), i.e. it's basically just the handle.  Because the
@@ -62,9 +62,8 @@ HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 //   data is an instance of the corresponding (most-specific) subclass, e.g.
 //   JSFunctionData, which provides serialized information about the object.
 //
-// kPossiblyBackgroundSerializedHeapObject: Like kSerializedHeapObject, but
-//   allows serialization from the background thread where this is safe
-//   (indicated by corresponding ObjectRef constructor argument).
+// kBackgroundSerializedHeapObject: Like kSerializedHeapObject, but
+//   allows serialization from the background thread.
 //
 // kUnserializedHeapObject: The underlying V8 object is a HeapObject and the
 //   data is an instance of the base class (ObjectData), i.e. it basically
@@ -83,7 +82,6 @@ HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 enum ObjectDataKind {
   kSmi,
   kSerializedHeapObject,
-  kPossiblyBackgroundSerializedHeapObject,
   kBackgroundSerializedHeapObject,
   kUnserializedHeapObject,
   kNeverSerializedHeapObject,
@@ -139,7 +137,6 @@ class ObjectData : public ZoneObject {
     CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                   kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
                       kind == kNeverSerializedHeapObject ||
-                      kind == kPossiblyBackgroundSerializedHeapObject ||
                       kind == kBackgroundSerializedHeapObject);
     CHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
                   IsReadOnlyHeapObject(*object));
@@ -771,9 +768,9 @@ class RegExpBoilerplateDescriptionData : public HeapObjectData {
 class HeapNumberData : public HeapObjectData {
  public:
   HeapNumberData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<HeapNumber> object)
-      : HeapObjectData(broker, storage, object,
-                       kPossiblyBackgroundSerializedHeapObject),
+                 Handle<HeapNumber> object,
+                 ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
+      : HeapObjectData(broker, storage, object, kind),
         value_(object->value()) {}
 
   double value() const { return value_; }
@@ -1075,9 +1072,9 @@ class AllocationSiteData : public HeapObjectData {
 
 class BigIntData : public HeapObjectData {
  public:
-  BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object)
-      : HeapObjectData(broker, storage, object,
-                       ObjectDataKind::kPossiblyBackgroundSerializedHeapObject),
+  BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object,
+             ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
+      : HeapObjectData(broker, storage, object, kind),
         as_uint64_(object->AsUint64(nullptr)) {}
 
   uint64_t AsUint64() const { return as_uint64_; }
@@ -1105,7 +1102,8 @@ struct PropertyDescriptor {
 
 class MapData : public HeapObjectData {
  public:
-  MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object);
+  MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
+          ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject);
 
   InstanceType instance_type() const { return instance_type_; }
   int instance_size() const { return instance_size_; }
@@ -1276,7 +1274,6 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
   CHECK_IMPLIES(kind == kSerializedHeapObject,
                 broker->mode() == JSHeapBroker::kSerializing);
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
-                kind == kPossiblyBackgroundSerializedHeapObject ||
                     kind == kBackgroundSerializedHeapObject);
 }
 
@@ -1313,9 +1310,9 @@ bool SupportsFastArrayResize(Isolate* isolate, Handle<Map> map) {
 }
 }  // namespace
 
-MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
-    : HeapObjectData(broker, storage, object,
-                     ObjectDataKind::kPossiblyBackgroundSerializedHeapObject),
+MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
+                 ObjectDataKind kind)
+    : HeapObjectData(broker, storage, object, kind),
       instance_type_(object->instance_type()),
       instance_size_(object->instance_size()),
       bit_field_(object->bit_field()),
@@ -2191,27 +2188,11 @@ HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DEFINE_IS)
   Name##Data* ObjectData::As##Name() {                        \
     CHECK(Is##Name());                                        \
     CHECK(kind_ == kSerializedHeapObject ||                   \
-          kind_ == kPossiblyBackgroundSerializedHeapObject || \
           kind_ == kBackgroundSerializedHeapObject);          \
     return static_cast<Name##Data*>(this);                    \
   }
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(DEFINE_AS)
-#undef DEFINE_AS
-#define DEFINE_AS(Name)                                       \
-  Name##Data* ObjectData::As##Name() {                        \
-    CHECK(Is##Name());                                        \
-    CHECK_EQ(kind_, kPossiblyBackgroundSerializedHeapObject); \
-    return static_cast<Name##Data*>(this);                    \
-  }
 HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
-#undef DEFINE_AS
-#define DEFINE_AS(Name)                              \
-  Name##Data* ObjectData::As##Name() {               \
-    CHECK(Is##Name());                               \
-    CHECK(kind_ == kSerializedHeapObject ||          \
-          kind_ == kBackgroundSerializedHeapObject); \
-    return static_cast<Name##Data*>(this);           \
-  }
 HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
 
@@ -2473,8 +2454,7 @@ bool ObjectRef::equals(const ObjectRef& other) const {
 
 bool ObjectRef::ShouldHaveBeenSerialized() const {
   return broker()->mode() == JSHeapBroker::kSerialized &&
-         (data()->kind() == kSerializedHeapObject ||
-          data()->kind() == kPossiblyBackgroundSerializedHeapObject);
+         data()->kind() == kSerializedHeapObject;
 }
 
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
@@ -2915,10 +2895,15 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
         return nullptr;                                                   \
       }                                                                   \
       entry = refs_->LookupOrInsert(object.address());                    \
+      ObjectDataKind kind = (background_serialization ==                      \
+                         ObjectRef::BackgroundSerialization::kAllowed)    \
+                        ? kBackgroundSerializedHeapObject                 \
+                        : kSerializedHeapObject;                          \
       object_data = zone()->New<name##Data>(this, &(entry->value),        \
-                                              Handle<name>::cast(object));
-    HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(
-        CREATE_DATA_FOR_POSSIBLE_SERIALIZATION)
+                                            Handle<name>::cast(object),   \
+                                            kind);
+  HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(
+      CREATE_DATA_FOR_POSSIBLE_SERIALIZATION)
 #undef CREATE_DATA_FOR_POSSIBLE_SERIALIZATION
 #define CREATE_DATA_FOR_BACKGROUND_SERIALIZATION(name)                    \
   } else if (object->Is##name()) {                                        \
