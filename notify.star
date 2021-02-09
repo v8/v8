@@ -40,9 +40,6 @@ luci.notifier(
     ],
 )
 
-# Enable luci.tree_closer.
-lucicfg.enable_experiment("crbug.com/1054172")
-
 luci.notify(tree_closing_enabled = True)
 
 luci.tree_closer(
