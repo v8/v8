@@ -330,10 +330,9 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I16x8_OP(RoundingAverageU, "avgr_u")
     CASE_I16x8_OP(Q15MulRSatS, "q15mulr_sat_s")
 
-    CASE_I8x16_OP(Abs, "abs")
+    CASE_SIMDI_OP(Abs, "abs")
+    CASE_I64x2_OP(Abs, "abs")
     CASE_I8x16_OP(Popcnt, "popcnt")
-    CASE_I16x8_OP(Abs, "abs")
-    CASE_I32x4_OP(Abs, "abs")
 
     CASE_I8x16_OP(BitMask, "bitmask")
     CASE_I16x8_OP(BitMask, "bitmask")

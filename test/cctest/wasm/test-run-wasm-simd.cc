@@ -951,6 +951,14 @@ WASM_SIMD_TEST(I64x2Neg) {
                    base::NegateWithWraparound);
 }
 
+WASM_SIMD_TEST(I64x2Abs) {
+  // TODO(v8:11416) Prototyping i64x2.abs.
+  if (TestExecutionTier::kInterpreter != execution_tier) {
+    return;
+  }
+  RunI64x2UnOpTest(execution_tier, lower_simd, kExprI64x2Abs, std::abs);
+}
+
 void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int64ShiftOp expected_op) {
   // Intentionally shift by 64, should be no-op.
