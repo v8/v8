@@ -2875,12 +2875,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64V64x2AllTrue: {
-      UseScratchRegisterScope scope(tasm());
-      VRegister tmp = scope.AcquireV(kFormat2D);
-      __ Cmeq(tmp.V2D(), i.InputSimd128Register(0).V2D(), 0);
-      __ Addp(tmp.D(), tmp);
-      __ Fcmp(tmp.D(), tmp.D());
-      __ Cset(i.OutputRegister32(), eq);
+      __ V64x2AllTrue(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \

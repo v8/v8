@@ -1995,7 +1995,7 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v64x2_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v64x2_alltrue");
+  V64x2AllTrue(dst.gp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2741,7 +2741,8 @@ void LiftoffAssembler::emit_i64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2_ne");
+  Cmeq(dst.fp().V2D(), lhs.fp().V2D(), rhs.fp().V2D());
+  Mvn(dst.fp().V2D(), dst.fp().V2D());
 }
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,

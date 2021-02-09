@@ -3417,6 +3417,15 @@ void TurboAssembler::I64x2BitMask(Register dst, VRegister src) {
   Add(dst.W(), dst.W(), Operand(tmp2.W(), LSL, 1));
 }
 
+void TurboAssembler::V64x2AllTrue(Register dst, VRegister src) {
+  UseScratchRegisterScope scope(this);
+  VRegister tmp = scope.AcquireV(kFormat2D);
+  Cmeq(tmp.V2D(), src.V2D(), 0);
+  Addp(tmp.D(), tmp);
+  Fcmp(tmp.D(), tmp.D());
+  Cset(dst, eq);
+}
+
 }  // namespace internal
 }  // namespace v8
 
