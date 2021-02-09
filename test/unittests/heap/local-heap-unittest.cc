@@ -118,19 +118,14 @@ class GCEpilogue {
 
 class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
  public:
-  explicit BackgroundThreadForGCEpilogue(Heap* heap, bool parked,
-                                         GCEpilogue* epilogue)
+  explicit BackgroundThreadForGCEpilogue(Heap* heap, GCEpilogue* epilogue)
       : v8::base::Thread(base::Thread::Options("BackgroundThread")),
         heap_(heap),
-        parked_(parked),
         epilogue_(epilogue) {}
 
   void Run() override {
     LocalHeap lh(heap_, ThreadKind::kBackground);
-    base::Optional<UnparkedScope> unparked_scope;
-    if (!parked_) {
-      unparked_scope.emplace(&lh);
-    }
+    UnparkedScope unparked_scope(&lh);
     epilogue_->NotifyStarted();
     lh.AddGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
     while (!epilogue_->StopRequested()) {
@@ -140,7 +135,6 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
   }
 
   Heap* heap_;
-  bool parked_;
   GCEpilogue* epilogue_;
 };
 
@@ -149,12 +143,13 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
 TEST_F(LocalHeapTest, GCEpilogue) {
   Heap* heap = i_isolate()->heap();
   LocalHeap lh(heap, ThreadKind::kMain);
+  UnparkedScope unparked_scope(&lh);
   std::array<GCEpilogue, 3> epilogue;
   lh.AddGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
   auto thread1 =
-      std::make_unique<BackgroundThreadForGCEpilogue>(heap, true, &epilogue[1]);
-  auto thread2 = std::make_unique<BackgroundThreadForGCEpilogue>(heap, false,
-                                                                 &epilogue[2]);
+      std::make_unique<BackgroundThreadForGCEpilogue>(heap, &epilogue[1]);
+  auto thread2 =
+      std::make_unique<BackgroundThreadForGCEpilogue>(heap, &epilogue[2]);
   CHECK(thread1->Start());
   CHECK(thread2->Start());
   epilogue[1].WaitUntilStarted();
