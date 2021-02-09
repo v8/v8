@@ -2319,7 +2319,11 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
 
 template <void (TurboAssembler::*pcmp)(XMMRegister, XMMRegister)>
 inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
-                        LiftoffRegister src) {
+                        LiftoffRegister src,
+                        base::Optional<CpuFeature> feature = base::nullopt) {
+  base::Optional<CpuFeatureScope> sse_scope;
+  if (feature.has_value()) sse_scope.emplace(assm, *feature);
+
   XMMRegister tmp = kScratchDoubleReg;
   assm->xorq(dst.gp(), dst.gp());
   assm->Pxor(tmp, tmp);
@@ -2694,6 +2698,14 @@ void LiftoffAssembler::emit_i64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpcmpeqq, &Assembler::pcmpeqq>(
       this, dst, lhs, rhs, SSE4_1);
+}
+
+void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpcmpeqq, &Assembler::pcmpeqq>(
+      this, dst, lhs, rhs, SSE4_1);
+  Pcmpeqq(kScratchDoubleReg, kScratchDoubleReg);
+  Pxor(dst.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3389,6 +3401,11 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
     psubq(reg, src.fp());
     if (dst.fp() != reg) movapd(dst.fp(), reg);
   }
+}
+
+void LiftoffAssembler::emit_v64x2_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqq>(this, dst, src, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,

@@ -3205,6 +3205,8 @@ class LiftoffCompiler {
             &LiftoffAssembler::emit_i32x4_extmul_high_i16x8_u);
       case wasm::kExprI64x2Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_neg);
+      case wasm::kExprV64x2AllTrue:
+        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v64x2_alltrue);
       case wasm::kExprI64x2Shl:
         return EmitSimdShiftOp(&LiftoffAssembler::emit_i64x2_shl,
                                &LiftoffAssembler::emit_i64x2_shli);
