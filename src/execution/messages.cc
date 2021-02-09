@@ -639,10 +639,7 @@ Handle<Script> JSStackFrame::GetScript() const {
 
 void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
                                     int frame_ix) {
-  // This function is called for compiled and interpreted wasm frames, and for
-  // asm.js->wasm frames.
-  DCHECK(array->IsWasmFrame(frame_ix) ||
-         array->IsAsmJsWasmFrame(frame_ix));
+  DCHECK(array->IsWasmFrame(frame_ix) || array->IsAsmJsWasmFrame(frame_ix));
   isolate_ = isolate;
   wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
   wasm_func_index_ = array->WasmFunctionIndex(frame_ix).value();
@@ -691,7 +688,7 @@ Handle<PrimitiveHeapObject> WasmStackFrame::GetWasmModuleName() {
 Handle<HeapObject> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
 
 int WasmStackFrame::GetPosition() const {
-  return IsInterpreted() ? offset_ : code_->GetSourcePositionBefore(offset_);
+  return code_->GetSourcePositionBefore(offset_);
 }
 
 int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }

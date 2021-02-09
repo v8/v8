@@ -202,7 +202,6 @@ class WasmStackFrame : public StackFrameBase {
   bool IsPromiseAny() const override { return false; }
   bool IsConstructor() override { return false; }
   bool IsStrict() const override { return false; }
-  bool IsInterpreted() const { return code_ == nullptr; }
 
  protected:
   Handle<PrimitiveHeapObject> Null() const;
