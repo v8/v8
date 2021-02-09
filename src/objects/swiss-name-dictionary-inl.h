@@ -31,7 +31,7 @@ int SwissNameDictionary::Capacity() {
 }
 
 // static
-bool SwissNameDictionary::IsValidCapacity(int capacity) {
+constexpr bool SwissNameDictionary::IsValidCapacity(int capacity) {
   return capacity == 0 || (capacity >= kInitialCapacity &&
                            // Must be power of 2.
                            ((capacity & (capacity - 1)) == 0));
@@ -51,7 +51,7 @@ constexpr int SwissNameDictionary::CtrlTableSize(int capacity) {
 
 // static
 constexpr int SwissNameDictionary::SizeFor(int capacity) {
-  DCHECK(IsValidCapacity(capacity));
+  CONSTEXPR_DCHECK(IsValidCapacity(capacity));
   return PropertyDetailsTableStartOffset(capacity) + capacity;
 }
 

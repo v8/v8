@@ -70,7 +70,7 @@ class SwissNameDictionary : public HeapObject {
  public:
   inline int Capacity();
 
-  inline static bool IsValidCapacity(int capacity);
+  inline static constexpr bool IsValidCapacity(int capacity);
 
   // Returns total size in bytes required for a table of given capacity.
   inline static constexpr int SizeFor(int capacity);
