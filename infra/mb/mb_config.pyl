@@ -33,6 +33,12 @@
       'ppc64.debug.sim': 'default_debug_ppc64_sim',
       'ppc64.optdebug.sim': 'default_optdebug_ppc64_sim',
       'ppc64.release.sim': 'default_release_ppc64_sim',
+      'riscv64.debug': 'default_debug_riscv64',
+      'riscv64.optdebug': 'default_optdebug_riscv64',
+      'riscv64.release': 'default_release_riscv64',
+      'riscv64.debug.sim': 'default_debug_riscv64_sim',
+      'riscv64.optdebug.sim': 'default_optdebug_riscv64_sim',
+      'riscv64.release.sim': 'default_release_riscv64_sim',
       's390x.debug': 'default_debug_s390x',
       's390x.optdebug': 'default_optdebug_s390x',
       's390x.release': 'default_release_s390x',
@@ -290,6 +296,18 @@
       'debug', 'simulate_mips64el', 'v8_enable_slow_dchecks'],
     'default_release_mips64el': [
       'release', 'simulate_mips64el'],
+    'default_debug_riscv64': [
+      'debug', 'riscv64', 'gcc', 'v8_enable_slow_dchecks', 'v8_full_debug'],
+    'default_optdebug_riscv64': [
+      'debug', 'riscv64', 'gcc', 'v8_enable_slow_dchecks'],
+    'default_release_riscv64': [
+      'release', 'riscv64', 'gcc'],
+    'default_debug_riscv64_sim': [
+      'debug', 'simulate_riscv64', 'v8_enable_slow_dchecks', 'v8_full_debug'],
+    'default_optdebug_riscv64_sim': [
+      'debug', 'simulate_riscv64', 'v8_enable_slow_dchecks'],
+    'default_release_riscv64_sim': [
+      'release', 'simulate_riscv64'],
     'default_debug_ppc64': [
       'debug', 'ppc64', 'gcc', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_ppc64': [
@@ -873,6 +891,10 @@
 
     'ppc64': {
       'gn_args': 'target_cpu="ppc64" use_custom_libcxx=false',
+    },
+
+    'riscv64': {
+      'gn_args': 'target_cpu="riscv64" use_custom_libcxx=false',
     },
 
     'x64': {

@@ -76,10 +76,16 @@
 ['not pointer_compression', {
   # Tests are irrelevant without pointer compression
   'DecompressionOptimizerTest.*': [SKIP],
-}], # not pointer_compression
+}],  # not pointer_compression
 
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['is_clang == False and arch == riscv64',{
+  'LoggingTest.SourceLocation':[SKIP]  # issue-174
+}],
+
 ]

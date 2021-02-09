@@ -411,6 +411,14 @@ v8_source_set("cctest_sources") {
       "test-assembler-s390.cc",
       "test-disasm-s390.cc",
     ]
+  } else if (v8_current_cpu == "riscv64") {
+    sources += [  ### gcmole(arch:riscv64) ###
+      "test-assembler-riscv64.cc",
+      "test-disasm-riscv64.cc",
+      "test-helper-riscv64.cc",
+      "test-macro-assembler-riscv64.cc",
+      "test-simple-riscv64.cc",
+    ]
   }
 
   if (v8_use_perfetto) {
@@ -453,7 +461,8 @@ v8_source_set("cctest_sources") {
       v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
       v8_current_cpu == "mips" || v8_current_cpu == "mips64" ||
-      v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64") {
+      v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64" ||
+      v8_current_cpu == "riscv64") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
     if (!is_win) {

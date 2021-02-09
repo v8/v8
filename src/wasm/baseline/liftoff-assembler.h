@@ -1524,6 +1524,8 @@ class LiftoffStackSlots {
 #include "src/wasm/baseline/mips64/liftoff-assembler-mips64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/wasm/baseline/s390/liftoff-assembler-s390.h"
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/wasm/baseline/riscv64/liftoff-assembler-riscv64.h"
 #else
 #error Unsupported architecture.
 #endif

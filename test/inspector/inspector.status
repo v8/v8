@@ -114,6 +114,12 @@
   'debugger/wasm-scope-info*': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el) and not simd_mips'
 
+##############################################################################
+['arch == riscv64', {
+  # SIMD support is still in progress.
+  'debugger/wasm-scope-info*': [SKIP],
+}],  # 'arch == riscv64'
+
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.

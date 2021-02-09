@@ -59,7 +59,6 @@ namespace {
       (1 << d11.code()) | (1 << d12.code()) | (1 << d13.code()) | \
       (1 << d14.code()) | (1 << d15.code())
 
-
 #elif V8_TARGET_ARCH_ARM64
 // ===========================================================================
 // == arm64 ====================================================================
@@ -130,6 +129,19 @@ namespace {
   d8.bit() | d9.bit() | d10.bit() | d11.bit() | d12.bit() | d13.bit() | \
       d14.bit() | d15.bit()
 
+#elif V8_TARGET_ARCH_RISCV64
+// ===========================================================================
+// == riscv64 =================================================================
+// ===========================================================================
+#define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+// fp is not part of CALLEE_SAVE_REGISTERS (similar to how MIPS64 or PPC defines
+// it)
+#define CALLEE_SAVE_REGISTERS                                                  \
+  s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | \
+      s8.bit() | s9.bit() | s10.bit() | s11.bit()
+#define CALLEE_SAVE_FP_REGISTERS                                          \
+  fs0.bit() | fs1.bit() | fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | \
+      fs6.bit() | fs7.bit() | fs8.bit() | fs9.bit() | fs10.bit() | fs11.bit()
 #else
 // ===========================================================================
 // == unknown ================================================================
