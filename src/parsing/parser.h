@@ -557,7 +557,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return property != nullptr && property->IsPrivateReference();
   }
 
-  // This returns true if the expression is an indentifier (wrapped
+  // This returns true if the expression is an identifier (wrapped
   // inside a variable proxy).  We exclude the case of 'this', which
   // has been converted to a variable proxy.
   V8_INLINE static bool IsIdentifier(Expression* expression) {

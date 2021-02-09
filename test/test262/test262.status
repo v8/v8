@@ -587,9 +587,6 @@
   'intl402/DateTimeFormat/prototype/formatRange/date-same-returns-single-date': [FAIL],
   'intl402/DateTimeFormat/prototype/formatRangeToParts/date-same-returns-single-date': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11412
-  'language/statements/for-of/head-lhs-async-invalid': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

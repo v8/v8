@@ -391,6 +391,7 @@ namespace internal {
   T(ForInOfLoopInitializer,                                                    \
     "% loop variable declaration may not have an initializer.")                \
   T(ForOfLet, "The left-hand side of a for-of loop may not start with 'let'.") \
+  T(ForOfAsync, "The left-hand side of a for-of loop may not be 'async'.")     \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
   T(GeneratorInSingleStatementContext,                                         \

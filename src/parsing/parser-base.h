@@ -5928,12 +5928,18 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
       ExpressionParsingScope parsing_scope(impl());
       AcceptINScope scope(this, false);
       expression = ParseExpressionCoverGrammar();
+      // `for (async of` is disallowed but `for (async.x of` is allowed, so
+      // check if the token is ASYNC after parsing the expression.
+      bool expression_is_async = scanner()->current_token() == Token::ASYNC;
       // Initializer is reference followed by in/of.
       lhs_end_pos = end_position();
       is_for_each = CheckInOrOf(&for_info.mode);
       if (is_for_each) {
-        if (starts_with_let && for_info.mode == ForEachStatement::ITERATE) {
-          impl()->ReportMessageAt(next_loc, MessageTemplate::kForOfLet);
+        if ((starts_with_let || expression_is_async) &&
+            for_info.mode == ForEachStatement::ITERATE) {
+          impl()->ReportMessageAt(next_loc, starts_with_let
+                                                ? MessageTemplate::kForOfLet
+                                                : MessageTemplate::kForOfAsync);
           return impl()->NullStatement();
         }
         if (expression->IsPattern()) {
