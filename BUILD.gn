@@ -575,12 +575,10 @@ disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
 config("v8_header_features") {
   visibility = [ ":*" ]
 
-  # TODO(v8:11292): Set defines as well as including the header. This is a short
-  # term change to check that the header doesn't get stale and fail to get
-  # updated.
-  defines = enabled_external_v8_defines
   if (v8_generate_external_defines_header) {
-    defines += [ "V8_GN_HEADER" ]
+    defines = [ "V8_GN_HEADER" ]
+  } else {
+    defines = enabled_external_v8_defines
   }
 }
 
@@ -610,12 +608,10 @@ disabled_external_cppgc_defines =
 config("cppgc_header_features") {
   visibility = [ ":*" ]
 
-  # TODO(v8:11292): Set defines as well as including the header. This is a short
-  # term change to check that the header doesn't get stale and fail to get
-  # updated.
-  defines = enabled_external_cppgc_defines
   if (v8_generate_external_defines_header) {
-    defines += [ "V8_GN_HEADER" ]
+    defines = [ "V8_GN_HEADER" ]
+  } else {
+    defines = enabled_external_cppgc_defines
   }
 }
 
