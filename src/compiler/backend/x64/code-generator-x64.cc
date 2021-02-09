@@ -2909,6 +2909,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2Eq: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       ASSEMBLE_SIMD_BINOP(pcmpeqq);
       break;
     }
