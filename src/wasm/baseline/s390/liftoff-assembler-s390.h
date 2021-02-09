@@ -611,32 +611,116 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
-  bailout(kUnsupportedArchitecture, "Move Register");
+  mov(dst, src);
 }
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
                             ValueType type) {
-  bailout(kUnsupportedArchitecture, "Move DoubleRegister");
+  DCHECK_NE(dst, src);
+  if (type == kWasmF32) {
+    ler(dst, src);
+  } else if (type == kWasmF64) {
+    ldr(dst, src);
+  } else {
+    DCHECK_EQ(kWasmS128, type);
+    vlr(dst, src, Condition(0), Condition(0), Condition(0));
+  }
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
-  bailout(kUnsupportedArchitecture, "Spill register");
+  DCHECK_LT(0, offset);
+  RecordUsedSpillOffset(offset);
+  MemOperand dst = liftoff::GetStackSlot(offset);
+  switch (type.kind()) {
+    case ValueType::kI32:
+      StoreU32(reg.gp(), dst);
+      break;
+    case ValueType::kI64:
+    case ValueType::kOptRef:
+    case ValueType::kRef:
+    case ValueType::kRtt:
+      StoreU64(reg.gp(), dst);
+      break;
+    case ValueType::kF32:
+      StoreF32(reg.fp(), dst);
+      break;
+    case ValueType::kF64:
+      StoreF64(reg.fp(), dst);
+      break;
+    case ValueType::kS128: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      StoreV128(reg.fp(), dst, scratch);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Spill(int offset, WasmValue value) {
-  bailout(kUnsupportedArchitecture, "Spill value");
+  RecordUsedSpillOffset(offset);
+  MemOperand dst = liftoff::GetStackSlot(offset);
+  UseScratchRegisterScope temps(this);
+  Register src = no_reg;
+  if (!is_uint12(abs(dst.offset()))) {
+    src = GetUnusedRegister(kGpReg, {}).gp();
+  } else {
+    src = temps.Acquire();
+  }
+  switch (value.type().kind()) {
+    case ValueType::kI32: {
+      mov(src, Operand(value.to_i32()));
+      StoreU32(src, dst);
+      break;
+    }
+    case ValueType::kI64: {
+      mov(src, Operand(value.to_i64()));
+      StoreU64(src, dst);
+      break;
+    }
+    default:
+      // We do not track f32 and f64 constants, hence they are unreachable.
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
-  bailout(kUnsupportedArchitecture, "Fill");
+  MemOperand src = liftoff::GetStackSlot(offset);
+  switch (type.kind()) {
+    case ValueType::kI32:
+      LoadS32(reg.gp(), src);
+      break;
+    case ValueType::kI64:
+    case ValueType::kRef:
+    case ValueType::kOptRef:
+    case ValueType::kRtt:
+      LoadU64(reg.gp(), src);
+      break;
+    case ValueType::kF32:
+      LoadF32(reg.fp(), src);
+      break;
+    case ValueType::kF64:
+      LoadF64(reg.fp(), src);
+      break;
+    case ValueType::kS128: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      LoadV128(reg.fp(), src, scratch);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
-  bailout(kUnsupportedArchitecture, "FillI64Half");
+  UNREACHABLE();
 }
 
 void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_LT(0, size);
+  DCHECK_EQ(0, size % 4);
   RecordUsedSpillOffset(start + size);
 
   // We need a zero reg. Always use r0 for that, and push it before to restore
@@ -660,16 +744,16 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // Use r3 for start address (inclusive), r4 for end address (exclusive).
     push(r3);
     push(r4);
-    SubS64(r3, fp, Operand(start + size));
-    SubS64(r4, fp, Operand(start));
+
+    lay(r3, MemOperand(fp, -start - size));
+    lay(r4, MemOperand(fp, -start));
 
     Label loop;
     bind(&loop);
-    StoreU64(r0, MemOperand(r0));
-    la(r0, MemOperand(r0, kSystemPointerSize));
+    StoreU64(r0, MemOperand(r3));
+    lay(r3, MemOperand(r3, kSystemPointerSize));
     CmpU64(r3, r4);
     bne(&loop);
-
     pop(r4);
     pop(r3);
   }
