@@ -5033,10 +5033,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   }
 
   MachineSignature::Builder builder(
-      graph()->zone(), 1,
-      c_arg_count + (c_signature->HasOptions()
-                         ? FastApiCallNode::kHasOptionsInputCount
-                         : 0));
+      graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
   MachineType return_type = MachineTypeFor(c_signature->ReturnInfo().GetType());
   builder.AddReturn(return_type);
   for (int i = 0; i < c_arg_count; ++i) {
@@ -5061,9 +5058,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
            target_address, 0, n.target());
 
   Node** const inputs = graph()->zone()->NewArray<Node*>(
-      c_arg_count + (c_signature->HasOptions()
-                         ? FastApiCallNode::kFastCallExtraInputCountWithOptions
-                         : FastApiCallNode::kFastCallExtraInputCount));
+      c_arg_count + n.FastCallExtraInputCount());
   inputs[0] = n.target();
   for (int i = FastApiCallNode::kFastTargetInputCount;
        i < c_arg_count + FastApiCallNode::kFastTargetInputCount; ++i) {
@@ -5085,83 +5080,77 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   }
 
   Node* c_call_result = __ Call(
-      call_descriptor,
-      c_arg_count + (c_signature->HasOptions()
-                         ? FastApiCallNode::kFastCallExtraInputCountWithOptions
-                         : FastApiCallNode::kFastCallExtraInputCount),
-      inputs);
+      call_descriptor, c_arg_count + n.FastCallExtraInputCount(), inputs);
 
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            target_address, 0, __ IntPtrConstant(0));
 
-  auto gen_c_call_return = [&]() -> Node* {
-    switch (c_signature->ReturnInfo().GetType()) {
-      case CTypeInfo::Type::kVoid:
-        return __ UndefinedConstant();
-      case CTypeInfo::Type::kBool:
-        return ChangeBitToTagged(
-            __ Word32And(c_call_result, __ Int32Constant(0xFF)));
-      case CTypeInfo::Type::kInt32:
-        return ChangeInt32ToTagged(c_call_result);
-      case CTypeInfo::Type::kUint32:
-        return ChangeUint32ToTagged(c_call_result);
-      case CTypeInfo::Type::kInt64:
-      case CTypeInfo::Type::kUint64:
-      case CTypeInfo::Type::kFloat32:
-      case CTypeInfo::Type::kFloat64:
-      case CTypeInfo::Type::kV8Value:
-        UNREACHABLE();
-    }
-  };
-
-  if (c_signature->HasOptions()) {
-    // Generate the load from `fast_api_call_stack_slot_`.
-    Node* load = __ Load(
-        MachineType::Int32(), fast_api_call_stack_slot_,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
-
-    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
-    // Hint to true.
-    auto if_success = __ MakeLabel();
-    auto if_error = __ MakeDeferredLabel();
-    auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-    __ Branch(is_zero, &if_success, &if_error);
-
-    // Generate fast call.
-    __ Bind(&if_success);
-    Node* then_result = gen_c_call_return();
-    __ Goto(&merge, then_result);
-
-    // Generate direct slow call.
-    __ Bind(&if_error);
-    Node* else_result = [&]() {
-      Node** const slow_inputs = graph()->zone()->NewArray<Node*>(
-          n.SlowCallArgumentCount() +
-          FastApiCallNode::kEffectAndControlInputCount);
-
-      int fast_call_params =
-          c_arg_count + FastApiCallNode::kFastTargetInputCount;
-      CHECK_EQ(value_input_count - fast_call_params, n.SlowCallArgumentCount());
-      int index = 0;
-      for (; index < n.SlowCallArgumentCount(); ++index) {
-        slow_inputs[index] = n.SlowCallArgument(index);
-      }
-
-      slow_inputs[index] = __ effect();
-      slow_inputs[index + 1] = __ control();
-      Node* slow_call = __ Call(
-          params.descriptor(),
-          index + FastApiCallNode::kEffectAndControlInputCount, slow_inputs);
-      return slow_call;
-    }();
-    __ Goto(&merge, else_result);
-
-    __ Bind(&merge);
-    return merge.PhiAt(0);
+  Node* fast_call_result;
+  switch (c_signature->ReturnInfo().GetType()) {
+    case CTypeInfo::Type::kVoid:
+      fast_call_result = __ UndefinedConstant();
+      break;
+    case CTypeInfo::Type::kBool:
+      static_assert(sizeof(bool) == 1, "unsupported bool size");
+      fast_call_result = ChangeBitToTagged(
+          __ Word32And(c_call_result, __ Int32Constant(0xFF)));
+      break;
+    case CTypeInfo::Type::kInt32:
+      fast_call_result = ChangeInt32ToTagged(c_call_result);
+      break;
+    case CTypeInfo::Type::kUint32:
+      fast_call_result = ChangeUint32ToTagged(c_call_result);
+      break;
+    case CTypeInfo::Type::kInt64:
+    case CTypeInfo::Type::kUint64:
+    case CTypeInfo::Type::kFloat32:
+    case CTypeInfo::Type::kFloat64:
+    case CTypeInfo::Type::kV8Value:
+      UNREACHABLE();
   }
 
-  return gen_c_call_return();
+  if (!c_signature->HasOptions()) return fast_call_result;
+
+  // Generate the load from `fast_api_call_stack_slot_`.
+  Node* load =
+      __ Load(MachineType::Int32(), fast_api_call_stack_slot_,
+              static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
+
+  Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
+  // Hint to true.
+  auto if_success = __ MakeLabel();
+  auto if_error = __ MakeDeferredLabel();
+  auto merge = __ MakeLabel(MachineRepresentation::kTagged);
+  __ Branch(is_zero, &if_success, &if_error);
+
+  __ Bind(&if_success);
+  __ Goto(&merge, fast_call_result);
+
+  // Generate direct slow call.
+  __ Bind(&if_error);
+  {
+    Node** const slow_inputs = graph()->zone()->NewArray<Node*>(
+        n.SlowCallArgumentCount() +
+        FastApiCallNode::kEffectAndControlInputCount);
+
+    int fast_call_params = c_arg_count + FastApiCallNode::kFastTargetInputCount;
+    CHECK_EQ(value_input_count - fast_call_params, n.SlowCallArgumentCount());
+    int index = 0;
+    for (; index < n.SlowCallArgumentCount(); ++index) {
+      slow_inputs[index] = n.SlowCallArgument(index);
+    }
+
+    slow_inputs[index] = __ effect();
+    slow_inputs[index + 1] = __ control();
+    Node* slow_call_result = __ Call(
+        params.descriptor(),
+        index + FastApiCallNode::kEffectAndControlInputCount, slow_inputs);
+    __ Goto(&merge, slow_call_result);
+  }
+
+  __ Bind(&merge);
+  return merge.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
