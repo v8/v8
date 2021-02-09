@@ -78,9 +78,9 @@ struct PositionInfo {
   end: Smi;
 }
 
-struct FunctionNameInfo {
-  function_variable_name: String|Zero;
-  function_variable_context_or_stack_slot_index: Smi;
+struct FunctionVariableInfo {
+  name: String|Zero;
+  context_or_stack_slot_index: Smi;
 }
 
 bitfield struct VariableProperties extends uint31 {
@@ -136,8 +136,8 @@ extern class ScopeInfo extends FixedArrayBase {
   // information about the function variable. It always occupies two array
   // slots:  a. The name of the function variable.
   //         b. The context or stack slot index for the variable.
-  function_name_info[flags.function_variable != FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::NONE) ? 1 : 0]:
-      FunctionNameInfo;
+  function_variable_info[flags.function_variable != FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::NONE) ? 1 : 0]:
+      FunctionVariableInfo;
 
   inferred_function_name[flags.has_inferred_function_name ? 1 : 0]: String|
       Undefined;

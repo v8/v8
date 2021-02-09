@@ -3784,7 +3784,17 @@ class CppClassGenerator {
 
  private:
   void GenerateClassConstructors();
-  void GenerateFieldAccessor(const Field& f);
+
+  // Generates getter and setter runtime member functions for the given class
+  // field. Traverses depth-first through any nested struct fields to generate
+  // accessors for them also; struct_fields represents the stack of currently
+  // active struct fields.
+  void GenerateFieldAccessors(const Field& class_field,
+                              std::vector<const Field*>& struct_fields);
+  void EmitLoadFieldStatement(const Field& class_field,
+                              std::vector<const Field*>& struct_fields);
+  void EmitStoreFieldStatement(const Field& class_field,
+                               std::vector<const Field*>& struct_fields);
 
   void GenerateClassCasts();
 
@@ -3795,10 +3805,6 @@ class CppClassGenerator {
   std::string GetTypeNameForAccessor(const Field& f);
 
   bool CanContainHeapObjects(const Type* t);
-
-  void EmitLoadFieldStatement(const Field& f);
-
-  void EmitStoreFieldStatement(const Field& f);
 
   const ClassType* type_;
   const ClassType* super_;
@@ -3860,7 +3866,8 @@ void CppClassGenerator::GenerateClass() {
     hdr_ << " protected: // not extern or @export\n";
   }
   for (const Field& f : type_->fields()) {
-    GenerateFieldAccessor(f);
+    std::vector<const Field*> struct_fields;
+    GenerateFieldAccessors(f, struct_fields);
   }
   if (!type_->ShouldExport() && !type_->IsExtern()) {
     hdr_ << " public:\n";
@@ -4068,21 +4075,43 @@ void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
 }  // namespace
 
 // TODO(sigurds): Keep in sync with DECL_ACCESSORS and ACCESSORS macro.
-void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
-  const Type* field_type = f.name_and_type.type;
+void CppClassGenerator::GenerateFieldAccessors(
+    const Field& class_field, std::vector<const Field*>& struct_fields) {
+  const Field& innermost_field =
+      struct_fields.empty() ? class_field : *struct_fields.back();
+  const Type* field_type = innermost_field.name_and_type.type;
   if (field_type == TypeOracle::GetVoidType()) return;
 
-  // TODO(danno): Support generation of struct accessors
-  if (f.name_and_type.type->IsStructType()) return;
-
-  // TODO(v8:10391) Generate accessors for external pointers
-  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
+  // float64_or_hole should be treated like float64. For now, we don't need it.
+  if (field_type == TypeOracle::GetFloat64OrHoleType()) {
     return;
   }
 
-  std::string type_name = GetTypeNameForAccessor(f);
+  if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
+    struct_fields.resize(struct_fields.size() + 1);
+    for (const Field& struct_field : struct_type->fields()) {
+      struct_fields[struct_fields.size() - 1] = &struct_field;
+      GenerateFieldAccessors(class_field, struct_fields);
+    }
+    struct_fields.resize(struct_fields.size() - 1);
+    return;
+  }
+
+  // TODO(v8:10391) Generate accessors for external pointers
+  if (field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
+    return;
+  }
+
+  bool indexed = class_field.index.has_value();
+  std::string type_name = GetTypeNameForAccessor(innermost_field);
   bool can_contain_heap_objects = CanContainHeapObjects(field_type);
-  const std::string& name = f.name_and_type.name;
+
+  // Assemble an accessor name by accumulating together all of the nested field
+  // names.
+  std::string name = class_field.name_and_type.name;
+  for (const Field* nested_struct_field : struct_fields) {
+    name += "_" + nested_struct_field->name_and_type.name;
+  }
 
   // Generate declarations in header.
   if (can_contain_heap_objects && !field_type->IsClassType() &&
@@ -4092,12 +4121,12 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
   }
 
   hdr_ << "  inline " << type_name << " " << name << "("
-       << (f.index ? "int i" : "") << ") const;\n";
+       << (indexed ? "int i" : "") << ") const;\n";
   if (can_contain_heap_objects) {
     hdr_ << "  inline " << type_name << " " << name << "(IsolateRoot isolate"
-         << (f.index ? ", int i" : "") << ") const;\n";
+         << (indexed ? ", int i" : "") << ") const;\n";
   }
-  hdr_ << "  inline void set_" << name << "(" << (f.index ? "int i, " : "")
+  hdr_ << "  inline void set_" << name << "(" << (indexed ? "int i, " : "")
        << type_name << " value"
        << (can_contain_heap_objects
                ? ", WriteBarrierMode mode = UPDATE_WRITE_BARRIER"
@@ -4109,10 +4138,10 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
   if (can_contain_heap_objects) {
     inl_ << "template <class D, class P>\n";
     inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "("
-         << (f.index ? "int i" : "") << ") const {\n";
+         << (indexed ? "int i" : "") << ") const {\n";
     inl_ << "  IsolateRoot isolate = GetIsolateForPtrCompr(*this);\n";
     inl_ << "  return " << gen_name_ << "::" << name << "(isolate"
-         << (f.index ? ", i" : "") << ");\n";
+         << (indexed ? ", i" : "") << ");\n";
     inl_ << "}\n";
   }
 
@@ -4120,19 +4149,19 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
   inl_ << "template <class D, class P>\n";
   inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "(";
   if (can_contain_heap_objects) inl_ << "IsolateRoot isolate";
-  if (can_contain_heap_objects && f.index) inl_ << ", ";
-  if (f.index) inl_ << "int i";
+  if (can_contain_heap_objects && indexed) inl_ << ", ";
+  if (indexed) inl_ << "int i";
   inl_ << ") const {\n";
 
   inl_ << "  " << type_name << " value;\n";
-  EmitLoadFieldStatement(f);
+  EmitLoadFieldStatement(class_field, struct_fields);
   inl_ << "  return value;\n";
   inl_ << "}\n";
 
   // Generate the setter implementation.
   inl_ << "template <class D, class P>\n";
   inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(";
-  if (f.index) {
+  if (indexed) {
     inl_ << "int i, ";
   }
   inl_ << type_name << " value";
@@ -4140,7 +4169,7 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
     inl_ << ", WriteBarrierMode mode";
   }
   inl_ << ") {\n";
-  EmitStoreFieldStatement(f);
+  EmitStoreFieldStatement(class_field, struct_fields);
   inl_ << "}\n\n";
 }
 
@@ -4178,16 +4207,27 @@ bool CppClassGenerator::CanContainHeapObjects(const Type* t) {
          !t->IsSubtypeOf(TypeOracle::GetSmiType());
 }
 
-void CppClassGenerator::EmitLoadFieldStatement(const Field& f) {
-  const Type* field_type = f.name_and_type.type;
-  std::string type_name = GetTypeNameForAccessor(f);
-  std::string class_field_offset = GetFieldOffsetForAccessor(f);
-  const std::string field_size = std::get<1>(f.GetFieldSizeInformation());
+void CppClassGenerator::EmitLoadFieldStatement(
+    const Field& class_field, std::vector<const Field*>& struct_fields) {
+  const Field& innermost_field =
+      struct_fields.empty() ? class_field : *struct_fields.back();
+  const Type* field_type = innermost_field.name_and_type.type;
+  std::string type_name = GetTypeNameForAccessor(innermost_field);
+  const std::string class_field_size =
+      std::get<1>(class_field.GetFieldSizeInformation());
 
-  std::string offset = class_field_offset;
-  if (f.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, f);
-    inl_ << "  int offset = " << class_field_offset << " + i * " << field_size
+  // field_offset contains both the offset from the beginning of the object to
+  // the class field and the combined offsets of any nested struct fields
+  // within, but not the index adjustment.
+  std::string field_offset = GetFieldOffsetForAccessor(class_field);
+  for (const Field* nested_struct_field : struct_fields) {
+    field_offset += " + " + std::to_string(*nested_struct_field->offset);
+  }
+
+  std::string offset = field_offset;
+  if (class_field.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, class_field);
+    inl_ << "  int offset = " << field_offset << " + i * " << class_field_size
          << ";\n";
     offset = "offset";
   }
@@ -4195,16 +4235,18 @@ void CppClassGenerator::EmitLoadFieldStatement(const Field& f) {
   inl_ << "  value = ";
 
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    if (f.read_synchronization == FieldSynchronization::kAcquireRelease) {
+    if (class_field.read_synchronization ==
+        FieldSynchronization::kAcquireRelease) {
       ReportError("Torque doesn't support @acquireRead on untagged data");
-    } else if (f.read_synchronization == FieldSynchronization::kRelaxed) {
+    } else if (class_field.read_synchronization ==
+               FieldSynchronization::kRelaxed) {
       ReportError("Torque doesn't support @relaxedRead on untagged data");
     }
     inl_ << "this->template ReadField<" << type_name << ">(" << offset
          << ");\n";
   } else {
     const char* load;
-    switch (f.read_synchronization) {
+    switch (class_field.read_synchronization) {
       case FieldSynchronization::kNone:
         load = "load";
         break;
@@ -4230,16 +4272,27 @@ void CppClassGenerator::EmitLoadFieldStatement(const Field& f) {
   }
 }
 
-void CppClassGenerator::EmitStoreFieldStatement(const Field& f) {
-  const Type* field_type = f.name_and_type.type;
-  std::string type_name = GetTypeNameForAccessor(f);
-  std::string class_field_offset = GetFieldOffsetForAccessor(f);
-  const std::string field_size = std::get<1>(f.GetFieldSizeInformation());
+void CppClassGenerator::EmitStoreFieldStatement(
+    const Field& class_field, std::vector<const Field*>& struct_fields) {
+  const Field& innermost_field =
+      struct_fields.empty() ? class_field : *struct_fields.back();
+  const Type* field_type = innermost_field.name_and_type.type;
+  std::string type_name = GetTypeNameForAccessor(innermost_field);
+  const std::string class_field_size =
+      std::get<1>(class_field.GetFieldSizeInformation());
 
-  std::string offset = class_field_offset;
-  if (f.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, f);
-    inl_ << "  int offset = " << class_field_offset << " + i * " << field_size
+  // field_offset contains both the offset from the beginning of the object to
+  // the class field and the combined offsets of any nested struct fields
+  // within, but not the index adjustment.
+  std::string field_offset = GetFieldOffsetForAccessor(class_field);
+  for (const Field* nested_struct_field : struct_fields) {
+    field_offset += " + " + std::to_string(*nested_struct_field->offset);
+  }
+
+  std::string offset = field_offset;
+  if (class_field.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, class_field);
+    inl_ << "  int offset = " << field_offset << " + i * " << class_field_size
          << ";\n";
     offset = "offset";
   }
@@ -4252,12 +4305,13 @@ void CppClassGenerator::EmitStoreFieldStatement(const Field& f) {
     bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
     const char* write_macro;
     if (!strong_pointer) {
-      if (f.write_synchronization == FieldSynchronization::kAcquireRelease) {
+      if (class_field.write_synchronization ==
+          FieldSynchronization::kAcquireRelease) {
         ReportError("Torque doesn't support @releaseWrite on weak fields");
       }
       write_macro = "RELAXED_WRITE_WEAK_FIELD";
     } else {
-      switch (f.write_synchronization) {
+      switch (class_field.write_synchronization) {
         case FieldSynchronization::kNone:
           write_macro = "WRITE_FIELD";
           break;

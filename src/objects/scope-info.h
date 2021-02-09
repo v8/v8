@@ -288,7 +288,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
   int ContextLocalInfosIndex() const;
   int SavedClassVariableInfoIndex() const;
   int ReceiverInfoIndex() const;
-  int FunctionNameInfoIndex() const;
+  int FunctionVariableInfoIndex() const;
   int InferredFunctionNameIndex() const;
   int PositionInfoIndex() const;
   int OuterScopeInfoIndex() const;
