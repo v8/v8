@@ -1791,11 +1791,6 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   bailout(kSimd, "i8x16_shuffle");
 }
 
-void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
-                                         LiftoffRegister src) {
-  bailout(kSimd, "i8x16.popcnt");
-}
-
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_i8x16splat");
