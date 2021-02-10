@@ -22,7 +22,7 @@ void BytecodeArrayRandomIterator::Initialize() {
   // bytecode.
   while (current_offset() < bytecode_array()->length()) {
     offsets_.push_back(current_offset());
-    Advance();
+    SetOffset(current_offset() + current_bytecode_size());
   }
   GoToStart();
 }

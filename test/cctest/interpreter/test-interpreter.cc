@@ -1722,20 +1722,18 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
 
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-  {
-    BytecodeArrayIterator iterator(bytecode_array);
+  BytecodeArrayIterator iterator(bytecode_array);
 
-    bool found_16bit_constant_jump = false;
-    while (!iterator.done()) {
-      if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
-          iterator.current_operand_scale() == OperandScale::kDouble) {
-        found_16bit_constant_jump = true;
-        break;
-      }
-      iterator.Advance();
+  bool found_16bit_constant_jump = false;
+  while (!iterator.done()) {
+    if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
+        iterator.current_operand_scale() == OperandScale::kDouble) {
+      found_16bit_constant_jump = true;
+      break;
     }
-    CHECK(found_16bit_constant_jump);
+    iterator.Advance();
   }
+  CHECK(found_16bit_constant_jump);
 
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
@@ -1768,20 +1766,19 @@ TEST(InterpreterJumpWith32BitOperand) {
 
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-  {
-    BytecodeArrayIterator iterator(bytecode_array);
 
-    bool found_32bit_jump = false;
-    while (!iterator.done()) {
-      if (iterator.current_bytecode() == Bytecode::kJump &&
-          iterator.current_operand_scale() == OperandScale::kQuadruple) {
-        found_32bit_jump = true;
-        break;
-      }
-      iterator.Advance();
+  BytecodeArrayIterator iterator(bytecode_array);
+
+  bool found_32bit_jump = false;
+  while (!iterator.done()) {
+    if (iterator.current_bytecode() == Bytecode::kJump &&
+        iterator.current_operand_scale() == OperandScale::kQuadruple) {
+      found_32bit_jump = true;
+      break;
     }
-    CHECK(found_32bit_jump);
+    iterator.Advance();
   }
+  CHECK(found_32bit_jump);
 
   InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
