@@ -857,6 +857,14 @@
 }], #'arch == riscv64 and variant == stress-incremental-marking'
 
 ##############################################################################
+['system == macos', {
+  # TODO(machenbach): These tests are x25 slower on 4-core Mac Minis. They can
+  # be unskipped as soon as the pools only contain 8-core+ Macs.
+  'wasm/compare-exchange-stress': [SKIP],
+  'wasm/compare-exchange64-stress': [SKIP],
+}],  # 'system == macos'
+
+##############################################################################
 ['system == windows', {
   # Too slow with turbo fan.
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
