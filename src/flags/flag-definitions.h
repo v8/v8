@@ -505,7 +505,7 @@ DEFINE_INT(budget_for_feedback_vector_allocation, 1 * KB,
            "decide to allocate feedback vectors")
 DEFINE_INT(scale_factor_for_feedback_allocation, 4,
            "scale bytecode size for feedback vector allocation.")
-DEFINE_BOOL(feedback_allocation_on_bytecode_size, false,
+DEFINE_BOOL(feedback_allocation_on_bytecode_size, true,
             "Instead of a fixed budget for lazy feedback vector allocation, "
             "scale it based in the bytecode size.")
 DEFINE_BOOL(lazy_feedback_allocation, true, "Allocate feedback vectors lazily")
