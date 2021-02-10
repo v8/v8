@@ -206,6 +206,7 @@ namespace compiler {
   V(X64F32x4DemoteF64x2Zero)              \
   V(X64I64x2Splat)                        \
   V(X64I64x2ExtractLane)                  \
+  V(X64I64x2Abs)                          \
   V(X64I64x2Neg)                          \
   V(X64I64x2BitMask)                      \
   V(X64I64x2Shl)                          \

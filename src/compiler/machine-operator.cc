@@ -426,6 +426,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x4DemoteF64x2Zero, Operator::kNoProperties, 1, 0, 1)                \
   V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I64x2Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I64x2SConvertI32x4Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I64x2SConvertI32x4High, Operator::kNoProperties, 1, 0, 1)              \

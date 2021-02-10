@@ -182,6 +182,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4DemoteF64x2Zero:
     case kX64I64x2Splat:
     case kX64I64x2ExtractLane:
+    case kX64I64x2Abs:
     case kX64I64x2Neg:
     case kX64I64x2BitMask:
     case kX64I64x2Shl:

@@ -823,6 +823,7 @@
   V(I64x2ExtractLane)           \
   V(I64x2ReplaceLane)           \
   V(I64x2ReplaceLaneI32Pair)    \
+  V(I64x2Abs)                   \
   V(I64x2Neg)                   \
   V(I64x2SConvertI32x4Low)      \
   V(I64x2SConvertI32x4High)     \
