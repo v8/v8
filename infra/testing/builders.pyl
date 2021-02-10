@@ -39,11 +39,10 @@
       'os': 'Android',
     },
     'tests': [
-      {'name': 'benchmarks', 'variant': 'default'},
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262', 'variant': 'default', 'shards': 10},
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 4},
-      {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'default', 'shards': 9},
     ],
   },
   ##############################################################################
@@ -1511,9 +1510,9 @@
     },
     'tests': [
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'default', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'default', 'shards': 3},
-      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 10},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 4},
     ],
   },
   'V8 Arm': {
