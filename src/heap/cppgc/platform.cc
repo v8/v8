@@ -10,19 +10,22 @@
 
 namespace cppgc {
 
+namespace {
+PageAllocator* g_page_allocator = nullptr;
+}  // namespace
+
 TracingController* Platform::GetTracingController() {
   static v8::base::LeakyObject<TracingController> tracing_controller;
   return tracing_controller.get();
 }
 
 void InitializeProcess(PageAllocator* page_allocator) {
-  static PageAllocator* allocator = nullptr;
-  CHECK(!allocator);
-  internal::GlobalGCInfoTable::Create(page_allocator);
-  allocator = page_allocator;
+  CHECK(!g_page_allocator);
+  internal::GlobalGCInfoTable::Initialize(page_allocator);
+  g_page_allocator = page_allocator;
 }
 
-void ShutdownProcess() {}
+void ShutdownProcess() { g_page_allocator = nullptr; }
 
 namespace internal {
 

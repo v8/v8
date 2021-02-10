@@ -169,7 +169,6 @@ void V8::ShutdownPlatform() {
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
   platform_ = nullptr;
-  cppgc::ShutdownProcess();
 }
 
 v8::Platform* V8::GetCurrentPlatform() {
