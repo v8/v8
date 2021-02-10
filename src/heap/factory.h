@@ -386,9 +386,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Cell> NewCell(Handle<Object> value);
 
   Handle<PropertyCell> NewPropertyCell(
-      Handle<Name> name, PropertyDetails details, Handle<Object> value,
-      AllocationType allocation = AllocationType::kOld);
-  Handle<PropertyCell> NewProtector();
+      Handle<Name> name, AllocationType allocation = AllocationType::kOld);
 
   Handle<FeedbackCell> NewNoClosuresCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewOneClosureCell(Handle<HeapObject> value);

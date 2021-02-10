@@ -53,7 +53,9 @@ DECLARED_PROTECTORS_ON_ISOLATE(V)
       TraceProtectorInvalidation(#name);                                     \
     }                                                                        \
     isolate->CountUsage(v8::Isolate::kInvalidated##name##Protector);         \
-    isolate->factory()->cell()->InvalidateProtector();                       \
+    PropertyCell::SetValueWithInvalidation(                                  \
+        isolate, #cell, isolate->factory()->cell(),                          \
+        handle(Smi::FromInt(kProtectorInvalid), isolate));                   \
     DCHECK(!Is##name##Intact(isolate));                                      \
   }
 DECLARED_PROTECTORS_ON_ISOLATE(INVALIDATE_PROTECTOR_ON_ISOLATE_DEFINITION)

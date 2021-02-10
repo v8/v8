@@ -32,7 +32,6 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/property-details.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/templates.h"
 #include "src/utils/utils.h"
@@ -46,8 +45,9 @@ namespace compiler {
 
 #define FORWARD_DECL(Name) class Name##Data;
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
+// TODO(solanes, v8:10866): Remove once FLAG_turbo_direct_heap_access is
+// removed.
 HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
-HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
@@ -84,7 +84,6 @@ enum ObjectDataKind {
   kSmi,
   kSerializedHeapObject,
   kPossiblyBackgroundSerializedHeapObject,
-  kBackgroundSerializedHeapObject,
   kUnserializedHeapObject,
   kNeverSerializedHeapObject,
   kUnserializedReadOnlyHeapObject
@@ -139,8 +138,7 @@ class ObjectData : public ZoneObject {
     CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                   kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
                       kind == kNeverSerializedHeapObject ||
-                      kind == kPossiblyBackgroundSerializedHeapObject ||
-                      kind == kBackgroundSerializedHeapObject);
+                      kind == kPossiblyBackgroundSerializedHeapObject);
     CHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
                   IsReadOnlyHeapObject(*object));
   }
@@ -148,14 +146,14 @@ class ObjectData : public ZoneObject {
 #define DECLARE_IS(Name) bool Is##Name() const;
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(DECLARE_IS)
   HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(DECLARE_IS)
-  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DECLARE_IS)
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DECLARE_IS)
 #undef DECLARE_IS
 
 #define DECLARE_AS(Name) Name##Data* As##Name();
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(DECLARE_AS)
+  // TODO(solanes, v8:10866): Remove once FLAG_turbo_direct_heap_access is
+  // removed.
   HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(DECLARE_AS)
-  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DECLARE_AS)
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DECLARE_AS)
 #undef DECLARE_AS
 
@@ -199,26 +197,17 @@ class HeapObjectData : public ObjectData {
 class PropertyCellData : public HeapObjectData {
  public:
   PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<PropertyCell> object,
-                   ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject);
+                   Handle<PropertyCell> object);
 
-  bool Serialize(JSHeapBroker* broker);
+  PropertyDetails property_details() const { return property_details_; }
 
-  PropertyDetails property_details() const {
-    CHECK(serialized());
-    return property_details_;
-  }
-
-  ObjectData* value() const {
-    DCHECK(serialized());
-    return value_;
-  }
+  void Serialize(JSHeapBroker* broker);
+  ObjectData* value() const { return value_; }
 
  private:
-  PropertyDetails property_details_ = PropertyDetails::Empty();
-  ObjectData* value_ = nullptr;
+  PropertyDetails const property_details_;
 
-  bool serialized() const { return value_ != nullptr; }
+  ObjectData* value_ = nullptr;
 };
 
 // TODO(mslekova): Once we have real-world usage data, we might want to
@@ -301,65 +290,16 @@ void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 void JSHeapBroker::DecrementTracingIndentation() { --trace_indentation_; }
 
 PropertyCellData::PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
-                                   Handle<PropertyCell> object,
-                                   ObjectDataKind kind)
-    : HeapObjectData(broker, storage, object, kind) {}
+                                   Handle<PropertyCell> object)
+    : HeapObjectData(broker, storage, object),
+      property_details_(object->property_details()) {}
 
-bool PropertyCellData::Serialize(JSHeapBroker* broker) {
-  if (serialized()) return true;
+void PropertyCellData::Serialize(JSHeapBroker* broker) {
+  if (value_ != nullptr) return;
 
   TraceScope tracer(broker, this, "PropertyCellData::Serialize");
   auto cell = Handle<PropertyCell>::cast(object());
-
-  // While this code runs on a background thread, the property cell might
-  // undergo state transitions via calls to PropertyCell::Transition. These
-  // transitions follow a certain protocol on which we rely here to ensure that
-  // we only report success when we can guarantee consistent data. A key
-  // property is that after transitioning from cell type A to B (A != B), there
-  // will never be a transition back to A, unless A is kConstant and the new
-  // value is the hole (i.e. the property cell was invalidated, which is a final
-  // state).
-
-  PropertyDetails property_details = cell->property_details(kAcquireLoad);
-
-  Handle<Object> value =
-      broker->CanonicalPersistentHandle(cell->value(kAcquireLoad));
-  if (broker->ObjectMayBeUninitialized(value)) {
-    DCHECK(!broker->IsMainThread());
-    return false;
-  }
-
-  {
-    PropertyDetails property_details_again =
-        cell->property_details(kAcquireLoad);
-    if (property_details != property_details_again) {
-      DCHECK(!broker->IsMainThread());
-      return false;
-    }
-  }
-
-  if (property_details.cell_type() == PropertyCellType::kConstant) {
-    Handle<Object> value_again =
-        broker->CanonicalPersistentHandle(cell->value(kAcquireLoad));
-    if (*value != *value_again) {
-      DCHECK(!broker->IsMainThread());
-      return false;
-    }
-  }
-
-  ObjectData* value_data = broker->TryGetOrCreateData(value, false);
-  if (value_data == nullptr) {
-    DCHECK(!broker->IsMainThread());
-    return false;
-  }
-
-  PropertyCell::CheckDataIsCompatible(property_details, *value);
-
-  DCHECK(!serialized());
-  property_details_ = property_details;
-  value_ = value_data;
-  DCHECK(serialized());
-  return true;
+  value_ = broker->GetOrCreateData(cell->value());
 }
 
 void FunctionTemplateInfoData::SerializeCallCode(JSHeapBroker* broker) {
@@ -1277,8 +1217,7 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
   CHECK_IMPLIES(kind == kSerializedHeapObject,
                 broker->mode() == JSHeapBroker::kSerializing);
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
-                kind == kPossiblyBackgroundSerializedHeapObject ||
-                    kind == kBackgroundSerializedHeapObject);
+                kind == kPossiblyBackgroundSerializedHeapObject);
 }
 
 InstanceType HeapObjectData::GetMapInstanceType() const {
@@ -2189,17 +2128,15 @@ class CodeData : public HeapObjectData {
   }
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(DEFINE_IS)
 HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_IS)
-HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_IS)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
 
-#define DEFINE_AS(Name)                                       \
-  Name##Data* ObjectData::As##Name() {                        \
-    CHECK(Is##Name());                                        \
-    CHECK(kind_ == kSerializedHeapObject ||                   \
-          kind_ == kPossiblyBackgroundSerializedHeapObject || \
-          kind_ == kBackgroundSerializedHeapObject);          \
-    return static_cast<Name##Data*>(this);                    \
+#define DEFINE_AS(Name)                                      \
+  Name##Data* ObjectData::As##Name() {                       \
+    CHECK(Is##Name());                                       \
+    CHECK(kind_ == kSerializedHeapObject ||                  \
+          kind_ == kPossiblyBackgroundSerializedHeapObject); \
+    return static_cast<Name##Data*>(this);                   \
   }
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
@@ -2210,15 +2147,6 @@ HEAP_BROKER_SERIALIZED_OBJECT_LIST(DEFINE_AS)
     return static_cast<Name##Data*>(this);                    \
   }
 HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
-#undef DEFINE_AS
-#define DEFINE_AS(Name)                              \
-  Name##Data* ObjectData::As##Name() {               \
-    CHECK(Is##Name());                               \
-    CHECK(kind_ == kSerializedHeapObject ||          \
-          kind_ == kBackgroundSerializedHeapObject); \
-    return static_cast<Name##Data*>(this);           \
-  }
-HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
 
 // TODO(solanes, v8:10866): Remove once FLAG_turbo_direct_heap_access is
@@ -2824,6 +2752,8 @@ void JSHeapBroker::InitializeAndStartSerializing(
 
   // Throw away the dummy data that we created while disabled.
   refs_->Clear();
+  refs_ = nullptr;
+
   refs_ =
       zone()->New<RefsMap>(kInitialRefsBucketCount, AddressMatcher(), zone());
 
@@ -2838,7 +2768,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
   CollectArrayAndObjectPrototypes();
 
   Factory* const f = isolate()->factory();
-  if (!FLAG_turbo_direct_heap_access) {
+  {
     ObjectData* data;
     data = GetOrCreateData(f->array_buffer_detaching_protector());
     if (!data->should_access_heap()) data->AsPropertyCell()->Serialize(this);
@@ -2892,9 +2822,6 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
     return *storage;
   }
 
-  CHECK(mode() == JSHeapBroker::kSerializing ||
-        mode() == JSHeapBroker::kSerialized);
-
   ObjectData* object_data;
   if (object->IsSmi()) {
     entry = refs_->LookupOrInsert(object.address());
@@ -2933,26 +2860,8 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
       object_data = zone()->New<name##Data>(this, &(entry->value),        \
                                               Handle<name>::cast(object));
     HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(
-        CREATE_DATA_FOR_POSSIBLE_SERIALIZATION)
+      CREATE_DATA_FOR_POSSIBLE_SERIALIZATION)
 #undef CREATE_DATA_FOR_POSSIBLE_SERIALIZATION
-#define CREATE_DATA_FOR_BACKGROUND_SERIALIZATION(name)                    \
-  } else if (object->Is##name()) {                                        \
-    if (FLAG_turbo_direct_heap_access) {                                  \
-      entry = refs_->LookupOrInsert(object.address());                    \
-      object_data = zone()->New<name##Data>(                              \
-          this, &(entry->value), Handle<name>::cast(object),              \
-          kBackgroundSerializedHeapObject);                               \
-    } else if (mode() == kSerializing) {                                  \
-      entry = refs_->LookupOrInsert(object.address());                    \
-      object_data = zone()->New<name##Data>(this, &(entry->value),        \
-                                            Handle<name>::cast(object));  \
-    } else {                                                              \
-      CHECK(!crash_on_error);                                             \
-      return nullptr;                                                     \
-    }
-  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(
-      CREATE_DATA_FOR_BACKGROUND_SERIALIZATION)
-#undef CREATE_DATA_FOR_SERIALIZATION
 #define CREATE_DATA_FOR_SERIALIZATION(name)                               \
   } else if (object->Is##name()) {                                        \
     if (mode() == kSerializing) {                                         \
@@ -2990,22 +2899,8 @@ ObjectData* JSHeapBroker::GetOrCreateData(
   }
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(DEFINE_IS_AND_AS)
 HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_IS_AND_AS)
-HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_IS_AND_AS)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
-
-bool JSHeapBroker::StackHasOverflowed() const {
-  DCHECK_IMPLIES(local_isolate_ == nullptr,
-                 ThreadId::Current() == isolate_->thread_id());
-  return (local_isolate_ != nullptr)
-             ? StackLimitCheck::HasOverflowed(local_isolate_)
-             : StackLimitCheck(isolate_).HasOverflowed();
-}
-
-bool JSHeapBroker::ObjectMayBeUninitialized(Handle<Object> object) const {
-  return !IsMainThread() && object->IsHeapObject() &&
-         isolate()->heap()->IsPendingAllocation(HeapObject::cast(*object));
-}
 
 bool ObjectRef::IsSmi() const { return data()->is_smi(); }
 
@@ -4279,7 +4174,6 @@ Handle<Object> ObjectRef::object() const {
 
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(DEF_OBJECT_GETTER)
 HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(DEF_OBJECT_GETTER)
-HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEF_OBJECT_GETTER)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DEF_OBJECT_GETTER)
 #undef DEF_OBJECT_GETTER
 
@@ -4532,11 +4426,10 @@ bool JSBoundFunctionRef::Serialize() {
   return data()->AsJSBoundFunction()->Serialize(broker());
 }
 
-bool PropertyCellRef::Serialize() const {
-  if (data_->should_access_heap()) return true;
-  CHECK(broker()->mode() == JSHeapBroker::kSerializing ||
-        broker()->mode() == JSHeapBroker::kSerialized);
-  return data()->AsPropertyCell()->Serialize(broker());
+void PropertyCellRef::Serialize() {
+  if (data_->should_access_heap()) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsPropertyCell()->Serialize(broker());
 }
 
 void FunctionTemplateInfoRef::SerializeCallCode() {
@@ -4676,8 +4569,6 @@ bool GlobalAccessFeedback::immutable() const {
 
 base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantHint() const {
   if (IsPropertyCell()) {
-    bool cell_serialized = property_cell().Serialize();
-    CHECK(cell_serialized);  // Can't fail on the main thread.
     return property_cell().value();
   } else if (IsScriptContextSlot() && immutable()) {
     return script_context().get(slot_index());
@@ -5000,10 +4891,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   // The wanted name belongs (or did belong) to a property on the global
   // object and the feedback is the cell holding its value.
   PropertyCellRef cell(this, Handle<PropertyCell>::cast(feedback_value));
-  ObjectRef(
-      this,
-      CanonicalPersistentHandle(
-          Handle<PropertyCell>::cast(feedback_value)->value(kAcquireLoad)));
+  cell.Serialize();
   return *zone()->New<GlobalAccessFeedback>(cell, nexus.kind());
 }
 
@@ -5478,6 +5366,14 @@ RegExpLiteralFeedback const& ProcessedFeedback::AsRegExpLiteral() const {
 TemplateObjectFeedback const& ProcessedFeedback::AsTemplateObject() const {
   CHECK_EQ(kTemplateObject, kind());
   return *static_cast<TemplateObjectFeedback const*>(this);
+}
+
+bool JSHeapBroker::StackHasOverflowed() const {
+  DCHECK_IMPLIES(local_isolate_ == nullptr,
+                 ThreadId::Current() == isolate_->thread_id());
+  return (local_isolate_ != nullptr)
+             ? StackLimitCheck::HasOverflowed(local_isolate_)
+             : StackLimitCheck(isolate_).HasOverflowed();
 }
 
 OffHeapBytecodeArray::OffHeapBytecodeArray(BytecodeArrayRef bytecode_array)

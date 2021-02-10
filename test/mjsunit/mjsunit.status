@@ -1046,8 +1046,7 @@
   'compiler/regress-905555-2': [SKIP],
   'compiler/regress-905555': [SKIP],
   'compiler/regress-9945-1': [SKIP],
-  'concurrent-initial-prototype-change-1': [SKIP],
-  'concurrent-initial-prototype-change-2': [SKIP],
+  'concurrent-initial-prototype-change': [SKIP],
   'regress/regress-356053': [SKIP],
   'regress/regress-embedded-cons-string': [SKIP],
 

@@ -215,7 +215,7 @@ enum class PropertyCellType {
   kUndefined,     // The PREMONOMORPHIC of property cells.
   kConstant,      // Cell has been assigned only once.
   kConstantType,  // Cell has been assigned only one type.
-  // Value for dictionaries not holding cells, must be 0:
+  // Value for dictionaries not holding cells, must have value 0:
   kNoCell = kMutable,
 };
 
@@ -260,14 +260,6 @@ class PropertyDetails {
   static PropertyDetails Empty(
       PropertyCellType cell_type = PropertyCellType::kNoCell) {
     return PropertyDetails(kData, NONE, cell_type);
-  }
-
-  bool operator==(PropertyDetails const& other) {
-    return value_ == other.value_;
-  }
-
-  bool operator!=(PropertyDetails const& other) {
-    return value_ != other.value_;
   }
 
   int pointer() const { return DescriptorPointer::decode(value_); }

@@ -256,6 +256,8 @@ class FieldConstnessDependency final : public CompilationDependency {
 
 class GlobalPropertyDependency final : public CompilationDependency {
  public:
+  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
+  // longer need to explicitly store the type and the read_only flag.
   GlobalPropertyDependency(const PropertyCellRef& cell, PropertyCellType type,
                            bool read_only)
       : cell_(cell), type_(type), read_only_(read_only) {
@@ -437,13 +439,14 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
 
 void CompilationDependencies::DependOnGlobalProperty(
     const PropertyCellRef& cell) {
+  DCHECK(!cell.IsNeverSerializedHeapObject());
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();
   RecordDependency(zone_->New<GlobalPropertyDependency>(cell, type, read_only));
 }
 
 bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
-  cell.SerializeAsProtector();
+  DCHECK(!cell.IsNeverSerializedHeapObject());
   if (cell.value().AsSmi() != Protectors::kProtectorValid) return false;
   RecordDependency(zone_->New<ProtectorDependency>(cell));
   return true;

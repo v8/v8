@@ -2150,7 +2150,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << " value=";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      cell.value(kAcquireLoad).ShortPrint(&accumulator);
+      cell.value().ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
@@ -6355,7 +6355,8 @@ void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {
   DCHECK(!value().IsTheHole(roots));
   PropertyDetails details = property_details();
   details = details.set_cell_type(PropertyCellType::kConstant);
-  Transition(details, roots.the_hole_value_handle());
+  set_value(roots.the_hole_value());
+  set_property_details(details);
   dependent_code().DeoptimizeDependentCodeGroup(
       DependentCode::kPropertyCellChangedGroup);
 }
@@ -6367,15 +6368,15 @@ Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
   Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   Handle<Name> name(cell->name(), isolate);
   PropertyDetails details = cell->property_details();
-  Handle<Object> value(cell->value(), isolate);
-
   DCHECK(details.IsConfigurable());
-  DCHECK(!value->IsTheHole(isolate));
+  DCHECK(!cell->value().IsTheHole(isolate));
 
-  // Swap with a copy of type kMutable.
+  // Swap with a copy.
+  Handle<PropertyCell> new_cell = isolate->factory()->NewPropertyCell(name);
+  new_cell->set_value(cell->value());
+  // Cell is officially mutable henceforth.
   details = details.set_cell_type(PropertyCellType::kMutable);
-  Handle<PropertyCell> new_cell =
-      isolate->factory()->NewPropertyCell(name, details, value);
+  new_cell->set_property_details(details);
   dictionary->ValueAtPut(entry, *new_cell);
 
   cell->ClearAndInvalidate(ReadOnlyRoots(isolate));
@@ -6423,6 +6424,7 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
     case PropertyCellType::kMutable:
       return PropertyCellType::kMutable;
   }
+  UNREACHABLE();
 }
 
 Handle<PropertyCell> PropertyCell::PrepareForValue(
@@ -6445,8 +6447,17 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
     cell = PropertyCell::InvalidateAndReplaceEntry(isolate, dictionary, entry);
   }
 
+  // Install new property details.
   details = details.set_cell_type(new_type);
-  cell->Transition(details, value);
+  cell->set_property_details(details);
+
+  if (new_type == PropertyCellType::kConstant ||
+      new_type == PropertyCellType::kConstantType) {
+    // Store the value now to ensure that the cell contains the constant or
+    // type information. Otherwise subsequent store operation will turn
+    // the cell to mutable.
+    cell->set_value(*value);
+  }
 
   // Deopt when transitioning from a constant type or when making a writable
   // property read-only. Making a read-only property writable again is not
@@ -6463,57 +6474,16 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
 }
 
 // static
-void PropertyCell::InvalidateProtector() {
-  if (value() != Smi::FromInt(Protectors::kProtectorInvalid)) {
-    DCHECK_EQ(value(), Smi::FromInt(Protectors::kProtectorValid));
-    set_value(Smi::FromInt(Protectors::kProtectorInvalid), kReleaseStore);
-    dependent_code().DeoptimizeDependentCodeGroup(
+void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
+                                            const char* cell_name,
+                                            Handle<PropertyCell> cell,
+                                            Handle<Object> new_value) {
+  if (cell->value() != *new_value) {
+    cell->set_value(*new_value);
+    cell->dependent_code().DeoptimizeDependentCodeGroup(
         DependentCode::kPropertyCellChangedGroup);
   }
 }
-
-// static
-bool PropertyCell::CheckDataIsCompatible(PropertyDetails details,
-                                         Object value) {
-  DisallowGarbageCollection no_gc;
-  PropertyCellType cell_type = details.cell_type();
-  if (value.IsTheHole()) {
-    CHECK_EQ(cell_type, PropertyCellType::kConstant);
-  } else {
-    CHECK_EQ(value.IsAccessorInfo() || value.IsAccessorPair(),
-             details.kind() == kAccessor);
-    DCHECK_IMPLIES(cell_type == PropertyCellType::kUndefined,
-                   value.IsUndefined());
-  }
-  return true;
-}
-
-#ifdef DEBUG
-bool PropertyCell::CanTransitionTo(PropertyDetails new_details,
-                                   Object new_value) const {
-  // Extending the implementation of PropertyCells with additional states
-  // and/or transitions likely requires changes to PropertyCellData::Serialize.
-  DisallowGarbageCollection no_gc;
-  DCHECK(CheckDataIsCompatible(new_details, new_value));
-  switch (property_details().cell_type()) {
-    case PropertyCellType::kUndefined:
-      return new_details.cell_type() != PropertyCellType::kUndefined;
-    case PropertyCellType::kConstant:
-      return !value().IsTheHole() &&
-             new_details.cell_type() != PropertyCellType::kUndefined;
-    case PropertyCellType::kConstantType:
-      return new_details.cell_type() == PropertyCellType::kConstantType ||
-             new_details.cell_type() == PropertyCellType::kMutable ||
-             (new_details.cell_type() == PropertyCellType::kConstant &&
-              new_value.IsTheHole());
-    case PropertyCellType::kMutable:
-      return new_details.cell_type() == PropertyCellType::kMutable ||
-             (new_details.cell_type() == PropertyCellType::kConstant &&
-              new_value.IsTheHole());
-  }
-  UNREACHABLE();
-}
-#endif  // DEBUG
 
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
