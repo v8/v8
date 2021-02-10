@@ -190,12 +190,13 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   // Lookup a 'cached' private property for an accessor.
   // If not found returns false and leaves the LookupIterator unmodified.
+  bool TryLookupCachedProperty(Handle<AccessorPair> accessor);
   bool TryLookupCachedProperty();
-  bool LookupCachedProperty();
 
  private:
   static const size_t kInvalidIndex = std::numeric_limits<size_t>::max();
 
+  bool LookupCachedProperty(Handle<AccessorPair> accessor);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name, size_t index,
                         Handle<Object> lookup_start_object,

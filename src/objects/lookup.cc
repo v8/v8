@@ -1234,17 +1234,24 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
   return Handle<InterceptorInfo>();
 }
 
-bool LookupIterator::TryLookupCachedProperty() {
-  return state() == LookupIterator::ACCESSOR &&
-         GetAccessors()->IsAccessorPair(isolate_) && LookupCachedProperty();
+bool LookupIterator::TryLookupCachedProperty(Handle<AccessorPair> accessor) {
+  DCHECK_EQ(state(), LookupIterator::ACCESSOR);
+  return LookupCachedProperty(accessor);
 }
 
-bool LookupIterator::LookupCachedProperty() {
+bool LookupIterator::TryLookupCachedProperty() {
+  if (state() != LookupIterator::ACCESSOR) return false;
+
+  Handle<Object> accessor_pair = GetAccessors();
+  return accessor_pair->IsAccessorPair(isolate_) &&
+         LookupCachedProperty(Handle<AccessorPair>::cast(accessor_pair));
+}
+
+bool LookupIterator::LookupCachedProperty(Handle<AccessorPair> accessor_pair) {
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
   DCHECK(GetAccessors()->IsAccessorPair(isolate_));
 
-  AccessorPair accessor_pair = AccessorPair::cast(*GetAccessors());
-  Handle<Object> getter(accessor_pair.getter(isolate_), isolate());
+  Handle<Object> getter(accessor_pair->getter(isolate_), isolate());
   MaybeHandle<Name> maybe_name =
       FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
   if (maybe_name.is_null()) return false;
