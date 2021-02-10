@@ -2357,6 +2357,90 @@ void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
   }
 }
 
+void TurboAssembler::F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src) {
+  // dst = [ src_low, 0x43300000, src_high, 0x4330000 ];
+  // 0x43300000'00000000 is a special double where the significand bits
+  // precisely represents all uint32 numbers.
+  Unpcklps(dst, src,
+           ExternalReferenceAsOperand(
+               ExternalReference::
+                   address_of_wasm_f64x2_convert_low_i32x4_u_int_mask()));
+  Subpd(dst, ExternalReferenceAsOperand(
+                 ExternalReference::address_of_wasm_double_2_power_52()));
+}
+
+void TurboAssembler::I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    XMMRegister original_dst = dst;
+    // Make sure we don't overwrite src.
+    if (dst == src) {
+      DCHECK_NE(src, kScratchDoubleReg);
+      dst = kScratchDoubleReg;
+    }
+    // dst = 0 if src == NaN, else all ones.
+    vcmpeqpd(dst, src, src);
+    // dst = 0 if src == NaN, else INT32_MAX as double.
+    vandpd(dst, dst,
+           ExternalReferenceAsOperand(
+               ExternalReference::address_of_wasm_int32_max_as_double()));
+    // dst = 0 if src == NaN, src is saturated to INT32_MAX as double.
+    vminpd(dst, src, dst);
+    // Values > INT32_MAX already saturated, values < INT32_MIN raises an
+    // exception, which is masked and returns 0x80000000.
+    vcvttpd2dq(dst, dst);
+    if (original_dst != dst) {
+      Move(original_dst, dst);
+    }
+  } else {
+    if (dst != src) {
+      Move(dst, src);
+    }
+    Move(kScratchDoubleReg, dst);
+    cmpeqpd(kScratchDoubleReg, dst);
+    andps(kScratchDoubleReg,
+          ExternalReferenceAsOperand(
+              ExternalReference::address_of_wasm_int32_max_as_double()));
+    minpd(dst, kScratchDoubleReg);
+    cvttpd2dq(dst, dst);
+  }
+}
+
+void TurboAssembler::I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vxorpd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+    // Saturate to 0.
+    vmaxpd(dst, src, kScratchDoubleReg);
+    // Saturate to UINT32_MAX.
+    vminpd(dst, dst,
+           ExternalReferenceAsOperand(
+               ExternalReference::address_of_wasm_uint32_max_as_double()));
+    // Truncate.
+    vroundpd(dst, dst, kRoundToZero);
+    // Add to special double where significant bits == uint32.
+    vaddpd(dst, dst,
+           ExternalReferenceAsOperand(
+               ExternalReference::address_of_wasm_double_2_power_52()));
+    // Extract low 32 bits of each double's significand, zero top lanes.
+    // dst = [dst[0], dst[2], 0, 0]
+    vshufps(dst, dst, kScratchDoubleReg, 0x88);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    if (dst != src) {
+      Move(dst, src);
+    }
+    xorps(kScratchDoubleReg, kScratchDoubleReg);
+    maxpd(dst, kScratchDoubleReg);
+    minpd(dst, ExternalReferenceAsOperand(
+                   ExternalReference::address_of_wasm_uint32_max_as_double()));
+    roundpd(dst, dst, kRoundToZero);
+    addpd(dst, ExternalReferenceAsOperand(
+                   ExternalReference::address_of_wasm_double_2_power_52()));
+    shufps(dst, kScratchDoubleReg, 0x88);
+  }
+}
+
 void TurboAssembler::Abspd(XMMRegister dst) {
   Andps(dst, ExternalReferenceAsOperand(
                  ExternalReference::address_of_double_abs_constant()));

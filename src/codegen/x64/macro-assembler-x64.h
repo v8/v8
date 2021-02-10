@@ -610,6 +610,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp);
 
+  void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src);
+  void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src);
+  void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src);
+
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);
 

@@ -4294,6 +4294,21 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, rhs, lhs);
 }
 
+void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  bailout(kSimd, "f64x2.convert_low_i32x4_s");
+}
+
+void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  bailout(kSimd, "f64x2.convert_low_i32x4_u");
+}
+
+void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
+                                                    LiftoffRegister src) {
+  bailout(kSimd, "f64x2.promote_low_f32x4");
+}
+
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   // NAN->0
@@ -4385,6 +4400,11 @@ void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
         liftoff::kScratchDoubleReg);  // Add hi and lo, may round.
 }
 
+void LiftoffAssembler::emit_f32x4_demote_f64x2_zero(LiftoffRegister dst,
+                                                    LiftoffRegister src) {
+  bailout(kSimd, "f32x4.demote_f64x2_zero");
+}
+
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
@@ -4459,6 +4479,16 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   Palignr(dst.fp(), src.fp(), static_cast<uint8_t>(8));
   Pmovzxwd(dst.fp(), dst.fp());
+}
+
+void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
+                                                         LiftoffRegister src) {
+  bailout(kSimd, "i32x4.trunc_sat_f64x2_s_zero");
+}
+
+void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
+                                                         LiftoffRegister src) {
+  bailout(kSimd, "i32x4.trunc_sat_f64x2_u_zero");
 }
 
 void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
