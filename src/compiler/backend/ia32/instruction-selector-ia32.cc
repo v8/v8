@@ -3170,6 +3170,37 @@ void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
        arraysize(temps), temps);
 }
 
+void InstructionSelector::VisitI64x2GtS(Node* node) {
+  IA32OperandGenerator g(this);
+  if (CpuFeatures::IsSupported(AVX)) {
+    Emit(kIA32I64x2GtS, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    Emit(kIA32I64x2GtS, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  } else {
+    Emit(kIA32I64x2GtS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+  }
+}
+
+void InstructionSelector::VisitI64x2GeS(Node* node) {
+  IA32OperandGenerator g(this);
+  if (CpuFeatures::IsSupported(AVX)) {
+    Emit(kIA32I64x2GeS, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    Emit(kIA32I64x2GeS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)));
+  } else {
+    Emit(kIA32I64x2GeS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+  }
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

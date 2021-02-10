@@ -150,6 +150,8 @@ namespace compiler {
   V(IA32I64x2BitMask)              \
   V(IA32I64x2Eq)                   \
   V(IA32I64x2Ne)                   \
+  V(IA32I64x2GtS)                  \
+  V(IA32I64x2GeS)                  \
   V(IA32I64x2SignSelect)           \
   V(IA32I64x2ExtMulLowI32x4S)      \
   V(IA32I64x2ExtMulHighI32x4S)     \

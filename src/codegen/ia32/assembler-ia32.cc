@@ -130,6 +130,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
+  if (cpu.has_sse42() && FLAG_enable_sse4_2) supported_ |= 1u << SSE4_2;
   if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
   if (cpu.has_ssse3() && FLAG_enable_ssse3) supported_ |= 1u << SSSE3;
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
@@ -2516,6 +2517,14 @@ void Assembler::movdqa(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movdqa(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x6F);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::movdqu(Operand dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF3);
@@ -2620,6 +2629,16 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(0x17);
   emit_sse_operand(src, dst);
   EMIT(imm8);
+}
+
+void Assembler::pcmpgtq(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(SSE4_2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x38);
+  EMIT(0x37);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::psllw(XMMRegister reg, uint8_t shift) {
@@ -3148,6 +3167,10 @@ void Assembler::vpmovmskb(Register dst, XMMRegister src) {
 void Assembler::vextractps(Operand dst, XMMRegister src, byte imm8) {
   vinstr(0x17, src, xmm0, dst, k66, k0F3A, VexW::kWIG);
   EMIT(imm8);
+}
+
+void Assembler::vpcmpgtq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+  vinstr(0x37, dst, src1, src2, k66, k0F38, VexW::kWIG);
 }
 
 void Assembler::bmi1(byte op, Register reg, Register vreg, Operand rm) {
