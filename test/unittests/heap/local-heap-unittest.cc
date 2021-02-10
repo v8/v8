@@ -132,11 +132,19 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
       unparked_scope.emplace(&lh);
     }
     epilogue_->NotifyStarted();
-    lh.AddGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
+    {
+      base::Optional<UnparkedScope> unparked_scope;
+      if (parked_) unparked_scope.emplace(&lh);
+      lh.AddGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
+    }
     while (!epilogue_->StopRequested()) {
       lh.Safepoint();
     }
-    lh.RemoveGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
+    {
+      base::Optional<UnparkedScope> unparked_scope;
+      if (parked_) unparked_scope.emplace(&lh);
+      lh.RemoveGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
+    }
   }
 
   Heap* heap_;
@@ -150,7 +158,10 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   Heap* heap = i_isolate()->heap();
   LocalHeap lh(heap, ThreadKind::kMain);
   std::array<GCEpilogue, 3> epilogue;
-  lh.AddGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
+  {
+    UnparkedScope unparked(&lh);
+    lh.AddGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
+  }
   auto thread1 =
       std::make_unique<BackgroundThreadForGCEpilogue>(heap, true, &epilogue[1]);
   auto thread2 = std::make_unique<BackgroundThreadForGCEpilogue>(heap, false,
@@ -165,7 +176,10 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   epilogue[2].RequestStop();
   thread1->Join();
   thread2->Join();
-  lh.RemoveGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
+  {
+    UnparkedScope unparked(&lh);
+    lh.RemoveGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
+  }
   for (auto& e : epilogue) {
     CHECK(e.WasInvoked());
   }

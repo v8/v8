@@ -5387,17 +5387,13 @@ bool JSHeapBroker::StackHasOverflowed() const {
 }
 
 OffHeapBytecodeArray::OffHeapBytecodeArray(BytecodeArrayRef bytecode_array)
-    : array_(bytecode_array) {}
+    : AbstractBytecodeArray(), array_(bytecode_array) {}
 
 int OffHeapBytecodeArray::length() const { return array_.length(); }
 
 int OffHeapBytecodeArray::parameter_count() const {
   return array_.parameter_count();
 }
-
-uint8_t OffHeapBytecodeArray::get(int index) const { return array_.get(index); }
-
-void OffHeapBytecodeArray::set(int index, uint8_t value) { UNREACHABLE(); }
 
 Address OffHeapBytecodeArray::GetFirstBytecodeAddress() const {
   return array_.GetFirstBytecodeAddress();

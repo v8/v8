@@ -22,9 +22,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator final
 
   BytecodeArrayIterator(const BytecodeArrayIterator&) = delete;
   BytecodeArrayIterator& operator=(const BytecodeArrayIterator&) = delete;
-
-  void Advance();
-  bool done() const;
 };
 
 }  // namespace interpreter

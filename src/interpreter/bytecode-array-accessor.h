@@ -69,10 +69,9 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
 
 class V8_EXPORT_PRIVATE AbstractBytecodeArray {
  public:
+  AbstractBytecodeArray();
   virtual int length() const = 0;
   virtual int parameter_count() const = 0;
-  virtual uint8_t get(int index) const = 0;
-  virtual void set(int index, uint8_t value) = 0;
   virtual Address GetFirstBytecodeAddress() const = 0;
 
   virtual Handle<Object> GetConstantAtIndex(int index,
@@ -81,6 +80,10 @@ class V8_EXPORT_PRIVATE AbstractBytecodeArray {
   virtual Smi GetConstantAtIndexAsSmi(int index) const = 0;
 
   virtual ~AbstractBytecodeArray() = default;
+  LocalHeap* local_heap() const { return local_heap_; }
+
+ private:
+  LocalHeap* local_heap_;
 };
 
 class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
@@ -90,19 +93,31 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
 
   BytecodeArrayAccessor(Handle<BytecodeArray> bytecode_array,
                         int initial_offset);
+  ~BytecodeArrayAccessor();
 
   BytecodeArrayAccessor(const BytecodeArrayAccessor&) = delete;
   BytecodeArrayAccessor& operator=(const BytecodeArrayAccessor&) = delete;
 
+  inline void Advance() {
+    cursor_ += Bytecodes::Size(current_bytecode(), current_operand_scale());
+    UpdateOperandScale();
+  }
   void SetOffset(int offset);
 
   void ApplyDebugBreak();
 
-  Bytecode current_bytecode() const;
+  inline Bytecode current_bytecode() const {
+    DCHECK(!done());
+    uint8_t current_byte = *cursor_;
+    Bytecode current_bytecode = Bytecodes::FromByte(current_byte);
+    DCHECK(!Bytecodes::IsPrefixScalingBytecode(current_bytecode));
+    return current_bytecode;
+  }
   int current_bytecode_size() const;
-  int current_offset() const { return bytecode_offset_; }
+  int current_offset() const {
+    return static_cast<int>(cursor_ - start_ - prefix_size_);
+  }
   OperandScale current_operand_scale() const { return operand_scale_; }
-  int current_prefix_offset() const { return prefix_offset_; }
   AbstractBytecodeArray* bytecode_array() const {
     return bytecode_array_.get();
   }
@@ -143,26 +158,55 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   // from the current bytecode.
   int GetAbsoluteOffset(int relative_offset) const;
 
-  bool OffsetWithinBytecode(int offset) const;
-
   std::ostream& PrintTo(std::ostream& os) const;
 
-  int bytecode_length() const { return bytecode_length_; }
+  static void UpdatePointersCallback(void* accessor) {
+    reinterpret_cast<BytecodeArrayAccessor*>(accessor)->UpdatePointers();
+  }
+
+  void UpdatePointers() {
+    DisallowGarbageCollection no_gc;
+    uint8_t* start =
+        reinterpret_cast<uint8_t*>(bytecode_array_->GetFirstBytecodeAddress());
+    if (start != start_) {
+      start_ = start;
+      uint8_t* end = start + bytecode_array_->length();
+      size_t distance_to_end = end_ - cursor_;
+      cursor_ = end - distance_to_end;
+      end_ = end;
+    }
+  }
+
+  inline bool done() const { return cursor_ >= end_; }
 
  private:
-  bool OffsetInBounds() const;
-
   uint32_t GetUnsignedOperand(int operand_index,
                               OperandType operand_type) const;
   int32_t GetSignedOperand(int operand_index, OperandType operand_type) const;
 
-  void UpdateOperandScale();
+  inline void UpdateOperandScale() {
+    if (done()) return;
+    uint8_t current_byte = *cursor_;
+    Bytecode current_bytecode = Bytecodes::FromByte(current_byte);
+    if (Bytecodes::IsPrefixScalingBytecode(current_bytecode)) {
+      operand_scale_ =
+          Bytecodes::PrefixBytecodeToOperandScale(current_bytecode);
+      ++cursor_;
+      prefix_size_ = 1;
+    } else {
+      operand_scale_ = OperandScale::kSingle;
+      prefix_size_ = 0;
+    }
+  }
 
   std::unique_ptr<AbstractBytecodeArray> bytecode_array_;
-  const int bytecode_length_;
-  int bytecode_offset_;
+  uint8_t* start_;
+  uint8_t* end_;
+  // The cursor always points to the active bytecode. If there's a prefix, the
+  // prefix is at (cursor - 1).
+  uint8_t* cursor_;
   OperandScale operand_scale_;
-  int prefix_offset_;
+  int prefix_size_;
 };
 
 }  // namespace interpreter
