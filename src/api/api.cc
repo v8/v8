@@ -9963,32 +9963,10 @@ void EmbedderHeapTracer::ResetHandleInNonTracingGC(
   UNREACHABLE();
 }
 
-const void* CTypeInfo::GetWrapperInfo() const {
-  DCHECK(payload_ & kWrapperTypeInfoMask);
-  return reinterpret_cast<const void*>(payload_ & kWrapperTypeInfoMask);
-}
-
 CFunction::CFunction(const void* address, const CFunctionInfo* type_info)
     : address_(address), type_info_(type_info) {
   CHECK_NOT_NULL(address_);
   CHECK_NOT_NULL(type_info_);
-  for (unsigned int i = 0; i < type_info_->ArgumentCount(); ++i) {
-    if (type_info_->ArgumentInfo(i).IsArray()) {
-      // Array args require an integer passed for their length
-      // as the next argument.
-      DCHECK_LT(i + 1, type_info_->ArgumentCount());
-      switch (type_info_->ArgumentInfo(i + 1).GetType()) {
-        case CTypeInfo::Type::kInt32:
-        case CTypeInfo::Type::kUint32:
-        case CTypeInfo::Type::kInt64:
-        case CTypeInfo::Type::kUint64:
-          break;
-        default:
-          UNREACHABLE();
-          break;
-      }
-    }
-  }
 }
 
 RegisterState::RegisterState()

@@ -27934,7 +27934,7 @@ void CallWithUnexpectedObjectType(v8::Local<v8::Value> receiver) {
 class TestCFunctionInfo : public v8::CFunctionInfo {
   const v8::CTypeInfo& ReturnInfo() const override {
     static v8::CTypeInfo return_info =
-        v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kVoid);
+        v8::CTypeInfo(v8::CTypeInfo::Type::kVoid);
     return return_info;
   }
 
@@ -27942,9 +27942,8 @@ class TestCFunctionInfo : public v8::CFunctionInfo {
 
   const v8::CTypeInfo& ArgumentInfo(unsigned int index) const override {
     static v8::CTypeInfo type_info0 =
-        v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kV8Value);
-    static v8::CTypeInfo type_info1 =
-        v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kBool);
+        v8::CTypeInfo(v8::CTypeInfo::Type::kV8Value);
+    static v8::CTypeInfo type_info1 = v8::CTypeInfo(v8::CTypeInfo::Type::kBool);
     switch (index) {
       case 0:
         return type_info0;

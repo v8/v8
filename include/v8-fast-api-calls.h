@@ -193,7 +193,7 @@ namespace v8 {
 
 class CTypeInfo {
  public:
-  enum class Type : char {
+  enum class Type : uint8_t {
     kVoid,
     kBool,
     kInt32,
@@ -205,57 +205,31 @@ class CTypeInfo {
     kV8Value,
   };
 
+  // kCallbackOptionsType and kInvalidType are not part of the Type enum
+  // because they are only used internally. Use values 255 and 254 that
+  // are larger than any valid Type enum.
+  static constexpr Type kCallbackOptionsType = Type(255);
+  static constexpr Type kInvalidType = Type(254);
+
   enum class ArgFlags : uint8_t {
     kNone = 0,
-    kIsArrayBit = 1 << 0,  // This argument is first in an array of values.
   };
 
-  static CTypeInfo FromWrapperType(ArgFlags flags = ArgFlags::kNone) {
-    return CTypeInfo(static_cast<int>(flags) | kIsWrapperTypeBit);
-  }
+  explicit constexpr CTypeInfo(Type type, ArgFlags flags = ArgFlags::kNone)
+      : type_(type), flags_(flags) {}
 
-  static constexpr CTypeInfo FromCType(Type ctype,
-                                       ArgFlags flags = ArgFlags::kNone) {
-    // TODO(mslekova): Refactor the manual bit manipulations to use
-    // PointerWithPayload instead.
-    // ctype cannot be Type::kV8Value.
-    return CTypeInfo(
-        ((static_cast<uintptr_t>(ctype) << kTypeOffset) & kTypeMask) |
-        static_cast<int>(flags));
-  }
+  constexpr Type GetType() const { return type_; }
 
-  const void* GetWrapperInfo() const;
-
-  constexpr Type GetType() const {
-    if (payload_ & kIsWrapperTypeBit) {
-      return Type::kV8Value;
-    }
-    return static_cast<Type>((payload_ & kTypeMask) >> kTypeOffset);
-  }
-
-  constexpr bool IsArray() const {
-    return payload_ & static_cast<int>(ArgFlags::kIsArrayBit);
-  }
+  constexpr ArgFlags GetFlags() const { return flags_; }
 
   static const CTypeInfo& Invalid() {
-    static CTypeInfo invalid = CTypeInfo(0);
+    static CTypeInfo invalid = CTypeInfo(kInvalidType);
     return invalid;
   }
 
  private:
-  explicit constexpr CTypeInfo(uintptr_t payload) : payload_(payload) {}
-
-  // That must be the last bit after ArgFlags.
-  static constexpr uintptr_t kIsWrapperTypeBit = 1 << 1;
-  static constexpr uintptr_t kWrapperTypeInfoMask = static_cast<uintptr_t>(~0)
-                                                    << 2;
-
-  static constexpr unsigned int kTypeOffset = kIsWrapperTypeBit;
-  static constexpr unsigned int kTypeSize = 8 - kTypeOffset;
-  static constexpr uintptr_t kTypeMask =
-      (~(static_cast<uintptr_t>(~0) << kTypeSize)) << kTypeOffset;
-
-  const uintptr_t payload_;
+  Type type_;
+  ArgFlags flags_;
 };
 
 class CFunctionInfo {
@@ -299,18 +273,14 @@ struct FastApiCallbackOptions {
 namespace internal {
 
 template <typename T>
-struct GetCType {
-  static constexpr CTypeInfo Get() {
-    return CTypeInfo::FromCType(CTypeInfo::Type::kV8Value);
-  }
-};
+struct GetCType;
 
-#define SPECIALIZE_GET_C_TYPE_FOR(ctype, ctypeinfo)            \
-  template <>                                                  \
-  struct GetCType<ctype> {                                     \
-    static constexpr CTypeInfo Get() {                         \
-      return CTypeInfo::FromCType(CTypeInfo::Type::ctypeinfo); \
-    }                                                          \
+#define SPECIALIZE_GET_C_TYPE_FOR(ctype, ctypeinfo) \
+  template <>                                       \
+  struct GetCType<ctype> {                          \
+    static constexpr CTypeInfo Get() {              \
+      return CTypeInfo(CTypeInfo::Type::ctypeinfo); \
+    }                                               \
   };
 
 #define SUPPORTED_C_TYPES(V) \
@@ -326,40 +296,12 @@ struct GetCType {
 
 SUPPORTED_C_TYPES(SPECIALIZE_GET_C_TYPE_FOR)
 
-// T* where T is a primitive (array of primitives).
-template <typename T, typename = void>
-struct GetCTypePointerImpl {
+template <>
+struct GetCType<FastApiCallbackOptions&> {
   static constexpr CTypeInfo Get() {
-    return CTypeInfo::FromCType(GetCType<T>::Get().GetType(),
-                                CTypeInfo::ArgFlags::kIsArrayBit);
+    return CTypeInfo(CTypeInfo::kCallbackOptionsType);
   }
 };
-
-// T* where T is an API object.
-template <typename T>
-struct GetCTypePointerImpl<T, void> {
-  static constexpr CTypeInfo Get() { return CTypeInfo::FromWrapperType(); }
-};
-
-// T** where T is a primitive. Not allowed.
-template <typename T, typename = void>
-struct GetCTypePointerPointerImpl {
-  static_assert(sizeof(T**) != sizeof(T**), "Unsupported type");
-};
-
-// T** where T is an API object (array of API objects).
-template <typename T>
-struct GetCTypePointerPointerImpl<T, void> {
-  static constexpr CTypeInfo Get() {
-    return CTypeInfo::FromWrapperType(CTypeInfo::ArgFlags::kIsArrayBit);
-  }
-};
-
-template <typename T>
-struct GetCType<T**> : public GetCTypePointerPointerImpl<T> {};
-
-template <typename T>
-struct GetCType<T*> : public GetCTypePointerImpl<T> {};
 
 // Helper to count the number of occurances of `T` in `List`
 template <typename T, typename... List>

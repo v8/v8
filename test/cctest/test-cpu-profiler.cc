@@ -3922,10 +3922,12 @@ namespace {
 
 struct FastApiReceiver {
   static void FastCallback(v8::ApiObject receiver, int argument,
-                           int* fallback) {
+                           v8::FastApiCallbackOptions& options) {
+    // TODO(mslekova): The fallback is not used by the test. Replace this
+    // with a CHECK.
     v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     if (!IsValidUnwrapObject(receiver_obj)) {
-      *fallback = 1;
+      options.fallback = 1;
       return;
     }
     FastApiReceiver* receiver_ptr =
