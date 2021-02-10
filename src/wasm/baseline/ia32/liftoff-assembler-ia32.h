@@ -4296,17 +4296,18 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "f64x2.convert_low_i32x4_s");
+  Cvtdq2pd(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "f64x2.convert_low_i32x4_u");
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  F64x2ConvertLowI32x4U(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  bailout(kSimd, "f64x2.promote_low_f32x4");
+  Cvtps2pd(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
@@ -4402,7 +4403,7 @@ void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_demote_f64x2_zero(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  bailout(kSimd, "f32x4.demote_f64x2_zero");
+  Cvtpd2ps(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
@@ -4483,12 +4484,14 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4.trunc_sat_f64x2_s_zero");
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  I32x4TruncSatF64x2SZero(dst.fp(), src.fp(), liftoff::kScratchDoubleReg, tmp);
 }
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4.trunc_sat_f64x2_u_zero");
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  I32x4TruncSatF64x2UZero(dst.fp(), src.fp(), liftoff::kScratchDoubleReg, tmp);
 }
 
 void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
