@@ -873,9 +873,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, shared_native_module, script, export_wrappers);
 
-  // Finish the Wasm script now and make it public to the debugger.
-  isolate->debug()->OnAfterCompile(script);
-
   // Log the code within the generated module for profiling.
   shared_native_module->LogWasmCodes(isolate, *script);
 

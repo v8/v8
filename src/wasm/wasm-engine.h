@@ -331,6 +331,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void FreeDeadCode(const DeadCodeMap&);
   void FreeDeadCodeLocked(const DeadCodeMap&);
 
+  // Get the script for a specific native module in a specific isolate. If it
+  // does not exist (or was garbage collected in the meantime), create a new
+  // script and make it public to debuggers.
   Handle<Script> GetOrCreateScript(Isolate*,
                                    const std::shared_ptr<NativeModule>&,
                                    Vector<const char> source_url);
