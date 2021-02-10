@@ -7750,6 +7750,9 @@ using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,
 // --- Callback for checking if WebAssembly Simd is enabled ---
 using WasmSimdEnabledCallback = bool (*)(Local<Context> context);
 
+// --- Callback for checking if WebAssembly exceptions are enabled ---
+using WasmExceptionsEnabledCallback = bool (*)(Local<Context> context);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -9651,6 +9654,8 @@ class V8_EXPORT Isolate {
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
   void SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback);
+
+  void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after

@@ -2613,6 +2613,14 @@ bool Isolate::IsWasmSimdEnabled(Handle<Context> context) {
   return FLAG_experimental_wasm_simd;
 }
 
+bool Isolate::AreWasmExceptionsEnabled(Handle<Context> context) {
+  if (wasm_exceptions_enabled_callback()) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    return wasm_exceptions_enabled_callback()(api_context);
+  }
+  return FLAG_experimental_wasm_eh;
+}
+
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
 
