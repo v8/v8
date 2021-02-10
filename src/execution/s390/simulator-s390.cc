@@ -3473,11 +3473,10 @@ EVALUATE(VPKLS) {
 template <class S, class D>
 void VectorUnpackHigh(Simulator* sim, int dst, int src) {
   constexpr size_t kItemCount = kSimd128Size / sizeof(D);
-  D value = 0;
-  for (size_t i = 0; i < kItemCount; i++) {
-    value = sim->get_simd_register_by_lane<S>(src, i + kItemCount);
-    sim->set_simd_register_by_lane<D>(dst, i, value);
-  }
+  D temps[kItemCount] = {0};
+  // About overwriting if src and dst are the same register.
+  FOR_EACH_LANE(i, D) { temps[i] = sim->get_simd_register_by_lane<S>(src, i); }
+  FOR_EACH_LANE(i, D) { sim->set_simd_register_by_lane<D>(dst, i, temps[i]); }
 }
 
 #define CASE(i, S, D)                     \
@@ -3623,8 +3622,14 @@ void VectorUnpackLow(Simulator* sim, int dst, int src) {
   constexpr size_t kItemCount = kSimd128Size / sizeof(D);
   D temps[kItemCount] = {0};
   // About overwriting if src and dst are the same register.
-  FOR_EACH_LANE(i, D) { temps[i] = sim->get_simd_register_by_lane<S>(src, i); }
-  FOR_EACH_LANE(i, D) { sim->set_simd_register_by_lane<D>(dst, i, temps[i]); }
+  // Using the "false" argument here to make sure we use the "Low" side of the
+  // Simd register, being simulated by the LSB in memory.
+  FOR_EACH_LANE(i, D) {
+    temps[i] = sim->get_simd_register_by_lane<S>(src, i, false);
+  }
+  FOR_EACH_LANE(i, D) {
+    sim->set_simd_register_by_lane<D>(dst, i, temps[i], false);
+  }
 }
 
 #define CASE(i, S, D)                    \
@@ -3871,6 +3876,7 @@ EVALUATE(VPERM) {
   DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
   USE(m5);
   USE(m6);
+  int8_t temp[kSimd128Size] = {0};
   for (int i = 0; i < kSimd128Size; i++) {
     int8_t lane_num = get_simd_register_by_lane<int8_t>(r4, i);
     // Get the five least significant bits.
@@ -3880,8 +3886,10 @@ EVALUATE(VPERM) {
       lane_num = lane_num - kSimd128Size;
       reg = r3;
     }
-    int8_t result = get_simd_register_by_lane<int8_t>(reg, lane_num);
-    set_simd_register_by_lane<int8_t>(r1, i, result);
+    temp[i] = get_simd_register_by_lane<int8_t>(reg, lane_num);
+  }
+  for (int i = 0; i < kSimd128Size; i++) {
+    set_simd_register_by_lane<int8_t>(r1, i, temp[i]);
   }
   return length;
 }

@@ -2711,7 +2711,6 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   S390OperandGenerator g(this);
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
-#ifdef V8_TARGET_BIG_ENDIAN
   // Remap the shuffle indices to match IBM lane numbering.
   int max_index = 15;
   int total_lane_count = 2 * kSimd128Size;
@@ -2723,7 +2722,6 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
                                : total_lane_count - current_index + max_index);
   }
   shuffle_p = &shuffle_remapped[0];
-#endif
   Emit(kS390_I8x16Shuffle, g.DefineAsRegister(node),
        g.UseUniqueRegister(input0), g.UseUniqueRegister(input1),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p)),
