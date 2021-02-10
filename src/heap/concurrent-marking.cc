@@ -209,7 +209,6 @@ class ConcurrentMarkingVisitor final
 
   template <typename T>
   int VisitJSObjectSubclassFast(Map map, T object) {
-    DCHECK_IMPLIES(FLAG_unbox_double_fields, map.HasFastPointerLayout());
     using TBodyDescriptor = typename T::FastBodyDescriptor;
     return VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
   }

@@ -175,10 +175,6 @@ using MapHandles = std::vector<Handle<Map>>;
 // +---------------+-------------------------------------------------+
 // | TaggedPointer | [instance_descriptors]                          |
 // +*****************************************************************+
-// ! TaggedPointer ! [layout_descriptor]                             !
-// !               ! Field is only present if compile-time flag      !
-// !               ! FLAG_unbox_double_fields is enabled             !
-// +*****************************************************************+
 // | TaggedPointer | [dependent_code]                                |
 // +---------------+-------------------------------------------------+
 // | TaggedPointer | [prototype_validity_cell]                       |
@@ -487,12 +483,6 @@ class Map : public HeapObject {
   // Returns true if transition to the given map requires special
   // synchronization with the concurrent marker.
   bool TransitionRequiresSynchronizationWithGC(Map target) const;
-  // Returns true if transition to the given map removes a tagged in-object
-  // field.
-  bool TransitionRemovesTaggedField(Map target) const;
-  // Returns true if transition to the given map replaces a tagged in-object
-  // field with an untagged in-object field.
-  bool TransitionChangesTaggedFieldToUntaggedField(Map target) const;
 
   // TODO(ishell): candidate with JSObject::MigrateToMap().
   bool InstancesNeedRewriting(Map target) const;
@@ -595,23 +585,10 @@ class Map : public HeapObject {
                                                 DescriptorArray descriptors,
                                                 int number_of_own_descriptors);
 
-  // [layout descriptor]: describes the object layout.
-  DECL_RELEASE_ACQUIRE_ACCESSORS(layout_descriptor, LayoutDescriptor)
-  // |layout descriptor| accessor which can be used from GC.
-  inline LayoutDescriptor layout_descriptor_gc_safe() const;
-  inline bool HasFastPointerLayout() const;
-
-  // |layout descriptor| accessor that is safe to call even when
-  // FLAG_unbox_double_fields is disabled (in this case Map does not contain
-  // |layout_descriptor| field at all).
-  inline LayoutDescriptor GetLayoutDescriptor() const;
-
   inline void UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
-                                LayoutDescriptor layout_descriptor,
                                 int number_of_own_descriptors);
   inline void InitializeDescriptors(Isolate* isolate,
-                                    DescriptorArray descriptors,
-                                    LayoutDescriptor layout_descriptor);
+                                    DescriptorArray descriptors);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, DependentCode)
@@ -855,16 +832,11 @@ class Map : public HeapObject {
   inline bool EquivalentToForNormalization(
       const Map other, PropertyNormalizationMode mode) const;
 
-  // Returns true if given field is unboxed double.
-  inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const;
-
   void PrintMapDetails(std::ostream& os);
 
   static inline Handle<Map> AddMissingTransitionsForTesting(
       Isolate* isolate, Handle<Map> split_map,
-      Handle<DescriptorArray> descriptors,
-      Handle<LayoutDescriptor> full_layout_descriptor);
+      Handle<DescriptorArray> descriptors);
 
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing
@@ -920,20 +892,20 @@ class Map : public HeapObject {
                                      Handle<DescriptorArray> descriptors,
                                      Descriptor* descriptor);
   V8_EXPORT_PRIVATE static Handle<Map> AddMissingTransitions(
-      Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
-      Handle<LayoutDescriptor> full_layout_descriptor);
-  static void InstallDescriptors(
-      Isolate* isolate, Handle<Map> parent_map, Handle<Map> child_map,
-      InternalIndex new_descriptor, Handle<DescriptorArray> descriptors,
-      Handle<LayoutDescriptor> full_layout_descriptor);
+      Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors);
+  static void InstallDescriptors(Isolate* isolate, Handle<Map> parent_map,
+                                 Handle<Map> child_map,
+                                 InternalIndex new_descriptor,
+                                 Handle<DescriptorArray> descriptors);
   static Handle<Map> CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
                                        Descriptor* descriptor,
                                        TransitionFlag flag);
-  static Handle<Map> CopyReplaceDescriptors(
-      Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
-      Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
-      MaybeHandle<Name> maybe_name, const char* reason,
-      SimpleTransitionFlag simple_flag);
+  static Handle<Map> CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
+                                            Handle<DescriptorArray> descriptors,
+                                            TransitionFlag flag,
+                                            MaybeHandle<Name> maybe_name,
+                                            const char* reason,
+                                            SimpleTransitionFlag simple_flag);
 
   static Handle<Map> CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,
@@ -945,8 +917,7 @@ class Map : public HeapObject {
 
   void DeprecateTransitionTree(Isolate* isolate);
 
-  void ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
-                          LayoutDescriptor new_layout_descriptor);
+  void ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors);
 
   // Update field type of the given descriptor to new representation and new
   // type. The type must be prepared for storing in descriptor array:

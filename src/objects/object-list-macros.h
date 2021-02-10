@@ -34,7 +34,6 @@ class JSPromise;
 class JSProxy;
 class JSProxyRevocableResult;
 class KeyAccumulator;
-class LayoutDescriptor;
 class LookupIterator;
 class FieldType;
 class Module;
@@ -71,7 +70,6 @@ template <typename T>
 class ZoneForwardList;
 
 #define OBJECT_TYPE_LIST(V) \
-  V(LayoutDescriptor)       \
   V(Primitive)              \
   V(Number)                 \
   V(Numeric)

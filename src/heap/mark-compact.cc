@@ -2399,13 +2399,6 @@ void MarkCompactCollector::TrimDescriptorArray(Map map,
 
     TrimEnumCache(map, descriptors);
     descriptors.Sort();
-
-    if (FLAG_unbox_double_fields) {
-      LayoutDescriptor layout_descriptor = map.layout_descriptor(kAcquireLoad);
-      layout_descriptor = layout_descriptor.Trim(heap_, map, descriptors,
-                                                 number_of_own_descriptors);
-      SLOW_DCHECK(layout_descriptor.IsConsistentWithMap(map, true));
-    }
   }
   DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
   map.set_owns_descriptors(true);
@@ -3954,8 +3947,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   }
 
   {
-    // - Update pointers in map space in a separate phase to avoid data races
-    //   with Map->LayoutDescriptor edge.
     // - Update array buffer trackers in the second phase to have access to
     //   byte length which is potentially a HeapNumber.
     TRACE_GC(heap()->tracer(),

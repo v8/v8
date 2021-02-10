@@ -61,9 +61,7 @@ Smi PropertyDetails::AsSmi() const {
 
 int PropertyDetails::field_width_in_words() const {
   DCHECK_EQ(location(), kField);
-  if (!FLAG_unbox_double_fields) return 1;
-  if (kDoubleSize == kTaggedSize) return 1;
-  return representation().IsDouble() ? kDoubleSize / kTaggedSize : 1;
+  return 1;
 }
 
 DEF_GETTER(HeapObject, IsClassBoilerplate, bool) {
@@ -270,17 +268,6 @@ DEF_GETTER(HeapObject, IsArrayList, bool) {
 
 DEF_GETTER(HeapObject, IsRegExpMatchInfo, bool) {
   return IsFixedArrayExact(isolate);
-}
-
-bool Object::IsLayoutDescriptor() const {
-  if (IsSmi()) return true;
-  HeapObject this_heap_object = HeapObject::cast(*this);
-  IsolateRoot isolate = GetIsolateForPtrCompr(this_heap_object);
-  return this_heap_object.IsByteArray(isolate);
-}
-
-bool Object::IsLayoutDescriptor(IsolateRoot isolate) const {
-  return IsSmi() || IsByteArray(isolate);
 }
 
 DEF_GETTER(HeapObject, IsDeoptimizationData, bool) {

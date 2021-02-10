@@ -366,8 +366,7 @@ bool AddDescriptorsByTemplate(
 
   UpdateProtectors(isolate, receiver, descriptors_template);
 
-  map->InitializeDescriptors(isolate, *descriptors,
-                             LayoutDescriptor::FastPointerLayout());
+  map->InitializeDescriptors(isolate, *descriptors);
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
                                             args)) {
@@ -583,8 +582,7 @@ bool InitClassConstructor(
   } else {
     map->set_is_dictionary_map(true);
     map->InitializeDescriptors(isolate,
-                               ReadOnlyRoots(isolate).empty_descriptor_array(),
-                               LayoutDescriptor::FastPointerLayout());
+                               ReadOnlyRoots(isolate).empty_descriptor_array());
     map->set_is_migration_target(false);
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);

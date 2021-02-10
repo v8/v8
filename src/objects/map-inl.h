@@ -12,7 +12,6 @@
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
-#include "src/objects/layout-descriptor-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
@@ -43,9 +42,6 @@ RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, DescriptorArray,
 // We need to use release-store and acquire-load accessor pairs to ensure
 // that the concurrent marking thread observes initializing stores of the
 // layout descriptor.
-RELEASE_ACQUIRE_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
-                                  kLayoutDescriptorOffset,
-                                  FLAG_unbox_double_fields)
 SYNCHRONIZED_WEAK_ACCESSORS(Map, raw_transitions,
                             kTransitionsOrPrototypeInfoOffset)
 
@@ -154,18 +150,6 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
 bool Map::EquivalentToForNormalization(const Map other,
                                        PropertyNormalizationMode mode) const {
   return EquivalentToForNormalization(other, elements_kind(), mode);
-}
-
-bool Map::IsUnboxedDoubleField(FieldIndex index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return IsUnboxedDoubleField(isolate, index);
-}
-
-bool Map::IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const {
-  if (!FLAG_unbox_double_fields) return false;
-  if (!index.is_inobject()) return false;
-  return !layout_descriptor(isolate, kAcquireLoad)
-              .IsTagged(index.property_index());
 }
 
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
@@ -315,10 +299,8 @@ int Map::GetInObjectPropertyOffset(int index) const {
 
 Handle<Map> Map::AddMissingTransitionsForTesting(
     Isolate* isolate, Handle<Map> split_map,
-    Handle<DescriptorArray> descriptors,
-    Handle<LayoutDescriptor> full_layout_descriptor) {
-  return AddMissingTransitions(isolate, split_map, descriptors,
-                               full_layout_descriptor);
+    Handle<DescriptorArray> descriptors) {
+  return AddMissingTransitions(isolate, split_map, descriptors);
 }
 
 InstanceType Map::instance_type() const {
@@ -603,63 +585,14 @@ bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE;
 }
 
-LayoutDescriptor Map::layout_descriptor_gc_safe() const {
-  DCHECK(FLAG_unbox_double_fields);
-  // The loaded value can be dereferenced on background thread to load the
-  // bitmap. We need acquire load in order to ensure that the bitmap
-  // initializing stores are also visible to the background thread.
-  Object layout_desc =
-      TaggedField<Object, kLayoutDescriptorOffset>::Acquire_Load(*this);
-  return LayoutDescriptor::cast_gc_safe(layout_desc);
-}
-
-bool Map::HasFastPointerLayout() const {
-  DCHECK(FLAG_unbox_double_fields);
-  // The loaded value is used for SMI check only and is not dereferenced,
-  // so relaxed load is safe.
-  Object layout_desc =
-      TaggedField<Object, kLayoutDescriptorOffset>::Relaxed_Load(*this);
-  return LayoutDescriptor::IsFastPointerLayout(layout_desc);
-}
-
 void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
-                            LayoutDescriptor layout_desc,
                             int number_of_own_descriptors) {
   SetInstanceDescriptors(isolate, descriptors, number_of_own_descriptors);
-  if (FLAG_unbox_double_fields) {
-    if (layout_descriptor(kAcquireLoad).IsSlowLayout()) {
-      set_layout_descriptor(layout_desc, kReleaseStore);
-    }
-#ifdef VERIFY_HEAP
-    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
-    if (FLAG_verify_heap) {
-      CHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
-      CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
-    }
-#else
-    SLOW_DCHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
-    DCHECK(visitor_id() == Map::GetVisitorId(*this));
-#endif
-  }
 }
 
-void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
-                                LayoutDescriptor layout_desc) {
+void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors) {
   SetInstanceDescriptors(isolate, descriptors,
                          descriptors.number_of_descriptors());
-
-  if (FLAG_unbox_double_fields) {
-    set_layout_descriptor(layout_desc, kReleaseStore);
-#ifdef VERIFY_HEAP
-    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
-    if (FLAG_verify_heap) {
-      CHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
-    }
-#else
-    SLOW_DCHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
-#endif
-    set_visitor_id(Map::GetVisitorId(*this));
-  }
 }
 
 void Map::set_bit_field3(uint32_t bits) {
@@ -675,11 +608,6 @@ void Map::clear_padding() {
   DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
   memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
          FIELD_SIZE(kOptionalPaddingOffset));
-}
-
-LayoutDescriptor Map::GetLayoutDescriptor() const {
-  return FLAG_unbox_double_fields ? layout_descriptor(kAcquireLoad)
-                                  : LayoutDescriptor::FastPointerLayout();
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {

@@ -99,13 +99,6 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
                   kStackLimitSlackForDeoptimizationInBytes <=
               MB);
 
-// Determine whether double field unboxing feature is enabled.
-#if V8_TARGET_ARCH_64_BIT && !defined(V8_COMPRESS_POINTERS)
-#define V8_DOUBLE_FIELDS_UNBOXING false
-#else
-#define V8_DOUBLE_FIELDS_UNBOXING false
-#endif
-
 // Determine whether dict mode prototypes feature is enabled.
 #ifdef V8_DICT_MODE_PROTOTYPES
 #define V8_DICT_MODE_PROTOTYPES_BOOL true

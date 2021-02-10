@@ -48,7 +48,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
-#include "src/objects/layout-descriptor-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache-inl.h"
 #include "src/objects/lookup-inl.h"

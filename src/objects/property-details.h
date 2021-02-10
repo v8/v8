@@ -109,9 +109,8 @@ class Representation {
   bool MightCauseMapDeprecation() const {
     // HeapObject to tagged representation change can be done in-place.
     if (IsTagged() || IsHeapObject()) return false;
-    // When double fields unboxing is enabled, there must be a map deprecation.
     // Boxed double to tagged transition is always done in-place.
-    if (IsDouble()) return FLAG_unbox_double_fields;
+    if (IsDouble()) return false;
     // None to double and smi to double representation changes require
     // deprecation, because doubles might require box allocation, see
     // CanBeInPlaceChangedTo().
@@ -128,10 +127,7 @@ class Representation {
     // smi and tagged values. Doubles, however, would require a box allocation.
     if (IsNone()) return !other.IsDouble();
     if (!other.IsTagged()) return false;
-    // Everything but unboxed doubles can be in-place changed to Tagged.
-    if (FLAG_unbox_double_fields && IsDouble()) return false;
-    DCHECK(IsSmi() || (!FLAG_unbox_double_fields && IsDouble()) ||
-           IsHeapObject());
+    DCHECK(IsSmi() || IsDouble() || IsHeapObject());
     return true;
   }
 
@@ -139,8 +135,6 @@ class Representation {
   // changed to in-place. If an in-place representation change is not allowed,
   // then this will return the current representation.
   Representation MostGenericInPlaceChange() const {
-    // Everything but unboxed doubles can be in-place changed to Tagged.
-    if (FLAG_unbox_double_fields && IsDouble()) return Representation::Double();
     return Representation::Tagged();
   }
 

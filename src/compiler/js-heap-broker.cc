@@ -950,7 +950,6 @@ bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
     DCHECK_EQ(kData, details.kind());
     if ((*max_properties)-- == 0) return false;
     FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
-    if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
     Handle<Object> value(boilerplate->RawFastPropertyAt(field_index), isolate);
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
@@ -1042,7 +1041,6 @@ struct PropertyDescriptor {
   FieldIndex field_index;
   ObjectData* field_owner = nullptr;
   ObjectData* field_type = nullptr;
-  bool is_unboxed_double_field = false;
 };
 
 class MapData : public HeapObjectData {
@@ -1397,10 +1395,6 @@ class DescriptorArrayData : public HeapObjectData {
     return contents_.at(descriptor_index.as_int()).field_type;
   }
 
-  bool IsUnboxedDoubleField(InternalIndex descriptor_index) const {
-    return contents_.at(descriptor_index.as_int()).is_unboxed_double_field;
-  }
-
   ObjectData* GetStrongValue(InternalIndex descriptor_index) const {
     return contents_.at(descriptor_index.as_int()).value;
   }
@@ -1440,7 +1434,6 @@ void DescriptorArrayData::SerializeDescriptor(JSHeapBroker* broker,
         broker->GetOrCreateData(map->FindFieldOwner(isolate, descriptor_index));
     d.field_type =
         broker->GetOrCreateData(descriptors->GetFieldType(descriptor_index));
-    d.is_unboxed_double_field = map->IsUnboxedDoubleField(d.field_index);
   }
   contents_[descriptor_index.as_int()] = d;
 
@@ -2349,33 +2342,24 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
     // this field.
     DCHECK_EQ(field_index.property_index(),
               static_cast<int>(inobject_fields_.size()));
-    if (boilerplate->IsUnboxedDoubleField(field_index)) {
-      uint64_t value_bits =
-          boilerplate->RawFastDoublePropertyAsBitsAt(field_index);
-      inobject_fields_.push_back(JSObjectField{value_bits});
-    } else {
-      Handle<Object> value(boilerplate->RawFastPropertyAt(field_index),
-                           isolate);
-      // In case of double fields we use a sentinel NaN value to mark
-      // uninitialized fields. A boilerplate value with such a field may migrate
-      // from its double to a tagged representation. If the double is unboxed,
-      // the raw double is converted to a heap number, otherwise the (boxed)
-      // double ceases to be mutable, and becomes a normal heap number. The
-      // sentinel value carries no special meaning when it occurs in a heap
-      // number, so we would like to recover the uninitialized value. We check
-      // for the sentinel here, specifically, since migrations might have been
-      // triggered as part of boilerplate serialization.
-      if (!details.representation().IsDouble() && value->IsHeapNumber() &&
-          HeapNumber::cast(*value).value_as_bits() == kHoleNanInt64) {
-        value = isolate->factory()->uninitialized_value();
-      }
-      ObjectData* value_data = broker->GetOrCreateData(value);
-      if (value_data->IsJSObject() && !value_data->should_access_heap()) {
-        value_data->AsJSObject()->SerializeRecursiveAsBoilerplate(broker,
-                                                                  depth - 1);
-      }
-      inobject_fields_.push_back(JSObjectField{value_data});
+    Handle<Object> value(boilerplate->RawFastPropertyAt(field_index), isolate);
+    // In case of double fields we use a sentinel NaN value to mark
+    // uninitialized fields. A boilerplate value with such a field may migrate
+    // from its double to a tagged representation. The sentinel value carries
+    // no special meaning when it occurs in a heap number, so we would like to
+    // recover the uninitialized value. We check for the sentinel here,
+    // specifically, since migrations might have been triggered as part of
+    // boilerplate serialization.
+    if (!details.representation().IsDouble() && value->IsHeapNumber() &&
+        HeapNumber::cast(*value).value_as_bits() == kHoleNanInt64) {
+      value = isolate->factory()->uninitialized_value();
     }
+    ObjectData* value_data = broker->GetOrCreateData(value);
+    if (value_data->IsJSObject() && !value_data->should_access_heap()) {
+      value_data->AsJSObject()->SerializeRecursiveAsBoilerplate(broker,
+                                                                depth - 1);
+    }
+    inobject_fields_.push_back(JSObjectField{value_data});
   }
   TRACE(broker, "Copied " << inobject_fields_.size() << " in-object fields");
 
@@ -3079,24 +3063,6 @@ FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
       data()->AsFeedbackVector()->GetClosureFeedbackCell(broker(), index));
 }
 
-double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {
-  if (data_->should_access_heap()) {
-    return object()->RawFastDoublePropertyAt(index);
-  }
-  JSObjectData* object_data = data()->AsJSObject();
-  CHECK(index.is_inobject());
-  return object_data->GetInobjectField(index.property_index()).AsDouble();
-}
-
-uint64_t JSObjectRef::RawFastDoublePropertyAsBitsAt(FieldIndex index) const {
-  if (data_->should_access_heap()) {
-    return object()->RawFastDoublePropertyAsBitsAt(index);
-  }
-  JSObjectData* object_data = data()->AsJSObject();
-  CHECK(index.is_inobject());
-  return object_data->GetInobjectField(index.property_index()).AsBitsOfDouble();
-}
-
 ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
   if (data_->should_access_heap()) {
     return ObjectRef(broker(), broker()->CanonicalPersistentHandle(
@@ -3211,17 +3177,6 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
   DescriptorArrayData* descriptors =
       data()->AsMap()->instance_descriptors()->AsDescriptorArray();
   return ObjectRef(broker(), descriptors->GetFieldType(descriptor_index));
-}
-
-bool MapRef::IsUnboxedDoubleField(InternalIndex descriptor_index) const {
-  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap()) {
-    return object()->IsUnboxedDoubleField(
-        FieldIndex::ForDescriptor(*object(), descriptor_index));
-  }
-  DescriptorArrayData* descriptors =
-      data()->AsMap()->instance_descriptors()->AsDescriptorArray();
-  return descriptors->IsUnboxedDoubleField(descriptor_index);
 }
 
 base::Optional<int> StringRef::length() const {

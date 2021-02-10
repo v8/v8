@@ -120,7 +120,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         FieldIndex index = FieldIndex::ForPropertyIndex(
             copy->map(isolate), details.field_index(),
             details.representation());
-        if (copy->IsUnboxedDoubleField(isolate, index)) continue;
         Object raw = copy->RawFastPropertyAt(isolate, index);
         if (raw.IsJSObject(isolate)) {
           Handle<JSObject> value(JSObject::cast(raw), isolate);
@@ -521,7 +520,7 @@ Handle<JSObject> CreateArrayLiteral(
 inline DeepCopyHints DecodeCopyHints(int flags) {
   DeepCopyHints copy_hints =
       (flags & AggregateLiteral::kIsShallow) ? kObjectIsShallow : kNoHints;
-  if (FLAG_track_double_fields && !FLAG_unbox_double_fields) {
+  if (FLAG_track_double_fields) {
     // Make sure we properly clone mutable heap numbers on 32-bit platforms.
     copy_hints = kNoHints;
   }

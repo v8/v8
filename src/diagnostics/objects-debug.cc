@@ -31,7 +31,6 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/layout-descriptor.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
@@ -398,10 +397,6 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         DCHECK_EQ(kData, details.kind());
         Representation r = details.representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
-        if (IsUnboxedDoubleField(index)) {
-          DCHECK(r.IsDouble());
-          continue;
-        }
         if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
           VerifyObjectField(isolate, index.offset());
         }
@@ -492,8 +487,6 @@ void Map::MapVerify(Isolate* isolate) {
       TransitionsAccessor(isolate, *this, &no_gc).IsSortedNoDuplicates());
   SLOW_DCHECK(TransitionsAccessor(isolate, *this, &no_gc)
                   .IsConsistentWithBackPointers());
-  SLOW_DCHECK(!FLAG_unbox_double_fields ||
-              layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
   // Only JSFunction maps have has_prototype_slot() bit set and constructible
   // JSFunction objects must have prototype slot.
   CHECK_IMPLIES(has_prototype_slot(),

@@ -8815,13 +8815,9 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
       }
       BIND(&if_double);
       {
-        if (FLAG_unbox_double_fields) {
-          var_double_value = LoadObjectField<Float64T>(object, field_offset);
-        } else {
-          TNode<HeapNumber> heap_number =
-              CAST(LoadObjectField(object, field_offset));
-          var_double_value = LoadHeapNumberValue(heap_number);
-        }
+        TNode<HeapNumber> heap_number =
+            CAST(LoadObjectField(object, field_offset));
+        var_double_value = LoadHeapNumberValue(heap_number);
         Goto(&rebox_double);
       }
     }

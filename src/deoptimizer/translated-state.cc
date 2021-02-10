@@ -1556,7 +1556,6 @@ namespace {
 
 enum StorageKind : uint8_t {
   kStoreTagged,
-  kStoreUnboxedDouble,
   kStoreHeapObject
 };
 
@@ -1734,7 +1733,6 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
     Representation representation = descriptors->GetDetails(i).representation();
     if (!index.is_inobject() &&
         (representation.IsDouble() || representation.IsHeapObject())) {
-      CHECK(!map->IsUnboxedDoubleField(index));
       int outobject_index = index.outobject_array_index();
       int array_index = outobject_index * kTaggedSize;
       object_storage->set(array_index, kStoreHeapObject);
@@ -1772,9 +1770,7 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
         (representation.IsDouble() || representation.IsHeapObject())) {
       CHECK_GE(index.index(), FixedArray::kHeaderSize / kTaggedSize);
       int array_index = index.index() * kTaggedSize - FixedArray::kHeaderSize;
-      uint8_t marker = map->IsUnboxedDoubleField(index) ? kStoreUnboxedDouble
-                                                        : kStoreHeapObject;
-      object_storage->set(array_index, marker);
+      object_storage->set(array_index, kStoreHeapObject);
     }
   }
   slot->set_storage(object_storage);
@@ -1835,11 +1831,7 @@ void TranslatedState::InitializeJSObjectAt(
     // should be fully initialized by now).
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
-    if (marker == kStoreUnboxedDouble) {
-      Handle<HeapObject> field_value = slot->storage();
-      CHECK(field_value->IsHeapNumber());
-      object_storage->WriteField<double>(offset, field_value->Number());
-    } else if (marker == kStoreHeapObject) {
+    if (marker == kStoreHeapObject) {
       Handle<HeapObject> field_value = slot->storage();
       WRITE_FIELD(*object_storage, offset, *field_value);
       WRITE_BARRIER(*object_storage, offset, *field_value);

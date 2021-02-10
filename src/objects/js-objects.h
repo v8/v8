@@ -630,17 +630,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   int unused_property_fields,
                                                   const char* reason);
 
-  inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const;
-
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
   inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
-  inline double RawFastDoublePropertyAt(FieldIndex index) const;
-  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Object value);
   inline void RawFastPropertyAtPut(
@@ -649,7 +644,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
 

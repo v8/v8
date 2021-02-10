@@ -17,7 +17,6 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
 #include "src/objects/js-objects.h"
-#include "src/objects/layout-descriptor.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/oddball.h"
@@ -315,8 +314,7 @@ VisitorId Map::GetVisitorId(Map map) {
     case WASM_VALUE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE: {
       const bool has_raw_data_fields =
-          (FLAG_unbox_double_fields && !map.HasFastPointerLayout()) ||
-          (COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0);
+          COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0;
       return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
     }
     case JS_API_OBJECT_TYPE:
@@ -500,32 +498,10 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
                        PropertyConstness::kConst, representation, flag);
 }
 
-bool Map::TransitionRemovesTaggedField(Map target) const {
-  int inobject = NumberOfFields();
-  int target_inobject = target.NumberOfFields();
-  for (int i = target_inobject; i < inobject; i++) {
-    FieldIndex index = FieldIndex::ForPropertyIndex(*this, i);
-    if (!IsUnboxedDoubleField(index)) return true;
-  }
-  return false;
-}
-
-bool Map::TransitionChangesTaggedFieldToUntaggedField(Map target) const {
-  int inobject = NumberOfFields();
-  int target_inobject = target.NumberOfFields();
-  int limit = std::min(inobject, target_inobject);
-  for (int i = 0; i < limit; i++) {
-    FieldIndex index = FieldIndex::ForPropertyIndex(target, i);
-    if (!IsUnboxedDoubleField(index) && target.IsUnboxedDoubleField(index)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool Map::TransitionRequiresSynchronizationWithGC(Map target) const {
-  return TransitionRemovesTaggedField(target) ||
-         TransitionChangesTaggedFieldToUntaggedField(target);
+  int inobject = NumberOfFields();
+  int target_inobject = target.NumberOfFields();
+  return target_inobject < inobject;
 }
 
 bool Map::InstancesNeedRewriting(Map target) const {
@@ -626,8 +602,8 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
 
 // Installs |new_descriptors| over the current instance_descriptors to ensure
 // proper sharing of descriptor arrays.
-void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
-                             LayoutDescriptor new_layout_descriptor) {
+void Map::ReplaceDescriptors(Isolate* isolate,
+                             DescriptorArray new_descriptors) {
   // Don't overwrite the empty descriptor array or initial map's descriptors.
   if (NumberOfOwnDescriptors() == 0 ||
       GetBackPointer(isolate).IsUndefined(isolate)) {
@@ -646,7 +622,7 @@ void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
     Object next = current.GetBackPointer(isolate);
     if (next.IsUndefined(isolate)) break;  // Stop overwriting at initial map.
     current.SetEnumLength(kInvalidEnumCacheSentinel);
-    current.UpdateDescriptors(isolate, new_descriptors, new_layout_descriptor,
+    current.UpdateDescriptors(isolate, new_descriptors,
                               current.NumberOfOwnDescriptors());
     current = Map::cast(next);
   }
@@ -1121,11 +1097,8 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
       DescriptorArray::CopyUpTo(isolate, descriptors, old_size, slack);
 
   DisallowGarbageCollection no_gc;
-  // The descriptors are still the same, so keep the layout descriptor.
-  LayoutDescriptor layout_descriptor = map->GetLayoutDescriptor();
-
   if (old_size == 0) {
-    map->UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
+    map->UpdateDescriptors(isolate, *new_descriptors,
                            map->NumberOfOwnDescriptors());
     return;
   }
@@ -1148,11 +1121,11 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   while (current.instance_descriptors(kRelaxedLoad) == *descriptors) {
     Object next = current.GetBackPointer();
     if (next.IsUndefined(isolate)) break;  // Stop overwriting at initial map.
-    current.UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
+    current.UpdateDescriptors(isolate, *new_descriptors,
                               current.NumberOfOwnDescriptors());
     current = Map::cast(next);
   }
-  map->UpdateDescriptors(isolate, *new_descriptors, layout_descriptor,
+  map->UpdateDescriptors(isolate, *new_descriptors,
                          map->NumberOfOwnDescriptors());
 }
 
@@ -1644,8 +1617,7 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
     // The copy will use the same descriptors array without ownership.
     DescriptorArray descriptors = map->instance_descriptors(kRelaxedLoad);
     result->set_owns_descriptors(false);
-    result->UpdateDescriptors(isolate, descriptors, map->GetLayoutDescriptor(),
-                              number_of_own_descriptors);
+    result->UpdateDescriptors(isolate, descriptors, number_of_own_descriptors);
 
     DCHECK_EQ(result->NumberOfFields(),
               result->GetInObjectProperties() - result->UnusedPropertyFields());
@@ -1696,16 +1668,10 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
     }
   }
 
-  Handle<LayoutDescriptor> layout_descriptor =
-      FLAG_unbox_double_fields
-          ? LayoutDescriptor::ShareAppend(isolate, map,
-                                          descriptor->GetDetails())
-          : handle(LayoutDescriptor::FastPointerLayout(), isolate);
-
   {
     DisallowGarbageCollection no_gc;
     descriptors->Append(descriptor);
-    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
+    result->InitializeDescriptors(isolate, *descriptors);
   }
 
   DCHECK(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
@@ -1743,11 +1709,12 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
   }
 }
 
-Handle<Map> Map::CopyReplaceDescriptors(
-    Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
-    Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
-    MaybeHandle<Name> maybe_name, const char* reason,
-    SimpleTransitionFlag simple_flag) {
+Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
+                                        Handle<DescriptorArray> descriptors,
+                                        TransitionFlag flag,
+                                        MaybeHandle<Name> maybe_name,
+                                        const char* reason,
+                                        SimpleTransitionFlag simple_flag) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
@@ -1760,19 +1727,18 @@ Handle<Map> Map::CopyReplaceDescriptors(
   }
 
   if (map->is_prototype_map()) {
-    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
+    result->InitializeDescriptors(isolate, *descriptors);
   } else {
     if (flag == INSERT_TRANSITION &&
         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
-      result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
+      result->InitializeDescriptors(isolate, *descriptors);
 
       DCHECK(!maybe_name.is_null());
       ConnectTransition(isolate, map, result, name, simple_flag);
       is_connected = true;
     } else {
       descriptors->GeneralizeAllFields();
-      result->InitializeDescriptors(isolate, *descriptors,
-                                    LayoutDescriptor::FastPointerLayout());
+      result->InitializeDescriptors(isolate, *descriptors);
     }
   }
   if (FLAG_log_maps && !is_connected) {
@@ -1786,10 +1752,8 @@ Handle<Map> Map::CopyReplaceDescriptors(
 // starting from descriptor with index |split_map|.NumberOfOwnDescriptors().
 // The way how it is done is tricky because of GC and special descriptors
 // marking logic.
-Handle<Map> Map::AddMissingTransitions(
-    Isolate* isolate, Handle<Map> split_map,
-    Handle<DescriptorArray> descriptors,
-    Handle<LayoutDescriptor> full_layout_descriptor) {
+Handle<Map> Map::AddMissingTransitions(Isolate* isolate, Handle<Map> split_map,
+                                       Handle<DescriptorArray> descriptors) {
   DCHECK(descriptors->IsSortedNoDuplicates());
   int split_nof = split_map->NumberOfOwnDescriptors();
   int nof_descriptors = descriptors->number_of_descriptors();
@@ -1805,8 +1769,7 @@ Handle<Map> Map::AddMissingTransitions(
   // the flag and clear it right before the descriptors are installed. This
   // makes heap verification happy and ensures the flag ends up accurate.
   Handle<Map> last_map = CopyDropDescriptors(isolate, split_map);
-  last_map->InitializeDescriptors(isolate, *descriptors,
-                                  *full_layout_descriptor);
+  last_map->InitializeDescriptors(isolate, *descriptors);
   last_map->SetInObjectUnusedPropertyFields(0);
   last_map->set_may_have_interesting_symbols(true);
 
@@ -1818,15 +1781,14 @@ Handle<Map> Map::AddMissingTransitions(
   Handle<Map> map = split_map;
   for (InternalIndex i : InternalIndex::Range(split_nof, nof_descriptors - 1)) {
     Handle<Map> new_map = CopyDropDescriptors(isolate, map);
-    InstallDescriptors(isolate, map, new_map, i, descriptors,
-                       full_layout_descriptor);
+    InstallDescriptors(isolate, map, new_map, i, descriptors);
 
     map = new_map;
   }
   map->NotifyLeafMapLayoutChange(isolate);
   last_map->set_may_have_interesting_symbols(false);
   InstallDescriptors(isolate, map, last_map, InternalIndex(nof_descriptors - 1),
-                     descriptors, full_layout_descriptor);
+                     descriptors);
   return last_map;
 }
 
@@ -1834,8 +1796,7 @@ Handle<Map> Map::AddMissingTransitions(
 // always insert transitions without checking.
 void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
                              Handle<Map> child, InternalIndex new_descriptor,
-                             Handle<DescriptorArray> descriptors,
-                             Handle<LayoutDescriptor> full_layout_descriptor) {
+                             Handle<DescriptorArray> descriptors) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   child->SetInstanceDescriptors(isolate, *descriptors,
@@ -1844,23 +1805,6 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
   PropertyDetails details = descriptors->GetDetails(new_descriptor);
   if (details.location() == kField) {
     child->AccountAddedPropertyField();
-  }
-
-  if (FLAG_unbox_double_fields) {
-    Handle<LayoutDescriptor> layout_descriptor =
-        LayoutDescriptor::AppendIfFastOrUseFull(isolate, parent, details,
-                                                full_layout_descriptor);
-    child->set_layout_descriptor(*layout_descriptor, kReleaseStore);
-#ifdef VERIFY_HEAP
-    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
-    if (FLAG_verify_heap) {
-      CHECK(child->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*child));
-    }
-#else
-    SLOW_DCHECK(
-        child->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*child));
-#endif
-    child->set_visitor_id(Map::GetVisitorId(*child));
   }
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor), isolate);
@@ -1965,8 +1909,7 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
     // The properties did not change, so reuse descriptors.
     map->set_owns_descriptors(false);
     new_map->InitializeDescriptors(isolate,
-                                   map->instance_descriptors(kRelaxedLoad),
-                                   map->GetLayoutDescriptor());
+                                   map->instance_descriptors(kRelaxedLoad));
   } else {
     // In case the map did not own its own descriptors, a split is forced by
     // copying the map; creating a new descriptor array cell.
@@ -1975,10 +1918,7 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
     int number_of_own_descriptors = map->NumberOfOwnDescriptors();
     Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
         isolate, descriptors, number_of_own_descriptors);
-    Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
-                                                   isolate);
-    new_map->InitializeDescriptors(isolate, *new_descriptors,
-                                   *new_layout_descriptor);
+    new_map->InitializeDescriptors(isolate, *new_descriptors);
   }
   return new_map;
 }
@@ -1989,11 +1929,9 @@ Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       isolate, descriptors, number_of_own_descriptors);
-  Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
-                                                 isolate);
-  return CopyReplaceDescriptors(
-      isolate, map, new_descriptors, new_layout_descriptor, OMIT_TRANSITION,
-      MaybeHandle<Name>(), reason, SPECIAL_TRANSITION);
+  return CopyReplaceDescriptors(isolate, map, new_descriptors, OMIT_TRANSITION,
+                                MaybeHandle<Name>(), reason,
+                                SPECIAL_TRANSITION);
 }
 
 Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
@@ -2028,14 +1966,12 @@ Handle<Map> Map::CopyForPreventExtensions(
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
       isolate, handle(map->instance_descriptors(kRelaxedLoad), isolate),
       num_descriptors, attrs_to_add);
-  Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
-                                                 isolate);
   // Do not track transitions during bootstrapping.
   TransitionFlag flag =
       isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
-  Handle<Map> new_map = CopyReplaceDescriptors(
-      isolate, map, new_desc, new_layout_descriptor, flag, transition_marker,
-      reason, SPECIAL_TRANSITION);
+  Handle<Map> new_map =
+      CopyReplaceDescriptors(isolate, map, new_desc, flag, transition_marker,
+                             reason, SPECIAL_TRANSITION);
   new_map->set_is_extensible(false);
   if (!IsTypedArrayElementsKind(map->elements_kind())) {
     ElementsKind new_kind = IsStringWrapperElementsKind(map->elements_kind())
@@ -2397,14 +2333,9 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
       DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
   new_descriptors->Append(descriptor);
 
-  Handle<LayoutDescriptor> new_layout_descriptor =
-      FLAG_unbox_double_fields
-          ? LayoutDescriptor::New(isolate, map, new_descriptors, nof + 1)
-          : handle(LayoutDescriptor::FastPointerLayout(), isolate);
-
-  return CopyReplaceDescriptors(
-      isolate, map, new_descriptors, new_layout_descriptor, flag,
-      descriptor->GetKey(), "CopyAddDescriptor", SIMPLE_PROPERTY_TRANSITION);
+  return CopyReplaceDescriptors(isolate, map, new_descriptors, flag,
+                                descriptor->GetKey(), "CopyAddDescriptor",
+                                SIMPLE_PROPERTY_TRANSITION);
 }
 
 Handle<Map> Map::CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
@@ -2439,15 +2370,12 @@ Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
       isolate, descriptors, map->NumberOfOwnDescriptors());
 
   new_descriptors->Replace(insertion_index, descriptor);
-  Handle<LayoutDescriptor> new_layout_descriptor = LayoutDescriptor::New(
-      isolate, map, new_descriptors, new_descriptors->number_of_descriptors());
 
   SimpleTransitionFlag simple_flag =
       (insertion_index.as_int() == descriptors->number_of_descriptors() - 1)
           ? SIMPLE_PROPERTY_TRANSITION
           : PROPERTY_TRANSITION;
-  return CopyReplaceDescriptors(isolate, map, new_descriptors,
-                                new_layout_descriptor, flag, key,
+  return CopyReplaceDescriptors(isolate, map, new_descriptors, flag, key,
                                 "CopyReplaceDescriptor", simple_flag);
 }
 

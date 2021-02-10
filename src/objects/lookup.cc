@@ -893,13 +893,9 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
   if (property_details_.representation().IsDouble()) {
     if (!value.IsNumber(isolate_)) return false;
     uint64_t bits;
-    if (holder->IsUnboxedDoubleField(isolate_, field_index)) {
-      bits = holder->RawFastDoublePropertyAsBitsAt(field_index);
-    } else {
-      Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
-      DCHECK(current_value.IsHeapNumber(isolate_));
-      bits = HeapNumber::cast(current_value).value_as_bits();
-    }
+    Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
+    DCHECK(current_value.IsHeapNumber(isolate_));
+    bits = HeapNumber::cast(current_value).value_as_bits();
     // Use bit representation of double to check for hole double, since
     // manipulating the signaling NaN used for the hole in C++, e.g. with
     // bit_cast or value(), will change its value on ia32 (the x87 stack is

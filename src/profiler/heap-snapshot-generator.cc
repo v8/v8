@@ -26,7 +26,6 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/layout-descriptor.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/objects-inl.h"
@@ -1085,11 +1084,6 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
                        Map::kInstanceDescriptorsOffset);
   SetInternalReference(entry, "prototype", map.prototype(),
                        Map::kPrototypeOffset);
-  if (FLAG_unbox_double_fields) {
-    SetInternalReference(entry, "layout_descriptor",
-                         map.layout_descriptor(kAcquireLoad),
-                         Map::kLayoutDescriptorOffset);
-  }
   if (map.IsContextMap()) {
     Object native_context = map.native_context();
     TagObject(native_context, "(native context)");

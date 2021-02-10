@@ -255,17 +255,13 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
     exit_point->Return(LoadObjectField(holder, offset));
 
     BIND(&is_double);
-    if (FLAG_unbox_double_fields) {
-      *var_double_value = LoadObjectField<Float64T>(holder, offset);
-    } else {
-      TNode<Object> heap_number = LoadObjectField(holder, offset);
-      // This is not an "old" Smi value from before a Smi->Double transition.
-      // Rather, it's possible that since the last update of this IC, the Double
-      // field transitioned to a Tagged field, and was then assigned a Smi.
-      GotoIf(TaggedIsSmi(heap_number), miss);
-      GotoIfNot(IsHeapNumber(CAST(heap_number)), miss);
-      *var_double_value = LoadHeapNumberValue(CAST(heap_number));
-    }
+    TNode<Object> heap_number = LoadObjectField(holder, offset);
+    // This is not an "old" Smi value from before a Smi->Double transition.
+    // Rather, it's possible that since the last update of this IC, the Double
+    // field transitioned to a Tagged field, and was then assigned a Smi.
+    GotoIf(TaggedIsSmi(heap_number), miss);
+    GotoIfNot(IsHeapNumber(CAST(heap_number)), miss);
+    *var_double_value = LoadHeapNumberValue(CAST(heap_number));
     Goto(rebox_double);
   }
 
@@ -278,13 +274,11 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
     exit_point->Return(value);
 
     BIND(&is_double);
-    if (!FLAG_unbox_double_fields) {
-      // This is not an "old" Smi value from before a Smi->Double transition.
-      // Rather, it's possible that since the last update of this IC, the Double
-      // field transitioned to a Tagged field, and was then assigned a Smi.
-      GotoIf(TaggedIsSmi(value), miss);
-      GotoIfNot(IsHeapNumber(CAST(value)), miss);
-    }
+    // This is not an "old" Smi value from before a Smi->Double transition.
+    // Rather, it's possible that since the last update of this IC, the Double
+    // field transitioned to a Tagged field, and was then assigned a Smi.
+    GotoIf(TaggedIsSmi(value), miss);
+    GotoIfNot(IsHeapNumber(CAST(value)), miss);
     *var_double_value = LoadHeapNumberValue(CAST(value));
     Goto(rebox_double);
   }
@@ -1367,36 +1361,21 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
       BIND(&double_rep);
       {
         TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
-        if (FLAG_unbox_double_fields) {
-          if (do_transitioning_store) {
-            StoreMap(object, object_map);
-          } else {
-            Label store_value(this);
-            GotoIfNot(IsPropertyDetailsConst(details), &store_value);
-            TNode<Float64T> current_value =
-                LoadObjectField<Float64T>(object, field_offset);
-            BranchIfSameNumberValue(current_value, double_value, &store_value,
-                                    slow);
-            BIND(&store_value);
-          }
-          StoreObjectFieldNoWriteBarrier(object, field_offset, double_value);
+        if (do_transitioning_store) {
+          TNode<HeapNumber> heap_number =
+              AllocateHeapNumberWithValue(double_value);
+          StoreMap(object, object_map);
+          StoreObjectField(object, field_offset, heap_number);
         } else {
-          if (do_transitioning_store) {
-            TNode<HeapNumber> heap_number =
-                AllocateHeapNumberWithValue(double_value);
-            StoreMap(object, object_map);
-            StoreObjectField(object, field_offset, heap_number);
-          } else {
-            TNode<HeapNumber> heap_number =
-                CAST(LoadObjectField(object, field_offset));
-            Label store_value(this);
-            GotoIfNot(IsPropertyDetailsConst(details), &store_value);
-            TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
-            BranchIfSameNumberValue(current_value, double_value, &store_value,
-                                    slow);
-            BIND(&store_value);
-            StoreHeapNumberValue(heap_number, double_value);
-          }
+          TNode<HeapNumber> heap_number =
+              CAST(LoadObjectField(object, field_offset));
+          Label store_value(this);
+          GotoIfNot(IsPropertyDetailsConst(details), &store_value);
+          TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
+          BranchIfSameNumberValue(current_value, double_value, &store_value,
+                                  slow);
+          BIND(&store_value);
+          StoreHeapNumberValue(heap_number, double_value);
         }
         Goto(&done);
       }
@@ -1903,13 +1882,6 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
     TVARIABLE(IntPtrT, actual_offset, offset);
 
     Label property_and_offset_ready(this);
-
-    // If we are unboxing double fields, and this is an in-object field, the
-    // property_storage and offset are already pointing to the double-valued
-    // field.
-    if (FLAG_unbox_double_fields) {
-      GotoIf(is_inobject, &property_and_offset_ready);
-    }
 
     // Store the double value directly into the mutable HeapNumber.
     TNode<Object> field = LoadObjectField(property_storage, offset);
@@ -4238,17 +4210,15 @@ void AccessorAssembler::GenerateCloneObjectIC() {
         },
         1, IndexAdvanceMode::kPost);
 
-    // If mutable HeapNumbers can occur, we need to go through the {object}
-    // again here and properly clone them. We use a second loop here to
-    // ensure that the GC (and heap verifier) always sees properly initialized
-    // objects, i.e. never hits undefined values in double fields.
-    if (!FLAG_unbox_double_fields) {
-      TNode<IntPtrT> start_offset = TimesTaggedSize(result_start);
-      TNode<IntPtrT> end_offset =
-          IntPtrAdd(TimesTaggedSize(source_size), field_offset_difference);
-      ConstructorBuiltinsAssembler(state()).CopyMutableHeapNumbersInObject(
-          object, start_offset, end_offset);
-    }
+    // We need to go through the {object} again here and properly clone them. We
+    // use a second loop here to ensure that the GC (and heap verifier) always
+    // sees properly initialized objects, i.e. never hits undefined values in
+    // double fields.
+    TNode<IntPtrT> start_offset = TimesTaggedSize(result_start);
+    TNode<IntPtrT> end_offset =
+        IntPtrAdd(TimesTaggedSize(source_size), field_offset_difference);
+    ConstructorBuiltinsAssembler(state()).CopyMutableHeapNumbersInObject(
+        object, start_offset, end_offset);
 
     Return(object);
   }

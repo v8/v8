@@ -278,11 +278,7 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       switch (details.location()) {
         case kField: {
           FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
-          if (IsUnboxedDoubleField(field_index)) {
-            os << "<unboxed double> " << RawFastDoublePropertyAt(field_index);
-          } else {
-            os << Brief(RawFastPropertyAt(field_index));
-          }
+          os << Brief(RawFastPropertyAt(field_index));
           break;
         }
         case kDescriptor:
@@ -1477,7 +1473,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from data): ";
-    os << Brief(GetCode());
+  os << Brief(GetCode());
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
   os << "\n - script: " << Brief(script());
@@ -2291,49 +2287,6 @@ void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-static void PrintBitMask(std::ostream& os, uint32_t value) {  // NOLINT
-  for (int i = 0; i < 32; i++) {
-    if ((i & 7) == 0) os << " ";
-    os << (((value & 1) == 0) ? "_" : "x");
-    value >>= 1;
-  }
-}
-
-void LayoutDescriptor::Print() {
-  StdoutStream os;
-  this->Print(os);
-  os << std::flush;
-}
-
-void LayoutDescriptor::ShortPrint(std::ostream& os) {
-  if (IsSmi()) {
-    // Print tagged value for easy use with "jld" gdb macro.
-    os << reinterpret_cast<void*>(ptr());
-  } else {
-    os << Brief(*this);
-  }
-}
-
-void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
-  os << "Layout descriptor: ";
-  if (IsFastPointerLayout()) {
-    os << "<all tagged>";
-  } else if (IsSmi()) {
-    os << "fast";
-    PrintBitMask(os, static_cast<uint32_t>(Smi::ToInt(*this)));
-  } else if (IsOddball() && IsUninitialized()) {
-    os << "<uninitialized>";
-  } else {
-    os << "slow";
-    int num_words = number_of_layout_words();
-    for (int i = 0; i < num_words; i++) {
-      if (i > 0) os << " |";
-      PrintBitMask(os, get_layout_word(i));
-    }
-  }
-  os << "\n";
-}
-
 void PreparseData::PreparseDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "PreparseData");
   os << "\n - data_length: " << data_length();
@@ -2497,10 +2450,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
      << Brief(instance_descriptors(kRelaxedLoad));
-  if (FLAG_unbox_double_fields) {
-    os << "\n - layout descriptor: ";
-    layout_descriptor(kAcquireLoad).ShortPrint(os);
-  }
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
@@ -2777,16 +2726,6 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 #else   // ENABLE_DISASSEMBLER
   code.Print();
 #endif  // ENABLE_DISASSEMBLER
-}
-
-V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
-    void* object) {
-  i::Object o(GetObjectFromRaw(object));
-  if (!o.IsLayoutDescriptor()) {
-    printf("Please provide a layout descriptor\n");
-  } else {
-    i::LayoutDescriptor::cast(o).Print();
-  }
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {

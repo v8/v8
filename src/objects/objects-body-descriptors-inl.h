@@ -60,16 +60,7 @@ bool BodyDescriptorBase::IsValidJSObjectSlotImpl(Map map, HeapObject obj,
   // embedder field area as tagged slots.
   STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
 #endif
-  if (!FLAG_unbox_double_fields || map.HasFastPointerLayout()) {
-    return true;
-  } else {
-    DCHECK(FLAG_unbox_double_fields);
-    DCHECK(IsAligned(offset, kSystemPointerSize));
-
-    LayoutDescriptorHelper helper(map);
-    DCHECK(!helper.all_fields_tagged());
-    return helper.IsTagged(offset);
-  }
+  return true;
 }
 
 template <typename ObjectVisitor>
@@ -101,23 +92,7 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
   // embedder field area as tagged slots.
   STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
 #endif
-  if (!FLAG_unbox_double_fields || map.HasFastPointerLayout()) {
-    IteratePointers(obj, start_offset, end_offset, v);
-  } else {
-    DCHECK(FLAG_unbox_double_fields);
-    DCHECK(IsAligned(start_offset, kSystemPointerSize) &&
-           IsAligned(end_offset, kSystemPointerSize));
-
-    LayoutDescriptorHelper helper(map);
-    DCHECK(!helper.all_fields_tagged());
-    for (int offset = start_offset; offset < end_offset;) {
-      int end_of_region_offset;
-      if (helper.IsTagged(offset, end_offset, &end_of_region_offset)) {
-        IteratePointers(obj, offset, end_of_region_offset, v);
-      }
-      offset = end_of_region_offset;
-    }
-  }
+  IteratePointers(obj, start_offset, end_offset, v);
 }
 
 template <typename ObjectVisitor>

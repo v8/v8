@@ -1647,52 +1647,35 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
                           kFullWriteBarrier,
                           LoadSensitivity::kUnsafe,
                           const_field_info};
+    ObjectRef boilerplate_value = boilerplate.RawFastPropertyAt(index);
+    bool is_uninitialized =
+        boilerplate_value.IsHeapObject() &&
+        boilerplate_value.AsHeapObject().map().oddball_type() ==
+            OddballType::kUninitialized;
+    if (is_uninitialized) {
+      access.const_field_info = ConstFieldInfo::None();
+    }
     Node* value;
-    if (boilerplate_map.IsUnboxedDoubleField(i)) {
-      access.machine_type = MachineType::Float64();
-      access.type = Type::Number();
-      uint64_t value_bits = boilerplate.RawFastDoublePropertyAsBitsAt(index);
-      if (value_bits == kHoleNanInt64) {
-        // This special case is analogous to is_uninitialized being true in the
-        // non-unboxed-double case below. The store of the hole NaN value here
-        // will always be followed by another store that actually initializes
-        // the field. The hole NaN should therefore be unobservable.
-        // Load elimination expects there to be at most one const store to any
-        // given field, so we always mark the unobservable ones as mutable.
-        access.const_field_info = ConstFieldInfo::None();
-      }
-      value = jsgraph()->Constant(bit_cast<double>(value_bits));
+    if (boilerplate_value.IsJSObject()) {
+      JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
+      value = effect =
+          AllocateFastLiteral(effect, control, boilerplate_object, allocation);
+    } else if (property_details.representation().IsDouble()) {
+      double number = boilerplate_value.AsHeapNumber().value();
+      // Allocate a mutable HeapNumber box and store the value into it.
+      AllocationBuilder builder(jsgraph(), effect, control);
+      builder.Allocate(HeapNumber::kSize, allocation);
+      builder.Store(AccessBuilder::ForMap(),
+                    MapRef(broker(), factory()->heap_number_map()));
+      builder.Store(AccessBuilder::ForHeapNumberValue(),
+                    jsgraph()->Constant(number));
+      value = effect = builder.Finish();
+    } else if (property_details.representation().IsSmi()) {
+      // Ensure that value is stored as smi.
+      value = is_uninitialized ? jsgraph()->ZeroConstant()
+                               : jsgraph()->Constant(boilerplate_value.AsSmi());
     } else {
-      ObjectRef boilerplate_value = boilerplate.RawFastPropertyAt(index);
-      bool is_uninitialized =
-          boilerplate_value.IsHeapObject() &&
-          boilerplate_value.AsHeapObject().map().oddball_type() ==
-              OddballType::kUninitialized;
-      if (is_uninitialized) {
-        access.const_field_info = ConstFieldInfo::None();
-      }
-      if (boilerplate_value.IsJSObject()) {
-        JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
-        value = effect = AllocateFastLiteral(effect, control,
-                                             boilerplate_object, allocation);
-      } else if (property_details.representation().IsDouble()) {
-        double number = boilerplate_value.AsHeapNumber().value();
-        // Allocate a mutable HeapNumber box and store the value into it.
-        AllocationBuilder builder(jsgraph(), effect, control);
-        builder.Allocate(HeapNumber::kSize, allocation);
-        builder.Store(AccessBuilder::ForMap(),
-                      MapRef(broker(), factory()->heap_number_map()));
-        builder.Store(AccessBuilder::ForHeapNumberValue(),
-                      jsgraph()->Constant(number));
-        value = effect = builder.Finish();
-      } else if (property_details.representation().IsSmi()) {
-        // Ensure that value is stored as smi.
-        value = is_uninitialized
-                    ? jsgraph()->ZeroConstant()
-                    : jsgraph()->Constant(boilerplate_value.AsSmi());
-      } else {
-        value = jsgraph()->Constant(boilerplate_value);
-      }
+      value = jsgraph()->Constant(boilerplate_value);
     }
     inobject_fields.push_back(std::make_pair(access, value));
   }
