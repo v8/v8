@@ -335,6 +335,7 @@ CpuProfileNode::SourceType ProfileNode::source_type() const {
     case CodeEventListener::SHARED_FUNC_MOVE_EVENT:
     case CodeEventListener::SNAPSHOT_CODE_NAME_EVENT:
     case CodeEventListener::TICK_EVENT:
+    case CodeEventListener::BYTECODE_FLUSH_EVENT:
     case CodeEventListener::NUMBER_OF_LOG_EVENTS:
       return CpuProfileNode::kInternal;
   }

@@ -1192,3 +1192,101 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
   }
   isolate->Dispose();
 }
+
+TEST(BytecodeFlushEvents) {
+  SETUP_FLAGS();
+
+#ifndef V8_LITE_MODE
+  i::FLAG_opt = false;
+  i::FLAG_always_opt = false;
+  i::FLAG_optimize_for_size = false;
+#endif  // V8_LITE_MODE
+  i::FLAG_flush_bytecode = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  ManualGCScope manual_gc_scope;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  i::Factory* factory = i_isolate->factory();
+
+  struct FakeCodeEventLogger : public i::CodeEventLogger {
+    explicit FakeCodeEventLogger(i::Isolate* isolate)
+        : CodeEventLogger(isolate) {}
+
+    void CodeMoveEvent(i::AbstractCode from, i::AbstractCode to) override {}
+    void CodeDisableOptEvent(i::Handle<i::AbstractCode> code,
+                             i::Handle<i::SharedFunctionInfo> shared) override {
+    }
+
+    void BytecodeFlushEvent(Address compiled_data_start) override {
+      // We only expect a single flush.
+      CHECK_EQ(flushed_compiled_data_start, i::kNullAddress);
+      flushed_compiled_data_start = compiled_data_start;
+    }
+
+    void LogRecordedBuffer(i::Handle<i::AbstractCode> code,
+                           i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
+                           const char* name, int length) override {}
+    void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
+                           int length) override {}
+
+    i::Address flushed_compiled_data_start = i::kNullAddress;
+  };
+
+  FakeCodeEventLogger code_event_logger(i_isolate);
+
+  {
+    ScopedLoggerInitializer logger(isolate);
+    logger.logger()->AddCodeEventListener(&code_event_logger);
+
+    const char* source =
+        "function foo() {"
+        "  var x = 42;"
+        "  var y = 42;"
+        "  var z = x + y;"
+        "};"
+        "foo()";
+    i::Handle<i::String> foo_name = factory->InternalizeUtf8String("foo");
+
+    // This compile will add the code to the compilation cache.
+    {
+      v8::HandleScope scope(isolate);
+      CompileRun(source);
+    }
+
+    // Check function is compiled.
+    i::Handle<i::Object> func_value =
+        i::Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
+            .ToHandleChecked();
+    CHECK(func_value->IsJSFunction());
+    i::Handle<i::JSFunction> function =
+        i::Handle<i::JSFunction>::cast(func_value);
+    CHECK(function->shared().is_compiled());
+
+    // The code will survive at least two GCs.
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
+    CHECK(function->shared().is_compiled());
+    CHECK_EQ(code_event_logger.flushed_compiled_data_start, i::kNullAddress);
+
+    // Get the start address of the compiled data before flushing.
+    i::HeapObject compiled_data =
+        function->shared().GetBytecodeArray(i_isolate);
+    i::Address compiled_data_start = compiled_data.address();
+
+    // Simulate several GCs that use full marking.
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      CcTest::CollectAllGarbage();
+    }
+
+    // foo should no longer be in the compilation cache
+    CHECK(!function->shared().is_compiled());
+    CHECK(!function->is_compiled());
+
+    // Verify that foo() was in fact flushed.
+    CHECK_EQ(code_event_logger.flushed_compiled_data_start,
+             compiled_data_start);
+  }
+}

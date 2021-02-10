@@ -299,6 +299,10 @@ void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
   DispatchCodeEvent(evt_rec);
 }
 
+void ProfilerListener::BytecodeFlushEvent(Address compiled_data_start) {
+  // TODO(acomminos): Post flush event to profiler thread.
+}
+
 const char* ProfilerListener::GetName(Vector<const char> name) {
   // TODO(all): Change {StringsStorage} to accept non-null-terminated strings.
   OwnedVector<char> null_terminated = OwnedVector<char>::New(name.size() + 1);

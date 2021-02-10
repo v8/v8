@@ -214,6 +214,7 @@ class Logger : public CodeEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override;
+  void BytecodeFlushEvent(Address compiled_data_start) override {}
 
   void ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
                          const char* kind, const char* reason);
@@ -411,6 +412,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
+  void BytecodeFlushEvent(Address compiled_data_start) override {}
 
  protected:
   Isolate* isolate_;
@@ -474,6 +476,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
+  void BytecodeFlushEvent(Address compiled_data_start) override {}
 
   void StartListening(v8::CodeEventHandler* code_event_handler);
   void StopListening();

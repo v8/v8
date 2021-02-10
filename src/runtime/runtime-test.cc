@@ -1667,6 +1667,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void CodeDependencyChangeEvent(Handle<Code> code,
                                    Handle<SharedFunctionInfo> shared,
                                    const char* reason) final {}
+    void BytecodeFlushEvent(Address compiled_data_start) final {}
 
     bool is_listening_to_code_events() final { return true; }
   };
