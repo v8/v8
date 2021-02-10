@@ -27937,37 +27937,28 @@ void CallWithUnexpectedObjectType(v8::Local<v8::Value> receiver) {
 }
 
 class TestCFunctionInfo : public v8::CFunctionInfo {
-  const v8::CTypeInfo& ReturnInfo() const override {
-    static v8::CTypeInfo return_info =
-        v8::CTypeInfo(v8::CTypeInfo::Type::kVoid);
-    return return_info;
-  }
+  static constexpr unsigned int kArgCount = 2u;
 
-  unsigned int ArgumentCount() const override { return 2; }
+ public:
+  TestCFunctionInfo()
+      : v8::CFunctionInfo(v8::CTypeInfo(v8::CTypeInfo::Type::kVoid), kArgCount,
+                          arg_info_storage_),
+        arg_info_storage_{
+            v8::CTypeInfo(v8::CTypeInfo::Type::kV8Value),
+            v8::CTypeInfo(v8::CTypeInfo::Type::kBool),
+        } {}
 
-  const v8::CTypeInfo& ArgumentInfo(unsigned int index) const override {
-    static v8::CTypeInfo type_info0 =
-        v8::CTypeInfo(v8::CTypeInfo::Type::kV8Value);
-    static v8::CTypeInfo type_info1 = v8::CTypeInfo(v8::CTypeInfo::Type::kBool);
-    switch (index) {
-      case 0:
-        return type_info0;
-      case 1:
-        return type_info1;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  bool HasOptions() const override { return false; }
+ private:
+  const v8::CTypeInfo arg_info_storage_[kArgCount];
 };
 
 void CheckDynamicTypeInfo() {
   LocalContext env;
 
   static TestCFunctionInfo type_info;
-  v8::CFunction c_func =
-      v8::CFunction::Make(ApiNumberChecker<bool>::FastCallback, &type_info);
+  v8::CFunction c_func = v8::CFunction(
+      reinterpret_cast<const void*>(ApiNumberChecker<bool>::FastCallback),
+      &type_info);
   CHECK_EQ(c_func.ArgumentCount(), 2);
   CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
   CHECK_EQ(c_func.ArgumentInfo(1).GetType(), v8::CTypeInfo::Type::kBool);

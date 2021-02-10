@@ -9987,6 +9987,21 @@ CFunction::CFunction(const void* address, const CFunctionInfo* type_info)
   CHECK_NOT_NULL(type_info_);
 }
 
+CFunctionInfo::CFunctionInfo(const CTypeInfo& return_info,
+                             unsigned int arg_count, const CTypeInfo* arg_info)
+    : return_info_(return_info), arg_count_(arg_count), arg_info_(arg_info) {
+  if (arg_count_ > 0) {
+    for (unsigned int i = 0; i < arg_count_ - 1; ++i) {
+      DCHECK(arg_info_[i].GetType() != CTypeInfo::kCallbackOptionsType);
+    }
+  }
+}
+
+const CTypeInfo& CFunctionInfo::ArgumentInfo(unsigned int index) const {
+  DCHECK_LT(index, ArgumentCount());
+  return arg_info_[index];
+}
+
 RegisterState::RegisterState()
     : pc(nullptr), sp(nullptr), fp(nullptr), lr(nullptr) {}
 RegisterState::~RegisterState() = default;
