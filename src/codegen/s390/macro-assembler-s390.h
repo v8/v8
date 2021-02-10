@@ -495,9 +495,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Popcnt64(Register dst, Register src);
 #endif
 
-  // CountLeadingZeros will corrupt the scratch register pair (eg. r0:r1)
-  void CountLeadingZerosU32(Register dst, Register src, Register scratch_pair);
-  void CountLeadingZerosU64(Register dst, Register src, Register scratch_pair);
   void mov(Register dst, const Operand& src);
   void mov(Register dst, Register src);
 
@@ -1029,6 +1026,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressTaggedPointer(Register destination, Register source);
   void DecompressAnyTagged(Register destination, MemOperand field_operand);
   void DecompressAnyTagged(Register destination, Register source);
+
+  // CountLeadingZeros will corrupt the scratch register pair (eg. r0:r1)
+  void CountLeadingZerosU32(Register dst, Register src,
+                            Register scratch_pair = r0);
+  void CountLeadingZerosU64(Register dst, Register src,
+                            Register scratch_pair = r0);
+  void CountTrailingZerosU32(Register dst, Register src,
+                             Register scratch_pair = r0);
+  void CountTrailingZerosU64(Register dst, Register src,
+                             Register scratch_pair = r0);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

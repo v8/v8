@@ -4712,6 +4712,47 @@ void TurboAssembler::CountLeadingZerosU64(Register dst, Register src,
   mov(dst, scratch_pair);
 }
 
+void TurboAssembler::CountTrailingZerosU32(Register dst, Register src,
+                                           Register scratch_pair) {
+  Register scratch0 = scratch_pair;
+  Register scratch1 = Register::from_code(scratch_pair.code() + 1);
+  DCHECK(!AreAliased(dst, scratch0, scratch1));
+  DCHECK(!AreAliased(src, scratch0, scratch1));
+
+  Label done;
+  // Check if src is all zeros.
+  ltr(scratch1, src);
+  mov(dst, Operand(32));
+  beq(&done);
+  llgfr(scratch1, scratch1);
+  lcgr(scratch0, scratch1);
+  ngr(scratch1, scratch0);
+  flogr(scratch0, scratch1);
+  mov(dst, Operand(63));
+  SubS64(dst, scratch0);
+  bind(&done);
+}
+
+void TurboAssembler::CountTrailingZerosU64(Register dst, Register src,
+                                           Register scratch_pair) {
+  Register scratch0 = scratch_pair;
+  Register scratch1 = Register::from_code(scratch_pair.code() + 1);
+  DCHECK(!AreAliased(dst, scratch0, scratch1));
+  DCHECK(!AreAliased(src, scratch0, scratch1));
+
+  Label done;
+  // Check if src is all zeros.
+  ltgr(scratch1, src);
+  mov(dst, Operand(64));
+  beq(&done);
+  lcgr(scratch0, scratch1);
+  ngr(scratch0, scratch1);
+  flogr(scratch0, scratch0);
+  mov(dst, Operand(63));
+  SubS64(dst, scratch0);
+  bind(&done);
+}
+
 }  // namespace internal
 }  // namespace v8
 
