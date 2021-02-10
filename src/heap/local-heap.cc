@@ -135,8 +135,7 @@ bool LocalHeap::IsParked() {
 
 void LocalHeap::Park() {
   base::MutexGuard guard(&state_mutex_);
-  CHECK_EQ(ThreadState::Running, state_);
-  DCHECK(gc_epilogue_callbacks_.empty());
+  CHECK(state_ == ThreadState::Running);
   state_ = ThreadState::Parked;
   state_change_.NotifyAll();
 }
@@ -209,7 +208,6 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
 
 void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback,
                                       void* data) {
-  DCHECK(!IsParked());
   std::pair<GCEpilogueCallback*, void*> callback_and_data(callback, data);
   DCHECK_EQ(std::find(gc_epilogue_callbacks_.begin(),
                       gc_epilogue_callbacks_.end(), callback_and_data),
@@ -219,7 +217,6 @@ void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback,
 
 void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
                                          void* data) {
-  DCHECK(!IsParked());
   std::pair<GCEpilogueCallback*, void*> callback_and_data(callback, data);
   auto it = std::find(gc_epilogue_callbacks_.begin(),
                       gc_epilogue_callbacks_.end(), callback_and_data);

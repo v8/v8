@@ -463,11 +463,12 @@ class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
 
   int length() const override;
   int parameter_count() const override;
+  uint8_t get(int index) const override;
+  void set(int index, uint8_t value) override;
   Address GetFirstBytecodeAddress() const override;
   Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const override;
   bool IsConstantAtIndexSmi(int index) const override;
   Smi GetConstantAtIndexAsSmi(int index) const override;
-  LocalHeap* local_heap() const override { UNREACHABLE(); }
 
  private:
   BytecodeArrayRef array_;
