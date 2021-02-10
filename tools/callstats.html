@@ -1165,21 +1165,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function handleLoadText(text, append, fileName) {
-      console.log(text.length);
-      try {
-        if (fileName.endsWith('.json')) {
-          handleLoadJSON(JSON.parse(text), append, fileName);
-        } else if (fileName.endsWith('.csv') ||
-            fileName.endsWith('.output') || fileName.endsWith('.output.txt')) {
-          handleLoadCSV(text, append, fileName);
-        } else if (fileName.endsWith('.txt')) {
-          handleLoadTXT(text, append, fileName);
-        } else {
-          alert(`Error parsing "${fileName}"`);
-          console.error(e);
-        }
-      } catch(e) {
-        console.error(e)
+      if (fileName.endsWith('.json')) {
+        handleLoadJSON(JSON.parse(text), append, fileName);
+      } else if (fileName.endsWith('.csv') ||
+          fileName.endsWith('.output') || fileName.endsWith('.output.txt')) {
+        handleLoadCSV(text, append, fileName);
+      } else if (fileName.endsWith('.txt')) {
+        handleLoadTXT(text, append, fileName);
+      } else {
+        alert(`Error parsing "${fileName}"`);
+        console.error(e);
       }
     }
 
@@ -1267,6 +1262,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       const version = versions.getOrCreate(fileName);
       for (let i=1; i<lines.length; i++) {
         const line = csvSplit(lines[i]);
+        if (line.length == 0) continue;
         let page_name = line[page_name_i];
         if (page_name === undefined) continue;
         page_name = page_name.split(' ')[0];
@@ -1296,6 +1292,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       const tempEntriesCache = new Map();
       for (let i=1; i<lines.length; i++) {
         const line = csvSplit(lines[i]);
+        if (line.length == 0) continue;
         const raw_category = line[category_i];
         if (!raw_category.endsWith(':duration') &&
             !raw_category.endsWith(':count')) {
