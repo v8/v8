@@ -398,7 +398,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   CodeStubAssembler::TVariable<IntPtrT> bytecode_offset_;
   CodeStubAssembler::TVariable<ExternalReference> dispatch_table_;
   CodeStubAssembler::TVariable<Object> accumulator_;
-  AccumulatorUse accumulator_use_;
+  ImplicitRegisterUse implicit_register_use_;
   bool made_call_;
   bool reloaded_frame_ptr_;
   bool bytecode_array_valid_;

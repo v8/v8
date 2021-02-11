@@ -32,8 +32,8 @@ const int Bytecodes::kOperandCount[] = {
 #undef ENTRY
 };
 
-const AccumulatorUse Bytecodes::kAccumulatorUse[] = {
-#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kAccumulatorUse,
+const ImplicitRegisterUse Bytecodes::kImplicitRegisterUse[] = {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kImplicitRegisterUse,
   BYTECODE_LIST(ENTRY)
 #undef ENTRY
 };

@@ -42,7 +42,7 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       TVARIABLE_CONSTRUCTOR(
           accumulator_,
           Parameter<Object>(InterpreterDispatchDescriptor::kAccumulator)),
-      accumulator_use_(AccumulatorUse::kNone),
+      implicit_register_use_(ImplicitRegisterUse::kNone),
       made_call_(false),
       reloaded_frame_ptr_(false),
       bytecode_array_valid_(true) {
@@ -64,7 +64,8 @@ InterpreterAssembler::~InterpreterAssembler() {
   // If the following check fails the handler does not use the
   // accumulator in the way described in the bytecode definitions in
   // bytecodes.h.
-  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+  DCHECK_EQ(implicit_register_use_,
+            Bytecodes::GetImplicitRegisterUse(bytecode_));
   UnregisterCallGenerationCallbacks();
 }
 
@@ -154,13 +155,15 @@ TNode<Object> InterpreterAssembler::GetAccumulatorUnchecked() {
 
 TNode<Object> InterpreterAssembler::GetAccumulator() {
   DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kReadAccumulator;
   return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
 }
 
 void InterpreterAssembler::SetAccumulator(TNode<Object> value) {
   DCHECK(Bytecodes::WritesAccumulator(bytecode_));
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
   accumulator_ = value;
 }
 
@@ -754,7 +757,8 @@ void InterpreterAssembler::CallJSAndDispatch(
                                    args_count, args.base_reg_location(),
                                    function);
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 template <class... TArgs>
@@ -780,7 +784,8 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
                                      context, function, arg_count, args...);
   }
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 // Instantiate CallJSAndDispatch() for argument counts used by interpreter
@@ -817,7 +822,8 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
                                    args_count, args.base_reg_location(),
                                    function);
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 TNode<Object> InterpreterAssembler::Construct(
@@ -1158,10 +1164,10 @@ TNode<WordT> InterpreterAssembler::StarDispatchLookahead(
 
 void InterpreterAssembler::InlineStar() {
   Bytecode previous_bytecode = bytecode_;
-  AccumulatorUse previous_acc_use = accumulator_use_;
+  ImplicitRegisterUse previous_acc_use = implicit_register_use_;
 
   bytecode_ = Bytecode::kStar;
-  accumulator_use_ = AccumulatorUse::kNone;
+  implicit_register_use_ = ImplicitRegisterUse::kNone;
 
 #ifdef V8_TRACE_IGNITION
   TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
@@ -1169,11 +1175,12 @@ void InterpreterAssembler::InlineStar() {
   StoreRegister(GetAccumulator(),
                 BytecodeOperandReg(0, LoadSensitivity::kSafe));
 
-  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+  DCHECK_EQ(implicit_register_use_,
+            Bytecodes::GetImplicitRegisterUse(bytecode_));
 
   Advance();
   bytecode_ = previous_bytecode;
-  accumulator_use_ = previous_acc_use;
+  implicit_register_use_ = previous_acc_use;
 }
 
 void InterpreterAssembler::Dispatch() {

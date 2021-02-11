@@ -567,7 +567,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
  private:
   friend class BytecodeRegisterAllocator;
-  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+  template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use,
             OperandType... operand_types>
   friend class BytecodeNodeBuilder;
 
@@ -613,7 +613,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 
-  template <Bytecode bytecode, AccumulatorUse accumulator_use>
+  template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use>
   void PrepareToOutputBytecode();
 
   BytecodeArrayWriter* bytecode_array_writer() {
