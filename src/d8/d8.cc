@@ -1994,7 +1994,12 @@ bool FunctionAndArgumentsToString(Local<Function> function,
       if (i > 0) {
         *source = String::Concat(isolate, *source, comma);
       }
-      Local<Value> argument = array->Get(context, i).ToLocalChecked();
+      MaybeLocal<Value> maybe_argument = array->Get(context, i);
+      Local<Value> argument;
+      if (!maybe_argument.ToLocal(&argument)) {
+        Throw(isolate, "Failed to get argument");
+        return false;
+      }
       Local<String> argument_string;
       if (!JSON::Stringify(context, argument).ToLocal(&argument_string)) {
         Throw(isolate, "Failed to convert argument to string");
