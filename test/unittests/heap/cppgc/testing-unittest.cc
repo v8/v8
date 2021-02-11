@@ -22,13 +22,7 @@ class GCed : public GarbageCollected<GCed> {
 };
 }  // namespace
 
-TEST_F(TestingTest, EnableTesting) {
-  EXPECT_FALSE(internal::Heap::From(GetHeap())->TestingEnabled());
-  cppgc::testing::Heap::EnableTestingAPIsForTesting(GetHeap()->GetHeapHandle());
-  EXPECT_TRUE(internal::Heap::From(GetHeap())->TestingEnabled());
-}
-
-TEST_F(TestingTest, OverrideEmbedderStackStateScope) {
+TEST_F(TestingTest, OverrideEmbeddertackStateScope) {
   {
     auto* gced = MakeGarbageCollected<GCed>(GetHeap()->GetAllocationHandle());
     WeakPersistent<GCed> weak{gced};
@@ -36,7 +30,6 @@ TEST_F(TestingTest, OverrideEmbedderStackStateScope) {
         Heap::Config::PreciseAtomicConfig());
     EXPECT_FALSE(weak);
   }
-  cppgc::testing::Heap::EnableTestingAPIsForTesting(GetHeap()->GetHeapHandle());
   {
     auto* gced = MakeGarbageCollected<GCed>(GetHeap()->GetAllocationHandle());
     WeakPersistent<GCed> weak{gced};

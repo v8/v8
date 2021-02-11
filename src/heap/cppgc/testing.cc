@@ -10,20 +10,16 @@
 namespace cppgc {
 namespace testing {
 
-void Heap::EnableTestingAPIsForTesting(HeapHandle& heap_handle) {
-  internal::HeapBase::From(heap_handle).EnableTestingAPIsForTesting();
-}
-
 OverrideEmbedderStackStateScope::OverrideEmbedderStackStateScope(
     HeapHandle& heap_handle, EmbedderStackState state)
     : heap_handle_(heap_handle) {
-  auto& heap = internal::HeapBase::ForTesting(heap_handle_);
+  auto& heap = internal::HeapBase::From(heap_handle_);
   CHECK_NULL(heap.override_stack_state_.get());
   heap.override_stack_state_ = std::make_unique<EmbedderStackState>(state);
 }
 
 OverrideEmbedderStackStateScope::~OverrideEmbedderStackStateScope() {
-  auto& heap = internal::HeapBase::ForTesting(heap_handle_);
+  auto& heap = internal::HeapBase::From(heap_handle_);
   heap.override_stack_state_.reset();
 }
 

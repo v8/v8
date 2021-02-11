@@ -15,27 +15,8 @@ class HeapHandle;
 
 /**
  * Namespace contains testing helpers.
-
- * Helpers are only enabled after invoking `Heap::EnableTestingAPIsForTesting()`
- and will crash otherwise.
  */
 namespace testing {
-
-/**
- * Testing helper used to acces heap internals.
-
- * Only enabled after invoking `EnableTestingAPIsForTesting()`.
- */
-class V8_EXPORT Heap final {
- public:
-  /**
-   * Enables testing APIs that can be found in the corresponding `testing`
-   * namespace.
-   *
-   * \param heap_handle
-   */
-  static void EnableTestingAPIsForTesting(HeapHandle& heap_handle);
-};
 
 /**
  * Overrides the state of the stack with the provided value. Takes precedence

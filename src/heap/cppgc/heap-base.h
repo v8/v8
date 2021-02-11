@@ -71,9 +71,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     return static_cast<const HeapBase&>(heap_handle);
   }
 
-  static HeapBase& ForTesting(cppgc::HeapHandle& heap_handle);
-  static const HeapBase& ForTesting(const cppgc::HeapHandle& heap_handle);
-
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
            StackSupport stack_support,
@@ -161,9 +158,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   bool in_disallow_gc_scope() const { return disallow_gc_scope_ > 0; }
   bool in_atomic_pause() const { return in_atomic_pause_; }
 
-  void EnableTestingAPIsForTesting() { testing_enabled_ = true; }
-  bool TestingEnabled() const { return testing_enabled_; }
-
   HeapStatistics CollectStatistics(HeapStatistics::DetailLevel);
 
  protected:
@@ -206,7 +200,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   std::unique_ptr<EmbedderStackState> override_stack_state_;
 
   bool in_atomic_pause_ = false;
-  bool testing_enabled_ = false;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;
