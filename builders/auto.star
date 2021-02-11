@@ -17,6 +17,14 @@ def auto_builder(name, execution_timeout = None, properties = None, **kwargs):
         **kwargs
     )
 
+autoroller_target_config = {
+    "solution_name": "v8",
+    "project_name": "v8/v8",
+    "account": "v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com",
+    "log_template": "Rolling v8/%s: %s/+log/%s..%s",
+    "cipd_log_template": "Rolling v8/%s: %s..%s",
+}
+
 auto_builder(
     name = "V8 lkgr finder",
     executable = "recipe:lkgr_finder",
@@ -48,6 +56,29 @@ auto_builder(
     executable = "recipe:v8/auto_roll_v8_deps",
     schedule = "0 3 * * *",
     in_list = "infra",
+    properties = {
+        "autoroller_config": {
+            "target_config": autoroller_target_config,
+            "subject": "Update V8 DEPS.",
+            "excludes": [
+                # https://crrev.com/c/1547863
+                "third_party/perfetto",
+                "third_party/protobuf",
+                # Skip these dependencies (list without solution name prefix).
+                "test/mozilla/data",
+                "test/simdjs/data",
+                "test/test262/data",
+                "test/wasm-js/data",
+                "testing/gtest",
+                "third_party/WebKit/Source/platform/inspector_protocol",
+                "third_party/blink/renderer/platform/inspector_protocol",
+            ],
+            "reviewers": [
+                "v8-waterfall-sheriff@grotations.appspotmail.com",
+            ],
+            "show_commit_log": False,
+        },
+    },
 )
 
 auto_builder(
@@ -55,6 +86,21 @@ auto_builder(
     executable = "recipe:v8/auto_roll_v8_deps",
     schedule = "0 14 * * *",
     in_list = "infra",
+    properties = {
+        "autoroller_config": {
+            "target_config": autoroller_target_config,
+            "subject": "Update Test262.",
+            "includes": [
+                # Only roll these dependencies (list without solution name prefix).
+                "test/test262/data",
+            ],
+            "reviewers": [
+                "adamk@chromium.org",
+                "gsathya@chromium.org",
+            ],
+            "show_commit_log": True,
+        },
+    },
 )
 
 auto_builder(
@@ -62,6 +108,21 @@ auto_builder(
     executable = "recipe:v8/auto_roll_v8_deps",
     schedule = "0 4 * * *",
     in_list = "infra",
+    properties = {
+        "autoroller_config": {
+            "target_config": autoroller_target_config,
+            "subject": "Update wasm-spec.",
+            "includes": [
+                # Only roll these dependencies (list without solution name prefix).
+                "test/wasm-js/data",
+            ],
+            "reviewers": [
+                "ahaas@chromium.org",
+                "clemensb@chromium.org",
+            ],
+            "show_commit_log": True,
+        },
+    },
 )
 
 auto_builder(
