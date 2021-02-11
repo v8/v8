@@ -63,7 +63,8 @@ class V8_EXPORT GCInfoTable final {
     return table_[index];
   }
 
-  GCInfoIndex NumberOfGCInfosForTesting() const { return current_index_; }
+  GCInfoIndex NumberOfGCInfos() const { return current_index_; }
+
   GCInfoIndex LimitForTesting() const { return limit_; }
   GCInfo& TableSlotForTesting(GCInfoIndex index) { return table_[index]; }
 

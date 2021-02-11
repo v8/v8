@@ -10,6 +10,7 @@
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-statistics-collector.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-verifier.h"
@@ -131,6 +132,20 @@ void HeapBase::Terminate() {
 
   object_allocator().Terminate();
   disallow_gc_scope_++;
+}
+
+HeapStatistics HeapBase::CollectStatistics(
+    HeapStatistics::DetailLevel detail_level) {
+  if (detail_level == HeapStatistics::DetailLevel::kBrief) {
+    return {stats_collector_->allocated_memory_size(),
+            stats_collector_->allocated_object_size(),
+            HeapStatistics::DetailLevel::kBrief,
+            {}};
+  }
+
+  sweeper_.FinishIfRunning();
+  object_allocator_.ResetLinearAllocationBuffers();
+  return HeapStatisticsCollector().CollectStatistics(this);
 }
 
 }  // namespace internal

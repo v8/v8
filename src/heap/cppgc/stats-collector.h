@@ -263,6 +263,7 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // is finished at this point.
   void NotifySweepingCompleted();
 
+  size_t allocated_memory_size() const;
   // Size of live objects in bytes  on the heap. Based on the most recent marked
   // bytes and the bytes allocated since last marking.
   size_t allocated_object_size() const;

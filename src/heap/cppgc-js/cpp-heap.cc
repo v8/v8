@@ -58,6 +58,12 @@ cppgc::HeapHandle& CppHeap::GetHeapHandle() {
 
 void CppHeap::Terminate() { internal::CppHeap::From(this)->Terminate(); }
 
+cppgc::HeapStatistics CppHeap::CollectStatistics(
+    cppgc::HeapStatistics::DetailLevel detail_level) {
+  return internal::CppHeap::From(this)->AsBase().CollectStatistics(
+      detail_level);
+}
+
 void JSHeapConsistency::DijkstraMarkingBarrierSlow(
     cppgc::HeapHandle& heap_handle, const TracedReferenceBase& ref) {
   auto& heap_base = cppgc::internal::HeapBase::From(heap_handle);

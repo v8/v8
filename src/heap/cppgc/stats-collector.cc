@@ -215,6 +215,10 @@ void StatsCollector::NotifySweepingCompleted() {
   }
 }
 
+size_t StatsCollector::allocated_memory_size() const {
+  return memory_allocated_bytes_;
+}
+
 size_t StatsCollector::allocated_object_size() const {
   // During sweeping we refer to the current Event as that already holds the
   // correct marking information. In all other phases, the previous event holds

@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 
+#include "include/cppgc/heap-statistics.h"
 #include "include/cppgc/heap.h"
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/macros.h"
@@ -162,6 +163,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   void EnableTestingAPIsForTesting() { testing_enabled_ = true; }
   bool TestingEnabled() const { return testing_enabled_; }
+
+  HeapStatistics CollectStatistics(HeapStatistics::DetailLevel);
 
  protected:
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(

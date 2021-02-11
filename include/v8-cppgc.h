@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "cppgc/custom-space.h"
+#include "cppgc/heap-statistics.h"
 #include "cppgc/internal/process-heap.h"
 #include "cppgc/internal/write-barrier.h"
 #include "cppgc/visitor.h"
@@ -105,6 +106,15 @@ class V8_EXPORT CppHeap {
    * After this call, object allocation is prohibited.
    */
   void Terminate();
+
+  /**
+   * \param detail_level specifies whether should return detailed
+   *   statistics or only brief summary statistics.
+   * \returns current CppHeap statistics regarding memory consumption
+   *   and utilization.
+   */
+  cppgc::HeapStatistics CollectStatistics(
+      cppgc::HeapStatistics::DetailLevel detail_level);
 
  private:
   CppHeap() = default;
