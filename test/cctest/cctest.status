@@ -679,4 +679,11 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+##############################################################################
+['no_simd_sse == True', {
+  'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-simd-scalar-lowering/*': [SKIP],
+}],  # no_simd_sse == True
+
 ]

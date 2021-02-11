@@ -208,4 +208,9 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+##############################################################################
+['no_simd_sse == True', {
+  'proposals/simd/*': [SKIP],
+}],  # no_simd_sse == True
+
 ]

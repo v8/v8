@@ -632,6 +632,14 @@ class BaseTestRunner(object):
       self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
       self.build_config.mips_arch_variant)
 
+    no_simd_sse = any(
+        i in options.extra_flags for i in ['--noenable-sse3',
+                                           '--no-enable-sse3'
+                                           '--noenable-ssse3',
+                                           '--no-enable-ssse3',
+                                           '--noenable-sse4-1',
+                                           '--no-enable-sse4_1'])
+
     return {
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,
@@ -652,6 +660,7 @@ class BaseTestRunner(object):
       "msan": self.build_config.msan,
       "no_harness": options.no_harness,
       "no_i18n": self.build_config.no_i18n,
+      "no_simd_sse": no_simd_sse,
       "novfp3": False,
       "optimize_for_size": "--optimize-for-size" in options.extra_flags,
       "predictable": self.build_config.predictable,

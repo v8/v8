@@ -3233,6 +3233,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(Simd) {
     CHECK_PROTOTYPE_OPCODE(simd);
+    if (!CheckHardwareSupportsSimd()) {
+      this->DecodeError("Wasm SIMD unsupported");
+      return 0;
+    }
     uint32_t opcode_length = 0;
     WasmOpcode full_opcode = this->template read_prefixed_opcode<validate>(
         this->pc_, &opcode_length);

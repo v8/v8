@@ -1422,4 +1422,26 @@
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
 }],  # variant == stress_incremental_marking
 
+##############################################################################
+['no_simd_sse == True', {
+  'wasm/exceptions-simd': [SKIP],
+  'wasm/liftoff-simd-params': [SKIP],
+  'wasm/multi-value-simd': [SKIP],
+  'wasm/simd-*': [SKIP],
+  'regress/wasm/regress-10309': [SKIP],
+  'regress/wasm/regress-10831': [SKIP],
+  'regress/wasm/regress-1054466': [SKIP],
+  'regress/wasm/regress-1065599': [SKIP],
+  'regress/wasm/regress-1070078': [SKIP],
+  'regress/wasm/regress-1081030': [SKIP],
+  'regress/wasm/regress-1111522': [SKIP],
+  'regress/wasm/regress-1112124': [SKIP],
+  'regress/wasm/regress-1116019': [SKIP],
+  'regress/wasm/regress-1124885': [SKIP],
+  'regress/wasm/regress-1132461': [SKIP],
+  'regress/wasm/regress-1161555': [SKIP],
+  'regress/wasm/regress-1161954': [SKIP],
+  'regress/wasm/regress-1165966': [SKIP],
+}],  # no_simd_sse == True
+
 ]
