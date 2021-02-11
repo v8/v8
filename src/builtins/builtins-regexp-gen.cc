@@ -18,7 +18,6 @@
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/regexp-match-info.h"
-#include "src/regexp/regexp.h"
 
 namespace v8 {
 namespace internal {
@@ -436,7 +435,8 @@ void RegExpBuiltinsAssembler::GetStringPointers(
 
 TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
-    TNode<Number> last_index, TNode<RegExpMatchInfo> match_info) {
+    TNode<Number> last_index, TNode<RegExpMatchInfo> match_info,
+    RegExp::ExecQuirks exec_quirks) {
   ToDirectStringAssembler to_direct(state(), string);
 
   TVARIABLE(HeapObject, var_result);
@@ -676,6 +676,14 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   BIND(&if_success);
   {
+    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+      static constexpr int kMatchStartOffset = 0;
+      TNode<IntPtrT> value = ChangeInt32ToIntPtr(UncheckedCast<Int32T>(
+          Load(MachineType::Int32(), static_offsets_vector_address,
+               IntPtrConstant(kMatchStartOffset))));
+      GotoIf(UintPtrGreaterThanOrEqual(value, int_string_length), &if_failure);
+    }
+
     // Check that the last match info has space for the capture registers and
     // the additional information. Ensure no overflow in add.
     STATIC_ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
@@ -747,15 +755,22 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   BIND(&retry_experimental);
   {
-    var_result =
-        CAST(CallRuntime(Runtime::kRegExpExperimentalOneshotExec, context,
-                         regexp, string, last_index, match_info));
+    auto target_fn =
+        exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure
+            ? Runtime::kRegExpExperimentalOneshotExecTreatMatchAtEndAsFailure
+            : Runtime::kRegExpExperimentalOneshotExec;
+    var_result = CAST(CallRuntime(target_fn, context, regexp, string,
+                                  last_index, match_info));
     Goto(&out);
   }
 
   BIND(&runtime);
   {
-    var_result = CAST(CallRuntime(Runtime::kRegExpExec, context, regexp, string,
+    auto target_fn =
+        exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure
+            ? Runtime::kRegExpExecTreatMatchAtEndAsFailure
+            : Runtime::kRegExpExec;
+    var_result = CAST(CallRuntime(target_fn, context, regexp, string,
                                   last_index, match_info));
     Goto(&out);
   }
@@ -950,6 +965,14 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
 
   const TNode<String> needle_string =
       CAST(UnsafeLoadFixedArrayElement(data, JSRegExp::kAtomPatternIndex));
+
+  // ATOM patterns are guaranteed to not be the empty string (these are
+  // intercepted and replaced in JSRegExp::Initialize.
+  //
+  // This is especially relevant for crbug.com/1075514: atom patterns are
+  // non-empty and thus guaranteed not to match at the end of the string.
+  CSA_ASSERT(this, IntPtrGreaterThan(LoadStringLengthAsWord(needle_string),
+                                     IntPtrConstant(0)));
 
   const TNode<Smi> match_from =
       CAST(CallBuiltin(Builtins::kStringIndexOf, context, subject_string,
@@ -1609,9 +1632,9 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
     const TNode<Object> last_match_info = LoadContextElement(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
-    const TNode<HeapObject> match_indices_ho =
-        CAST(CallBuiltin(Builtins::kRegExpExecInternal, context, regexp, string,
-                         next_search_from, last_match_info));
+    const TNode<HeapObject> match_indices_ho = RegExpExecInternal(
+        context, regexp, string, next_search_from, CAST(last_match_info),
+        RegExp::ExecQuirks::kTreatMatchAtEndAsFailure);
 
     // We're done if no match was found.
     {
@@ -1623,16 +1646,9 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
     TNode<FixedArray> match_indices = CAST(match_indices_ho);
     const TNode<Smi> match_from = CAST(UnsafeLoadFixedArrayElement(
         match_indices, RegExpMatchInfo::kFirstCaptureIndex));
-
-    // We're done if the match starts beyond the string.
-    {
-      Label next(this);
-      Branch(SmiEqual(match_from, string_length), &push_suffix_and_out, &next);
-      BIND(&next);
-    }
-
     const TNode<Smi> match_to = CAST(UnsafeLoadFixedArrayElement(
         match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1));
+    CSA_ASSERT(this, SmiNotEqual(match_from, string_length));
 
     // Advance index and continue if the match is empty.
     {
