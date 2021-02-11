@@ -69,24 +69,24 @@ TEST_F(HeapStatisticsCollectorTest, NonEmptyNormalPage) {
       HeapStatistics::DetailLevel::kDetailed);
   EXPECT_EQ(HeapStatistics::DetailLevel::kDetailed,
             detailed_stats.detail_level);
-  EXPECT_EQ(kPageSize, detailed_stats.allocated_size_bytes);
+  EXPECT_EQ(kPageSize, detailed_stats.physical_size_bytes);
   EXPECT_EQ(used_size, detailed_stats.used_size_bytes);
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces, detailed_stats.space_stats.size());
   bool found_non_empty_space = false;
   for (const HeapStatistics::SpaceStatistics& space_stats :
        detailed_stats.space_stats) {
     if (space_stats.page_stats.empty()) {
-      EXPECT_EQ(0u, space_stats.allocated_size_bytes);
+      EXPECT_EQ(0u, space_stats.physical_size_bytes);
       EXPECT_EQ(0u, space_stats.used_size_bytes);
       continue;
     }
     EXPECT_NE("LargePageSpace", space_stats.name);
     EXPECT_FALSE(found_non_empty_space);
     found_non_empty_space = true;
-    EXPECT_EQ(kPageSize, space_stats.allocated_size_bytes);
+    EXPECT_EQ(kPageSize, space_stats.physical_size_bytes);
     EXPECT_EQ(used_size, space_stats.used_size_bytes);
     EXPECT_EQ(1u, space_stats.page_stats.size());
-    EXPECT_EQ(kPageSize, space_stats.page_stats.back().allocated_size_bytes);
+    EXPECT_EQ(kPageSize, space_stats.page_stats.back().physical_size_bytes);
     EXPECT_EQ(used_size, space_stats.page_stats.back().used_size_bytes);
   }
   EXPECT_TRUE(found_non_empty_space);
@@ -97,31 +97,30 @@ TEST_F(HeapStatisticsCollectorTest, NonEmptyLargePage) {
       GetHeap()->GetAllocationHandle());
   static constexpr size_t used_size = RoundUp<kAllocationGranularity>(
       kLargeObjectSizeThreshold + sizeof(HeapObjectHeader));
-  static constexpr size_t allocated_size =
+  static constexpr size_t physical_size =
       RoundUp<kAllocationGranularity>(used_size + sizeof(LargePage));
   HeapStatistics detailed_stats = Heap::From(GetHeap())->CollectStatistics(
       HeapStatistics::DetailLevel::kDetailed);
   EXPECT_EQ(HeapStatistics::DetailLevel::kDetailed,
             detailed_stats.detail_level);
-  EXPECT_EQ(allocated_size, detailed_stats.allocated_size_bytes);
+  EXPECT_EQ(physical_size, detailed_stats.physical_size_bytes);
   EXPECT_EQ(used_size, detailed_stats.used_size_bytes);
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces, detailed_stats.space_stats.size());
   bool found_non_empty_space = false;
   for (const HeapStatistics::SpaceStatistics& space_stats :
        detailed_stats.space_stats) {
     if (space_stats.page_stats.empty()) {
-      EXPECT_EQ(0u, space_stats.allocated_size_bytes);
+      EXPECT_EQ(0u, space_stats.physical_size_bytes);
       EXPECT_EQ(0u, space_stats.used_size_bytes);
       continue;
     }
     EXPECT_EQ("LargePageSpace", space_stats.name);
     EXPECT_FALSE(found_non_empty_space);
     found_non_empty_space = true;
-    EXPECT_EQ(allocated_size, space_stats.allocated_size_bytes);
+    EXPECT_EQ(physical_size, space_stats.physical_size_bytes);
     EXPECT_EQ(used_size, space_stats.used_size_bytes);
     EXPECT_EQ(1u, space_stats.page_stats.size());
-    EXPECT_EQ(allocated_size,
-              space_stats.page_stats.back().allocated_size_bytes);
+    EXPECT_EQ(physical_size, space_stats.page_stats.back().physical_size_bytes);
     EXPECT_EQ(used_size, space_stats.page_stats.back().used_size_bytes);
   }
   EXPECT_TRUE(found_non_empty_space);

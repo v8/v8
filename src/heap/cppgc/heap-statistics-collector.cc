@@ -51,7 +51,7 @@ void FinalizePage(HeapStatistics::SpaceStatistics* space_stats,
                   HeapStatistics::PageStatistics** page_stats) {
   if (*page_stats) {
     DCHECK_NOT_NULL(space_stats);
-    space_stats->allocated_size_bytes += (*page_stats)->allocated_size_bytes;
+    space_stats->physical_size_bytes += (*page_stats)->physical_size_bytes;
     space_stats->used_size_bytes += (*page_stats)->used_size_bytes;
   }
   *page_stats = nullptr;
@@ -63,7 +63,7 @@ void FinalizeSpace(HeapStatistics* stats,
   FinalizePage(*space_stats, page_stats);
   if (*space_stats) {
     DCHECK_NOT_NULL(stats);
-    stats->allocated_size_bytes += (*space_stats)->allocated_size_bytes;
+    stats->physical_size_bytes += (*space_stats)->physical_size_bytes;
     stats->used_size_bytes += (*space_stats)->used_size_bytes;
   }
   *space_stats = nullptr;
@@ -94,7 +94,7 @@ HeapStatistics HeapStatisticsCollector::CollectStatistics(HeapBase* heap) {
   FinalizeSpace(current_stats_, &current_space_stats_, &current_page_stats_);
 
   DCHECK_EQ(heap->stats_collector()->allocated_memory_size(),
-            stats.allocated_size_bytes);
+            stats.physical_size_bytes);
   return stats;
 }
 
@@ -135,7 +135,7 @@ bool HeapStatisticsCollector::VisitLargePage(LargePage* page) {
   size_t object_size = page->PayloadSize();
   RecordObjectType(current_space_stats_, object_header, object_size);
   size_t allocated_size = LargePage::AllocationSize(object_size);
-  current_space_stats_->allocated_size_bytes += allocated_size;
+  current_space_stats_->physical_size_bytes += allocated_size;
   current_space_stats_->used_size_bytes += object_size;
   current_space_stats_->page_stats.emplace_back(
       HeapStatistics::PageStatistics{allocated_size, object_size});

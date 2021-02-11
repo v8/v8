@@ -51,7 +51,7 @@ struct HeapStatistics final {
    */
   struct PageStatistics {
     /** Overall amount of memory allocated for the page. */
-    size_t allocated_size_bytes = 0;
+    size_t physical_size_bytes = 0;
     /** Amount of memory actually used on the page. */
     size_t used_size_bytes = 0;
   };
@@ -81,7 +81,7 @@ struct HeapStatistics final {
     /** The space name */
     std::string name;
     /** Overall amount of memory allocated for the space. */
-    size_t allocated_size_bytes = 0;
+    size_t physical_size_bytes = 0;
     /** Amount of memory actually used on the space. */
     size_t used_size_bytes = 0;
     /** Statistics for each of the pages in the space. */
@@ -94,7 +94,7 @@ struct HeapStatistics final {
   };
 
   /** Overall amount of memory allocated for the heap. */
-  size_t allocated_size_bytes = 0;
+  size_t physical_size_bytes = 0;
   /** Amount of memory actually used on the heap. */
   size_t used_size_bytes = 0;
   /** Detail level of this HeapStatistics. */
