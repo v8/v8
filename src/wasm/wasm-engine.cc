@@ -542,8 +542,12 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  return WasmModuleObject::New(isolate, std::move(native_module), script,
-                               export_wrappers);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, std::move(native_module), script, export_wrappers);
+
+  // Finish the Wasm script now and make it public to the debugger.
+  isolate->debug()->OnAfterCompile(script);
+  return module_object;
 }
 
 MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
@@ -837,6 +841,8 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     native_modules_[native_module]->isolates.insert(isolate);
   }
 
+  // Finish the Wasm script now and make it public to the debugger.
+  isolate->debug()->OnAfterCompile(script);
   return module_object;
 }
 
@@ -1341,10 +1347,11 @@ Handle<Script> WasmEngine::GetOrCreateScript(
     auto it = scripts.find(native_module.get());
     if (it != scripts.end()) {
       Handle<Script> weak_global_handle = it->second.handle();
-      if (!weak_global_handle.is_null()) {
+      if (weak_global_handle.is_null()) {
+        scripts.erase(it);
+      } else {
         return Handle<Script>::New(*weak_global_handle, isolate);
       }
-      scripts.erase(it);
     }
   }
   // Temporarily release the mutex to let the GC collect native modules.
@@ -1355,14 +1362,8 @@ Handle<Script> WasmEngine::GetOrCreateScript(
     auto& scripts = isolates_[isolate]->scripts;
     DCHECK_EQ(0, scripts.count(native_module.get()));
     scripts.emplace(native_module.get(), WeakScriptHandle(script));
+    return script;
   }
-  // Make the new script available to debuggers.
-  {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-                 "wasm.Debug.OnAfterCompile");
-    isolate->debug()->OnAfterCompile(script);
-  }
-  return script;
 }
 
 std::shared_ptr<OperationsBarrier>
