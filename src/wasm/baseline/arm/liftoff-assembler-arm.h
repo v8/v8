@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_ARM_LIFTOFF_ASSEMBLER_ARM_H_
 
 #include "src/base/platform/wrappers.h"
+#include "src/codegen/arm/register-arm.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
@@ -2585,17 +2586,23 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "f64x2.convert_low_i32x4_s");
+  LowDwVfpRegister src_d = LowDwVfpRegister::from_code(src.low_fp().code());
+  vcvt_f64_s32(dst.low_fp(), src_d.low());
+  vcvt_f64_s32(dst.high_fp(), src_d.high());
 }
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "f64x2.convert_low_i32x4_u");
+  LowDwVfpRegister src_d = LowDwVfpRegister::from_code(src.low_fp().code());
+  vcvt_f64_u32(dst.low_fp(), src_d.low());
+  vcvt_f64_u32(dst.high_fp(), src_d.high());
 }
 
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  bailout(kSimd, "f64x2.promote_low_f32x4");
+  LowDwVfpRegister src_d = LowDwVfpRegister::from_code(src.low_fp().code());
+  vcvt_f64_f32(dst.low_fp(), src_d.low());
+  vcvt_f64_f32(dst.high_fp(), src_d.high());
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -3835,7 +3842,10 @@ void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_demote_f64x2_zero(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  bailout(kSimd, "f32x4.demote_f64x2_zero");
+  LowDwVfpRegister dst_d = LowDwVfpRegister::from_code(dst.low_fp().code());
+  vcvt_f32_f64(dst_d.low(), src.low_fp());
+  vcvt_f32_f64(dst_d.high(), src.high_fp());
+  vmov(dst.high_fp(), 0);
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
@@ -3904,12 +3914,18 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4.trunc_sat_f64x2_s_zero");
+  LowDwVfpRegister dst_d = LowDwVfpRegister::from_code(dst.low_fp().code());
+  vcvt_s32_f64(dst_d.low(), src.low_fp());
+  vcvt_s32_f64(dst_d.high(), src.high_fp());
+  vmov(dst.high_fp(), 0);
 }
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4.trunc_sat_f64x2_u_zero");
+  LowDwVfpRegister dst_d = LowDwVfpRegister::from_code(dst.low_fp().code());
+  vcvt_u32_f64(dst_d.low(), src.low_fp());
+  vcvt_u32_f64(dst_d.high(), src.high_fp());
+  vmov(dst.high_fp(), 0);
 }
 
 void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
