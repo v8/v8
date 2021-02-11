@@ -1565,22 +1565,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   barrier_mode, 0, check_bounds);
   }
 
-  // This doesn't emit a bounds-check. As part of the security-performance
-  // tradeoff, only use it if it is performance critical.
-  void UnsafeStoreFixedArrayElement(
-      TNode<FixedArray> object, int index, TNode<Object> value,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
-    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
-                                  barrier_mode, 0, CheckBounds::kDebugOnly);
-  }
-
-  void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
-                                    TNode<Smi> value) {
-    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
-                                  UNSAFE_SKIP_WRITE_BARRIER, 0,
-                                  CheckBounds::kDebugOnly);
-  }
-
   void StoreFixedArrayElement(TNode<FixedArray> object, int index,
                               TNode<Smi> value,
                               CheckBounds check_bounds = CheckBounds::kAlways) {
@@ -1607,8 +1591,32 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           additional_offset);
   }
 
-  // This doesn't emit a bounds-check. As part of the security-performance
+  template <typename TIndex>
+  void StoreFixedArrayElement(TNode<FixedArray> array, TNode<TIndex> index,
+                              TNode<Smi> value, int additional_offset = 0) {
+    static_assert(std::is_same<TIndex, Smi>::value ||
+                      std::is_same<TIndex, IntPtrT>::value,
+                  "Only Smi or IntPtrT indeces is allowed");
+    StoreFixedArrayElement(array, index, TNode<Object>{value},
+                           UNSAFE_SKIP_WRITE_BARRIER, additional_offset);
+  }
+
+  // These don't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
+  void UnsafeStoreFixedArrayElement(
+      TNode<FixedArray> object, int index, TNode<Object> value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
+    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
+                                  barrier_mode, 0, CheckBounds::kDebugOnly);
+  }
+
+  void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
+                                    TNode<Smi> value) {
+    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
+                                  UNSAFE_SKIP_WRITE_BARRIER, 0,
+                                  CheckBounds::kDebugOnly);
+  }
+
   void UnsafeStoreFixedArrayElement(
       TNode<FixedArray> array, TNode<IntPtrT> index, TNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
@@ -1629,16 +1637,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  TNode<IntPtrT> index, TNode<Object> value) {
     StoreFixedArrayOrPropertyArrayElement(array, index, value,
                                           UPDATE_WRITE_BARRIER);
-  }
-
-  template <typename TIndex>
-  void StoreFixedArrayElement(TNode<FixedArray> array, TNode<TIndex> index,
-                              TNode<Smi> value, int additional_offset = 0) {
-    static_assert(std::is_same<TIndex, Smi>::value ||
-                      std::is_same<TIndex, IntPtrT>::value,
-                  "Only Smi or IntPtrT indeces is allowed");
-    StoreFixedArrayElement(array, index, TNode<Object>{value},
-                           UNSAFE_SKIP_WRITE_BARRIER, additional_offset);
   }
 
   template <typename TIndex>
