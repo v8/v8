@@ -98,7 +98,7 @@ deps = {
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fc5af1ac75d8a249d692fb3cbf707dd9f791ec3c',
   'buildtools/clang_format/script':
-    Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '99803d74e35962f63a775f29477882afd4d57d94',
   'buildtools/linux64': {
     'packages': [
       {
