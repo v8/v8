@@ -3128,7 +3128,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Object> receiver, TNode<Object> object, TNode<Object> key,
       const LookupPropertyInHolder& lookup_property_in_holder,
       const LookupElementInHolder& lookup_element_in_holder, Label* if_end,
-      Label* if_bailout, Label* if_proxy);
+      Label* if_bailout, Label* if_proxy, bool handle_private_names = false);
 
   // Instanceof helpers.
   // Returns true if {object} has {prototype} somewhere in it's prototype

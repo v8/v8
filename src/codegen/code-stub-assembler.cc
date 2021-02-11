@@ -9267,7 +9267,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     TNode<Object> receiver, TNode<Object> object_arg, TNode<Object> key,
     const LookupPropertyInHolder& lookup_property_in_holder,
     const LookupElementInHolder& lookup_element_in_holder, Label* if_end,
-    Label* if_bailout, Label* if_proxy) {
+    Label* if_bailout, Label* if_proxy, bool handle_private_names) {
   // Ensure receiver is JSReceiver, otherwise bailout.
   GotoIf(TaggedIsSmi(receiver), if_bailout);
   TNode<HeapObject> object = CAST(object_arg);
@@ -9321,6 +9321,11 @@ void CodeStubAssembler::TryPrototypeChainLookup(
       }
 
       BIND(&next_proto);
+
+      if (handle_private_names) {
+        // Private name lookup doesn't walk the prototype chain.
+        GotoIf(IsPrivateSymbol(CAST(key)), if_end);
+      }
 
       TNode<HeapObject> proto = LoadMapPrototype(holder_map);
 
@@ -12392,9 +12397,10 @@ TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
                          &return_true, &return_false, next_holder, if_bailout);
       };
 
+  const bool kHandlePrivateNames = mode == HasPropertyLookupMode::kHasProperty;
   TryPrototypeChainLookup(object, object, key, lookup_property_in_holder,
                           lookup_element_in_holder, &return_false,
-                          &call_runtime, &if_proxy);
+                          &call_runtime, &if_proxy, kHandlePrivateNames);
 
   TVARIABLE(Oddball, result);
 

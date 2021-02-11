@@ -432,7 +432,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   LookupForRead(&it, IsAnyHas());
 
   if (name->IsPrivate()) {
-    if (name->IsPrivateName() && !it.IsFound()) {
+    if (!IsAnyHas() && name->IsPrivateName() && !it.IsFound()) {
       Handle<String> name_string(
           String::cast(Symbol::cast(*name).description()), isolate());
       if (name->IsPrivateBrand()) {

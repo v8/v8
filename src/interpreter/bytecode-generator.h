@@ -312,6 +312,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildInvalidPropertyAccess(MessageTemplate tmpl, Property* property);
   void BuildPrivateBrandCheck(Property* property, Register object,
                               MessageTemplate tmpl);
+  void BuildPrivateMethodIn(Variable* private_name,
+                            Expression* object_expression);
   void BuildPrivateGetterAccess(Register obj, Register access_pair);
   void BuildPrivateSetterAccess(Register obj, Register access_pair,
                                 Register value);
