@@ -744,7 +744,6 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers=%.1f "
           "evacuate.update_pointers.to_new_roots=%.1f "
           "evacuate.update_pointers.slots.main=%.1f "
-          "evacuate.update_pointers.slots.map_space=%.1f "
           "evacuate.update_pointers.weak=%.1f "
           "finish=%.1f "
           "finish.sweep_array_buffers=%.1f "
@@ -836,7 +835,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
           current_.scopes[Scope::MC_FINISH],
           current_.scopes[Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS],

@@ -3930,6 +3930,8 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                                       RememberedSetUpdatingMode::ALL);
     CollectRememberedSetUpdatingItems(&updating_items, heap()->code_lo_space(),
                                       RememberedSetUpdatingMode::ALL);
+    CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
+                                      RememberedSetUpdatingMode::ALL);
 
     CollectToSpaceUpdatingItems(&updating_items);
     updating_items.push_back(
@@ -3942,27 +3944,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                       GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
                       GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
         ->Join();
-  }
-
-  {
-    // - Update array buffer trackers in the second phase to have access to
-    //   byte length which is potentially a HeapNumber.
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE);
-    std::vector<std::unique_ptr<UpdatingItem>> updating_items;
-
-    CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
-                                      RememberedSetUpdatingMode::ALL);
-    if (!updating_items.empty()) {
-      V8::GetCurrentPlatform()
-          ->PostJob(
-              v8::TaskPriority::kUserBlocking,
-              std::make_unique<PointersUpdatingJob>(
-                  isolate(), std::move(updating_items),
-                  GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
-                  GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
-          ->Join();
-    }
   }
 
   {
