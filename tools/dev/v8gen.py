@@ -189,7 +189,7 @@ class GenerateGnArgs(object):
     return 0
 
   def cmd_list(self):
-    print('\n'.join(sorted(self._mbw.masters[self._options.master])))
+    print('\n'.join(sorted(self._mbw.builder_groups[self._options.master])))
     return 0
 
   def verbose_print_1(self, text):
