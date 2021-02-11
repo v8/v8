@@ -920,6 +920,7 @@ class JSTypedArrayRef : public JSObjectRef {
 
   void Serialize();
   bool serialized() const;
+  bool ShouldHaveBeenSerialized() const;
 
   HeapObjectRef buffer() const;
 };
