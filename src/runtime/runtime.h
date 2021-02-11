@@ -469,6 +469,8 @@ namespace internal {
   F(DisallowWasmCodegen, 1, 1)                \
   F(DisassembleFunction, 1, 1)                \
   F(DynamicCheckMapsEnabled, 0, 1)            \
+  F(IsTopTierTurboprop, 0, 1)                 \
+  F(IsMidTierTurboprop, 0, 1)                 \
   F(EnableCodeLoggingForTesting, 0, 1)        \
   F(EnsureFeedbackVectorForFunction, 1, 1)    \
   F(FreezeWasmLazyCompilation, 1, 1)          \
@@ -525,6 +527,7 @@ namespace internal {
   F(NeverOptimizeFunction, 1, 1)              \
   F(NotifyContextDisposed, 0, 1)              \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
+  F(TierupFunctionOnNextCall, -1, 1)          \
   F(OptimizeOsr, -1, 1)                       \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
   F(PrepareFunctionForOptimization, -1, 1)    \

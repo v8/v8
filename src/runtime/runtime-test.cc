@@ -256,9 +256,25 @@ RUNTIME_FUNCTION(Runtime_DynamicCheckMapsEnabled) {
   return isolate->heap()->ToBoolean(FLAG_turbo_dynamic_map_checks);
 }
 
-RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
-  HandleScope scope(isolate);
+RUNTIME_FUNCTION(Runtime_IsTopTierTurboprop) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(FLAG_turboprop_as_toptier);
+}
 
+RUNTIME_FUNCTION(Runtime_IsMidTierTurboprop) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(FLAG_turboprop &&
+                                    !FLAG_turboprop_as_toptier);
+}
+
+namespace {
+
+enum class TierupKind { kTierupBytecode, kTierupBytecodeOrMidTier };
+
+Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
+                                  TierupKind tierup_kind) {
   if (args.length() != 1 && args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -297,7 +313,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
   }
 
-  if (function->HasAvailableOptimizedCode()) {
+  CodeKind kind = CodeKindForTopTier();
+  if ((tierup_kind == TierupKind::kTierupBytecode &&
+       function->HasAvailableOptimizedCode()) ||
+      function->HasAvailableCodeKind(kind)) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksOptimizationMarker());
     if (FLAG_testing_d8_test_runner) {
@@ -337,8 +356,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-namespace {
-
 bool EnsureFeedbackVector(Handle<JSFunction> function) {
   // Check function allows lazy compilation.
   if (!function->shared().allows_lazy_compilation()) return false;
@@ -367,6 +384,17 @@ bool EnsureFeedbackVector(Handle<JSFunction> function) {
 }
 
 }  // namespace
+
+RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
+  HandleScope scope(isolate);
+  return OptimizeFunctionOnNextCall(args, isolate, TierupKind::kTierupBytecode);
+}
+
+RUNTIME_FUNCTION(Runtime_TierupFunctionOnNextCall) {
+  HandleScope scope(isolate);
+  return OptimizeFunctionOnNextCall(args, isolate,
+                                    TierupKind::kTierupBytecodeOrMidTier);
+}
 
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
   HandleScope scope(isolate);

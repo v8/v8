@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboprop --no-use-osr --opt --no-always-opt
+// Flags: --allow-natives-syntax --turboprop --opt --no-always-opt
 
 
 var v_0 = {};
@@ -21,9 +21,16 @@ f_0(v_0, 42);
 f_0(v_0, 42);
 
 // TP tier up
-for (let i = 0; i < 100000; i++) {
-  f_1();
-}
+%PrepareFunctionForOptimization(f_1);
+f_1();
+f_1();
+%OptimizeFunctionOnNextCall(f_1);
+f_1();
+// Now TF tier up
+%PrepareFunctionForOptimization(f_1);
+f_1();
+%TierupFunctionOnNextCall(f_1);
+f_1();
 
 assertOptimized(f_0);
 // TODO(mythria): Add an option to assert on the optimization tier and assert
@@ -33,5 +40,9 @@ assertOptimized(f_1);
 f_0(v_0, 53);
 // f_0 does a eager deopt and lets the interpreter update the field constness.
 assertUnoptimized(f_0);
+if (!%IsTopTierTurboprop()) {
+  // f_1 has TurboFan code and should deopt because of dependency change.
+  assertUnoptimized(f_1);
+}
 assertEquals(v_0.f, 53);
 assertEquals(f_1(), 53);
