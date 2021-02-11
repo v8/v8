@@ -19,37 +19,6 @@ class WasmInstanceObject;
 
 #include "torque-generated/src/objects/stack-frame-info-tq.inc"
 
-class StackFrameInfo
-    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
- public:
-  NEVER_READ_ONLY_SPACE
-  // Wasm frames only: function_offset instead of promise_combinator_index.
-  DECL_INT_ACCESSORS(function_offset)
-  DECL_BOOLEAN_ACCESSORS(is_eval)
-  DECL_BOOLEAN_ACCESSORS(is_constructor)
-  DECL_BOOLEAN_ACCESSORS(is_wasm)
-  DECL_BOOLEAN_ACCESSORS(is_asmjs_wasm)
-  DECL_BOOLEAN_ACCESSORS(is_user_java_script)
-  DECL_BOOLEAN_ACCESSORS(is_toplevel)
-  DECL_BOOLEAN_ACCESSORS(is_async)
-  DECL_BOOLEAN_ACCESSORS(is_promise_all)
-  DECL_BOOLEAN_ACCESSORS(is_promise_any)
-
-  // Dispatched behavior.
-  DECL_PRINTER(StackFrameInfo)
-
- private:
-  // Bit position in the flag, from least significant bit position.
-  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
-
-  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
-};
-
-// This class is used to lazily initialize a StackFrameInfo object from
-// a FrameArray plus an index.
-// The first time any of the Get* or Is* methods is called, a
-// StackFrameInfo object is allocated and all necessary information
-// retrieved.
 class StackTraceFrame
     : public TorqueGeneratedStackTraceFrame<StackTraceFrame, Struct> {
  public:
@@ -79,6 +48,7 @@ class StackTraceFrame
 
   static bool IsEval(Handle<StackTraceFrame> frame);
   static bool IsConstructor(Handle<StackTraceFrame> frame);
+  static bool IsMethodCall(Handle<StackTraceFrame> frame);
   static bool IsWasm(Handle<StackTraceFrame> frame);
   static bool IsAsmJsWasm(Handle<StackTraceFrame> frame);
   static bool IsUserJavaScript(Handle<StackTraceFrame> frame);
@@ -88,9 +58,6 @@ class StackTraceFrame
   static bool IsPromiseAny(Handle<StackTraceFrame> frame);
 
  private:
-  static Handle<StackFrameInfo> GetFrameInfo(Handle<StackTraceFrame> frame);
-  static void InitializeFrameInfo(Handle<StackTraceFrame> frame);
-
   TQ_OBJECT_CONSTRUCTORS(StackTraceFrame)
 };
 

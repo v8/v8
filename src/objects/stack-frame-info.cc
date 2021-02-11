@@ -12,7 +12,11 @@ namespace internal {
 
 // static
 int StackTraceFrame::GetLineNumber(Handle<StackTraceFrame> frame) {
-  int line = GetFrameInfo(frame)->line_number();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  int line = it.Frame()->GetLineNumber();
   return line != StackFrameBase::kNone ? line : Message::kNoLineNumberInfo;
 }
 
@@ -27,7 +31,11 @@ int StackTraceFrame::GetOneBasedLineNumber(Handle<StackTraceFrame> frame) {
 
 // static
 int StackTraceFrame::GetColumnNumber(Handle<StackTraceFrame> frame) {
-  int column = GetFrameInfo(frame)->column_number();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  int column = it.Frame()->GetColumnNumber();
   return column != StackFrameBase::kNone ? column : Message::kNoColumnInfo;
 }
 
@@ -43,54 +51,43 @@ int StackTraceFrame::GetOneBasedColumnNumber(Handle<StackTraceFrame> frame) {
 // static
 int StackTraceFrame::GetScriptId(Handle<StackTraceFrame> frame) {
   Isolate* isolate = frame->GetIsolate();
-
-  // Use FrameInfo if it's already there, but avoid initializing it for just
-  // the script id, as it is much more expensive than just getting this
-  // directly. See GetScriptNameOrSourceUrl() for more detail.
-  int id;
-  if (!frame->frame_info().IsUndefined()) {
-    id = GetFrameInfo(frame)->script_id();
-  } else {
-    FrameArrayIterator it(
-        isolate, handle(FrameArray::cast(frame->frame_array()), isolate),
-        frame->frame_index());
-    DCHECK(it.HasFrame());
-    id = it.Frame()->GetScriptId();
-  }
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  int id = it.Frame()->GetScriptId();
   return id != StackFrameBase::kNone ? id : Message::kNoScriptIdInfo;
 }
 
 // static
 int StackTraceFrame::GetPromiseCombinatorIndex(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->promise_combinator_index();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->GetPromiseIndex();
 }
 
 // static
 int StackTraceFrame::GetFunctionOffset(Handle<StackTraceFrame> frame) {
   DCHECK(IsWasm(frame));
-  return GetFrameInfo(frame)->function_offset();
+  return GetPromiseCombinatorIndex(frame);
 }
 
 // static
 int StackTraceFrame::GetWasmFunctionIndex(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->wasm_function_index();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->GetWasmFunctionIndex();
 }
 
 // static
 Handle<Object> StackTraceFrame::GetFileName(Handle<StackTraceFrame> frame) {
   Isolate* isolate = frame->GetIsolate();
-
-  // Use FrameInfo if it's already there, but avoid initializing it for just
-  // the file name, as it is much more expensive than just getting this
-  // directly. See GetScriptNameOrSourceUrl() for more detail.
-  if (!frame->frame_info().IsUndefined()) {
-    auto name = GetFrameInfo(frame)->script_name();
-    return handle(name, isolate);
-  }
   FrameArrayIterator it(isolate,
                         handle(FrameArray::cast(frame->frame_array()), isolate),
                         frame->frame_index());
-  DCHECK(it.HasFrame());
   return it.Frame()->GetFileName();
 }
 
@@ -98,129 +95,155 @@ Handle<Object> StackTraceFrame::GetFileName(Handle<StackTraceFrame> frame) {
 Handle<Object> StackTraceFrame::GetScriptNameOrSourceUrl(
     Handle<StackTraceFrame> frame) {
   Isolate* isolate = frame->GetIsolate();
-  // TODO(caseq, szuend): the logic below is a workaround for crbug.com/1057211.
-  // We should probably have a dedicated API for the scenario described in the
-  // bug above and make getters of this class behave consistently.
-  // See https://bit.ly/2wkbuIy for further discussion.
-  // Use FrameInfo if it's already there, but avoid initializing it for just
-  // the script name, as it is much more expensive than just getting this
-  // directly.
-  if (!frame->frame_info().IsUndefined()) {
-    auto name = GetFrameInfo(frame)->script_name_or_source_url();
-    return handle(name, isolate);
-  }
   FrameArrayIterator it(isolate,
                         handle(FrameArray::cast(frame->frame_array()), isolate),
                         frame->frame_index());
-  DCHECK(it.HasFrame());
   return it.Frame()->GetScriptNameOrSourceUrl();
 }
 
 // static
 Handle<Object> StackTraceFrame::GetFunctionName(Handle<StackTraceFrame> frame) {
-  auto name = GetFrameInfo(frame)->function_name();
-  return handle(name, frame->GetIsolate());
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->GetFunctionName();
+}
+
+// static
+bool StackTraceFrame::IsMethodCall(Handle<StackTraceFrame> frame) {
+  return !IsToplevel(frame) && !IsConstructor(frame);
 }
 
 // static
 Handle<Object> StackTraceFrame::GetMethodName(Handle<StackTraceFrame> frame) {
-  auto name = GetFrameInfo(frame)->method_name();
-  return handle(name, frame->GetIsolate());
+  Isolate* isolate = frame->GetIsolate();
+  if (!IsMethodCall(frame)) {
+    return isolate->factory()->undefined_value();
+  }
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->GetMethodName();
 }
 
 // static
 Handle<Object> StackTraceFrame::GetTypeName(Handle<StackTraceFrame> frame) {
-  auto name = GetFrameInfo(frame)->type_name();
-  return handle(name, frame->GetIsolate());
+  Isolate* isolate = frame->GetIsolate();
+  if (!IsMethodCall(frame)) {
+    return isolate->factory()->undefined_value();
+  }
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->GetTypeName();
 }
 
 // static
 Handle<Object> StackTraceFrame::GetEvalOrigin(Handle<StackTraceFrame> frame) {
-  auto origin = GetFrameInfo(frame)->eval_origin();
-  return handle(origin, frame->GetIsolate());
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->GetEvalOrigin();
 }
 
 // static
 Handle<Object> StackTraceFrame::GetWasmModuleName(
     Handle<StackTraceFrame> frame) {
-  auto module = GetFrameInfo(frame)->wasm_module_name();
-  return handle(module, frame->GetIsolate());
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->GetWasmModuleName();
 }
 
 // static
 Handle<WasmInstanceObject> StackTraceFrame::GetWasmInstance(
     Handle<StackTraceFrame> frame) {
-  Object instance = GetFrameInfo(frame)->wasm_instance();
-  return handle(WasmInstanceObject::cast(instance), frame->GetIsolate());
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return Handle<WasmInstanceObject>::cast(it.Frame()->GetWasmInstance());
 }
 
 // static
 bool StackTraceFrame::IsEval(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_eval();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->IsEval();
 }
 
 // static
 bool StackTraceFrame::IsConstructor(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_constructor();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->IsConstructor();
 }
 
 // static
 bool StackTraceFrame::IsWasm(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_wasm();
+  return FrameArray::cast(frame->frame_array())
+      .IsAnyWasmFrame(frame->frame_index());
 }
 
 // static
 bool StackTraceFrame::IsAsmJsWasm(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_asmjs_wasm();
+  return FrameArray::cast(frame->frame_array())
+      .IsAsmJsWasmFrame(frame->frame_index());
 }
 
 // static
 bool StackTraceFrame::IsUserJavaScript(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_user_java_script();
+  if (IsWasm(frame)) return false;
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  auto function = it.Frame()->GetFunction();
+  if (!function->IsJSFunction()) return false;
+  return Handle<JSFunction>::cast(function)->shared().IsUserJavaScript();
 }
 
 // static
 bool StackTraceFrame::IsToplevel(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_toplevel();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->IsToplevel();
 }
 
 // static
 bool StackTraceFrame::IsAsync(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_async();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->IsAsync();
 }
 
 // static
 bool StackTraceFrame::IsPromiseAll(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_promise_all();
+  Isolate* isolate = frame->GetIsolate();
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->IsPromiseAll();
 }
 
 // static
 bool StackTraceFrame::IsPromiseAny(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_promise_any();
-}
-
-// static
-Handle<StackFrameInfo> StackTraceFrame::GetFrameInfo(
-    Handle<StackTraceFrame> frame) {
-  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
-  return handle(StackFrameInfo::cast(frame->frame_info()), frame->GetIsolate());
-}
-
-// static
-void StackTraceFrame::InitializeFrameInfo(Handle<StackTraceFrame> frame) {
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
-               "SymbolizeStackFrame", "frameIndex", frame->frame_index());
-
   Isolate* isolate = frame->GetIsolate();
-  Handle<StackFrameInfo> frame_info = isolate->factory()->NewStackFrameInfo(
-      handle(FrameArray::cast(frame->frame_array()), isolate),
-      frame->frame_index());
-  frame->set_frame_info(*frame_info);
-
-  // After initializing, we no longer need to keep a reference
-  // to the frame_array.
-  frame->set_frame_array(ReadOnlyRoots(isolate).undefined_value());
-  frame->set_frame_index(-1);
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  return it.Frame()->IsPromiseAny();
 }
 
 Handle<FrameArray> GetFrameArrayFromStackTrace(Isolate* isolate,
@@ -357,16 +380,11 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
                            IncrementalStringBuilder* builder) {
   Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
 
-  const bool is_toplevel = StackTraceFrame::IsToplevel(frame);
   const bool is_async = StackTraceFrame::IsAsync(frame);
   const bool is_promise_all = StackTraceFrame::IsPromiseAll(frame);
   const bool is_promise_any = StackTraceFrame::IsPromiseAny(frame);
   const bool is_constructor = StackTraceFrame::IsConstructor(frame);
-  // Note: Keep the {is_method_call} predicate in sync with the corresponding
-  //       predicate in factory.cc where the StackFrameInfo is created.
-  //       Otherwise necessary fields for serialzing this frame might be
-  //       missing.
-  const bool is_method_call = !(is_toplevel || is_constructor);
+  const bool is_method_call = StackTraceFrame::IsMethodCall(frame);
 
   if (is_async) {
     builder->AppendCString("async ");

@@ -20,23 +20,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/stack-frame-info-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
-
-NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
-
-SMI_ACCESSORS_CHECKED(StackFrameInfo, function_offset,
-                      kPromiseCombinatorIndexOffset, is_wasm())
-BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, IsEvalBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, IsConstructorBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, IsWasmBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_asmjs_wasm, IsAsmJsWasmBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_user_java_script,
-               IsUserJavaScriptBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_toplevel, IsToplevelBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_async, IsAsyncBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_all, IsPromiseAllBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_any, IsPromiseAnyBit::kShift)
-
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame)
 NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)
 

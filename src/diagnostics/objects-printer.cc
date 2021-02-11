@@ -2287,21 +2287,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
 void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "StackTraceFrame");
   os << "\n - frame_index: " << frame_index();
-  os << "\n - frame_info: " << Brief(frame_info());
-  os << "\n";
-}
-
-void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "StackFrame");
-  os << "\n - line_number: " << line_number();
-  os << "\n - column_number: " << column_number();
-  os << "\n - script_id: " << script_id();
-  os << "\n - script_name: " << Brief(script_name());
-  os << "\n - script_name_or_source_url: "
-     << Brief(script_name_or_source_url());
-  os << "\n - function_name: " << Brief(function_name());
-  os << "\n - is_eval: " << (is_eval() ? "true" : "false");
-  os << "\n - is_constructor: " << (is_constructor() ? "true" : "false");
+  os << "\n - frame_array: " << Brief(frame_array());
   os << "\n";
 }
 

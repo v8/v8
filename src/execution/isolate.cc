@@ -710,11 +710,7 @@ class FrameArrayBuilder {
     Handle<JSFunction> function = summary.function();
     if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
     if (is_constructor) flags |= FrameArray::kIsConstructor;
-
-    Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
-      parameters = summary.parameters();
-    }
+    Handle<FixedArray> parameters = summary.parameters();
 
     elements_ = FrameArray::AppendJSFrame(
         elements_, TheHoleToUndefined(isolate_, summary.receiver()), function,
@@ -893,6 +889,8 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
 
 bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 
+namespace {
+
 bool IsBuiltinFunction(Isolate* isolate, HeapObject object,
                        Builtins::Name builtin_index) {
   if (!object.IsJSFunction()) return false;
@@ -1012,8 +1010,6 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
     }
   }
 }
-
-namespace {
 
 struct CaptureStackTraceOptions {
   int limit;

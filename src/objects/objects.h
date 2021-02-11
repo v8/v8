@@ -166,7 +166,6 @@
 //       - BreakPoint
 //       - BreakPointInfo
 //       - CachedTemplateObject
-//       - StackFrameInfo
 //       - StackTraceFrame
 //       - CodeCache
 //       - PropertyDescriptorObject
