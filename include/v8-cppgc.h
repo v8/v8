@@ -5,6 +5,7 @@
 #ifndef INCLUDE_V8_CPPGC_H_
 #define INCLUDE_V8_CPPGC_H_
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -26,8 +27,53 @@ namespace internal {
 class CppHeap;
 }  // namespace internal
 
+/**
+ * Describes how V8 wrapper objects maintain references to garbage-collected C++
+ * objects.
+ */
+struct WrapperDescriptor final {
+  /**
+   * The index used on `v8::Ojbect::SetAlignedPointerFromInternalField()` and
+   * related APIs to add additional data to an object which is used to identify
+   * JS->C++ references.
+   */
+  using InternalFieldIndex = int;
+
+  /**
+   * Unknown embedder id. The value is reserved for internal usages and must not
+   * be used with `CppHeap`.
+   */
+  static constexpr uint16_t kUnknownEmbedderId = UINT16_MAX;
+
+  constexpr WrapperDescriptor(InternalFieldIndex wrappable_type_index,
+                              InternalFieldIndex wrappable_instance_index,
+                              uint16_t embedder_id_for_garbage_collected)
+      : wrappable_type_index(wrappable_type_index),
+        wrappable_instance_index(wrappable_instance_index),
+        embedder_id_for_garbage_collected(embedder_id_for_garbage_collected) {}
+
+  /**
+   * Index of the wrappable type.
+   */
+  InternalFieldIndex wrappable_type_index;
+
+  /**
+   * Index of the wrappable instance.
+   */
+  InternalFieldIndex wrappable_instance_index;
+
+  /**
+   * Embedder id identifying instances of garbage-collected objects. It is
+   * expected that the first field of the wrappable type is a uint16_t holding
+   * the id. Only references to instances of wrappables types with an id of
+   * `embedder_id_for_garbage_collected` will be considered by CppHeap.
+   */
+  uint16_t embedder_id_for_garbage_collected;
+};
+
 struct V8_EXPORT CppHeapCreateParams {
   std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
+  WrapperDescriptor wrapper_descriptor;
 };
 
 /**

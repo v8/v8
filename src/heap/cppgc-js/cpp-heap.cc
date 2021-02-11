@@ -30,6 +30,7 @@
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "src/heap/embedder-tracing.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
@@ -38,9 +39,13 @@
 namespace v8 {
 
 // static
+constexpr uint16_t WrapperDescriptor::kUnknownEmbedderId;
+
+// static
 std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
                                          const CppHeapCreateParams& params) {
-  return std::make_unique<internal::CppHeap>(platform, params.custom_spaces);
+  return std::make_unique<internal::CppHeap>(platform, params.custom_spaces,
+                                             params.wrapper_descriptor);
 }
 
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
@@ -180,12 +185,16 @@ void UnifiedHeapMarker::AddObject(void* object) {
 CppHeap::CppHeap(
     v8::Platform* platform,
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
+    const v8::WrapperDescriptor& wrapper_descriptor,
     std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder)
     : cppgc::internal::HeapBase(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          std::move(metric_recorder)) {
+          std::move(metric_recorder)),
+      wrapper_descriptor_(wrapper_descriptor) {
+  CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
+           wrapper_descriptor_.embedder_id_for_garbage_collected);
   // Enter no GC scope. `AttachIsolate()` removes this and allows triggering
   // garbage collections.
   no_gc_scope_++;
@@ -215,6 +224,8 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
         &CppGraphBuilder::Run, this);
   }
   isolate_->heap()->SetEmbedderHeapTracer(this);
+  isolate_->heap()->local_embedder_heap_tracer()->SetWrapperDescriptor(
+      wrapper_descriptor_);
   no_gc_scope_--;
 }
 

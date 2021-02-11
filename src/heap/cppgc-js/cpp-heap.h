@@ -34,6 +34,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   CppHeap(
       v8::Platform* platform,
       const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
+      const v8::WrapperDescriptor& wrapper_descriptor,
       std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder =
           nullptr);
   ~CppHeap() final;
@@ -79,6 +80,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   // atomic pause. Allocated bytes are buffer in case this is temporarily
   // prohibited.
   int64_t buffered_allocated_bytes_ = 0;
+
+  v8::WrapperDescriptor wrapper_descriptor_;
 };
 
 }  // namespace internal

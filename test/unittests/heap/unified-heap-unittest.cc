@@ -50,8 +50,10 @@ TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
+  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
   v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
-      context, cppgc::MakeGarbageCollected<Wrappable>(allocation_handle()));
+      context, &wrappable_type,
+      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle()));
   Wrappable::destructor_callcount = 0;
   EXPECT_FALSE(api_object.IsEmpty());
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
@@ -68,7 +70,7 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
   v8::Context::Scope context_scope(context);
   void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
   v8::Local<v8::Object> api_object =
-      WrapperHelper::CreateWrapper(context, wrappable);
+      WrapperHelper::CreateWrapper(context, nullptr, nullptr);
   Wrappable::destructor_callcount = 0;
   WrapperHelper::ResetWrappableConnection(api_object);
   SimulateIncrementalMarking();
@@ -103,7 +105,7 @@ TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
     // setter for C++ to JS references.
     v8::HandleScope nested_scope(v8_isolate());
     v8::Local<v8::Object> api_object =
-        WrapperHelper::CreateWrapper(context, nullptr);
+        WrapperHelper::CreateWrapper(context, nullptr, nullptr);
     // Setting only one field to avoid treating this as wrappable backref, see
     // `LocalEmbedderHeapTracer::ExtractWrapperInfo`.
     api_object->SetAlignedPointerInInternalField(1, kMagicAddress);
@@ -123,8 +125,9 @@ TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
 }
 
 TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
-  auto heap =
-      v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{});
+  auto heap = v8::CppHeap::Create(
+      V8::GetCurrentPlatform(),
+      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
   auto* object =
       cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
   cppgc::WeakPersistent<Wrappable> weak_holder{object};
