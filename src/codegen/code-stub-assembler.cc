@@ -9855,10 +9855,10 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
 }  // namespace
 
 template <typename TArray, typename TIndex>
-void CodeStubAssembler::StoreElementBigIntOrTypedArray(TNode<TArray> elements,
-                                                       ElementsKind kind,
-                                                       TNode<TIndex> index,
-                                                       Node* value) {
+void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
+                                               ElementsKind kind,
+                                               TNode<TIndex> index,
+                                               Node* value) {
   // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
   static_assert(std::is_same<TIndex, Smi>::value ||
                     std::is_same<TIndex, UintPtrT>::value ||
@@ -9867,6 +9867,7 @@ void CodeStubAssembler::StoreElementBigIntOrTypedArray(TNode<TArray> elements,
   static_assert(std::is_same<TArray, RawPtrT>::value ||
                     std::is_same<TArray, FixedArrayBase>::value,
                 "Only RawPtrT or FixedArrayBase elements are allowed");
+  DCHECK(IsTypedArrayElementsKind(kind));
   if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
     TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
     TVARIABLE(UintPtrT, var_low);
@@ -9893,7 +9894,6 @@ void CodeStubAssembler::StoreElementBigIntOrTypedArray(TNode<TArray> elements,
     }
 #endif
   } else {
-    DCHECK(IsTypedArrayElementsKind(kind));
     if (kind == UINT8_CLAMPED_ELEMENTS) {
       CSA_ASSERT(this, Word32Equal(UncheckedCast<Word32T>(value),
                                    Word32And(Int32Constant(0xFF), value)));
@@ -9913,9 +9913,8 @@ void CodeStubAssembler::StoreElement(TNode<FixedArrayBase> elements,
       std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
       "Only Smi or IntPtrT indices are allowed");
   DCHECK(!IsDoubleElementsKind(kind));
-  if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS ||
-      IsTypedArrayElementsKind(kind)) {
-    StoreElementBigIntOrTypedArray(elements, kind, index, value);
+  if (IsTypedArrayElementsKind(kind)) {
+    StoreElementTypedArray(elements, kind, index, value);
   } else if (IsSmiElementsKind(kind)) {
     TNode<Smi> smi_value = CAST(value);
     StoreFixedArrayElement(CAST(elements), index, smi_value);
@@ -9938,9 +9937,8 @@ void CodeStubAssembler::StoreElement(TNode<FixedArrayBase> elements,
 template <typename TIndex>
 void CodeStubAssembler::StoreElement(TNode<RawPtrT> elements, ElementsKind kind,
                                      TNode<TIndex> index, Node* value) {
-  DCHECK(kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS ||
-         IsTypedArrayElementsKind(kind));
-  StoreElementBigIntOrTypedArray(elements, kind, index, value);
+  DCHECK(IsTypedArrayElementsKind(kind));
+  StoreElementTypedArray(elements, kind, index, value);
 }
 template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement<UintPtrT>(
     TNode<RawPtrT>, ElementsKind, TNode<UintPtrT>, Node*);

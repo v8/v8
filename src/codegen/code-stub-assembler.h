@@ -3806,8 +3806,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(solanes): This method can go away and simplify into only one version
   // of StoreElement once we have "if constexpr" available to use.
   template <typename TArray, typename TIndex>
-  void StoreElementBigIntOrTypedArray(TNode<TArray> elements, ElementsKind kind,
-                                      TNode<TIndex> index, Node* value);
+  void StoreElementTypedArray(TNode<TArray> elements, ElementsKind kind,
+                              TNode<TIndex> index, Node* value);
 
   template <typename TIndex>
   void StoreElement(TNode<FixedArrayBase> elements, ElementsKind kind,
