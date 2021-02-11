@@ -761,122 +761,133 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   pop(r0);
 }
 
-#define UNIMPLEMENTED_I32_BINOP(name)                            \
-  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
-                                     Register rhs) {             \
-    bailout(kUnsupportedArchitecture, "i32 binop: " #name);      \
+#define SIGN_EXT(r) lgfr(r, r)
+#define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
+#define REGISTER_AND_WITH_1F    \
+  ([&](Register rhs) {          \
+    AndP(r1, rhs, Operand(31)); \
+    return r1;                  \
+  })
+
+#define LFR_TO_REG(reg) reg.gp()
+
+// V(name, instr, dtype, stype, dcast, scast, rcast)
+#define UNOP_LIST(V)                                                  \
+  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE)       \
+  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE)      \
+  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,  \
+    LFR_TO_REG, LFR_TO_REG, USE)                                      \
+  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister, \
+    LFR_TO_REG, LFR_TO_REG, USE)                                      \
+  V(f32_abs, lpebr, DoubleRegister, DoubleRegister, , , USE)          \
+  V(f32_neg, lcebr, DoubleRegister, DoubleRegister, , , USE)          \
+  V(f32_sqrt, sqebr, DoubleRegister, DoubleRegister, , , USE)         \
+  V(f64_abs, lpdbr, DoubleRegister, DoubleRegister, , , USE)          \
+  V(f64_neg, lcdbr, DoubleRegister, DoubleRegister, , , USE)          \
+  V(f64_sqrt, sqdbr, DoubleRegister, DoubleRegister, , , USE)
+
+#define EMIT_UNOP_FUNCTION(name, instr, dtype, stype, dcast, scast, rcast) \
+  void LiftoffAssembler::emit_##name(dtype dst, stype src) {               \
+    auto _dst = dcast(dst);                                                \
+    auto _src = scast(src);                                                \
+    instr(_dst, _src);                                                     \
+    rcast(_dst);                                                           \
   }
-#define UNIMPLEMENTED_I32_BINOP_I(name)                             \
-  UNIMPLEMENTED_I32_BINOP(name)                                     \
-  void LiftoffAssembler::emit_##name##i(Register dst, Register lhs, \
-                                        int32_t imm) {              \
-    bailout(kUnsupportedArchitecture, "i32 binop_i: " #name);       \
-  }
-#define UNIMPLEMENTED_I64_BINOP(name)                                          \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
-                                     LiftoffRegister rhs) {                    \
-    bailout(kUnsupportedArchitecture, "i64 binop: " #name);                    \
-  }
-#define UNIMPLEMENTED_I64_BINOP_I(name)                                     \
-  UNIMPLEMENTED_I64_BINOP(name)                                             \
-  void LiftoffAssembler::emit_##name##i(LiftoffRegister dst,                \
-                                        LiftoffRegister lhs, int32_t imm) { \
-    bailout(kUnsupportedArchitecture, "i64 binop_i: " #name);               \
-  }
-#define UNIMPLEMENTED_GP_UNOP(name)                                \
-  void LiftoffAssembler::emit_##name(Register dst, Register src) { \
-    bailout(kUnsupportedArchitecture, "gp unop: " #name);          \
-  }
-#define UNIMPLEMENTED_FP_BINOP(name)                                         \
-  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
-                                     DoubleRegister rhs) {                   \
-    bailout(kUnsupportedArchitecture, "fp binop: " #name);                   \
-  }
-#define UNIMPLEMENTED_FP_UNOP(name)                                            \
-  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    bailout(kUnsupportedArchitecture, "fp unop: " #name);                      \
-  }
-#define UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(name)                                \
-  bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    bailout(kUnsupportedArchitecture, "fp unop: " #name);                      \
-    return true;                                                               \
-  }
-#define UNIMPLEMENTED_I32_SHIFTOP(name)                             \
-  void LiftoffAssembler::emit_##name(Register dst, Register src,    \
-                                     Register amount) {             \
-    bailout(kUnsupportedArchitecture, "i32 shiftop: " #name);       \
-  }                                                                 \
-  void LiftoffAssembler::emit_##name##i(Register dst, Register src, \
-                                        int32_t amount) {           \
-    bailout(kUnsupportedArchitecture, "i32 shiftop: " #name);       \
-  }
-#define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
-                                     Register amount) {                        \
-    bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
-  }                                                                            \
-  void LiftoffAssembler::emit_##name##i(LiftoffRegister dst,                   \
-                                        LiftoffRegister src, int32_t amount) { \
-    bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
+UNOP_LIST(EMIT_UNOP_FUNCTION)
+#undef EMIT_UNOP_FUNCTION
+#undef UNOP_LIST
+
+// V(name, instr, dtype, stype1, stype2, dcast, scast1, scast2, rcast)
+#define BINOP_LIST(V)                                                        \
+  V(f64_add, AddF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE)                                                                     \
+  V(f64_sub, SubF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE)                                                                     \
+  V(f64_mul, MulF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE)                                                                     \
+  V(f64_div, DivF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE)                                                                     \
+  V(f32_add, AddF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE)                                                                     \
+  V(f32_sub, SubF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE)                                                                     \
+  V(f32_mul, MulF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE)                                                                     \
+  V(f32_div, DivF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE)                                                                     \
+  V(i32_shli, ShiftLeftU32, Register, Register, int32_t, , ,                 \
+    INT32_AND_WITH_1F, SIGN_EXT)                                             \
+  V(i32_sari, ShiftRightS32, Register, Register, int32_t, , ,                \
+    INT32_AND_WITH_1F, SIGN_EXT)                                             \
+  V(i32_shri, ShiftRightU32, Register, Register, int32_t, , ,                \
+    INT32_AND_WITH_1F, SIGN_EXT)                                             \
+  V(i32_shl, ShiftLeftU32, Register, Register, Register, , ,                 \
+    REGISTER_AND_WITH_1F, SIGN_EXT)                                          \
+  V(i32_sar, ShiftRightS32, Register, Register, Register, , ,                \
+    REGISTER_AND_WITH_1F, SIGN_EXT)                                          \
+  V(i32_shr, ShiftRightU32, Register, Register, Register, , ,                \
+    REGISTER_AND_WITH_1F, SIGN_EXT)                                          \
+  V(i32_addi, AddS32, Register, Register, int32_t, , , Operand, SIGN_EXT)    \
+  V(i32_subi, SubS32, Register, Register, int32_t, , , Operand, SIGN_EXT)    \
+  V(i32_andi, And, Register, Register, int32_t, , , Operand, SIGN_EXT)       \
+  V(i32_ori, Or, Register, Register, int32_t, , , Operand, SIGN_EXT)         \
+  V(i32_xori, Xor, Register, Register, int32_t, , , Operand, SIGN_EXT)       \
+  V(i32_add, AddS32, Register, Register, Register, , , , SIGN_EXT)           \
+  V(i32_sub, SubS32, Register, Register, Register, , , , SIGN_EXT)           \
+  V(i32_and, And, Register, Register, Register, , , , SIGN_EXT)              \
+  V(i32_or, Or, Register, Register, Register, , , , SIGN_EXT)                \
+  V(i32_xor, Xor, Register, Register, Register, , , , SIGN_EXT)              \
+  V(i32_mul, MulS32, Register, Register, Register, , , , SIGN_EXT)           \
+  V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
+  V(i64_sub, SubS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
+  V(i64_mul, MulS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
+  V(i64_and, AndP, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
+  V(i64_or, OrP, LiftoffRegister, LiftoffRegister, LiftoffRegister,          \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
+  V(i64_xor, XorP, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
+  V(i64_shl, ShiftLeftU64, LiftoffRegister, LiftoffRegister, Register,       \
+    LFR_TO_REG, LFR_TO_REG, , USE)                                           \
+  V(i64_sar, ShiftRightS64, LiftoffRegister, LiftoffRegister, Register,      \
+    LFR_TO_REG, LFR_TO_REG, , USE)                                           \
+  V(i64_shr, ShiftRightU64, LiftoffRegister, LiftoffRegister, Register,      \
+    LFR_TO_REG, LFR_TO_REG, , USE)                                           \
+  V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG, \
+    LFR_TO_REG, Operand, USE)                                                \
+  V(i64_andi, AndP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,   \
+    LFR_TO_REG, Operand, USE)                                                \
+  V(i64_ori, OrP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,     \
+    LFR_TO_REG, Operand, USE)                                                \
+  V(i64_xori, XorP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,   \
+    LFR_TO_REG, Operand, USE)                                                \
+  V(i64_shli, ShiftLeftU64, LiftoffRegister, LiftoffRegister, int32_t,       \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE)                                    \
+  V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,      \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE)                                    \
+  V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,      \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE)
+
+#define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
+                            scast2, rcast)                                     \
+  void LiftoffAssembler::emit_##name(dtype dst, stype1 lhs, stype2 rhs) {      \
+    auto _dst = dcast(dst);                                                    \
+    auto _lhs = scast1(lhs);                                                   \
+    auto _rhs = scast2(rhs);                                                   \
+    instr(_dst, _lhs, _rhs);                                                   \
+    rcast(_dst);                                                               \
   }
 
-UNIMPLEMENTED_I32_BINOP_I(i32_add)
-UNIMPLEMENTED_I32_BINOP_I(i32_sub)
-UNIMPLEMENTED_I32_BINOP(i32_mul)
-UNIMPLEMENTED_I32_BINOP_I(i32_and)
-UNIMPLEMENTED_I32_BINOP_I(i32_or)
-UNIMPLEMENTED_I32_BINOP_I(i32_xor)
-UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
-UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
-UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
-UNIMPLEMENTED_I64_BINOP(i64_add)
-UNIMPLEMENTED_I64_BINOP(i64_sub)
-UNIMPLEMENTED_I64_BINOP(i64_mul)
-#ifdef V8_TARGET_ARCH_S390X
-UNIMPLEMENTED_I64_BINOP_I(i64_and)
-UNIMPLEMENTED_I64_BINOP_I(i64_or)
-UNIMPLEMENTED_I64_BINOP_I(i64_xor)
-#endif
-UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
-UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
-UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
-UNIMPLEMENTED_GP_UNOP(i32_clz)
-UNIMPLEMENTED_GP_UNOP(i32_ctz)
-UNIMPLEMENTED_FP_BINOP(f32_add)
-UNIMPLEMENTED_FP_BINOP(f32_sub)
-UNIMPLEMENTED_FP_BINOP(f32_mul)
-UNIMPLEMENTED_FP_BINOP(f32_div)
-UNIMPLEMENTED_FP_BINOP(f32_copysign)
-UNIMPLEMENTED_FP_UNOP(f32_abs)
-UNIMPLEMENTED_FP_UNOP(f32_neg)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_ceil)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_floor)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_trunc)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f32_sqrt)
-UNIMPLEMENTED_FP_BINOP(f64_add)
-UNIMPLEMENTED_FP_BINOP(f64_sub)
-UNIMPLEMENTED_FP_BINOP(f64_mul)
-UNIMPLEMENTED_FP_BINOP(f64_div)
-UNIMPLEMENTED_FP_BINOP(f64_copysign)
-UNIMPLEMENTED_FP_UNOP(f64_abs)
-UNIMPLEMENTED_FP_UNOP(f64_neg)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_ceil)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_floor)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_trunc)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f64_sqrt)
-
-#undef UNIMPLEMENTED_I32_BINOP
-#undef UNIMPLEMENTED_I32_BINOP_I
-#undef UNIMPLEMENTED_I64_BINOP
-#undef UNIMPLEMENTED_I64_BINOP_I
-#undef UNIMPLEMENTED_GP_UNOP
-#undef UNIMPLEMENTED_FP_BINOP
-#undef UNIMPLEMENTED_FP_UNOP
-#undef UNIMPLEMENTED_FP_UNOP_RETURN_TRUE
-#undef UNIMPLEMENTED_I32_SHIFTOP
-#undef UNIMPLEMENTED_I64_SHIFTOP
+BINOP_LIST(EMIT_BINOP_FUNCTION)
+#undef BINOP_LIST
+#undef EMIT_BINOP_FUNCTION
+#undef SIGN_EXT
+#undef INT32_AND_WITH_1F
+#undef REGISTER_AND_WITH_1F
+#undef LFR_TO_REG
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   bailout(kUnsupportedArchitecture, "i32_popcnt");
