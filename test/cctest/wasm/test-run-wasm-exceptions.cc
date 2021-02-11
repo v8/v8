@@ -12,7 +12,7 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_exceptions {
 
-WASM_COMPILED_EXEC_TEST(TryCatchThrow) {
+WASM_EXEC_TEST(TryCatchThrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
@@ -27,12 +27,75 @@ WASM_COMPILED_EXEC_TEST(TryCatchThrow) {
                                                WASM_THROW(except))),
                             WASM_STMTS(WASM_I32V(kResult0)), except));
 
-  // Need to call through JS to allow for creation of stack traces.
-  r.CheckCallViaJS(kResult0, 0);
-  r.CheckCallViaJS(kResult1, 1);
+  if (execution_tier != TestExecutionTier::kInterpreter) {
+    // Need to call through JS to allow for creation of stack traces.
+    r.CheckCallViaJS(kResult0, 0);
+    r.CheckCallViaJS(kResult1, 1);
+  } else {
+    CHECK_EQ(kResult0, r.CallInterpreter(0));
+    CHECK_EQ(kResult1, r.CallInterpreter(1));
+  }
 }
 
-WASM_COMPILED_EXEC_TEST(TryCatchCallDirect) {
+WASM_EXEC_TEST(TryCatchThrowWithValue) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  uint32_t except = r.builder().AddException(sigs.v_i());
+  constexpr uint32_t kResult0 = 23;
+  constexpr uint32_t kResult1 = 42;
+
+  // Build the main test function.
+  BUILD(r, WASM_TRY_CATCH_T(
+               kWasmI32,
+               WASM_STMTS(WASM_I32V(kResult1),
+                          WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                                  WASM_I32V(kResult0), WASM_THROW(except))),
+               WASM_STMTS(kExprNop), except));
+
+  if (execution_tier != TestExecutionTier::kInterpreter) {
+    // Need to call through JS to allow for creation of stack traces.
+    r.CheckCallViaJS(kResult0, 0);
+    r.CheckCallViaJS(kResult1, 1);
+  } else {
+    CHECK_EQ(kResult0, r.CallInterpreter(0));
+    CHECK_EQ(kResult1, r.CallInterpreter(1));
+  }
+}
+
+WASM_EXEC_TEST(TryMultiCatchThrow) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  uint32_t except1 = r.builder().AddException(sigs.v_v());
+  uint32_t except2 = r.builder().AddException(sigs.v_v());
+  constexpr uint32_t kResult0 = 23;
+  constexpr uint32_t kResult1 = 42;
+  constexpr uint32_t kResult2 = 51;
+
+  // Build the main test function.
+  BUILD(
+      r, kExprTry, static_cast<byte>((kWasmI32).value_type_code()),
+      WASM_STMTS(WASM_I32V(kResult2),
+                 WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except1)),
+                 WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_I32V(1)),
+                         WASM_THROW(except2))),
+      kExprCatch, except1, WASM_STMTS(WASM_I32V(kResult0)), kExprCatch, except2,
+      WASM_STMTS(WASM_I32V(kResult1)), kExprEnd);
+
+  if (execution_tier != TestExecutionTier::kInterpreter) {
+    // Need to call through JS to allow for creation of stack traces.
+    r.CheckCallViaJS(kResult0, 0);
+    r.CheckCallViaJS(kResult1, 1);
+    r.CheckCallViaJS(kResult2, 2);
+  } else {
+    CHECK_EQ(kResult0, r.CallInterpreter(0));
+    CHECK_EQ(kResult1, r.CallInterpreter(1));
+    CHECK_EQ(kResult2, r.CallInterpreter(2));
+  }
+}
+
+WASM_EXEC_TEST(TryCatchCallDirect) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
@@ -55,12 +118,17 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallDirect) {
                                              WASM_DROP))),
                WASM_STMTS(WASM_I32V(kResult0)), except));
 
-  // Need to call through JS to allow for creation of stack traces.
-  r.CheckCallViaJS(kResult0, 0);
-  r.CheckCallViaJS(kResult1, 1);
+  if (execution_tier != TestExecutionTier::kInterpreter) {
+    // Need to call through JS to allow for creation of stack traces.
+    r.CheckCallViaJS(kResult0, 0);
+    r.CheckCallViaJS(kResult1, 1);
+  } else {
+    CHECK_EQ(kResult0, r.CallInterpreter(0));
+    CHECK_EQ(kResult1, r.CallInterpreter(1));
+  }
 }
 
-WASM_COMPILED_EXEC_TEST(TryCatchCallIndirect) {
+WASM_EXEC_TEST(TryCatchCallIndirect) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
@@ -92,9 +160,14 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallIndirect) {
                                           WASM_DROP))),
             WASM_STMTS(WASM_I32V(kResult0)), except));
 
-  // Need to call through JS to allow for creation of stack traces.
-  r.CheckCallViaJS(kResult0, 0);
-  r.CheckCallViaJS(kResult1, 1);
+  if (execution_tier != TestExecutionTier::kInterpreter) {
+    // Need to call through JS to allow for creation of stack traces.
+    r.CheckCallViaJS(kResult0, 0);
+    r.CheckCallViaJS(kResult1, 1);
+  } else {
+    CHECK_EQ(kResult0, r.CallInterpreter(0));
+    CHECK_EQ(kResult1, r.CallInterpreter(1));
+  }
 }
 
 WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
@@ -152,28 +225,32 @@ void TestTrapNotCaught(byte* code, size_t code_size,
                           WASM_DROP),
                WASM_STMTS(WASM_I32V(kResultCaught))));
 
-  // Need to call through JS to allow for creation of stack traces.
-  r.CheckCallViaJSTraps();
+  if (execution_tier != TestExecutionTier::kInterpreter) {
+    // Need to call through JS to allow for creation of stack traces.
+    r.CheckCallViaJSTraps();
+  } else {
+    r.CallInterpreter();
+  }
 }
 
 }  // namespace
 
-WASM_COMPILED_EXEC_TEST(TryCatchTrapUnreachable) {
+WASM_EXEC_TEST(TryCatchTrapUnreachable) {
   byte code[] = {WASM_UNREACHABLE};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
-WASM_COMPILED_EXEC_TEST(TryCatchTrapMemOutOfBounds) {
+WASM_EXEC_TEST(TryCatchTrapMemOutOfBounds) {
   byte code[] = {WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-1))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
-WASM_COMPILED_EXEC_TEST(TryCatchTrapDivByZero) {
+WASM_EXEC_TEST(TryCatchTrapDivByZero) {
   byte code[] = {WASM_I32_DIVS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
-WASM_COMPILED_EXEC_TEST(TryCatchTrapRemByZero) {
+WASM_EXEC_TEST(TryCatchTrapRemByZero) {
   byte code[] = {WASM_I32_REMS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
