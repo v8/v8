@@ -33,6 +33,7 @@ build_recipe(
 
 build_recipe(
     name = "recipe:chromium_integration",
+    use_bbagent = True,
 )
 
 build_recipe(
