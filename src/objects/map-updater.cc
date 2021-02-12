@@ -46,11 +46,15 @@ PropertyDetails MapUpdater::GetDetails(InternalIndex descriptor) const {
   DCHECK(descriptor.is_found());
   if (descriptor == modified_descriptor_) {
     PropertyAttributes attributes = new_attributes_;
-    // If the original map was sealed or frozen, let us used the old
+    // If the original map was sealed or frozen, let's use the old
     // attributes so that we follow the same transition path as before.
     // Note that the user could not have changed the attributes because
-    // both seal and freeze make the properties non-configurable.
-    if (integrity_level_ == SEALED || integrity_level_ == FROZEN) {
+    // both seal and freeze make the properties non-configurable. An exception
+    // is transitioning from [[Writable]] = true to [[Writable]] = false (this
+    // is allowed for frozen and sealed objects). To support it, we use the new
+    // attributes if they have [[Writable]] == false.
+    if ((integrity_level_ == SEALED || integrity_level_ == FROZEN) &&
+        !(new_attributes_ & READ_ONLY)) {
       attributes = old_descriptors_->GetDetails(descriptor).attributes();
     }
     return PropertyDetails(new_kind_, attributes, new_location_, new_constness_,
