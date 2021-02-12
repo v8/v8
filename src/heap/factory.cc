@@ -3388,7 +3388,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
 
   Handle<JSFunction> result = BuildRaw(code);
 
-  if (have_cached_code || code->kind() == CodeKind::SPARKPLUG) {
+  if (have_cached_code || code->kind() == CodeKind::BASELINE) {
     IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
     JSFunction::EnsureFeedbackVector(result, &is_compiled_scope);
     if (FLAG_trace_turbo_nci && have_cached_code) {

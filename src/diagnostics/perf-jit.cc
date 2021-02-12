@@ -214,7 +214,7 @@ void PerfJitLogger::LogRecordedBuffer(
        abstract_code->kind() != CodeKind::TURBOFAN &&
        abstract_code->kind() != CodeKind::NATIVE_CONTEXT_INDEPENDENT &&
        abstract_code->kind() != CodeKind::TURBOPROP &&
-       abstract_code->kind() != CodeKind::SPARKPLUG)) {
+       abstract_code->kind() != CodeKind::BASELINE)) {
     return;
   }
 
@@ -339,10 +339,10 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
 void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
                                       Handle<SharedFunctionInfo> shared) {
   DisallowGarbageCollection no_gc;
-  // TODO(v8:11429,cbruni): add proper sparkplug source position iterator
-  bool is_sparkplug = code->kind() == CodeKind::SPARKPLUG;
+  // TODO(v8:11429,cbruni): add proper baseline source position iterator
+  bool is_baseline = code->kind() == CodeKind::BASELINE;
   ByteArray source_position_table = code->SourcePositionTable();
-  if (is_sparkplug) {
+  if (is_baseline) {
     source_position_table =
         shared->GetBytecodeArray(shared->GetIsolate()).SourcePositionTable();
   }

@@ -116,11 +116,11 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 
     is_shared_cross_origin = script->origin_options().IsSharedCrossOrigin();
 
-    // TODO(v8:11429,cbruni): improve iteration for sparkplug code
-    bool is_sparkplug = abstract_code->kind() == CodeKind::SPARKPLUG;
+    // TODO(v8:11429,cbruni): improve iteration for baseline code
+    bool is_baseline = abstract_code->kind() == CodeKind::BASELINE;
     Handle<ByteArray> source_position_table(
         abstract_code->source_position_table(), isolate_);
-    if (is_sparkplug) {
+    if (is_baseline) {
       source_position_table = handle(
           shared->GetBytecodeArray(isolate_).SourcePositionTable(), isolate_);
     }
@@ -134,19 +134,19 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
       int position = it.source_position().ScriptOffset();
       int inlining_id = it.source_position().InliningId();
       int code_offset = it.code_offset();
-      if (is_sparkplug) {
-        // Use the bytecode offset to calculate pc offset for sparkplug code.
+      if (is_baseline) {
+        // Use the bytecode offset to calculate pc offset for baseline code.
         // TODO(v8:11429,cbruni): Speed this up.
         code_offset = static_cast<int>(
-            abstract_code->GetCode().GetSparkplugPCForBytecodeOffset(
-                code_offset, false));
+            abstract_code->GetCode().GetBaselinePCForBytecodeOffset(code_offset,
+                                                                    false));
       }
 
       if (inlining_id == SourcePosition::kNotInlined) {
         int line_number = script->GetLineNumber(position) + 1;
         line_table->SetPosition(code_offset, line_number, inlining_id);
       } else {
-        DCHECK(!is_sparkplug);
+        DCHECK(!is_baseline);
         DCHECK(abstract_code->IsCode());
         Handle<Code> code = handle(abstract_code->GetCode(), isolate_);
         std::vector<SourcePositionInfo> stack =

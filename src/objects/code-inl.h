@@ -347,14 +347,14 @@ inline int ReadUint(ByteArray array, int* index) {
 
 }  // namespace detail
 
-int Code::GetBytecodeOffsetForSparkplugPC(Address sparkplug_pc) {
+int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc) {
   DisallowGarbageCollection no_gc;
   if (is_baseline_prologue_builtin()) return kFunctionEntryBytecodeOffset;
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
-  CHECK_EQ(kind(), CodeKind::SPARKPLUG);
+  CHECK_EQ(kind(), CodeKind::BASELINE);
   ByteArray data = ByteArray::cast(source_position_table());
   Address lookup_pc = 0;
-  Address pc = sparkplug_pc - InstructionStart();
+  Address pc = baseline_pc - InstructionStart();
   int index = 0;
   int offset = 0;
   while (pc > lookup_pc) {
@@ -365,10 +365,10 @@ int Code::GetBytecodeOffsetForSparkplugPC(Address sparkplug_pc) {
   return offset;
 }
 
-uintptr_t Code::GetSparkplugPCForBytecodeOffset(int bytecode_offset,
-                                                bool precise) {
+uintptr_t Code::GetBaselinePCForBytecodeOffset(int bytecode_offset,
+                                               bool precise) {
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(kind(), CodeKind::SPARKPLUG);
+  CHECK_EQ(kind(), CodeKind::BASELINE);
   ByteArray data = ByteArray::cast(source_position_table());
   intptr_t pc = 0;
   int index = 0;
@@ -527,14 +527,14 @@ int Code::stack_slots() const {
 }
 
 bool Code::marked_for_deoptimization() const {
-  // TODO(v8:11429): Re-evaluate if sparkplug code can really deopt.
-  DCHECK(CodeKindCanDeoptimize(kind()) || kind() == CodeKind::SPARKPLUG);
+  // TODO(v8:11429): Re-evaluate if baseline code can really deopt.
+  DCHECK(CodeKindCanDeoptimize(kind()) || kind() == CodeKind::BASELINE);
   int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return MarkedForDeoptimizationField::decode(flags);
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
-  DCHECK(CodeKindCanDeoptimize(kind()) || kind() == CodeKind::SPARKPLUG);
+  DCHECK(CodeKindCanDeoptimize(kind()) || kind() == CodeKind::BASELINE);
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
   CodeDataContainer container = code_data_container(kAcquireLoad);
   int32_t previous = container.kind_specific_flags();

@@ -27,7 +27,7 @@ namespace internal {
   V(C_WASM_ENTRY)               \
   V(INTERPRETED_FUNCTION)       \
   V(NATIVE_CONTEXT_INDEPENDENT) \
-  V(SPARKPLUG)                  \
+  V(BASELINE)                   \
   V(TURBOPROP)                  \
   V(TURBOFAN)
 
@@ -87,7 +87,7 @@ inline constexpr bool CodeKindCanOSR(CodeKind kind) {
 
 inline constexpr bool CodeKindIsOptimizedAndCanTierUp(CodeKind kind) {
   return kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT ||
-         kind == CodeKind::SPARKPLUG ||
+         kind == CodeKind::BASELINE ||
          (!FLAG_turboprop_as_toptier && kind == CodeKind::TURBOPROP);
 }
 
@@ -152,7 +152,7 @@ DEFINE_OPERATORS_FOR_FLAGS(CodeKinds)
 static constexpr CodeKinds kJSFunctionCodeKindsMask{
     CodeKindFlag::INTERPRETED_FUNCTION | CodeKindFlag::TURBOFAN |
     CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT | CodeKindFlag::TURBOPROP |
-    CodeKindFlag::SPARKPLUG};
+    CodeKindFlag::BASELINE};
 static constexpr CodeKinds kOptimizedJSFunctionCodeKindsMask{
     CodeKindFlag::TURBOFAN | CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT |
     CodeKindFlag::TURBOPROP};

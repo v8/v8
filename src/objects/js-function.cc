@@ -52,10 +52,10 @@ CodeKinds JSFunction::GetAvailableCodeKinds() const {
     }
   }
 
-  if ((result & CodeKindFlag::SPARKPLUG) == 0) {
+  if ((result & CodeKindFlag::BASELINE) == 0) {
     // The SharedFunctionInfo could have attached baseline code.
     if (shared().HasBaselineData()) {
-      result |= CodeKindFlag::SPARKPLUG;
+      result |= CodeKindFlag::BASELINE;
     }
   }
 
@@ -98,8 +98,8 @@ bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
   } else if ((kinds & CodeKindFlag::TURBOPROP) != 0) {
     *highest_tier = CodeKind::TURBOPROP;
     return true;
-  } else if ((kinds & CodeKindFlag::SPARKPLUG) != 0) {
-    *highest_tier = CodeKind::SPARKPLUG;
+  } else if ((kinds & CodeKindFlag::BASELINE) != 0) {
+    *highest_tier = CodeKind::BASELINE;
     return true;
   } else if ((kinds & CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT) != 0) {
     *highest_tier = CodeKind::NATIVE_CONTEXT_INDEPENDENT;
@@ -131,7 +131,7 @@ CodeKind JSFunction::GetActiveTier() const {
   DCHECK(shared().is_compiled());
   HighestTierOf(GetAvailableCodeKinds(), &highest_tier);
   DCHECK(highest_tier == CodeKind::TURBOFAN ||
-         highest_tier == CodeKind::SPARKPLUG ||
+         highest_tier == CodeKind::BASELINE ||
          highest_tier == CodeKind::TURBOPROP ||
          highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT ||
          highest_tier == CodeKind::INTERPRETED_FUNCTION);
@@ -148,14 +148,14 @@ bool JSFunction::ActiveTierIsNCI() const {
   return GetActiveTier() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
-bool JSFunction::ActiveTierIsSparkplug() const {
+bool JSFunction::ActiveTierIsBaseline() const {
   CodeKind highest_tier;
   if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
-  return highest_tier == CodeKind::SPARKPLUG;
+  return highest_tier == CodeKind::BASELINE;
 }
 
-bool JSFunction::ActiveTierIsIgnitionOrSparkplug() const {
-  return ActiveTierIsIgnition() || ActiveTierIsSparkplug();
+bool JSFunction::ActiveTierIsIgnitionOrBaseline() const {
+  return ActiveTierIsIgnition() || ActiveTierIsBaseline();
 }
 
 bool JSFunction::ActiveTierIsToptierTurboprop() const {
@@ -174,7 +174,7 @@ CodeKind JSFunction::NextTier() const {
   if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsMidtierTurboprop()) {
     return CodeKind::TURBOFAN;
   } else if (V8_UNLIKELY(FLAG_turboprop)) {
-    DCHECK(ActiveTierIsIgnitionOrSparkplug());
+    DCHECK(ActiveTierIsIgnitionOrBaseline());
     return CodeKind::TURBOPROP;
   }
   return CodeKind::TURBOFAN;

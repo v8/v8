@@ -817,7 +817,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSFunctionVerify(*this, isolate);
   CHECK(code().IsCode());
   CHECK(map().is_callable());
-  CHECK_IMPLIES(code().kind() == CodeKind::SPARKPLUG, has_feedback_vector());
+  CHECK_IMPLIES(code().kind() == CodeKind::BASELINE, has_feedback_vector());
   Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);

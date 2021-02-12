@@ -181,7 +181,7 @@ export class Profile {
   static CodeState = {
     COMPILED: 0,
     IGNITION: 1,
-    SPARKPLUG: 2,
+    BASELINE: 2,
     NATIVE_CONTEXT_INDEPENDENT: 3,
     TURBOPROP: 4,
     TURBOFAN: 5,
@@ -197,7 +197,7 @@ export class Profile {
       case '~':
         return this.CodeState.IGNITION;
       case '^':
-        return this.CodeState.SPARKPLUG;
+        return this.CodeState.BASELINE;
       case '-':
         return this.CodeState.NATIVE_CONTEXT_INDEPENDENT;
       case '+':
@@ -213,8 +213,8 @@ export class Profile {
       return "Builtin";
     } else if (state === this.CodeState.IGNITION) {
       return "Unopt";
-    } else if (state === this.CodeState.SPARKPLUG) {
-      return "Sparkplug";
+    } else if (state === this.CodeState.BASELINE) {
+      return "Baseline";
     } else if (state === this.CodeState.NATIVE_CONTEXT_INDEPENDENT) {
       return "NCI";
     } else if (state === this.CodeState.TURBOPROP) {

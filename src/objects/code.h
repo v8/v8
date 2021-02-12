@@ -379,9 +379,9 @@ class Code : public HeapObject {
   static inline void CopyRelocInfoToByteArray(ByteArray dest,
                                               const CodeDesc& desc);
 
-  inline uintptr_t GetSparkplugPCForBytecodeOffset(int bytecode_offset,
-                                                   bool precise = true);
-  inline int GetBytecodeOffsetForSparkplugPC(Address sparkplug_pc);
+  inline uintptr_t GetBaselinePCForBytecodeOffset(int bytecode_offset,
+                                                  bool precise = true);
+  inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc);
 
   // Flushes the instruction cache for the executable instructions of this code
   // object. Make sure to call this while the code is still writable.

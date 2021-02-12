@@ -39,7 +39,7 @@ Handle<Code> CompileWithBaseline(Isolate* isolate,
   if (FLAG_trace_opt) {
     PrintF("[compiling method ");
     shared->ShortPrint();
-    PrintF(" using Sparkplug]\n");
+    PrintF(" using Baseline]\n");
   }
 
   base::ElapsedTimer timer;
@@ -65,7 +65,7 @@ Handle<Code> CompileWithBaseline(Isolate* isolate,
     Compiler::LogFunctionCompilation(
         isolate, CodeEventListener::FUNCTION_TAG, shared,
         handle(Script::cast(shared->script()), isolate),
-        Handle<AbstractCode>::cast(code), CodeKind::SPARKPLUG,
+        Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
         timer.Elapsed().InMillisecondsF());
   }
 

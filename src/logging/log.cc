@@ -1221,10 +1221,10 @@ void Logger::LogSourceCodeInformation(Handle<AbstractCode> code,
       << reinterpret_cast<void*>(code->InstructionStart()) << Logger::kNext
       << script.id() << Logger::kNext << shared->StartPosition()
       << Logger::kNext << shared->EndPosition() << Logger::kNext;
-  // TODO(v8:11429): Clean-up sparkplug-replated code in source position
+  // TODO(v8:11429): Clean-up baseline-replated code in source position
   // iteration.
   bool hasInlined = false;
-  if (code->kind() != CodeKind::SPARKPLUG) {
+  if (code->kind() != CodeKind::BASELINE) {
     SourcePositionTableIterator iterator(code->source_position_table());
     for (; !iterator.done(); iterator.Advance()) {
       SourcePosition pos = iterator.source_position();
@@ -2105,7 +2105,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
   switch (abstract_code->kind()) {
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::TURBOFAN:
-    case CodeKind::SPARKPLUG:
+    case CodeKind::BASELINE:
     case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
     case CodeKind::TURBOPROP:
       return;  // We log this later using LogCompiledFunctions.

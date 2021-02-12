@@ -1247,7 +1247,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // Horrible hack: This should be the bytecode offset, but we calculate that
   // from the PC, so we cache the feedback vector in there instead.
   // TODO(v8:11429): Make this less a horrible hack, and more just a frame
-  // difference, by improving the approach distinguishing ignition and sparkplug
+  // difference, by improving the approach distinguishing ignition and baseline
   // frames.
   if (__ emit_debug_code()) {
     __ CompareObjectType(feedback_vector, x4, x4, FEEDBACK_VECTOR_TYPE);

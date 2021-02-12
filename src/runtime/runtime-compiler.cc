@@ -310,8 +310,8 @@ BytecodeOffset DetermineEntryAndDisarmOSRForInterpreter(
 
   DCHECK_IMPLIES(frame->type() == StackFrame::INTERPRETED,
                  frame->LookupCode().is_interpreter_trampoline_builtin());
-  DCHECK_IMPLIES(frame->type() == StackFrame::SPARKPLUG,
-                 frame->LookupCode().kind() == CodeKind::SPARKPLUG);
+  DCHECK_IMPLIES(frame->type() == StackFrame::BASELINE,
+                 frame->LookupCode().kind() == CodeKind::BASELINE);
   DCHECK(frame->is_interpreted());
   DCHECK(frame->function().shared().HasBytecodeArray());
 

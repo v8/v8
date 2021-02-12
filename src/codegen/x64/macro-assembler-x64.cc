@@ -3167,7 +3167,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
-  // TODO(v8:11429): Consider passing SPARKPLUG instead, and checking for
+  // TODO(v8:11429): Consider passing BASELINE instead, and checking for
   // IsJSFrame or similar. Could then unify with manual frame leaves in the
   // interpreter too.
   if (emit_debug_code() && type != StackFrame::MANUAL) {

@@ -22,12 +22,12 @@
 
   %CompileBaseline(f1);
   assertEquals(0, f1(0));
-  assertTrue(isSparkplug(f1));
-  assertFalse(isSparkplug(f2));
+  assertTrue(isBaseline(f1));
+  assertFalse(isBaseline(f2));
 
   assertEquals(0, f2(0));
-  assertTrue(isSparkplug(f1));
-  assertTrue(isSparkplug(f2));
+  assertTrue(isBaseline(f1));
+  assertTrue(isBaseline(f2));
 })();
 
 // Ensure a feedback vector is created when sharing baseline code and a closure
@@ -50,14 +50,14 @@
   assertEquals(0, f2(0));
   %CompileBaseline(f1);
   assertEquals(0, f1(0));
-  assertTrue(isSparkplug(f1));
-  assertFalse(isSparkplug(f2));
-  assertFalse(isSparkplug(f3));
+  assertTrue(isBaseline(f1));
+  assertFalse(isBaseline(f2));
+  assertFalse(isBaseline(f3));
 
   assertEquals(0, f3(0));
-  assertTrue(isSparkplug(f3));
-  assertFalse(isSparkplug(f2));
+  assertTrue(isBaseline(f3));
+  assertFalse(isBaseline(f2));
 
   assertEquals(0, f2(0));
-  assertTrue(isSparkplug(f2));
+  assertTrue(isBaseline(f2));
 })();

@@ -592,7 +592,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             }
             if (code_obj.is_baseline_prologue_builtin() ||
                 code_obj.is_baseline_leave_frame_builtin()) {
-              return SPARKPLUG;
+              return BASELINE;
             }
             if (code_obj.is_turbofanned()) {
               // TODO(bmeurer): We treat frames for BUILTIN Code objects as
@@ -606,8 +606,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
           case CodeKind::TURBOPROP:
             return OPTIMIZED;
-          case CodeKind::SPARKPLUG:
-            return Type::SPARKPLUG;
+          case CodeKind::BASELINE:
+            return Type::BASELINE;
           case CodeKind::JS_TO_WASM_FUNCTION:
             return JS_TO_WASM;
           case CodeKind::JS_TO_JS_FUNCTION:
@@ -993,7 +993,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         break;
       case OPTIMIZED:
       case INTERPRETED:
-      case SPARKPLUG:
+      case BASELINE:
       case BUILTIN:
         // These frame types have a context, but they are actually stored
         // in the place on the stack that one finds the frame type.
@@ -1190,7 +1190,7 @@ int CommonFrameWithJSLinkage::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
   DCHECK(!LookupCode().has_handler_table());
   DCHECK(!LookupCode().is_optimized_code() ||
-         LookupCode().kind() == CodeKind::SPARKPLUG);
+         LookupCode().kind() == CodeKind::BASELINE);
   return -1;
 }
 
@@ -1363,7 +1363,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       is_constructor_(is_constructor),
       parameters_(parameters, isolate) {
   DCHECK(abstract_code.IsBytecodeArray() ||
-         Code::cast(abstract_code).kind() == CodeKind::SPARKPLUG ||
+         Code::cast(abstract_code).kind() == CodeKind::BASELINE ||
          !CodeKindIsOptimizedJSFunction(Code::cast(abstract_code).kind()));
 }
 
@@ -1750,12 +1750,12 @@ void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
   SetExpression(index, Smi::FromInt(raw_offset));
 }
 
-int SparkplugFrame::GetBytecodeOffset() const {
-  return LookupCode().GetBytecodeOffsetForSparkplugPC(this->pc());
+int BaselineFrame::GetBytecodeOffset() const {
+  return LookupCode().GetBytecodeOffsetForBaselinePC(this->pc());
 }
 
-intptr_t SparkplugFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
-  return LookupCode().GetSparkplugPCForBytecodeOffset(bytecode_offset);
+intptr_t BaselineFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
+  return LookupCode().GetBaselinePCForBytecodeOffset(bytecode_offset);
 }
 
 BytecodeArray InterpretedFrame::GetBytecodeArray() const {

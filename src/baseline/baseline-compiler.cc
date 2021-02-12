@@ -364,7 +364,7 @@ Handle<Code> BaselineCompiler::Build(Isolate* isolate) {
   // Allocate the bytecode offset table.
   Handle<ByteArray> bytecode_offset_table =
       bytecode_offset_table_builder_.ToBytecodeOffsetTable(isolate);
-  return Factory::CodeBuilder(isolate, desc, CodeKind::SPARKPLUG)
+  return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
       .set_bytecode_offset_table(bytecode_offset_table)
       .Build();
 }

@@ -19,7 +19,7 @@
 //     - JavaScriptFrame (aka StandardFrame)
 //       - InterpretedFrame
 //       - OptimizedFrame
-//       - SparkplugFrame
+//       - BaselineFrame
 //     - TypedFrameWithJSLinkage
 //       - BuiltinFrame
 //       - JavaScriptBuiltinContinuationFrame
@@ -103,7 +103,7 @@ class StackHandler {
   V(WASM_EXIT, WasmExitFrame)                                             \
   V(WASM_COMPILE_LAZY, WasmCompileLazyFrame)                              \
   V(INTERPRETED, InterpretedFrame)                                        \
-  V(SPARKPLUG, SparkplugFrame)                                            \
+  V(BASELINE, BaselineFrame)                                              \
   V(OPTIMIZED, OptimizedFrame)                                            \
   V(STUB, StubFrame)                                                      \
   V(BUILTIN_CONTINUATION, BuiltinContinuationFrame)                       \
@@ -130,8 +130,8 @@ class StackFrame {
 #undef DECLARE_TYPE
 
   bool IsUnoptimizedJavaScriptFrame() const {
-    STATIC_ASSERT(SPARKPLUG == INTERPRETED + 1);
-    return base::IsInRange(type(), INTERPRETED, SPARKPLUG);
+    STATIC_ASSERT(BASELINE == INTERPRETED + 1);
+    return base::IsInRange(type(), INTERPRETED, BASELINE);
   }
 
   // Used to mark the outermost JS entry frame.
@@ -215,11 +215,11 @@ class StackFrame {
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
   // TODO(v8:11429): Clean up these predicates, distinguishing interpreted from
-  // sparkplug frames, and adding a new predicate that covers both.
+  // baseline frames, and adding a new predicate that covers both.
   bool is_interpreted() const {
-    return type() == INTERPRETED || type() == SPARKPLUG;
+    return type() == INTERPRETED || type() == BASELINE;
   }
-  bool is_sparkplug() const { return type() == SPARKPLUG; }
+  bool is_baseline() const { return type() == BASELINE; }
   bool is_wasm() const { return this->type() == WASM; }
   bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
   bool is_wasm_debug_break() const { return type() == WASM_DEBUG_BREAK; }
@@ -238,8 +238,8 @@ class StackFrame {
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
 
   bool is_java_script() const {
-    STATIC_ASSERT(INTERPRETED + 1 == SPARKPLUG);
-    STATIC_ASSERT(SPARKPLUG + 1 == OPTIMIZED);
+    STATIC_ASSERT(INTERPRETED + 1 == BASELINE);
+    STATIC_ASSERT(BASELINE + 1 == OPTIMIZED);
     Type t = type();
     return t >= INTERPRETED && t <= OPTIMIZED;
   }
@@ -880,22 +880,22 @@ class InterpretedFrame : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class SparkplugFrame : public InterpretedFrame {
+class BaselineFrame : public InterpretedFrame {
  public:
-  Type type() const override { return SPARKPLUG; }
+  Type type() const override { return BASELINE; }
 
   // Returns the current offset into the bytecode stream.
   int GetBytecodeOffset() const override;
 
   intptr_t GetPCForBytecodeOffset(int lookup_offset) const;
 
-  static SparkplugFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_sparkplug());
-    return static_cast<SparkplugFrame*>(frame);
+  static BaselineFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_baseline());
+    return static_cast<BaselineFrame*>(frame);
   }
 
  protected:
-  inline explicit SparkplugFrame(StackFrameIteratorBase* iterator);
+  inline explicit BaselineFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

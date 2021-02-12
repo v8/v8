@@ -497,13 +497,13 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (CodeKindIsOptimizedJSFunction(kind()) && kind() != CodeKind::SPARKPLUG) {
+  if (CodeKindIsOptimizedJSFunction(kind()) && kind() != CodeKind::BASELINE) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
   os << "compiler = "
      << (is_turbofanned()
              ? "turbofan"
-             : kind() == CodeKind::SPARKPLUG ? "baseline" : "unknown")
+             : kind() == CodeKind::BASELINE ? "baseline" : "unknown")
      << "\n";
   os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 
@@ -535,7 +535,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   os << "\n";
 
-  if (kind() != CodeKind::SPARKPLUG) {
+  if (kind() != CodeKind::BASELINE) {
     {
       SourcePositionTableIterator it(
           SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);

@@ -74,7 +74,7 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
   }
 
   DCHECK(!is_compiled() || ActiveTierIsIgnition() || ActiveTierIsNCI() ||
-         ActiveTierIsMidtierTurboprop() || ActiveTierIsSparkplug());
+         ActiveTierIsMidtierTurboprop() || ActiveTierIsBaseline());
   DCHECK(!ActiveTierIsTurbofan());
   DCHECK(shared().IsInterpreted());
   DCHECK(shared().allows_lazy_compilation() ||

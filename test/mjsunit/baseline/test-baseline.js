@@ -297,18 +297,18 @@ assertEquals(run((x)=>{
   assertEquals(f1(0), 0);
   assertEquals(f2(0), 0);
   assertTrue(isInterpreted(f1))
-  assertFalse(isSparkplug(f1));
+  assertFalse(isBaseline(f1));
   assertTrue(isInterpreted(f2))
-  assertFalse(isSparkplug(f2));
+  assertFalse(isBaseline(f2));
 
   %CompileBaseline(f1);
   assertEquals(f1(0), 0);
-  assertTrue(isSparkplug(f1));
-  assertFalse(isSparkplug(f2));
+  assertTrue(isBaseline(f1));
+  assertFalse(isBaseline(f2));
 
   assertEquals(f2(0), 0);
-  assertTrue(isSparkplug(f1));
-  assertTrue(isSparkplug(f2));
+  assertTrue(isBaseline(f1));
+  assertTrue(isBaseline(f2));
 })();
 
 // DeoptNow to Ignition
@@ -328,7 +328,7 @@ assertEquals(run((x)=>{
   assertTrue(isInterpreted(f));
   %CompileBaseline(f);
   f();
-  assertTrue(isSparkplug(f));
+  assertTrue(isBaseline(f));
   %DeoptimizeFunction(f);
   f();
   assertTrue(isInterpreted(f));

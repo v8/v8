@@ -382,7 +382,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   TraceDeoptAll(isolate);
   isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
   DisallowGarbageCollection no_gc;
-  DeoptimizeAllSparkplug(isolate);
+  DeoptimizeAllBaseline(isolate);
   // For all contexts, mark all code, then deoptimize.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
@@ -422,17 +422,17 @@ void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
 }
 
 namespace {
-class DeoptimizeSparkplugVisitor : public ThreadVisitor {
+class DeoptimizeBaselineVisitor : public ThreadVisitor {
  public:
-  explicit DeoptimizeSparkplugVisitor(SharedFunctionInfo shared)
+  explicit DeoptimizeBaselineVisitor(SharedFunctionInfo shared)
       : shared_(shared) {}
-  DeoptimizeSparkplugVisitor() : shared_(SharedFunctionInfo()) {}
+  DeoptimizeBaselineVisitor() : shared_(SharedFunctionInfo()) {}
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     bool deopt_all = shared_ == SharedFunctionInfo();
     for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-      if (it.frame()->type() == StackFrame::SPARKPLUG) {
-        SparkplugFrame* frame = SparkplugFrame::cast(it.frame());
+      if (it.frame()->type() == StackFrame::BASELINE) {
+        BaselineFrame* frame = BaselineFrame::cast(it.frame());
         if (!deopt_all && frame->function().shared() != shared_) continue;
         frame->InterpretedFrame::PatchBytecodeOffset(
             frame->GetBytecodeOffset());
@@ -450,10 +450,10 @@ class DeoptimizeSparkplugVisitor : public ThreadVisitor {
 };
 }  // namespace
 
-void Deoptimizer::DeoptimizeSparkplug(SharedFunctionInfo shared) {
-  DCHECK_EQ(shared.GetCode().kind(), CodeKind::SPARKPLUG);
+void Deoptimizer::DeoptimizeBaseline(SharedFunctionInfo shared) {
+  DCHECK_EQ(shared.GetCode().kind(), CodeKind::BASELINE);
   Isolate* isolate = shared.GetIsolate();
-  DeoptimizeSparkplugVisitor visitor(shared);
+  DeoptimizeBaselineVisitor visitor(shared);
   visitor.VisitThread(isolate, isolate->thread_local_top());
   isolate->thread_manager()->IterateArchivedThreads(&visitor);
   // TODO(v8:11429): Avoid this heap walk somehow.
@@ -464,15 +464,15 @@ void Deoptimizer::DeoptimizeSparkplug(SharedFunctionInfo shared) {
        obj = iterator.Next()) {
     if (obj.IsJSFunction()) {
       JSFunction fun = JSFunction::cast(obj);
-      if (fun.shared() == shared && fun.code().kind() == CodeKind::SPARKPLUG) {
+      if (fun.shared() == shared && fun.code().kind() == CodeKind::BASELINE) {
         fun.set_code(*trampoline);
       }
     }
   }
 }
 
-void Deoptimizer::DeoptimizeAllSparkplug(Isolate* isolate) {
-  DeoptimizeSparkplugVisitor visitor;
+void Deoptimizer::DeoptimizeAllBaseline(Isolate* isolate) {
+  DeoptimizeBaselineVisitor visitor;
   visitor.VisitThread(isolate, isolate->thread_local_top());
   HeapObjectIterator iterator(isolate->heap());
   auto trampoline = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);

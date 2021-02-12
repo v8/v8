@@ -155,7 +155,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
       LoadObjectField<Uint32T>(sfi_code, Code::kFlagsOffset);
   TNode<Uint32T> code_kind = DecodeWord32<Code::KindField>(code_flags);
   TNode<BoolT> is_baseline =
-      IsEqualInWord32<Code::KindField>(code_kind, CodeKind::SPARKPLUG);
+      IsEqualInWord32<Code::KindField>(code_kind, CodeKind::BASELINE);
   GotoIf(is_baseline, &baseline);
 
   // Finally, check for presence of an NCI cached Code object - if an entry

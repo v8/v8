@@ -117,8 +117,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsNCI() const;
-  bool ActiveTierIsSparkplug() const;
-  bool ActiveTierIsIgnitionOrSparkplug() const;
+  bool ActiveTierIsBaseline() const;
+  bool ActiveTierIsIgnitionOrBaseline() const;
   bool ActiveTierIsMidtierTurboprop() const;
   bool ActiveTierIsToptierTurboprop() const;
 

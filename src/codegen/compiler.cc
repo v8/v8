@@ -208,7 +208,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
     case CodeKind::INTERPRETED_FUNCTION:
       name = "interpreter";
       break;
-    case CodeKind::SPARKPLUG:
+    case CodeKind::BASELINE:
       name = "baseline";
       break;
     case CodeKind::TURBOPROP:
@@ -1861,7 +1861,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   // immediately after a flush would be better.
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
 
-  // If --always-sparkplug is enabled, make sure we have sparkplug code.
+  // If --always-sparkplug is enabled, make sure we have baseline code.
   // TODO(v8:11429): Extract out the rest of the if into a "can baseline
   // compile" predicate, or similar.
   if (FLAG_always_sparkplug && !function->shared().HasAsmWasmData() &&
@@ -1886,7 +1886,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   function->set_code(*code);
 
   // Install a feedback vector if necessary.
-  if (code->kind() == CodeKind::SPARKPLUG) {
+  if (code->kind() == CodeKind::BASELINE) {
     JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
   }
 

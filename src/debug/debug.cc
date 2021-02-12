@@ -1073,7 +1073,7 @@ void Debug::PrepareStep(StepAction step_action) {
     if (!EnsureBreakInfo(shared)) return;
     PrepareFunctionForDebugExecution(shared);
 
-    // PrepareFunctionForDebugExecution can invalidate Sparkplug frames
+    // PrepareFunctionForDebugExecution can invalidate Baseline frames
     js_frame = JavaScriptFrame::cast(frames_it.Reframe());
 
     Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
@@ -1246,8 +1246,8 @@ void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   // inlining.
   isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
-  if (shared->GetCode().kind() == CodeKind::SPARKPLUG) {
-    Deoptimizer::DeoptimizeSparkplug(*shared);
+  if (shared->GetCode().kind() == CodeKind::BASELINE) {
+    Deoptimizer::DeoptimizeBaseline(*shared);
   }
 
   bool found_something = false;

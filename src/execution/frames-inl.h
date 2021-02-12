@@ -218,7 +218,7 @@ inline OptimizedFrame::OptimizedFrame(StackFrameIteratorBase* iterator)
 inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {}
 
-inline SparkplugFrame::SparkplugFrame(StackFrameIteratorBase* iterator)
+inline BaselineFrame::BaselineFrame(StackFrameIteratorBase* iterator)
     : InterpretedFrame(iterator) {}
 
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
