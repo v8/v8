@@ -7743,9 +7743,6 @@ using ApiImplementationCallback = void (*)(const FunctionCallbackInfo<Value>&);
 // --- Callback for WebAssembly.compileStreaming ---
 using WasmStreamingCallback = void (*)(const FunctionCallbackInfo<Value>&);
 
-// --- Callback for checking if WebAssembly threads are enabled ---
-using WasmThreadsEnabledCallback = bool (*)(Local<Context> context);
-
 // --- Callback for loading source map file for Wasm profiling support
 using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,
                                                     const char* name);
@@ -9651,8 +9648,6 @@ class V8_EXPORT Isolate {
   void SetWasmInstanceCallback(ExtensionCallback callback);
 
   void SetWasmStreamingCallback(WasmStreamingCallback callback);
-
-  void SetWasmThreadsEnabledCallback(WasmThreadsEnabledCallback callback);
 
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 

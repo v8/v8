@@ -1263,22 +1263,6 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   return *isolate->factory()->NewJSArrayWithElements(values);
 }
 
-namespace {
-bool EnableWasmThreads(v8::Local<v8::Context> context) { return true; }
-bool DisableWasmThreads(v8::Local<v8::Context> context) { return false; }
-}  // namespace
-
-// This runtime function enables WebAssembly threads through an embedder
-// callback and thereby bypasses the value in FLAG_experimental_wasm_threads.
-RUNTIME_FUNCTION(Runtime_SetWasmThreadsEnabled) {
-  DCHECK_EQ(1, args.length());
-  CONVERT_BOOLEAN_ARG_CHECKED(flag, 0);
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8_isolate->SetWasmThreadsEnabledCallback(flag ? EnableWasmThreads
-                                                 : DisableWasmThreads);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());

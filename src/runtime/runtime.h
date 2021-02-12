@@ -543,7 +543,6 @@ namespace internal {
   F(SetIteratorProtector, 0, 1)               \
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
-  F(SetWasmThreadsEnabled, 1, 1)              \
   F(SimulateNewspaceFull, 0, 1)               \
   F(ScheduleGCInStackCheck, 0, 1)             \
   F(StringIteratorProtector, 0, 1)            \

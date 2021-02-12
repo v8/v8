@@ -9026,9 +9026,6 @@ CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
 CALLBACK_SETTER(WasmStreamingCallback, WasmStreamingCallback,
                 wasm_streaming_callback)
 
-CALLBACK_SETTER(WasmThreadsEnabledCallback, WasmThreadsEnabledCallback,
-                wasm_threads_enabled_callback)
-
 CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
                 wasm_load_source_map_callback)
 

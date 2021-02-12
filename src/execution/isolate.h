@@ -430,7 +430,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
-  V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)       \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
   V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)             \
   V(WasmExceptionsEnabledCallback, wasm_exceptions_enabled_callback, nullptr) \
@@ -671,7 +670,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline void set_pending_exception(Object exception_obj);
   inline void clear_pending_exception();
 
-  bool AreWasmThreadsEnabled(Handle<Context> context);
   bool IsWasmSimdEnabled(Handle<Context> context);
   bool AreWasmExceptionsEnabled(Handle<Context> context);
 

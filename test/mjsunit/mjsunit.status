@@ -850,7 +850,6 @@
   'wasm/atomics': [SKIP],
   'wasm/atomics-non-shared': [SKIP],
   'wasm/grow-shared-memory': [SKIP],
-  'wasm/origin-trial-flags': [SKIP],
   'wasm/shared-memory': [SKIP],
 
   # https://github.com/v8-riscv/v8/issues/418

@@ -2529,14 +2529,6 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   abort_on_uncaught_exception_callback_ = callback;
 }
 
-bool Isolate::AreWasmThreadsEnabled(Handle<Context> context) {
-  if (wasm_threads_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_threads_enabled_callback()(api_context);
-  }
-  return FLAG_experimental_wasm_threads;
-}
-
 bool Isolate::IsWasmSimdEnabled(Handle<Context> context) {
   if (wasm_simd_enabled_callback()) {
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
