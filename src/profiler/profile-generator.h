@@ -406,6 +406,7 @@ class V8_EXPORT_PRIVATE CodeMap {
 
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
+  void ClearCodesInRange(Address start, Address end);
   CodeEntry* FindEntry(Address addr, Address* out_instruction_start = nullptr);
   void Print();
 
@@ -417,7 +418,6 @@ class V8_EXPORT_PRIVATE CodeMap {
     unsigned size;
   };
 
-  void ClearCodesInRange(Address start, Address end);
   void DeleteCodeEntry(CodeEntry*);
 
   std::map<Address, CodeEntryMapInfo> code_map_;

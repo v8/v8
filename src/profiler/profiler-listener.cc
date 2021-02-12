@@ -300,7 +300,11 @@ void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
 }
 
 void ProfilerListener::BytecodeFlushEvent(Address compiled_data_start) {
-  // TODO(acomminos): Post flush event to profiler thread.
+  CodeEventsContainer evt_rec(CodeEventRecord::BYTECODE_FLUSH);
+  BytecodeFlushEventRecord* rec = &evt_rec.BytecodeFlushEventRecord_;
+  rec->instruction_start = compiled_data_start + BytecodeArray::kHeaderSize;
+
+  DispatchCodeEvent(evt_rec);
 }
 
 const char* ProfilerListener::GetName(Vector<const char> name) {

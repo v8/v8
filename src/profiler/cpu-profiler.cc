@@ -196,6 +196,7 @@ void ProfilerEventsProcessor::CodeEventHandler(
     case CodeEventRecord::CODE_CREATION:
     case CodeEventRecord::CODE_MOVE:
     case CodeEventRecord::CODE_DISABLE_OPT:
+    case CodeEventRecord::BYTECODE_FLUSH:
       Enqueue(evt_rec);
       break;
     case CodeEventRecord::CODE_DEOPT: {

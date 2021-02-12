@@ -34,7 +34,8 @@ class Symbolizer;
   V(CODE_MOVE, CodeMoveEventRecord)              \
   V(CODE_DISABLE_OPT, CodeDisableOptEventRecord) \
   V(CODE_DEOPT, CodeDeoptEventRecord)            \
-  V(REPORT_BUILTIN, ReportBuiltinEventRecord)
+  V(REPORT_BUILTIN, ReportBuiltinEventRecord)    \
+  V(BYTECODE_FLUSH, BytecodeFlushEventRecord)
 
 class CodeEventRecord {
  public:
@@ -109,6 +110,13 @@ class TickSampleEventRecord {
 
   unsigned order;
   TickSample sample;
+};
+
+class BytecodeFlushEventRecord : public CodeEventRecord {
+ public:
+  Address instruction_start;
+
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 // A record type for sending code events (e.g. create, move, delete) to the
