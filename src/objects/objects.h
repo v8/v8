@@ -92,7 +92,6 @@
 //       - ByteArray
 //       - BytecodeArray
 //       - FixedArray
-//         - FrameArray
 //         - HashTable
 //           - Dictionary
 //           - StringTable
@@ -166,7 +165,7 @@
 //       - BreakPoint
 //       - BreakPointInfo
 //       - CachedTemplateObject
-//       - StackTraceFrame
+//       - StackFrameInfo
 //       - CodeCache
 //       - PropertyDescriptorObject
 //       - PrototypeInfo

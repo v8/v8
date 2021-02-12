@@ -886,13 +886,13 @@ own<Instance> GetInstance(StoreImpl* store,
 
 own<Frame> CreateFrameFromInternal(i::Handle<i::FixedArray> frames, int index,
                                    i::Isolate* isolate, StoreImpl* store) {
-  i::Handle<i::StackTraceFrame> frame(
-      i::StackTraceFrame::cast(frames->get(index)), isolate);
-  i::Handle<i::WasmInstanceObject> instance =
-      i::StackTraceFrame::GetWasmInstance(frame);
-  uint32_t func_index = i::StackTraceFrame::GetWasmFunctionIndex(frame);
-  size_t func_offset = i::StackTraceFrame::GetFunctionOffset(frame);
-  size_t module_offset = i::StackTraceFrame::GetColumnNumber(frame);
+  i::Handle<i::StackFrameInfo> frame(
+      i::StackFrameInfo::cast(frames->get(index)), isolate);
+  i::Handle<i::WasmInstanceObject> instance(frame->GetWasmInstance(), isolate);
+  uint32_t func_index = frame->GetWasmFunctionIndex();
+  size_t module_offset = i::StackFrameInfo::GetSourcePosition(isolate, frame);
+  size_t func_offset = module_offset - i::wasm::GetWasmFunctionOffset(
+                                           instance->module(), func_index);
   return own<Frame>(seal<Frame>(new (std::nothrow) FrameImpl(
       GetInstance(store, instance), func_index, func_offset, module_offset)));
 }

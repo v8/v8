@@ -64,7 +64,6 @@
 #include "src/objects/backing-store.h"
 #include "src/objects/elements.h"
 #include "src/objects/feedback-vector.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -93,6 +92,7 @@
 #include "src/utils/version.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/type-stats.h"
@@ -615,85 +615,67 @@ StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
   }
 }
 
-class FrameArrayBuilder {
+class StackTraceBuilder {
  public:
   enum FrameFilterMode { ALL, CURRENT_SECURITY_CONTEXT };
 
-  FrameArrayBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
+  StackTraceBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
                     Handle<Object> caller, FrameFilterMode filter_mode)
       : isolate_(isolate),
         mode_(mode),
         limit_(limit),
         caller_(caller),
+        skip_next_frame_(mode != SKIP_NONE),
         check_security_context_(filter_mode == CURRENT_SECURITY_CONTEXT) {
-    switch (mode_) {
-      case SKIP_FIRST:
-        skip_next_frame_ = true;
-        break;
-      case SKIP_UNTIL_SEEN:
-        DCHECK(caller_->IsJSFunction());
-        skip_next_frame_ = true;
-        break;
-      case SKIP_NONE:
-        skip_next_frame_ = false;
-        break;
-    }
-
-    elements_ = isolate->factory()->NewFrameArray(std::min(limit, 10));
+    DCHECK_IMPLIES(mode_ == SKIP_UNTIL_SEEN, caller_->IsJSFunction());
+    // Modern web applications are usually built with multiple layers of
+    // framework and library code, and stack depth tends to be more than
+    // a dozen frames, so we over-allocate a bit here to avoid growing
+    // the elements array in the common case.
+    elements_ = isolate->factory()->NewFixedArray(std::min(64, limit));
   }
 
   void AppendAsyncFrame(Handle<JSGeneratorObject> generator_object) {
-    if (full()) return;
     Handle<JSFunction> function(generator_object->function(), isolate_);
     if (!IsVisibleInStackTrace(function)) return;
-    int flags = FrameArray::kIsAsync;
-    if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
+    int flags = StackFrameInfo::kIsAsync;
+    if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
 
     Handle<Object> receiver(generator_object->receiver(), isolate_);
-    Handle<AbstractCode> code(
-        AbstractCode::cast(function->shared().GetBytecodeArray(isolate_)),
-        isolate_);
-    int offset = Smi::ToInt(generator_object->input_or_debug_pos());
+    Handle<BytecodeArray> code(function->shared().GetBytecodeArray(isolate_),
+                               isolate_);
     // The stored bytecode offset is relative to a different base than what
     // is used in the source position table, hence the subtraction.
-    offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
+    int offset = Smi::ToInt(generator_object->input_or_debug_pos()) -
+                 (BytecodeArray::kHeaderSize - kHeapObjectTag);
 
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
     if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
-      int param_count = function->shared().internal_formal_parameter_count();
-      parameters = isolate_->factory()->NewFixedArray(param_count);
-      for (int i = 0; i < param_count; i++) {
-        parameters->set(i, generator_object->parameters_and_registers().get(i));
-      }
+      parameters = isolate_->factory()->CopyFixedArrayUpTo(
+          handle(generator_object->parameters_and_registers(), isolate_),
+          function->shared().internal_formal_parameter_count());
     }
 
-    elements_ = FrameArray::AppendJSFrame(elements_, receiver, function, code,
-                                          offset, flags, parameters);
+    AppendFrame(receiver, function, code, offset, flags, parameters);
   }
 
   void AppendPromiseCombinatorFrame(Handle<JSFunction> element_function,
-                                    Handle<JSFunction> combinator,
-                                    FrameArray::Flag combinator_flag,
-                                    Handle<Context> context) {
-    if (full()) return;
-    int flags = FrameArray::kIsAsync | combinator_flag;
-
-    Handle<Context> native_context(context->native_context(), isolate_);
+                                    Handle<JSFunction> combinator) {
     if (!IsVisibleInStackTrace(combinator)) return;
+    int flags = StackFrameInfo::kIsAsync;
 
-    Handle<Object> receiver(native_context->promise_function(), isolate_);
-    Handle<AbstractCode> code(AbstractCode::cast(combinator->code()), isolate_);
+    Handle<Object> receiver(combinator->native_context().promise_function(),
+                            isolate_);
+    Handle<Code> code(combinator->code(), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
 
     // We store the offset of the promise into the element function's
     // hash field for element callbacks.
-    int const offset =
-        Smi::ToInt(Smi::cast(element_function->GetIdentityHash())) - 1;
+    int offset = Smi::ToInt(Smi::cast(element_function->GetIdentityHash())) - 1;
 
-    elements_ = FrameArray::AppendJSFrame(elements_, receiver, combinator, code,
-                                          offset, flags, parameters);
+    AppendFrame(receiver, combinator, code, offset, flags, parameters);
   }
 
   void AppendJavaScriptFrame(
@@ -701,44 +683,37 @@ class FrameArrayBuilder {
     // Filter out internal frames that we do not want to show.
     if (!IsVisibleInStackTrace(summary.function())) return;
 
-    Handle<AbstractCode> abstract_code = summary.abstract_code();
-    const int offset = summary.code_offset();
-
-    const bool is_constructor = summary.is_constructor();
-
     int flags = 0;
     Handle<JSFunction> function = summary.function();
-    if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
-    if (is_constructor) flags |= FrameArray::kIsConstructor;
-    Handle<FixedArray> parameters = summary.parameters();
+    if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
+    if (summary.is_constructor()) flags |= StackFrameInfo::kIsConstructor;
 
-    elements_ = FrameArray::AppendJSFrame(
-        elements_, TheHoleToUndefined(isolate_, summary.receiver()), function,
-        abstract_code, offset, flags, parameters);
+    AppendFrame(summary.receiver(), function, summary.abstract_code(),
+                summary.code_offset(), flags, summary.parameters());
   }
 
   void AppendWasmFrame(FrameSummary::WasmFrameSummary const& summary) {
     if (summary.code()->kind() != wasm::WasmCode::kFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
-    int flags = 0;
+    int flags = StackFrameInfo::kIsWasm;
     if (instance->module_object().is_asm_js()) {
-      flags |= FrameArray::kIsAsmJsWasmFrame;
+      flags |= StackFrameInfo::kIsAsmJsWasm;
       if (summary.at_to_number_conversion()) {
-        flags |= FrameArray::kAsmJsAtNumberConversion;
+        flags |= StackFrameInfo::kIsAsmJsAtNumberConversion;
       }
-    } else {
-      flags |= FrameArray::kIsWasmFrame;
     }
 
-    elements_ = FrameArray::AppendWasmFrame(
-        elements_, instance, summary.function_index(), summary.code(),
-        summary.code_offset(), flags);
+    auto code = Managed<wasm::GlobalWasmCodeRef>::Allocate(
+        isolate_, 0, summary.code(),
+        instance->module_object().shared_native_module());
+    AppendFrame(instance,
+                handle(Smi::FromInt(summary.function_index()), isolate_), code,
+                summary.code_offset(), flags,
+                isolate_->factory()->empty_fixed_array());
   }
 
   void AppendBuiltinExitFrame(BuiltinExitFrame* exit_frame) {
-    Handle<JSFunction> function = handle(exit_frame->function(), isolate_);
-
-    // Filter out internal frames that we do not want to show.
+    Handle<JSFunction> function(exit_frame->function(), isolate_);
     if (!IsVisibleInStackTrace(function)) return;
 
     // TODO(szuend): Remove this check once the flag is enabled
@@ -754,8 +729,8 @@ class FrameArrayBuilder {
         static_cast<int>(exit_frame->pc() - code->InstructionStart());
 
     int flags = 0;
-    if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
-    if (exit_frame->IsConstructor()) flags |= FrameArray::kIsConstructor;
+    if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
+    if (exit_frame->IsConstructor()) flags |= StackFrameInfo::kIsConstructor;
 
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
     if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
@@ -766,31 +741,13 @@ class FrameArrayBuilder {
       }
     }
 
-    elements_ = FrameArray::AppendJSFrame(elements_, receiver, function,
-                                          Handle<AbstractCode>::cast(code),
-                                          offset, flags, parameters);
+    AppendFrame(receiver, function, code, offset, flags, parameters);
   }
 
-  bool full() { return elements_->FrameCount() >= limit_; }
+  bool Full() { return index_ >= limit_; }
 
-  Handle<FrameArray> GetElements() {
-    elements_->ShrinkToFit(isolate_);
-    return elements_;
-  }
-
-  // Creates a StackTraceFrame object for each frame in the FrameArray.
-  Handle<FixedArray> GetElementsAsStackTraceFrameArray() {
-    elements_->ShrinkToFit(isolate_);
-    const int frame_count = elements_->FrameCount();
-    Handle<FixedArray> stack_trace =
-        isolate_->factory()->NewFixedArray(frame_count);
-
-    for (int i = 0; i < frame_count; ++i) {
-      Handle<StackTraceFrame> frame =
-          isolate_->factory()->NewStackTraceFrame(elements_, i);
-      stack_trace->set(i, *frame);
-    }
-    return stack_trace;
+  Handle<FixedArray> Build() {
+    return FixedArray::ShrinkOrEmpty(isolate_, elements_, index_);
   }
 
  private:
@@ -852,22 +809,34 @@ class FrameArrayBuilder {
     return isolate_->context().HasSameSecurityTokenAs(function->context());
   }
 
-  // TODO(jgruber): Fix all cases in which frames give us a hole value (e.g. the
-  // receiver in RegExp constructor frames.
-  Handle<Object> TheHoleToUndefined(Isolate* isolate, Handle<Object> in) {
-    return (in->IsTheHole(isolate))
-               ? Handle<Object>::cast(isolate->factory()->undefined_value())
-               : in;
+  void AppendFrame(Handle<Object> receiver_or_instance, Handle<Object> function,
+                   Handle<HeapObject> code, int offset, int flags,
+                   Handle<FixedArray> parameters) {
+    DCHECK_LE(index_, elements_->length());
+    DCHECK_LE(elements_->length(), limit_);
+    if (index_ == elements_->length()) {
+      elements_ = isolate_->factory()->CopyFixedArrayAndGrow(
+          elements_, std::min(16, limit_ - elements_->length()));
+    }
+    if (receiver_or_instance->IsTheHole(isolate_)) {
+      // TODO(jgruber): Fix all cases in which frames give us a hole value
+      // (e.g. the receiver in RegExp constructor frames).
+      receiver_or_instance = isolate_->factory()->undefined_value();
+    }
+    auto info = isolate_->factory()->NewStackFrameInfo(
+        receiver_or_instance, function, code, offset, flags, parameters);
+    elements_->set(index_++, *info);
   }
 
   Isolate* isolate_;
   const FrameSkipMode mode_;
-  int limit_;
+  int index_ = 0;
+  const int limit_;
   const Handle<Object> caller_;
-  bool skip_next_frame_ = true;
+  bool skip_next_frame_;
   bool encountered_strict_function_ = false;
   const bool check_security_context_;
-  Handle<FrameArray> elements_;
+  Handle<FixedArray> elements_;
 };
 
 bool GetStackTraceLimit(Isolate* isolate, int* result) {
@@ -899,8 +868,8 @@ bool IsBuiltinFunction(Isolate* isolate, HeapObject object,
 }
 
 void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
-                            FrameArrayBuilder* builder) {
-  while (!builder->full()) {
+                            StackTraceBuilder* builder) {
+  while (!builder->Full()) {
     // Check that the {promise} is not settled.
     if (promise->status() != Promise::kPending) return;
 
@@ -951,8 +920,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       Handle<Context> context(function->context(), isolate);
       Handle<JSFunction> combinator(context->native_context().promise_all(),
                                     isolate);
-      builder->AppendPromiseCombinatorFrame(function, combinator,
-                                            FrameArray::kIsPromiseAll, context);
+      builder->AppendPromiseCombinatorFrame(function, combinator);
 
       // Now peak into the Promise.all() resolve element context to
       // find the promise capability that's being resolved when all
@@ -970,8 +938,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       Handle<Context> context(function->context(), isolate);
       Handle<JSFunction> combinator(context->native_context().promise_any(),
                                     isolate);
-      builder->AppendPromiseCombinatorFrame(function, combinator,
-                                            FrameArray::kIsPromiseAny, context);
+      builder->AppendPromiseCombinatorFrame(function, combinator);
 
       // Now peak into the Promise.any() reject element context to
       // find the promise capability that's being resolved when any of
@@ -1017,28 +984,28 @@ struct CaptureStackTraceOptions {
   // specifies whether to capture all frames, or just frames in the same
   // security context. While 'skip_mode' allows skipping the first frame.
   FrameSkipMode skip_mode;
-  FrameArrayBuilder::FrameFilterMode filter_mode;
+  StackTraceBuilder::FrameFilterMode filter_mode;
 
   bool capture_builtin_exit_frames;
   bool capture_only_frames_subject_to_debugging;
   bool async_stack_trace;
 };
 
-Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
-                                 CaptureStackTraceOptions options) {
+Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
+                                     CaptureStackTraceOptions options) {
   DisallowJavascriptExecution no_js(isolate);
 
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
                      "CaptureStackTrace", "maxFrameCount", options.limit);
 
   wasm::WasmCodeRefScope code_ref_scope;
-  FrameArrayBuilder builder(isolate, options.skip_mode, options.limit, caller,
+  StackTraceBuilder builder(isolate, options.skip_mode, options.limit, caller,
                             options.filter_mode);
 
   // Build the regular stack trace, and remember the last relevant
   // frame ID and inlined index (for the async stack trace handling
   // below, which starts from this last frame).
-  for (StackFrameIterator it(isolate); !it.done() && !builder.full();
+  for (StackFrameIterator it(isolate); !it.done() && !builder.Full();
        it.Advance()) {
     StackFrame* const frame = it.frame();
     switch (frame->type()) {
@@ -1053,7 +1020,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
         // inlining).
         std::vector<FrameSummary> frames;
         CommonFrame::cast(frame)->Summarize(&frames);
-        for (size_t i = frames.size(); i-- != 0 && !builder.full();) {
+        for (size_t i = frames.size(); i-- != 0 && !builder.Full();) {
           auto& summary = frames[i];
           if (options.capture_only_frames_subject_to_debugging &&
               !summary.is_subject_to_debugging()) {
@@ -1153,7 +1120,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
     }
   }
 
-  Handle<FixedArray> stack_trace = builder.GetElementsAsStackTraceFrameArray();
+  Handle<FixedArray> stack_trace = builder.Build();
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
                    "CaptureStackTrace", "frameCount", stack_trace->length());
   return stack_trace;
@@ -1172,7 +1139,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   options.skip_mode = mode;
   options.capture_builtin_exit_frames = true;
   options.async_stack_trace = FLAG_async_stack_traces;
-  options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
+  options.filter_mode = StackTraceBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
 
   return CaptureStackTrace(this, caller, options);
@@ -1266,12 +1233,11 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
   options.async_stack_trace = false;
   options.filter_mode =
       (stack_trace_options & StackTrace::kExposeFramesAcrossSecurityOrigins)
-          ? FrameArrayBuilder::ALL
-          : FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
+          ? StackTraceBuilder::ALL
+          : StackTraceBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = true;
 
-  return Handle<FixedArray>::cast(
-      CaptureStackTrace(this, factory()->undefined_value(), options));
+  return CaptureStackTrace(this, factory()->undefined_value(), options);
 }
 
 void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
@@ -2123,17 +2089,16 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
   options.skip_mode = SKIP_NONE;
   options.capture_builtin_exit_frames = true;
   options.async_stack_trace = FLAG_async_stack_traces;
-  options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
+  options.filter_mode = StackTraceBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
 
-  Handle<FixedArray> frames = Handle<FixedArray>::cast(
-      CaptureStackTrace(this, this->factory()->undefined_value(), options));
+  Handle<FixedArray> frames =
+      CaptureStackTrace(this, this->factory()->undefined_value(), options);
 
   IncrementalStringBuilder builder(this);
   for (int i = 0; i < frames->length(); ++i) {
-    Handle<StackTraceFrame> frame(StackTraceFrame::cast(frames->get(i)), this);
-
-    SerializeStackTraceFrame(this, frame, &builder);
+    Handle<StackFrameInfo> frame(StackFrameInfo::cast(frames->get(i)), this);
+    SerializeStackFrameInfo(this, frame, &builder);
   }
 
   Handle<String> stack_trace = builder.Finish().ToHandleChecked();
@@ -2205,37 +2170,18 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   Handle<Object> property =
       JSReceiver::GetDataProperty(Handle<JSObject>::cast(exception), key);
   if (!property->IsFixedArray()) return false;
-
-  Handle<FrameArray> elements =
-      GetFrameArrayFromStackTrace(this, Handle<FixedArray>::cast(property));
-
-  const int frame_count = elements->FrameCount();
-  for (int i = 0; i < frame_count; i++) {
-    if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
-      int func_index = elements->WasmFunctionIndex(i).value();
-      int offset = elements->Offset(i).value();
-      bool is_at_number_conversion =
-          elements->IsAsmJsWasmFrame(i) &&
-          elements->Flags(i).value() & FrameArray::kAsmJsAtNumberConversion;
-      if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
-        // WasmCode* held alive by the {GlobalWasmCodeRef}.
-        wasm::WasmCode* code =
-            Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
-                .get()
-                ->code();
-        offset = code->GetSourcePositionBefore(offset);
-      }
-      Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
-      const wasm::WasmModule* module = elements->WasmInstance(i).module();
-      int pos = GetSourcePosition(module, func_index, offset,
-                                  is_at_number_conversion);
-      Handle<Script> script(instance->module_object().script(), this);
-
-      *target = MessageLocation(script, pos, pos + 1);
+  Handle<FixedArray> stack = Handle<FixedArray>::cast(property);
+  for (int i = 0; i < stack->length(); i++) {
+    Handle<StackFrameInfo> frame(StackFrameInfo::cast(stack->get(i)), this);
+    if (frame->IsWasm()) {
+      auto offset = StackFrameInfo::GetSourcePosition(this, frame);
+      Handle<Script> script(frame->GetWasmInstance().module_object().script(),
+                            this);
+      *target = MessageLocation(script, offset, offset + 1);
       return true;
     }
 
-    Handle<JSFunction> fun = handle(elements->Function(i), this);
+    Handle<JSFunction> fun = handle(JSFunction::cast(frame->function()), this);
     if (!fun->shared().IsSubjectToDebugging()) continue;
 
     Object script = fun->shared().script();
@@ -2243,8 +2189,8 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
         !(Script::cast(script).source().IsUndefined(this))) {
       Handle<SharedFunctionInfo> shared = handle(fun->shared(), this);
 
-      AbstractCode abstract_code = elements->Code(i);
-      const int code_offset = elements->Offset(i).value();
+      AbstractCode abstract_code = AbstractCode::cast(frame->code_object());
+      const int code_offset = frame->offset();
       Handle<Script> casted_script(Script::cast(script), this);
       if (shared->HasBytecodeArray() &&
           shared->GetBytecodeArray(this).HasSourcePositionTable()) {

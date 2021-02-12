@@ -254,10 +254,6 @@ DEF_GETTER(HeapObject, IsFreeSpaceOrFiller, bool) {
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
-DEF_GETTER(HeapObject, IsFrameArray, bool) {
-  return IsFixedArrayExact(isolate);
-}
-
 DEF_GETTER(HeapObject, IsArrayList, bool) {
   // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
   // i::GetIsolateForPtrCompr(HeapObject).

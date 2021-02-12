@@ -1660,6 +1660,16 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(InterpreterData)
 
+void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
+  CHECK_IMPLIES(IsAsmJsWasm(), IsWasm());
+  CHECK_IMPLIES(IsWasm(), receiver_or_instance().IsWasmInstanceObject());
+  CHECK_IMPLIES(IsWasm(), function().IsSmi());
+  CHECK_IMPLIES(!IsWasm(), function().IsJSFunction());
+  CHECK_IMPLIES(IsAsync(), !IsWasm());
+  CHECK_IMPLIES(IsConstructor(), !IsWasm());
+}
+
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG

@@ -8,7 +8,6 @@
 #include "src/objects/stack-frame-info.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
 
@@ -20,8 +19,16 @@ namespace internal {
 
 #include "torque-generated/src/objects/stack-frame-info-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame)
-NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)
+TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
+NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
+
+BOOL_GETTER(StackFrameInfo, flags, IsWasm, IsWasmBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsmJsWasm, IsAsmJsWasmBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsStrict, IsStrictBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsConstructor, IsConstructorBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsmJsAtNumberConversion,
+            IsAsmJsAtNumberConversionBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsync, IsAsyncBit::kShift)
 
 }  // namespace internal
 }  // namespace v8

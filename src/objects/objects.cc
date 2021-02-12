@@ -59,7 +59,6 @@
 #include "src/objects/field-index.h"
 #include "src/objects/field-type.h"
 #include "src/objects/foreign.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
@@ -4267,67 +4266,6 @@ Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
       EnsureSpaceInFixedArray(isolate, match_info, required_length));
   result->SetNumberOfCaptureRegisters(capture_register_count);
   return result;
-}
-
-// static
-Handle<FrameArray> FrameArray::AppendJSFrame(Handle<FrameArray> in,
-                                             Handle<Object> receiver,
-                                             Handle<JSFunction> function,
-                                             Handle<AbstractCode> code,
-                                             int offset, int flags,
-                                             Handle<FixedArray> parameters) {
-  const int frame_count = in->FrameCount();
-  const int new_length = LengthFor(frame_count + 1);
-  Handle<FrameArray> array =
-      EnsureSpace(function->GetIsolate(), in, new_length);
-  array->SetReceiver(frame_count, *receiver);
-  array->SetFunction(frame_count, *function);
-  array->SetCode(frame_count, *code);
-  array->SetOffset(frame_count, Smi::FromInt(offset));
-  array->SetFlags(frame_count, Smi::FromInt(flags));
-  array->SetParameters(frame_count, *parameters);
-  array->set(kFrameCountIndex, Smi::FromInt(frame_count + 1));
-  return array;
-}
-
-// static
-Handle<FrameArray> FrameArray::AppendWasmFrame(
-    Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
-    int wasm_function_index, wasm::WasmCode* code, int offset, int flags) {
-  // This must be either a compiled or interpreted wasm frame, or an asm.js
-  // frame (which is always compiled).
-  DCHECK_EQ(1,
-            ((flags & kIsWasmFrame) != 0) + ((flags & kIsAsmJsWasmFrame) != 0));
-  Isolate* isolate = wasm_instance->GetIsolate();
-  const int frame_count = in->FrameCount();
-  const int new_length = LengthFor(frame_count + 1);
-  Handle<FrameArray> array = EnsureSpace(isolate, in, new_length);
-  // The {code} will be {nullptr} for interpreted wasm frames.
-  Handle<Object> code_ref = isolate->factory()->undefined_value();
-  if (code) {
-    auto native_module = wasm_instance->module_object().shared_native_module();
-    code_ref = Managed<wasm::GlobalWasmCodeRef>::Allocate(
-        isolate, 0, code, std::move(native_module));
-  }
-  array->SetWasmInstance(frame_count, *wasm_instance);
-  array->SetWasmFunctionIndex(frame_count, Smi::FromInt(wasm_function_index));
-  array->SetWasmCodeObject(frame_count, *code_ref);
-  array->SetOffset(frame_count, Smi::FromInt(offset));
-  array->SetFlags(frame_count, Smi::FromInt(flags));
-  array->set(kFrameCountIndex, Smi::FromInt(frame_count + 1));
-  return array;
-}
-
-void FrameArray::ShrinkToFit(Isolate* isolate) {
-  Shrink(isolate, LengthFor(FrameCount()));
-}
-
-// static
-Handle<FrameArray> FrameArray::EnsureSpace(Isolate* isolate,
-                                           Handle<FrameArray> array,
-                                           int length) {
-  return Handle<FrameArray>::cast(
-      EnsureSpaceInFixedArray(isolate, array, length));
 }
 
 template <typename LocalIsolate>

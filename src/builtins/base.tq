@@ -237,8 +237,6 @@ extern enum PromiseState extends int31 constexpr 'Promise::PromiseState' {
   kRejected
 }
 
-type FrameArray extends FixedArray;
-
 const kTaggedSize: constexpr int31 generates 'kTaggedSize';
 const kDoubleSize: constexpr int31 generates 'kDoubleSize';
 const kVariableSizeSentinel:

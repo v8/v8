@@ -778,7 +778,7 @@ class BuiltinExitFrame : public ExitFrame {
   inline Object new_target_slot_object() const;
 
   friend class StackFrameIteratorBase;
-  friend class FrameArrayBuilder;
+  friend class StackTraceBuilder;
 };
 
 class StubFrame : public TypedFrame {

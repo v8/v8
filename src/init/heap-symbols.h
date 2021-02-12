@@ -338,8 +338,7 @@
 
 #define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)    \
   V(_, array_buffer_wasm_memory_symbol)        \
-  V(_, call_site_frame_array_symbol)           \
-  V(_, call_site_frame_index_symbol)           \
+  V(_, call_site_frame_info_symbol)            \
   V(_, console_context_id_symbol)              \
   V(_, console_context_name_symbol)            \
   V(_, class_fields_symbol)                    \

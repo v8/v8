@@ -31,7 +31,6 @@
 #include "src/objects/field-index-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"

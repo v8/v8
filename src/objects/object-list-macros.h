@@ -115,7 +115,6 @@ class ZoneForwardList;
   V(FixedArrayExact)                           \
   V(FixedDoubleArray)                          \
   V(Foreign)                                   \
-  V(FrameArray)                                \
   V(FreeSpace)                                 \
   V(Function)                                  \
   V(GlobalDictionary)                          \

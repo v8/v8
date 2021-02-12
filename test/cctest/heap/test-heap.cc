@@ -54,13 +54,13 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/field-type.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/transitions.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/snapshot.h"
@@ -3530,7 +3530,7 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
 
 // TODO(mmarchini) also write tests for async/await and Promise.all
 void DetailedErrorStackTraceTest(const char* src,
-                                 std::function<void(Handle<FrameArray>)> test) {
+                                 std::function<void(Handle<FixedArray>)> test) {
   FLAG_detailed_error_stack_trace = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3546,8 +3546,11 @@ void DetailedErrorStackTraceTest(const char* src,
 
   Handle<FixedArray> stack_trace(Handle<FixedArray>::cast(
       Object::GetProperty(isolate, exception, key).ToHandleChecked()));
+  test(stack_trace);
+}
 
-  test(GetFrameArrayFromStackTrace(isolate, stack_trace));
+FixedArray ParametersOf(Handle<FixedArray> stack_trace, int frame_index) {
+  return StackFrameInfo::cast(stack_trace->get(frame_index)).parameters();
 }
 
 // * Test interpreted function error
@@ -3567,13 +3570,13 @@ TEST(DetailedErrorStackTrace) {
       "var foo = new Foo();         "
       "main(foo);                   ";
 
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArray foo_parameters = stack_trace->Parameters(0);
+  DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
+    FixedArray foo_parameters = ParametersOf(stack_trace, 0);
     CHECK_EQ(foo_parameters.length(), 1);
     CHECK(foo_parameters.get(0).IsSmi());
     CHECK_EQ(Smi::ToInt(foo_parameters.get(0)), 42);
 
-    FixedArray bar_parameters = stack_trace->Parameters(1);
+    FixedArray bar_parameters = ParametersOf(stack_trace, 1);
     CHECK_EQ(bar_parameters.length(), 2);
     CHECK(bar_parameters.get(0).IsJSObject());
     CHECK(bar_parameters.get(1).IsBoolean());
@@ -3581,7 +3584,7 @@ TEST(DetailedErrorStackTrace) {
     CHECK_EQ(bar_parameters.get(0), *foo);
     CHECK(!bar_parameters.get(1).BooleanValue(CcTest::i_isolate()));
 
-    FixedArray main_parameters = stack_trace->Parameters(2);
+    FixedArray main_parameters = ParametersOf(stack_trace, 2);
     CHECK_EQ(main_parameters.length(), 2);
     CHECK(main_parameters.get(0).IsJSObject());
     CHECK(main_parameters.get(1).IsUndefined());
@@ -3608,13 +3611,13 @@ TEST(DetailedErrorStackTraceInline) {
       "%OptimizeFunctionOnNextCall(foo);     "
       "foo(41);                              ";
 
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArray parameters_add = stack_trace->Parameters(0);
+  DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
+    FixedArray parameters_add = ParametersOf(stack_trace, 0);
     CHECK_EQ(parameters_add.length(), 1);
     CHECK(parameters_add.get(0).IsSmi());
     CHECK_EQ(Smi::ToInt(parameters_add.get(0)), 42);
 
-    FixedArray parameters_foo = stack_trace->Parameters(1);
+    FixedArray parameters_foo = ParametersOf(stack_trace, 1);
     CHECK_EQ(parameters_foo.length(), 1);
     CHECK(parameters_foo.get(0).IsSmi());
     CHECK_EQ(Smi::ToInt(parameters_foo.get(0)), 41);
@@ -3629,8 +3632,8 @@ TEST(DetailedErrorStackTraceBuiltinExit) {
       "}                               "
       "test(9999);                     ";
 
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArray parameters = stack_trace->Parameters(0);
+  DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
+    FixedArray parameters = ParametersOf(stack_trace, 0);
 
     CHECK_EQ(parameters.length(), 2);
     CHECK(parameters.get(1).IsSmi());
@@ -5284,8 +5287,8 @@ TEST(PreprocessStackTrace) {
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
   CHECK(pos->IsSmi());
 
-  Handle<FrameArray> frame_array = Handle<FrameArray>::cast(stack_trace);
-  int array_length = frame_array->FrameCount();
+  Handle<FixedArray> frame_array = Handle<FixedArray>::cast(stack_trace);
+  int array_length = frame_array->length();
   for (int i = 0; i < array_length; i++) {
     Handle<Object> element =
         Object::GetElement(isolate, stack_trace, i).ToHandleChecked();

@@ -59,7 +59,7 @@ class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
 class SourceTextModule;
-class StackTraceFrame;
+class StackFrameInfo;
 class StringSet;
 class StoreHandler;
 class SyntheticModule;
@@ -145,8 +145,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocate a new fixed double array with hole values.
   Handle<FixedArrayBase> NewFixedDoubleArrayWithHoles(int size);
-
-  Handle<FrameArray> NewFrameArray(int number_of_frames);
 
   // Allocates a NameDictionary with an internal capacity calculated such that
   // |at_least_space_for| entries can be added without reallocating.
@@ -365,8 +363,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
-  Handle<StackTraceFrame> NewStackTraceFrame(Handle<FrameArray> frame_array,
-                                             int index);
+
+  Handle<StackFrameInfo> NewStackFrameInfo(Handle<Object> receiver_or_instance,
+                                           Handle<Object> function,
+                                           Handle<HeapObject> code_object,
+                                           int offset, int flags,
+                                           Handle<FixedArray> parameters);
 
   // Allocate various microtasks.
   Handle<CallableTask> NewCallableTask(Handle<JSReceiver> callable,

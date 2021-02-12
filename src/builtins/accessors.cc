@@ -772,8 +772,8 @@ void Accessors::ErrorStackGetter(
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
 
   // Retrieve the stack trace. It can either be structured data in the form of
-  // a FrameArray, an already formatted stack trace (string) or whatever the
-  // "prepareStackTrace" callback produced.
+  // a FixedArray of StackFrameInfo objects, an already formatted stack trace
+  // (string) or whatever the "prepareStackTrace" callback produced.
 
   Handle<Object> stack_trace;
   Handle<Symbol> stack_trace_symbol = isolate->factory()->stack_trace_symbol();

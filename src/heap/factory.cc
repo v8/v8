@@ -43,7 +43,6 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -466,14 +465,6 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(int length) {
     Handle<FixedDoubleArray>::cast(array)->FillWithHoles(0, length);
   }
   return array;
-}
-
-Handle<FrameArray> Factory::NewFrameArray(int number_of_frames) {
-  DCHECK_LE(0, number_of_frames);
-  Handle<FixedArray> result =
-      NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
-  result->set(FrameArray::kFrameCountIndex, Smi::zero());
-  return Handle<FrameArray>::cast(result);
 }
 
 template <typename T>
@@ -2930,14 +2921,19 @@ Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
   return new_break_point;
 }
 
-Handle<StackTraceFrame> Factory::NewStackTraceFrame(
-    Handle<FrameArray> frame_array, int index) {
-  Handle<StackTraceFrame> frame = Handle<StackTraceFrame>::cast(
-      NewStruct(STACK_TRACE_FRAME_TYPE, AllocationType::kYoung));
-  frame->set_frame_array(*frame_array);
-  frame->set_frame_index(index);
-
-  return frame;
+Handle<StackFrameInfo> Factory::NewStackFrameInfo(
+    Handle<Object> receiver_or_instance, Handle<Object> function,
+    Handle<HeapObject> code_object, int offset, int flags,
+    Handle<FixedArray> parameters) {
+  Handle<StackFrameInfo> info =
+      Handle<StackFrameInfo>::cast(NewStruct(STACK_FRAME_INFO_TYPE));
+  info->set_receiver_or_instance(*receiver_or_instance);
+  info->set_function(*function);
+  info->set_code_object(*code_object);
+  info->set_offset(offset);
+  info->set_flags(flags);
+  info->set_parameters(*parameters);
+  return info;
 }
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
