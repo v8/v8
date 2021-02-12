@@ -395,11 +395,19 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
   DCHECK_LE(0, offset);
   Ldr(dst, liftoff::GetInstanceOperand());
-  DCHECK(size == 4 || size == 8);
-  if (size == 4) {
-    Ldr(dst.W(), MemOperand(dst, offset));
-  } else {
-    Ldr(dst, MemOperand(dst, offset));
+  MemOperand src{dst, offset};
+  switch (size) {
+    case 1:
+      Ldrb(dst.W(), src);
+      break;
+    case 4:
+      Ldr(dst.W(), src);
+      break;
+    case 8:
+      Ldr(dst, src);
+      break;
+    default:
+      UNIMPLEMENTED();
   }
 }
 

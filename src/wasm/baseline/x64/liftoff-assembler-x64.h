@@ -282,12 +282,20 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 
 void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
   DCHECK_LE(0, offset);
-  DCHECK(size == 4 || size == 8);
   movq(dst, liftoff::GetInstanceOperand());
-  if (size == 4) {
-    movl(dst, Operand(dst, offset));
-  } else {
-    movq(dst, Operand(dst, offset));
+  Operand src{dst, offset};
+  switch (size) {
+    case 1:
+      movzxbl(dst, src);
+      break;
+    case 4:
+      movl(dst, src);
+      break;
+    case 8:
+      movq(dst, src);
+      break;
+    default:
+      UNIMPLEMENTED();
   }
 }
 

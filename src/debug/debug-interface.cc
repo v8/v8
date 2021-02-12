@@ -479,6 +479,11 @@ bool Script::SetBreakpoint(Local<String> condition, Location* location,
 bool Script::SetBreakpointOnScriptEntry(BreakpointId* id) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
+  if (script->type() == i::Script::TYPE_WASM) {
+    int position = i::WasmScript::kOnEntryBreakpointPosition;
+    return isolate->debug()->SetBreakPointForScript(
+        script, isolate->factory()->empty_string(), &position, id);
+  }
   i::SharedFunctionInfo::ScriptIterator it(isolate, *script);
   for (i::SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
     if (sfi.is_toplevel()) {

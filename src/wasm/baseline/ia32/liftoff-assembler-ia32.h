@@ -305,8 +305,17 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
   DCHECK_LE(0, offset);
   mov(dst, liftoff::GetInstanceOperand());
-  DCHECK_EQ(4, size);
-  mov(dst, Operand(dst, offset));
+  Operand src{dst, offset};
+  switch (size) {
+    case 1:
+      movzx_b(dst, src);
+      break;
+    case 4:
+      mov(dst, src);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
 }
 
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst, int offset) {

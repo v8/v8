@@ -558,8 +558,11 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   FrameFinder<WasmFrame, StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK>
       frame_finder(isolate);
   auto instance = handle(frame_finder.frame()->wasm_instance(), isolate);
-  int position = frame_finder.frame()->position();
-  auto frame_id = frame_finder.frame()->id();
+  auto script = handle(instance->module_object().script(), isolate);
+  WasmFrame* frame = frame_finder.frame();
+  int position = frame->position();
+  auto frame_id = frame->id();
+  auto* debug_info = frame->native_module()->GetDebugInfo();
   isolate->set_context(instance->native_context());
 
   // Stepping can repeatedly create code, and code GC requires stack guards to
@@ -570,28 +573,52 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
 
-  WasmFrame* frame = frame_finder.frame();
-  auto* debug_info = frame->native_module()->GetDebugInfo();
+  // Check for instrumentation breakpoint.
+  DCHECK_EQ(script->break_on_entry(), instance->break_on_entry());
+  if (script->break_on_entry()) {
+    MaybeHandle<FixedArray> maybe_on_entry_breakpoints =
+        WasmScript::CheckBreakPoints(
+            isolate, script, WasmScript::kOnEntryBreakpointPosition, frame_id);
+    script->set_break_on_entry(false);
+    // Update the "break_on_entry" flag on all live instances.
+    i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
+    for (int i = 0; i < weak_instance_list.length(); ++i) {
+      if (weak_instance_list.Get(i)->IsCleared()) continue;
+      i::WasmInstanceObject instance = i::WasmInstanceObject::cast(
+          weak_instance_list.Get(i)->GetHeapObject());
+      instance.set_break_on_entry(false);
+    }
+    DCHECK(!instance->break_on_entry());
+    Handle<FixedArray> on_entry_breakpoints;
+    if (maybe_on_entry_breakpoints.ToHandle(&on_entry_breakpoints)) {
+      debug_info->ClearStepping(isolate);
+      StepAction step_action = isolate->debug()->last_step_action();
+      isolate->debug()->ClearStepping();
+      isolate->debug()->OnDebugBreak(on_entry_breakpoints, step_action);
+      // Don't process regular breakpoints.
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+  }
+
   if (debug_info->IsStepping(frame)) {
     debug_info->ClearStepping(isolate);
-    StepAction stepAction = isolate->debug()->last_step_action();
+    StepAction step_action = isolate->debug()->last_step_action();
     isolate->debug()->ClearStepping();
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array(),
-                                   stepAction);
+                                   step_action);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // Check whether we hit a breakpoint.
-  Handle<Script> script(instance->module_object().script(), isolate);
   Handle<FixedArray> breakpoints;
   if (WasmScript::CheckBreakPoints(isolate, script, position, frame_id)
           .ToHandle(&breakpoints)) {
     debug_info->ClearStepping(isolate);
-    StepAction stepAction = isolate->debug()->last_step_action();
+    StepAction step_action = isolate->debug()->last_step_action();
     isolate->debug()->ClearStepping();
     if (isolate->debug()->break_points_active()) {
       // We hit one or several breakpoints. Notify the debug listeners.
-      isolate->debug()->OnDebugBreak(breakpoints, stepAction);
+      isolate->debug()->OnDebugBreak(breakpoints, step_action);
     }
   }
 

@@ -954,19 +954,28 @@ class LiftoffCompiler {
     }
     if (has_breakpoint) {
       EmitBreakpoint(decoder);
-      // Once we emitted a breakpoint, we don't need to check the "hook on
-      // function call" any more.
-      checked_hook_on_function_call_ = true;
-    } else if (!checked_hook_on_function_call_) {
-      checked_hook_on_function_call_ = true;
-      // Check the "hook on function call" flag. If set, trigger a break.
-      DEBUG_CODE_COMMENT("check hook on function call");
-      Register flag = __ GetUnusedRegister(kGpReg, {}).gp();
-      LOAD_INSTANCE_FIELD(flag, HookOnFunctionCallAddress, kSystemPointerSize);
+      // Once we emitted an unconditional breakpoint, we don't need to check
+      // function entry breaks any more.
+      did_function_entry_break_checks_ = true;
+    } else if (!did_function_entry_break_checks_) {
+      did_function_entry_break_checks_ = true;
+      DEBUG_CODE_COMMENT("check function entry break");
+      Label do_break;
       Label no_break;
+      Register flag = __ GetUnusedRegister(kGpReg, {}).gp();
+
+      // Check the "hook on function call" flag. If set, trigger a break.
+      LOAD_INSTANCE_FIELD(flag, HookOnFunctionCallAddress, kSystemPointerSize);
       __ Load(LiftoffRegister{flag}, flag, no_reg, 0, LoadType::kI32Load8U, {});
+      // Unary "unequal" means "not equals zero".
+      __ emit_cond_jump(kUnequal, &do_break, kWasmI32, flag);
+
+      // Check if we should stop on "script entry".
+      LOAD_INSTANCE_FIELD(flag, BreakOnEntry, kUInt8Size);
       // Unary "equal" means "equals zero".
       __ emit_cond_jump(kEqual, &no_break, kWasmI32, flag);
+
+      __ bind(&do_break);
       EmitBreakpoint(decoder);
       __ bind(&no_break);
     } else if (dead_breakpoint_ == decoder->position()) {
@@ -5347,10 +5356,10 @@ class LiftoffCompiler {
   // address in OSR is correct.
   int dead_breakpoint_ = 0;
 
-  // Remember whether the "hook on function call" has already been checked.
-  // This happens at the first breakable opcode in the function (if compiling
-  // for debugging).
-  bool checked_hook_on_function_call_ = false;
+  // Remember whether the did function-entry break checks (for "hook on function
+  // call" and "break on entry" a.k.a. instrumentation breakpoint). This happens
+  // at the first breakable opcode in the function (if compiling for debugging).
+  bool did_function_entry_break_checks_ = false;
 
   bool has_outstanding_op() const {
     return outstanding_op_ != kNoOutstandingOp;

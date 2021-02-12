@@ -418,6 +418,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(num_liftoff_function_calls_array, uint32_t*)
+  DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
@@ -466,6 +467,9 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kNumLiftoffFunctionCallsArrayOffset, kSystemPointerSize)              \
+  V(kBreakOnEntryOffset, kUInt8Size)                                      \
+  /* More padding to make the header pointer-size aligned */              \
+  V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -795,6 +799,10 @@ class WasmJSFunctionData : public Struct {
 
 class WasmScript : public AllStatic {
  public:
+  // Position used for storing "on entry" breakpoints (a.k.a. instrumentation
+  // breakpoints). This would be an illegal position for any other breakpoint.
+  static constexpr int kOnEntryBreakpointPosition = -1;
+
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.
   // The passed position might be modified to point to the next breakable

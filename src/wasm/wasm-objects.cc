@@ -1298,6 +1298,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
   instance->set_num_liftoff_function_calls_array(
       module_object->native_module()->num_liftoff_function_calls_array());
+  instance->set_break_on_entry(module_object->script().break_on_entry());
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.

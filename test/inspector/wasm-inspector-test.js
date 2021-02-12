@@ -13,14 +13,26 @@ WasmInspectorTest.evalWithUrl = async function(code, url) {
       .then(printIfFailure);
 };
 
-WasmInspectorTest.instantiateFromBuffer = function(bytes, imports) {
+WasmInspectorTest.compileFromBuffer = (function(bytes) {
   var buffer = new ArrayBuffer(bytes.length);
   var view = new Uint8Array(buffer);
   for (var i = 0; i < bytes.length; ++i) {
     view[i] = bytes[i] | 0;
   }
-  const module = new WebAssembly.Module(buffer);
-  return new WebAssembly.Instance(module, imports);
+  return new WebAssembly.Module(buffer);
+}).toString();
+
+WasmInspectorTest.instantiateFromBuffer =
+    (function(bytes, imports) {
+      return new WebAssembly.Instance(compileFromBuffer(bytes), imports);
+    })
+        .toString()
+        .replace('compileFromBuffer', WasmInspectorTest.compileFromBuffer);
+
+WasmInspectorTest.compile = async function(bytes, module_name = 'module') {
+  const compile_code = `var ${module_name} = (${
+      WasmInspectorTest.compileFromBuffer})(${JSON.stringify(bytes)});`;
+  await WasmInspectorTest.evalWithUrl(compile_code, 'compile_module');
 };
 
 WasmInspectorTest.instantiate =

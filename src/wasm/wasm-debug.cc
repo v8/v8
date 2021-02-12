@@ -774,6 +774,22 @@ int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
 // static
 bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
                                Handle<BreakPoint> break_point) {
+  // Special handling for on-entry breakpoints.
+  if (*position == kOnEntryBreakpointPosition) {
+    AddBreakpointToInfo(script, *position, break_point);
+    script->set_break_on_entry(true);
+
+    // Update the "break_on_entry" flag on all live instances.
+    i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
+    for (int i = 0; i < weak_instance_list.length(); ++i) {
+      if (weak_instance_list.Get(i)->IsCleared()) continue;
+      i::WasmInstanceObject instance = i::WasmInstanceObject::cast(
+          weak_instance_list.Get(i)->GetHeapObject());
+      instance.set_break_on_entry(true);
+    }
+    return true;
+  }
+
   // Find the function for this breakpoint.
   const wasm::WasmModule* module = script->wasm_native_module()->module();
   int func_index = GetContainingWasmFunction(module, *position);
@@ -818,8 +834,7 @@ bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
   const wasm::WasmFunction& func = module->functions[func_index];
 
   // Insert new break point into {wasm_breakpoint_infos} of the script.
-  WasmScript::AddBreakpointToInfo(script, func.code.offset() + offset,
-                                  break_point);
+  AddBreakpointToInfo(script, func.code.offset() + offset, break_point);
 
   native_module->GetDebugInfo()->SetBreakpoint(func_index, offset, isolate);
 
@@ -837,8 +852,9 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
                                 Handle<FixedArray> breakpoint_infos,
                                 int position) {
   // Find insert location via binary search, taking care of undefined values on
-  // the right. Position is always greater than zero.
-  DCHECK_LT(0, position);
+  // the right. {position} is either {kOnEntryBreakpointPosition} (which is -1),
+  // or positive.
+  DCHECK(position == WasmScript::kOnEntryBreakpointPosition || position > 0);
 
   int left = 0;                            // inclusive
   int right = breakpoint_infos->length();  // exclusive
