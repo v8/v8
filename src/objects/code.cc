@@ -497,10 +497,14 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (CodeKindIsOptimizedJSFunction(kind())) {
+  if (CodeKindIsOptimizedJSFunction(kind()) && kind() != CodeKind::SPARKPLUG) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
-  os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
+  os << "compiler = "
+     << (is_turbofanned()
+             ? "turbofan"
+             : kind() == CodeKind::SPARKPLUG ? "baseline" : "unknown")
+     << "\n";
   os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 
   if (is_off_heap_trampoline()) {
@@ -531,32 +535,34 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   os << "\n";
 
-  {
-    SourcePositionTableIterator it(
-        SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
-    if (!it.done()) {
-      os << "Source positions:\n pc offset  position\n";
-      for (; !it.done(); it.Advance()) {
-        os << std::setw(10) << std::hex << it.code_offset() << std::dec
-           << std::setw(10) << it.source_position().ScriptOffset()
-           << (it.is_statement() ? "  statement" : "") << "\n";
+  if (kind() != CodeKind::SPARKPLUG) {
+    {
+      SourcePositionTableIterator it(
+          SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
+      if (!it.done()) {
+        os << "Source positions:\n pc offset  position\n";
+        for (; !it.done(); it.Advance()) {
+          os << std::setw(10) << std::hex << it.code_offset() << std::dec
+             << std::setw(10) << it.source_position().ScriptOffset()
+             << (it.is_statement() ? "  statement" : "") << "\n";
+        }
+        os << "\n";
       }
-      os << "\n";
     }
-  }
 
-  {
-    SourcePositionTableIterator it(SourcePositionTable(),
-                                   SourcePositionTableIterator::kExternalOnly);
-    if (!it.done()) {
-      os << "External Source positions:\n pc offset  fileid  line\n";
-      for (; !it.done(); it.Advance()) {
-        DCHECK(it.source_position().IsExternal());
-        os << std::setw(10) << std::hex << it.code_offset() << std::dec
-           << std::setw(10) << it.source_position().ExternalFileId()
-           << std::setw(10) << it.source_position().ExternalLine() << "\n";
+    {
+      SourcePositionTableIterator it(
+          SourcePositionTable(), SourcePositionTableIterator::kExternalOnly);
+      if (!it.done()) {
+        os << "External Source positions:\n pc offset  fileid  line\n";
+        for (; !it.done(); it.Advance()) {
+          DCHECK(it.source_position().IsExternal());
+          os << std::setw(10) << std::hex << it.code_offset() << std::dec
+             << std::setw(10) << it.source_position().ExternalFileId()
+             << std::setw(10) << it.source_position().ExternalLine() << "\n";
+        }
+        os << "\n";
       }
-      os << "\n";
     }
   }
 
@@ -613,10 +619,6 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     eh_frame_disassembler.DisassembleToStream(os);
     os << "\n";
   }
-
-  if (has_code_comments()) {
-    PrintCodeCommentsSection(os, code_comments(), code_comments_size());
-  }
 }
 #endif  // ENABLE_DISASSEMBLER
 
@@ -626,6 +628,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
+  os << "OSR nesting level: " << osr_loop_nesting_level() << "\n";
+  os << "Bytecode Age: " << bytecode_age() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());

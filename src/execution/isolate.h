@@ -1326,6 +1326,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   OptimizingCompileDispatcher* optimizing_compile_dispatcher() {
+    DCHECK_NOT_NULL(optimizing_compile_dispatcher_);
     return optimizing_compile_dispatcher_;
   }
   // Flushes all pending concurrent optimzation jobs from the optimizing

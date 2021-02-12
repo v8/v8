@@ -1171,11 +1171,21 @@ TF_BUILTIN(InstanceOf_WithFeedback, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kLeft);
   auto callable = Parameter<Object>(Descriptor::kRight);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
+  auto feedback_vector = Parameter<HeapObject>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
-  CollectInstanceOfFeedback(callable, context, maybe_feedback_vector, slot);
+  CollectInstanceOfFeedback(callable, context, feedback_vector, slot);
+  Return(InstanceOf(object, callable, context));
+}
+
+TF_BUILTIN(InstanceOf_Baseline, ObjectBuiltinsAssembler) {
+  auto object = Parameter<Object>(Descriptor::kLeft);
+  auto callable = Parameter<Object>(Descriptor::kRight);
+  auto context = LoadContextFromBaseline();
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+
+  CollectInstanceOfFeedback(callable, context, feedback_vector, slot);
   Return(InstanceOf(object, callable, context));
 }
 

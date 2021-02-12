@@ -5,12 +5,12 @@
 #ifndef V8_OBJECTS_CODE_INL_H_
 #define V8_OBJECTS_CODE_INL_H_
 
-#include "src/objects/code.h"
-
 #include "src/base/memory.h"
 #include "src/codegen/code-desc.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/objects/code.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
@@ -329,6 +329,67 @@ CodeKind Code::kind() const {
   return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
+namespace detail {
+
+// TODO(v8:11429): Extract out of header, to generic helper, and merge with
+// TranslationArray de/encoding.
+inline int ReadUint(ByteArray array, int* index) {
+  int byte = 0;
+  int value = 0;
+  int shift = 0;
+  do {
+    byte = array.get((*index)++);
+    value += (byte & ((1 << 7) - 1)) << shift;
+    shift += 7;
+  } while (byte & (1 << 7));
+  return value;
+}
+
+}  // namespace detail
+
+int Code::GetBytecodeOffsetForSparkplugPC(Address sparkplug_pc) {
+  DisallowGarbageCollection no_gc;
+  if (is_baseline_prologue_builtin()) return kFunctionEntryBytecodeOffset;
+  if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
+  CHECK_EQ(kind(), CodeKind::SPARKPLUG);
+  ByteArray data = ByteArray::cast(source_position_table());
+  Address lookup_pc = 0;
+  Address pc = sparkplug_pc - InstructionStart();
+  int index = 0;
+  int offset = 0;
+  while (pc > lookup_pc) {
+    lookup_pc += detail::ReadUint(data, &index);
+    offset += detail::ReadUint(data, &index);
+  }
+  CHECK_EQ(pc, lookup_pc);
+  return offset;
+}
+
+uintptr_t Code::GetSparkplugPCForBytecodeOffset(int bytecode_offset,
+                                                bool precise) {
+  DisallowGarbageCollection no_gc;
+  CHECK_EQ(kind(), CodeKind::SPARKPLUG);
+  ByteArray data = ByteArray::cast(source_position_table());
+  intptr_t pc = 0;
+  int index = 0;
+  int offset = 0;
+  // TODO(v8:11429,cbruni): clean up
+  // Return the offset for the last bytecode that matches
+  while (offset < bytecode_offset && index < data.length()) {
+    int delta_pc = detail::ReadUint(data, &index);
+    int delta_offset = detail::ReadUint(data, &index);
+    if (!precise && (bytecode_offset < offset + delta_offset)) break;
+    pc += delta_pc;
+    offset += delta_offset;
+  }
+  if (precise) {
+    CHECK_EQ(offset, bytecode_offset);
+  } else {
+    CHECK_LE(offset, bytecode_offset);
+  }
+  return pc;
+}
+
 void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
                             bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
@@ -350,6 +411,14 @@ inline bool Code::is_interpreter_trampoline_builtin() const {
          (index == Builtins::kInterpreterEntryTrampoline ||
           index == Builtins::kInterpreterEnterBytecodeAdvance ||
           index == Builtins::kInterpreterEnterBytecodeDispatch);
+}
+
+inline bool Code::is_baseline_leave_frame_builtin() const {
+  return builtin_index() == Builtins::kBaselineLeaveFrame;
+}
+
+inline bool Code::is_baseline_prologue_builtin() const {
+  return builtin_index() == Builtins::kBaselineOutOfLinePrologue;
 }
 
 inline bool Code::checks_optimization_marker() const {
@@ -458,13 +527,14 @@ int Code::stack_slots() const {
 }
 
 bool Code::marked_for_deoptimization() const {
-  DCHECK(CodeKindCanDeoptimize(kind()));
+  // TODO(v8:11429): Re-evaluate if sparkplug code can really deopt.
+  DCHECK(CodeKindCanDeoptimize(kind()) || kind() == CodeKind::SPARKPLUG);
   int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return MarkedForDeoptimizationField::decode(flags);
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
-  DCHECK(CodeKindCanDeoptimize(kind()));
+  DCHECK(CodeKindCanDeoptimize(kind()) || kind() == CodeKind::SPARKPLUG);
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
   CodeDataContainer container = code_data_container(kAcquireLoad);
   int32_t previous = container.kind_specific_flags();

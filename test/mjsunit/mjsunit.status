@@ -395,6 +395,9 @@
   # Flag --interpreted-frames-native-stack incompatible with jitless
   'regress/regress-10138': [SKIP],
   'regress/regress-1078913': [SKIP],
+
+  # Baseline incompatible with jitless
+  'baseline/*': [SKIP]
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
@@ -1145,6 +1148,9 @@
 
   # Too memory hungry on Odroid devices.
   'regress/regress-678917': [PASS, ['arch == arm and not simulator_run', SKIP]],
+
+  # Baseline tests don't make sense with optimization stressing.
+  'baseline/*': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
@@ -1443,5 +1449,11 @@
   'regress/wasm/regress-1161954': [SKIP],
   'regress/wasm/regress-1165966': [SKIP],
 }],  # no_simd_sse == True
+
+##############################################################################
+# TODO(v8:11421): Port baseline compiler to ia32, Arm, MIPS, S390 and PPC
+['arch not in (x64, arm64)', {
+  'baseline/*': [SKIP],
+}],
 
 ]

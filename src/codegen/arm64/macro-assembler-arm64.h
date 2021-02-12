@@ -15,6 +15,7 @@
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
+#include "src/objects/tagged-index.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -200,9 +201,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     mov(rd, vn, vn_index);
   }
 
-  // This is required for compatibility with architecture independent code.
+  // These are required for compatibility with architecture independent code.
   // Remove if not needed.
   void Move(Register dst, Smi src);
+  void Move(Register dst, MemOperand src);
+  void Move(Register dst, Register src);
 
   // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
   void MovePair(Register dst0, Register src0, Register dst1, Register src1);
@@ -834,14 +837,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <StoreLRMode lr_mode = kDontStoreLR>
   void Push(const Register& src0, const VRegister& src1);
 
-  // This is a convenience method for pushing a single Handle<Object>.
-  inline void Push(Handle<HeapObject> object);
-  inline void Push(Smi smi);
-
-  // Aliases of Push and Pop, required for V8 compatibility.
-  inline void push(Register src) { Push(src); }
-  inline void pop(Register dst) { Pop(dst); }
-
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
@@ -978,6 +973,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
                                  Register destination);
+  MemOperand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
   void CallBuiltin(int builtin_index);
 
@@ -1271,6 +1267,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) override;
+  void PushRoot(RootIndex index);
 
   inline void Ret(const Register& xn = lr);
 
@@ -1350,6 +1347,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadAnyTaggedField(const Register& destination,
                           const MemOperand& field_operand);
+
+  // Loads a field containing a tagged signed value and decompresses it if
+  // necessary.
+  void LoadTaggedSignedField(const Register& destination,
+                             const MemOperand& field_operand);
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);

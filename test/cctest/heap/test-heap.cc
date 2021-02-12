@@ -203,7 +203,15 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   // Add a new-space reference to the code.
+#if V8_TARGET_ARCH_ARM64
+  // Arm64 requires stack alignment.
+  UseScratchRegisterScope temps(&masm);
+  Register tmp = temps.AcquireX();
+  masm.Mov(tmp, Operand(value));
+  masm.Push(tmp, padreg);
+#else
   masm.Push(value);
+#endif
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -4467,8 +4475,15 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   CodeDesc desc;
+#if V8_TARGET_ARCH_ARM64
+  UseScratchRegisterScope temps(&masm);
+  Register tmp = temps.AcquireX();
+  masm.Mov(tmp, Operand(isolate->factory()->undefined_value()));
+  masm.Push(tmp, tmp);
+#else
   masm.Push(isolate->factory()->undefined_value());
   masm.Push(isolate->factory()->undefined_value());
+#endif
   masm.Drop(2);
   masm.GetCode(isolate, &desc);
   Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
@@ -7299,7 +7314,15 @@ TEST(Regress10900) {
   i::byte buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
+#if V8_TARGET_ARCH_ARM64
+  UseScratchRegisterScope temps(&masm);
+  Register tmp = temps.AcquireX();
+  masm.Mov(tmp, Operand(static_cast<int32_t>(
+                    ReadOnlyRoots(heap).undefined_value_handle()->ptr())));
+  masm.Push(tmp, tmp);
+#else
   masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
+#endif
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code =

@@ -11,6 +11,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/code.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -115,21 +116,37 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 
     is_shared_cross_origin = script->origin_options().IsSharedCrossOrigin();
 
+    // TODO(v8:11429,cbruni): improve iteration for sparkplug code
+    bool is_sparkplug = abstract_code->kind() == CodeKind::SPARKPLUG;
+    Handle<ByteArray> source_position_table(
+        abstract_code->source_position_table(), isolate_);
+    if (is_sparkplug) {
+      source_position_table = handle(
+          shared->GetBytecodeArray(isolate_).SourcePositionTable(), isolate_);
+    }
     // Add each position to the source position table and store inlining stacks
     // for inline positions. We store almost the same information in the
     // profiler as is stored on the code object, except that we transform source
     // positions to line numbers here, because we only care about attributing
     // ticks to a given line.
-    for (SourcePositionTableIterator it(
-             handle(abstract_code->source_position_table(), isolate_));
-         !it.done(); it.Advance()) {
+    for (SourcePositionTableIterator it(source_position_table); !it.done();
+         it.Advance()) {
       int position = it.source_position().ScriptOffset();
       int inlining_id = it.source_position().InliningId();
+      int code_offset = it.code_offset();
+      if (is_sparkplug) {
+        // Use the bytecode offset to calculate pc offset for sparkplug code.
+        // TODO(v8:11429,cbruni): Speed this up.
+        code_offset = static_cast<int>(
+            abstract_code->GetCode().GetSparkplugPCForBytecodeOffset(
+                code_offset, false));
+      }
 
       if (inlining_id == SourcePosition::kNotInlined) {
         int line_number = script->GetLineNumber(position) + 1;
-        line_table->SetPosition(it.code_offset(), line_number, inlining_id);
+        line_table->SetPosition(code_offset, line_number, inlining_id);
       } else {
+        DCHECK(!is_sparkplug);
         DCHECK(abstract_code->IsCode());
         Handle<Code> code = handle(abstract_code->GetCode(), isolate_);
         std::vector<SourcePositionInfo> stack =
@@ -140,7 +157,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
         // then the script of the inlined frames may be different to the script
         // of |shared|.
         int line_number = stack.front().line + 1;
-        line_table->SetPosition(it.code_offset(), line_number, inlining_id);
+        line_table->SetPosition(code_offset, line_number, inlining_id);
 
         std::vector<CodeEntryAndLineNumber> inline_stack;
         for (SourcePositionInfo& pos_info : stack) {

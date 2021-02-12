@@ -382,6 +382,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   TraceDeoptAll(isolate);
   isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
   DisallowGarbageCollection no_gc;
+  DeoptimizeAllSparkplug(isolate);
   // For all contexts, mark all code, then deoptimize.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
@@ -417,6 +418,73 @@ void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
     CHECK(CodeKindCanDeoptimize(code.kind()));
     code.set_marked_for_deoptimization(true);
     element = code.next_code_link();
+  }
+}
+
+namespace {
+class DeoptimizeSparkplugVisitor : public ThreadVisitor {
+ public:
+  explicit DeoptimizeSparkplugVisitor(SharedFunctionInfo shared)
+      : shared_(shared) {}
+  DeoptimizeSparkplugVisitor() : shared_(SharedFunctionInfo()) {}
+
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
+    bool deopt_all = shared_ == SharedFunctionInfo();
+    for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+      if (it.frame()->type() == StackFrame::SPARKPLUG) {
+        SparkplugFrame* frame = SparkplugFrame::cast(it.frame());
+        if (!deopt_all && frame->function().shared() != shared_) continue;
+        frame->InterpretedFrame::PatchBytecodeOffset(
+            frame->GetBytecodeOffset());
+        Address* pc_addr = frame->pc_address();
+        Address advance = BUILTIN_CODE(isolate, InterpreterEnterBytecodeAdvance)
+                              ->InstructionStart();
+        PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize);
+      }
+    }
+  }
+
+ private:
+  SharedFunctionInfo shared_;
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
+};
+}  // namespace
+
+void Deoptimizer::DeoptimizeSparkplug(SharedFunctionInfo shared) {
+  DCHECK_EQ(shared.GetCode().kind(), CodeKind::SPARKPLUG);
+  Isolate* isolate = shared.GetIsolate();
+  DeoptimizeSparkplugVisitor visitor(shared);
+  visitor.VisitThread(isolate, isolate->thread_local_top());
+  isolate->thread_manager()->IterateArchivedThreads(&visitor);
+  // TODO(v8:11429): Avoid this heap walk somehow.
+  HeapObjectIterator iterator(isolate->heap());
+  auto trampoline = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+  shared.flush_baseline_data();
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    if (obj.IsJSFunction()) {
+      JSFunction fun = JSFunction::cast(obj);
+      if (fun.shared() == shared && fun.code().kind() == CodeKind::SPARKPLUG) {
+        fun.set_code(*trampoline);
+      }
+    }
+  }
+}
+
+void Deoptimizer::DeoptimizeAllSparkplug(Isolate* isolate) {
+  DeoptimizeSparkplugVisitor visitor;
+  visitor.VisitThread(isolate, isolate->thread_local_top());
+  HeapObjectIterator iterator(isolate->heap());
+  auto trampoline = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+  isolate->thread_manager()->IterateArchivedThreads(&visitor);
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    if (obj.IsJSFunction()) {
+      JSFunction fun = JSFunction::cast(obj);
+      if (fun.shared().HasBaselineData()) {
+        fun.set_code(*trampoline);
+      }
+    }
   }
 }
 

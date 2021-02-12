@@ -2755,11 +2755,14 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
 
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), non_inlined(this, Label::kDeferred),
-      try_polymorphic(this), miss(this, Label::kDeferred);
+      try_polymorphic(this), miss(this, Label::kDeferred),
+      no_feedback(this, Label::kDeferred);
 
   TNode<Map> lookup_start_object_map =
       LoadReceiverMap(p->receiver_and_lookup_start_object());
   GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
+
+  GotoIf(IsUndefined(p->vector()), &no_feedback);
 
   // Check monomorphic case.
   TNode<MaybeObject> feedback =
@@ -2786,6 +2789,16 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   {
     LoadIC_Noninlined(p, lookup_start_object_map, strong_feedback, &var_handler,
                       &if_handler, &miss, &direct_exit);
+  }
+
+  BIND(&no_feedback);
+  {
+    Comment("LoadIC_nofeedback");
+    // Call into the stub that implements the non-inlined parts of LoadIC.
+    direct_exit.ReturnCallStub(
+        Builtins::CallableFor(isolate(), Builtins::kLoadIC_NoFeedback),
+        p->context(), p->receiver(), p->name(),
+        SmiConstant(FeedbackSlotKind::kLoadProperty));
   }
 
   BIND(&miss);
@@ -3426,7 +3439,10 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 }
 
 void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
-  Label if_lexical_var(this), if_heapobject(this);
+  Label no_feedback(this, Label::kDeferred), if_lexical_var(this),
+      if_heapobject(this);
+  GotoIf(IsUndefined(pp->vector()), &no_feedback);
+
   TNode<MaybeObject> maybe_weak_ref =
       LoadFeedbackVectorSlot(CAST(pp->vector()), pp->slot());
   Branch(TaggedIsSmi(maybe_weak_ref), &if_lexical_var, &if_heapobject);
@@ -3480,6 +3496,12 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
         LoadScriptContext(pp->context(), context_index);
     StoreContextElement(script_context, slot_index, pp->value());
     Return(pp->value());
+  }
+
+  BIND(&no_feedback);
+  {
+    TailCallRuntime(Runtime::kStoreGlobalICNoFeedback_Miss, pp->context(),
+                    pp->value(), pp->name());
   }
 }
 
@@ -3833,6 +3855,18 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   TailCallBuiltin(Builtins::kLoadIC, context, receiver, name, slot, vector);
 }
 
+void AccessorAssembler::GenerateLoadICBaseline() {
+  using Descriptor = LoadBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtins::kLoadIC, context, receiver, name, slot, vector);
+}
+
 void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
   using Descriptor = LoadDescriptor;
 
@@ -3859,6 +3893,20 @@ void AccessorAssembler::GenerateLoadSuperIC() {
   LoadICParameters p(context, receiver, name, slot, vector,
                      lookup_start_object);
   LoadSuperIC(&p);
+}
+
+void AccessorAssembler::GenerateLoadSuperICBaseline() {
+  using Descriptor = LoadWithReceiverBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto lookup_start_object = Parameter<Object>(Descriptor::kLookupStartObject);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtins::kLoadSuperIC, context, receiver,
+                  lookup_start_object, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadGlobalIC_NoFeedback() {
@@ -3903,6 +3951,79 @@ void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
   TailCallStub(callable, context, name, slot, vector);
 }
 
+void AccessorAssembler::GenerateLoadGlobalICBaseline(TypeofMode typeof_mode) {
+  using Descriptor = LoadGlobalBaselineDescriptor;
+
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  Callable callable =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate(), typeof_mode);
+  TailCallStub(callable, context, name, slot, vector);
+}
+
+void AccessorAssembler::GenerateLookupContextBaseline(TypeofMode typeof_mode) {
+  using Descriptor = LookupBaselineDescriptor;
+  auto depth = Parameter<TaggedIndex>(Descriptor::kDepth);
+  TNode<Context> context = LoadContextFromBaseline();
+
+  Label slowpath(this, Label::kDeferred);
+
+  // Check for context extensions to allow the fast path.
+  TNode<Context> slot_context = GotoIfHasContextExtensionUpToDepth(
+      context, Unsigned(TruncateWordToInt32(TaggedIndexToIntPtr(depth))),
+      &slowpath);
+
+  // Fast path does a normal load context.
+  {
+    auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+    Return(LoadContextElement(slot_context, TaggedIndexToIntPtr(slot)));
+  }
+
+  // Slow path when we have to call out to the runtime.
+  BIND(&slowpath);
+  {
+    auto name = Parameter<Object>(Descriptor::kName);
+    Runtime::FunctionId function_id = typeof_mode == INSIDE_TYPEOF
+                                          ? Runtime::kLoadLookupSlotInsideTypeof
+                                          : Runtime::kLoadLookupSlot;
+    TailCallRuntime(function_id, context, name);
+  }
+}
+
+void AccessorAssembler::GenerateLookupGlobalICBaseline(TypeofMode typeof_mode) {
+  using Descriptor = LookupBaselineDescriptor;
+
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto depth = Parameter<TaggedIndex>(Descriptor::kDepth);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<Context> context = LoadContextFromBaseline();
+
+  Label slowpath(this, Label::kDeferred);
+
+  // Check for context extensions to allow the fast path
+  GotoIfHasContextExtensionUpToDepth(
+      context, Unsigned(TruncateWordToInt32(TaggedIndexToIntPtr(depth))),
+      &slowpath);
+
+  // Fast path does a normal load global
+  {
+    Callable callable =
+        CodeFactory::LoadGlobalICInOptimizedCode(isolate(), typeof_mode);
+    TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+    TailCallStub(callable, context, name, slot, vector);
+  }
+
+  // Slow path when we have to call out to the runtime
+  BIND(&slowpath);
+  Runtime::FunctionId function_id = typeof_mode == INSIDE_TYPEOF
+                                        ? Runtime::kLoadLookupSlotInsideTypeof
+                                        : Runtime::kLoadLookupSlot;
+  TailCallRuntime(function_id, context, name);
+}
+
 void AccessorAssembler::GenerateKeyedLoadIC() {
   using Descriptor = LoadWithVectorDescriptor;
 
@@ -3937,6 +4058,19 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
+
+  TailCallBuiltin(Builtins::kKeyedLoadIC, context, receiver, name, slot,
+                  vector);
+}
+
+void AccessorAssembler::GenerateKeyedLoadICBaseline() {
+  using Descriptor = LoadBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
 
   TailCallBuiltin(Builtins::kKeyedLoadIC, context, receiver, name, slot,
                   vector);
@@ -3993,6 +4127,18 @@ void AccessorAssembler::GenerateStoreGlobalICTrampoline() {
   TailCallBuiltin(Builtins::kStoreGlobalIC, context, name, value, slot, vector);
 }
 
+void AccessorAssembler::GenerateStoreGlobalICBaseline() {
+  using Descriptor = StoreGlobalBaselineDescriptor;
+
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtins::kStoreGlobalIC, context, name, value, slot, vector);
+}
+
 void AccessorAssembler::GenerateStoreIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
@@ -4016,6 +4162,20 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
+
+  TailCallBuiltin(Builtins::kStoreIC, context, receiver, name, value, slot,
+                  vector);
+}
+
+void AccessorAssembler::GenerateStoreICBaseline() {
+  using Descriptor = StoreBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
 
   TailCallBuiltin(Builtins::kStoreIC, context, receiver, name, value, slot,
                   vector);
@@ -4049,6 +4209,20 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
                   vector);
 }
 
+void AccessorAssembler::GenerateKeyedStoreICBaseline() {
+  using Descriptor = StoreBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtins::kKeyedStoreIC, context, receiver, name, value, slot,
+                  vector);
+}
+
 void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
@@ -4061,6 +4235,21 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
 
   StoreICParameters p(context, array, index, value, slot, vector);
   StoreInArrayLiteralIC(&p);
+}
+
+void AccessorAssembler::GenerateStoreInArrayLiteralICBaseline() {
+  using Descriptor = StoreBaselineDescriptor;
+
+  auto array = Parameter<Object>(Descriptor::kReceiver);
+  auto index = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtins::kStoreInArrayLiteralIC, context, array, index,
+                  value, slot, vector);
 }
 
 void AccessorAssembler::GenerateCloneObjectIC_Slow() {
@@ -4114,6 +4303,20 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   Goto(&done);
   BIND(&done);
   Return(result);
+}
+
+void AccessorAssembler::GenerateCloneObjectICBaseline() {
+  using Descriptor = CloneObjectBaselineDescriptor;
+
+  auto source = Parameter<Object>(Descriptor::kSource);
+  auto flags = Parameter<Smi>(Descriptor::kFlags);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtins::kCloneObjectIC, context, source, flags, slot,
+                  vector);
 }
 
 void AccessorAssembler::GenerateCloneObjectIC() {
@@ -4273,6 +4476,18 @@ void AccessorAssembler::GenerateKeyedHasIC() {
 
   LoadICParameters p(context, receiver, name, slot, vector);
   KeyedLoadIC(&p, LoadAccessMode::kHas);
+}
+
+void AccessorAssembler::GenerateKeyedHasICBaseline() {
+  using Descriptor = LoadBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtins::kKeyedHasIC, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {

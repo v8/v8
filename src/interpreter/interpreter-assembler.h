@@ -82,11 +82,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<Context> GetContextAtDepth(TNode<Context> context,
                                    TNode<Uint32T> depth);
 
-  // Goto the given |target| if the context chain starting at |context| has any
-  // extensions up to the given |depth|.
-  void GotoIfHasContextExtensionUpToDepth(TNode<Context> context,
-                                          TNode<Uint32T> depth, Label* target);
-
   // A RegListNodePair provides an abstraction over lists of registers.
   class RegListNodePair {
    public:

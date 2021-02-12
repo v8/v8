@@ -74,6 +74,20 @@ transitioning builtin GetIteratorWithFeedback(
       context, receiver, iteratorMethod, callSlotSmi, maybeFeedbackVector);
 }
 
+extern macro LoadFeedbackVectorFromBaseline(): FeedbackVector;
+
+transitioning builtin GetIteratorBaseline(
+    context: Context, receiver: JSAny, loadSlot: TaggedIndex,
+    callSlot: TaggedIndex): JSAny {
+  const feedback: FeedbackVector = LoadFeedbackVectorFromBaseline();
+  const iteratorMethod: JSAny =
+      LoadIC(context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+  const callSlotSmi: Smi = TaggedIndexToSmi(callSlot);
+  return CallIteratorWithFeedback(
+      context, receiver, iteratorMethod, callSlotSmi, feedback);
+}
+
 transitioning builtin CallIteratorWithFeedback(
     context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
     feedback: Undefined|FeedbackVector): JSAny {

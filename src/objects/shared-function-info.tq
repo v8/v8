@@ -14,6 +14,13 @@ extern class InterpreterData extends Struct {
   interpreter_trampoline: Code;
 }
 
+@generateCppClass
+@generatePrint
+extern class BaselineData extends Struct {
+  baseline_code: Code;
+  data: BytecodeArray|InterpreterData;
+}
+
 type FunctionKind extends uint8 constexpr 'FunctionKind';
 type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
 type BailoutReason extends uint8 constexpr 'BailoutReason';

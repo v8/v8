@@ -66,6 +66,12 @@ class Deoptimizer : public Malloced {
   // instead of the function code (e.g. OSR code not installed on function).
   static void DeoptimizeFunction(JSFunction function, Code code = Code());
 
+  // From Sparkplug to Ignition.
+  // TODO(v8:11429): Consider moving this to the debugger, since it's only for
+  // debug.
+  static void DeoptimizeSparkplug(SharedFunctionInfo shared);
+  static void DeoptimizeAllSparkplug(Isolate* isolate);
+
   // Deoptimize all code in the given isolate.
   V8_EXPORT_PRIVATE static void DeoptimizeAll(Isolate* isolate);
 

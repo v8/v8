@@ -122,6 +122,12 @@ void StackFrameIterator::Advance() {
   DCHECK(!done() || handler_ == nullptr);
 }
 
+StackFrame* StackFrameIterator::Reframe() {
+  StackFrame::Type type = frame_->ComputeType(this, &frame_->state_);
+  frame_ = SingletonFor(type, &frame_->state_);
+  return frame();
+}
+
 void StackFrameIterator::Reset(ThreadLocalTop* top) {
   StackFrame::State state;
   StackFrame::Type type =
@@ -219,10 +225,13 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeAdvance);
   Code interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  Code baseline_prologue =
+      isolate->builtins()->builtin(Builtins::kBaselineOutOfLinePrologue);
 
   if (interpreter_entry_trampoline.contains(pc) ||
       interpreter_bytecode_advance.contains(pc) ||
-      interpreter_bytecode_dispatch.contains(pc)) {
+      interpreter_bytecode_dispatch.contains(pc) ||
+      baseline_prologue.contains(pc)) {
     return true;
   } else if (FLAG_interpreted_frames_native_stack) {
     intptr_t marker = Memory<intptr_t>(
@@ -581,6 +590,10 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             if (code_obj.is_interpreter_trampoline_builtin()) {
               return INTERPRETED;
             }
+            if (code_obj.is_baseline_prologue_builtin() ||
+                code_obj.is_baseline_leave_frame_builtin()) {
+              return SPARKPLUG;
+            }
             if (code_obj.is_turbofanned()) {
               // TODO(bmeurer): We treat frames for BUILTIN Code objects as
               // OptimizedFrame for now (all the builtins with JavaScript
@@ -593,6 +606,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
           case CodeKind::TURBOPROP:
             return OPTIMIZED;
+          case CodeKind::SPARKPLUG:
+            return Type::SPARKPLUG;
           case CodeKind::JS_TO_WASM_FUNCTION:
             return JS_TO_WASM;
           case CodeKind::JS_TO_JS_FUNCTION:
@@ -978,6 +993,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         break;
       case OPTIMIZED:
       case INTERPRETED:
+      case SPARKPLUG:
       case BUILTIN:
         // These frame types have a context, but they are actually stored
         // in the place on the stack that one finds the frame type.
@@ -1173,7 +1189,8 @@ Script JavaScriptFrame::script() const {
 int CommonFrameWithJSLinkage::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
   DCHECK(!LookupCode().has_handler_table());
-  DCHECK(!LookupCode().is_optimized_code());
+  DCHECK(!LookupCode().is_optimized_code() ||
+         LookupCode().kind() == CodeKind::SPARKPLUG);
   return -1;
 }
 
@@ -1346,6 +1363,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       is_constructor_(is_constructor),
       parameters_(parameters, isolate) {
   DCHECK(abstract_code.IsBytecodeArray() ||
+         Code::cast(abstract_code).kind() == CodeKind::SPARKPLUG ||
          !CodeKindIsOptimizedJSFunction(Code::cast(abstract_code).kind()));
 }
 
@@ -1730,6 +1748,14 @@ void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
                 index * kSystemPointerSize);
   int raw_offset = BytecodeArray::kHeaderSize - kHeapObjectTag + new_offset;
   SetExpression(index, Smi::FromInt(raw_offset));
+}
+
+int SparkplugFrame::GetBytecodeOffset() const {
+  return LookupCode().GetBytecodeOffsetForSparkplugPC(this->pc());
+}
+
+intptr_t SparkplugFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
+  return LookupCode().GetSparkplugPCForBytecodeOffset(bytecode_offset);
 }
 
 BytecodeArray InterpretedFrame::GetBytecodeArray() const {

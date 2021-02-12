@@ -218,6 +218,9 @@ inline OptimizedFrame::OptimizedFrame(StackFrameIteratorBase* iterator)
 inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {}
 
+inline SparkplugFrame::SparkplugFrame(StackFrameIteratorBase* iterator)
+    : InterpretedFrame(iterator) {}
+
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
     : TypedFrameWithJSLinkage(iterator) {}
 
@@ -285,6 +288,11 @@ inline CommonFrame* StackTraceFrameIterator::frame() const {
   StackFrame* frame = iterator_.frame();
   DCHECK(frame->is_java_script() || frame->is_wasm());
   return static_cast<CommonFrame*>(frame);
+}
+
+inline CommonFrame* StackTraceFrameIterator::Reframe() {
+  iterator_.Reframe();
+  return frame();
 }
 
 bool StackTraceFrameIterator::is_javascript() const {

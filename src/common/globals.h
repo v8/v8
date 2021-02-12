@@ -454,6 +454,10 @@ constexpr int kNoSourcePosition = -1;
 // bytecode offset.
 constexpr int kFunctionEntryBytecodeOffset = -1;
 
+// This constant is used to signal the function exit interrupt budget handling
+// bytecode offset.
+constexpr int kFunctionExitBytecodeOffset = -1;
+
 // This constant is used to indicate missing deoptimization information.
 constexpr int kNoDeoptimizationId = -1;
 

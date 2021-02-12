@@ -202,41 +202,6 @@ TNode<Context> InterpreterAssembler::GetContextAtDepth(TNode<Context> context,
   return cur_context.value();
 }
 
-void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(
-    TNode<Context> context, TNode<Uint32T> depth, Label* target) {
-  TVARIABLE(Context, cur_context, context);
-  TVARIABLE(Uint32T, cur_depth, depth);
-
-  Label context_search(this, {&cur_depth, &cur_context});
-  Label no_extension(this);
-
-  // Loop until the depth is 0.
-  Goto(&context_search);
-  BIND(&context_search);
-  {
-    // Check if context has an extension slot.
-    TNode<BoolT> has_extension =
-        LoadScopeInfoHasExtensionField(LoadScopeInfo(cur_context.value()));
-    GotoIfNot(has_extension, &no_extension);
-
-    // Jump to the target if the extension slot is not an undefined value.
-    TNode<Object> extension_slot =
-        LoadContextElement(cur_context.value(), Context::EXTENSION_INDEX);
-    Branch(TaggedNotEqual(extension_slot, UndefinedConstant()), target,
-           &no_extension);
-
-    BIND(&no_extension);
-    {
-      cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
-      cur_context = CAST(
-          LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
-
-      GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
-             &context_search);
-    }
-  }
-}
-
 TNode<IntPtrT> InterpreterAssembler::RegisterLocation(
     TNode<IntPtrT> reg_index) {
   return Signed(WordPoisonOnSpeculation(
@@ -1323,7 +1288,8 @@ void InterpreterAssembler::MaybeDropFrames(TNode<Context> context) {
 
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
   CallRuntime(function_id, GetContext(), BytecodeArrayTaggedPointer(),
-              SmiTag(BytecodeOffset()), GetAccumulatorUnchecked());
+              SmiTag(BytecodeOffset()), GetAccumulatorUnchecked(),
+              FalseConstant());
 }
 
 void InterpreterAssembler::TraceBytecodeDispatch(TNode<WordT> target_bytecode) {
@@ -1558,7 +1524,8 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
   TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
-  UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_index);
+  MaybeUpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
+                      slot_index, false);
 
   SetAccumulator(var_result.value());
   Dispatch();

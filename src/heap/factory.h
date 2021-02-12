@@ -830,6 +830,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
+    CodeBuilder& set_bytecode_offset_table(Handle<ByteArray> table) {
+      DCHECK(!table.is_null());
+      // TODO(v8:11429): Rename this and clean up calls to SourcePositionTable
+      // under Sparkplug.
+      source_position_table_ = table;
+      return *this;
+    }
+
     CodeBuilder& set_deoptimization_data(
         Handle<DeoptimizationData> deopt_data) {
       DCHECK(!deopt_data.is_null());
@@ -877,6 +885,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     int32_t builtin_index_ = Builtins::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
     int32_t kind_specific_flags_ = 0;
+    // Contains bytecode offset table for sparkplug
     Handle<ByteArray> source_position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
         DeoptimizationData::Empty(isolate_);

@@ -1133,28 +1133,28 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
 
         // Step 2: compiling top-level script and eager functions
         // - Compiling script without name.
-        {"function,compile,"},
-        {"function,compile,", ",eagerFunction"},
+        {"function,interpreter,"},
+        {"function,interpreter,", ",eagerFunction"},
 
         // Step 3: start executing script
         // Step 4. - lazy parse, lazy compiling and execute skipped functions
         //         - execute eager functions.
         {"function,parse-function,", ",lazyFunction"},
-        {"function,compile-lazy,", ",lazyFunction"},
+        {"function,interpreter-lazy,", ",lazyFunction"},
         {"function,first-execution,", ",lazyFunction"},
 
         {"function,parse-function,", ",lazyInnerFunction"},
-        {"function,compile-lazy,", ",lazyInnerFunction"},
+        {"function,interpreter-lazy,", ",lazyInnerFunction"},
         {"function,first-execution,", ",lazyInnerFunction"},
 
         {"function,first-execution,", ",eagerFunction"},
 
         {"function,parse-function,", ",Foo"},
-        {"function,compile-lazy,", ",Foo"},
+        {"function,interpreter-lazy,", ",Foo"},
         {"function,first-execution,", ",Foo"},
 
         {"function,parse-function,", ",Foo.foo"},
-        {"function,compile-lazy,", ",Foo.foo"},
+        {"function,interpreter-lazy,", ",Foo.foo"},
         {"function,first-execution,", ",Foo.foo"},
     };
     CHECK(logger.ContainsLinesInOrder(lines, start));

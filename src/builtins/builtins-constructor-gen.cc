@@ -37,18 +37,46 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
       BUILTIN_CODE(masm->isolate(), ConstructFunction));
 }
 
+// TODO(v8:11429): Here and below, consider sharing code with Foo_WithFeedback,
+// or removing the latter entirely.
+TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
+
+  // TODO(v8:11429,verwaest): Only emit context loads where necessary
+  auto context = LoadContextFromBaseline();
+  // TODO(v8:11429,verwaest): Make sure CollectConstructFeedback knows we have a
+  // feedback vector.
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+
+  TVARIABLE(AllocationSite, allocation_site);
+  Label if_construct_generic(this), if_construct_array(this);
+  CollectConstructFeedback(context, target, new_target, feedback_vector,
+                           Unsigned(ChangeInt32ToIntPtr(slot)),
+                           &if_construct_generic, &if_construct_array,
+                           &allocation_site);
+
+  BIND(&if_construct_generic);
+  TailCallBuiltin(Builtins::kConstruct, context, target, new_target, argc);
+
+  BIND(&if_construct_array);
+  TailCallBuiltin(Builtins::kArrayConstructorImpl, context, target, new_target,
+                  argc, allocation_site.value());
+}
+
 TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto target = Parameter<Object>(Descriptor::kTarget);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
+  CollectConstructFeedback(context, target, new_target, feedback_vector,
                            Unsigned(ChangeInt32ToIntPtr(slot)),
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
@@ -75,13 +103,12 @@ TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
+  CollectConstructFeedback(context, target, new_target, feedback_vector,
                            Unsigned(ChangeInt32ToIntPtr(slot)),
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
@@ -103,6 +130,34 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
+TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto args_count =
+      UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
+
+  // TODO(v8:11429,verwaest): Only emit context loads where necessary
+  auto context = LoadContextFromBaseline();
+  // TODO(v8:11429,verwaest): Make sure CollectConstructFeedback knows we have a
+  // feedback vector.
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+
+  TVARIABLE(AllocationSite, allocation_site);
+  Label if_construct_generic(this), if_construct_array(this);
+  CollectConstructFeedback(context, target, new_target, feedback_vector,
+                           Unsigned(ChangeInt32ToIntPtr(slot)),
+                           &if_construct_generic, &if_construct_array,
+                           &allocation_site);
+
+  BIND(&if_construct_array);
+  Goto(&if_construct_generic);  // Not implemented.
+
+  BIND(&if_construct_generic);
+  CallOrConstructWithSpread(target, new_target, spread, args_count, context);
+}
+
 TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto target = Parameter<Object>(Descriptor::kTarget);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
@@ -110,13 +165,12 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
+  auto feedback_vector = Parameter<HeapObject>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
+  CollectConstructFeedback(context, target, new_target, feedback_vector,
                            Unsigned(ChangeInt32ToIntPtr(slot)),
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);

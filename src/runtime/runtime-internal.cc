@@ -7,6 +7,7 @@
 #include "src/api/api.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
+#include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
@@ -335,6 +336,13 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
     IsCompiledScope is_compiled_scope(
         function->shared().is_compiled_scope(isolate));
     JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    if (FLAG_sparkplug && !function->shared().HasBaselineData() &&
+        !function->shared().HasBreakInfo()) {
+      // TODO(v8:11429): Expose via Compiler, do set_code there.
+      Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+      Handle<Code> code = CompileWithBaseline(isolate, shared);
+      function->set_code(*code);
+    }
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.

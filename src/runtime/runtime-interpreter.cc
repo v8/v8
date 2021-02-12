@@ -99,16 +99,19 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
 
 }  // namespace
 
+// TODO(v8:11429): Consider either renaming to not just be "Interpreter", or
+// copying for Sparkplug.
 RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   if (!FLAG_trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
   CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, is_sparkplug, 3);
 
   int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
@@ -120,8 +123,13 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
     const uint8_t* base_address = reinterpret_cast<const uint8_t*>(
         bytecode_array->GetFirstBytecodeAddress());
     const uint8_t* bytecode_address = base_address + offset;
-    os << " -> " << static_cast<const void*>(bytecode_address) << " @ "
-       << std::setw(4) << offset << " : ";
+    if (is_sparkplug->BooleanValue(isolate)) {
+      os << "S-> ";
+    } else {
+      os << " -> ";
+    }
+    os << static_cast<const void*>(bytecode_address) << " @ " << std::setw(4)
+       << offset << " : ";
     interpreter::BytecodeDecoder::Decode(os, bytecode_address,
                                          bytecode_array->parameter_count());
     os << std::endl;
@@ -139,7 +147,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
   }
 
   SealHandleScope shs(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
   CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);

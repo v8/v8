@@ -16,9 +16,11 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
   explicit UnaryOpAssemblerImpl(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  // TODO(v8:11429): Change `bool guaranteed_feedback` to an enum.
   TNode<Object> BitwiseNot(TNode<Context> context, TNode<Object> value,
                            TNode<UintPtrT> slot,
-                           TNode<HeapObject> maybe_feedback_vector) {
+                           TNode<HeapObject> maybe_feedback_vector,
+                           bool guaranteed_feedback) {
     // TODO(jgruber): Make this implementation more consistent with other unary
     // ops (i.e. have them all use UnaryOpWithFeedback or some other common
     // mechanism).
@@ -37,14 +39,14 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
     TNode<Smi> result_type = SelectSmiConstant(
         TaggedIsSmi(var_result.value()), BinaryOperationFeedback::kSignedSmall,
         BinaryOperationFeedback::kNumber);
-    UpdateFeedback(SmiOr(result_type, var_feedback.value()),
-                   maybe_feedback_vector, slot);
+    MaybeUpdateFeedback(SmiOr(result_type, var_feedback.value()),
+                        maybe_feedback_vector, slot, guaranteed_feedback);
     Goto(&out);
 
     // BigInt case.
     BIND(&if_bigint);
-    UpdateFeedback(SmiConstant(BinaryOperationFeedback::kBigInt),
-                   maybe_feedback_vector, slot);
+    MaybeUpdateFeedback(SmiConstant(BinaryOperationFeedback::kBigInt),
+                        maybe_feedback_vector, slot, guaranteed_feedback);
     var_result =
         CallRuntime(Runtime::kBigIntUnaryOp, context, var_bigint.value(),
                     SmiConstant(Operation::kBitwiseNot));
@@ -56,21 +58,24 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
 
   TNode<Object> Decrement(TNode<Context> context, TNode<Object> value,
                           TNode<UintPtrT> slot,
-                          TNode<HeapObject> maybe_feedback_vector) {
-    return IncrementOrDecrement<Operation::kDecrement>(context, value, slot,
-                                                       maybe_feedback_vector);
+                          TNode<HeapObject> maybe_feedback_vector,
+                          bool guaranteed_feedback) {
+    return IncrementOrDecrement<Operation::kDecrement>(
+        context, value, slot, maybe_feedback_vector, guaranteed_feedback);
   }
 
   TNode<Object> Increment(TNode<Context> context, TNode<Object> value,
                           TNode<UintPtrT> slot,
-                          TNode<HeapObject> maybe_feedback_vector) {
-    return IncrementOrDecrement<Operation::kIncrement>(context, value, slot,
-                                                       maybe_feedback_vector);
+                          TNode<HeapObject> maybe_feedback_vector,
+                          bool guaranteed_feedback) {
+    return IncrementOrDecrement<Operation::kIncrement>(
+        context, value, slot, maybe_feedback_vector, guaranteed_feedback);
   }
 
   TNode<Object> Negate(TNode<Context> context, TNode<Object> value,
                        TNode<UintPtrT> slot,
-                       TNode<HeapObject> maybe_feedback_vector) {
+                       TNode<HeapObject> maybe_feedback_vector,
+                       bool guaranteed_feedback) {
     SmiOperation smi_op = [=](TNode<Smi> smi_value,
                               TVariable<Smi>* var_feedback, Label* do_float_op,
                               TVariable<Float64T>* var_float) {
@@ -108,7 +113,8 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
                               SmiConstant(Operation::kNegate)));
     };
     return UnaryOpWithFeedback(context, value, slot, maybe_feedback_vector,
-                               smi_op, float_op, bigint_op);
+                               smi_op, float_op, bigint_op,
+                               guaranteed_feedback);
   }
 
  private:
@@ -125,7 +131,8 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
                                     TNode<HeapObject> maybe_feedback_vector,
                                     const SmiOperation& smi_op,
                                     const FloatOperation& float_op,
-                                    const BigIntOperation& bigint_op) {
+                                    const BigIntOperation& bigint_op,
+                                    bool guaranteed_feedback) {
     TVARIABLE(Object, var_value, value);
     TVARIABLE(Object, var_result);
     TVARIABLE(Float64T, var_float_value);
@@ -207,14 +214,16 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
     }
 
     BIND(&end);
-    UpdateFeedback(var_feedback.value(), maybe_feedback_vector, slot);
+    MaybeUpdateFeedback(var_feedback.value(), maybe_feedback_vector, slot,
+                        guaranteed_feedback);
     return var_result.value();
   }
 
   template <Operation kOperation>
   TNode<Object> IncrementOrDecrement(TNode<Context> context,
                                      TNode<Object> value, TNode<UintPtrT> slot,
-                                     TNode<HeapObject> maybe_feedback_vector) {
+                                     TNode<HeapObject> maybe_feedback_vector,
+                                     bool guaranteed_feedback) {
     STATIC_ASSERT(kOperation == Operation::kIncrement ||
                   kOperation == Operation::kDecrement);
     static constexpr int kAddValue =
@@ -245,7 +254,8 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
                               SmiConstant(kOperation)));
     };
     return UnaryOpWithFeedback(context, value, slot, maybe_feedback_vector,
-                               smi_op, float_op, bigint_op);
+                               smi_op, float_op, bigint_op,
+                               guaranteed_feedback);
   }
 };
 
@@ -253,30 +263,34 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
 
 TNode<Object> UnaryOpAssembler::Generate_BitwiseNotWithFeedback(
     TNode<Context> context, TNode<Object> value, TNode<UintPtrT> slot,
-    TNode<HeapObject> maybe_feedback_vector) {
+    TNode<HeapObject> maybe_feedback_vector, bool guaranteed_feedback) {
   UnaryOpAssemblerImpl a(state_);
-  return a.BitwiseNot(context, value, slot, maybe_feedback_vector);
+  return a.BitwiseNot(context, value, slot, maybe_feedback_vector,
+                      guaranteed_feedback);
 }
 
 TNode<Object> UnaryOpAssembler::Generate_DecrementWithFeedback(
     TNode<Context> context, TNode<Object> value, TNode<UintPtrT> slot,
-    TNode<HeapObject> maybe_feedback_vector) {
+    TNode<HeapObject> maybe_feedback_vector, bool guaranteed_feedback) {
   UnaryOpAssemblerImpl a(state_);
-  return a.Decrement(context, value, slot, maybe_feedback_vector);
+  return a.Decrement(context, value, slot, maybe_feedback_vector,
+                     guaranteed_feedback);
 }
 
 TNode<Object> UnaryOpAssembler::Generate_IncrementWithFeedback(
     TNode<Context> context, TNode<Object> value, TNode<UintPtrT> slot,
-    TNode<HeapObject> maybe_feedback_vector) {
+    TNode<HeapObject> maybe_feedback_vector, bool guaranteed_feedback) {
   UnaryOpAssemblerImpl a(state_);
-  return a.Increment(context, value, slot, maybe_feedback_vector);
+  return a.Increment(context, value, slot, maybe_feedback_vector,
+                     guaranteed_feedback);
 }
 
 TNode<Object> UnaryOpAssembler::Generate_NegateWithFeedback(
     TNode<Context> context, TNode<Object> value, TNode<UintPtrT> slot,
-    TNode<HeapObject> maybe_feedback_vector) {
+    TNode<HeapObject> maybe_feedback_vector, bool guaranteed_feedback) {
   UnaryOpAssemblerImpl a(state_);
-  return a.Negate(context, value, slot, maybe_feedback_vector);
+  return a.Negate(context, value, slot, maybe_feedback_vector,
+                  guaranteed_feedback);
 }
 
 }  // namespace internal

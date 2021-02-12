@@ -1410,7 +1410,19 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
       MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
 
+void TurboAssembler::PushRoot(RootIndex index) {
+  UseScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireX();
+  LoadRoot(tmp, index);
+  Push(tmp);
+}
+
 void TurboAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
+void TurboAssembler::Move(Register dst, MemOperand src) { Ldr(dst, src); }
+void TurboAssembler::Move(Register dst, Register src) {
+  if (dst == src) return;
+  Mov(dst, src);
+}
 
 void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
                               Register src1) {
@@ -1889,9 +1901,14 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
                                                Register destination) {
-  Ldr(destination,
-      MemOperand(kRootRegister,
-                 IsolateData::builtin_entry_slot_offset(builtin_index)));
+  Ldr(destination, EntryFromBuiltinIndexAsOperand(builtin_index));
+}
+
+MemOperand TurboAssembler::EntryFromBuiltinIndexAsOperand(
+    Builtins::Name builtin_index) {
+  DCHECK(root_array_available());
+  return MemOperand(kRootRegister,
+                    IsolateData::builtin_entry_slot_offset(builtin_index));
 }
 
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
@@ -2462,8 +2479,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // sp[2] : fp
     // sp[1] : type
     // sp[0] : for alignment
-  } else {
-    DCHECK_EQ(type, StackFrame::CONSTRUCT);
+  } else if (type == StackFrame::CONSTRUCT) {
     Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
 
@@ -2479,6 +2495,14 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // sp[2] : fp
     // sp[1] : type
     // sp[0] : cp
+  } else {
+    DCHECK_EQ(type, StackFrame::MANUAL);
+    // Just push a minimal "machine frame", saving the frame pointer and return
+    // address, without any markers.
+    Push<TurboAssembler::kSignLR>(lr, fp);
+    Mov(fp, sp);
+    // sp[1] : lr
+    // sp[0] : fp
   }
 }
 
@@ -2735,6 +2759,15 @@ void TurboAssembler::LoadAnyTaggedField(const Register& destination,
                                         const MemOperand& field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
     DecompressAnyTagged(destination, field_operand);
+  } else {
+    Ldr(destination, field_operand);
+  }
+}
+
+void TurboAssembler::LoadTaggedSignedField(const Register& destination,
+                                           const MemOperand& field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressTaggedSigned(destination, field_operand);
   } else {
     Ldr(destination, field_operand);
   }

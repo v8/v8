@@ -175,6 +175,7 @@ var V8OptimizationStatus = {
   kTopmostFrameIsTurboFanned: 1 << 11,
   kLiteMode: 1 << 12,
   kMarkedForDeoptimization: 1 << 13,
+  kSparkplug: 1 << 14,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -188,6 +189,9 @@ var isAlwaysOptimize;
 
 // Returns true if given function in interpreted.
 var isInterpreted;
+
+// Returns true if given function in sparkplug.
+var isSparkplug;
 
 // Returns true if given function is optimized.
 var isOptimized;
@@ -676,7 +680,9 @@ var prettyPrinted;
       // to stress test the deoptimizer.
       return;
     }
-    assertFalse((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
+    var is_optimized = (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+    var is_sparkplug = (opt_status & V8OptimizationStatus.kSparkplug) !== 0;
+    assertFalse(is_optimized && !is_sparkplug, name_opt);
   }
 
   assertOptimized = function assertOptimized(
@@ -729,6 +735,14 @@ var prettyPrinted;
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
            (opt_status & V8OptimizationStatus.kInterpreted) !== 0;
+  }
+
+  isSparkplug = function isSparkplug(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
+           (opt_status & V8OptimizationStatus.kSparkplug) !== 0;
   }
 
   isOptimized = function isOptimized(fun) {

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api.h"
+#include "src/baseline/baseline-compiler.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
@@ -687,6 +688,20 @@ TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
   TailCallRuntime(Runtime::kForInEnumerate, context, receiver);
 }
 
+TF_BUILTIN(ForInPrepare, CodeStubAssembler) {
+  // The {enumerator} is either a Map or a FixedArray.
+  auto enumerator = Parameter<HeapObject>(Descriptor::kEnumerator);
+  auto index = Parameter<TaggedIndex>(Descriptor::kVectorIndex);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  TNode<UintPtrT> vector_index = Unsigned(TaggedIndexToIntPtr(index));
+
+  TNode<FixedArray> cache_array;
+  TNode<Smi> cache_length;
+  ForInPrepare(enumerator, vector_index, feedback_vector, &cache_array,
+               &cache_length, true);
+  Return(cache_array, cache_length);
+}
+
 TF_BUILTIN(ForInFilter, CodeStubAssembler) {
   auto key = Parameter<String>(Descriptor::kKey);
   auto object = Parameter<HeapObject>(Descriptor::kObject);
@@ -908,6 +923,28 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
   masm->Call(BUILTIN_CODE(masm->isolate(), Illegal), RelocInfo::CODE_TARGET);
 }
 #endif  // V8_TARGET_ARCH_IA32
+
+// TODO(v8:11421): Remove #if once baseline compiler is ported to other
+// architectures.
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
+  baseline::BaselineAssembler::EmitReturn(masm);
+}
+#else
+// Stub out implementations of arch-specific baseline builtins.
+void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_TailCallOptimizedCodeSlot(MacroAssembler* masm) {
+  masm->Trap();
+}
+#endif
 
 // ES6 [[Get]] operation.
 TF_BUILTIN(GetProperty, CodeStubAssembler) {

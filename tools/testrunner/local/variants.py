@@ -14,6 +14,7 @@ ALL_VARIANT_FLAGS = {
   "interpreted_regexp": [["--regexp-interpret-all"]],
   "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
   "jitless": [["--jitless"]],
+  "sparkplug": [["--sparkplug"]],
   "minor_mc": [["--minor-mc"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
@@ -49,7 +50,7 @@ ALL_VARIANT_FLAGS = {
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "assert_types": ["--no-assert-types"],
-  "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types", "--validate-asm"],
+  "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types", "--validate-asm", "--sparkplug", "--always-sparkplug"],
   "no_wasm_traps": ["--wasm-trap-handler"],
   "nooptimization": ["--opt", "--always-opt", "--no-liftoff", "--wasm-tier-up"],
   "slow_path": ["--no-force-slow-path"],
@@ -60,6 +61,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile", "--parallel-compile-tasks"],
   "stress": ["--no-stress-opt", "--always-opt", "--no-always-opt", "--liftoff", "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline"],
+  "sparkplug": ["--jitless"],
   "turboprop": ["--interrupt-budget=*", "--no-turboprop"],
   "turboprop_as_toptier": ["--interrupt-budget=*", "--no-turboprop", "--no-turboprop-as-toptier"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache", "--cache=none"],

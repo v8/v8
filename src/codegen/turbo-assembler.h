@@ -117,9 +117,9 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static constexpr int kStackPageSize = 4 * KB;
 #endif
 
- protected:
   void RecordCommentForOffHeapTrampoline(int builtin_index);
 
+ protected:
   Isolate* const isolate_ = nullptr;
 
   // This handle will be patched with the code object on installation.

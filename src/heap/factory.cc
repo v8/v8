@@ -3392,10 +3392,12 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
 
   Handle<JSFunction> result = BuildRaw(code);
 
-  if (have_cached_code) {
+  if (have_cached_code || code->kind() == CodeKind::SPARKPLUG) {
     IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
     JSFunction::EnsureFeedbackVector(result, &is_compiled_scope);
-    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi_, code);
+    if (FLAG_trace_turbo_nci && have_cached_code) {
+      CompilationCacheCode::TraceHit(sfi_, code);
+    }
   }
 
   Compiler::PostInstantiation(result);

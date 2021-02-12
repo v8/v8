@@ -317,6 +317,21 @@ builtin NewRestArgumentsElements(
       frame, formalParameterCount, Convert<intptr>(argumentCount));
 }
 
+builtin FastNewSloppyArguments(implicit context: Context)(f: JSFunction):
+    JSSloppyArgumentsObject {
+  return EmitFastNewSloppyArguments(f);
+}
+
+builtin FastNewStrictArguments(implicit context: Context)(f: JSFunction):
+    JSStrictArgumentsObject {
+  return EmitFastNewStrictArguments(f);
+}
+
+builtin FastNewRestArguments(implicit context: Context)(f: JSFunction):
+    JSArray {
+  return EmitFastNewRestArguments(f);
+}
+
 macro
 AccessSloppyArgumentsCommon(
     receiver: JSObject, keyObject: Object): &Object labels Bailout {

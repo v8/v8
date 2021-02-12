@@ -1221,15 +1221,18 @@ void Logger::LogSourceCodeInformation(Handle<AbstractCode> code,
       << reinterpret_cast<void*>(code->InstructionStart()) << Logger::kNext
       << script.id() << Logger::kNext << shared->StartPosition()
       << Logger::kNext << shared->EndPosition() << Logger::kNext;
-
-  SourcePositionTableIterator iterator(code->source_position_table());
+  // TODO(v8:11429): Clean-up sparkplug-replated code in source position
+  // iteration.
   bool hasInlined = false;
-  for (; !iterator.done(); iterator.Advance()) {
-    SourcePosition pos = iterator.source_position();
-    msg << "C" << iterator.code_offset() << "O" << pos.ScriptOffset();
-    if (pos.isInlined()) {
-      msg << "I" << pos.InliningId();
-      hasInlined = true;
+  if (code->kind() != CodeKind::SPARKPLUG) {
+    SourcePositionTableIterator iterator(code->source_position_table());
+    for (; !iterator.done(); iterator.Advance()) {
+      SourcePosition pos = iterator.source_position();
+      msg << "C" << iterator.code_offset() << "O" << pos.ScriptOffset();
+      if (pos.isInlined()) {
+        msg << "I" << pos.InliningId();
+        hasInlined = true;
+      }
     }
   }
   msg << Logger::kNext;
@@ -2102,6 +2105,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
   switch (abstract_code->kind()) {
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::TURBOFAN:
+    case CodeKind::SPARKPLUG:
     case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
     case CodeKind::TURBOPROP:
       return;  // We log this later using LogCompiledFunctions.
@@ -2173,12 +2177,21 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (auto& pair : compiled_funcs) {
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, pair.first);
-    if (pair.first->function_data(kAcquireLoad).IsInterpreterData()) {
+    Handle<SharedFunctionInfo> shared = pair.first;
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
+    if (shared->HasInterpreterData()) {
       LogExistingFunction(
-          pair.first,
+          shared,
           Handle<AbstractCode>(
-              AbstractCode::cast(pair.first->InterpreterTrampoline()),
+              AbstractCode::cast(shared->InterpreterTrampoline()), isolate_),
+          CodeEventListener::INTERPRETED_FUNCTION_TAG);
+    }
+    if (shared->HasBaselineData()) {
+      // TODO(v8:11429): Add a tag for baseline code. Or use CodeKind?
+      LogExistingFunction(
+          shared,
+          Handle<AbstractCode>(
+              AbstractCode::cast(shared->baseline_data().baseline_code()),
               isolate_),
           CodeEventListener::INTERPRETED_FUNCTION_TAG);
     }

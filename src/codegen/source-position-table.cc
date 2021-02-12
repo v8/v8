@@ -5,6 +5,8 @@
 #include "src/codegen/source-position-table.h"
 
 #include "src/base/export-template.h"
+#include "src/base/logging.h"
+#include "src/common/assert-scope.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -36,7 +38,10 @@ using ValueBits = base::BitField8<unsigned, 0, 7>;
 void AddAndSetEntry(PositionTableEntry* value,
                     const PositionTableEntry& other) {
   value->code_offset += other.code_offset;
+  DCHECK_IMPLIES(value->code_offset != kFunctionEntryBytecodeOffset,
+                 value->code_offset >= 0);
   value->source_position += other.source_position;
+  DCHECK_LE(0, value->source_position);
   value->is_statement = other.is_statement;
 }
 

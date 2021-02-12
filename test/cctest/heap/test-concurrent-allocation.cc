@@ -380,7 +380,15 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     i::byte buffer[i::Assembler::kDefaultBufferSize];
     MacroAssembler masm(i_isolate, v8::internal::CodeObjectRequired::kYes,
                         ExternalAssemblerBuffer(buffer, sizeof(buffer)));
+#if V8_TARGET_ARCH_ARM64
+    // Arm64 requires stack alignment.
+    UseScratchRegisterScope temps(&masm);
+    Register tmp = temps.AcquireX();
+    masm.Mov(tmp, Operand(ReadOnlyRoots(heap).undefined_value_handle()));
+    masm.Push(tmp, padreg);
+#else
     masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
+#endif
     CodeDesc desc;
     masm.GetCode(i_isolate, &desc);
     Handle<Code> code_handle =

@@ -1073,8 +1073,10 @@ void Debug::PrepareStep(StepAction step_action) {
     if (!EnsureBreakInfo(shared)) return;
     PrepareFunctionForDebugExecution(shared);
 
-    Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
+    // PrepareFunctionForDebugExecution can invalidate Sparkplug frames
+    js_frame = JavaScriptFrame::cast(frames_it.Reframe());
 
+    Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
     location = BreakLocation::FromFrame(debug_info, js_frame);
 
     // Any step at a return is a step-out, and a step-out at a suspend behaves
@@ -1243,6 +1245,10 @@ void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   // Deoptimize all code compiled from this shared function info including
   // inlining.
   isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
+
+  if (shared->GetCode().kind() == CodeKind::SPARKPLUG) {
+    Deoptimizer::DeoptimizeSparkplug(*shared);
+  }
 
   bool found_something = false;
   Code::OptimizedCodeIterator iterator(isolate_);

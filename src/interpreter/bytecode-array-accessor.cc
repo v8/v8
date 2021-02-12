@@ -196,6 +196,20 @@ Register BytecodeArrayAccessor::GetRegisterOperand(int operand_index) const {
                                                 current_operand_scale());
 }
 
+std::pair<Register, Register> BytecodeArrayAccessor::GetRegisterPairOperand(
+    int operand_index) const {
+  Register first = GetRegisterOperand(operand_index);
+  Register second(first.index() + 1);
+  return std::make_pair(first, second);
+}
+
+RegisterList BytecodeArrayAccessor::GetRegisterListOperand(
+    int operand_index) const {
+  Register first = GetRegisterOperand(operand_index);
+  uint32_t count = GetRegisterCountOperand(operand_index + 1);
+  return RegisterList(first.index(), count);
+}
+
 int BytecodeArrayAccessor::GetRegisterOperandRange(int operand_index) const {
   DCHECK_LE(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
   const OperandType* operand_types =

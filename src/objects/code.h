@@ -249,6 +249,10 @@ class Code : public HeapObject {
   // Testers for interpreter builtins.
   inline bool is_interpreter_trampoline_builtin() const;
 
+  // Testers for baseline builtins.
+  inline bool is_baseline_prologue_builtin() const;
+  inline bool is_baseline_leave_frame_builtin() const;
+
   // Tells whether the code checks the optimization marker in the function's
   // feedback vector.
   inline bool checks_optimization_marker() const;
@@ -374,6 +378,10 @@ class Code : public HeapObject {
   // exactly the same size as the RelocInfo in |desc|.
   static inline void CopyRelocInfoToByteArray(ByteArray dest,
                                               const CodeDesc& desc);
+
+  inline uintptr_t GetSparkplugPCForBytecodeOffset(int bytecode_offset,
+                                                   bool precise = true);
+  inline int GetBytecodeOffsetForSparkplugPC(Address sparkplug_pc);
 
   // Flushes the instruction cache for the executable instructions of this code
   // object. Make sure to call this while the code is still writable.

@@ -3144,6 +3144,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Load type feedback vector from the stub caller's frame.
   TNode<FeedbackVector> LoadFeedbackVectorForStub();
+  TNode<FeedbackVector> LoadFeedbackVectorFromBaseline();
+  TNode<Context> LoadContextFromBaseline();
   // Load type feedback vector from the stub caller's frame, skipping an
   // intermediate trampoline frame.
   TNode<FeedbackVector> LoadFeedbackVectorForStubWithTrampoline();
@@ -3163,9 +3165,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<ClosureFeedbackCellArray> LoadClosureFeedbackArray(
       TNode<JSFunction> closure);
 
+  // TODO(v8:11429): Change bool to enum.
+  void MaybeUpdateFeedback(TNode<Smi> feedback,
+                           TNode<HeapObject> maybe_feedback_vector,
+                           TNode<UintPtrT> slot_id, bool guaranteed_feedback);
   // Update the type feedback vector.
   void UpdateFeedback(TNode<Smi> feedback,
-                      TNode<HeapObject> maybe_feedback_vector,
+                      TNode<FeedbackVector> feedback_vector,
                       TNode<UintPtrT> slot_id);
 
   // Report that there was a feedback update, performing any tasks that should
@@ -3315,9 +3321,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                 TNode<IntPtrT> start_offset,
                                 TNode<IntPtrT> end_offset, RootIndex root);
 
+  // Goto the given |target| if the context chain starting at |context| has any
+  // extensions up to the given |depth|. Returns the Context with the
+  // extensions if there was one, otherwise returns the Context at the given
+  // |depth|.
+  TNode<Context> GotoIfHasContextExtensionUpToDepth(TNode<Context> context,
+                                                    TNode<Uint32T> depth,
+                                                    Label* target);
+
   TNode<Oddball> RelationalComparison(
       Operation op, TNode<Object> left, TNode<Object> right,
-      TNode<Context> context, TVariable<Smi>* var_type_feedback = nullptr);
+      TNode<Context> context, TVariable<Smi>* var_type_feedback = nullptr) {
+    return RelationalComparison(
+        op, left, right, [=]() { return context; }, var_type_feedback);
+  }
+
+  TNode<Oddball> RelationalComparison(
+      Operation op, TNode<Object> left, TNode<Object> right,
+      const LazyNode<Context>& context,
+      TVariable<Smi>* var_type_feedback = nullptr);
 
   void BranchIfNumberRelationalComparison(Operation op, TNode<Number> left,
                                           TNode<Number> right, Label* if_true,
@@ -3369,6 +3391,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Oddball> Equal(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
                        TNode<Context> context,
+                       TVariable<Smi>* var_type_feedback = nullptr) {
+    return Equal(
+        lhs, rhs, [=]() { return context; }, var_type_feedback);
+  }
+  TNode<Oddball> Equal(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
+                       const LazyNode<Context>& context,
                        TVariable<Smi>* var_type_feedback = nullptr);
 
   TNode<Oddball> StrictEqual(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
@@ -3404,14 +3432,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void ForInPrepare(TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
                     TNode<HeapObject> maybe_feedback_vector,
                     TNode<FixedArray>* cache_array_out,
-                    TNode<Smi>* cache_length_out);
-  // Returns {cache_array} and {cache_length} in a fixed array of length 2.
-  // TODO(jgruber): Tuple2 would be a slightly better fit as the return type,
-  // but FixedArray has better support and there are no effective drawbacks to
-  // using it instead of Tuple2 in practice.
-  TNode<FixedArray> ForInPrepareForTorque(
-      TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
-      TNode<HeapObject> maybe_feedback_vector);
+                    TNode<Smi>* cache_length_out, bool guaranteed_feedback);
 
   TNode<String> Typeof(SloppyTNode<Object> value);
 

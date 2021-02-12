@@ -3,19 +3,25 @@
 // found in the LICENSE file.
 
 #include "src/asmjs/asm-js.h"
+#include "src/baseline/baseline.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
+#include "src/compiler/pipeline.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -101,6 +107,23 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   }
   DCHECK(function->is_compiled());
   return function->code();
+}
+
+// TODO(v8:11429): Consider renaming PrepareForBaseline.
+RUNTIME_FUNCTION(Runtime_PrepareForBaseline) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  DCHECK(sfi->HasBaselineData());
+  IsCompiledScope is_compiled_scope(*sfi, isolate);
+  DCHECK(!function->HasAvailableOptimizedCode());
+  DCHECK(!function->HasOptimizationMarker());
+  DCHECK(!function->has_feedback_vector());
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  Code baseline_code = sfi->baseline_data().baseline_code();
+  function->set_code(baseline_code);
+  return baseline_code;
 }
 
 RUNTIME_FUNCTION(Runtime_TryInstallNCICode) {
@@ -285,9 +308,12 @@ BytecodeOffset DetermineEntryAndDisarmOSRForInterpreter(
   // the bytecode.
   Handle<BytecodeArray> bytecode(iframe->GetBytecodeArray(), iframe->isolate());
 
-  DCHECK(frame->LookupCode().is_interpreter_trampoline_builtin());
-  DCHECK(frame->function().shared().HasBytecodeArray());
+  DCHECK_IMPLIES(frame->type() == StackFrame::INTERPRETED,
+                 frame->LookupCode().is_interpreter_trampoline_builtin());
+  DCHECK_IMPLIES(frame->type() == StackFrame::SPARKPLUG,
+                 frame->LookupCode().kind() == CodeKind::SPARKPLUG);
   DCHECK(frame->is_interpreted());
+  DCHECK(frame->function().shared().HasBytecodeArray());
 
   // Reset the OSR loop nesting depth to disarm back edges.
   bytecode->set_osr_loop_nesting_level(0);
@@ -402,6 +428,40 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     function->set_code(function->shared().GetCode());
   }
   return Object();
+}
+
+RUNTIME_FUNCTION(Runtime_CompileBaseline) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  Handle<SharedFunctionInfo> shared(function->shared(isolate), isolate);
+  IsCompiledScope is_compiled_scope = shared->is_compiled_scope(isolate);
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    return isolate->StackOverflow();
+  }
+  if (!shared->IsUserJavaScript()) {
+    return *function;
+  }
+  if (!is_compiled_scope.is_compiled()) {
+    if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+                           &is_compiled_scope)) {
+      return ReadOnlyRoots(isolate).exception();
+    }
+  }
+
+  // TODO(v8:11429): Add a Compiler::Compile* method for this.
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+
+  if (!shared->HasBaselineData()) {
+    Handle<Code> code = CompileWithBaseline(isolate, shared);
+    function->set_code(*code);
+  } else {
+    function->set_code(shared->baseline_data().baseline_code(isolate));
+  }
+  return *function;
 }
 
 static Object CompileGlobalEval(Isolate* isolate,

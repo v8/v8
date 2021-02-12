@@ -1046,6 +1046,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
+      case StackFrame::SPARKPLUG:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames (due to
@@ -1856,7 +1857,8 @@ Object Isolate::UnwindAndFindHandler() {
                             code.constant_pool(), return_sp, frame->fp());
       }
 
-      case StackFrame::INTERPRETED: {
+      case StackFrame::INTERPRETED:
+      case StackFrame::SPARKPLUG: {
         // For interpreted frame we perform a range lookup in the handler table.
         if (!catchable_by_js) break;
         InterpretedFrame* js_frame = static_cast<InterpretedFrame*>(frame);
@@ -1881,6 +1883,21 @@ Object Isolate::UnwindAndFindHandler() {
         // the correct context for the handler from the interpreter register.
         Context context =
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
+        DCHECK(context.IsContext());
+
+        if (frame->type() == StackFrame::SPARKPLUG) {
+          Code code = frame->LookupCode();
+          intptr_t pc_offset =
+              static_cast<SparkplugFrame*>(frame)->GetPCForBytecodeOffset(
+                  offset);
+          // Write the context directly into the context register, so that we
+          // don't need to have a context read + write in the baseline code.
+          js_frame->WriteInterpreterRegister(
+              interpreter::Register::current_context().index(), context);
+          return FoundHandler(Context(), code.InstructionStart(), pc_offset,
+                              code.constant_pool(), return_sp, frame->fp());
+        }
+
         js_frame->PatchBytecodeOffset(static_cast<int>(offset));
 
         Code code =
@@ -2009,6 +2026,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       // For JavaScript frames we perform a lookup in the handler table.
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
+      case StackFrame::SPARKPLUG:
       case StackFrame::BUILTIN: {
         JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
         Isolate::CatchType prediction = ToCatchType(PredictException(js_frame));

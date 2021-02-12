@@ -430,10 +430,6 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     it.rinfo()->Print(nullptr, os);
   }
   os << "\n";
-
-  if (code_comments_size() > 0) {
-    PrintCodeCommentsSection(os, code_comments(), code_comments_size());
-  }
 #endif  // ENABLE_DISASSEMBLER
 }
 
