@@ -211,7 +211,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
     Node* param = __ UntypedParameter(i + 2);
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
-        __ StoreFixedArrayElement(result_array, i, param,
+        __ StoreFixedArrayElement(result_array, i, __ Cast(param),
                                   UNSAFE_SKIP_WRITE_BARRIER);
         break;
       // Box FP values into HeapNumbers.

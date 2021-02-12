@@ -1555,37 +1555,43 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreMapNoWriteBarrier(TNode<HeapObject> object, TNode<Map> map);
   void StoreObjectFieldRoot(TNode<HeapObject> object, int offset,
                             RootIndex root);
+
   // Store an array element to a FixedArray.
   void StoreFixedArrayElement(
-      TNode<FixedArray> object, int index, SloppyTNode<Object> value,
+      TNode<FixedArray> object, int index, TNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       CheckBounds check_bounds = CheckBounds::kAlways) {
     return StoreFixedArrayElement(object, IntPtrConstant(index), value,
                                   barrier_mode, 0, check_bounds);
   }
+
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
   void UnsafeStoreFixedArrayElement(
       TNode<FixedArray> object, int index, TNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
-    return StoreFixedArrayElement(object, index, value, barrier_mode,
-                                  CheckBounds::kDebugOnly);
+    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
+                                  barrier_mode, 0, CheckBounds::kDebugOnly);
   }
+
   void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
                                     TNode<Smi> value) {
-    return StoreFixedArrayElement(object, index, value,
-                                  UNSAFE_SKIP_WRITE_BARRIER,
+    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
+                                  UNSAFE_SKIP_WRITE_BARRIER, 0,
                                   CheckBounds::kDebugOnly);
   }
+
   void StoreFixedArrayElement(TNode<FixedArray> object, int index,
                               TNode<Smi> value,
                               CheckBounds check_bounds = CheckBounds::kAlways) {
-    return StoreFixedArrayElement(object, IntPtrConstant(index), value,
+    return StoreFixedArrayElement(object, IntPtrConstant(index),
+                                  TNode<Object>{value},
                                   UNSAFE_SKIP_WRITE_BARRIER, 0, check_bounds);
   }
+
   template <typename TIndex>
   void StoreFixedArrayElement(
-      TNode<FixedArray> array, TNode<TIndex> index, SloppyTNode<Object> value,
+      TNode<FixedArray> array, TNode<TIndex> index, TNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0,
       CheckBounds check_bounds = CheckBounds::kAlways) {
@@ -1600,6 +1606,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
                                           additional_offset);
   }
+
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
   void UnsafeStoreFixedArrayElement(
@@ -1624,24 +1631,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           UPDATE_WRITE_BARRIER);
   }
 
-  void StoreFixedArrayElement(
-      TNode<FixedArray> array, TNode<Smi> index, TNode<Object> value,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
-    StoreFixedArrayElement(array, index, value, barrier_mode, 0);
-  }
-  void StoreFixedArrayElement(
-      TNode<FixedArray> array, TNode<IntPtrT> index, TNode<Smi> value,
-      WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER,
-      int additional_offset = 0) {
-    DCHECK_EQ(SKIP_WRITE_BARRIER, barrier_mode);
-    StoreFixedArrayElement(array, index, TNode<Object>{value},
-                           UNSAFE_SKIP_WRITE_BARRIER, additional_offset);
-  }
-  void StoreFixedArrayElement(
-      TNode<FixedArray> array, TNode<Smi> index, TNode<Smi> value,
-      WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER,
-      int additional_offset = 0) {
-    DCHECK_EQ(SKIP_WRITE_BARRIER, barrier_mode);
+  template <typename TIndex>
+  void StoreFixedArrayElement(TNode<FixedArray> array, TNode<TIndex> index,
+                              TNode<Smi> value, int additional_offset = 0) {
+    static_assert(std::is_same<TIndex, Smi>::value ||
+                      std::is_same<TIndex, IntPtrT>::value,
+                  "Only Smi or IntPtrT indeces is allowed");
     StoreFixedArrayElement(array, index, TNode<Object>{value},
                            UNSAFE_SKIP_WRITE_BARRIER, additional_offset);
   }
@@ -2862,8 +2857,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     const int kKeyToDetailsOffset =
         (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
         kTaggedSize;
-    StoreFixedArrayElement(container, key_index, details, SKIP_WRITE_BARRIER,
-                           kKeyToDetailsOffset);
+    StoreFixedArrayElement(container, key_index, details, kKeyToDetailsOffset);
   }
 
   // Stores the value for the entry with the given key_index.
