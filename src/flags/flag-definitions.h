@@ -499,12 +499,12 @@ DEFINE_BOOL_READONLY(enable_sealed_frozen_elements_kind, true,
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
-DEFINE_INT(interrupt_budget, 144 * KB,
+DEFINE_INT(interrupt_budget, 132 * KB,
            "interrupt budget which should be used for the profiler counter")
 
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
-DEFINE_INT(budget_for_feedback_vector_allocation, 1 * KB,
+DEFINE_INT(budget_for_feedback_vector_allocation, 940,
            "The budget in amount of bytecode executed by a function before we "
            "decide to allocate feedback vectors")
 DEFINE_INT(scale_factor_for_feedback_allocation, 4,
@@ -571,7 +571,7 @@ DEFINE_BOOL(
     turboprop_as_toptier, false,
     "enable experimental turboprop compiler without further tierup to turbofan")
 DEFINE_IMPLICATION(turboprop_as_toptier, turboprop)
-DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 15 * KB)
+DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 14 * KB)
 DEFINE_VALUE_IMPLICATION(turboprop, reuse_opt_code_count, 2)
 DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
                      "max number of map checks to perform in minimorphic state")
@@ -686,16 +686,16 @@ DEFINE_BOOL(turbo_splitting, true, "split nodes during scheduling in TurboFan")
 DEFINE_BOOL(function_context_specialization, false,
             "enable function context specialization in TurboFan")
 DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")
-DEFINE_INT(max_inlined_bytecode_size, 500,
+DEFINE_INT(max_inlined_bytecode_size, 460,
            "maximum size of bytecode for a single inlining")
-DEFINE_INT(max_inlined_bytecode_size_cumulative, 1000,
+DEFINE_INT(max_inlined_bytecode_size_cumulative, 920,
            "maximum cumulative size of bytecode considered for inlining")
-DEFINE_INT(max_inlined_bytecode_size_absolute, 5000,
+DEFINE_INT(max_inlined_bytecode_size_absolute, 4600,
            "maximum absolute size of bytecode considered for inlining")
 DEFINE_FLOAT(
     reserve_inline_budget_scale_factor, 1.2,
     "scale factor of bytecode size used to calculate the inlining budget")
-DEFINE_INT(max_inlined_bytecode_size_small, 30,
+DEFINE_INT(max_inlined_bytecode_size_small, 27,
            "maximum size of bytecode considered for small function inlining")
 DEFINE_INT(max_optimized_bytecode_size, 60 * KB,
            "maximum bytecode size to "

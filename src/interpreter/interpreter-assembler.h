@@ -226,6 +226,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void DispatchToBytecode(TNode<WordT> target_bytecode,
                           TNode<IntPtrT> new_bytecode_offset);
 
+  // Dispatches to |target_bytecode| at BytecodeOffset(). Includes short-star
+  // lookahead if the current bytecode_ is likely followed by a short-star
+  // instruction.
+  void DispatchToBytecodeWithOptionalStarLookahead(
+      TNode<WordT> target_bytecode);
+
   // Abort with the given abort reason.
   void Abort(AbortReason abort_reason);
   void AbortIfWordNotEqual(TNode<WordT> lhs, TNode<WordT> rhs,
@@ -246,6 +252,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   static bool TargetSupportsUnalignedAccess();
 
   void ToNumberOrNumeric(Object::Conversion mode);
+
+  void StoreRegisterForShortStar(TNode<Object> value, TNode<WordT> opcode);
+
+  // Load the bytecode at |bytecode_offset|.
+  TNode<WordT> LoadBytecode(TNode<IntPtrT> bytecode_offset);
 
  private:
   // Returns a pointer to the current function's BytecodeArray object.
@@ -367,16 +378,14 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<IntPtrT> Advance(int delta);
   TNode<IntPtrT> Advance(TNode<IntPtrT> delta, bool backward = false);
 
-  // Load the bytecode at |bytecode_offset|.
-  TNode<WordT> LoadBytecode(TNode<IntPtrT> bytecode_offset);
+  // Look ahead for short Star and inline it in a branch, including subsequent
+  // dispatch. Anything after this point can assume that the following
+  // instruction was not a short Star.
+  void StarDispatchLookahead(TNode<WordT> target_bytecode);
 
-  // Look ahead for Star and inline it in a branch. Returns a new target
-  // bytecode node for dispatch.
-  TNode<WordT> StarDispatchLookahead(TNode<WordT> target_bytecode);
-
-  // Build code for Star at the current BytecodeOffset() and Advance() to the
-  // next dispatch offset.
-  void InlineStar();
+  // Build code for short Star at the current BytecodeOffset() and Advance() to
+  // the next dispatch offset.
+  void InlineShortStar(TNode<WordT> target_bytecode);
 
   // Dispatch to the bytecode handler with code entry point |handler_entry|.
   void DispatchToBytecodeHandlerEntry(TNode<RawPtrT> handler_entry,

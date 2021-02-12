@@ -298,6 +298,35 @@ void InterpreterAssembler::StoreRegister(TNode<Object> value,
                                 RegisterFrameOffset(reg_index), value);
 }
 
+void InterpreterAssembler::StoreRegisterForShortStar(TNode<Object> value,
+                                                     TNode<WordT> opcode) {
+  DCHECK(Bytecodes::IsShortStar(bytecode_));
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteShortStar;
+
+  CSA_ASSERT(
+      this, UintPtrGreaterThanOrEqual(opcode, UintPtrConstant(static_cast<int>(
+                                                  Bytecode::kFirstShortStar))));
+  CSA_ASSERT(
+      this,
+      UintPtrLessThanOrEqual(
+          opcode, UintPtrConstant(static_cast<int>(Bytecode::kLastShortStar))));
+
+  // Compute the constant that we can add to a Bytecode value to map the range
+  // [Bytecode::kStar15, Bytecode::kStar0] to the range
+  // [Register(15).ToOperand(), Register(0).ToOperand()].
+  constexpr int short_star_to_operand =
+      Register(0).ToOperand() - static_cast<int>(Bytecode::kStar0);
+  // Make sure the values count in the right direction.
+  STATIC_ASSERT(short_star_to_operand ==
+                Register(1).ToOperand() - static_cast<int>(Bytecode::kStar1));
+
+  TNode<IntPtrT> offset =
+      IntPtrAdd(RegisterFrameOffset(Signed(opcode)),
+                IntPtrConstant(short_star_to_operand * kSystemPointerSize));
+  StoreFullTaggedNoWriteBarrier(GetInterpretedFramePointer(), offset, value);
+}
+
 void InterpreterAssembler::StoreRegisterAtOperandIndex(TNode<Object> value,
                                                        int operand_index) {
   StoreRegister(value,
@@ -1105,40 +1134,51 @@ TNode<WordT> InterpreterAssembler::LoadBytecode(
   return ChangeUint32ToWord(bytecode);
 }
 
-TNode<WordT> InterpreterAssembler::StarDispatchLookahead(
-    TNode<WordT> target_bytecode) {
+void InterpreterAssembler::StarDispatchLookahead(TNode<WordT> target_bytecode) {
   Label do_inline_star(this), done(this);
 
-  TVARIABLE(WordT, var_bytecode, target_bytecode);
-
-  TNode<Int32T> star_bytecode =
-      Int32Constant(static_cast<int>(Bytecode::kStar));
-  TNode<BoolT> is_star =
-      Word32Equal(TruncateWordToInt32(target_bytecode), star_bytecode);
+  // Check whether the following opcode is one of the short Star codes. All
+  // opcodes higher than the short Star variants are invalid, and invalid
+  // opcodes are never deliberately written, so we can use a one-sided check.
+  // This is no less secure than the normal-length Star handler, which performs
+  // no validation on its operand.
+  STATIC_ASSERT(static_cast<int>(Bytecode::kLastShortStar) + 1 ==
+                static_cast<int>(Bytecode::kIllegal));
+  STATIC_ASSERT(Bytecode::kIllegal == Bytecode::kLast);
+  TNode<Int32T> first_short_star_bytecode =
+      Int32Constant(static_cast<int>(Bytecode::kFirstShortStar));
+  TNode<BoolT> is_star = Uint32GreaterThanOrEqual(
+      TruncateWordToInt32(target_bytecode), first_short_star_bytecode);
   Branch(is_star, &do_inline_star, &done);
 
   BIND(&do_inline_star);
   {
-    InlineStar();
-    var_bytecode = LoadBytecode(BytecodeOffset());
-    Goto(&done);
+    InlineShortStar(target_bytecode);
+
+    // Rather than merging control flow to a single indirect jump, we can get
+    // better branch prediction by duplicating it. This is because the
+    // instruction following a merged X + StarN is a bad predictor of the
+    // instruction following a non-merged X, and vice versa.
+    DispatchToBytecode(LoadBytecode(BytecodeOffset()), BytecodeOffset());
   }
   BIND(&done);
-  return var_bytecode.value();
 }
 
-void InterpreterAssembler::InlineStar() {
+void InterpreterAssembler::InlineShortStar(TNode<WordT> target_bytecode) {
   Bytecode previous_bytecode = bytecode_;
   ImplicitRegisterUse previous_acc_use = implicit_register_use_;
 
-  bytecode_ = Bytecode::kStar;
+  // At this point we don't know statically what bytecode we're executing, but
+  // kStar0 has the right attributes (namely, no operands) for any of the short
+  // Star codes.
+  bytecode_ = Bytecode::kStar0;
   implicit_register_use_ = ImplicitRegisterUse::kNone;
 
 #ifdef V8_TRACE_UNOPTIMIZED
   TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
-  StoreRegister(GetAccumulator(),
-                BytecodeOperandReg(0, LoadSensitivity::kSafe));
+
+  StoreRegisterForShortStar(GetAccumulator(), target_bytecode);
 
   DCHECK_EQ(implicit_register_use_,
             Bytecodes::GetImplicitRegisterUse(bytecode_));
@@ -1153,9 +1193,13 @@ void InterpreterAssembler::Dispatch() {
   DCHECK_IMPLIES(Bytecodes::MakesCallAlongCriticalPath(bytecode_), made_call_);
   TNode<IntPtrT> target_offset = Advance();
   TNode<WordT> target_bytecode = LoadBytecode(target_offset);
+  DispatchToBytecodeWithOptionalStarLookahead(target_bytecode);
+}
 
+void InterpreterAssembler::DispatchToBytecodeWithOptionalStarLookahead(
+    TNode<WordT> target_bytecode) {
   if (Bytecodes::IsStarLookahead(bytecode_, operand_scale_)) {
-    target_bytecode = StarDispatchLookahead(target_bytecode);
+    StarDispatchLookahead(target_bytecode);
   }
   DispatchToBytecode(target_bytecode, BytecodeOffset());
 }

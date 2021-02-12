@@ -855,6 +855,15 @@ void BaselineCompiler::VisitStar() {
   StoreRegister(0, kInterpreterAccumulatorRegister);
 }
 
+#define SHORT_STAR_VISITOR(Name, ...)                                         \
+  void BaselineCompiler::Visit##Name() {                                      \
+    __ StoreRegister(                                                         \
+        interpreter::Register::FromShortStar(interpreter::Bytecode::k##Name), \
+        kInterpreterAccumulatorRegister);                                     \
+  }
+SHORT_STAR_BYTECODE_LIST(SHORT_STAR_VISITOR)
+#undef SHORT_STAR_VISITOR
+
 void BaselineCompiler::VisitMov() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register scratch = scratch_scope.AcquireScratch();
