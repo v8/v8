@@ -152,6 +152,9 @@ class V8_EXPORT Visitor {
   template <typename K, typename V>
   void Trace(const EphemeronPair<K, V>& ephemeron_pair) {
     TraceEphemeron(ephemeron_pair.key, &ephemeron_pair.value);
+    RegisterWeakCallbackMethod<EphemeronPair<K, V>,
+                               &EphemeronPair<K, V>::ClearValueIfKeyIsDead>(
+        &ephemeron_pair);
   }
 
   /**
@@ -163,6 +166,8 @@ class V8_EXPORT Visitor {
    */
   template <typename K, typename V>
   void TraceEphemeron(const WeakMember<K>& key, const V* value) {
+    const K* k = key.GetRawAtomic();
+    if (!k) return;
     TraceDescriptor value_desc = TraceTrait<V>::GetTraceDescriptor(value);
     if (!value_desc.base_object_payload) return;
     VisitEphemeron(key, value_desc);
