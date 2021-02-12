@@ -140,6 +140,7 @@ namespace compiler {
   V(IA32F64x2PromoteLowF32x4)      \
   V(IA32I64x2SplatI32Pair)         \
   V(IA32I64x2ReplaceLaneI32Pair)   \
+  V(IA32I64x2Abs)                  \
   V(IA32I64x2Neg)                  \
   V(IA32I64x2Shl)                  \
   V(IA32I64x2ShrS)                 \

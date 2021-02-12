@@ -3201,6 +3201,17 @@ void InstructionSelector::VisitI64x2GeS(Node* node) {
   }
 }
 
+void InstructionSelector::VisitI64x2Abs(Node* node) {
+  IA32OperandGenerator g(this);
+  if (CpuFeatures::IsSupported(AVX)) {
+    Emit(kIA32I64x2Abs, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)));
+  } else {
+    Emit(kIA32I64x2Abs, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)));
+  }
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
