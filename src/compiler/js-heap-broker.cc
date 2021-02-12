@@ -3772,7 +3772,8 @@ HeapObjectRef JSTypedArrayRef::buffer() const {
     // Safe to read concurrently because:
     // - immutable after initialization.
     // - host object seen by serializer.
-    Handle<JSArrayBuffer> value(object()->buffer(), broker()->isolate());
+    Handle<JSArrayBuffer> value =
+        broker()->CanonicalPersistentHandle(object()->buffer());
     return JSObjectRef{broker(), value};
   }
   return HeapObjectRef{broker(), data()->AsJSTypedArray()->buffer()};
