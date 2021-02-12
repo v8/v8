@@ -9890,19 +9890,31 @@ void CodeStubAssembler::StoreElementBigIntOrTypedArray(TNode<TArray> elements,
 template <typename TIndex>
 void CodeStubAssembler::StoreElement(TNode<FixedArrayBase> elements,
                                      ElementsKind kind, TNode<TIndex> index,
-                                     Node* value) {
+                                     TNode<Object> value) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT indices are allowed");
+  DCHECK(!IsDoubleElementsKind(kind));
   if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS ||
       IsTypedArrayElementsKind(kind)) {
     StoreElementBigIntOrTypedArray(elements, kind, index, value);
-  } else if (IsDoubleElementsKind(kind)) {
-    TNode<Float64T> value_float64 = UncheckedCast<Float64T>(value);
-    StoreFixedDoubleArrayElement(CAST(elements), index, value_float64);
+  } else if (IsSmiElementsKind(kind)) {
+    TNode<Smi> smi_value = CAST(value);
+    StoreFixedArrayElement(CAST(elements), index, smi_value);
   } else {
-    WriteBarrierMode barrier_mode = IsSmiElementsKind(kind)
-                                        ? UNSAFE_SKIP_WRITE_BARRIER
-                                        : UPDATE_WRITE_BARRIER;
-    StoreFixedArrayElement(CAST(elements), index, value, barrier_mode, 0);
+    StoreFixedArrayElement(CAST(elements), index, value);
   }
+}
+
+template <typename TIndex>
+void CodeStubAssembler::StoreElement(TNode<FixedArrayBase> elements,
+                                     ElementsKind kind, TNode<TIndex> index,
+                                     TNode<Float64T> value) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT indices are allowed");
+  DCHECK(IsDoubleElementsKind(kind));
+  StoreFixedDoubleArrayElement(CAST(elements), index, value);
 }
 
 template <typename TIndex>
@@ -10224,13 +10236,12 @@ void CodeStubAssembler::EmitElementStore(
 
   // TODO(rmcilroy): TNodify the converted value once this funciton and
   // StoreElement are templated based on the type elements_kind type.
-  Node* converted_value = value;
   if (IsTypedArrayElementsKind(elements_kind)) {
     Label done(this), update_value_and_bailout(this, Label::kDeferred);
 
     // IntegerIndexedElementSet converts value to a Number/BigInt prior to the
     // bounds check.
-    converted_value =
+    Node* converted_value =
         PrepareValueForWriteToTypedArray(value, elements_kind, context);
     TNode<JSTypedArray> typed_array = CAST(object);
 
@@ -10340,10 +10351,11 @@ void CodeStubAssembler::EmitElementStore(
   // In case value is stored into a fast smi array, assure that the value is
   // a smi before manipulating the backing store. Otherwise the backing store
   // may be left in an invalid state.
+  base::Optional<TNode<Float64T>> float_value;
   if (IsSmiElementsKind(elements_kind)) {
     GotoIfNot(TaggedIsSmi(value), bailout);
   } else if (IsDoubleElementsKind(elements_kind)) {
-    converted_value = TryTaggedToFloat64(value, bailout);
+    float_value = TryTaggedToFloat64(value, bailout);
   }
 
   TNode<Smi> smi_length = Select<Smi>(
@@ -10384,7 +10396,11 @@ void CodeStubAssembler::EmitElementStore(
   }
 
   CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
-  StoreElement(elements, elements_kind, intptr_key, converted_value);
+  if (float_value) {
+    StoreElement(elements, elements_kind, intptr_key, float_value.value());
+  } else {
+    StoreElement(elements, elements_kind, intptr_key, value);
+  }
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::CheckForCapacityGrow(

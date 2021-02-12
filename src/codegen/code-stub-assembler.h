@@ -3809,7 +3809,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename TIndex>
   void StoreElement(TNode<FixedArrayBase> elements, ElementsKind kind,
-                    TNode<TIndex> index, Node* value);
+                    TNode<TIndex> index, TNode<Object> value);
+
+  template <typename TIndex>
+  void StoreElement(TNode<FixedArrayBase> elements, ElementsKind kind,
+                    TNode<TIndex> index, TNode<Float64T> value);
 
   // Converts {input} to a number if {input} is a plain primitve (i.e. String or
   // Oddball) and stores the result in {var_result}. Otherwise, it bails out to
