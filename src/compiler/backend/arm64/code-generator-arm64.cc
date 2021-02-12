@@ -2233,6 +2233,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), i.InputRegister64(2));
       break;
     }
+      SIMD_UNOP_CASE(kArm64I64x2Abs, Abs, 2D);
       SIMD_UNOP_CASE(kArm64I64x2Neg, Neg, 2D);
     case kArm64I64x2Shl: {
       ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 6, V2D, Sshl, X);

@@ -952,11 +952,11 @@ WASM_SIMD_TEST(I64x2Neg) {
 }
 
 // TODO(v8:11416) Prototyping i64x2.abs.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I64x2Abs) {
   RunI64x2UnOpTest(execution_tier, lower_simd, kExprI64x2Abs, std::abs);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
 void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int64ShiftOp expected_op) {
