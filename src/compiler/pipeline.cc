@@ -1203,6 +1203,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     }
   }
 
+  if (FLAG_turbo_direct_heap_access) {
+    isolate->heap()->PublishPendingAllocations();
+  }
+
   return SUCCEEDED;
 }
 

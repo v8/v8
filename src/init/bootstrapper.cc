@@ -2605,12 +2605,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_regexp_last_match_info(*last_match_info);
 
     // Install the species protector cell.
-    {
-      Handle<PropertyCell> cell =
-          factory->NewPropertyCell(factory->empty_string());
-      cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-      native_context()->set_regexp_species_protector(*cell);
-    }
+    Handle<PropertyCell> cell = factory->NewProtector();
+    native_context()->set_regexp_species_protector(*cell);
 
     DCHECK(regexp_fun->HasFastProperties());
   }

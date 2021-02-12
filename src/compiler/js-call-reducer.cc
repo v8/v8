@@ -3242,7 +3242,8 @@ class IteratingArrayBuiltinHelper {
     }
 
     // TODO(jgruber): May only be needed for holey elements kinds.
-    if (!dependencies->DependOnNoElementsProtector()) UNREACHABLE();
+    if (!dependencies->DependOnNoElementsProtector()) return;
+
     has_stability_dependency_ = inference_.RelyOnMapsPreferStability(
         dependencies, jsgraph, &effect_, control_, p.feedback());
 
@@ -5172,7 +5173,9 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds, true)) {
     return inference.NoChange();
   }
-  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
+  }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
@@ -5307,7 +5310,9 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
     return inference.NoChange();
   }
-  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
+  }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
@@ -5445,7 +5450,9 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
     return inference.NoChange();
   }
-  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
+  }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
@@ -5683,8 +5690,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
 
   if (!dependencies()->DependOnArraySpeciesProtector())
     return inference.NoChange();
-  if (can_be_holey) {
-    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (can_be_holey && !dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
   }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
@@ -5843,9 +5850,11 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     }
   }
 
-  if (IsHoleyElementsKind(elements_kind)) {
-    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (IsHoleyElementsKind(elements_kind) &&
+      !dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
   }
+
   // Since the map inference was done relative to {iterator_effect} rather than
   // {effect}, we need to guard the use of the map(s) even when the inference
   // was reliable.

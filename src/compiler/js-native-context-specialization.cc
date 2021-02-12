@@ -802,9 +802,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* lookup_start_object, Node* receiver, Node* value,
     NameRef const& name, AccessMode access_mode, Node* key,
     PropertyCellRef const& property_cell, Node* effect) {
-  Node* control = NodeProperties::GetControlInput(node);
-  if (effect == nullptr) {
-    effect = NodeProperties::GetEffectInput(node);
+  if (!property_cell.Serialize()) {
+    TRACE_BROKER_MISSING(broker(), "usable data for " << property_cell);
+    return NoChange();
   }
 
   ObjectRef property_cell_value = property_cell.value();
@@ -818,6 +818,11 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   PropertyDetails property_details = property_cell.property_details();
   PropertyCellType property_cell_type = property_details.cell_type();
   DCHECK_EQ(kData, property_details.kind());
+
+  Node* control = NodeProperties::GetControlInput(node);
+  if (effect == nullptr) {
+    effect = NodeProperties::GetEffectInput(node);
+  }
 
   // We have additional constraints for stores.
   if (access_mode == AccessMode::kStore) {
@@ -923,10 +928,6 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     DCHECK_EQ(receiver, lookup_start_object);
     DCHECK(!property_details.IsReadOnly());
     switch (property_details.cell_type()) {
-      case PropertyCellType::kUndefined: {
-        UNREACHABLE();
-        break;
-      }
       case PropertyCellType::kConstant: {
         // Record a code dependency on the cell, and just deoptimize if the new
         // value doesn't match the previous value stored inside the cell.
@@ -997,6 +998,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             jsgraph()->Constant(property_cell), value, effect, control);
         break;
       }
+      case PropertyCellType::kUndefined:
+        UNREACHABLE();
     }
   }
 

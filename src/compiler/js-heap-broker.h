@@ -313,6 +313,16 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
+  friend class PropertyCellData;
+
+  bool IsMainThread() const {
+    return local_isolate() == nullptr || local_isolate()->is_main_thread();
+  }
+
+  // If this returns false, the object is guaranteed to be fully initialized and
+  // thus safe to read from a memory safety perspective. The converse does not
+  // necessarily hold.
+  bool ObjectMayBeUninitialized(Handle<Object> object) const;
 
   bool CanUseFeedback(const FeedbackNexus& nexus) const;
   const ProcessedFeedback& NewInsufficientFeedback(FeedbackSlotKind kind) const;

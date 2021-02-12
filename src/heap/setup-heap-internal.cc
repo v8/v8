@@ -846,117 +846,22 @@ void Heap::CreateInitialObjects() {
   set_empty_script(*script);
 
   // Protectors
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_constructor_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_no_elements_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_map_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_set_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_is_concat_spreadable_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_typed_array_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_regexp_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_string_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_string_length_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_buffer_detaching_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_hook_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_resolve_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_then_protector(*cell);
-  }
+  set_array_buffer_detaching_protector(*factory->NewProtector());
+  set_array_constructor_protector(*factory->NewProtector());
+  set_array_iterator_protector(*factory->NewProtector());
+  set_array_species_protector(*factory->NewProtector());
+  set_is_concat_spreadable_protector(*factory->NewProtector());
+  set_map_iterator_protector(*factory->NewProtector());
+  set_no_elements_protector(*factory->NewProtector());
+  set_promise_hook_protector(*factory->NewProtector());
+  set_promise_resolve_protector(*factory->NewProtector());
+  set_promise_species_protector(*factory->NewProtector());
+  set_promise_then_protector(*factory->NewProtector());
+  set_regexp_species_protector(*factory->NewProtector());
+  set_set_iterator_protector(*factory->NewProtector());
+  set_string_iterator_protector(*factory->NewProtector());
+  set_string_length_protector(*factory->NewProtector());
+  set_typed_array_species_protector(*factory->NewProtector());
 
   set_serialized_objects(roots.empty_fixed_array());
   set_serialized_global_proxy_sizes(roots.empty_fixed_array());

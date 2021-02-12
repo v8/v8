@@ -1363,6 +1363,8 @@ Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
 }
 
 Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
+                                              PropertyDetails details,
+                                              Handle<Object> value,
                                               AllocationType allocation) {
   DCHECK(name->IsUniqueName());
   STATIC_ASSERT(PropertyCell::kSize <= kMaxRegularHeapObjectSize);
@@ -1371,10 +1373,16 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
   Handle<PropertyCell> cell(PropertyCell::cast(result), isolate());
   cell->set_dependent_code(DependentCode::cast(*empty_weak_fixed_array()),
                            SKIP_WRITE_BARRIER);
-  cell->set_property_details(PropertyDetails(Smi::zero()));
   cell->set_name(*name);
-  cell->set_value(*the_hole_value());
+  cell->set_value(*value);
+  cell->set_property_details_raw(details.AsSmi());
   return cell;
+}
+
+Handle<PropertyCell> Factory::NewProtector() {
+  return NewPropertyCell(
+      empty_string(), PropertyDetails::Empty(PropertyCellType::kConstantType),
+      handle(Smi::FromInt(Protectors::kProtectorValid), isolate()));
 }
 
 Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
@@ -2036,8 +2044,8 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
     PropertyDetails d(kAccessor, details.attributes(),
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i), isolate());
-    Handle<PropertyCell> cell = NewPropertyCell(name);
-    cell->set_value(descs->GetStrongValue(i));
+    Handle<Object> value(descs->GetStrongValue(i), isolate());
+    Handle<PropertyCell> cell = NewPropertyCell(name, d, value);
     // |dictionary| already contains enough space for all properties.
     USE(GlobalDictionary::Add(isolate(), dictionary, name, cell, d));
   }

@@ -28,6 +28,7 @@
 // Flags: --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
 // Flags: --nostress-opt --no-always-opt
+// Flags: --no-turbo-direct-heap-access
 
 // --nostress-opt is in place because this particular optimization
 // (guaranteeing that the Array prototype chain has no elements) is
@@ -44,7 +45,6 @@ if (!%IsConcurrentRecompilationSupported()) {
 function f1(a, i) {
   return a[i] + 0.5;
 }
-%PrepareFunctionForOptimization(f1);
 
 %PrepareFunctionForOptimization(f1);
 var arr = [0.0,,2.5];
@@ -53,7 +53,9 @@ assertEquals(0.5, f1(arr, 0));
 
 // Optimized code of f1 depends on initial object and array maps.
 %OptimizeFunctionOnNextCall(f1, "concurrent");
-// Kick off recompilation;
+// Kick off recompilation. Note that the NoElements protector is read by the
+// compiler in the main-thread phase of compilation, i.e., before the store to
+// Object.prototype below.
 assertEquals(0.5, f1(arr, 0));
 // Invalidate current initial object map after compile graph has been created.
 Object.prototype[1] = 1.5;
@@ -65,5 +67,5 @@ assertUnoptimized(f1, "no sync");
 // Sync with background thread to conclude optimization, which bails out
 // due to map dependency.
 assertUnoptimized(f1, "sync");
-//Clear type info for stress runs.
+// Clear type info for stress runs.
 %ClearFunctionFeedback(f1);

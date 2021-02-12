@@ -2451,19 +2451,17 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
     if (entry.is_not_found()) {
       DCHECK_IMPLIES(global_obj->map().is_prototype_map(),
                      Map::IsPrototypeChainInvalidated(global_obj->map()));
-      auto cell = isolate->factory()->NewPropertyCell(name);
-      cell->set_value(*value);
       auto cell_type = value->IsUndefined(roots) ? PropertyCellType::kUndefined
                                                  : PropertyCellType::kConstant;
       details = details.set_cell_type(cell_type);
-      value = cell;
+      auto cell = isolate->factory()->NewPropertyCell(name, details, value);
       dictionary =
-          GlobalDictionary::Add(isolate, dictionary, name, value, details);
+          GlobalDictionary::Add(isolate, dictionary, name, cell, details);
       global_obj->set_global_dictionary(*dictionary, kReleaseStore);
     } else {
-      Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
-          isolate, dictionary, entry, value, details);
-      cell->set_value(*value);
+      PropertyCell::PrepareForAndSetValue(isolate, dictionary, entry, value,
+                                          details);
+      DCHECK_EQ(dictionary->CellAt(entry).value(), *value);
     }
   } else {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
@@ -5056,17 +5054,21 @@ bool JSGlobalProxy::IsDetached() const {
 
 void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
                                             Handle<Name> name) {
+  Isolate* isolate = global->GetIsolate();
   // Regardless of whether the property is there or not invalidate
   // Load/StoreGlobalICs that load/store through global object's prototype.
   JSObject::InvalidatePrototypeValidityCell(*global);
-
   DCHECK(!global->HasFastProperties());
-  auto dictionary =
-      handle(global->global_dictionary(kAcquireLoad), global->GetIsolate());
-  InternalIndex entry = dictionary->FindEntry(global->GetIsolate(), name);
+  auto dictionary = handle(global->global_dictionary(kAcquireLoad), isolate);
+  InternalIndex entry = dictionary->FindEntry(isolate, name);
   if (entry.is_not_found()) return;
-  PropertyCell::InvalidateAndReplaceEntry(global->GetIsolate(), dictionary,
-                                          entry);
+
+  Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
+  Handle<Object> value(cell->value(), isolate);
+  PropertyDetails details = cell->property_details();
+  details = details.set_cell_type(PropertyCellType::kMutable);
+  PropertyCell::InvalidateAndReplaceEntry(isolate, dictionary, entry, details,
+                                          value);
 }
 
 // static

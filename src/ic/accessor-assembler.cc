@@ -3530,8 +3530,7 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(
   GotoIf(Word32Equal(type, Int32Constant(
                                static_cast<int>(PropertyCellType::kConstant))),
          &constant);
-
-  GotoIf(IsTheHole(cell_contents), miss);
+  CSA_ASSERT(this, Word32BinaryNot(IsTheHole(cell_contents)));
 
   GotoIf(Word32Equal(
              type, Int32Constant(static_cast<int>(PropertyCellType::kMutable))),
@@ -3563,6 +3562,9 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(
 
   BIND(&constant);
   {
+    // Since |value| is never the hole, the equality check below also handles an
+    // invalidated property cell correctly.
+    CSA_ASSERT(this, Word32BinaryNot(IsTheHole(value)));
     GotoIfNot(TaggedEqual(cell_contents, value), miss);
     exit_point->Return(value);
   }
