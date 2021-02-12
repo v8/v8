@@ -896,13 +896,29 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
 
 bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i64_popcnt");
+  Popcnt64(dst.gp(), src.gp());
   return true;
 }
 
-void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
-                                     int64_t imm) {
-  bailout(kUnsupportedArchitecture, "i64_addi");
+bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_POS_INF, dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_NEG_INF, dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_0, dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  fiebra(ROUND_TO_NEAREST_TO_EVEN, dst, src);
+  return true;
 }
 
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
@@ -921,6 +937,27 @@ void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
     return;
   }
   FloatMin(dst, lhs, rhs);
+}
+
+bool LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_POS_INF, dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_NEG_INF, dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_0, dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  fidbra(ROUND_TO_NEAREST_TO_EVEN, dst, src);
+  return true;
 }
 
 void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
@@ -989,14 +1026,6 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      Label* trap_div_by_zero) {
   bailout(kUnsupportedArchitecture, "i64_remu");
   return true;
-}
-
-void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i64_clz");
-}
-
-void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i64_ctz");
 }
 
 void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
@@ -2340,6 +2369,16 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffStackSlots::Construct() {
   asm_->bailout(kUnsupportedArchitecture, "LiftoffStackSlots::Construct");
+}
+
+void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_f64_copysign");
+}
+
+void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_f32_copysign");
 }
 
 }  // namespace wasm
