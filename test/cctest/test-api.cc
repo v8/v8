@@ -17323,35 +17323,37 @@ THREADED_TEST(FunctionGetDebugName) {
   const char* code =
       "var error = false;"
       "function a() { this.x = 1; };"
-      "a.displayName = 'display_a';"
+      "Object.defineProperty(a, 'name', {value: 'display_a'});"
       "var b = (function() {"
       "  var f = function() { this.x = 2; };"
-      "  f.displayName = 'display_b';"
+      "  Object.defineProperty(f, 'name', {value: 'display_b'});"
       "  return f;"
       "})();"
       "var c = function() {};"
-      "c.__defineGetter__('displayName', function() {"
+      "c.__defineGetter__('name', function() {"
       "  error = true;"
       "  throw new Error();"
       "});"
       "function d() {};"
-      "d.__defineGetter__('displayName', function() {"
+      "d.__defineGetter__('name', function() {"
       "  error = true;"
       "  return 'wrong_display_name';"
       "});"
       "function e() {};"
-      "e.displayName = 'wrong_display_name';"
-      "e.__defineSetter__('displayName', function() {"
+      "Object.defineProperty(e, 'name', {value: 'wrong_display_name'});"
+      "e.__defineSetter__('name', function() {"
       "  error = true;"
       "  throw new Error();"
       "});"
       "function f() {};"
-      "f.displayName = { 'foo': 6, toString: function() {"
+      "Object.defineProperty(f, 'name', {value: {foo: 6, toString: function() {"
       "  error = true;"
       "  return 'wrong_display_name';"
-      "}};"
+      "}}});"
       "var g = function() {"
-      "  arguments.callee.displayName = 'set_in_runtime';"
+      "  Object.defineProperty(arguments.callee, 'name', {"
+      "    value: 'set_in_runtime'"
+      "  });"
       "}; g();"
       "var h = function() {};"
       "h.displayName = 'displayName';"
@@ -17378,7 +17380,7 @@ THREADED_TEST(FunctionGetDebugName) {
                              "e", "e",
                              "f", "f",
                              "g", "set_in_runtime",
-                             "h", "displayName",
+                             "h", "function.name",
                              "i", "function.name",
                              "j", "function.name",
                              "k", "foo.bar.baz",
@@ -17390,8 +17392,9 @@ THREADED_TEST(FunctionGetDebugName) {
                   v8::String::NewFromUtf8(isolate, functions[i * 2])
                       .ToLocalChecked())
             .ToLocalChecked());
-    CHECK_EQ(0, strcmp(functions[i * 2 + 1],
-                       *v8::String::Utf8Value(isolate, f->GetDebugName())));
+    std::string expected(functions[i * 2 + 1]);
+    std::string actual = *v8::String::Utf8Value(isolate, f->GetDebugName());
+    CHECK_EQ(expected, actual);
   }
 }
 

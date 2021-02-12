@@ -168,7 +168,6 @@
   V(_, defineProperty_string, "defineProperty")                      \
   V(_, deleteProperty_string, "deleteProperty")                      \
   V(_, disjunction_string, "disjunction")                            \
-  V(_, display_name_string, "displayName")                           \
   V(_, done_string, "done")                                          \
   V(_, dot_brand_string, ".brand")                                   \
   V(_, dot_catch_string, ".catch")                                   \

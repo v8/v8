@@ -265,8 +265,6 @@ class JSFunction : public JSFunctionOrBoundFunction {
   DECL_PRINTER(JSFunction)
   DECL_VERIFIER(JSFunction)
 
-  // The function's name if it is configured, otherwise shared function info
-  // debug name.
   static Handle<String> GetName(Handle<JSFunction> function);
 
   // ES6 section 9.2.11 SetFunctionName
@@ -277,8 +275,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
                                             Handle<Name> name,
                                             Handle<String> prefix);
 
-  // The function's displayName if it is set, otherwise name if it is
-  // configured, otherwise shared function info
+  // The function's name if it is configured, otherwise shared function info
   // debug name.
   static Handle<String> GetDebugName(Handle<JSFunction> function);
 

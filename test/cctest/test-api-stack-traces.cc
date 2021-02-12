@@ -209,10 +209,8 @@ static void AnalyzeStackInNativeCode(
   const int kOverviewTest = 1;
   const int kDetailedTest = 2;
   const int kFunctionName = 3;
-  const int kDisplayName = 4;
-  const int kFunctionNameAndDisplayName = 5;
-  const int kDisplayNameIsNotString = 6;
-  const int kFunctionNameIsNotString = 7;
+  const int kFunctionNameAndDisplayName = 4;
+  const int kFunctionNameIsNotString = 5;
 
   CHECK_EQ(args.Length(), 1);
 
@@ -254,19 +252,7 @@ static void AnalyzeStackInNativeCode(
     CHECK_EQ(3, stackTrace->GetFrameCount());
     checkStackFrame(nullptr, "function.name", 3, 1, true, false,
                     stackTrace->GetFrame(isolate, 0));
-  } else if (testGroup == kDisplayName) {
-    v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 5, v8::StackTrace::kOverview);
-    CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.displayName", 3, 1, true, false,
-                    stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kFunctionNameAndDisplayName) {
-    v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 5, v8::StackTrace::kOverview);
-    CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.displayName", 3, 1, true, false,
-                    stackTrace->GetFrame(isolate, 0));
-  } else if (testGroup == kDisplayNameIsNotString) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
@@ -351,10 +337,8 @@ TEST(CaptureStackTrace) {
       "  f()\n"
       "}\n"
       "bar('function.name', undefined, 3);\n"
-      "bar(undefined, 'function.displayName', 4);\n"
-      "bar('function.name', 'function.displayName', 5);\n"
-      "bar('function.name', 239, 6);\n"
-      "bar(239, undefined, 7);\n";
+      "bar('function.name', 'function.displayName', 4);\n"
+      "bar(239, undefined, 5);\n";
   v8::Local<v8::String> function_name_src =
       v8::String::NewFromUtf8Literal(isolate, function_name_source);
   v8::ScriptCompiler::Source script_source3(function_name_src,

@@ -812,20 +812,12 @@ void JSFunction::PrintName(FILE* out) {
   PrintF(out, "%s", shared().DebugNameCStr().get());
 }
 
-Handle<String> JSFunction::GetName(Handle<JSFunction> function) {
+Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   Handle<Object> name =
       JSReceiver::GetDataProperty(function, isolate->factory()->name_string());
   if (name->IsString()) return Handle<String>::cast(name);
   return SharedFunctionInfo::DebugName(handle(function->shared(), isolate));
-}
-
-Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
-  Isolate* isolate = function->GetIsolate();
-  Handle<Object> name = JSReceiver::GetDataProperty(
-      function, isolate->factory()->display_name_string());
-  if (name->IsString()) return Handle<String>::cast(name);
-  return JSFunction::GetName(function);
 }
 
 bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,

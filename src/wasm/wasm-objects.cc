@@ -2009,7 +2009,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 
   Handle<String> name = factory->Function_string();
   if (callable->IsJSFunction()) {
-    name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
+    name = JSFunction::GetDebugName(Handle<JSFunction>::cast(callable));
     name = String::Flatten(isolate, name);
   }
   Handle<Map> function_map =
