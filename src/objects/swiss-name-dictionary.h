@@ -5,11 +5,14 @@
 #ifndef V8_OBJECTS_SWISS_NAME_DICTIONARY_H_
 #define V8_OBJECTS_SWISS_NAME_DICTIONARY_H_
 
+#include <cstdint>
+
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/swiss-hash-table-helpers.h"
 #include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -68,6 +71,8 @@ namespace internal {
 //       corresponding bucket  hasn't been used before.
 class SwissNameDictionary : public HeapObject {
  public:
+  using Group = swiss_table::Group;
+
   inline int Capacity();
 
   inline static constexpr bool IsValidCapacity(int capacity);

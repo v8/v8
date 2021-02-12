@@ -3270,6 +3270,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/string.h",
     "src/objects/struct-inl.h",
     "src/objects/struct.h",
+    "src/objects/swiss-hash-table-helpers.h",
     "src/objects/swiss-name-dictionary-inl.h",
     "src/objects/swiss-name-dictionary.cc",
     "src/objects/swiss-name-dictionary.h",
