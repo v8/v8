@@ -55,8 +55,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   FieldIndex groups_index = FieldIndex::ForDescriptor(
       indices->map(), InternalIndex(kGroupsDescriptorIndex));
   if (maybe_names->IsUndefined(isolate)) {
-    indices->RawFastPropertyAtPut(groups_index,
-                                  ReadOnlyRoots(isolate).undefined_value());
+    indices->FastPropertyAtPut(groups_index,
+                               ReadOnlyRoots(isolate).undefined_value());
     return indices;
   }
 
@@ -102,7 +102,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   Handle<JSObject> js_group_names =
       isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
           null, group_names, elements);
-  indices->RawFastPropertyAtPut(groups_index, *js_group_names);
+  indices->FastPropertyAtPut(groups_index, *js_group_names);
   return indices;
 }
 

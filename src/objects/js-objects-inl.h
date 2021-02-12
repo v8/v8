@@ -327,18 +327,14 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-void JSObject::RawFastPropertyAtPut(FieldIndex index, Object value,
-                                    WriteBarrierMode mode) {
+void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
+                                 WriteBarrierMode mode) {
   if (index.is_inobject()) {
     RawFastInobjectPropertyAtPut(index, value, mode);
   } else {
     DCHECK_EQ(UPDATE_WRITE_BARRIER, mode);
     property_array().set(index.outobject_array_index(), value);
   }
-}
-
-void JSObject::FastPropertyAtPut(FieldIndex index, Object value) {
-  RawFastPropertyAtPut(index, value);
 }
 
 void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
@@ -364,7 +360,7 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
     auto box = HeapNumber::cast(RawFastPropertyAt(index));
     box.set_value_as_bits(bits);
   } else {
-    RawFastPropertyAtPut(index, value);
+    FastPropertyAtPut(index, value);
   }
 }
 

@@ -637,10 +637,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   inline Object RawFastPropertyAt(FieldIndex index) const;
   inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
 
-  inline void FastPropertyAtPut(FieldIndex index, Object value);
-  inline void RawFastPropertyAtPut(
-      FieldIndex index, Object value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void FastPropertyAtPut(FieldIndex index, Object value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

@@ -2781,7 +2781,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
       // Allocate HeapNumbers for double fields.
       if (index.is_double()) {
         auto value = isolate->factory()->NewHeapNumberWithHoleNaN();
-        object->RawFastPropertyAtPut(index, *value);
+        object->FastPropertyAtPut(index, *value);
       }
       object->synchronized_set_map(*new_map);
       return;
@@ -2924,7 +2924,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   for (int i = 0; i < limit; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
     Object value = inobject_props->get(isolate, i);
-    object->RawFastPropertyAtPut(index, value);
+    object->FastPropertyAtPut(index, value);
   }
 
   object->SetProperties(*array);
@@ -3066,7 +3066,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
 
     for (int i = 0; i < inobject_properties; i++) {
       FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
-      object->RawFastPropertyAtPut(index, Smi::zero());
+      object->FastPropertyAtPut(index, Smi::zero());
     }
   }
 
@@ -3205,7 +3205,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   for (int i = 0; i < inobject; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*map, i);
     Object value = storage->get(i);
-    object->RawFastPropertyAtPut(index, value);
+    object->FastPropertyAtPut(index, value);
   }
   object->synchronized_set_map(*map);
 }

@@ -108,9 +108,8 @@ class Representation {
   // might cause a map deprecation.
   bool MightCauseMapDeprecation() const {
     // HeapObject to tagged representation change can be done in-place.
-    if (IsTagged() || IsHeapObject()) return false;
     // Boxed double to tagged transition is always done in-place.
-    if (IsDouble()) return false;
+    if (IsTagged() || IsHeapObject() || IsDouble()) return false;
     // None to double and smi to double representation changes require
     // deprecation, because doubles might require box allocation, see
     // CanBeInPlaceChangedTo().
