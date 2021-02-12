@@ -1326,8 +1326,8 @@ void BaselineCompiler::VisitIntrinsicIsJSReceiver(
         Label is_smi;
         __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
-        // TODO(v8:11429,leszeks): If we ever added more instance types after
-        // LAST_JS_RECEIVER_TYPE, this would have to become a range check.
+        // If we ever added more instance types after LAST_JS_RECEIVER_TYPE,
+        // this would have to become a range check.
         STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
         __ CmpInstanceType(kInterpreterAccumulatorRegister,
                            FIRST_JS_RECEIVER_TYPE);
