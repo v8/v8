@@ -736,6 +736,8 @@
   'built-ins/ArrayBuffer/length-is-too-large-throws': [SKIP],
   'built-ins/SharedArrayBuffer/allocation-limit': [SKIP],
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11438
+  'intl402/DateTimeFormat/timezone-invalid' : [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
 ['system == android', {
