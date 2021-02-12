@@ -430,7 +430,7 @@ inline bool Code::checks_optimization_marker() const {
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 
-inline bool Code::has_tagged_params() const {
+inline bool Code::has_tagged_outgoing_params() const {
   return kind() != CodeKind::JS_TO_WASM_FUNCTION &&
          kind() != CodeKind::C_WASM_ENTRY && kind() != CodeKind::WASM_FUNCTION;
 }

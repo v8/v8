@@ -920,14 +920,15 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   SafepointEntry safepoint_entry;
   uint32_t stack_slots;
   Code code;
-  bool has_tagged_params = false;
+  bool has_tagged_outgoing_params = false;
   uint32_t tagged_parameter_slots = 0;
   if (wasm_code != nullptr) {
     SafepointTable table(wasm_code);
     safepoint_entry = table.FindEntry(inner_pointer);
     stack_slots = wasm_code->stack_slots();
-    has_tagged_params = wasm_code->kind() != wasm::WasmCode::kFunction &&
-                        wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
+    has_tagged_outgoing_params =
+        wasm_code->kind() != wasm::WasmCode::kFunction &&
+        wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
     tagged_parameter_slots = wasm_code->tagged_parameter_slots();
   } else {
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
@@ -951,7 +952,8 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc());
     bool is_wasm_call = (wasm_callee != nullptr);
 
-    has_tagged_params = !is_wasm_call && code.has_tagged_params();
+    has_tagged_outgoing_params =
+        !is_wasm_call && code.has_tagged_outgoing_params();
   }
   uint32_t slot_space = stack_slots * kSystemPointerSize;
 
@@ -1017,7 +1019,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   FullObjectSlot parameters_limit(frame_header_base.address() - slot_space);
 
   // Visit the rest of the parameters if they are tagged.
-  if (has_tagged_params) {
+  if (has_tagged_outgoing_params) {
     v->VisitRootPointers(Root::kTop, nullptr, parameters_base,
                          parameters_limit);
   }
@@ -2150,11 +2152,11 @@ void InternalFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), code);
   // Internal frames typically do not receive any arguments, hence their stack
   // only contains tagged pointers.
-  // We are misusing the has_tagged_params flag here to tell us whether
+  // We are misusing the has_tagged_outgoing_params flag here to tell us whether
   // the full stack frame contains only tagged pointers or only raw values.
   // This is used for the WasmCompileLazy builtin, where we actually pass
   // untagged arguments and also store untagged values on the stack.
-  if (code.has_tagged_params()) IterateExpressions(v);
+  if (code.has_tagged_outgoing_params()) IterateExpressions(v);
 }
 
 // -------------------------------------------------------------------------
