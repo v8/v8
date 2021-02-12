@@ -394,6 +394,11 @@ struct WasmEngine::IsolateInfo {
   base::ElapsedTimer throw_timer;
   base::ElapsedTimer rethrow_timer;
   base::ElapsedTimer catch_timer;
+
+  // Total number of exception events in this isolate.
+  int throw_count = 0;
+  int rethrow_count = 0;
+  int catch_count = 0;
 };
 
 struct WasmEngine::NativeModuleInfo {
@@ -1007,6 +1012,9 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   for (auto& log_entry : info->code_to_log) {
     WasmCode::DecrementRefCount(VectorOf(log_entry.second.code));
   }
+  isolate->counters()->wasm_throw_count()->AddSample(info->throw_count);
+  isolate->counters()->wasm_rethrow_count()->AddSample(info->rethrow_count);
+  isolate->counters()->wasm_catch_count()->AddSample(info->catch_count);
 }
 
 void WasmEngine::LogCode(Vector<WasmCode*> code_vec) {
@@ -1389,18 +1397,30 @@ void SampleExceptionEvent(base::ElapsedTimer* timer, TimedHistogram* counter) {
 
 void WasmEngine::SampleThrowEvent(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
+  int& throw_count = isolates_[isolate]->throw_count;
+  // To avoid an int overflow, clip the count to the histogram's max value.
+  throw_count =
+      std::min(throw_count + 1, isolate->counters()->wasm_throw_count()->max());
   SampleExceptionEvent(&isolates_[isolate]->throw_timer,
                        isolate->counters()->wasm_time_between_throws());
 }
 
 void WasmEngine::SampleRethrowEvent(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
+  int& rethrow_count = isolates_[isolate]->rethrow_count;
+  // To avoid an int overflow, clip the count to the histogram's max value.
+  rethrow_count = std::min(rethrow_count + 1,
+                           isolate->counters()->wasm_rethrow_count()->max());
   SampleExceptionEvent(&isolates_[isolate]->rethrow_timer,
                        isolate->counters()->wasm_time_between_rethrows());
 }
 
 void WasmEngine::SampleCatchEvent(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
+  int& catch_count = isolates_[isolate]->catch_count;
+  // To avoid an int overflow, clip the count to the histogram's max value.
+  catch_count =
+      std::min(catch_count + 1, isolate->counters()->wasm_catch_count()->max());
   SampleExceptionEvent(&isolates_[isolate]->catch_timer,
                        isolate->counters()->wasm_time_between_catch());
 }

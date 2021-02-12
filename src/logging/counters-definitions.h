@@ -85,6 +85,12 @@ namespace internal {
   HR(wasm_modules_per_engine, V8.WasmModulesPerEngine, 1, 1024, 30)            \
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
+  /* number of thrown exceptions per isolate */                                \
+  HR(wasm_throw_count, V8.WasmThrowCount, 0, 100000, 30)                       \
+  /* number of rethrown exceptions per isolate */                              \
+  HR(wasm_rethrow_count, V8.WasmReThrowCount, 0, 100000, 30)                   \
+  /* number of caught exceptions per isolate */                                \
+  HR(wasm_catch_count, V8.WasmCatchCount, 0, 100000, 30)                       \
   /* Ticks observed in a single Turbofan compilation, in 1K */                 \
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
   /* Backtracks observed in a single regexp interpreter execution */           \
