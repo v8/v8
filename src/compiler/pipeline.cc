@@ -2376,7 +2376,7 @@ struct ResolveControlFlowPhase {
 };
 
 struct MidTierRegisterOutputDefinitionPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterAllocator)
+  DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterOutputDefinition)
 
   void Run(PipelineData* data, Zone* temp_zone) {
     DefineOutputs(data->mid_tier_register_allocator_data());

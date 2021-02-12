@@ -295,17 +295,18 @@ class VirtualRegisterData final {
 
   // Spill an operand that is assigned to this virtual register.
   void SpillOperand(InstructionOperand* operand, int instr_index,
+                    bool has_constant_policy,
                     MidTierRegisterAllocationData* data);
 
   // Emit gap moves to / from the spill slot.
-  void EmitGapMoveToInputFromSpillSlot(AllocatedOperand to_operand,
+  void EmitGapMoveToInputFromSpillSlot(InstructionOperand to_operand,
                                        int instr_index,
                                        MidTierRegisterAllocationData* data);
-  void EmitGapMoveFromOutputToSpillSlot(AllocatedOperand from_operand,
+  void EmitGapMoveFromOutputToSpillSlot(InstructionOperand from_operand,
                                         const InstructionBlock* current_block,
                                         int instr_index,
                                         MidTierRegisterAllocationData* data);
-  void EmitGapMoveToSpillSlot(AllocatedOperand from_operand, int instr_index,
+  void EmitGapMoveToSpillSlot(InstructionOperand from_operand, int instr_index,
                               MidTierRegisterAllocationData* data);
 
   // Adds pending spills for deferred-blocks.
@@ -328,14 +329,14 @@ class VirtualRegisterData final {
     return HasSpillOperand() && spill_operand_->IsAllocated();
   }
   bool HasConstantSpillOperand() const {
-    DCHECK_EQ(is_constant(), HasSpillOperand() && spill_operand_->IsConstant());
-    return is_constant();
+    return HasSpillOperand() && spill_operand_->IsConstant();
   }
 
   // Returns true if the virtual register should be spilled when it is output.
   bool NeedsSpillAtOutput() const { return needs_spill_at_output_; }
+
   void MarkAsNeedsSpillAtOutput() {
-    if (is_constant()) return;
+    if (HasConstantSpillOperand()) return;
     needs_spill_at_output_ = true;
     if (HasSpillRange()) spill_range()->ClearDeferredBlockSpills();
   }
@@ -548,7 +549,8 @@ void VirtualRegisterData::DefineAsPhi(int virtual_register, int instr_index,
 
 void VirtualRegisterData::EnsureSpillRange(
     MidTierRegisterAllocationData* data) {
-  DCHECK(!is_constant());
+  DCHECK(!HasConstantSpillOperand());
+
   if (HasSpillRange()) return;
 
   const InstructionBlock* definition_block =
@@ -578,7 +580,7 @@ void VirtualRegisterData::EnsureSpillRange(
 
 void VirtualRegisterData::AddSpillUse(int instr_index,
                                       MidTierRegisterAllocationData* data) {
-  if (is_constant()) return;
+  if (HasConstantSpillOperand()) return;
 
   EnsureSpillRange(data);
   spill_range_->ExtendRangeTo(instr_index);
@@ -615,7 +617,14 @@ void VirtualRegisterData::AddDeferredSpillOutput(
 
 void VirtualRegisterData::SpillOperand(InstructionOperand* operand,
                                        int instr_index,
+                                       bool has_constant_policy,
                                        MidTierRegisterAllocationData* data) {
+  if (!has_constant_policy && HasConstantSpillOperand()) {
+    // Reset the constant spill operand to force a real spill slot since this
+    // operand can't use the constant spill operand.
+    spill_operand_ = nullptr;
+    DCHECK(!HasConstantSpillOperand());
+  }
   AddSpillUse(instr_index, data);
   if (HasAllocatedSpillOperand() || HasConstantSpillOperand()) {
     InstructionOperand::ReplaceWith(operand, spill_operand());
@@ -640,7 +649,7 @@ void VirtualRegisterData::EmitDeferredSpillOutputs(
 }
 
 void VirtualRegisterData::EmitGapMoveToInputFromSpillSlot(
-    AllocatedOperand to_operand, int instr_index,
+    InstructionOperand to_operand, int instr_index,
     MidTierRegisterAllocationData* data) {
   AddSpillUse(instr_index, data);
   DCHECK(!to_operand.IsPending());
@@ -656,7 +665,7 @@ void VirtualRegisterData::EmitGapMoveToInputFromSpillSlot(
 }
 
 void VirtualRegisterData::EmitGapMoveToSpillSlot(
-    AllocatedOperand from_operand, int instr_index,
+    InstructionOperand from_operand, int instr_index,
     MidTierRegisterAllocationData* data) {
   AddSpillUse(instr_index, data);
   if (HasAllocatedSpillOperand() || HasConstantSpillOperand()) {
@@ -671,7 +680,7 @@ void VirtualRegisterData::EmitGapMoveToSpillSlot(
 }
 
 void VirtualRegisterData::EmitGapMoveFromOutputToSpillSlot(
-    AllocatedOperand from_operand, const InstructionBlock* current_block,
+    InstructionOperand from_operand, const InstructionBlock* current_block,
     int instr_index, MidTierRegisterAllocationData* data) {
   DCHECK_EQ(data->GetBlock(instr_index), current_block);
   if (instr_index == current_block->last_instruction_index()) {
@@ -760,7 +769,8 @@ class RegisterState final : public ZoneObject {
   // this register, then |operand| will be too, otherwise |operand| will be
   // replaced with |virtual_register|'s spill operand.
   void AllocatePendingUse(RegisterIndex reg, int virtual_register,
-                          InstructionOperand* operand, int instr_index);
+                          InstructionOperand* operand, bool can_be_constant,
+                          int instr_index);
 
   // Mark that the register is holding a phi operand that is yet to be allocated
   // by the source block in the gap just before the last instruction in the
@@ -816,7 +826,7 @@ class RegisterState final : public ZoneObject {
                MidTierRegisterAllocationData* data);
     void Use(int virtual_register, int instr_index);
     void PendingUse(InstructionOperand* operand, int virtual_register,
-                    int instr_index);
+                    bool can_be_constant, int instr_index);
     void SpillForDeferred(AllocatedOperand allocated, int instr_index,
                           MidTierRegisterAllocationData* data);
     void MoveToSpillSlotOnDeferred(int virtual_register, int instr_index,
@@ -881,6 +891,7 @@ class RegisterState final : public ZoneObject {
     bool needs_gap_move_on_spill_;
     bool is_shared_;
     bool is_phi_gap_move_;
+    bool pending_uses_can_use_constant_;
     int last_use_instr_index_;
 
     int num_commits_required_;
@@ -910,6 +921,7 @@ void RegisterState::Register::Reset() {
   is_shared_ = false;
   is_phi_gap_move_ = false;
   needs_gap_move_on_spill_ = false;
+  pending_uses_can_use_constant_ = true;
   last_use_instr_index_ = -1;
   num_commits_required_ = 0;
   virtual_register_ = InstructionOperand::kInvalidVirtualRegister;
@@ -930,6 +942,7 @@ void RegisterState::Register::Use(int virtual_register, int instr_index) {
 
 void RegisterState::Register::PendingUse(InstructionOperand* operand,
                                          int virtual_register,
+                                         bool can_be_constant,
                                          int instr_index) {
   if (!is_allocated()) {
     virtual_register_ = virtual_register;
@@ -937,6 +950,7 @@ void RegisterState::Register::PendingUse(InstructionOperand* operand,
     num_commits_required_ = 1;
   }
   DCHECK_EQ(virtual_register_, virtual_register);
+  pending_uses_can_use_constant_ &= can_be_constant;
 
   PendingOperand pending_op(pending_uses());
   InstructionOperand::ReplaceWith(operand, &pending_op);
@@ -1063,7 +1077,8 @@ void RegisterState::Register::SpillPendingUses(
   while (pending_use) {
     // Spill all the pending operands associated with this register.
     PendingOperand* next = pending_use->next();
-    vreg_data.SpillOperand(pending_use, last_use_instr_index(), data);
+    vreg_data.SpillOperand(pending_use, last_use_instr_index(),
+                           pending_uses_can_use_constant_, data);
     pending_use = next;
   }
   pending_uses_ = nullptr;
@@ -1158,9 +1173,10 @@ void RegisterState::AllocateUse(RegisterIndex reg, int virtual_register,
 
 void RegisterState::AllocatePendingUse(RegisterIndex reg, int virtual_register,
                                        InstructionOperand* operand,
-                                       int instr_index) {
+                                       bool can_be_constant, int instr_index) {
   EnsureRegisterData(reg);
-  reg_data(reg).PendingUse(operand, virtual_register, instr_index);
+  reg_data(reg).PendingUse(operand, virtual_register, can_be_constant,
+                           instr_index);
 }
 
 void RegisterState::UseForPhiGapMove(RegisterIndex reg) {
@@ -1297,7 +1313,7 @@ class SinglePassRegisterAllocator final {
 
   // Allocation routines used to allocate a particular operand to either a
   // register or a spill slot.
-  void AllocateConstantOutput(ConstantOperand* operand);
+  void AllocateConstantOutput(ConstantOperand* operand, int instr_index);
   void AllocateOutput(UnallocatedOperand* operand, int instr_index);
   void AllocateInput(UnallocatedOperand* operand, int instr_index);
   void AllocateSameInputOutput(UnallocatedOperand* output,
@@ -1387,7 +1403,8 @@ class SinglePassRegisterAllocator final {
   // register is not subsequently spilled) for |operand| of the instruction at
   // |instr_index|.
   void AllocatePendingUse(RegisterIndex reg, int virtual_register,
-                          InstructionOperand* operand, int instr_index);
+                          InstructionOperand* operand, bool can_be_constant,
+                          int instr_index);
 
   // Allocate |operand| to |reg| and add a gap move to move |virtual_register|
   // to this register for the instruction at |instr_index|. |reg| will be
@@ -1771,7 +1788,8 @@ void SinglePassRegisterAllocator::MoveRegisterOnMerge(
       data()->AddPendingOperandGapMove(instr_index, Instruction::START);
   succ_state->Commit(to, AllocatedOperandForReg(to, virtual_register),
                      &move->destination(), data());
-  AllocatePendingUse(from, virtual_register, &move->source(), instr_index);
+  AllocatePendingUse(from, virtual_register, &move->source(), true,
+                     instr_index);
 }
 
 void SinglePassRegisterAllocator::UpdateVirtualRegisterState() {
@@ -2145,12 +2163,12 @@ void SinglePassRegisterAllocator::AllocateUse(RegisterIndex reg,
 
 void SinglePassRegisterAllocator::AllocatePendingUse(
     RegisterIndex reg, int virtual_register, InstructionOperand* operand,
-    int instr_index) {
+    bool can_be_constant, int instr_index) {
   DCHECK_NE(virtual_register, InstructionOperand::kInvalidVirtualRegister);
   DCHECK(IsFreeOrSameVirtualRegister(reg, virtual_register));
 
   register_state()->AllocatePendingUse(reg, virtual_register, operand,
-                                       instr_index);
+                                       can_be_constant, instr_index);
   // Since this is a pending use and the operand doesn't need to use a register,
   // allocate with UsePosition::kNone to avoid blocking it's use by other
   // operands in this instruction.
@@ -2163,7 +2181,7 @@ void SinglePassRegisterAllocator::AllocateUseWithMove(
     int instr_index, UsePosition pos) {
   AllocatedOperand to = AllocatedOperandForReg(reg, virtual_register);
   UnallocatedOperand from = UnallocatedOperand(
-      UnallocatedOperand::REGISTER_OR_SLOT, virtual_register);
+      UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT, virtual_register);
   data()->AddGapMove(instr_index, Instruction::END, from, to);
   InstructionOperand::ReplaceWith(operand, &to);
   MarkRegisterUse(reg, RepresentationFor(virtual_register), pos);
@@ -2187,17 +2205,17 @@ void SinglePassRegisterAllocator::AllocateInput(UnallocatedOperand* operand,
     // instruction since the allocation needs to reflect the state before
     // the instruction (at the gap move). For now spilling is fine since
     // fixed slot inputs are uncommon.
-    UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
-                                  virtual_register);
+    UnallocatedOperand input_copy(
+        UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT, virtual_register);
     AllocatedOperand allocated = AllocatedOperand(
         AllocatedOperand::STACK_SLOT, rep, operand->fixed_slot_index());
     InstructionOperand::ReplaceWith(operand, &allocated);
     MoveOperands* move_op =
         data()->AddGapMove(instr_index, Instruction::END, input_copy, *operand);
-    vreg_data.SpillOperand(&move_op->source(), instr_index, data());
+    vreg_data.SpillOperand(&move_op->source(), instr_index, true, data());
     return;
   } else if (operand->HasSlotPolicy()) {
-    vreg_data.SpillOperand(operand, instr_index, data());
+    vreg_data.SpillOperand(operand, instr_index, false, data());
     return;
   }
 
@@ -2217,9 +2235,7 @@ void SinglePassRegisterAllocator::AllocateInput(UnallocatedOperand* operand,
       AllocateUse(reg, virtual_register, operand, instr_index, pos);
     }
   } else {
-    bool must_use_register = operand->HasRegisterPolicy() ||
-                             (vreg_data.is_constant() &&
-                              !operand->HasRegisterOrSlotOrConstantPolicy());
+    bool must_use_register = operand->HasRegisterPolicy();
     RegisterIndex reg =
         ChooseRegisterFor(vreg_data, instr_index, pos, must_use_register);
 
@@ -2227,10 +2243,14 @@ void SinglePassRegisterAllocator::AllocateInput(UnallocatedOperand* operand,
       if (must_use_register) {
         AllocateUse(reg, virtual_register, operand, instr_index, pos);
       } else {
-        AllocatePendingUse(reg, virtual_register, operand, instr_index);
+        AllocatePendingUse(reg, virtual_register, operand,
+                           operand->HasRegisterOrSlotOrConstantPolicy(),
+                           instr_index);
       }
     } else {
-      vreg_data.SpillOperand(operand, instr_index, data());
+      vreg_data.SpillOperand(operand, instr_index,
+                             operand->HasRegisterOrSlotOrConstantPolicy(),
+                             data());
     }
   }
 }
@@ -2242,23 +2262,28 @@ void SinglePassRegisterAllocator::AllocateGapMoveInput(
   VirtualRegisterData& vreg_data = VirtualRegisterDataFor(virtual_register);
 
   // Gap move inputs should be unconstrained.
-  DCHECK(operand->HasRegisterOrSlotPolicy());
+  DCHECK(operand->HasRegisterOrSlotOrConstantPolicy());
   RegisterIndex reg =
       ChooseRegisterFor(vreg_data, instr_index, UsePosition::kStart, false);
   if (reg.is_valid()) {
-    AllocatePendingUse(reg, virtual_register, operand, instr_index);
+    AllocatePendingUse(reg, virtual_register, operand, true, instr_index);
   } else {
-    vreg_data.SpillOperand(operand, instr_index, data());
+    vreg_data.SpillOperand(operand, instr_index, true, data());
   }
 }
 
 void SinglePassRegisterAllocator::AllocateConstantOutput(
-    ConstantOperand* operand) {
+    ConstantOperand* operand, int instr_index) {
   EnsureRegisterState();
   // If the constant is allocated to a register, spill it now to add the
   // necessary gap moves from the constant operand to the register.
   int virtual_register = operand->virtual_register();
+  VirtualRegisterData& vreg_data = VirtualRegisterDataFor(virtual_register);
   SpillRegisterForVirtualRegister(virtual_register);
+  if (vreg_data.NeedsSpillAtOutput()) {
+    vreg_data.EmitGapMoveFromOutputToSpillSlot(*operand, current_block(),
+                                               instr_index, data());
+  }
 }
 
 void SinglePassRegisterAllocator::AllocateOutput(UnallocatedOperand* operand,
@@ -2288,7 +2313,7 @@ RegisterIndex SinglePassRegisterAllocator::AllocateOutput(
 
   // TODO(rmcilroy): support secondary storage.
   if (!reg.is_valid()) {
-    vreg_data.SpillOperand(operand, instr_index, data());
+    vreg_data.SpillOperand(operand, instr_index, false, data());
   } else {
     InstructionOperand move_output_to;
     if (!VirtualRegisterIsUnallocatedOrInReg(virtual_register, reg)) {
@@ -2349,14 +2374,14 @@ void SinglePassRegisterAllocator::AllocateSameInputOutput(
     // virtual register's spill slot, then add a gap-move to move the input
     // value into this spill slot.
     VirtualRegisterData& output_vreg_data = VirtualRegisterDataFor(output_vreg);
-    output_vreg_data.SpillOperand(input, instr_index, data());
+    output_vreg_data.SpillOperand(input, instr_index, false, data());
 
     // Add an unconstrained gap move for the input virtual register.
-    UnallocatedOperand unconstrained_input(UnallocatedOperand::REGISTER_OR_SLOT,
-                                           input_vreg);
+    UnallocatedOperand unconstrained_input(
+        UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT, input_vreg);
     MoveOperands* move_ops = data()->AddGapMove(
         instr_index, Instruction::END, unconstrained_input, PendingOperand());
-    output_vreg_data.SpillOperand(&move_ops->destination(), instr_index,
+    output_vreg_data.SpillOperand(&move_ops->destination(), instr_index, true,
                                   data());
   }
 }
@@ -2384,7 +2409,9 @@ void SinglePassRegisterAllocator::AllocateTemp(UnallocatedOperand* operand,
     CommitRegister(reg, virtual_register, operand, UsePosition::kAll);
   } else {
     VirtualRegisterData& vreg_data = VirtualRegisterDataFor(virtual_register);
-    vreg_data.SpillOperand(operand, instr_index, data());
+    vreg_data.SpillOperand(operand, instr_index,
+                           operand->HasRegisterOrSlotOrConstantPolicy(),
+                           data());
   }
 }
 
@@ -2463,12 +2490,12 @@ void SinglePassRegisterAllocator::AllocatePhiGapMove(int to_vreg, int from_vreg,
       CommitRegister(to_register, to_vreg, to_operand, UsePosition::kAll);
     } else {
       VirtualRegisterDataFor(to_vreg).SpillOperand(to_operand, instr_index,
-                                                   data());
+                                                   true, data());
     }
 
     // The from side is unconstrained.
-    UnallocatedOperand unconstrained_input(UnallocatedOperand::REGISTER_OR_SLOT,
-                                           from_vreg);
+    UnallocatedOperand unconstrained_input(
+        UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT, from_vreg);
     InstructionOperand::ReplaceWith(from_operand, &unconstrained_input);
   }
 }
@@ -2775,7 +2802,8 @@ void MidTierRegisterAllocator::AllocateRegisters(
       DCHECK(!output->IsAllocated());
       if (output->IsConstant()) {
         ConstantOperand* constant_operand = ConstantOperand::cast(output);
-        AllocatorFor(constant_operand).AllocateConstantOutput(constant_operand);
+        AllocatorFor(constant_operand)
+            .AllocateConstantOutput(constant_operand, instr_index);
       } else {
         UnallocatedOperand* unallocated_output =
             UnallocatedOperand::cast(output);
