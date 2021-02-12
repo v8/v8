@@ -527,14 +527,13 @@ int Code::stack_slots() const {
 }
 
 bool Code::marked_for_deoptimization() const {
-  // TODO(v8:11429): Re-evaluate if baseline code can really deopt.
-  DCHECK(CodeKindCanDeoptimize(kind()) || kind() == CodeKind::BASELINE);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return MarkedForDeoptimizationField::decode(flags);
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
-  DCHECK(CodeKindCanDeoptimize(kind()) || kind() == CodeKind::BASELINE);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
   CodeDataContainer container = code_data_container(kAcquireLoad);
   int32_t previous = container.kind_specific_flags();
