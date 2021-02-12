@@ -856,16 +856,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
           DeoptImmedArgsCountField::decode(instr->opcode());
       DeoptimizationExit* const exit = AddDeoptimizationExit(
           instr, frame_state_offset, immediate_args_count);
+      Label continue_label;
       BranchInfo branch;
       branch.condition = condition;
       branch.true_label = exit->label();
-      branch.false_label = exit->continue_label();
+      branch.false_label = &continue_label;
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
-      tasm()->bind(exit->continue_label());
+      tasm()->bind(&continue_label);
       if (mode == kFlags_deoptimize_and_poison) {
         AssembleBranchPoisoning(NegateFlagsCondition(branch.condition), instr);
       }
+      tasm()->bind(exit->continue_label());
       break;
     }
     case kFlags_set: {
