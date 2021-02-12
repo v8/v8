@@ -643,6 +643,10 @@ class BaseTestRunner(object):
                                            '--noenable-sse4-1',
                                            '--no-enable-sse4_1'])
 
+    # Set no_simd_sse on architectures without Simd enabled.
+    if self.build_config.arch == 'ppc64':
+       no_simd_sse = True
+
     return {
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,

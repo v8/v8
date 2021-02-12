@@ -71,4 +71,11 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+################################################################################
+['arch == ppc64', {
+  # Tests that require Simd enabled.
+  'wasm-trace-memory': [SKIP],
+}],
+
+
 ]
