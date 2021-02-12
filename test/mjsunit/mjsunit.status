@@ -272,6 +272,7 @@
   'stack-traces-overflow': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
+  'baseline/*': [SKIP],
 
   # Unsuitable for GC stress because coverage information is lost on GC.
   'code-coverage-ad-hoc': [SKIP],
@@ -1457,6 +1458,10 @@
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to ia32, Arm, MIPS, S390 and PPC
 ['arch not in (x64, arm64)', {
+  'baseline/*': [SKIP],
+}],
+# TODO(v8:11439): test-baseline is broken under CFI.
+['control_flow_integrity', {
   'baseline/*': [SKIP],
 }],
 

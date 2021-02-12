@@ -1840,6 +1840,7 @@ action("v8_dump_build_config") {
     "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
+    "v8_control_flow_integrity=$v8_control_flow_integrity",
     "v8_target_cpu=\"$v8_target_cpu\"",
   ]
 
