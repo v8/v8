@@ -339,6 +339,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // preventing this object from being destroyed.
   std::shared_ptr<OperationsBarrier> GetBarrierForBackgroundCompile();
 
+  void SampleThrowEvent(Isolate*);
+  void SampleRethrowEvent(Isolate*);
+  void SampleCatchEvent(Isolate*);
+
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();

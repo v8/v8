@@ -1763,6 +1763,7 @@ Object Isolate::UnwindAndFindHandler() {
 
       case StackFrame::WASM: {
         if (trap_handler::IsThreadInWasm()) {
+          // TODO(thibaudm): The flag should be cleared already.
           trap_handler::ClearThreadInWasm();
         }
 
@@ -1778,6 +1779,7 @@ Object Isolate::UnwindAndFindHandler() {
             wasm_engine()->code_manager()->LookupCode(frame->pc());
         int offset = wasm_frame->LookupExceptionHandlerInTable();
         if (offset < 0) break;
+        wasm_engine()->SampleCatchEvent(this);
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
@@ -1795,10 +1797,7 @@ Object Isolate::UnwindAndFindHandler() {
       case StackFrame::WASM_COMPILE_LAZY: {
         // Can only fail directly on invocation. This happens if an invalid
         // function was validated lazily.
-        DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                       trap_handler::IsThreadInWasm());
         DCHECK(FLAG_wasm_lazy_validation);
-        trap_handler::ClearThreadInWasm();
         break;
       }
 

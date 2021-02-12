@@ -580,6 +580,8 @@ namespace internal {
   F(WasmMemoryGrow, 2, 1)             \
   F(WasmStackGuard, 0, 1)             \
   F(WasmThrowCreate, 2, 1)            \
+  F(WasmThrow, 1, 1)                  \
+  F(WasmReThrow, 1, 1)                \
   F(WasmThrowJSTypeError, 0, 1)       \
   F(WasmRefFunc, 1, 1)                \
   F(WasmFunctionTableGet, 3, 1)       \

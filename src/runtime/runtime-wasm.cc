@@ -176,6 +176,26 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   return *exception;
 }
 
+RUNTIME_FUNCTION(Runtime_WasmThrow) {
+  // Do not clear the flag in a scope. The unwinder will set it if the exception
+  // is caught by a wasm frame, otherwise we keep it cleared.
+  trap_handler::ClearThreadInWasm();
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  isolate->wasm_engine()->SampleThrowEvent(isolate);
+  return isolate->Throw(args[0]);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmReThrow) {
+  // Do not clear the flag in a scope. The unwinder will set it if the exception
+  // is caught by a wasm frame, otherwise we keep it cleared.
+  trap_handler::ClearThreadInWasm();
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  isolate->wasm_engine()->SampleRethrowEvent(isolate);
+  return isolate->ReThrow(args[0]);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   ClearThreadInWasmScope wasm_flag;
   SealHandleScope shs(isolate);

@@ -389,6 +389,11 @@ struct WasmEngine::IsolateInfo {
 
   // Keep new modules in tiered down state.
   bool keep_tiered_down = false;
+
+  // Elapsed time since last throw/rethrow/catch event.
+  base::ElapsedTimer throw_timer;
+  base::ElapsedTimer rethrow_timer;
+  base::ElapsedTimer catch_timer;
 };
 
 struct WasmEngine::NativeModuleInfo {
@@ -1369,6 +1374,35 @@ Handle<Script> WasmEngine::GetOrCreateScript(
 std::shared_ptr<OperationsBarrier>
 WasmEngine::GetBarrierForBackgroundCompile() {
   return operations_barrier_;
+}
+
+namespace {
+void SampleExceptionEvent(base::ElapsedTimer* timer, TimedHistogram* counter) {
+  if (!timer->IsStarted()) {
+    timer->Start();
+    return;
+  }
+  counter->AddSample(static_cast<int>(timer->Elapsed().InMilliseconds()));
+  timer->Restart();
+}
+}  // namespace
+
+void WasmEngine::SampleThrowEvent(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  SampleExceptionEvent(&isolates_[isolate]->throw_timer,
+                       isolate->counters()->wasm_time_between_throws());
+}
+
+void WasmEngine::SampleRethrowEvent(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  SampleExceptionEvent(&isolates_[isolate]->rethrow_timer,
+                       isolate->counters()->wasm_time_between_rethrows());
+}
+
+void WasmEngine::SampleCatchEvent(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  SampleExceptionEvent(&isolates_[isolate]->catch_timer,
+                       isolate->counters()->wasm_time_between_catch());
 }
 
 void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
