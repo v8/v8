@@ -131,12 +131,12 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
     if (!parked_) {
       unparked_scope.emplace(&lh);
     }
-    epilogue_->NotifyStarted();
     {
       base::Optional<UnparkedScope> unparked_scope;
       if (parked_) unparked_scope.emplace(&lh);
       lh.AddGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
     }
+    epilogue_->NotifyStarted();
     while (!epilogue_->StopRequested()) {
       lh.Safepoint();
     }
