@@ -47,14 +47,10 @@ Handle<Code> CompileWithBaseline(Isolate* isolate,
 
   Handle<Code> code = CompileWithBaseline(
       isolate, shared, handle(shared->GetBytecodeArray(isolate), isolate));
-
-  // TODO(v8:11429): Extract to Factory::NewBaselineData
-  Handle<BaselineData> baseline_data = Handle<BaselineData>::cast(
-      isolate->factory()->NewStruct(BASELINE_DATA_TYPE, AllocationType::kOld));
-  baseline_data->set_baseline_code(*code);
-  baseline_data->set_data(
-      HeapObject::cast(shared->function_data(kAcquireLoad)));
-
+  Handle<HeapObject> function_data =
+      handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
+  Handle<BaselineData> baseline_data =
+      isolate->factory()->NewBaselineData(code, function_data);
   shared->set_baseline_data(*baseline_data);
 
   if (FLAG_print_code) {

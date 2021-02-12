@@ -7,6 +7,7 @@
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
+#include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/execution/messages.h"
@@ -104,6 +105,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<T> MakeHandle(T obj) {
     return handle(obj, isolate());
   }
+
+  Handle<BaselineData> NewBaselineData(Handle<Code> code,
+                                       Handle<HeapObject> function_data);
 
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,

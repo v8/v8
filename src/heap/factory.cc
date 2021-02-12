@@ -330,6 +330,15 @@ Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
   return result;
 }
 
+Handle<BaselineData> Factory::NewBaselineData(
+    Handle<Code> code, Handle<HeapObject> function_data) {
+  Handle<BaselineData> baseline_data = Handle<BaselineData>::cast(
+      NewStruct(BASELINE_DATA_TYPE, AllocationType::kOld));
+  baseline_data->set_baseline_code(*code);
+  baseline_data->set_data(*function_data);
+  return baseline_data;
+}
+
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
                                     const char* type_of, byte kind) {
