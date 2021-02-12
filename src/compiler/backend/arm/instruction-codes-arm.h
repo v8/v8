@@ -193,6 +193,8 @@ namespace compiler {
   V(ArmI64x2BitMask)               \
   V(ArmI64x2Eq)                    \
   V(ArmI64x2Ne)                    \
+  V(ArmI64x2GtS)                   \
+  V(ArmI64x2GeS)                   \
   V(ArmI64x2SConvertI32x4Low)      \
   V(ArmI64x2SConvertI32x4High)     \
   V(ArmI64x2UConvertI32x4Low)      \

@@ -2801,11 +2801,6 @@ void InstructionSelector::VisitI32x4WidenI8x16S(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4WidenI8x16U(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
-void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2GeS(Node* node) { UNIMPLEMENTED(); }
-#endif  //! V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
-
 // TODO(v8:11416) Prototyping i64x2.abs.
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI64x2Abs(Node* node) { UNIMPLEMENTED(); }
