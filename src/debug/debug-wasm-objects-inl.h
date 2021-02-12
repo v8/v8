@@ -20,7 +20,6 @@ OBJECT_CONSTRUCTORS_IMPL(WasmValueObject, JSObject)
 
 CAST_ACCESSOR(WasmValueObject)
 
-ACCESSORS(WasmValueObject, type, String, kTypeOffset)
 ACCESSORS(WasmValueObject, value, Object, kValueOffset)
 
 }  // namespace internal

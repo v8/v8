@@ -305,22 +305,6 @@ String16 descriptionForCollection(v8::Isolate* isolate,
   return String16::concat(className, '(', String16::fromInteger(length), ')');
 }
 
-String16 descriptionForWasmValueObject(
-    v8::Local<v8::Context> context,
-    v8::Local<v8::debug::WasmValueObject> object) {
-  v8::Isolate* isolate = context->GetIsolate();
-  auto type = toProtocolString(isolate, object->type());
-  auto value = object->value();
-  if (type == "i32" || type == "f32" || type == "f64") {
-    return String16::fromDouble(v8::Local<v8::Number>::Cast(value)->Value());
-  } else if (type == "i64") {
-    return descriptionForBigInt(context, v8::Local<v8::BigInt>::Cast(value));
-  } else if (type == "v128") {
-    return toProtocolString(isolate, v8::Local<v8::String>::Cast(value));
-  }
-  return type;
-}
-
 String16 descriptionForEntry(v8::Local<v8::Context> context,
                              v8::Local<v8::Object> object) {
   v8::Isolate* isolate = context->GetIsolate();
@@ -809,6 +793,8 @@ bool getPropertiesForPreview(v8::Local<v8::Context> context,
   if (object->IsArray() || isArrayLike(context, object, &length) ||
       object->IsStringObject()) {
     blocklist.push_back("length");
+  } else if (v8::debug::WasmValueObject::IsWasmValueObject(object)) {
+    blocklist.push_back("type");
   } else {
     auto clientSubtype = clientFor(context)->valueSubtype(object);
     if (clientSubtype && toString16(clientSubtype->string()) == "array") {
@@ -1708,11 +1694,11 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
             isolate, memory, memory->Buffer()->ByteLength() / kWasmPageSize));
   }
   if (v8::debug::WasmValueObject::IsWasmValueObject(value)) {
-    v8::Local<v8::debug::WasmValueObject> v =
+    v8::Local<v8::debug::WasmValueObject> object =
         value.As<v8::debug::WasmValueObject>();
     return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Wasmvalue,
-        descriptionForWasmValueObject(context, v));
+        descriptionForObject(isolate, object));
   }
   V8InternalValueType internalType =
       v8InternalValueTypeFrom(context, value.As<v8::Object>());

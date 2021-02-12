@@ -1902,7 +1902,6 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {  // NOLINT
 
 void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmValueObject");
-  os << "\n - type: " << Brief(type());
   os << "\n - value: " << Brief(value());
   os << "\n";
 }

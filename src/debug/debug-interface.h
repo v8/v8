@@ -622,9 +622,6 @@ class V8_EXPORT_PRIVATE WasmValueObject : public v8::Object {
   static bool IsWasmValueObject(v8::Local<v8::Value> obj);
   V8_INLINE static WasmValueObject* Cast(v8::Value* obj);
 
-  v8::Local<v8::String> type() const;
-  v8::Local<v8::Value> value() const;
-
  private:
   static void CheckCast(v8::Value* obj);
 };

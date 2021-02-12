@@ -1548,7 +1548,6 @@ void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
 void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsWasmValueObject());
-  CHECK(type().IsString());
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(

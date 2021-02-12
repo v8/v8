@@ -1119,22 +1119,6 @@ bool WasmValueObject::IsWasmValueObject(Local<Value> that) {
   return obj->IsWasmValueObject();
 }
 
-Local<String> WasmValueObject::type() const {
-  i::Handle<i::WasmValueObject> object =
-      i::Handle<i::WasmValueObject>::cast(Utils::OpenHandle(this));
-  i::Isolate* isolate = object->GetIsolate();
-  i::Handle<i::String> type(object->type(), isolate);
-  return Utils::ToLocal(type);
-}
-
-Local<Value> WasmValueObject::value() const {
-  i::Handle<i::WasmValueObject> object =
-      i::Handle<i::WasmValueObject>::cast(Utils::OpenHandle(this));
-  i::Isolate* isolate = object->GetIsolate();
-  i::Handle<i::Object> value(object->value(), isolate);
-  return Utils::ToLocal(value);
-}
-
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*p);
   i::Isolate* isolate = promise->GetIsolate();
