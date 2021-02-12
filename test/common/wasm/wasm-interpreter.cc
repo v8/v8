@@ -561,6 +561,7 @@ int64_t ExecuteI64ReinterpretF64(WasmValue a) {
 
 constexpr int32_t kCatchInArity = 1;
 constexpr int32_t kCatchAllExceptionIndex = -1;
+constexpr int32_t kImplicitRethrowExceptionIndex = -2;
 
 }  // namespace
 
@@ -840,6 +841,8 @@ class SideTable : public ZoneObject {
             }
             DCHECK_NOT_NULL(c->else_label);
             c->else_label->Bind(i.pc() + 1, kCatchAllExceptionIndex);
+            c->else_label->Finish(&map_, code->start);
+            c->else_label = nullptr;
             DCHECK_IMPLIES(!unreachable,
                            stack_height >= c->end_label->target_stack_height);
             stack_height = c->end_label->target_stack_height;
@@ -899,6 +902,14 @@ class SideTable : public ZoneObject {
               if (*c->pc == kExprIf) {
                 // Bind else label for one-armed if.
                 c->else_label->Bind(i.pc());
+              } else if (!exception_stack.empty()) {
+                // No catch_all block, prepare for implicit rethrow.
+                DCHECK_EQ(*c->pc, kExprTry);
+                Control* next_try_block =
+                    &control_stack[exception_stack.back()];
+                c->else_label->Bind(i.pc(), kImplicitRethrowExceptionIndex);
+                next_try_block->else_label->Ref(
+                    i.pc(), c->else_label->target_stack_height);
               }
             }
             c->end_label->Bind(i.pc() + 1);
@@ -1366,9 +1377,14 @@ class WasmInterpreterInternals {
     auto it = code->side_table->map_.catch_map.find(*pc);
     DCHECK_NE(it, code->side_table->map_.catch_map.end());
     for (auto& entry : it->second) {
-      if (entry.exception_index == kCatchAllExceptionIndex) {
+      if (entry.exception_index < 0) {
         ResetStack(StackHeight() - entry.sp_diff);
         *pc += entry.pc_diff;
+        if (entry.exception_index == kImplicitRethrowExceptionIndex) {
+          // Recursively try to find a handler in the next enclosing try block.
+          return JumpToHandlerDelta(code, exception_object, pc);
+        }
+        DCHECK_EQ(entry.exception_index, kCatchAllExceptionIndex);
         return true;
       } else if (MatchingExceptionTag(exception_object,
                                       entry.exception_index)) {
@@ -1382,7 +1398,6 @@ class WasmInterpreterInternals {
         return true;
       }
     }
-    // TODO(thibaudm): Try rethrowing in the current frame before unwinding.
     return false;
   }
 
