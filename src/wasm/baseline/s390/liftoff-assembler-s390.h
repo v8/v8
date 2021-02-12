@@ -639,6 +639,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
     case ValueType::kOptRef:
     case ValueType::kRef:
     case ValueType::kRtt:
+    case ValueType::kRttWithDepth:
       StoreU64(reg.gp(), dst);
       break;
     case ValueType::kF32:
