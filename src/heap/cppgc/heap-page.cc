@@ -199,8 +199,7 @@ LargePage* LargePage::Create(PageBackend* page_backend, LargePageSpace* space,
   void* memory = page_backend->AllocateLargePageMemory(allocation_size);
   LargePage* page = new (memory) LargePage(heap, space, size);
   page->SynchronizedStore();
-  page->heap()->stats_collector()->NotifyAllocatedMemory(
-      AllocationSize(page->PayloadSize()));
+  page->heap()->stats_collector()->NotifyAllocatedMemory(allocation_size);
   return page;
 }
 

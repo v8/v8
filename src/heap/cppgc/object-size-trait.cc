@@ -17,7 +17,7 @@ size_t BaseObjectSizeTrait::GetObjectSizeForGarbageCollected(
   return header.IsLargeObject()
              ? static_cast<const LargePage*>(BasePage::FromPayload(&header))
                    ->PayloadSize()
-             : header.GetSize();
+             : header.PayloadSize();
 }
 
 // static
@@ -29,7 +29,7 @@ size_t BaseObjectSizeTrait::GetObjectSizeForGarbageCollectedMixin(
       BasePage::FromPayload(address)
           ->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(address);
   DCHECK(!header.IsLargeObject());
-  return header.GetSize();
+  return header.PayloadSize();
 }
 
 }  // namespace internal
