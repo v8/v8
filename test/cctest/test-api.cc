@@ -27811,8 +27811,9 @@ void CheckFastReturnValue(v8::Local<v8::Value> expected_value,
            !checker.DidCallFast());
   CHECK_EQ(expected_path == ApiCheckerResult::kFastCalled,
            !checker.DidCallSlow());
+  CHECK(checker.DidCallFast() || checker.DidCallSlow());
 
-  CHECK(result->StrictEquals(expected_value));
+  CHECK(result->SameValue(expected_value));
 }
 
 void CallAndDeopt() {
@@ -28418,6 +28419,30 @@ TEST(FastApiCalls) {
                                  ApiCheckerResult::kFastCalled);
   CheckFastReturnValue<uint32_t>(v8_num(std::numeric_limits<uint32_t>::max()),
                                  ApiCheckerResult::kFastCalled);
+
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  CheckFastReturnValue<float>(v8_num(0), ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<float>(v8_num(-0.0), ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<float>(v8_num(std::numeric_limits<float>::quiet_NaN()),
+                              ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<float>(v8_num(std::numeric_limits<float>::infinity()),
+                              ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<float>(v8_num(std::numeric_limits<float>::min()),
+                              ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<float>(v8_num(std::numeric_limits<float>::max()),
+                              ApiCheckerResult::kFastCalled);
+
+  CheckFastReturnValue<double>(v8_num(0), ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<double>(v8_num(-0.0), ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<double>(v8_num(std::numeric_limits<double>::quiet_NaN()),
+                               ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<double>(v8_num(std::numeric_limits<double>::infinity()),
+                               ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<double>(v8_num(std::numeric_limits<double>::min()),
+                               ApiCheckerResult::kFastCalled);
+  CheckFastReturnValue<double>(v8_num(std::numeric_limits<double>::max()),
+                               ApiCheckerResult::kFastCalled);
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 
   // Check for the deopt loop protection
   CallAndDeopt();

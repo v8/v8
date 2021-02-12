@@ -153,6 +153,8 @@
  *   - bool
  *   - int32_t
  *   - uint32_t
+ *   - float32_t
+ *   - float64_t
  * Currently supported argument types:
  *  - pointer to an embedder type
  *  - bool
@@ -383,11 +385,14 @@ class CFunctionInfoImpl : public CFunctionInfo {
     static_assert(sizeof...(Args) >= kOptionsArgCount + kReceiverCount,
                   "The receiver or the fallback argument is missing.");
     constexpr CTypeInfo::Type type = internal::GetCType<R>::Get().GetType();
-    static_assert(
-        type == CTypeInfo::Type::kVoid || type == CTypeInfo::Type::kBool ||
-            type == CTypeInfo::Type::kInt32 || type == CTypeInfo::Type::kUint32,
-        "floating point, 64-bit, and api object values are not currently "
-        "supported.");
+    static_assert(type == CTypeInfo::Type::kVoid ||
+                      type == CTypeInfo::Type::kBool ||
+                      type == CTypeInfo::Type::kInt32 ||
+                      type == CTypeInfo::Type::kUint32 ||
+                      type == CTypeInfo::Type::kFloat32 ||
+                      type == CTypeInfo::Type::kFloat64,
+                  "64-bit int and api object values are not currently "
+                  "supported return types.");
   }
 
   const CTypeInfo& ReturnInfo() const override { return return_info_; }

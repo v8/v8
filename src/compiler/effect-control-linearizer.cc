@@ -251,6 +251,7 @@ class EffectControlLinearizer {
                     Args...);
 
   Node* ChangeBitToTagged(Node* value);
+  Node* ChangeFloat64ToTagged(Node* value, CheckForMinusZeroMode mode);
   Node* ChangeInt32ToSmi(Node* value);
   // In pointer compression, we smi-corrupt. This means the upper bits of a Smi
   // are not important. ChangeTaggedInt32ToSmi has a known tagged int32 as input
@@ -1381,7 +1382,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
 Node* EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node) {
   CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* value = node->InputAt(0);
+  return ChangeFloat64ToTagged(value, mode);
+}
 
+Node* EffectControlLinearizer::ChangeFloat64ToTagged(
+    Node* value, CheckForMinusZeroMode mode) {
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
   auto if_heapnumber = __ MakeDeferredLabel();
   auto if_int32 = __ MakeLabel();
@@ -5104,8 +5109,16 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
       break;
     case CTypeInfo::Type::kInt64:
     case CTypeInfo::Type::kUint64:
+      UNREACHABLE();
     case CTypeInfo::Type::kFloat32:
+      fast_call_result =
+          ChangeFloat64ToTagged(__ ChangeFloat32ToFloat64(c_call_result),
+                                CheckForMinusZeroMode::kCheckForMinusZero);
+      break;
     case CTypeInfo::Type::kFloat64:
+      fast_call_result = ChangeFloat64ToTagged(
+          c_call_result, CheckForMinusZeroMode::kCheckForMinusZero);
+      break;
     case CTypeInfo::Type::kV8Value:
       UNREACHABLE();
   }
