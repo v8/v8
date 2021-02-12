@@ -699,16 +699,6 @@ class LiftoffCompiler {
       if (!CheckSupportedType(decoder, __ local_type(i), "param")) return;
     }
 
-    // Input 0 is the call target, the instance is at 1.
-    constexpr int kInstanceParameterIndex = 1;
-    // Store the instance parameter to a special stack slot.
-    compiler::LinkageLocation instance_loc =
-        descriptor_->GetInputLocation(kInstanceParameterIndex);
-    DCHECK(instance_loc.IsRegister());
-    DCHECK(!instance_loc.IsAnyRegister());
-    Register instance_reg = Register::from_code(instance_loc.AsRegister());
-    DCHECK_EQ(kWasmInstanceRegister, instance_reg);
-
     // Parameter 0 is the instance parameter.
     uint32_t num_params =
         static_cast<uint32_t>(decoder->sig_->parameter_count());
@@ -727,9 +717,18 @@ class LiftoffCompiler {
     // LiftoffAssembler methods.
     if (DidAssemblerBailout(decoder)) return;
 
+    // Input 0 is the call target, the instance is at 1.
+    constexpr int kInstanceParameterIndex = 1;
+    // Check that {kWasmInstanceRegister} matches out call descriptor.
+    DCHECK_EQ(kWasmInstanceRegister,
+              Register::from_code(
+                  descriptor_->GetInputLocation(kInstanceParameterIndex)
+                      .AsRegister()));
+    // Store the instance parameter to a special stack slot.
+    __ SpillInstance(kWasmInstanceRegister);
+
     // Process parameters.
     if (num_params) DEBUG_CODE_COMMENT("process parameters");
-    __ SpillInstance(instance_reg);
     // Input 0 is the code target, 1 is the instance. First parameter at 2.
     uint32_t input_idx = kInstanceParameterIndex + 1;
     for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
