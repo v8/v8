@@ -146,13 +146,6 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   }
 }
 
-template <typename... Regs>
-inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
-  for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
-    if (assm->cache_state()->is_used(r)) assm->SpillRegister(r);
-  }
-}
-
 inline void SignExtendI32ToI64(Assembler* assm, LiftoffRegister reg) {
   assm->mov(reg.high_gp(), reg.low_gp());
   assm->sar(reg.high_gp(), 31);
@@ -821,7 +814,7 @@ inline void AtomicBinop64(LiftoffAssembler* lasm, Binop op, Register dst_addr,
     std::swap(dst_addr, offset_reg);
   }
   // Spill all these registers if they are still holding other values.
-  liftoff::SpillRegisters(lasm, old_hi, old_lo, new_hi, base, offset);
+  __ SpillRegisters(old_hi, old_lo, new_hi, base, offset);
   __ ParallelRegisterMove(
       {{LiftoffRegister::ForPair(base, offset),
         LiftoffRegister::ForPair(dst_addr, offset_reg), kWasmI64}});
@@ -1051,7 +1044,7 @@ void LiftoffAssembler::AtomicCompareExchange(
   Register address = esi;
 
   // Spill all these registers if they are still holding other values.
-  liftoff::SpillRegisters(this, expected_hi, expected_lo, new_hi, address);
+  SpillRegisters(expected_hi, expected_lo, new_hi, address);
 
   // We have to set new_lo specially, because it's the root register. We do it
   // before setting all other registers so that the original value does not get
@@ -1301,7 +1294,7 @@ void EmitInt32DivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
   // another temporary register.
   // Do all this before any branch, such that the code is executed
   // unconditionally, as the cache state will also be modified unconditionally.
-  liftoff::SpillRegisters(assm, eax, edx);
+  assm->SpillRegisters(eax, edx);
   if (rhs == eax || rhs == edx) {
     LiftoffRegList unavailable = LiftoffRegList::ForRegs(eax, edx, lhs);
     Register tmp = assm->GetUnusedRegister(kGpReg, unavailable).gp();
@@ -1568,7 +1561,7 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Register rhs_lo = esi;
 
   // Spill all these registers if they are still holding other values.
-  liftoff::SpillRegisters(this, dst_hi, dst_lo, lhs_hi, rhs_lo);
+  SpillRegisters(dst_hi, dst_lo, lhs_hi, rhs_lo);
 
   // Move lhs and rhs into the respective registers.
   ParallelRegisterMove(

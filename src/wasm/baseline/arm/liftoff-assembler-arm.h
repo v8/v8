@@ -1060,12 +1060,7 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   // simpler, even though other register pairs would also be possible.
   constexpr Register dst_low = r8;
   constexpr Register dst_high = r9;
-  if (cache_state()->is_used(LiftoffRegister(dst_low))) {
-    SpillRegister(LiftoffRegister(dst_low));
-  }
-  if (cache_state()->is_used(LiftoffRegister(dst_high))) {
-    SpillRegister(LiftoffRegister(dst_high));
-  }
+  SpillRegisters(dst_low, dst_high);
   {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
