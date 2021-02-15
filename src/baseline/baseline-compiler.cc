@@ -442,8 +442,7 @@ void BaselineCompiler::LoadFeedbackVector(Register output) {
   __ RecordComment("]");
 }
 
-void BaselineCompiler::LoadClosureFeedbackArray(Register output,
-                                                Register closure) {
+void BaselineCompiler::LoadClosureFeedbackArray(Register output) {
   LoadFeedbackVector(output);
   __ LoadTaggedPointerField(output, output,
                             FeedbackVector::kClosureFeedbackCellArrayOffset);
@@ -1762,29 +1761,22 @@ void BaselineCompiler::VisitGetTemplateObject() {
 }
 
 void BaselineCompiler::VisitCreateClosure() {
-  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
-  Register function = scratch_scope.AcquireScratch();
-  Register closure_feedback_array = scratch_scope.AcquireScratch();
-  // TODO(v8:11429,verwaest): Use the feedback cell register expected by the
-  // builtin.
-  __ LoadFunction(function);
-  LoadClosureFeedbackArray(closure_feedback_array, function);
+  Register feedback_cell =
+      Builtins::CallInterfaceDescriptorFor(Builtins::kFastNewClosure)
+          .GetRegisterParameter(FastNewClosureDescriptor::kFeedbackCell);
+  LoadClosureFeedbackArray(feedback_cell);
+  __ LoadFixedArrayElement(feedback_cell, feedback_cell, Index(1));
 
   uint32_t flags = Flag(2);
   if (interpreter::CreateClosureFlags::FastNewClosureBit::decode(flags)) {
-    Register entry = scratch_scope.AcquireScratch();
-    __ LoadFixedArrayElement(entry, closure_feedback_array, Index(1));
     CallBuiltin(Builtins::kFastNewClosure, Constant<SharedFunctionInfo>(0),
-                entry);
+                feedback_cell);
   } else {
     Runtime::FunctionId function_id =
         interpreter::CreateClosureFlags::PretenuredBit::decode(flags)
             ? Runtime::kNewClosure_Tenured
             : Runtime::kNewClosure;
-    __ LoadFixedArrayElement(kInterpreterAccumulatorRegister,
-                             closure_feedback_array, Index(1));
-    CallRuntime(function_id, Constant<SharedFunctionInfo>(0),
-                kInterpreterAccumulatorRegister);
+    CallRuntime(function_id, Constant<SharedFunctionInfo>(0), feedback_cell);
   }
 }
 

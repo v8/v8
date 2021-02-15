@@ -276,7 +276,7 @@ class BaselineCompiler {
   // Feedback vector.
   MemOperand FeedbackVector();
   void LoadFeedbackVector(Register output);
-  void LoadClosureFeedbackArray(Register output, Register closure);
+  void LoadClosureFeedbackArray(Register output);
 
   // Position mapping.
   void AddPosition();
