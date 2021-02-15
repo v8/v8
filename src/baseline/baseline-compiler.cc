@@ -1672,7 +1672,6 @@ void BaselineCompiler::VisitToObject() {
 }
 
 void BaselineCompiler::VisitToString() {
-  // TODO(v8:11429,verwaest): Add fast inline path if it's already a string.
   CallBuiltin(Builtins::kToString, kInterpreterAccumulatorRegister);
 }
 
