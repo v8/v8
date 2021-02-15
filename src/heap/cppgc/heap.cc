@@ -209,7 +209,7 @@ void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
 void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
     Config::StackState stack_state) {
   StatsCollector::EnabledScope stats_scope(
-      *this, StatsCollector::kMarkIncrementalFinalize);
+      stats_collector(), StatsCollector::kMarkIncrementalFinalize);
   FinalizeGarbageCollection(stack_state);
 }
 

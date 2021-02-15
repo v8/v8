@@ -73,7 +73,8 @@ ConcurrentMarkingTask::ConcurrentMarkingTask(
 
 void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
   StatsCollector::EnabledConcurrentScope stats_scope(
-      concurrent_marker_.heap(), StatsCollector::kConcurrentMark);
+      concurrent_marker_.heap().stats_collector(),
+      StatsCollector::kConcurrentMark);
 
   if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists()))
     return;
@@ -150,7 +151,7 @@ void ConcurrentMarkingTask::ProcessWorklists(
 
     {
       StatsCollector::DisabledConcurrentScope stats_scope(
-          concurrent_marker_.heap(),
+          concurrent_marker_.heap().stats_collector(),
           StatsCollector::kConcurrentMarkProcessEphemerons);
       if (!DrainWorklistWithYielding(
               job_delegate, concurrent_marking_state,

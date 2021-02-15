@@ -296,9 +296,9 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
   // accounting since this scope is also accounted under an outer v8 scope.
   // Make sure to only account this scope once.
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
-      AsBase(), in_atomic_pause_
-                    ? cppgc::internal::StatsCollector::kAtomicMark
-                    : cppgc::internal::StatsCollector::kIncrementalMark);
+      stats_collector(),
+      in_atomic_pause_ ? cppgc::internal::StatsCollector::kAtomicMark
+                       : cppgc::internal::StatsCollector::kIncrementalMark);
   const v8::base::TimeDelta deadline =
       in_atomic_pause_ ? v8::base::TimeDelta::Max()
                        : v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms);
@@ -316,7 +316,7 @@ bool CppHeap::IsTracingDone() { return marking_done_; }
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
-      AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
+      stats_collector(), cppgc::internal::StatsCollector::kAtomicMark);
   in_atomic_pause_ = true;
   if (override_stack_state_) {
     stack_state = *override_stack_state_;
@@ -333,7 +333,7 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   CHECK(marking_done_);
   {
     cppgc::internal::StatsCollector::EnabledScope stats_scope(
-        AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
+        stats_collector(), cppgc::internal::StatsCollector::kAtomicMark);
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
   }

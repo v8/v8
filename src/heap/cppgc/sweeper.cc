@@ -427,7 +427,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 
   void Run(cppgc::JobDelegate* delegate) final {
     StatsCollector::EnabledConcurrentScope stats_scope(
-        heap_, StatsCollector::kConcurrentSweep);
+        heap_.stats_collector(), StatsCollector::kConcurrentSweep);
 
     for (SpaceState& state : *states_) {
       while (auto page = state.unswept_pages.Pop()) {
@@ -531,7 +531,7 @@ class Sweeper::SweeperImpl final {
   ~SweeperImpl() { CancelSweepers(); }
 
   void Start(SweepingConfig config) {
-    StatsCollector::EnabledScope stats_scope(*heap_->heap(),
+    StatsCollector::EnabledScope stats_scope(heap_->heap()->stats_collector(),
                                              StatsCollector::kAtomicSweep);
     is_in_progress_ = true;
 #if DEBUG
@@ -558,10 +558,10 @@ class Sweeper::SweeperImpl final {
     // allocate new memory.
     if (is_sweeping_on_mutator_thread_) return false;
 
-    StatsCollector::EnabledScope stats_scope(*heap_->heap(),
+    StatsCollector::EnabledScope stats_scope(heap_->heap()->stats_collector(),
                                              StatsCollector::kIncrementalSweep);
     StatsCollector::EnabledScope inner_scope(
-        *heap_->heap(), StatsCollector::kSweepOnAllocation);
+        heap_->heap()->stats_collector(), StatsCollector::kSweepOnAllocation);
     MutatorThreadSweepingScope sweeping_in_progresss(*this);
 
     SpaceState& space_state = space_states_[space->index()];
@@ -597,8 +597,8 @@ class Sweeper::SweeperImpl final {
 
     {
       StatsCollector::EnabledScope stats_scope(
-          *heap_->heap(), StatsCollector::kIncrementalSweep);
-      StatsCollector::EnabledScope inner_scope(*heap_->heap(),
+          heap_->heap()->stats_collector(), StatsCollector::kIncrementalSweep);
+      StatsCollector::EnabledScope inner_scope(heap_->heap()->stats_collector(),
                                                StatsCollector::kSweepFinalize);
       if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
           concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
@@ -698,14 +698,15 @@ class Sweeper::SweeperImpl final {
       bool sweep_complete;
       {
         StatsCollector::EnabledScope stats_scope(
-            *sweeper_->heap_->heap(), StatsCollector::kIncrementalSweep);
+            sweeper_->heap_->heap()->stats_collector(),
+            StatsCollector::kIncrementalSweep);
 
         MutatorThreadSweeper sweeper(&sweeper_->space_states_,
                                      sweeper_->platform_);
         {
           StatsCollector::EnabledScope stats_scope(
-              *sweeper_->heap_->heap(), StatsCollector::kSweepIdleStep,
-              "idleDeltaInSeconds",
+              sweeper_->heap_->heap()->stats_collector(),
+              StatsCollector::kSweepIdleStep, "idleDeltaInSeconds",
               (deadline_in_seconds -
                sweeper_->platform_->MonotonicallyIncreasingTime()));
 

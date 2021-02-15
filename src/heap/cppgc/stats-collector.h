@@ -10,10 +10,10 @@
 
 #include <vector>
 
+#include "include/cppgc/platform.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/heap/cppgc/garbage-collector.h"
-#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/trace-event.h"
 
@@ -154,9 +154,9 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
    public:
     template <typename... Args>
-    InternalScope(HeapBase& heap, ScopeIdType scope_id, Args... args)
-        : heap_(heap),
-          stats_collector_(heap_.stats_collector()),
+    InternalScope(StatsCollector* stats_collector, ScopeIdType scope_id,
+                  Args... args)
+        : stats_collector_(stats_collector),
           start_time_(v8::base::TimeTicks::Now()),
           scope_id_(scope_id) {
       DCHECK_LE(0, scope_id_);
@@ -203,7 +203,6 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
     inline void IncreaseScopeTime();
 
-    HeapBase& heap_;
     StatsCollector* const stats_collector_;
     v8::base::TimeTicks start_time_;
     const ScopeIdType scope_id_;
@@ -240,7 +239,7 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // reasonably interesting sizes.
   static constexpr size_t kAllocationThresholdBytes = 1024;
 
-  explicit StatsCollector(std::unique_ptr<MetricRecorder>);
+  StatsCollector(std::unique_ptr<MetricRecorder>, Platform*);
   StatsCollector(const StatsCollector&) = delete;
   StatsCollector& operator=(const StatsCollector&) = delete;
 
@@ -325,6 +324,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   Event previous_;
 
   std::unique_ptr<MetricRecorder> metric_recorder_;
+
+  Platform* platform_;
 };
 
 template <typename Callback>

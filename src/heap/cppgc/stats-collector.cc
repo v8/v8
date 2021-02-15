@@ -17,8 +17,10 @@ namespace internal {
 constexpr size_t StatsCollector::kAllocationThresholdBytes;
 
 StatsCollector::StatsCollector(
-    std::unique_ptr<MetricRecorder> histogram_recorder)
-    : metric_recorder_(std::move(histogram_recorder)) {}
+    std::unique_ptr<MetricRecorder> histogram_recorder, Platform* platform)
+    : metric_recorder_(std::move(histogram_recorder)), platform_(platform) {
+  USE(platform_);
+}
 
 void StatsCollector::RegisterObserver(AllocationObserver* observer) {
   DCHECK_EQ(allocation_observers_.end(),

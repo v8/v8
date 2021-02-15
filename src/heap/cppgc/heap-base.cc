@@ -68,8 +68,8 @@ HeapBase::HeapBase(
       page_backend_(
           std::make_unique<PageBackend>(platform_->GetPageAllocator())),
 #endif
-      stats_collector_(
-          std::make_unique<StatsCollector>(std::move(histogram_recorder))),
+      stats_collector_(std::make_unique<StatsCollector>(
+          std::move(histogram_recorder), platform_.get())),
       stack_(std::make_unique<heap::base::Stack>(
           v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
