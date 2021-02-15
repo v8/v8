@@ -737,24 +737,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
                                                  m.right().ResolvedValue()));
       } else if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
         return ReplaceFloat64(1.0);
-      } else if (m.right().Is(-2.0)) {  // x ** -2.0 => 1 / (x * x)
-        node->ReplaceInput(0, Float64Constant(1.0));
-        node->ReplaceInput(1, Float64Mul(m.left().node(), m.left().node()));
-        NodeProperties::ChangeOp(node, machine()->Float64Div());
-        return Changed(node);
-      } else if (m.right().Is(2.0)) {  // x ** 2.0 => x * x
-        node->ReplaceInput(1, m.left().node());
-        NodeProperties::ChangeOp(node, machine()->Float64Mul());
-        return Changed(node);
-      } else if (m.right().Is(-0.5)) {
-        // x ** 0.5 => 1 / (if x <= -Infinity then Infinity else sqrt(0.0 + x))
-        node->ReplaceInput(0, Float64Constant(1.0));
-        node->ReplaceInput(1, Float64PowHalf(m.left().node()));
-        NodeProperties::ChangeOp(node, machine()->Float64Div());
-        return Changed(node);
-      } else if (m.right().Is(0.5)) {
-        // x ** 0.5 => if x <= -Infinity then Infinity else sqrt(0.0 + x)
-        return Replace(Float64PowHalf(m.left().node()));
       }
       break;
     }
