@@ -2525,6 +2525,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     stack_end_ = stack_ + c->stack_depth;
     c->reachability = control_at(1)->innerReachability();
     const WasmExceptionSig* sig = imm.exception->sig;
+    EnsureStackSpace(static_cast<int>(sig->parameter_count()));
     for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
       Push(sig->GetParam(i));
     }

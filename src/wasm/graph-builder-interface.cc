@@ -768,6 +768,7 @@ class WasmGraphBuildingInterface {
       if (depth == decoder->control_depth() - 1) {
         builder_->Rethrow(block->try_info->exception);
         builder_->TerminateThrow(effect(), control());
+        current_catch_ = block->previous_catch;
         return;
       }
       DCHECK(decoder->control_at(depth)->is_try());
@@ -1102,6 +1103,7 @@ class WasmGraphBuildingInterface {
   TFNode* control() { return builder_->control(); }
 
   TryInfo* current_try_info(FullDecoder* decoder) {
+    DCHECK_LT(current_catch_, decoder->control_depth());
     return decoder->control_at(decoder->control_depth() - 1 - current_catch_)
         ->try_info;
   }

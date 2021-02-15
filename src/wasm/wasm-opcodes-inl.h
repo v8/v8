@@ -504,6 +504,8 @@ constexpr bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
     case kExprReturn:
     case kExprReturnCall:
     case kExprReturnCallIndirect:
+    case kExprThrow:
+    case kExprRethrow:
       return true;
     default:
       return false;
