@@ -229,6 +229,8 @@ void BaselineAssembler::GetCode(Isolate* isolate, CodeDesc* desc) {
 }
 int BaselineAssembler::pc_offset() const { return __ pc_offset(); }
 bool BaselineAssembler::emit_debug_code() const { return __ emit_debug_code(); }
+void BaselineAssembler::CodeEntry() const { __ CodeEntry(); }
+void BaselineAssembler::ExceptionHandler() const { __ ExceptionHandler(); }
 void BaselineAssembler::RecordComment(const char* string) {
   __ RecordComment(string);
 }
@@ -237,8 +239,6 @@ void BaselineAssembler::DebugBreak() { __ DebugBreak(); }
 void BaselineAssembler::CallRuntime(Runtime::FunctionId function, int nargs) {
   __ CallRuntime(function, nargs);
 }
-
-void BaselineAssembler::Bind(Label* label) { __ bind(label); }
 
 MemOperand BaselineAssembler::ContextOperand() {
   return RegisterFrameOperand(interpreter::Register::current_context());
@@ -344,6 +344,11 @@ void BaselineCompiler::GenerateCode() {
     }
     iterator_.Reset();
   }
+
+  // No code generated yet.
+  DCHECK_EQ(__ pc_offset(), 0);
+  __ CodeEntry();
+
   {
     RuntimeCallTimerScope runtimeTimer(
         stats_, RuntimeCallCounterId::kCompileBaselineVisit);
@@ -490,6 +495,7 @@ void BaselineCompiler::VisitSingleBytecode() {
   if (handler_offsets_.find(accessor().current_offset()) !=
       handler_offsets_.end()) {
     AddPosition();
+    __ ExceptionHandler();
   }
 
   if (FLAG_code_comments) {

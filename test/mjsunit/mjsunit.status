@@ -1460,9 +1460,5 @@
 ['arch not in (x64, arm64)', {
   'baseline/*': [SKIP],
 }],
-# TODO(v8:11439): test-baseline is broken under CFI.
-['control_flow_integrity', {
-  'baseline/*': [SKIP],
-}],
 
 ]

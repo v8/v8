@@ -80,6 +80,11 @@ MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
 
+void BaselineAssembler::Bind(Label* label) {
+  // All baseline compiler binds on arm64 are assumed to be for jump targets.
+  __ BindJumpTarget(label);
+}
+
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ B(target);
 }
@@ -111,8 +116,14 @@ void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
 }
 
 void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
-  ScratchRegisterScope temps(this);
-  Register temp = temps.AcquireScratch();
+  // x17 is used to allow using "Call" (i.e. `bti c`) rather than "Jump" (i.e.]
+  // `bti j`) landing pads for the tail-called code.
+  Register temp = x17;
+
+  // Make sure we're don't use this register as a temporary.
+  UseScratchRegisterScope temps(masm());
+  temps.Exclude(temp);
+
   __ LoadEntryFromBuiltinIndex(builtin, temp);
   __ Jump(temp);
 }

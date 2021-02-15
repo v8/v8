@@ -74,6 +74,8 @@ class BaselineAssembler {
   void GetCode(Isolate* isolate, CodeDesc* desc);
   int pc_offset() const;
   bool emit_debug_code() const;
+  void CodeEntry() const;
+  void ExceptionHandler() const;
   void RecordComment(const char* string);
   void Trap();
   void DebugBreak();
