@@ -201,7 +201,7 @@ def multibranch_builder(**kwargs):
         args = dict(kwargs)
 
         # TODO(machenbach): Remove this as soon as it's the default:
-        args["executable"] = "recipe:v8_bbagent"
+        args.setdefault("executable", "recipe:v8_bbagent")
 
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
         first_branch_version = args.pop("first_branch_version", None)
