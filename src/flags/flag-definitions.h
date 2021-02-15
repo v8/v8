@@ -578,7 +578,6 @@ DEFINE_INT(ticks_scale_factor_for_top_tier, 10,
 // Flags for Sparkplug
 DEFINE_BOOL(sparkplug, false, "enable experimental sparkplug baseline compiler")
 DEFINE_BOOL(always_sparkplug, false, "directly tier up to sparkplug")
-DEFINE_BOOL(sparkplug_inline_smi, true, "inline fast paths for smi ops")
 DEFINE_NEG_IMPLICATION(sparkplug, write_protect_code_memory)
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 
