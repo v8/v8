@@ -190,10 +190,6 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
 
   if (function->HasAttachedOptimizedCode()) {
     Deoptimizer::DeoptimizeFunction(*function);
-  } else if (function->code().kind() == CodeKind::BASELINE) {
-    // TODO(v8:11429): This should either be in Deoptimizer::DeoptimizeFunction,
-    // or not be considered deoptimization at all.
-    Deoptimizer::DeoptimizeBaseline(function->shared());
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -212,8 +208,6 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 
   if (function->HasAttachedOptimizedCode()) {
     Deoptimizer::DeoptimizeFunction(*function);
-  } else if (function->code().kind() == CodeKind::BASELINE) {
-    Deoptimizer::DeoptimizeBaseline(function->shared());
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

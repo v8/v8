@@ -1241,13 +1241,80 @@ void Debug::ClearOneShot() {
   }
 }
 
+namespace {
+class DiscardBaselineCodeVisitor : public ThreadVisitor {
+ public:
+  explicit DiscardBaselineCodeVisitor(SharedFunctionInfo shared)
+      : shared_(shared) {}
+  DiscardBaselineCodeVisitor() : shared_(SharedFunctionInfo()) {}
+
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
+    bool deopt_all = shared_ == SharedFunctionInfo();
+    for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+      if (it.frame()->type() == StackFrame::BASELINE) {
+        BaselineFrame* frame = BaselineFrame::cast(it.frame());
+        if (!deopt_all && frame->function().shared() != shared_) continue;
+        frame->InterpretedFrame::PatchBytecodeOffset(
+            frame->GetBytecodeOffset());
+        Address* pc_addr = frame->pc_address();
+        Address advance = BUILTIN_CODE(isolate, InterpreterEnterBytecodeAdvance)
+                              ->InstructionStart();
+        PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize);
+      }
+    }
+  }
+
+ private:
+  SharedFunctionInfo shared_;
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
+};
+}  // namespace
+
+void Debug::DiscardBaselineCode(SharedFunctionInfo shared) {
+  DCHECK_EQ(shared.GetCode().kind(), CodeKind::BASELINE);
+  Isolate* isolate = shared.GetIsolate();
+  DiscardBaselineCodeVisitor visitor(shared);
+  visitor.VisitThread(isolate, isolate->thread_local_top());
+  isolate->thread_manager()->IterateArchivedThreads(&visitor);
+  // TODO(v8:11429): Avoid this heap walk somehow.
+  HeapObjectIterator iterator(isolate->heap());
+  auto trampoline = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+  shared.flush_baseline_data();
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    if (obj.IsJSFunction()) {
+      JSFunction fun = JSFunction::cast(obj);
+      if (fun.shared() == shared && fun.code().kind() == CodeKind::BASELINE) {
+        fun.set_code(*trampoline);
+      }
+    }
+  }
+}
+
+void Debug::DiscardAllBaselineCode() {
+  DiscardBaselineCodeVisitor visitor;
+  visitor.VisitThread(isolate_, isolate_->thread_local_top());
+  HeapObjectIterator iterator(isolate_->heap());
+  auto trampoline = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
+  isolate_->thread_manager()->IterateArchivedThreads(&visitor);
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    if (obj.IsJSFunction()) {
+      JSFunction fun = JSFunction::cast(obj);
+      if (fun.shared().HasBaselineData()) {
+        fun.set_code(*trampoline);
+      }
+    }
+  }
+}
+
 void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   // Deoptimize all code compiled from this shared function info including
   // inlining.
   isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
-  if (shared->GetCode().kind() == CodeKind::BASELINE) {
-    Deoptimizer::DeoptimizeBaseline(*shared);
+  if (shared->HasBaselineData()) {
+    DiscardBaselineCode(*shared);
   }
 
   bool found_something = false;
@@ -1284,6 +1351,7 @@ void Debug::PrepareFunctionForDebugExecution(
   if (debug_info->CanBreakAtEntry()) {
     // Deopt everything in case the function is inlined anywhere.
     Deoptimizer::DeoptimizeAll(isolate_);
+    DiscardAllBaselineCode();
     InstallDebugBreakTrampoline();
   } else {
     DeoptimizeFunction(shared);

@@ -310,26 +310,3 @@ assertEquals(run((x)=>{
   assertTrue(isBaseline(f1));
   assertTrue(isBaseline(f2));
 })();
-
-// DeoptNow to Ignition
-(function() {
-  function f() { %DeoptimizeNow(); }
-  f();
-  assertTrue(isInterpreted(f));
-  %CompileBaseline(f);
-  f();
-  assertTrue(isInterpreted(f));
-})();
-
-// Deopt to Ignition
-(function() {
-  function f() {}
-  f();
-  assertTrue(isInterpreted(f));
-  %CompileBaseline(f);
-  f();
-  assertTrue(isBaseline(f));
-  %DeoptimizeFunction(f);
-  f();
-  assertTrue(isInterpreted(f));
-})();
