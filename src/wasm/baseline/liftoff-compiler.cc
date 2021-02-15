@@ -88,6 +88,12 @@ constexpr LoadType::LoadTypeValue kPointerLoadType =
 constexpr ValueType kPointerValueType =
     kSystemPointerSize == 8 ? kWasmI64 : kWasmI32;
 
+#if V8_TARGET_ARCH_32_BIT || defined(V8_COMPRESS_POINTERS)
+constexpr ValueType kSmiValueType = kWasmI32;
+#else
+constexpr ValueType kSmiValueType = kWasmI64;
+#endif
+
 #if V8_TARGET_ARCH_ARM64
 // On ARM64, the Assembler keeps track of pointers to Labels to resolve
 // branches to distant targets. Moving labels would confuse the Assembler,
@@ -4045,30 +4051,26 @@ class LiftoffCompiler {
     __ emit_cond_jump(kEqual, trap_label, kWasmI32, result.gp());
   }
 
+  void LoadSmi(LiftoffRegister reg, int value) {
+    Address smi_value = Smi::FromInt(value).ptr();
+    using smi_type =
+        std::conditional_t<kSmiValueType == kWasmI32, int32_t, int64_t>;
+    __ LoadConstant(reg, WasmValue{static_cast<smi_type>(smi_value)});
+  }
+
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
     LiftoffRegList pinned;
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-#if V8_TARGET_ARCH_32_BIT || defined(V8_COMPRESS_POINTERS)
-    WasmValue table_index_val(
-        static_cast<uint32_t>(Smi::FromInt(imm.table.index).ptr()));
-    WasmValue segment_index_val(
-        static_cast<uint32_t>(Smi::FromInt(imm.elem_segment_index).ptr()));
-#else
-    WasmValue table_index_val(
-        static_cast<uint64_t>(Smi::FromInt(imm.table.index).ptr()));
-    WasmValue segment_index_val(
-        static_cast<uint64_t>(Smi::FromInt(imm.elem_segment_index).ptr()));
-#endif
-    __ LoadConstant(table_index_reg, table_index_val);
+    LoadSmi(table_index_reg, imm.table.index);
     LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
                                            0);
 
     LiftoffRegister segment_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(segment_index_reg, segment_index_val);
+    LoadSmi(segment_index_reg, imm.elem_segment_index);
     LiftoffAssembler::VarState segment_index(kPointerValueType,
                                              segment_index_reg, 0);
 
@@ -4080,8 +4082,8 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableInitDescriptor>(compilation_zone_);
 
-    ValueType sig_reps[] = {kWasmI32, kWasmI32, kWasmI32,
-                            table_index_val.type(), segment_index_val.type()};
+    ValueType sig_reps[] = {kWasmI32, kWasmI32, kWasmI32, kSmiValueType,
+                            kSmiValueType};
     FunctionSig sig(0, 5, sig_reps);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
@@ -4118,27 +4120,15 @@ class LiftoffCompiler {
                  Vector<Value> args) {
     LiftoffRegList pinned;
 
-#if V8_TARGET_ARCH_32_BIT || defined(V8_COMPRESS_POINTERS)
-    WasmValue table_dst_index_val(
-        static_cast<uint32_t>(Smi::FromInt(imm.table_dst.index).ptr()));
-    WasmValue table_src_index_val(
-        static_cast<uint32_t>(Smi::FromInt(imm.table_src.index).ptr()));
-#else
-    WasmValue table_dst_index_val(
-        static_cast<uint64_t>(Smi::FromInt(imm.table_dst.index).ptr()));
-    WasmValue table_src_index_val(
-        static_cast<uint64_t>(Smi::FromInt(imm.table_src.index).ptr()));
-#endif
-
     LiftoffRegister table_dst_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(table_dst_index_reg, table_dst_index_val);
+    LoadSmi(table_dst_index_reg, imm.table_dst.index);
     LiftoffAssembler::VarState table_dst_index(kPointerValueType,
                                                table_dst_index_reg, 0);
 
     LiftoffRegister table_src_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(table_src_index_reg, table_src_index_val);
+    LoadSmi(table_src_index_reg, imm.table_src.index);
     LiftoffAssembler::VarState table_src_index(kPointerValueType,
                                                table_src_index_reg, 0);
 
@@ -4150,9 +4140,8 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableCopyDescriptor>(compilation_zone_);
 
-    ValueType sig_reps[] = {kWasmI32, kWasmI32, kWasmI32,
-                            table_dst_index_val.type(),
-                            table_src_index_val.type()};
+    ValueType sig_reps[] = {kWasmI32, kWasmI32, kWasmI32, kSmiValueType,
+                            kSmiValueType};
     FunctionSig sig(0, 5, sig_reps);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
