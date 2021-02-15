@@ -505,7 +505,7 @@ void BaselineCompiler::PrologueFillFrame() {
         __ masm()->Push(kJavaScriptCallNewTargetRegister,
                         kInterpreterAccumulatorRegister);
       } else {
-        DCHECK_EQ(i, new_target_index + 1);
+        DCHECK_EQ(i, new_target_index - 1);
         __ masm()->Push(kInterpreterAccumulatorRegister,
                         kJavaScriptCallNewTargetRegister);
       }
