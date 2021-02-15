@@ -1608,6 +1608,19 @@ class SharedFunctionInfoFinder {
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
+namespace {
+SharedFunctionInfo FindSharedFunctionInfoCandidate(int position,
+                                                   Handle<Script> script,
+                                                   Isolate* isolate) {
+  SharedFunctionInfoFinder finder(position);
+  SharedFunctionInfo::ScriptIterator iterator(isolate, *script);
+  for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
+       info = iterator.Next()) {
+    finder.NewCandidate(info);
+  }
+  return finder.Result();
+}
+}  // namespace
 
 // We need to find a SFI for a literal that may not yet have been compiled yet,
 // and there may not be a JSFunction referencing it. Find the SFI closest to
@@ -1626,14 +1639,20 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     SharedFunctionInfo shared;
     IsCompiledScope is_compiled_scope;
     {
-      SharedFunctionInfoFinder finder(position);
-      SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
-      for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
-           info = iterator.Next()) {
-        finder.NewCandidate(info);
+      shared = FindSharedFunctionInfoCandidate(position, script, isolate_);
+      if (shared.is_null()) {
+        // It might be that the shared function info is not available as the
+        // top level functions are removed due to the GC. Try to recompile
+        // the top level functions.
+        UnoptimizedCompileState compile_state(isolate_);
+        UnoptimizedCompileFlags flags =
+            UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script);
+        ParseInfo parse_info(isolate_, flags, &compile_state);
+        IsCompiledScope is_compiled_scope;
+        Compiler::CompileToplevel(&parse_info, script, isolate_,
+                                  &is_compiled_scope);
+        continue;
       }
-      shared = finder.Result();
-      if (shared.is_null()) break;
       // We found it if it's already compiled.
       is_compiled_scope = shared.is_compiled_scope(isolate_);
       if (is_compiled_scope.is_compiled()) {

@@ -1422,14 +1422,6 @@ void CompileOnBackgroundThread(ParseInfo* parse_info,
   // Character stream shouldn't be used again.
   parse_info->ResetCharacterStream();
 }
-
-MaybeHandle<SharedFunctionInfo> CompileToplevel(
-    ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
-    IsCompiledScope* is_compiled_scope) {
-  return CompileToplevel(parse_info, script, kNullMaybeHandle, isolate,
-                         is_compiled_scope);
-}
-
 }  // namespace
 
 CompilationHandleScope::~CompilationHandleScope() {
@@ -1898,6 +1890,14 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
 }
 
 // static
+MaybeHandle<SharedFunctionInfo> Compiler::CompileToplevel(
+    ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
+    IsCompiledScope* is_compiled_scope) {
+  return v8::internal::CompileToplevel(parse_info, script, kNullMaybeHandle,
+                                       isolate, is_compiled_scope);
+}
+
+// static
 bool Compiler::FinalizeBackgroundCompileTask(
     BackgroundCompileTask* task, Handle<SharedFunctionInfo> shared_info,
     Isolate* isolate, ClearExceptionFlag flag) {
@@ -1983,7 +1983,8 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
 MaybeHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
     ParseInfo* parse_info, Handle<Script> script, Isolate* isolate) {
   IsCompiledScope is_compiled_scope;
-  return CompileToplevel(parse_info, script, isolate, &is_compiled_scope);
+  return Compiler::CompileToplevel(parse_info, script, isolate,
+                                   &is_compiled_scope);
 }
 
 // static
@@ -2065,8 +2066,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
     script->set_eval_from_position(eval_position);
 
-    if (!CompileToplevel(&parse_info, script, maybe_outer_scope_info, isolate,
-                         &is_compiled_scope)
+    if (!v8::internal::CompileToplevel(&parse_info, script,
+                                       maybe_outer_scope_info, isolate,
+                                       &is_compiled_scope)
              .ToHandle(&shared_info)) {
       return MaybeHandle<JSFunction>();
     }
@@ -2538,7 +2540,8 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
                  script->IsUserJavaScript());
   DCHECK_EQ(parse_info.flags().is_repl_mode(), script->is_repl_mode());
 
-  return CompileToplevel(&parse_info, script, isolate, is_compiled_scope);
+  return Compiler::CompileToplevel(&parse_info, script, isolate,
+                                   is_compiled_scope);
 }
 
 class StressBackgroundCompileThread : public base::Thread {
@@ -2853,8 +2856,9 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
                        origin_options, NOT_NATIVES_CODE, arguments);
 
     Handle<SharedFunctionInfo> top_level;
-    maybe_result = CompileToplevel(&parse_info, script, maybe_outer_scope_info,
-                                   isolate, &is_compiled_scope);
+    maybe_result = v8::internal::CompileToplevel(&parse_info, script,
+                                                 maybe_outer_scope_info,
+                                                 isolate, &is_compiled_scope);
     if (maybe_result.is_null()) isolate->ReportPendingMessages();
     ASSIGN_RETURN_ON_EXCEPTION(isolate, top_level, maybe_result, JSFunction);
 

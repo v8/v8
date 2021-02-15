@@ -72,6 +72,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       IsCompiledScope* is_compiled_scope);
   static bool CompileOptimized(Handle<JSFunction> function,
                                ConcurrencyMode mode, CodeKind code_kind);
+  static MaybeHandle<SharedFunctionInfo> CompileToplevel(
+      ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
+      IsCompiledScope* is_compiled_scope);
 
   static void LogFunctionCompilation(Isolate* isolate,
                                      CodeEventListener::LogEventsAndTags tag,
