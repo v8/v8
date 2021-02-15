@@ -1156,7 +1156,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       static_cast<unsigned int>(descriptor->GetHeight());
 
   switch (descriptor->type()) {
-    case FrameStateType::kInterpretedFunction: {
+    case FrameStateType::kUnoptimizedFunction: {
       int return_offset = 0;
       int return_count = 0;
       if (!state_combine.IsOutputIgnored()) {

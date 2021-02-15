@@ -1872,7 +1872,7 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
   for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
        !it.done(); it.Advance()) {
-    if (it.frame()->IsUnoptimizedJavaScriptFrame()) return;
+    if (it.frame()->is_unoptimized()) return;
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
       Code code = it.frame()->LookupCode();
       if (!code.CanDeoptAt(it.frame()->pc())) {

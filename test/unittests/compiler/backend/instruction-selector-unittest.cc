@@ -149,7 +149,7 @@ const FrameStateFunctionInfo*
 InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
     int parameter_count, int local_count) {
   return common()->CreateFrameStateFunctionInfo(
-      FrameStateType::kInterpretedFunction, parameter_count, local_count,
+      FrameStateType::kUnoptimizedFunction, parameter_count, local_count,
       Handle<SharedFunctionInfo>());
 }
 

@@ -553,7 +553,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
                  StateValuesAccess(state.locals()).size());
 
         Node* accumulator = state.stack();
-        if (func_info->type() == FrameStateType::kInterpretedFunction) {
+        if (func_info->type() == FrameStateType::kUnoptimizedFunction) {
           // The accumulator (InputAt(2)) cannot be kStateValues.
           // It can be kTypedStateValues (to signal the type) and it can have
           // other Node types including that of the optimized_out HeapConstant.

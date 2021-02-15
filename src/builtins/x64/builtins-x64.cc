@@ -1676,8 +1676,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
           Immediate(0));
   __ Push(bytecode_array);
 
-  // Horrible hack: This should be the bytecode offset, but we calculate that
-  // from the PC, so we cache the feedback vector in there instead.
+  // Baseline code frames store the feedback vector where interpreter would
+  // store the bytecode offset.
   __ Push(feedback_vector);
 
   __ RecordComment("]");

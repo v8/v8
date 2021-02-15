@@ -297,22 +297,22 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
 
 namespace {
 
-BytecodeOffset DetermineEntryAndDisarmOSRForInterpreter(
-    JavaScriptFrame* frame) {
-  InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
+BytecodeOffset DetermineEntryAndDisarmOSRForUnoptimized(
+    JavaScriptFrame* js_frame) {
+  UnoptimizedFrame* frame = reinterpret_cast<UnoptimizedFrame*>(js_frame);
 
   // Note that the bytecode array active on the stack might be different from
   // the one installed on the function (e.g. patched by debugger). This however
   // is fine because we guarantee the layout to be in sync, hence any
   // BytecodeOffset representing the entry point will be valid for any copy of
   // the bytecode.
-  Handle<BytecodeArray> bytecode(iframe->GetBytecodeArray(), iframe->isolate());
+  Handle<BytecodeArray> bytecode(frame->GetBytecodeArray(), frame->isolate());
 
-  DCHECK_IMPLIES(frame->type() == StackFrame::INTERPRETED,
+  DCHECK_IMPLIES(frame->is_interpreted(),
                  frame->LookupCode().is_interpreter_trampoline_builtin());
-  DCHECK_IMPLIES(frame->type() == StackFrame::BASELINE,
+  DCHECK_IMPLIES(frame->is_baseline(),
                  frame->LookupCode().kind() == CodeKind::BASELINE);
-  DCHECK(frame->is_interpreted());
+  DCHECK(frame->is_unoptimized());
   DCHECK(frame->function().shared().HasBytecodeArray());
 
   // Reset the OSR loop nesting depth to disarm back edges.
@@ -320,7 +320,7 @@ BytecodeOffset DetermineEntryAndDisarmOSRForInterpreter(
 
   // Return a BytecodeOffset representing the bytecode offset of the back
   // branch.
-  return BytecodeOffset(iframe->GetBytecodeOffset());
+  return BytecodeOffset(frame->GetBytecodeOffset());
 }
 
 }  // namespace
@@ -335,11 +335,11 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   // Determine frame triggering OSR request.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  DCHECK(frame->is_interpreted());
+  DCHECK(frame->is_unoptimized());
 
   // Determine the entry point for which this OSR request has been fired and
   // also disarm all back edges in the calling code to stop new requests.
-  BytecodeOffset osr_offset = DetermineEntryAndDisarmOSRForInterpreter(frame);
+  BytecodeOffset osr_offset = DetermineEntryAndDisarmOSRForUnoptimized(frame);
   DCHECK(!osr_offset.IsNone());
 
   MaybeHandle<Code> maybe_result;

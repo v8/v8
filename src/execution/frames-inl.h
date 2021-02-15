@@ -47,7 +47,6 @@ inline Address StackHandler::address() const {
   return reinterpret_cast<Address>(const_cast<StackHandler*>(this));
 }
 
-
 inline StackHandler* StackHandler::next() const {
   const int offset = StackHandlerConstants::kNextOffset;
   return FromAddress(base::Memory<Address>(address() + offset));
@@ -61,10 +60,8 @@ inline StackHandler* StackHandler::FromAddress(Address address) {
   return reinterpret_cast<StackHandler*>(address);
 }
 
-
 inline StackFrame::StackFrame(StackFrameIteratorBase* iterator)
-    : iterator_(iterator), isolate_(iterator_->isolate()) {
-}
+    : iterator_(iterator), isolate_(iterator_->isolate()) {}
 
 inline StackHandler* StackFrame::top_handler() const {
   return iterator_->handler();
@@ -89,9 +86,8 @@ inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
   if (return_address_location_resolver_ == nullptr) {
     return pc_address;
   } else {
-    return reinterpret_cast<Address*>(
-        return_address_location_resolver_(
-            reinterpret_cast<uintptr_t>(pc_address)));
+    return reinterpret_cast<Address*>(return_address_location_resolver_(
+        reinterpret_cast<uintptr_t>(pc_address)));
   }
 }
 
@@ -212,14 +208,16 @@ inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
 
 inline OptimizedFrame::OptimizedFrame(StackFrameIteratorBase* iterator)
-    : JavaScriptFrame(iterator) {
-}
-
-inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {}
 
+inline UnoptimizedFrame::UnoptimizedFrame(StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
+
+inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
+    : UnoptimizedFrame(iterator) {}
+
 inline BaselineFrame::BaselineFrame(StackFrameIteratorBase* iterator)
-    : InterpretedFrame(iterator) {}
+    : UnoptimizedFrame(iterator) {}
 
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
     : TypedFrameWithJSLinkage(iterator) {}
@@ -251,8 +249,7 @@ inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
 
 inline ConstructFrame::ConstructFrame(StackFrameIteratorBase* iterator)
-    : InternalFrame(iterator) {
-}
+    : InternalFrame(iterator) {}
 
 inline BuiltinContinuationFrame::BuiltinContinuationFrame(
     StackFrameIteratorBase* iterator)
@@ -267,20 +264,24 @@ inline JavaScriptBuiltinContinuationWithCatchFrame::
         StackFrameIteratorBase* iterator)
     : JavaScriptBuiltinContinuationFrame(iterator) {}
 
-inline JavaScriptFrameIterator::JavaScriptFrameIterator(
-    Isolate* isolate)
+inline JavaScriptFrameIterator::JavaScriptFrameIterator(Isolate* isolate)
     : iterator_(isolate) {
   if (!done()) Advance();
 }
 
-inline JavaScriptFrameIterator::JavaScriptFrameIterator(
-    Isolate* isolate, ThreadLocalTop* top)
+inline JavaScriptFrameIterator::JavaScriptFrameIterator(Isolate* isolate,
+                                                        ThreadLocalTop* top)
     : iterator_(isolate, top) {
   if (!done()) Advance();
 }
 
 inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   StackFrame* frame = iterator_.frame();
+  return JavaScriptFrame::cast(frame);
+}
+
+inline JavaScriptFrame* JavaScriptFrameIterator::Reframe() {
+  StackFrame* frame = iterator_.Reframe();
   return JavaScriptFrame::cast(frame);
 }
 
@@ -312,7 +313,6 @@ inline StackFrame* SafeStackFrameIterator::frame() const {
          frame_->is_wasm_to_js() || frame_->is_js_to_wasm());
   return frame_;
 }
-
 
 }  // namespace internal
 }  // namespace v8

@@ -66,8 +66,7 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
 
   // Print the registers.
   JavaScriptFrameIterator frame_iterator(isolate);
-  InterpretedFrame* frame =
-      reinterpret_cast<InterpretedFrame*>(frame_iterator.frame());
+  UnoptimizedFrame* frame = UnoptimizedFrame::cast(frame_iterator.frame());
   int operand_count = interpreter::Bytecodes::NumberOfOperands(bytecode);
   for (int operand_index = 0; operand_index < operand_count; operand_index++) {
     interpreter::OperandType operand_type =

@@ -171,7 +171,7 @@ class TranslatedValue {
 class TranslatedFrame {
  public:
   enum Kind {
-    kInterpretedFunction,
+    kUnoptimizedFunction,
     kArgumentsAdaptor,
     kConstructStub,
     kBuiltinContinuation,
@@ -261,7 +261,7 @@ class TranslatedFrame {
   friend class Deoptimizer;
 
   // Constructor static methods.
-  static TranslatedFrame InterpretedFrame(BytecodeOffset bytecode_offset,
+  static TranslatedFrame UnoptimizedFrame(BytecodeOffset bytecode_offset,
                                           SharedFunctionInfo shared_info,
                                           int height, int return_value_offset,
                                           int return_value_count);

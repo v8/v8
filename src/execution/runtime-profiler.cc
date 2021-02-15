@@ -143,7 +143,7 @@ void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason,
   function.MarkForOptimization(ConcurrencyMode::kConcurrent);
 }
 
-void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
+void RuntimeProfiler::AttemptOnStackReplacement(UnoptimizedFrame* frame,
                                                 int loop_nesting_levels) {
   JSFunction function = frame->function();
   SharedFunctionInfo shared = function.shared();
@@ -164,7 +164,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
     PrintF(scope.file(), "]\n");
   }
 
-  DCHECK(frame->IsUnoptimizedJavaScriptFrame());
+  DCHECK(frame->is_unoptimized());
   int level = frame->GetBytecodeArray().osr_loop_nesting_level();
   frame->GetBytecodeArray().set_osr_loop_nesting_level(std::min(
       {level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker}));
@@ -189,12 +189,12 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
 
   // Note: We currently do not trigger OSR compilation from NCI or TP code.
   // TODO(jgruber,v8:8888): But we should.
-  if (frame->is_interpreted()) {
+  if (frame->is_unoptimized()) {
     if (FLAG_always_osr) {
-      AttemptOnStackReplacement(InterpretedFrame::cast(frame),
+      AttemptOnStackReplacement(UnoptimizedFrame::cast(frame),
                                 AbstractCode::kMaxLoopNestingMarker);
       // Fall through and do a normal optimized compile as well.
-    } else if (MaybeOSR(function, InterpretedFrame::cast(frame))) {
+    } else if (MaybeOSR(function, UnoptimizedFrame::cast(frame))) {
       return;
     }
   }
@@ -210,7 +210,7 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
           current_global_ticks_);
 }
 
-bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
+bool RuntimeProfiler::MaybeOSR(JSFunction function, UnoptimizedFrame* frame) {
   int ticks = function.feedback_vector().profiler_ticks();
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
@@ -344,7 +344,7 @@ void RuntimeProfiler::MarkCandidatesForOptimization(JavaScriptFrame* frame) {
 
 void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
   JavaScriptFrameIterator it(isolate_);
-  DCHECK(it.frame()->IsUnoptimizedJavaScriptFrame());
+  DCHECK(it.frame()->is_unoptimized());
   MarkCandidatesForOptimization(it.frame());
 }
 

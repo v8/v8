@@ -1003,8 +1003,8 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
                                        size_t locals_count,
                                        BytecodeOffset bailout_id) {
   switch (type) {
-    case FrameStateType::kInterpretedFunction: {
-      auto info = InterpretedFrameInfo::Conservative(
+    case FrameStateType::kUnoptimizedFunction: {
+      auto info = UnoptimizedFrameInfo::Conservative(
           static_cast<int>(parameters_count), static_cast<int>(locals_count));
       return info.frame_size_in_bytes();
     }
@@ -1071,7 +1071,7 @@ FrameStateDescriptor::FrameStateDescriptor(
 
 size_t FrameStateDescriptor::GetHeight() const {
   switch (type()) {
-    case FrameStateType::kInterpretedFunction:
+    case FrameStateType::kUnoptimizedFunction:
       return locals_count();  // The accumulator is *not* included.
     case FrameStateType::kBuiltinContinuation:
     case FrameStateType::kJSToWasmBuiltinContinuation:

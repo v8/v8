@@ -246,10 +246,6 @@ MemOperand BaselineAssembler::ContextOperand() {
 MemOperand BaselineAssembler::FunctionOperand() {
   return RegisterFrameOperand(interpreter::Register::function_closure());
 }
-MemOperand BaselineAssembler::FeedbackVectorOperand() {
-  // We re-use the bytecode offset slot for the feedback vector.
-  return RegisterFrameOperand(interpreter::Register::bytecode_offset());
-}
 
 void BaselineAssembler::LoadMap(Register output, Register value) {
   __ LoadMap(output, value);

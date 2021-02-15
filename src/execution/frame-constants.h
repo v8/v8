@@ -71,7 +71,7 @@ class CommonFrameConstants : public AllStatic {
       -(kCPSlotSize + kContextOrFrameTypeSize);
 };
 
-// StandardFrames are used for interpreted and optimized JavaScript
+// StandardFrames are used for both unoptimized and optimized JavaScript
 // frames. They always have a context below the saved fp/constant
 // pool, below that the JSFunction of the executing function and below that an
 // integer (not a Smi) containing the actual number of arguments passed to the
@@ -284,12 +284,52 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
   static constexpr int kNumExtraArgsWithReceiver = 5;
 };
 
-class InterpreterFrameConstants : public StandardFrameConstants {
+// Unoptimized frames are used for interpreted and baseline-compiled JavaScript
+// frames. They are a "standard" frame, with an additional fixed header for the
+// BytecodeArray, bytecode offset (if running interpreted), feedback vector (if
+// running baseline code), and then the interpreter register file.
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+//  -n-1 |   parameter n   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n   |  parameter n-1  |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2   |   parameter 1   |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1   |   parameter 0   |                            v
+//  -----+-----------------+--------------------------------
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | Fixed                      |
+//       |- - - - - - - - -| Header <-- frame ptr       |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 2+cp  |     Context     |   |   if a constant pool   |
+//       |- - - - - - - - -|   |    is used, cp = 1,    |
+// 3+cp  |    JSFunction   |   |   otherwise, cp = 0    |
+//       |- - - - - - - - -|   |                        |
+// 4+cp  |      argc       |   v                        |
+//       +-----------------+----                        |
+// 5+cp  |  BytecodeArray  |   ^                        |
+//       |- - - - - - - - -| Unoptimized code header    |
+// 6+cp  |  offset or FBV  |   v                        |
+//       +-----------------+----                        |
+// 7+cp  |   register 0    |   ^                     Callee
+//       |- - - - - - - - -|   |                   frame slots
+// 8+cp  |   register 1    | Register file         (slot >= 0)
+//  ...  |       ...       |   |                        |
+//       |  register n-1   |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 8+cp+n|   register n    |   v                        v
+//  -----+-----------------+----- <-- stack ptr -------------
+//
+class UnoptimizedFrameConstants : public StandardFrameConstants {
  public:
   // FP-relative.
   static constexpr int kBytecodeArrayFromFp =
       STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kBytecodeOffsetFromFp =
+  static constexpr int kBytecodeOffsetOrFeedbackVectorFromFp =
       STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(1);
   DEFINE_STANDARD_FRAME_SIZES(2);
 
@@ -301,13 +341,37 @@ class InterpreterFrameConstants : public StandardFrameConstants {
 
   // Expression index for {JavaScriptFrame::GetExpressionAddress}.
   static constexpr int kBytecodeArrayExpressionIndex = -2;
-  static constexpr int kBytecodeOffsetExpressionIndex = -1;
+  static constexpr int kBytecodeOffsetOrFeedbackVectorExpressionIndex = -1;
   static constexpr int kRegisterFileExpressionIndex = 0;
 
   // Returns the number of stack slots needed for 'register_count' registers.
   // This is needed because some architectures must pad the stack frame with
   // additional stack slots to ensure the stack pointer is aligned.
   static int RegisterStackSlotCount(int register_count);
+};
+
+// Interpreter frames are unoptimized frames that are being executed by the
+// interpreter. In this case, the "offset or FBV" slot contains the bytecode
+// offset of the currently executing bytecode.
+class InterpreterFrameConstants : public UnoptimizedFrameConstants {
+ public:
+  static constexpr int kBytecodeOffsetExpressionIndex =
+      kBytecodeOffsetOrFeedbackVectorExpressionIndex;
+
+  static constexpr int kBytecodeOffsetFromFp =
+      kBytecodeOffsetOrFeedbackVectorFromFp;
+};
+
+// Sparkplug frames are unoptimized frames that are being executed by
+// sparkplug-compiled baseline code. base. In this case, the "offset or FBV"
+// slot contains a cached pointer to the feedback vector.
+class BaselineFrameConstants : public UnoptimizedFrameConstants {
+ public:
+  static constexpr int kFeedbackVectorExpressionIndex =
+      kBytecodeOffsetOrFeedbackVectorExpressionIndex;
+
+  static constexpr int kFeedbackVectorFromFp =
+      kBytecodeOffsetOrFeedbackVectorFromFp;
 };
 
 inline static int FPOffsetToFrameSlot(int frame_offset) {

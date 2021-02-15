@@ -1214,8 +1214,8 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
     *column = -1;
   }
 
-  if (frame->is_interpreted()) {
-    InterpretedFrame* iframe = static_cast<InterpretedFrame*>(frame);
+  if (frame->is_unoptimized()) {
+    UnoptimizedFrame* iframe = static_cast<UnoptimizedFrame*>(frame);
     Address bytecode_start =
         iframe->GetBytecodeArray().GetFirstBytecodeAddress();
     return bytecode_start + iframe->GetBytecodeOffset();
@@ -1827,8 +1827,8 @@ Object Isolate::UnwindAndFindHandler() {
       case StackFrame::BASELINE: {
         // For interpreted frame we perform a range lookup in the handler table.
         if (!catchable_by_js) break;
-        InterpretedFrame* js_frame = static_cast<InterpretedFrame*>(frame);
-        int register_slots = InterpreterFrameConstants::RegisterStackSlotCount(
+        UnoptimizedFrame* js_frame = UnoptimizedFrame::cast(frame);
+        int register_slots = UnoptimizedFrameConstants::RegisterStackSlotCount(
             js_frame->GetBytecodeArray().register_count());
         int context_reg = 0;  // Will contain register index holding context.
         int offset =
@@ -1851,25 +1851,24 @@ Object Isolate::UnwindAndFindHandler() {
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
         DCHECK(context.IsContext());
 
-        if (frame->type() == StackFrame::BASELINE) {
-          Code code = frame->LookupCode();
-          intptr_t pc_offset =
-              static_cast<BaselineFrame*>(frame)->GetPCForBytecodeOffset(
-                  offset);
-          // Write the context directly into the context register, so that we
-          // don't need to have a context read + write in the baseline code.
-          js_frame->WriteInterpreterRegister(
-              interpreter::Register::current_context().index(), context);
+        if (frame->is_baseline()) {
+          BaselineFrame* sp_frame = BaselineFrame::cast(js_frame);
+          Code code = sp_frame->LookupCode();
+          intptr_t pc_offset = sp_frame->GetPCForBytecodeOffset(offset);
+          // Patch the context register directly on the frame, so that we don't
+          // need to have a context read + write in the baseline code.
+          sp_frame->PatchContext(context);
           return FoundHandler(Context(), code.InstructionStart(), pc_offset,
+                              code.constant_pool(), return_sp, sp_frame->fp());
+        } else {
+          InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
+              static_cast<int>(offset));
+
+          Code code =
+              builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+          return FoundHandler(context, code.InstructionStart(), 0,
                               code.constant_pool(), return_sp, frame->fp());
         }
-
-        js_frame->PatchBytecodeOffset(static_cast<int>(offset));
-
-        Code code =
-            builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
-        return FoundHandler(context, code.InstructionStart(), 0,
-                            code.constant_pool(), return_sp, frame->fp());
       }
 
       case StackFrame::BUILTIN:

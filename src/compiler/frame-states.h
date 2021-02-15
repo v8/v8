@@ -62,7 +62,7 @@ class OutputFrameStateCombine {
 
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kInterpretedFunction,            // Represents an InterpretedFrame.
+  kUnoptimizedFunction,            // Represents an UnoptimizedFrame.
   kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
   kConstructStub,                  // Represents a ConstructStubFrame.
   kBuiltinContinuation,            // Represents a continuation to a stub.
@@ -91,7 +91,7 @@ class FrameStateFunctionInfo {
   FrameStateType type() const { return type_; }
 
   static bool IsJSFunctionType(FrameStateType type) {
-    return type == FrameStateType::kInterpretedFunction ||
+    return type == FrameStateType::kUnoptimizedFunction ||
            type == FrameStateType::kJavaScriptBuiltinContinuation ||
            type == FrameStateType::kJavaScriptBuiltinContinuationWithCatch;
   }
@@ -130,7 +130,7 @@ class FrameStateInfo final {
         info_(info) {}
 
   FrameStateType type() const {
-    return info_ == nullptr ? FrameStateType::kInterpretedFunction
+    return info_ == nullptr ? FrameStateType::kUnoptimizedFunction
                             : info_->type();
   }
   BytecodeOffset bailout_id() const { return bailout_id_; }

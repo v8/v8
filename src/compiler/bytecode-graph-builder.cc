@@ -1061,7 +1061,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
               ? JSTypeHintLowering::kBailoutOnUninitialized
               : JSTypeHintLowering::kNoFlags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
-          FrameStateType::kInterpretedFunction,
+          FrameStateType::kUnoptimizedFunction,
           bytecode_array().parameter_count(), bytecode_array().register_count(),
           shared_info.object())),
       source_position_iterator_(std::make_unique<SourcePositionTableIterator>(

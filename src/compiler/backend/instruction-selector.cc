@@ -3306,7 +3306,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
   const FrameStateInfo& state_info = FrameStateInfoOf(state->op());
   int parameters = state_info.parameter_count();
   int locals = state_info.local_count();
-  int stack = state_info.type() == FrameStateType::kInterpretedFunction ? 1 : 0;
+  int stack = state_info.type() == FrameStateType::kUnoptimizedFunction ? 1 : 0;
 
   FrameStateDescriptor* outer_state = nullptr;
   if (state.has_outer_frame_state()) {

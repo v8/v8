@@ -59,7 +59,6 @@ class FrameInspector {
   Handle<String> function_name_;
   int source_position_ = -1;
   bool is_optimized_ = false;
-  bool is_interpreted_ = false;
   bool is_constructor_ = false;
 };
 

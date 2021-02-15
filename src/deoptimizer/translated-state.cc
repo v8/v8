@@ -626,10 +626,10 @@ void TranslatedValue::Handlify() {
   }
 }
 
-TranslatedFrame TranslatedFrame::InterpretedFrame(
+TranslatedFrame TranslatedFrame::UnoptimizedFrame(
     BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
     int return_value_offset, int return_value_count) {
-  TranslatedFrame frame(kInterpretedFunction, shared_info, height,
+  TranslatedFrame frame(kUnoptimizedFunction, shared_info, height,
                         return_value_offset, return_value_count);
   frame.bytecode_offset_ = bytecode_offset;
   return frame;
@@ -697,7 +697,7 @@ int TranslatedFrame::GetValueCount() {
   static constexpr int kTheFunction = 1;
 
   switch (kind()) {
-    case kInterpretedFunction: {
+    case kUnoptimizedFunction: {
       int parameter_count =
           InternalFormalParameterCountWithReceiver(raw_shared_info_);
       static constexpr int kTheContext = 1;
@@ -757,7 +757,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
                bytecode_offset.ToInt(), arg_count, height, return_value_offset,
                return_value_count);
       }
-      return TranslatedFrame::InterpretedFrame(bytecode_offset, shared_info,
+      return TranslatedFrame::UnoptimizedFrame(bytecode_offset, shared_info,
                                                height, return_value_offset,
                                                return_value_count);
     }
@@ -1894,7 +1894,7 @@ TranslatedValue* TranslatedState::ResolveCapturedObject(TranslatedValue* slot) {
 
 TranslatedFrame* TranslatedState::GetFrameFromJSFrameIndex(int jsframe_index) {
   for (size_t i = 0; i < frames_.size(); i++) {
-    if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction ||
+    if (frames_[i].kind() == TranslatedFrame::kUnoptimizedFunction ||
         frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
         frames_[i].kind() ==
             TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
@@ -1911,7 +1911,7 @@ TranslatedFrame* TranslatedState::GetFrameFromJSFrameIndex(int jsframe_index) {
 TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
     int jsframe_index, int* args_count) {
   for (size_t i = 0; i < frames_.size(); i++) {
-    if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction ||
+    if (frames_[i].kind() == TranslatedFrame::kUnoptimizedFunction ||
         frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
         frames_[i].kind() ==
             TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
@@ -2012,7 +2012,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   if (new_store && value_changed) {
     materialized_store->Set(stack_frame_pointer_,
                             previously_materialized_objects);
-    CHECK_EQ(frames_[0].kind(), TranslatedFrame::kInterpretedFunction);
+    CHECK_EQ(frames_[0].kind(), TranslatedFrame::kUnoptimizedFunction);
     CHECK_EQ(frame->function(), frames_[0].front().GetRawValue());
     Deoptimizer::DeoptimizeFunction(frame->function(), frame->LookupCode());
   }

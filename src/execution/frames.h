@@ -17,9 +17,10 @@
 // - CommonFrame
 //   - CommonFrameWithJSLinkage
 //     - JavaScriptFrame (aka StandardFrame)
-//       - InterpretedFrame
+//       - UnoptimizedFrame
+//         - InterpretedFrame
+//         - BaselineFrame
 //       - OptimizedFrame
-//       - BaselineFrame
 //     - TypedFrameWithJSLinkage
 //       - BuiltinFrame
 //       - JavaScriptBuiltinContinuationFrame
@@ -129,11 +130,6 @@ class StackFrame {
   };
 #undef DECLARE_TYPE
 
-  bool IsUnoptimizedJavaScriptFrame() const {
-    STATIC_ASSERT(BASELINE == INTERPRETED + 1);
-    return base::IsInRange(type(), INTERPRETED, BASELINE);
-  }
-
   // Used to mark the outermost JS entry frame.
   //
   // The mark is an opaque value that should be pushed onto the stack directly,
@@ -214,11 +210,11 @@ class StackFrame {
   bool is_construct_entry() const { return type() == CONSTRUCT_ENTRY; }
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
-  // TODO(v8:11429): Clean up these predicates, distinguishing interpreted from
-  // baseline frames, and adding a new predicate that covers both.
-  bool is_interpreted() const {
-    return type() == INTERPRETED || type() == BASELINE;
+  bool is_unoptimized() const {
+    STATIC_ASSERT(BASELINE == INTERPRETED + 1);
+    return base::IsInRange(type(), INTERPRETED, BASELINE);
   }
+  bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_baseline() const { return type() == BASELINE; }
   bool is_wasm() const { return this->type() == WASM; }
   bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
@@ -556,7 +552,7 @@ class CommonFrameWithJSLinkage : public CommonFrame {
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
   //  - OptimizedFrame  : Data is not used and will not return a value.
-  //  - InterpretedFrame: Data is the register index holding the context.
+  //  - UnoptimizedFrame: Data is the register index holding the context.
   virtual int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction);
 
@@ -832,10 +828,11 @@ class OptimizedFrame : public JavaScriptFrame {
   Object StackSlotAt(int index) const;
 };
 
-class InterpretedFrame : public JavaScriptFrame {
+// An unoptimized frame is a JavaScript frame that is executing bytecode. It
+// may be executing it using the interpreter, or via baseline code compiled from
+// the bytecode.
+class UnoptimizedFrame : public JavaScriptFrame {
  public:
-  Type type() const override { return INTERPRETED; }
-
   // Accessors.
   int position() const override;
 
@@ -844,35 +841,24 @@ class InterpretedFrame : public JavaScriptFrame {
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
   // Returns the current offset into the bytecode stream.
-  virtual int GetBytecodeOffset() const;
-
-  // Updates the current offset into the bytecode stream, mainly used for stack
-  // unwinding to continue execution at a different bytecode offset.
-  void PatchBytecodeOffset(int new_offset);
+  virtual int GetBytecodeOffset() const = 0;
 
   // Returns the frame's current bytecode array.
   BytecodeArray GetBytecodeArray() const;
 
-  // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
-  // debugger to swap execution onto a BytecodeArray patched with breakpoints.
-  void PatchBytecodeArray(BytecodeArray bytecode_array);
-
   // Access to the interpreter register file for this frame.
   Object ReadInterpreterRegister(int register_index) const;
-  void WriteInterpreterRegister(int register_index, Object value);
 
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
-  static int GetBytecodeOffset(Address fp);
-
-  static InterpretedFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_interpreted());
-    return static_cast<InterpretedFrame*>(frame);
+  static UnoptimizedFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_unoptimized());
+    return static_cast<UnoptimizedFrame*>(frame);
   }
 
  protected:
-  inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
+  inline explicit UnoptimizedFrame(StackFrameIteratorBase* iterator);
 
   Address GetExpressionAddress(int n) const override;
 
@@ -880,7 +866,40 @@ class InterpretedFrame : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class BaselineFrame : public InterpretedFrame {
+class InterpretedFrame : public UnoptimizedFrame {
+ public:
+  Type type() const override { return INTERPRETED; }
+
+  // Returns the current offset into the bytecode stream.
+  int GetBytecodeOffset() const override;
+
+  // Updates the current offset into the bytecode stream, mainly used for stack
+  // unwinding to continue execution at a different bytecode offset.
+  void PatchBytecodeOffset(int new_offset);
+
+  // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
+  // debugger to swap execution onto a BytecodeArray patched with breakpoints.
+  void PatchBytecodeArray(BytecodeArray bytecode_array);
+
+  static InterpretedFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_interpreted());
+    return static_cast<InterpretedFrame*>(frame);
+  }
+  static const InterpretedFrame* cast(const StackFrame* frame) {
+    DCHECK(frame->is_interpreted());
+    return static_cast<const InterpretedFrame*>(frame);
+  }
+
+  static int GetBytecodeOffset(Address fp);
+
+ protected:
+  inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class BaselineFrame : public UnoptimizedFrame {
  public:
   Type type() const override { return BASELINE; }
 
@@ -888,6 +907,8 @@ class BaselineFrame : public InterpretedFrame {
   int GetBytecodeOffset() const override;
 
   intptr_t GetPCForBytecodeOffset(int lookup_offset) const;
+
+  void PatchContext(Context value);
 
   static BaselineFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_baseline());
@@ -1222,6 +1243,7 @@ class JavaScriptFrameIterator {
   bool done() const { return iterator_.done(); }
   V8_EXPORT_PRIVATE void Advance();
   void AdvanceOneFrame() { iterator_.Advance(); }
+  inline JavaScriptFrame* Reframe();
 
  private:
   StackFrameIterator iterator_;
@@ -1317,16 +1339,16 @@ enum class BuiltinContinuationMode {
   JAVASCRIPT_HANDLE_EXCEPTION  // JavaScriptBuiltinContinuationWithCatchFrame
 };
 
-class InterpretedFrameInfo {
+class UnoptimizedFrameInfo {
  public:
-  static InterpretedFrameInfo Precise(int parameters_count_with_receiver,
+  static UnoptimizedFrameInfo Precise(int parameters_count_with_receiver,
                                       int translation_height, bool is_topmost,
                                       bool pad_arguments) {
     return {parameters_count_with_receiver, translation_height, is_topmost,
             pad_arguments, FrameInfoKind::kPrecise};
   }
 
-  static InterpretedFrameInfo Conservative(int parameters_count_with_receiver,
+  static UnoptimizedFrameInfo Conservative(int parameters_count_with_receiver,
                                            int locals_count) {
     return {parameters_count_with_receiver, locals_count, false, true,
             FrameInfoKind::kConservative};
@@ -1341,7 +1363,7 @@ class InterpretedFrameInfo {
   uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
 
  private:
-  InterpretedFrameInfo(int parameters_count_with_receiver,
+  UnoptimizedFrameInfo(int parameters_count_with_receiver,
                        int translation_height, bool is_topmost,
                        bool pad_arguments, FrameInfoKind frame_info_kind);
 

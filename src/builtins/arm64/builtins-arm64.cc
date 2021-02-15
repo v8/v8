@@ -1244,11 +1244,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   __ Push(argc, bytecodeArray);
 
-  // Horrible hack: This should be the bytecode offset, but we calculate that
-  // from the PC, so we cache the feedback vector in there instead.
-  // TODO(v8:11429): Make this less a horrible hack, and more just a frame
-  // difference, by improving the approach distinguishing ignition and baseline
-  // frames.
+  // Baseline code frames store the feedback vector where interpreter would
+  // store the bytecode offset.
   if (__ emit_debug_code()) {
     __ CompareObjectType(feedback_vector, x4, x4, FEEDBACK_VECTOR_TYPE);
     __ Assert(eq, AbortReason::kExpectedFeedbackVector);
@@ -3654,7 +3651,7 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // making the call GC safe. The irregexp backend relies on this.
 
   __ Poke<TurboAssembler::kSignLR>(lr, 0);  // Store the return address.
-  __ Blr(x10);     // Call the C++ function.
+  __ Blr(x10);                              // Call the C++ function.
   __ Peek<TurboAssembler::kAuthLR>(lr, 0);  // Return to calling code.
   __ AssertFPCRState();
   __ Ret();

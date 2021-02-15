@@ -89,6 +89,9 @@ MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
   return MemOperand(rbp, interpreter_register.ToOperand() * kSystemPointerSize);
 }
+MemOperand BaselineAssembler::FeedbackVectorOperand() {
+  return MemOperand(rbp, BaselineFrameConstants::kFeedbackVectorFromFp);
+}
 
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ jmp(target, distance);
