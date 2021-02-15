@@ -45,9 +45,9 @@ TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
 
-  // TODO(v8:11429,verwaest): Only emit context loads where necessary
+  // TODO(verwaest): Only emit context loads where necessary
   auto context = LoadContextFromBaseline();
-  // TODO(v8:11429,verwaest): Make sure CollectConstructFeedback knows we have a
+  // TODO(verwaest): Make sure CollectConstructFeedback knows we have a
   // feedback vector.
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
 
@@ -138,9 +138,9 @@ TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
 
-  // TODO(v8:11429,verwaest): Only emit context loads where necessary
+  // TODO(verwaest): Only emit context loads where necessary
   auto context = LoadContextFromBaseline();
-  // TODO(v8:11429,verwaest): Make sure CollectConstructFeedback knows we have a
+  // TODO(verwaest): Make sure CollectConstructFeedback knows we have a
   // feedback vector.
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
 
