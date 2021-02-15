@@ -175,13 +175,20 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
-  DCHECK_LE(offset, kMaxInt);
+  DCHECK_LE(0, offset);
   LoadU64(dst, liftoff::GetInstanceOperand());
-  DCHECK(size == 4 || size == 8);
-  if (size == 4) {
-    LoadS32(dst, MemOperand(dst, offset));
-  } else {
-    LoadU64(dst, MemOperand(dst, offset));
+  switch (size) {
+    case 1:
+      LoadU8(dst, MemOperand(dst, offset));
+      break;
+    case 4:
+      LoadU32(dst, MemOperand(dst, offset));
+      break;
+    case 8:
+      LoadU64(dst, MemOperand(dst, offset));
+      break;
+    default:
+      UNIMPLEMENTED();
   }
 }
 
