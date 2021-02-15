@@ -561,7 +561,7 @@ int64_t ExecuteI64ReinterpretF64(WasmValue a) {
 
 constexpr int32_t kCatchInArity = 1;
 constexpr int32_t kCatchAllExceptionIndex = -1;
-constexpr int32_t kImplicitRethrowExceptionIndex = -2;
+constexpr int32_t kRethrowOrDelegateExceptionIndex = -2;
 
 }  // namespace
 
@@ -907,18 +907,49 @@ class SideTable : public ZoneObject {
                 DCHECK_EQ(*c->pc, kExprTry);
                 Control* next_try_block =
                     &control_stack[exception_stack.back()];
-                c->else_label->Bind(i.pc(), kImplicitRethrowExceptionIndex);
-                next_try_block->else_label->Ref(
-                    i.pc(), c->else_label->target_stack_height);
+                c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex);
+                if (!unreachable) {
+                  next_try_block->else_label->Ref(
+                      i.pc(), c->else_label->target_stack_height);
+                }
               }
             }
             c->end_label->Bind(i.pc() + 1);
           }
           c->Finish(&map_, code->start);
+
           DCHECK_IMPLIES(!unreachable,
                          stack_height >= c->end_label->target_stack_height);
           stack_height = c->end_label->target_stack_height + c->exit_arity;
           control_stack.pop_back();
+          break;
+        }
+        case kExprDelegate: {
+          BranchDepthImmediate<Decoder::kNoValidation> imm(&i, i.pc() + 1);
+          TRACE("control @%u: Delegate[depth=%u]\n", i.pc_offset(), imm.depth);
+          Control* c = &control_stack.back();
+          const size_t new_stack_size = control_stack.size() - 1;
+          const size_t max_depth = new_stack_size - 1;
+          if (imm.depth < max_depth) {
+            c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex);
+            c->else_label->Finish(&map_, code->start);
+            Control* target = &control_stack[max_depth - imm.depth];
+            DCHECK_EQ(*target->pc, kExprTry);
+            DCHECK_NOT_NULL(target->else_label);
+            if (!unreachable) {
+              target->else_label->Ref(i.pc(),
+                                      c->end_label->target_stack_height);
+            }
+          }
+          c->else_label = nullptr;
+          c->end_label->Bind(i.pc() + 1);
+          c->Finish(&map_, code->start);
+
+          DCHECK_IMPLIES(!unreachable,
+                         stack_height >= c->end_label->target_stack_height);
+          stack_height = c->end_label->target_stack_height + c->exit_arity;
+          control_stack.pop_back();
+          exception_stack.pop_back();
           break;
         }
         case kExprBr: {
@@ -1375,13 +1406,17 @@ class WasmInterpreterInternals {
   bool JumpToHandlerDelta(InterpreterCode* code,
                           Handle<Object> exception_object, pc_t* pc) {
     auto it = code->side_table->map_.catch_map.find(*pc);
-    DCHECK_NE(it, code->side_table->map_.catch_map.end());
+    if (it == code->side_table->map_.catch_map.end()) {
+      // No handler in this frame means that we should rethrow to the caller.
+      return false;
+    }
     for (auto& entry : it->second) {
       if (entry.exception_index < 0) {
         ResetStack(StackHeight() - entry.sp_diff);
         *pc += entry.pc_diff;
-        if (entry.exception_index == kImplicitRethrowExceptionIndex) {
-          // Recursively try to find a handler in the next enclosing try block.
+        if (entry.exception_index == kRethrowOrDelegateExceptionIndex) {
+          // Recursively try to find a handler in the next enclosing try block
+          // (for the implicit rethrow) or in the delegate target.
           return JumpToHandlerDelta(code, exception_object, pc);
         }
         DCHECK_EQ(entry.exception_index, kCatchAllExceptionIndex);
@@ -3439,6 +3474,12 @@ class WasmInterpreterInternals {
         }
         case kExprUnreachable: {
           return DoTrap(kTrapUnreachable, pc);
+        }
+        case kExprDelegate: {
+          BranchDepthImmediate<Decoder::kNoValidation> imm(&decoder,
+                                                           code->at(pc + 1));
+          len = 1 + imm.length;
+          break;
         }
         case kExprEnd: {
           break;
