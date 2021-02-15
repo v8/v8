@@ -98,15 +98,16 @@ BUILTIN(CallSitePrototypeGetMethodName) {
 BUILTIN(CallSitePrototypeGetPosition) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getPosition");
-  return Smi::FromInt(StackFrameInfo::GetSourcePosition(isolate, frame));
+  return Smi::FromInt(StackFrameInfo::GetSourcePosition(frame));
 }
 
 BUILTIN(CallSitePrototypeGetPromiseIndex) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getPromiseIndex");
-  int index = frame->GetPromiseCombinatorIndex();
-  if (index < 0) return ReadOnlyRoots(isolate).null_value();
-  return Smi::FromInt(index);
+  if (!frame->IsPromiseAll() && !frame->IsPromiseAny()) {
+    return ReadOnlyRoots(isolate).null_value();
+  }
+  return Smi::FromInt(StackFrameInfo::GetSourcePosition(frame));
 }
 
 BUILTIN(CallSitePrototypeGetScriptNameOrSourceURL) {

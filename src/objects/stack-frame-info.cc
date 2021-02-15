@@ -4,6 +4,7 @@
 
 #include "src/objects/stack-frame-info.h"
 
+#include "src/objects/shared-function-info.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -57,7 +58,7 @@ int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
   }
   Handle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
-    int position = GetSourcePosition(isolate, info);
+    int position = GetSourcePosition(info);
     return Script::GetLineNumber(script, position) + 1;
   }
   return Message::kNoLineNumberInfo;
@@ -66,7 +67,7 @@ int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
 // static
 int StackFrameInfo::GetColumnNumber(Handle<StackFrameInfo> info) {
   Isolate* isolate = info->GetIsolate();
-  int position = GetSourcePosition(isolate, info);
+  int position = GetSourcePosition(info);
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
     return position + 1;
   }
@@ -402,10 +403,6 @@ Handle<Object> StackFrameInfo::GetTypeName(Handle<StackFrameInfo> info) {
   return JSReceiver::GetConstructorName(receiver);
 }
 
-int StackFrameInfo::GetPromiseCombinatorIndex() const {
-  return (IsPromiseAll() || IsPromiseAny()) ? offset() : kUnknown;
-}
-
 uint32_t StackFrameInfo::GetWasmFunctionIndex() const {
   DCHECK(IsWasm());
   return Smi::ToInt(Smi::cast(function()));
@@ -417,24 +414,62 @@ WasmInstanceObject StackFrameInfo::GetWasmInstance() const {
 }
 
 // static
-int StackFrameInfo::GetSourcePosition(Isolate* isolate,
-                                      Handle<StackFrameInfo> info) {
-  int offset = info->offset();
+int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
+  if (info->flags() & kIsSourcePositionComputed) {
+    return info->code_offset_or_source_position();
+  }
+  DCHECK(!info->IsPromiseAll());
+  DCHECK(!info->IsPromiseAny());
+  int source_position =
+      ComputeSourcePosition(info, info->code_offset_or_source_position());
+  info->set_code_offset_or_source_position(source_position);
+  info->set_flags(info->flags() | kIsSourcePositionComputed);
+  return source_position;
+}
+
+// static
+bool StackFrameInfo::ComputeLocation(Handle<StackFrameInfo> info,
+                                     MessageLocation* location) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm()) {
+    int pos = GetSourcePosition(info);
+    Handle<Script> script(info->GetWasmInstance().module_object().script(),
+                          isolate);
+    *location = MessageLocation(script, pos, pos + 1);
+    return true;
+  }
+
+  Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
+  if (!shared->IsSubjectToDebugging()) return false;
+  Handle<Script> script(Script::cast(shared->script()), isolate);
+  if (script->source().IsUndefined()) return false;
+  if (info->flags() & kIsSourcePositionComputed ||
+      (shared->HasBytecodeArray() &&
+       shared->GetBytecodeArray(isolate).HasSourcePositionTable())) {
+    int pos = GetSourcePosition(info);
+    *location = MessageLocation(script, pos, pos + 1, shared);
+  } else {
+    int code_offset = info->code_offset_or_source_position();
+    *location = MessageLocation(script, shared, code_offset);
+  }
+  return true;
+}
+
+// static
+int StackFrameInfo::ComputeSourcePosition(Handle<StackFrameInfo> info,
+                                          int offset) {
+  Isolate* isolate = info->GetIsolate();
   if (info->IsWasm()) {
     auto code_ref = Managed<wasm::GlobalWasmCodeRef>::cast(info->code_object());
-    offset = code_ref.get()->code()->GetSourcePositionBefore(offset);
+    int byte_offset = code_ref.get()->code()->GetSourcePositionBefore(offset);
     auto module = info->GetWasmInstance().module();
-    auto func_index = info->GetWasmFunctionIndex();
-    offset = wasm::GetSourcePosition(module, func_index, offset,
-                                     info->IsAsmJsAtNumberConversion());
-  } else {
-    Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
-    offset = AbstractCode::cast(info->code_object()).SourcePosition(offset);
+    uint32_t func_index = info->GetWasmFunctionIndex();
+    return wasm::GetSourcePosition(module, func_index, byte_offset,
+                                   info->IsAsmJsAtNumberConversion());
   }
-  // A possible optimization here would be to cache the computed position in
-  // the offset slot and somehow mark the StackFrameInfo object appropriately.
-  return offset;
+  Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
+  return AbstractCode::cast(info->code_object()).SourcePosition(offset);
 }
 
 // static
@@ -599,7 +634,7 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
       builder->AppendCString("Promise.");
       builder->AppendString(Handle<String>::cast(function_name));
       builder->AppendCString(" (index ");
-      builder->AppendInt(frame->GetPromiseCombinatorIndex());
+      builder->AppendInt(StackFrameInfo::GetSourcePosition(frame));
       builder->AppendCString(")");
       return;
     }

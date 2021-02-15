@@ -371,7 +371,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<StackFrameInfo> NewStackFrameInfo(Handle<Object> receiver_or_instance,
                                            Handle<Object> function,
                                            Handle<HeapObject> code_object,
-                                           int offset, int flags,
+                                           int code_offset_or_source_position,
+                                           int flags,
                                            Handle<FixedArray> parameters);
 
   // Allocate various microtasks.

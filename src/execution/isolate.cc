@@ -662,7 +662,8 @@ class StackTraceBuilder {
   void AppendPromiseCombinatorFrame(Handle<JSFunction> element_function,
                                     Handle<JSFunction> combinator) {
     if (!IsVisibleInStackTrace(combinator)) return;
-    int flags = StackFrameInfo::kIsAsync;
+    int flags =
+        StackFrameInfo::kIsAsync | StackFrameInfo::kIsSourcePositionComputed;
 
     Handle<Object> receiver(combinator->native_context().promise_function(),
                             isolate_);
@@ -673,9 +674,10 @@ class StackTraceBuilder {
 
     // We store the offset of the promise into the element function's
     // hash field for element callbacks.
-    int offset = Smi::ToInt(Smi::cast(element_function->GetIdentityHash())) - 1;
+    int promise_index =
+        Smi::ToInt(Smi::cast(element_function->GetIdentityHash())) - 1;
 
-    AppendFrame(receiver, combinator, code, offset, flags, parameters);
+    AppendFrame(receiver, combinator, code, promise_index, flags, parameters);
   }
 
   void AppendJavaScriptFrame(
@@ -2172,35 +2174,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   Handle<FixedArray> stack = Handle<FixedArray>::cast(property);
   for (int i = 0; i < stack->length(); i++) {
     Handle<StackFrameInfo> frame(StackFrameInfo::cast(stack->get(i)), this);
-    if (frame->IsWasm()) {
-      auto offset = StackFrameInfo::GetSourcePosition(this, frame);
-      Handle<Script> script(frame->GetWasmInstance().module_object().script(),
-                            this);
-      *target = MessageLocation(script, offset, offset + 1);
-      return true;
-    }
-
-    Handle<JSFunction> fun = handle(JSFunction::cast(frame->function()), this);
-    if (!fun->shared().IsSubjectToDebugging()) continue;
-
-    Object script = fun->shared().script();
-    if (script.IsScript() &&
-        !(Script::cast(script).source().IsUndefined(this))) {
-      Handle<SharedFunctionInfo> shared = handle(fun->shared(), this);
-
-      AbstractCode abstract_code = AbstractCode::cast(frame->code_object());
-      const int code_offset = frame->offset();
-      Handle<Script> casted_script(Script::cast(script), this);
-      if (shared->HasBytecodeArray() &&
-          shared->GetBytecodeArray(this).HasSourcePositionTable()) {
-        int pos = abstract_code.SourcePosition(code_offset);
-        *target = MessageLocation(casted_script, pos, pos + 1, shared);
-      } else {
-        *target = MessageLocation(casted_script, shared, code_offset);
-      }
-
-      return true;
-    }
+    if (StackFrameInfo::ComputeLocation(frame, target)) return true;
   }
   return false;
 }

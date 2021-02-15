@@ -9,6 +9,9 @@ bitfield struct StackFrameInfoFlags extends uint31 {
   is_constructor: bool: 1 bit;
   is_asm_js_at_number_conversion: bool: 1 bit;
   is_async: bool: 1 bit;
+
+  // whether offset_or_source_position contains the source position.
+  is_source_position_computed: bool: 1 bit;
 }
 
 @generateCppClass
@@ -16,7 +19,7 @@ extern class StackFrameInfo extends Struct {
   receiver_or_instance: JSAny;
   function: JSFunction|Smi;
   code_object: HeapObject;
-  offset: Smi;
+  code_offset_or_source_position: Smi;
   flags: SmiTagged<StackFrameInfoFlags>;
   parameters: FixedArray;
 }
