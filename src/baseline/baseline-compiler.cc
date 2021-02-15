@@ -1656,13 +1656,13 @@ void BaselineCompiler::VisitToName() {
 }
 
 void BaselineCompiler::VisitToNumber() {
-  // TODO(v8:11429,leszeks): Record feedback.
-  CallBuiltin(Builtins::kToNumber, kInterpreterAccumulatorRegister);
+  CallBuiltin(Builtins::kToNumber_Baseline, kInterpreterAccumulatorRegister,
+              Index(0));
 }
 
 void BaselineCompiler::VisitToNumeric() {
-  // TODO(v8:11429,leszeks): Record feedback.
-  CallBuiltin(Builtins::kToNumeric, kInterpreterAccumulatorRegister);
+  CallBuiltin(Builtins::kToNumeric_Baseline, kInterpreterAccumulatorRegister,
+              Index(0));
 }
 
 void BaselineCompiler::VisitToObject() {

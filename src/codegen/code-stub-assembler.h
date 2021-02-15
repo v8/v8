@@ -2563,10 +2563,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // With {bigint_handling} == kConvertToNumber, matches behavior of
   // tc39.github.io/proposal-bigint/#sec-number-constructor-number-value.
   TNode<Number> ToNumber(
-      TNode<Context> context, SloppyTNode<Object> input,
+      TNode<Context> context, TNode<Object> input,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
   TNode<Number> ToNumber_Inline(TNode<Context> context,
                                 SloppyTNode<Object> input);
+  TNode<Numeric> ToNumberOrNumeric(
+      LazyNode<Context> context, TNode<Object> input,
+      TVariable<Smi>* var_type_feedback, Object::Conversion mode,
+      BigIntHandling bigint_handling = BigIntHandling::kThrow);
   // Convert any plain primitive to a Number. No need to handle BigInts since
   // they are not plain primitives.
   TNode<Number> PlainPrimitiveToNumber(TNode<Object> input);

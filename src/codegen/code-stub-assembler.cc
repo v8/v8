@@ -7131,6 +7131,14 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumeric(TNode<Context> context,
                                     Object::Conversion::kToNumeric);
 }
 
+TNode<Number> CodeStubAssembler::ToNumber(TNode<Context> context,
+                                          TNode<Object> input,
+                                          BigIntHandling bigint_handling) {
+  return CAST(ToNumberOrNumeric([context] { return context; }, input, nullptr,
+                                Object::Conversion::kToNumber,
+                                bigint_handling));
+}
+
 TNode<Number> CodeStubAssembler::ToNumber_Inline(TNode<Context> context,
                                                  SloppyTNode<Object> input) {
   TVARIABLE(Number, var_result);
@@ -7155,16 +7163,20 @@ TNode<Number> CodeStubAssembler::ToNumber_Inline(TNode<Context> context,
   return var_result.value();
 }
 
-TNode<Number> CodeStubAssembler::ToNumber(TNode<Context> context,
-                                          SloppyTNode<Object> input,
-                                          BigIntHandling bigint_handling) {
-  TVARIABLE(Number, var_result);
+TNode<Numeric> CodeStubAssembler::ToNumberOrNumeric(
+    LazyNode<Context> context, TNode<Object> input,
+    TVariable<Smi>* var_type_feedback, Object::Conversion mode,
+    BigIntHandling bigint_handling) {
+  TVARIABLE(Numeric, var_result);
   Label end(this);
 
   Label not_smi(this, Label::kDeferred);
   GotoIfNot(TaggedIsSmi(input), &not_smi);
   TNode<Smi> input_smi = CAST(input);
   var_result = input_smi;
+  if (var_type_feedback) {
+    *var_type_feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
+  }
   Goto(&end);
 
   BIND(&not_smi);
@@ -7175,11 +7187,29 @@ TNode<Number> CodeStubAssembler::ToNumber(TNode<Context> context,
 
     TNode<HeapNumber> input_hn = CAST(input_ho);
     var_result = input_hn;
+    if (var_type_feedback) {
+      *var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
+    }
     Goto(&end);
 
     BIND(&not_heap_number);
     {
-      var_result = NonNumberToNumber(context, input_ho, bigint_handling);
+      if (mode == Object::Conversion::kToNumeric) {
+        // Special case for collecting BigInt feedback.
+        Label not_bigint(this);
+        GotoIfNot(IsBigInt(input_ho), &not_bigint);
+        {
+          var_result = CAST(input_ho);
+          *var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
+          Goto(&end);
+        }
+        BIND(&not_bigint);
+      }
+      var_result = NonNumberToNumberOrNumeric(context(), input_ho, mode,
+                                              bigint_handling);
+      if (var_type_feedback) {
+        *var_type_feedback = SmiConstant(BinaryOperationFeedback::kAny);
+      }
       Goto(&end);
     }
   }

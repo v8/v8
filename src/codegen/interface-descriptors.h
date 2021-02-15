@@ -112,6 +112,7 @@ namespace internal {
   V(StringSubstring)                     \
   V(TypeConversion)                      \
   V(TypeConversionNoContext)             \
+  V(TypeConversion_Baseline)             \
   V(Typeof)                              \
   V(UnaryOp_Baseline)                    \
   V(UnaryOp_WithFeedback)                \
@@ -1046,6 +1047,13 @@ class TypeConversionNoContextDescriptor final : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS_NO_CONTEXT(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeConversionNoContextDescriptor, CallInterfaceDescriptor)
+};
+
+class TypeConversion_BaselineDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kArgument, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::UintPtr())
+  DECLARE_DESCRIPTOR(TypeConversion_BaselineDescriptor, CallInterfaceDescriptor)
 };
 
 class SingleParameterOnStackDescriptor final : public CallInterfaceDescriptor {

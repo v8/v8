@@ -202,6 +202,8 @@ namespace internal {
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToNumber, TypeConversion)                                                \
+  TFC(ToNumber_Baseline, TypeConversion_Baseline)                              \
+  TFC(ToNumeric_Baseline, TypeConversion_Baseline)                             \
   TFC(PlainPrimitiveToNumber, TypeConversionNoContext)                         \
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
   TFC(Typeof, Typeof)                                                          \
