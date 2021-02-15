@@ -16,7 +16,6 @@ def experiment_builder(**kwargs):
 
     v8_builder(
         in_console = "experiments/V8",
-        executable = "recipe:v8_bbagent",
         **kwargs
     )
 

@@ -199,10 +199,6 @@ def multibranch_builder(**kwargs):
     close_tree = kwargs.pop("close_tree", True)
     for bucket_name in branch_names:
         args = dict(kwargs)
-
-        # TODO(machenbach): Remove this as soon as it's the default:
-        args.setdefault("executable", "recipe:v8_bbagent")
-
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
         first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
