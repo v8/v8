@@ -46,8 +46,8 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       made_call_(false),
       reloaded_frame_ptr_(false),
       bytecode_array_valid_(true) {
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
   RegisterCallGenerationCallbacks([this] { CallPrologue(); },
                                   [this] { CallEpilogue(); });
@@ -1048,8 +1048,8 @@ TNode<IntPtrT> InterpreterAssembler::Advance(int delta) {
 
 TNode<IntPtrT> InterpreterAssembler::Advance(TNode<IntPtrT> delta,
                                              bool backward) {
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
 #endif
   TNode<IntPtrT> next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
                                         : IntPtrAdd(BytecodeOffset(), delta);
@@ -1134,8 +1134,8 @@ void InterpreterAssembler::InlineStar() {
   bytecode_ = Bytecode::kStar;
   implicit_register_use_ = ImplicitRegisterUse::kNone;
 
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
   StoreRegister(GetAccumulator(),
                 BytecodeOperandReg(0, LoadSensitivity::kSafe));
@@ -1288,8 +1288,7 @@ void InterpreterAssembler::MaybeDropFrames(TNode<Context> context) {
 
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
   CallRuntime(function_id, GetContext(), BytecodeArrayTaggedPointer(),
-              SmiTag(BytecodeOffset()), GetAccumulatorUnchecked(),
-              FalseConstant());
+              SmiTag(BytecodeOffset()), GetAccumulatorUnchecked());
 }
 
 void InterpreterAssembler::TraceBytecodeDispatch(TNode<WordT> target_bytecode) {

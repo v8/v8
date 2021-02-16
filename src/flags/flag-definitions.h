@@ -533,9 +533,15 @@ DEFINE_BOOL(stress_lazy_source_positions, false,
             "collect lazy source positions immediately after lazy compile")
 DEFINE_STRING(print_bytecode_filter, "*",
               "filter for selecting which functions to print bytecode")
-#ifdef V8_TRACE_IGNITION
+#ifdef V8_TRACE_UNOPTIMIZED
+DEFINE_BOOL(trace_unoptimized, false,
+            "trace the bytecodes executed by all unoptimized execution")
 DEFINE_BOOL(trace_ignition, false,
             "trace the bytecodes executed by the ignition interpreter")
+DEFINE_BOOL(trace_baseline, false,
+            "trace the bytecodes executed by the baseline code")
+DEFINE_WEAK_IMPLICATION(trace_unoptimized, trace_ignition)
+DEFINE_WEAK_IMPLICATION(trace_unoptimized, trace_baseline)
 #endif
 #ifdef V8_TRACE_FEEDBACK_UPDATES
 DEFINE_BOOL(

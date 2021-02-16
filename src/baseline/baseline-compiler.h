@@ -315,7 +315,7 @@ class BaselineCompiler {
   void BuildCall(ConvertReceiverMode mode, uint32_t slot, uint32_t arg_count,
                  Args... args);
 
-#ifdef V8_TRACE_IGNITION
+#ifdef V8_TRACE_UNOPTIMIZED
   void TraceBytecode(Runtime::FunctionId function_id);
 #endif
 

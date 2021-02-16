@@ -506,8 +506,8 @@ void BaselineCompiler::VisitSingleBytecode() {
 
   VerifyFrame();
 
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
 
   switch (accessor().current_bytecode()) {
@@ -520,8 +520,8 @@ void BaselineCompiler::VisitSingleBytecode() {
   }
   __ RecordComment("]");
 
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
 #endif
 }
 
@@ -551,18 +551,18 @@ void BaselineCompiler::VerifyFrame() {
   }
 }
 
-#ifdef V8_TRACE_IGNITION
+#ifdef V8_TRACE_UNOPTIMIZED
 void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
-  if (!FLAG_trace_ignition) return;
+  if (!FLAG_trace_baseline) return;
 
-  __ RecordComment(function_id == Runtime::kInterpreterTraceBytecodeEntry
+  __ RecordComment(function_id == Runtime::kTraceUnoptimizedBytecodeEntry
                        ? "[ Trace bytecode entry"
                        : "[ Trace bytecode exit");
   SaveAccumulatorScope accumulator_scope(&basm_);
   CallRuntime(function_id, bytecode_,
               Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
                            accessor().current_offset()),
-              kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+              kInterpreterAccumulatorRegister);
   __ RecordComment("]");
 }
 #endif

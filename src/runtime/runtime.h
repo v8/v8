@@ -152,24 +152,23 @@ namespace internal {
   F(ForInEnumerate, 1, 1)              \
   F(ForInHasProperty, 2, 1)
 
-#ifdef V8_TRACE_IGNITION
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I) \
-  F(InterpreterTraceBytecodeEntry, 4, 1)           \
-  F(InterpreterTraceBytecodeExit, 4, 1)
+#ifdef V8_TRACE_UNOPTIMIZED
+#define FOR_EACH_INTRINSIC_TRACE_UNOPTIMIZED(F, I) \
+  F(TraceUnoptimizedBytecodeEntry, 3, 1)           \
+  F(TraceUnoptimizedBytecodeExit, 3, 1)
 #else
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I)
+#define FOR_EACH_INTRINSIC_TRACE_UNOPTIMIZED(F, I)
 #endif
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I) \
-  F(InterpreterTraceUpdateFeedback, 3, 1)
+#define FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I) F(TraceUpdateFeedback, 3, 1)
 #else
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
+#define FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I)
 #endif
 
-#define FOR_EACH_INTRINSIC_INTERPRETER(F, I) \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I) \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
+#define FOR_EACH_INTRINSIC_TRACE(F, I)       \
+  FOR_EACH_INTRINSIC_TRACE_UNOPTIMIZED(F, I) \
+  FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F, I)  \
   I(Call, -1 /* >= 2 */, 1)                \
@@ -648,7 +647,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_GENERATOR(F, I)                \
   FOR_EACH_INTRINSIC_IC(F, I)                       \
   FOR_EACH_INTRINSIC_INTERNAL(F, I)                 \
-  FOR_EACH_INTRINSIC_INTERPRETER(F, I)              \
+  FOR_EACH_INTRINSIC_TRACE(F, I)                    \
   FOR_EACH_INTRINSIC_INTL(F, I)                     \
   FOR_EACH_INTRINSIC_LITERALS(F, I)                 \
   FOR_EACH_INTRINSIC_MODULE(F, I)                   \

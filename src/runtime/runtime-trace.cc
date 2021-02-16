@@ -21,7 +21,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_TRACE_IGNITION
+#ifdef V8_TRACE_UNOPTIMIZED
 
 namespace {
 
@@ -40,9 +40,9 @@ void AdvanceToOffsetForTracing(
               interpreter::OperandScale::kSingle));
 }
 
-void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
-                    interpreter::BytecodeArrayIterator&
-                        bytecode_iterator,  // NOLINT(runtime/references)
+void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
+                    interpreter::BytecodeArrayAccessor&
+                        bytecode_accessor,  // NOLINT(runtime/references)
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
   static const int kRegFieldWidth = static_cast<int>(sizeof(kAccumulator) - 1);
@@ -54,7 +54,7 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
     os << (is_input ? kInputColourCode : kOutputColourCode);
   }
 
-  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
+  interpreter::Bytecode bytecode = bytecode_accessor.current_bytecode();
 
   // Print accumulator.
   if ((is_input && interpreter::Bytecodes::ReadsAccumulator(bytecode)) ||
@@ -65,8 +65,6 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
   }
 
   // Print the registers.
-  JavaScriptFrameIterator frame_iterator(isolate);
-  UnoptimizedFrame* frame = UnoptimizedFrame::cast(frame_iterator.frame());
   int operand_count = interpreter::Bytecodes::NumberOfOperands(bytecode);
   for (int operand_index = 0; operand_index < operand_count; operand_index++) {
     interpreter::OperandType operand_type =
@@ -77,14 +75,14 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
             : interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
     if (should_print) {
       interpreter::Register first_reg =
-          bytecode_iterator.GetRegisterOperand(operand_index);
-      int range = bytecode_iterator.GetRegisterOperandRange(operand_index);
+          bytecode_accessor.GetRegisterOperand(operand_index);
+      int range = bytecode_accessor.GetRegisterOperandRange(operand_index);
       for (int reg_index = first_reg.index();
            reg_index < first_reg.index() + range; reg_index++) {
         Object reg_object = frame->ReadInterpreterRegister(reg_index);
         os << "      [ " << std::setw(kRegFieldWidth)
            << interpreter::Register(reg_index).ToString(
-                  bytecode_iterator.bytecode_array()->parameter_count())
+                  bytecode_accessor.bytecode_array()->parameter_count())
            << kArrowDirection;
         reg_object.ShortPrint(os);
         os << " ]" << std::endl;
@@ -98,10 +96,19 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
 
 }  // namespace
 
-// TODO(v8:11429): Consider either renaming to not just be "Interpreter", or
-// copying for Baseline.
-RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
-  if (!FLAG_trace_ignition) {
+RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
+  if (!FLAG_trace_ignition && !FLAG_trace_baseline) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  JavaScriptFrameIterator frame_iterator(isolate);
+  UnoptimizedFrame* frame =
+      reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
+
+  if (frame->is_interpreter() && !FLAG_trace_ignition) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  if (frame->is_baseline() && !FLAG_trace_baseline) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -110,7 +117,6 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
   CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, is_baseline, 3);
 
   int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecode_array);
@@ -122,7 +128,8 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
     const uint8_t* base_address = reinterpret_cast<const uint8_t*>(
         bytecode_array->GetFirstBytecodeAddress());
     const uint8_t* bytecode_address = base_address + offset;
-    if (is_baseline->BooleanValue(isolate)) {
+
+    if (frame->is_baseline()) {
       os << "B-> ";
     } else {
       os << " -> ";
@@ -133,15 +140,26 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
                                          bytecode_array->parameter_count());
     os << std::endl;
     // Print all input registers and accumulator.
-    PrintRegisters(isolate, os, true, bytecode_iterator, accumulator);
+    PrintRegisters(frame, os, true, bytecode_iterator, accumulator);
 
     os << std::flush;
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
-  if (!FLAG_trace_ignition) {
+RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
+  if (!FLAG_trace_ignition && !FLAG_trace_baseline) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  JavaScriptFrameIterator frame_iterator(isolate);
+  UnoptimizedFrame* frame =
+      reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
+
+  if (frame->is_interpreter() && !FLAG_trace_ignition) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  if (frame->is_baseline() && !FLAG_trace_baseline) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -161,8 +179,9 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
           interpreter::OperandScale::kSingle ||
       offset > bytecode_iterator.current_offset()) {
     StdoutStream os;
+
     // Print all output registers and accumulator.
-    PrintRegisters(isolate, os, false, bytecode_iterator, accumulator);
+    PrintRegisters(frame, os, false, bytecode_iterator, accumulator);
     os << std::flush;
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -172,7 +191,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
 
-RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
+RUNTIME_FUNCTION(Runtime_TraceUpdateFeedback) {
   if (!FLAG_trace_feedback_updates) {
     return ReadOnlyRoots(isolate).undefined_value();
   }

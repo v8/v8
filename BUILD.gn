@@ -124,8 +124,10 @@ declare_args() {
   # Sets -dV8_ENABLE_CHECKS.
   v8_enable_v8_checks = ""
 
-  # Sets -dV8_TRACE_IGNITION.
+  # Sets -dV8_TRACE_UNOPTIMIZED.
+  v8_enable_trace_unoptimized = false
   v8_enable_trace_ignition = false
+  v8_enable_trace_baseline = false
 
   # Sets -dV8_TRACE_FEEDBACK_UPDATES.
   v8_enable_trace_feedback_updates = false
@@ -354,6 +356,14 @@ assert(!v8_enable_concurrent_marking || v8_enable_atomic_object_field_writes,
        "Concurrent marking requires atomic object field writes.")
 assert(!v8_enable_concurrent_marking || v8_enable_atomic_marking_state,
        "Concurrent marking requires atomic marking state.")
+if (v8_enable_trace_unoptimized == "") {
+  v8_enable_trace_unoptimized =
+      v8_enable_trace_ignition || v8_enable_trace_baseline
+}
+assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
+       "Ignition tracing requires unoptimized tracing to be enabled.")
+assert(!v8_enable_trace_baseline || v8_enable_trace_unoptimized,
+       "Baseline tracing requires unoptimized tracing to be enabled.")
 
 # Toggle pointer compression for correctness fuzzing when building the
 # clang_x64_pointer_compression toolchain. We'll correctness-compare the
@@ -680,8 +690,8 @@ config("features") {
   if (v8_enable_trace_maps) {
     defines += [ "V8_TRACE_MAPS" ]
   }
-  if (v8_enable_trace_ignition) {
-    defines += [ "V8_TRACE_IGNITION" ]
+  if (v8_enable_trace_unoptimized) {
+    defines += [ "V8_TRACE_UNOPTIMIZED" ]
   }
   if (v8_enable_trace_feedback_updates) {
     defines += [ "V8_TRACE_FEEDBACK_UPDATES" ]
@@ -3415,7 +3425,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-futex.cc",
     "src/runtime/runtime-generator.cc",
     "src/runtime/runtime-internal.cc",
-    "src/runtime/runtime-interpreter.cc",
     "src/runtime/runtime-intl.cc",
     "src/runtime/runtime-literals.cc",
     "src/runtime/runtime-module.cc",
@@ -3429,6 +3438,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-strings.cc",
     "src/runtime/runtime-symbol.cc",
     "src/runtime/runtime-test.cc",
+    "src/runtime/runtime-trace.cc",
     "src/runtime/runtime-typedarray.cc",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime-wasm.cc",
