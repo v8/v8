@@ -660,8 +660,10 @@ class WasmGraphBuildingInterface {
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch());
+    DCHECK(block->is_try_catchall() || block->is_try_catch() ||
+           block->is_try_unwind());
     TFNode* exception = block->try_info->exception;
+    DCHECK_NOT_NULL(exception);
     BUILD(Rethrow, exception);
     TerminateThrow(decoder);
   }
@@ -747,7 +749,8 @@ class WasmGraphBuildingInterface {
   }
 
   void CatchAll(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch());
+    DCHECK(block->is_try_catchall() || block->is_try_catch() ||
+           block->is_try_unwind());
     DCHECK_EQ(decoder->control_at(0), block);
 
     current_catch_ = block->previous_catch;  // Pop try scope.

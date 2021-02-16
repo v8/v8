@@ -2895,9 +2895,16 @@ TEST_F(FunctionBodyDecoderTest, Rethrow) {
   WASM_FEATURE_SCOPE(eh);
   ExpectValidates(sigs.v_v(),
                   {WASM_TRY_OP, kExprElse, kExprRethrow, 0, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprRethrow, kExprCatch, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_BLOCK(kExprRethrow)});
-  ExpectFailure(sigs.v_v(), {kExprRethrow});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprRethrow, 0, kExprCatch, kExprEnd},
+                kAppendEnd, "rethrow not targeting catch or catch-all");
+  ExpectFailure(sigs.v_v(), {WASM_BLOCK(kExprRethrow, 0)}, kAppendEnd,
+                "rethrow not targeting catch or catch-all");
+  ExpectFailure(sigs.v_v(), {kExprRethrow, 0}, kAppendEnd,
+                "rethrow not targeting catch or catch-all");
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprUnwind, kExprRethrow, 0, kExprEnd},
+                kAppendEnd, "rethrow not targeting catch or catch-all");
 }
 
 TEST_F(FunctionBodyDecoderTest, TryDelegate) {

@@ -944,7 +944,8 @@ enum ControlKind : uint8_t {
   kControlLet,
   kControlTry,
   kControlTryCatch,
-  kControlTryCatchAll
+  kControlTryCatchAll,
+  kControlTryUnwind
 };
 
 enum Reachability : uint8_t {
@@ -1004,8 +1005,10 @@ struct ControlBase : public PcForErrors<validate> {
   bool is_incomplete_try() const { return kind == kControlTry; }
   bool is_try_catch() const { return kind == kControlTryCatch; }
   bool is_try_catchall() const { return kind == kControlTryCatchAll; }
+  bool is_try_unwind() const { return kind == kControlTryUnwind; }
   bool is_try() const {
-    return is_incomplete_try() || is_try_catch() || is_try_catchall();
+    return is_incomplete_try() || is_try_catch() || is_try_catchall() ||
+           is_try_unwind();
   }
 
   inline Merge<Value>* br_merge() {
@@ -2402,6 +2405,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kControlIfElse:
           case kControlTryCatch:
           case kControlTryCatchAll:
+          case kControlTryUnwind:
           case kControlLet:  // TODO(7748): Implement
             break;
         }
@@ -2520,6 +2524,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("catch after catch-all for try");
       return 0;
     }
+    if (!VALIDATE(!c->is_try_unwind())) {
+      this->DecodeError("catch after unwind for try");
+      return 0;
+    }
     c->kind = kControlTryCatch;
     FallThruTo(c);
     DCHECK_LE(stack_ + c->stack_depth, stack_end_);
@@ -2553,7 +2561,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           "delegate target must be a try block or the function block");
       return 0;
     }
-    if (target->is_try_catch() || target->is_try_catchall()) {
+    if (target->is_try_catch() || target->is_try_catchall() ||
+        target->is_try_catchall()) {
       this->DecodeError(
           "cannot delegate inside the catch handler of the target");
     }
@@ -2573,12 +2582,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("unwind does not match a try");
       return 0;
     }
-    if (!VALIDATE(!c->is_try_catch() && !c->is_try_catchall())) {
+    if (!VALIDATE(!c->is_try_catch() && !c->is_try_catchall() &&
+                  !c->is_try_unwind())) {
       this->error("catch, catch-all or unwind already present for try");
       return 0;
     }
-    c->kind = kControlTryCatchAll;
     FallThruTo(c);
+    c->kind = kControlTryUnwind;
     stack_end_ = stack_ + c->stack_depth;
     c->reachability = control_at(1)->innerReachability();
     CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
@@ -2704,7 +2714,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       CHECK_PROTOTYPE_OPCODE(eh);
       DCHECK(c->is_try());
       if (!VALIDATE(!c->is_try_catchall())) {
-        this->error("catch-all or unwind already present for try");
+        this->error("catch-all already present for try");
+        return 0;
+      }
+      if (!VALIDATE(!c->is_try_unwind())) {
+        this->error("cannot have a catch-all after unwind");
         return 0;
       }
       c->kind = kControlTryCatchAll;
@@ -2738,6 +2752,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       c->reachability = control_at(1)->innerReachability();
       CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
       current_code_reachable_ = this->ok() && control_.back().reachable();
+      CALL_INTERFACE_IF_REACHABLE(Rethrow, c);
+      EndControl();
+    }
+    if (c->is_try_unwind()) {
+      // Unwind implicitly rethrows at the end.
       CALL_INTERFACE_IF_REACHABLE(Rethrow, c);
       EndControl();
     }

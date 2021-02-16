@@ -215,7 +215,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let instance = builder.instantiate({imp: {ort: throw_exc}});
 
   assertEquals(11, instance.exports.call_import());
-  assertEquals(11, instance.exports.call_import_unwind());
+  assertThrows(instance.exports.call_import_unwind, WebAssembly.RuntimeError, "My user text");
 })();
 
 (function TestExnWithWasmProtoNotCaught() {
