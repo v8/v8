@@ -183,6 +183,7 @@ namespace compiler {
   V(ArmF32x4DemoteF64x2Zero)       \
   V(ArmI64x2SplatI32Pair)          \
   V(ArmI64x2ReplaceLaneI32Pair)    \
+  V(ArmI64x2Abs)                   \
   V(ArmI64x2Neg)                   \
   V(ArmI64x2Shl)                   \
   V(ArmI64x2ShrS)                  \

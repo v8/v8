@@ -2155,6 +2155,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // dst: [ (a2*b3 + a3*b2)<<32 + (a2*b2) | (a0*b1 + a1*b0)<<32 + (a0*b0) ]
       break;
     }
+    case kArmI64x2Abs: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      UseScratchRegisterScope temps(tasm());
+      Simd128Register tmp = temps.AcquireQ();
+      __ vshr(NeonS64, tmp, src, 63);
+      __ veor(dst, src, tmp);
+      __ vsub(Neon64, dst, dst, tmp);
+      break;
+    }
     case kArmI64x2Neg: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vmov(dst, uint64_t{0});
