@@ -92,7 +92,6 @@ inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
-  bailout(kUnsupportedArchitecture, "PrepareStackFrame");
   int offset = pc_offset();
   lay(sp, MemOperand(sp));
   return offset;
@@ -174,28 +173,33 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   }
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
-  DCHECK_LE(0, offset);
+void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
   LoadU64(dst, liftoff::GetInstanceOperand());
+}
+
+void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
+                                        int offset, int size) {
+  DCHECK_LE(0, offset);
   switch (size) {
     case 1:
-      LoadU8(dst, MemOperand(dst, offset));
+      LoadU8(dst, MemOperand(instance, offset));
       break;
     case 4:
-      LoadU32(dst, MemOperand(dst, offset));
+      LoadU32(dst, MemOperand(instance, offset));
       break;
     case 8:
-      LoadU64(dst, MemOperand(dst, offset));
+      LoadU64(dst, MemOperand(instance, offset));
       break;
     default:
       UNIMPLEMENTED();
   }
 }
 
-void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst, int offset) {
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     Register instance,
+                                                     int offset) {
   DCHECK_LE(0, offset);
-  LoadU64(dst, liftoff::GetInstanceOperand());
-  LoadTaggedPointerField(dst, MemOperand(dst, offset));
+  LoadTaggedPointerField(dst, MemOperand(instance, offset));
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {

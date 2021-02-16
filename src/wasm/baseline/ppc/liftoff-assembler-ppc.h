@@ -90,11 +90,18 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   bailout(kUnsupportedArchitecture, "LoadConstant");
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
+void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
+  bailout(kUnsupportedArchitecture, "LoadInstanceFromFrame");
+}
+
+void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
+                                        int offset, int size) {
   bailout(kUnsupportedArchitecture, "LoadFromInstance");
 }
 
-void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst, int offset) {
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     Register instance,
+                                                     int offset) {
   bailout(kUnsupportedArchitecture, "LoadTaggedPointerFromInstance");
 }
 
