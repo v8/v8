@@ -17,8 +17,8 @@ namespace baseline {
 
 namespace detail {
 
-// TODO(v8:11429,verwaest): For now this avoids using kScratchRegister(==r10)
-// since the macro-assembler doesn't use this scope and will conflict.
+// Avoid using kScratchRegister(==r10) since the macro-assembler doesn't use
+// this scope and will conflict.
 static constexpr Register kScratchRegisters[] = {r8, r9, r11, r12, r14, r15};
 static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
 
