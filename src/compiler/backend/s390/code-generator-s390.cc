@@ -3187,6 +3187,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                Condition(2));
       break;
     }
+    case kS390_I64x2GtS: {
+      __ vch(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(3));
+      break;
+    }
+    case kS390_I64x2GeS: {
+      // Compute !(B > A) which is equal to A >= B.
+      __ vch(kScratchDoubleReg, i.InputSimd128Register(1),
+             i.InputSimd128Register(0), Condition(0), Condition(3));
+      __ vno(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg,
+             Condition(0), Condition(0), Condition(3));
+      break;
+    }
     case kS390_I32x4GtS: {
       __ vch(i.OutputSimd128Register(), i.InputSimd128Register(0),
              i.InputSimd128Register(1), Condition(0), Condition(2));

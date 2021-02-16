@@ -2522,6 +2522,8 @@ void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
 void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
   UNIMPLEMENTED();
 }
+void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2GeS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,

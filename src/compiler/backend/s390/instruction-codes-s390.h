@@ -269,6 +269,8 @@ namespace compiler {
   V(S390_I64x2UConvertI32x4High)            \
   V(S390_I64x2SignSelect)                   \
   V(S390_I64x2Ne)                           \
+  V(S390_I64x2GtS)                          \
+  V(S390_I64x2GeS)                          \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
