@@ -2074,6 +2074,7 @@ class WasmDecoder : public Decoder {
       case kExprTry:
       case kExprCatch:
       case kExprDelegate:
+      case kExprUnwind:
       case kExprRethrow:
       case kExprNop:
       case kExprNopForTestingUnsupportedInLiftoff:
