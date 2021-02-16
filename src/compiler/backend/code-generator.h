@@ -160,8 +160,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void AssembleSourcePosition(SourcePosition source_position);
 
   // Record a safepoint with the given pointer map.
-  void RecordSafepoint(ReferenceMap* references,
-                       Safepoint::DeoptMode deopt_mode);
+  void RecordSafepoint(ReferenceMap* references);
 
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }

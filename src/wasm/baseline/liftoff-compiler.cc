@@ -870,8 +870,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallRuntimeStub(ool->stub);
-    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(
-        &asm_, Safepoint::kNoLazyDeopt);
+    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
 
     if (ool->safepoint_info) {
       for (auto index : ool->safepoint_info->slots) {
@@ -1019,7 +1018,7 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(decoder->position()), true);
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
     // TODO(ahaas): Define a proper safepoint here.
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+    safepoint_table_builder_.DefineSafepoint(&asm_);
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kAllowRegisters);
   }
 
@@ -5369,8 +5368,7 @@ class LiftoffCompiler {
   }
 
   void DefineSafepoint() {
-    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(
-        &asm_, Safepoint::kNoLazyDeopt);
+    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
     __ cache_state()->DefineSafepoint(safepoint);
   }
 

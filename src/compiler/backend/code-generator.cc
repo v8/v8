@@ -606,9 +606,8 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
       .IsNext(instructions()->InstructionBlockAt(block)->ao_number());
 }
 
-void CodeGenerator::RecordSafepoint(ReferenceMap* references,
-                                    Safepoint::DeoptMode deopt_mode) {
-  Safepoint safepoint = safepoints()->DefineSafepoint(tasm(), deopt_mode);
+void CodeGenerator::RecordSafepoint(ReferenceMap* references) {
+  Safepoint safepoint = safepoints()->DefineSafepoint(tasm());
   int frame_header_offset = frame()->GetFixedSlotCount();
   for (const InstructionOperand& operand : references->reference_operands()) {
     if (operand.IsStackSlot()) {
@@ -1051,9 +1050,7 @@ Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
 void CodeGenerator::RecordCallPosition(Instruction* instr) {
   const bool needs_frame_state =
       instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState);
-  RecordSafepoint(instr->reference_map(), needs_frame_state
-                                              ? Safepoint::kLazyDeopt
-                                              : Safepoint::kNoLazyDeopt);
+  RecordSafepoint(instr->reference_map());
 
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
     InstructionOperandConverter i(this, instr);
