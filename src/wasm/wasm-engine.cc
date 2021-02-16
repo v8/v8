@@ -1008,10 +1008,14 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   if (current_gc_info_) {
     if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
   }
-  if (auto* task = info->log_codes_task) task->Cancel();
-  for (auto& log_entry : info->code_to_log) {
-    WasmCode::DecrementRefCount(VectorOf(log_entry.second.code));
+  if (auto* task = info->log_codes_task) {
+    task->Cancel();
+    for (auto& log_entry : info->code_to_log) {
+      WasmCode::DecrementRefCount(VectorOf(log_entry.second.code));
+    }
+    info->code_to_log.clear();
   }
+  DCHECK(info->code_to_log.empty());
   isolate->counters()->wasm_throw_count()->AddSample(info->throw_count);
   isolate->counters()->wasm_rethrow_count()->AddSample(info->rethrow_count);
   isolate->counters()->wasm_catch_count()->AddSample(info->catch_count);
