@@ -1103,7 +1103,10 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       }
     }
   } else {
-    CHECK_EQ(type.kind(), ValueType::kI64);
+    CHECK(type.kind() == ValueType::kI64 || type.kind() == ValueType::kOptRef ||
+          type.kind() == ValueType::kRtt ||
+          type.kind() == ValueType::kRttWithDepth ||
+          type.kind() == ValueType::kRef);
     if (rhs == no_reg) {
       if (use_signed) {
         CmpS64(lhs, Operand::Zero());
