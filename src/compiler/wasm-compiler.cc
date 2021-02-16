@@ -2400,7 +2400,7 @@ Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   // TODO(v8:8091): Currently the message of the original exception is not being
   // preserved when rethrown to the console. The pending message will need to be
   // saved when caught and restored here while being rethrown.
-  WasmThrowDescriptor interface_descriptor;
+  WasmRethrowDescriptor interface_descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       mcgraph()->zone(), interface_descriptor,
       interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
@@ -7252,7 +7252,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         control());
     SetControl(
         graph()->NewNode(mcgraph()->common()->IfFalse(), exception_branch));
-    WasmThrowDescriptor interface_descriptor;
+    WasmRethrowDescriptor interface_descriptor;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(), interface_descriptor,
         interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
