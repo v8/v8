@@ -105,7 +105,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
   UnoptimizedFrame* frame =
       reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
 
-  if (frame->is_interpreter() && !FLAG_trace_ignition) {
+  if (frame->is_interpreted() && !FLAG_trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   if (frame->is_baseline() && !FLAG_trace_baseline) {
@@ -113,7 +113,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
   }
 
   SealHandleScope shs(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
   CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
@@ -156,7 +156,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
   UnoptimizedFrame* frame =
       reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
 
-  if (frame->is_interpreter() && !FLAG_trace_ignition) {
+  if (frame->is_interpreted() && !FLAG_trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   if (frame->is_baseline() && !FLAG_trace_baseline) {
@@ -164,7 +164,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
   }
 
   SealHandleScope shs(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
   CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accumulator, 2);
