@@ -510,11 +510,10 @@ bool Heap::CreateInitialMaps() {
 
   {
     AllocationResult alloc =
-        AllocateRaw(FixedArray::SizeFor(ScopeInfo::kVariablePartIndex),
+        AllocateRaw(ScopeInfo::SizeFor(ScopeInfo::kVariablePartIndex),
                     AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj.set_map_after_allocation(roots.scope_info_map(), SKIP_WRITE_BARRIER);
-    ScopeInfo::cast(obj).set_length(ScopeInfo::kVariablePartIndex);
     int flags = ScopeInfo::IsEmptyBit::encode(true);
     DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
     DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),

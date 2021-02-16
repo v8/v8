@@ -635,7 +635,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
   } else if (object.IsContext()) {
     return AddEntry(object, HeapEntry::kObject, "system / Context");
   } else if (object.IsFixedArray() || object.IsFixedDoubleArray() ||
-             object.IsByteArray() || object.IsScopeInfo()) {
+             object.IsByteArray()) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object.IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");
