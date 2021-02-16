@@ -20,7 +20,7 @@ namespace interpreter {
 // in its stack-frame. Register hold parameters, this, and expression values.
 class V8_EXPORT_PRIVATE Register final {
  public:
-  constexpr explicit Register(int index = kInvalidIndex) : index_(index) {}
+  explicit Register(int index = kInvalidIndex) : index_(index) {}
 
   int index() const { return index_; }
   bool is_parameter() const { return index() < 0; }
@@ -58,28 +58,9 @@ class V8_EXPORT_PRIVATE Register final {
 
   OperandSize SizeOfOperand() const;
 
-  constexpr int32_t ToOperand() const {
-    return kRegisterFileStartOffset - index_;
-  }
+  int32_t ToOperand() const { return kRegisterFileStartOffset - index_; }
   static Register FromOperand(int32_t operand) {
     return Register(kRegisterFileStartOffset - operand);
-  }
-
-  static Register FromShortStar(Bytecode bytecode) {
-    DCHECK(Bytecodes::IsShortStar(bytecode));
-    return Register(static_cast<int>(Bytecode::kStar0) -
-                    static_cast<int>(bytecode));
-  }
-
-  const base::Optional<Bytecode> TryToShortStar() const {
-    if (index() >= 0 && index() < Bytecodes::kShortStarCount) {
-      Bytecode bytecode =
-          static_cast<Bytecode>(static_cast<int>(Bytecode::kStar0) - index());
-      DCHECK_GE(bytecode, Bytecode::kFirstShortStar);
-      DCHECK_LE(bytecode, Bytecode::kLastShortStar);
-      return bytecode;
-    }
-    return {};
   }
 
   static bool AreContiguous(Register reg1, Register reg2,

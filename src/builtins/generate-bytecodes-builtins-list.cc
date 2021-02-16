@@ -19,18 +19,9 @@ void WriteBytecode(std::ofstream& out, Bytecode bytecode,
                    int table_index) {
   DCHECK_NOT_NULL(count);
   if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
-    std::string name = Bytecodes::ToString(bytecode, operand_scale, "");
-
-    // The handler for Star0 is used for all short star codes. Rename it to
-    // something more generic.
-    if (bytecode == Bytecode::kStar0) {
-      DCHECK_EQ(operand_scale, OperandScale::kSingle);
-      name = "ShortStar";
-    }
-
-    out << " \\\n  V(" << name << "Handler, interpreter::OperandScale::k"
-        << operand_scale << ", interpreter::Bytecode::k"
-        << Bytecodes::ToString(bytecode) << ")";
+    out << " \\\n  V(" << Bytecodes::ToString(bytecode, operand_scale, "")
+        << "Handler, interpreter::OperandScale::k" << operand_scale
+        << ", interpreter::Bytecode::k" << Bytecodes::ToString(bytecode) << ")";
     offset_table[table_index] = *count;
     (*count)++;
   } else {
@@ -71,8 +62,7 @@ void WriteHeader(const char* header_filename) {
 #undef ADD_BYTECODES
   int extra_wide_count = count - wide_count - single_count;
   CHECK_GT(single_count, wide_count);
-  CHECK_EQ(single_count,
-           Bytecodes::kBytecodeCount - Bytecodes::kShortStarCount + 1);
+  CHECK_EQ(single_count, Bytecodes::kBytecodeCount);
   CHECK_EQ(wide_count, extra_wide_count);
   out << "\n\nconstexpr int kNumberOfBytecodeHandlers = " << single_count
       << ";\n"
@@ -83,10 +73,9 @@ void WriteHeader(const char* header_filename) {
       << "// Mapping from Bytecode to a dense form with all the illegal\n"
       << "// wide Bytecodes removed. Used to index into the builtins table.\n"
       << "constexpr uint8_t kWideBytecodeToBuiltinsMapping["
-      << Bytecodes::kBytecodeCount << "] = {    \n";
+      << "kNumberOfBytecodeHandlers] = {    \n";
 
-  for (int i = Bytecodes::kBytecodeCount; i < 2 * Bytecodes::kBytecodeCount;
-       ++i) {
+  for (int i = single_count; i < 2 * single_count; ++i) {
     int offset = offset_table[i];
     if (offset == kIllegalBytecodeHandler) {
       offset = kIllegalBytecodeHandlerEncoding;

@@ -166,11 +166,6 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState* in_liveness,
     }
   }
 
-  if (Bytecodes::WritesImplicitRegister(bytecode)) {
-    in_liveness->MarkRegisterDead(
-        interpreter::Register::FromShortStar(bytecode).index());
-  }
-
   if (Bytecodes::ReadsAccumulator(bytecode)) {
     in_liveness->MarkAccumulatorLive();
   }
@@ -312,10 +307,6 @@ void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments* assignments,
         DCHECK(!Bytecodes::IsRegisterOutputOperandType(operand_types[i]));
         break;
     }
-  }
-
-  if (Bytecodes::WritesImplicitRegister(bytecode)) {
-    assignments->Add(interpreter::Register::FromShortStar(bytecode));
   }
 }
 

@@ -93,6 +93,8 @@ TEST_F(BytecodeAnalysisTest, EmptyBlock) {
   interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
+  interpreter::Register reg_0(0);
+
   builder.Return();
   expected_liveness.emplace_back("...L", "....");
 
@@ -227,6 +229,7 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
+  interpreter::Register reg_1(1);
   interpreter::Register reg_2(2);
 
   // Kill r0.

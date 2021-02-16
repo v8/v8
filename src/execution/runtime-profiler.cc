@@ -27,16 +27,16 @@ static const int kProfilerTicksBeforeOptimization = 3;
 // The number of ticks required for optimizing a function increases with
 // the size of the bytecode. This is in addition to the
 // kProfilerTicksBeforeOptimization required for any function.
-static const int kBytecodeSizeAllowancePerTick = 1100;
+static const int kBytecodeSizeAllowancePerTick = 1200;
 
 // Maximum size in bytes of generate code for a function to allow OSR.
-static const int kOSRBytecodeSizeAllowanceBase = 119;
+static const int kOSRBytecodeSizeAllowanceBase = 132;
 
-static const int kOSRBytecodeSizeAllowancePerTick = 43;
+static const int kOSRBytecodeSizeAllowancePerTick = 48;
 
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
-static const int kMaxBytecodeSizeForEarlyOpt = 81;
+static const int kMaxBytecodeSizeForEarlyOpt = 90;
 
 // Number of times a function has to be seen on the stack before it is
 // OSRed in TurboProp

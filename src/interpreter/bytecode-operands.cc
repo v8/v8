@@ -18,15 +18,11 @@ const char* ImplicitRegisterUseToString(
     case ImplicitRegisterUse::kNone:
       return "None";
     case ImplicitRegisterUse::kReadAccumulator:
-      return "ReadAccumulator";
+      return "Read";
     case ImplicitRegisterUse::kWriteAccumulator:
-      return "WriteAccumulator";
-    case ImplicitRegisterUse::kWriteShortStar:
-      return "WriteShortStar";
+      return "Write";
     case ImplicitRegisterUse::kReadWriteAccumulator:
-      return "ReadWriteAccumulator";
-    case ImplicitRegisterUse::kReadAccumulatorWriteShortStar:
-      return "ReadAccumulatorWriteShortStar";
+      return "ReadWrite";
   }
   UNREACHABLE();
 }

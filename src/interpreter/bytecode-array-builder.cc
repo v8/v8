@@ -197,10 +197,7 @@ void BytecodeArrayBuilder::OutputLdarRaw(Register reg) {
 
 void BytecodeArrayBuilder::OutputStarRaw(Register reg) {
   uint32_t operand = static_cast<uint32_t>(reg.ToOperand());
-  base::Optional<Bytecode> short_code = reg.TryToShortStar();
-  BytecodeNode node = short_code
-                          ? BytecodeNode(*short_code)
-                          : BytecodeNode::Star(BytecodeSourceInfo(), operand);
+  BytecodeNode node(BytecodeNode::Star(BytecodeSourceInfo(), operand));
   Write(&node);
 }
 
@@ -699,7 +696,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     SetDeferredSourceInfo(CurrentSourcePosition(Bytecode::kStar));
     register_optimizer_->DoStar(reg);
   } else {
-    OutputStarRaw(reg);
+    OutputStar(reg);
   }
   return *this;
 }
