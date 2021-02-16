@@ -2484,6 +2484,63 @@ void TurboAssembler::I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void TurboAssembler::I64x2GtS(XMMRegister dst, XMMRegister src0,
+                              XMMRegister src1) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpcmpgtq(dst, src0, src1);
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    CpuFeatureScope sse_scope(this, SSE4_2);
+    DCHECK_EQ(dst, src0);
+    pcmpgtq(dst, src1);
+  } else {
+    DCHECK_NE(dst, src0);
+    DCHECK_NE(dst, src1);
+    movdqa(dst, src1);
+    movdqa(kScratchDoubleReg, src0);
+    psubq(dst, src0);
+    pcmpeqd(kScratchDoubleReg, src1);
+    pand(dst, kScratchDoubleReg);
+    movdqa(kScratchDoubleReg, src0);
+    pcmpgtd(kScratchDoubleReg, src1);
+    por(dst, kScratchDoubleReg);
+    pshufd(dst, dst, 0xF5);
+  }
+}
+
+void TurboAssembler::I64x2GeS(XMMRegister dst, XMMRegister src0,
+                              XMMRegister src1) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpcmpgtq(dst, src1, src0);
+    vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+    vpxor(dst, dst, kScratchDoubleReg);
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    CpuFeatureScope sse_scope(this, SSE4_2);
+    DCHECK_NE(dst, src0);
+    if (dst != src1) {
+      movdqa(dst, src1);
+    }
+    pcmpgtq(dst, src0);
+    pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+    pxor(dst, kScratchDoubleReg);
+  } else {
+    DCHECK_NE(dst, src0);
+    DCHECK_NE(dst, src1);
+    movdqa(dst, src0);
+    movdqa(kScratchDoubleReg, src1);
+    psubq(dst, src1);
+    pcmpeqd(kScratchDoubleReg, src0);
+    pand(dst, kScratchDoubleReg);
+    movdqa(kScratchDoubleReg, src1);
+    pcmpgtd(kScratchDoubleReg, src0);
+    por(dst, kScratchDoubleReg);
+    pshufd(dst, dst, 0xF5);
+    pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+    pxor(dst, kScratchDoubleReg);
+  }
+}
+
 void TurboAssembler::Abspd(XMMRegister dst) {
   Andps(dst, ExternalReferenceAsOperand(
                  ExternalReference::address_of_double_abs_constant()));

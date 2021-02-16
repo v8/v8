@@ -2721,6 +2721,57 @@ void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
   Pxor(dst.fp(), kScratchDoubleReg);
 }
 
+void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  // Different register alias requirements depending on CpuFeatures supported:
+  if (CpuFeatures::IsSupported(AVX)) {
+    // 1. AVX, no requirements.
+    I64x2GtS(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    // 2. SSE4_2, dst == lhs.
+    if (dst != lhs) {
+      movdqa(dst.fp(), lhs.fp());
+    }
+    I64x2GtS(dst.fp(), dst.fp(), rhs.fp());
+  } else {
+    // 3. Else, dst != lhs && dst != rhs (lhs == rhs is ok).
+    if (dst == lhs || dst == rhs) {
+      // macro-assembler uses kScratchDoubleReg, so don't use it.
+      I64x2GtS(liftoff::kScratchDoubleReg2, lhs.fp(), rhs.fp());
+      movaps(dst.fp(), liftoff::kScratchDoubleReg2);
+    } else {
+      I64x2GtS(dst.fp(), lhs.fp(), rhs.fp());
+    }
+  }
+}
+
+void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  // Different register alias requirements depending on CpuFeatures supported:
+  if (CpuFeatures::IsSupported(AVX)) {
+    // 1. AVX, no requirements.
+    I64x2GeS(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    // 2. SSE4_2, dst != lhs.
+    if (dst == lhs) {
+      // macro-assembler uses kScratchDoubleReg, so don't use it.
+      I64x2GeS(liftoff::kScratchDoubleReg2, lhs.fp(), rhs.fp());
+      movdqa(dst.fp(), liftoff::kScratchDoubleReg2);
+    } else {
+      I64x2GeS(dst.fp(), lhs.fp(), rhs.fp());
+    }
+  } else {
+    // 3. Else, dst != lhs && dst != rhs (lhs == rhs is ok).
+    if (dst == lhs || dst == rhs) {
+      // macro-assembler uses kScratchDoubleReg, so don't use it.
+      I64x2GeS(liftoff::kScratchDoubleReg2, lhs.fp(), rhs.fp());
+      movaps(dst.fp(), liftoff::kScratchDoubleReg2);
+    } else {
+      I64x2GeS(dst.fp(), lhs.fp(), rhs.fp());
+    }
+  }
+}
+
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vcmpeqps, &Assembler::cmpeqps>(

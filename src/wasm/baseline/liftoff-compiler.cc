@@ -3060,6 +3060,16 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_ge_u);
       case wasm::kExprI64x2Eq:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_eq);
+      case wasm::kExprI64x2LtS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i64x2_gt_s);
+      case wasm::kExprI64x2GtS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_gt_s);
+      case wasm::kExprI64x2LeS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i64x2_ge_s);
+      case wasm::kExprI64x2GeS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_ge_s);
       case wasm::kExprF32x4Eq:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_eq);
       case wasm::kExprF32x4Ne:
