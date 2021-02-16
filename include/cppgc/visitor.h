@@ -170,7 +170,7 @@ class V8_EXPORT Visitor {
     if (!k) return;
     TraceDescriptor value_desc = TraceTrait<V>::GetTraceDescriptor(value);
     if (!value_desc.base_object_payload) return;
-    VisitEphemeron(key, value_desc);
+    VisitEphemeron(key, value, value_desc);
   }
 
   /**
@@ -251,7 +251,8 @@ class V8_EXPORT Visitor {
   virtual void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) {}
   virtual void VisitWeakRoot(const void* self, TraceDescriptor, WeakCallback,
                              const void* weak_root, const SourceLocation&) {}
-  virtual void VisitEphemeron(const void* key, TraceDescriptor value_desc) {}
+  virtual void VisitEphemeron(const void* key, const void* value,
+                              TraceDescriptor value_desc) {}
   virtual void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
                                   TraceDescriptor weak_desc,
                                   WeakCallback callback, const void* data) {}

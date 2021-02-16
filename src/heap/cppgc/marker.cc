@@ -493,8 +493,8 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               mutator_marking_state_, marked_bytes_deadline, time_deadline,
               mutator_marking_state_.ephemeron_pairs_for_processing_worklist(),
               [this](const MarkingWorklists::EphemeronPairItem& item) {
-                mutator_marking_state_.ProcessEphemeron(item.key,
-                                                        item.value_desc);
+                mutator_marking_state_.ProcessEphemeron(
+                    item.key, item.value, item.value_desc, visitor());
               })) {
         return false;
       }

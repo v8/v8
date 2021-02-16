@@ -158,10 +158,11 @@ void ConcurrentMarkingTask::ProcessWorklists(
               concurrent_marker_.incremental_marking_schedule(),
               concurrent_marking_state
                   .ephemeron_pairs_for_processing_worklist(),
-              [&concurrent_marking_state](
+              [&concurrent_marking_state, &concurrent_marking_visitor](
                   const MarkingWorklists::EphemeronPairItem& item) {
-                concurrent_marking_state.ProcessEphemeron(item.key,
-                                                          item.value_desc);
+                concurrent_marking_state.ProcessEphemeron(
+                    item.key, item.value, item.value_desc,
+                    concurrent_marking_visitor);
               })) {
         return;
       }

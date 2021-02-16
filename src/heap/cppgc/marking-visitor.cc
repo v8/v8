@@ -25,9 +25,9 @@ void MarkingVisitorBase::VisitWeak(const void* object, TraceDescriptor desc,
                                                weak_member);
 }
 
-void MarkingVisitorBase::VisitEphemeron(const void* key,
+void MarkingVisitorBase::VisitEphemeron(const void* key, const void* value,
                                         TraceDescriptor value_desc) {
-  marking_state_.ProcessEphemeron(key, value_desc);
+  marking_state_.ProcessEphemeron(key, value, value_desc, *this);
 }
 
 void MarkingVisitorBase::VisitWeakContainer(const void* object,
