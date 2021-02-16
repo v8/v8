@@ -659,35 +659,9 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
       FindSharedFunctionInfoInScript(script, *source_position);
   if (result->IsUndefined(isolate_)) return false;
 
-  // Make sure the function has set up the debug info.
-  Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(result);
-  if (!EnsureBreakInfo(shared)) return false;
-  PrepareFunctionForDebugExecution(shared);
-
-  // Find position within function. The script position might be before the
-  // source position of the first function.
-  if (shared->StartPosition() > *source_position) {
-    *source_position = shared->StartPosition();
-  }
-
-  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
-
-  // Find breakable position returns first breakable position after
-  // *source_position, it can return 0 if no break location is found after
-  // *source_position.
-  int breakable_position = FindBreakablePosition(debug_info, *source_position);
-  if (breakable_position < *source_position) return false;
-  *source_position = breakable_position;
-
-  DebugInfo::SetBreakPoint(isolate_, debug_info, *source_position, break_point);
-  // At least one active break point now.
-  DCHECK_LT(0, debug_info->GetBreakPointCount(isolate_));
-
-  ClearBreakPoints(debug_info);
-  ApplyBreakPoints(debug_info);
-
-  feature_tracker()->Track(DebugFeatureTracker::kBreakPoint);
-  return true;
+  // Set the breakpoint in the function.
+  auto shared = Handle<SharedFunctionInfo>::cast(result);
+  return SetBreakpoint(shared, break_point, source_position);
 }
 
 int Debug::FindBreakablePosition(Handle<DebugInfo> debug_info,
