@@ -846,7 +846,7 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
   using BinaryOpGenerator = TNode<Object> (BinaryOpAssembler::*)(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool rhs_known_smi);
+      UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
   void BinaryOpWithFeedback(BinaryOpGenerator generator) {
     TNode<Object> lhs = LoadRegisterAtOperandIndex(0);
@@ -856,9 +856,10 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
     BinaryOpAssembler binop_asm(state());
-    TNode<Object> result = (binop_asm.*generator)(
-        [=] { return context; }, lhs, rhs, slot_index,
-        [=] { return maybe_feedback_vector; }, false, false);
+    TNode<Object> result =
+        (binop_asm.*generator)([=] { return context; }, lhs, rhs, slot_index,
+                               [=] { return maybe_feedback_vector; },
+                               UpdateFeedbackMode::kOptionalFeedback, false);
     SetAccumulator(result);
     Dispatch();
   }
@@ -871,9 +872,10 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
     BinaryOpAssembler binop_asm(state());
-    TNode<Object> result = (binop_asm.*generator)(
-        [=] { return context; }, lhs, rhs, slot_index,
-        [=] { return maybe_feedback_vector; }, false, true);
+    TNode<Object> result =
+        (binop_asm.*generator)([=] { return context; }, lhs, rhs, slot_index,
+                               [=] { return maybe_feedback_vector; },
+                               UpdateFeedbackMode::kOptionalFeedback, true);
     SetAccumulator(result);
     Dispatch();
   }
@@ -984,8 +986,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
         bitwise_op, left, right, [=] { return context; }, &feedback);
 
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index,
-                        false);
+    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
   }
@@ -1012,13 +1013,13 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
         BinaryOperationFeedback::kNumber);
     MaybeUpdateFeedback(SmiOr(result_type, var_left_feedback.value()),
-                        maybe_feedback_vector, slot_index, false);
+                        maybe_feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
 
     BIND(&if_bigint_mix);
     MaybeUpdateFeedback(var_left_feedback.value(), maybe_feedback_vector,
-                        slot_index, false);
+                        slot_index);
     ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
   }
 };
@@ -1106,7 +1107,8 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
 
   UnaryOpAssembler unary_op_asm(state());
   TNode<Object> result = unary_op_asm.Generate_BitwiseNotWithFeedback(
-      context, value, slot_index, maybe_feedback_vector, false);
+      context, value, slot_index, maybe_feedback_vector,
+      UpdateFeedbackMode::kOptionalFeedback);
 
   SetAccumulator(result);
   Dispatch();
@@ -1150,7 +1152,8 @@ IGNITION_HANDLER(Negate, InterpreterAssembler) {
 
   UnaryOpAssembler unary_op_asm(state());
   TNode<Object> result = unary_op_asm.Generate_NegateWithFeedback(
-      context, value, slot_index, maybe_feedback_vector, false);
+      context, value, slot_index, maybe_feedback_vector,
+      UpdateFeedbackMode::kOptionalFeedback);
 
   SetAccumulator(result);
   Dispatch();
@@ -1211,7 +1214,8 @@ IGNITION_HANDLER(Inc, InterpreterAssembler) {
 
   UnaryOpAssembler unary_op_asm(state());
   TNode<Object> result = unary_op_asm.Generate_IncrementWithFeedback(
-      context, value, slot_index, maybe_feedback_vector, false);
+      context, value, slot_index, maybe_feedback_vector,
+      UpdateFeedbackMode::kOptionalFeedback);
 
   SetAccumulator(result);
   Dispatch();
@@ -1228,7 +1232,8 @@ IGNITION_HANDLER(Dec, InterpreterAssembler) {
 
   UnaryOpAssembler unary_op_asm(state());
   TNode<Object> result = unary_op_asm.Generate_DecrementWithFeedback(
-      context, value, slot_index, maybe_feedback_vector, false);
+      context, value, slot_index, maybe_feedback_vector,
+      UpdateFeedbackMode::kOptionalFeedback);
 
   SetAccumulator(result);
   Dispatch();
@@ -1618,7 +1623,7 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     MaybeUpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
-                        slot_index, false);
+                        slot_index);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2846,7 +2851,7 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
   TNode<FixedArray> cache_array;
   TNode<Smi> cache_length;
   ForInPrepare(enumerator, vector_index, maybe_feedback_vector, &cache_array,
-               &cache_length, false);
+               &cache_length, UpdateFeedbackMode::kOptionalFeedback);
 
   StoreRegisterTripleAtOperandIndex(cache_type, cache_array, cache_length, 0);
   Dispatch();
@@ -2879,9 +2884,9 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   }
   BIND(&if_slow);
   {
-    TNode<Object> result =
-        ForInNextSlow(GetContext(), vector_index, receiver, key, cache_type,
-                      maybe_feedback_vector, false);
+    TNode<Object> result = ForInNextSlow(GetContext(), vector_index, receiver,
+                                         key, cache_type, maybe_feedback_vector,
+                                         UpdateFeedbackMode::kOptionalFeedback);
     SetAccumulator(result);
     Dispatch();
   }

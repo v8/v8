@@ -3171,14 +3171,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<ClosureFeedbackCellArray> LoadClosureFeedbackArray(
       TNode<JSFunction> closure);
 
-  // TODO(v8:11429): Change bool to enum.
-  void MaybeUpdateFeedback(TNode<Smi> feedback,
-                           TNode<HeapObject> maybe_feedback_vector,
-                           TNode<UintPtrT> slot_id, bool guaranteed_feedback);
   // Update the type feedback vector.
+  void UpdateFeedback(TNode<Smi> feedback,
+                      TNode<HeapObject> maybe_feedback_vector,
+                      TNode<UintPtrT> slot_id, UpdateFeedbackMode mode);
   void UpdateFeedback(TNode<Smi> feedback,
                       TNode<FeedbackVector> feedback_vector,
                       TNode<UintPtrT> slot_id);
+  void MaybeUpdateFeedback(TNode<Smi> feedback,
+                           TNode<HeapObject> maybe_feedback_vector,
+                           TNode<UintPtrT> slot_id);
 
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.
@@ -3438,7 +3440,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void ForInPrepare(TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
                     TNode<HeapObject> maybe_feedback_vector,
                     TNode<FixedArray>* cache_array_out,
-                    TNode<Smi>* cache_length_out, bool guaranteed_feedback);
+                    TNode<Smi>* cache_length_out,
+                    UpdateFeedbackMode update_feedback_mode);
 
   TNode<String> Typeof(SloppyTNode<Object> value);
 

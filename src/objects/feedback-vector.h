@@ -26,6 +26,8 @@ namespace internal {
 
 class IsCompiledScope;
 
+enum class UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback };
+
 enum class FeedbackSlotKind : uint8_t {
   // This kind means that the slot points to the middle of other slot
   // which occupies more than one feedback vector element.

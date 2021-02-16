@@ -26,7 +26,8 @@ namespace internal {
     BinaryOpAssembler binop_asm(state());                                    \
     TNode<Object> result =                                                   \
         binop_asm.Generator([&]() { return context; }, lhs, rhs, slot,       \
-                            [&]() { return feedback_vector; }, true, false); \
+                            [&]() { return feedback_vector; },               \
+                            UpdateFeedbackMode::kGuaranteedFeedback, false); \
                                                                              \
     Return(result);                                                          \
   }
@@ -45,18 +46,19 @@ DEF_BINOP(ShiftRightLogical_WithFeedback,
           Generate_ShiftRightLogicalWithFeedback)
 #undef DEF_BINOP
 
-#define DEF_BINOP(Name, Generator)                                        \
-  TF_BUILTIN(Name, CodeStubAssembler) {                                   \
-    auto lhs = Parameter<Object>(Descriptor::kLeft);                      \
-    auto rhs = Parameter<Object>(Descriptor::kRight);                     \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);          \
-                                                                          \
-    BinaryOpAssembler binop_asm(state());                                 \
-    TNode<Object> result = binop_asm.Generator(                           \
-        [&]() { return LoadContextFromBaseline(); }, lhs, rhs, slot,      \
-        [&]() { return LoadFeedbackVectorFromBaseline(); }, true, false); \
-                                                                          \
-    Return(result);                                                       \
+#define DEF_BINOP(Name, Generator)                                   \
+  TF_BUILTIN(Name, CodeStubAssembler) {                              \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                 \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                \
+    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);     \
+                                                                     \
+    BinaryOpAssembler binop_asm(state());                            \
+    TNode<Object> result = binop_asm.Generator(                      \
+        [&]() { return LoadContextFromBaseline(); }, lhs, rhs, slot, \
+        [&]() { return LoadFeedbackVectorFromBaseline(); },          \
+        UpdateFeedbackMode::kGuaranteedFeedback, false);             \
+                                                                     \
+    Return(result);                                                  \
   }
 DEF_BINOP(Add_Baseline, Generate_AddWithFeedback)
 DEF_BINOP(Subtract_Baseline, Generate_SubtractWithFeedback)
@@ -72,19 +74,20 @@ DEF_BINOP(ShiftRight_Baseline, Generate_ShiftRightWithFeedback)
 DEF_BINOP(ShiftRightLogical_Baseline, Generate_ShiftRightLogicalWithFeedback)
 #undef DEF_BINOP
 
-#define DEF_UNOP(Name, Generator)                                 \
-  TF_BUILTIN(Name, CodeStubAssembler) {                           \
-    auto value = Parameter<Object>(Descriptor::kValue);           \
-    auto context = Parameter<Context>(Descriptor::kContext);      \
-    auto feedback_vector =                                        \
-        Parameter<FeedbackVector>(Descriptor::kFeedbackVector);   \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);  \
-                                                                  \
-    UnaryOpAssembler a(state());                                  \
-    TNode<Object> result =                                        \
-        a.Generator(context, value, slot, feedback_vector, true); \
-                                                                  \
-    Return(result);                                               \
+#define DEF_UNOP(Name, Generator)                                \
+  TF_BUILTIN(Name, CodeStubAssembler) {                          \
+    auto value = Parameter<Object>(Descriptor::kValue);          \
+    auto context = Parameter<Context>(Descriptor::kContext);     \
+    auto feedback_vector =                                       \
+        Parameter<FeedbackVector>(Descriptor::kFeedbackVector);  \
+    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot); \
+                                                                 \
+    UnaryOpAssembler a(state());                                 \
+    TNode<Object> result =                                       \
+        a.Generator(context, value, slot, feedback_vector,       \
+                    UpdateFeedbackMode::kGuaranteedFeedback);    \
+                                                                 \
+    Return(result);                                              \
   }
 DEF_UNOP(BitwiseNot_WithFeedback, Generate_BitwiseNotWithFeedback)
 DEF_UNOP(Decrement_WithFeedback, Generate_DecrementWithFeedback)
@@ -92,18 +95,19 @@ DEF_UNOP(Increment_WithFeedback, Generate_IncrementWithFeedback)
 DEF_UNOP(Negate_WithFeedback, Generate_NegateWithFeedback)
 #undef DEF_UNOP
 
-#define DEF_UNOP(Name, Generator)                                 \
-  TF_BUILTIN(Name, CodeStubAssembler) {                           \
-    auto value = Parameter<Object>(Descriptor::kValue);           \
-    auto context = LoadContextFromBaseline();                     \
-    auto feedback_vector = LoadFeedbackVectorFromBaseline();      \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);  \
-                                                                  \
-    UnaryOpAssembler a(state());                                  \
-    TNode<Object> result =                                        \
-        a.Generator(context, value, slot, feedback_vector, true); \
-                                                                  \
-    Return(result);                                               \
+#define DEF_UNOP(Name, Generator)                                \
+  TF_BUILTIN(Name, CodeStubAssembler) {                          \
+    auto value = Parameter<Object>(Descriptor::kValue);          \
+    auto context = LoadContextFromBaseline();                    \
+    auto feedback_vector = LoadFeedbackVectorFromBaseline();     \
+    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot); \
+                                                                 \
+    UnaryOpAssembler a(state());                                 \
+    TNode<Object> result =                                       \
+        a.Generator(context, value, slot, feedback_vector,       \
+                    UpdateFeedbackMode::kGuaranteedFeedback);    \
+                                                                 \
+    Return(result);                                              \
   }
 DEF_UNOP(BitwiseNot_Baseline, Generate_BitwiseNotWithFeedback)
 DEF_UNOP(Decrement_Baseline, Generate_DecrementWithFeedback)

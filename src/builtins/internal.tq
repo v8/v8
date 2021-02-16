@@ -50,18 +50,18 @@ builtin BytecodeBudgetInterruptFromCode(implicit context: Context)(
 extern transitioning builtin ForInFilter(implicit context: Context)(
     JSAny, HeapObject): JSAny;
 extern enum ForInFeedback extends uint31 { kAny, ...}
-extern macro UpdateFeedback(SmiTagged<ForInFeedback>, FeedbackVector, uintptr);
-extern macro MaybeUpdateFeedback(
+extern enum UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback }
+extern macro UpdateFeedback(
     SmiTagged<ForInFeedback>, Undefined | FeedbackVector, uintptr,
-    constexpr bool);
+    constexpr UpdateFeedbackMode);
 
 @export
 transitioning macro ForInNextSlow(
     context: Context, slot: uintptr, receiver: JSAnyNotSmi, key: JSAny,
     cacheType: Object, maybeFeedbackVector: Undefined|FeedbackVector,
-    guaranteedFeedback: constexpr bool): JSAny {
+    guaranteedFeedback: constexpr UpdateFeedbackMode): JSAny {
   assert(receiver.map != cacheType);  // Handled on the fast path.
-  MaybeUpdateFeedback(
+  UpdateFeedback(
       SmiTag<ForInFeedback>(ForInFeedback::kAny), maybeFeedbackVector, slot,
       guaranteedFeedback);
   return ForInFilter(key, receiver);
@@ -82,7 +82,8 @@ transitioning builtin ForInNext(
   }
 
   return ForInNextSlow(
-      context, slot, receiver, key, cacheType, feedbackVector, true);
+      context, slot, receiver, key, cacheType, feedbackVector,
+      UpdateFeedbackMode::kGuaranteedFeedback);
 }
 
 }  // namespace internal

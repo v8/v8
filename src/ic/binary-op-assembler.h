@@ -23,105 +23,105 @@ class BinaryOpAssembler : public CodeStubAssembler {
   TNode<Object> Generate_AddWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool rhs_known_smi);
+      UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
   TNode<Object> Generate_SubtractWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool rhs_known_smi);
+      UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
   TNode<Object> Generate_MultiplyWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool rhs_known_smi);
+      UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
   TNode<Object> Generate_DivideWithFeedback(
       const LazyNode<Context>& context, TNode<Object> dividend,
       TNode<Object> divisor, TNode<UintPtrT> slot,
       const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool rhs_known_smi);
+      UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
   TNode<Object> Generate_ModulusWithFeedback(
       const LazyNode<Context>& context, TNode<Object> dividend,
       TNode<Object> divisor, TNode<UintPtrT> slot,
       const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool rhs_known_smi);
+      UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
   TNode<Object> Generate_ExponentiateWithFeedback(
       const LazyNode<Context>& context, TNode<Object> base,
       TNode<Object> exponent, TNode<UintPtrT> slot,
       const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool rhs_known_smi);
+      UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
   TNode<Object> Generate_BitwiseOrWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool /* unused */) {
+      UpdateFeedbackMode update_feedback_mode, bool /* unused */) {
     TVARIABLE(Smi, feedback);
     TNode<Object> result = Generate_BitwiseBinaryOpWithFeedback(
         Operation::kBitwiseOr, left, right, context, &feedback);
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
-                        guaranteed_feedback);
+    UpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
+                   update_feedback_mode);
     return result;
   }
 
   TNode<Object> Generate_BitwiseXorWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool /* unused */) {
+      UpdateFeedbackMode update_feedback_mode, bool /* unused */) {
     TVARIABLE(Smi, feedback);
     TNode<Object> result = Generate_BitwiseBinaryOpWithFeedback(
         Operation::kBitwiseXor, left, right, context, &feedback);
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
-                        guaranteed_feedback);
+    UpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
+                   update_feedback_mode);
     return result;
   }
 
   TNode<Object> Generate_BitwiseAndWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool /* unused */) {
+      UpdateFeedbackMode update_feedback_mode, bool /* unused */) {
     TVARIABLE(Smi, feedback);
     TNode<Object> result = Generate_BitwiseBinaryOpWithFeedback(
         Operation::kBitwiseAnd, left, right, context, &feedback);
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
-                        guaranteed_feedback);
+    UpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
+                   update_feedback_mode);
     return result;
   }
 
   TNode<Object> Generate_ShiftLeftWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool /* unused */) {
+      UpdateFeedbackMode update_feedback_mode, bool /* unused */) {
     TVARIABLE(Smi, feedback);
     TNode<Object> result = Generate_BitwiseBinaryOpWithFeedback(
         Operation::kShiftLeft, left, right, context, &feedback);
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
-                        guaranteed_feedback);
+    UpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
+                   update_feedback_mode);
     return result;
   }
 
   TNode<Object> Generate_ShiftRightWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool /* unused */) {
+      UpdateFeedbackMode update_feedback_mode, bool /* unused */) {
     TVARIABLE(Smi, feedback);
     TNode<Object> result = Generate_BitwiseBinaryOpWithFeedback(
         Operation::kShiftRight, left, right, context, &feedback);
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
-                        guaranteed_feedback);
+    UpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
+                   update_feedback_mode);
     return result;
   }
 
   TNode<Object> Generate_ShiftRightLogicalWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
-      bool guaranteed_feedback, bool /* unused */) {
+      UpdateFeedbackMode update_feedback_mode, bool /* unused */) {
     TVARIABLE(Smi, feedback);
     TNode<Object> result = Generate_BitwiseBinaryOpWithFeedback(
         Operation::kShiftRightLogical, left, right, context, &feedback);
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
-                        guaranteed_feedback);
+    UpdateFeedback(feedback.value(), maybe_feedback_vector(), slot,
+                   update_feedback_mode);
     return result;
   }
 
@@ -150,7 +150,8 @@ class BinaryOpAssembler : public CodeStubAssembler {
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
       const SmiOperation& smiOperation, const FloatOperation& floatOperation,
-      Operation op, bool guaranteed_feedback, bool rhs_known_smi);
+      Operation op, UpdateFeedbackMode update_feedback_mode,
+      bool rhs_known_smi);
 
   TNode<Object> Generate_BitwiseBinaryOpWithOptionalFeedback(
       Operation bitwise_op, TNode<Object> left, TNode<Object> right,

@@ -698,7 +698,7 @@ TF_BUILTIN(ForInPrepare, CodeStubAssembler) {
   TNode<FixedArray> cache_array;
   TNode<Smi> cache_length;
   ForInPrepare(enumerator, vector_index, feedback_vector, &cache_array,
-               &cache_length, true);
+               &cache_length, UpdateFeedbackMode::kGuaranteedFeedback);
   Return(cache_array, cache_length);
 }
 

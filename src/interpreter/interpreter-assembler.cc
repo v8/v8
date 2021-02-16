@@ -1524,7 +1524,7 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
   MaybeUpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
-                      slot_index, false);
+                      slot_index);
 
   SetAccumulator(var_result.value());
   Dispatch();

@@ -9708,13 +9708,25 @@ CodeStubAssembler::LoadFeedbackVectorForStubWithTrampoline() {
   return CAST(LoadFeedbackVector(function));
 }
 
+void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
+                                       TNode<HeapObject> maybe_feedback_vector,
+                                       TNode<UintPtrT> slot_id,
+                                       UpdateFeedbackMode mode) {
+  switch (mode) {
+    case UpdateFeedbackMode::kOptionalFeedback:
+      MaybeUpdateFeedback(feedback, maybe_feedback_vector, slot_id);
+      break;
+    case UpdateFeedbackMode::kGuaranteedFeedback:
+      CSA_ASSERT(this, IsFeedbackVector(maybe_feedback_vector));
+      UpdateFeedback(feedback, CAST(maybe_feedback_vector), slot_id);
+      break;
+  }
+}
+
 void CodeStubAssembler::MaybeUpdateFeedback(TNode<Smi> feedback,
                                             TNode<HeapObject> maybe_vector,
-                                            TNode<UintPtrT> slot_id,
-                                            bool guaranteed_feedback) {
+                                            TNode<UintPtrT> slot_id) {
   Label end(this);
-  // If feedback_vector is not valid, then nothing to do.
-  // TODO(v8:11429): Use guaranteed_feedback to skip this Goto.
   GotoIf(IsUndefined(maybe_vector), &end);
   {
     UpdateFeedback(feedback, CAST(maybe_vector), slot_id);
@@ -9722,6 +9734,7 @@ void CodeStubAssembler::MaybeUpdateFeedback(TNode<Smi> feedback,
   }
   BIND(&end);
 }
+
 void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
                                        TNode<FeedbackVector> feedback_vector,
                                        TNode<UintPtrT> slot_id) {
@@ -12592,7 +12605,7 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
                                      TNode<HeapObject> maybe_feedback_vector,
                                      TNode<FixedArray>* cache_array_out,
                                      TNode<Smi>* cache_length_out,
-                                     bool guaranteed_feedback) {
+                                     UpdateFeedbackMode update_feedback_mode) {
   // Check if we're using an enum cache.
   TVARIABLE(FixedArray, cache_array);
   TVARIABLE(Smi, cache_length);
@@ -12621,8 +12634,7 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
         IntPtrLessThanOrEqual(enum_length, enum_indices_length),
         static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices),
         static_cast<int>(ForInFeedback::kEnumCacheKeys));
-    MaybeUpdateFeedback(feedback, maybe_feedback_vector, slot,
-                        guaranteed_feedback);
+    UpdateFeedback(feedback, maybe_feedback_vector, slot, update_feedback_mode);
 
     cache_array = enum_keys;
     cache_length = SmiTag(Signed(enum_length));
@@ -12635,8 +12647,8 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
     TNode<FixedArray> array_enumerator = CAST(enumerator);
 
     // Record the fact that we hit the for-in slow-path.
-    MaybeUpdateFeedback(SmiConstant(ForInFeedback::kAny), maybe_feedback_vector,
-                        slot, guaranteed_feedback);
+    UpdateFeedback(SmiConstant(ForInFeedback::kAny), maybe_feedback_vector,
+                   slot, update_feedback_mode);
 
     cache_array = array_enumerator;
     cache_length = LoadFixedArrayBaseLength(array_enumerator);
