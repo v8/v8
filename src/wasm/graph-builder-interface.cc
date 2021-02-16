@@ -258,8 +258,8 @@ class WasmGraphBuildingInterface {
     // wrap the fallthru values on the stack.
     if (block->is_loop()) {
       if (FLAG_wasm_loop_unrolling && block->reachable()) {
-        BuildLoopExits(decoder, ssa_env_, block);
-        WrapLocalsAtLoopExit(decoder, ssa_env_, block);
+        BuildLoopExits(decoder, block);
+        WrapLocalsAtLoopExit(decoder, block);
         uint32_t arity = block->end_merge.arity;
         if (arity > 0) {
           Value* stack_base = decoder->stack_value(arity);
@@ -384,57 +384,11 @@ class WasmGraphBuildingInterface {
     BUILD(TableSet, imm.index, index.node, value.node, decoder->position());
   }
 
-  void BuildLoopExits(FullDecoder* decoder, SsaEnv* env, Control* loop) {
-    BUILD(LoopExit, loop->loop_node);
-    env->control = control();
-    env->effect = effect();
-  }
-
-  void WrapLocalsAtLoopExit(FullDecoder* decoder, SsaEnv* env, Control* loop) {
-    for (uint32_t index = 0; index < decoder->num_locals(); index++) {
-      if (loop->loop_assignments->Contains(static_cast<int>(index))) {
-        env->locals[index] = builder_->LoopExitValue(
-            env->locals[index],
-            decoder->local_type(index).machine_representation());
-      }
-    }
-    if (loop->loop_assignments->Contains(decoder->num_locals())) {
-#define WRAP_CACHE_FIELD(field)                                           \
-  if (env->instance_cache.field != nullptr) {                             \
-    env->instance_cache.field = builder_->LoopExitValue(                  \
-        env->instance_cache.field, MachineType::PointerRepresentation()); \
-  }
-
-      WRAP_CACHE_FIELD(mem_start);
-      WRAP_CACHE_FIELD(mem_size);
-      WRAP_CACHE_FIELD(mem_mask);
-#undef WRAP_CACHE_FIELD
-    }
-  }
-
-  void BuildNestedLoopExits(FullDecoder* decoder, SsaEnv* env,
-                            uint32_t depth_limit, bool wrap_exit_values,
-                            StackValueVector& stack_values) {
-    DCHECK(FLAG_wasm_loop_unrolling);
-    for (uint32_t i = 0; i < depth_limit; i++) {
-      Control* control = decoder->control_at(i);
-      if (!control->is_loop()) continue;
-      BuildLoopExits(decoder, env, control);
-      for (Value& value : stack_values) {
-        value.node = builder_->LoopExitValue(
-            value.node, value.type.machine_representation());
-      }
-      if (wrap_exit_values) {
-        WrapLocalsAtLoopExit(decoder, env, control);
-      }
-    }
-  }
-
   void Unreachable(FullDecoder* decoder) {
     StackValueVector values;
     if (FLAG_wasm_loop_unrolling) {
-      BuildNestedLoopExits(decoder, ssa_env_, decoder->control_depth() - 1,
-                           false, values);
+      BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
+                           values);
     }
     BUILD(Trap, wasm::TrapReason::kTrapUnreachable, decoder->position());
   }
@@ -469,8 +423,8 @@ class WasmGraphBuildingInterface {
       SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
       SetEnv(exit_env);
       auto stack_values = CopyStackValues(decoder, ret_count);
-      BuildNestedLoopExits(decoder, exit_env, decoder->control_depth() - 1,
-                           false, stack_values);
+      BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
+                           stack_values);
       GetNodes(values.begin(), VectorOf(stack_values));
     } else {
       Value* stack_base =
@@ -495,7 +449,7 @@ class WasmGraphBuildingInterface {
         SetEnv(exit_env);
         uint32_t value_count = target->br_merge()->arity;
         auto stack_values = CopyStackValues(decoder, value_count);
-        BuildNestedLoopExits(decoder, exit_env, depth, true, stack_values);
+        BuildNestedLoopExits(decoder, depth, true, stack_values);
         MergeValuesInto(decoder, target, target->br_merge(),
                         stack_values.data());
         SetEnv(internal_env);
@@ -702,14 +656,14 @@ class WasmGraphBuildingInterface {
       args[i] = value_args[i].node;
     }
     BUILD(Throw, imm.index, imm.exception, VectorOf(args), decoder->position());
-    builder_->TerminateThrow(effect(), control());
+    TerminateThrow(decoder);
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     TFNode* exception = block->try_info->exception;
     BUILD(Rethrow, exception);
-    builder_->TerminateThrow(effect(), control());
+    TerminateThrow(decoder);
   }
 
   void CatchException(FullDecoder* decoder,
@@ -767,12 +721,16 @@ class WasmGraphBuildingInterface {
       SetEnv(block->try_info->catch_env);
       if (depth == decoder->control_depth() - 1) {
         builder_->Rethrow(block->try_info->exception);
-        builder_->TerminateThrow(effect(), control());
+        TerminateThrow(decoder);
         current_catch_ = block->previous_catch;
         return;
       }
       DCHECK(decoder->control_at(depth)->is_try());
       TryInfo* target_try = decoder->control_at(depth)->try_info;
+      if (FLAG_wasm_loop_unrolling) {
+        StackValueVector stack_values;
+        BuildNestedLoopExits(decoder, depth, true, stack_values);
+      }
       Goto(decoder, target_try->catch_env);
 
       // Create or merge the exception.
@@ -1102,9 +1060,13 @@ class WasmGraphBuildingInterface {
 
   TFNode* control() { return builder_->control(); }
 
+  uint32_t control_depth_of_current_catch(FullDecoder* decoder) {
+    return decoder->control_depth() - 1 - current_catch_;
+  }
+
   TryInfo* current_try_info(FullDecoder* decoder) {
     DCHECK_LT(current_catch_, decoder->control_depth());
-    return decoder->control_at(decoder->control_depth() - 1 - current_catch_)
+    return decoder->control_at(control_depth_of_current_catch(decoder))
         ->try_info;
   }
 
@@ -1174,6 +1136,11 @@ class WasmGraphBuildingInterface {
     exception_env->effect = if_exception;
     SetEnv(exception_env);
     TryInfo* try_info = current_try_info(decoder);
+    if (FLAG_wasm_loop_unrolling) {
+      StackValueVector values;
+      BuildNestedLoopExits(decoder, control_depth_of_current_catch(decoder),
+                           true, values);
+    }
     Goto(decoder, try_info->catch_env);
     if (try_info->exception == nullptr) {
       DCHECK_EQ(SsaEnv::kReached, try_info->catch_env->state);
@@ -1416,6 +1383,68 @@ class WasmGraphBuildingInterface {
       case kRef:
         BUILD(ReturnCallRef, sig_index, VectorOf(arg_nodes), null_check,
               decoder->position());
+        break;
+    }
+  }
+
+  void BuildLoopExits(FullDecoder* decoder, Control* loop) {
+    BUILD(LoopExit, loop->loop_node);
+    ssa_env_->control = control();
+    ssa_env_->effect = effect();
+  }
+
+  void WrapLocalsAtLoopExit(FullDecoder* decoder, Control* loop) {
+    for (uint32_t index = 0; index < decoder->num_locals(); index++) {
+      if (loop->loop_assignments->Contains(static_cast<int>(index))) {
+        ssa_env_->locals[index] = builder_->LoopExitValue(
+            ssa_env_->locals[index],
+            decoder->local_type(index).machine_representation());
+      }
+    }
+    if (loop->loop_assignments->Contains(decoder->num_locals())) {
+#define WRAP_CACHE_FIELD(field)                                                \
+  if (ssa_env_->instance_cache.field != nullptr) {                             \
+    ssa_env_->instance_cache.field = builder_->LoopExitValue(                  \
+        ssa_env_->instance_cache.field, MachineType::PointerRepresentation()); \
+  }
+
+      WRAP_CACHE_FIELD(mem_start);
+      WRAP_CACHE_FIELD(mem_size);
+      WRAP_CACHE_FIELD(mem_mask);
+#undef WRAP_CACHE_FIELD
+    }
+  }
+
+  void BuildNestedLoopExits(FullDecoder* decoder, uint32_t depth_limit,
+                            bool wrap_exit_values,
+                            StackValueVector& stack_values) {
+    DCHECK(FLAG_wasm_loop_unrolling);
+    for (uint32_t i = 0; i < depth_limit; i++) {
+      Control* control = decoder->control_at(i);
+      if (!control->is_loop()) continue;
+      BuildLoopExits(decoder, control);
+      for (Value& value : stack_values) {
+        value.node = builder_->LoopExitValue(
+            value.node, value.type.machine_representation());
+      }
+      if (wrap_exit_values) {
+        WrapLocalsAtLoopExit(decoder, control);
+      }
+    }
+  }
+
+  void TerminateThrow(FullDecoder* decoder) {
+    if (FLAG_wasm_loop_unrolling) {
+      SsaEnv* internal_env = ssa_env_;
+      SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
+      SetEnv(exit_env);
+      StackValueVector stack_values;
+      BuildNestedLoopExits(decoder, decoder->control_depth(), false,
+                           stack_values);
+      builder_->TerminateThrow(effect(), control());
+      SetEnv(internal_env);
+    } else {
+      builder_->TerminateThrow(effect(), control());
     }
   }
 };
