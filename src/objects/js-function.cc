@@ -812,11 +812,48 @@ void JSFunction::PrintName(FILE* out) {
   PrintF(out, "%s", shared().DebugNameCStr().get());
 }
 
+namespace {
+
+bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
+  DCHECK(map.IsJSFunctionMap());
+  if (map.NumberOfOwnDescriptors() < JSFunction::kMinDescriptorsForFastBind) {
+    return false;
+  }
+  DCHECK(!map.is_dictionary_map());
+  HeapObject value;
+  ReadOnlyRoots roots(isolate);
+  auto descriptors = map.instance_descriptors(kRelaxedLoad);
+  InternalIndex kNameIndex{JSFunction::kNameDescriptorIndex};
+  if (descriptors.GetKey(kNameIndex) != roots.name_string() ||
+      !descriptors.GetValue(kNameIndex)
+           .GetHeapObjectIfStrong(isolate, &value)) {
+    return false;
+  }
+  return value.IsAccessorInfo();
+}
+
+}  // namespace
+
 Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
+  // Below we use the same fast-path that we already established for
+  // Function.prototype.bind(), where we avoid a slow "name" property
+  // lookup if the DescriptorArray for the |function| still has the
+  // "name" property at the original spot and that property is still
+  // implemented via an AccessorInfo (which effectively means that
+  // it must be the FunctionNameGetter).
   Isolate* isolate = function->GetIsolate();
-  Handle<Object> name =
-      JSReceiver::GetDataProperty(function, isolate->factory()->name_string());
-  if (name->IsString()) return Handle<String>::cast(name);
+  if (!UseFastFunctionNameLookup(isolate, function->map())) {
+    // Normally there should be an else case for the fast-path check
+    // above, which should invoke JSFunction::GetName(), since that's
+    // what the FunctionNameGetter does, however GetDataProperty() has
+    // never invoked accessors and thus always returned undefined for
+    // JSFunction where the "name" property is untouched, so we retain
+    // that exact behavior and go with SharedFunctionInfo::DebugName()
+    // in case of the fast-path.
+    Handle<Object> name =
+        GetDataProperty(function, isolate->factory()->name_string());
+    if (name->IsString()) return Handle<String>::cast(name);
+  }
   return SharedFunctionInfo::DebugName(handle(function->shared(), isolate));
 }
 
