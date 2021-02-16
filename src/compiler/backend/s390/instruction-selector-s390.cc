@@ -2541,7 +2541,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16Neg)                \
   V(I8x16Abs)                \
   V(I8x16Popcnt)             \
-  V(V64x2AllTrue)            \
   V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \
@@ -2560,6 +2559,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
 
 #define SIMD_BOOL_LIST(V) \
   V(V128AnyTrue)          \
+  V(V64x2AllTrue)         \
   V(V32x4AllTrue)         \
   V(V16x8AllTrue)         \
   V(V8x16AllTrue)

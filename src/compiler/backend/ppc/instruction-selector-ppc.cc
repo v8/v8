@@ -2281,7 +2281,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8SConvertI8x16High) \
   V(I16x8UConvertI8x16Low)  \
   V(I16x8UConvertI8x16High) \
-  V(V64x2AllTrue)           \
   V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \
@@ -2300,6 +2299,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 #define SIMD_BOOL_LIST(V) \
   V(V128AnyTrue)          \
+  V(V64x2AllTrue)         \
   V(V32x4AllTrue)         \
   V(V16x8AllTrue)         \
   V(V8x16AllTrue)
