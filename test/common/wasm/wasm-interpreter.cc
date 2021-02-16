@@ -584,10 +584,13 @@ struct InterpreterCode {
 class SideTable : public ZoneObject {
  public:
   ControlTransferMap map_;
+  // Map rethrow instructions to the catch block index they target.
+  ZoneMap<pc_t, int> rethrow_map_;
   int32_t max_stack_height_ = 0;
+  int32_t max_control_stack_height = 0;
 
   SideTable(Zone* zone, const WasmModule* module, InterpreterCode* code)
-      : map_(zone) {
+      : map_(zone), rethrow_map_(zone) {
     // Create a zone for all temporary objects.
     Zone control_transfer_zone(zone->allocator(), ZONE_NAME);
 
@@ -608,8 +611,13 @@ class SideTable : public ZoneObject {
         const byte* from_pc;
         const int32_t stack_height;
       };
+      struct CatchTarget {
+        int exception_index;
+        int target_control_index;
+        const byte* pc;
+      };
       const byte* target = nullptr;
-      ZoneVector<std::pair<int, const byte*>> catch_targets;
+      ZoneVector<CatchTarget> catch_targets;
       int32_t target_stack_height;
       // Arity when branching to this label.
       const uint32_t arity;
@@ -625,8 +633,8 @@ class SideTable : public ZoneObject {
         target = pc;
       }
 
-      void Bind(const byte* pc, int exception_index) {
-        catch_targets.emplace_back(exception_index, pc);
+      void Bind(const byte* pc, int exception_index, int target_control_index) {
+        catch_targets.push_back({exception_index, target_control_index, pc});
       }
 
       // Reference this label from the given location.
@@ -657,17 +665,18 @@ class SideTable : public ZoneObject {
                 offset, ZoneVector<CatchControlTransferEntry>(zone));
             auto& catch_entries = p.first->second;
             for (auto& p : catch_targets) {
-              auto pcdiff = static_cast<pcdiff_t>(p.second - ref.from_pc);
+              auto pcdiff = static_cast<pcdiff_t>(p.pc - ref.from_pc);
               TRACE(
                   "control transfer @%zu: Δpc %d, stack %u->%u, exn: %d = "
                   "-%u\n",
                   offset, pcdiff, ref.stack_height, target_stack_height,
-                  p.first, spdiff);
+                  p.exception_index, spdiff);
               CatchControlTransferEntry entry;
               entry.pc_diff = pcdiff;
               entry.sp_diff = spdiff;
               entry.target_arity = arity;
-              entry.exception_index = p.first;
+              entry.exception_index = p.exception_index;
+              entry.target_control_index = p.target_control_index;
               catch_entries.emplace_back(entry);
             }
           }
@@ -709,9 +718,8 @@ class SideTable : public ZoneObject {
     // bytecodes are within the true or false block of an else.
     ZoneVector<Control> control_stack(&control_transfer_zone);
     // It also maintains a stack of all nested {try} blocks to resolve local
-    // handler targets for potentially throwing operations. These exceptional
-    // control transfers are treated just like other branches in the resulting
-    // map. This stack contains indices into the above control stack.
+    // handler targets for potentially throwing operations. This stack contains
+    // indices into the above control stack.
     ZoneVector<size_t> exception_stack(zone);
     int32_t stack_height = 0;
     uint32_t func_arity =
@@ -762,6 +770,8 @@ class SideTable : public ZoneObject {
               WasmOpcodes::OpcodeName(opcode),
               static_cast<uint32_t>(c->pc - code->start));
       }
+      max_control_stack_height = std::max(
+          max_control_stack_height, static_cast<int>(control_stack.size()));
       switch (opcode) {
         case kExprBlock:
         case kExprLoop: {
@@ -817,9 +827,7 @@ class SideTable : public ZoneObject {
           if (*c->pc == kExprIf) {
             copy_unreachable();
             TRACE("control @%u: Else\n", i.pc_offset());
-            if (!unreachable) {
-              c->end_label->Ref(i.pc(), stack_height);
-            }
+            if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
             DCHECK_NOT_NULL(c->else_label);
             c->else_label->Bind(i.pc() + 1);
             c->else_label->Finish(&map_, code->start);
@@ -836,11 +844,11 @@ class SideTable : public ZoneObject {
             }
             copy_unreachable();
             TRACE("control @%u: CatchAll\n", i.pc_offset());
-            if (!unreachable) {
-              c->end_label->Ref(i.pc(), stack_height);
-            }
+            if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
             DCHECK_NOT_NULL(c->else_label);
-            c->else_label->Bind(i.pc() + 1, kCatchAllExceptionIndex);
+            int control_index = static_cast<int>(control_stack.size()) - 1;
+            c->else_label->Bind(i.pc() + 1, kCatchAllExceptionIndex,
+                                control_index);
             c->else_label->Finish(&map_, code->start);
             c->else_label = nullptr;
             DCHECK_IMPLIES(!unreachable,
@@ -867,6 +875,12 @@ class SideTable : public ZoneObject {
           copy_unreachable();
           break;
         }
+        case kExprRethrow: {
+          BranchDepthImmediate<Decoder::kNoValidation> imm(&i, i.pc() + 1);
+          int index = static_cast<int>(control_stack.size()) - 1 - imm.depth;
+          rethrow_map_.emplace(i.pc() - i.start(), index);
+          break;
+        }
         case kExprCatch: {
           if (!exception_stack.empty() &&
               exception_stack.back() == control_stack.size() - 1) {
@@ -877,12 +891,12 @@ class SideTable : public ZoneObject {
           Control* c = &control_stack.back();
           copy_unreachable();
           TRACE("control @%u: Catch\n", i.pc_offset());
-          if (!unreachable) {
-            c->end_label->Ref(i.pc(), stack_height);
-          }
+          if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
 
           DCHECK_NOT_NULL(c->else_label);
-          c->else_label->Bind(i.pc() + imm.length + 1, imm.index);
+          int control_index = static_cast<int>(control_stack.size()) - 1;
+          c->else_label->Bind(i.pc() + imm.length + 1, imm.index,
+                              control_index);
 
           DCHECK_IMPLIES(!unreachable,
                          stack_height >= c->end_label->target_stack_height);
@@ -907,7 +921,9 @@ class SideTable : public ZoneObject {
                 DCHECK_EQ(*c->pc, kExprTry);
                 Control* next_try_block =
                     &control_stack[exception_stack.back()];
-                c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex);
+                constexpr int kUnusedControlIndex = -1;
+                c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,
+                                    kUnusedControlIndex);
                 if (!unreachable) {
                   next_try_block->else_label->Ref(
                       i.pc(), c->else_label->target_stack_height);
@@ -931,7 +947,9 @@ class SideTable : public ZoneObject {
           const size_t new_stack_size = control_stack.size() - 1;
           const size_t max_depth = new_stack_size - 1;
           if (imm.depth < max_depth) {
-            c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex);
+            constexpr int kUnusedControlIndex = -1;
+            c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,
+                                kUnusedControlIndex);
             c->else_label->Finish(&map_, code->start);
             Control* target = &control_stack[max_depth - imm.depth];
             DCHECK_EQ(*target->pc, kExprTry);
@@ -1233,6 +1251,7 @@ class WasmInterpreterInternals {
       InterpreterCode* code = frame.code;
       if (catchable && code->side_table->HasCatchEntryAt(frame.pc)) {
         TRACE("----- HANDLE -----\n");
+        HandleScope scope(isolate_);
         Handle<Object> exception =
             handle(isolate->pending_exception(), isolate);
         if (JumpToHandlerDelta(code, exception, &frame.pc)) {
@@ -1248,6 +1267,10 @@ class WasmInterpreterInternals {
       TRACE("  => drop frame #%zu (#%u @%zu)\n", frames_.size() - 1,
             code->function->func_index, frame.pc);
       ResetStack(frame.sp);
+      if (!frame.caught_exception_stack.is_null()) {
+        isolate_->global_handles()->Destroy(
+            frame.caught_exception_stack.location());
+      }
       frames_.pop_back();
     }
     TRACE("----- UNWIND -----\n");
@@ -1267,6 +1290,8 @@ class WasmInterpreterInternals {
     sp_t plimit() { return sp + code->function->sig->parameter_count(); }
     // Limit of locals.
     sp_t llimit() { return plimit() + code->locals.type_list.size(); }
+
+    Handle<FixedArray> caught_exception_stack;
   };
 
   // Safety wrapper for values on the operand stack represented as {WasmValue}.
@@ -1350,7 +1375,8 @@ class WasmInterpreterInternals {
     // The parameters will overlap the arguments already on the stack.
     DCHECK_GE(StackHeight(), arity);
 
-    frames_.push_back({code, 0, StackHeight() - arity});
+    frames_.push_back(
+        {code, 0, StackHeight() - arity, Handle<FixedArray>::null()});
     frames_.back().pc = InitLocals(code);
     TRACE("  => PushFrame #%zu (#%u @%zu)\n", frames_.size() - 1,
           code->function->func_index, frames_.back().pc);
@@ -1410,6 +1436,7 @@ class WasmInterpreterInternals {
       // No handler in this frame means that we should rethrow to the caller.
       return false;
     }
+    CatchControlTransferEntry* handler = nullptr;
     for (auto& entry : it->second) {
       if (entry.exception_index < 0) {
         ResetStack(StackHeight() - entry.sp_diff);
@@ -1419,21 +1446,34 @@ class WasmInterpreterInternals {
           // (for the implicit rethrow) or in the delegate target.
           return JumpToHandlerDelta(code, exception_object, pc);
         }
-        DCHECK_EQ(entry.exception_index, kCatchAllExceptionIndex);
-        return true;
+        handler = &entry;
+        break;
       } else if (MatchingExceptionTag(exception_object,
                                       entry.exception_index)) {
+        handler = &entry;
         const WasmException* exception =
             &module()->exceptions[entry.exception_index];
         const FunctionSig* sig = exception->sig;
         int catch_in_arity = static_cast<int>(sig->parameter_count());
         DoUnpackException(exception, exception_object);
         DoStackTransfer(entry.sp_diff + catch_in_arity, catch_in_arity);
-        *pc += entry.pc_diff;
-        return true;
+        *pc += handler->pc_diff;
+        break;
       }
     }
-    return false;
+    if (!handler) return false;
+    if (frames_.back().caught_exception_stack.is_null()) {
+      Handle<FixedArray> caught_exception_stack =
+          isolate_->factory()->NewFixedArray(
+              code->side_table->max_control_stack_height);
+      caught_exception_stack->FillWithHoles(
+          0, code->side_table->max_control_stack_height);
+      frames_.back().caught_exception_stack =
+          isolate_->global_handles()->Create(*caught_exception_stack);
+    }
+    frames_.back().caught_exception_stack->set(handler->target_control_index,
+                                               *exception_object);
+    return true;
   }
 
   int DoBreak(InterpreterCode* code, pc_t pc, size_t depth) {
@@ -1464,6 +1504,10 @@ class WasmInterpreterInternals {
                 size_t arity) {
     DCHECK_GT(frames_.size(), 0);
     spdiff_t sp_diff = static_cast<spdiff_t>(StackHeight() - frames_.back().sp);
+    if (!frames_.back().caught_exception_stack.is_null()) {
+      isolate_->global_handles()->Destroy(
+          frames_.back().caught_exception_stack.location());
+    }
     frames_.pop_back();
     if (frames_.empty()) {
       // A return from the last frame terminates the execution.
@@ -3199,8 +3243,8 @@ class WasmInterpreterInternals {
 
   // Throw a given existing exception. Returns true if the exception is being
   // handled locally by the interpreter, false otherwise (interpreter exits).
-  bool DoRethrowException(WasmValue exception) {
-    isolate_->ReThrow(*exception.to_externref());
+  bool DoRethrowException(Handle<Object> exception) {
+    isolate_->ReThrow(*exception);
     return HandleException(isolate_) == WasmInterpreter::HANDLED;
   }
 
@@ -3407,13 +3451,18 @@ class WasmInterpreterInternals {
           continue;  // Do not bump pc.
         }
         case kExprRethrow: {
-          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-          WasmValue ex = Pop();
-          if (ex.to_externref()->IsNull()) {
-            return DoTrap(kTrapRethrowNull, pc);
-          }
+          BranchDepthImmediate<Decoder::kNoValidation> imm(&decoder,
+                                                           code->at(pc + 1));
+          HandleScope scope(isolate_);  // Avoid leaking handles.
+          DCHECK(!frames_.back().caught_exception_stack.is_null());
+          int index = code->side_table->rethrow_map_[pc];
+          DCHECK_LE(0, index);
+          DCHECK_LT(index, frames_.back().caught_exception_stack->Size());
+          Handle<Object> exception = handle(
+              frames_.back().caught_exception_stack->get(index), isolate_);
+          DCHECK(!exception->IsTheHole());
           CommitPc(pc);  // Needed for local unwinding.
-          if (!DoRethrowException(ex)) return;
+          if (!DoRethrowException(exception)) return;
           ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
           continue;  // Do not bump pc.
         }

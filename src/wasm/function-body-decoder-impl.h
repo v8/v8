@@ -2034,7 +2034,6 @@ class WasmDecoder : public Decoder {
       case kExprBrIf:
       case kExprBrTable:
       case kExprIf:
-      case kExprRethrow:
         return {1, 0};
       case kExprLocalGet:
       case kExprGlobalGet:
@@ -2072,6 +2071,7 @@ class WasmDecoder : public Decoder {
       case kExprTry:
       case kExprCatch:
       case kExprDelegate:
+      case kExprRethrow:
       case kExprNop:
       case kExprNopForTestingUnsupportedInLiftoff:
       case kExprReturn:

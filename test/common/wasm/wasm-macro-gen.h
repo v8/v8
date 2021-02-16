@@ -183,6 +183,10 @@
 #define WASM_TRY_CATCH_T(t, trystmt, catchstmt, except)                    \
   kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
       except, catchstmt, kExprEnd
+#define WASM_TRY_CATCH_CATCH_T(t, trystmt, except1, catchstmt1, except2,   \
+                               catchstmt2)                                 \
+  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
+      except1, catchstmt1, kExprCatch, except2, catchstmt2, kExprEnd
 #define WASM_TRY_CATCH_R(t, trystmt, catchstmt) \
   kExprTry, WASM_REF_TYPE(t), trystmt, kExprCatch, catchstmt, kExprEnd
 #define WASM_TRY_CATCH_ALL_T(t, trystmt, catchstmt)                       \
@@ -468,6 +472,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   index, val,                                                               \
       static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       alignment, ZERO_OFFSET
+#define WASM_RETHROW(index) kExprRethrow, static_cast<byte>(index)
 
 #define WASM_CALL_FUNCTION0(index) kExprCallFunction, static_cast<byte>(index)
 #define WASM_CALL_FUNCTION(index, ...) \
