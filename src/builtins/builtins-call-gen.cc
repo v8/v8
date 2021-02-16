@@ -70,9 +70,8 @@ TF_BUILTIN(Call_ReceiverIsNullOrUndefined_Baseline,
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = LoadContextFromBaseline();
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsNullOrUndefined, context, target,
                   argc);
 }
@@ -83,9 +82,8 @@ TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_Baseline,
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = LoadContextFromBaseline();
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsNotNullOrUndefined, context, target,
                   argc);
 }
@@ -95,9 +93,8 @@ TF_BUILTIN(Call_ReceiverIsAny_Baseline, CallOrConstructBuiltinsAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = LoadContextFromBaseline();
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsAny, context, target, argc);
 }
 
@@ -107,9 +104,8 @@ TF_BUILTIN(Call_ReceiverIsNullOrUndefined_WithFeedback,
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsNullOrUndefined, context, target,
                   argc);
 }
@@ -120,9 +116,8 @@ TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_WithFeedback,
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsNotNullOrUndefined, context, target,
                   argc);
 }
@@ -132,9 +127,8 @@ TF_BUILTIN(Call_ReceiverIsAny_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsAny, context, target, argc);
 }
 
@@ -469,9 +463,8 @@ TF_BUILTIN(CallWithArrayLike_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
@@ -491,9 +484,8 @@ TF_BUILTIN(CallWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
   auto args_count = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   auto context = LoadContextFromBaseline();
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
@@ -504,9 +496,8 @@ TF_BUILTIN(CallWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto args_count = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 

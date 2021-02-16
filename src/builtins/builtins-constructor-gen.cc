@@ -43,7 +43,7 @@ TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
   auto target = Parameter<Object>(Descriptor::kTarget);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   // TODO(verwaest): Only emit context loads where necessary
   auto context = LoadContextFromBaseline();
@@ -53,8 +53,7 @@ TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, feedback_vector,
-                           Unsigned(ChangeInt32ToIntPtr(slot)),
+  CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -72,12 +71,11 @@ TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, feedback_vector,
-                           Unsigned(ChangeInt32ToIntPtr(slot)),
+  CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -104,12 +102,11 @@ TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, feedback_vector,
-                           Unsigned(ChangeInt32ToIntPtr(slot)),
+  CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -136,7 +133,7 @@ TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
   auto spread = Parameter<Object>(Descriptor::kSpread);
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   // TODO(verwaest): Only emit context loads where necessary
   auto context = LoadContextFromBaseline();
@@ -146,8 +143,7 @@ TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, feedback_vector,
-                           Unsigned(ChangeInt32ToIntPtr(slot)),
+  CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -166,12 +162,11 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<HeapObject>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, feedback_vector,
-                           Unsigned(ChangeInt32ToIntPtr(slot)),
+  CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 

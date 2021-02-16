@@ -1140,18 +1140,16 @@ class CallWithSpreadDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallWithSpreadDescriptor, CallInterfaceDescriptor)
 };
 
-// TODO(v8:11429,jgruber): Pass the slot as UintPtr.
 class CallWithSpread_BaselineDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_VARARGS(kTarget, kArgumentsCount, kSpread, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kArgumentsCount
                          MachineType::AnyTagged(),  // kSpread
-                         MachineType::Int32())      // kSlot
+                         MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(CallWithSpread_BaselineDescriptor, CallInterfaceDescriptor)
 };
 
-// TODO(jgruber): Pass the slot as UintPtr.
 class CallWithSpread_WithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_VARARGS(kTarget, kArgumentsCount, kSpread, kSlot,
@@ -1159,7 +1157,7 @@ class CallWithSpread_WithFeedbackDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kArgumentsCount
                          MachineType::AnyTagged(),  // kSpread
-                         MachineType::Int32(),      // kSlot
+                         MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kFeedbackVector
   DECLARE_DESCRIPTOR(CallWithSpread_WithFeedbackDescriptor,
                      CallInterfaceDescriptor)
@@ -1173,14 +1171,13 @@ class CallWithArrayLikeDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallWithArrayLikeDescriptor, CallInterfaceDescriptor)
 };
 
-// TODO(jgruber): Pass the slot as UintPtr.
 class CallWithArrayLike_WithFeedbackDescriptor
     : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kArgumentsList, kSlot, kFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kArgumentsList
-                         MachineType::Int32(),      // kSlot
+                         MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kFeedbackVector
   DECLARE_DESCRIPTOR(CallWithArrayLike_WithFeedbackDescriptor,
                      CallInterfaceDescriptor)
@@ -1209,13 +1206,12 @@ class ConstructWithSpreadDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ConstructWithSpreadDescriptor, CallInterfaceDescriptor)
 };
 
-// TODO(v8:11429,jgruber): Pass the slot as UintPtr.
 class ConstructWithSpread_BaselineDescriptor : public CallInterfaceDescriptor {
  public:
   // Note: kSlot comes before kSpread since as an untagged value it must be
   // passed in a register.
   DEFINE_JS_PARAMETERS(kSlot, kSpread)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32(),      // kSlot
+  DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr(),    // kSlot
                             MachineType::AnyTagged())  // kSpread
   DECLARE_DESCRIPTOR(ConstructWithSpread_BaselineDescriptor,
                      CallInterfaceDescriptor)
@@ -1230,14 +1226,13 @@ class ConstructWithSpread_BaselineDescriptor : public CallInterfaceDescriptor {
   static const int kStackArgumentsCount = kPassLastArgsOnStack ? 1 : 0;
 };
 
-// TODO(jgruber): Pass the slot as UintPtr.
 class ConstructWithSpread_WithFeedbackDescriptor
     : public CallInterfaceDescriptor {
  public:
   // Note: kSlot comes before kSpread since as an untagged value it must be
   // passed in a register.
   DEFINE_JS_PARAMETERS(kSlot, kSpread, kFeedbackVector)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32(),      // kSlot
+  DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr(),    // kSlot
                             MachineType::AnyTagged(),  // kSpread
                             MachineType::AnyTagged())  // kFeedbackVector
   DECLARE_DESCRIPTOR(ConstructWithSpread_WithFeedbackDescriptor,
@@ -1253,7 +1248,6 @@ class ConstructWithArrayLikeDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ConstructWithArrayLikeDescriptor, CallInterfaceDescriptor)
 };
 
-// TODO(jgruber): Pass the slot as UintPtr.
 class ConstructWithArrayLike_WithFeedbackDescriptor
     : public CallInterfaceDescriptor {
  public:
@@ -1261,7 +1255,7 @@ class ConstructWithArrayLike_WithFeedbackDescriptor
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged(),  // kNewTarget
                          MachineType::AnyTagged(),  // kArgumentsList
-                         MachineType::Int32(),      // kSlot
+                         MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kFeedbackVector
   DECLARE_DESCRIPTOR(ConstructWithArrayLike_WithFeedbackDescriptor,
                      CallInterfaceDescriptor)
@@ -1726,24 +1720,22 @@ class BinaryOp_WithFeedbackDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(BinaryOp_WithFeedbackDescriptor, CallInterfaceDescriptor)
 };
 
-// TODO(v8:11429,jgruber): Pass the slot as UintPtr.
 class CallTrampoline_BaselineDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_VARARGS(kFunction, kActualArgumentsCount, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
                          MachineType::Int32(),      // kActualArgumentsCount
-                         MachineType::Int32())      // kSlot
+                         MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(CallTrampoline_BaselineDescriptor, CallInterfaceDescriptor)
 };
 
-// TODO(jgruber): Pass the slot as UintPtr.
 class CallTrampoline_WithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_VARARGS(kFunction, kActualArgumentsCount, kSlot,
                             kFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
                          MachineType::Int32(),      // kActualArgumentsCount
-                         MachineType::Int32(),      // kSlot
+                         MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kFeedbackVector
   DECLARE_DESCRIPTOR(CallTrampoline_WithFeedbackDescriptor,
                      CallInterfaceDescriptor)
@@ -1768,21 +1760,19 @@ class Compare_BaselineDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(Compare_BaselineDescriptor, CallInterfaceDescriptor)
 };
 
-// TODO(v8:11429,jgruber): Pass the slot as UintPtr.
 class Construct_BaselineDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_JS_PARAMETERS_NO_CONTEXT(kSlot)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32())  // kSlot
+  DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr())  // kSlot
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(Construct_BaselineDescriptor,
                                    CallInterfaceDescriptor, 1)
 };
 
-// TODO(jgruber): Pass the slot as UintPtr.
 class Construct_WithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
   // kSlot is passed in a register, kFeedbackVector on the stack.
   DEFINE_JS_PARAMETERS(kSlot, kFeedbackVector)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32(),      // kSlot
+  DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr(),    // kSlot
                             MachineType::AnyTagged())  // kFeedbackVector
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(Construct_WithFeedbackDescriptor,
                                    CallInterfaceDescriptor, 1)
