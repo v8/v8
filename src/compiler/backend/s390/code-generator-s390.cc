@@ -3434,6 +3434,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              Condition(0), Condition(2));
       break;
     }
+    case kS390_I64x2Abs: {
+      __ vlp(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
+             Condition(0), Condition(3));
+      break;
+    }
     // vector boolean unops
     case kS390_V128AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
