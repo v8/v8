@@ -304,8 +304,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   Handle<FixedArray> elems = Handle<FixedArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
-  if (!in_recursion) {
-    Handle<Context> error_context = error->GetCreationContext();
+  Handle<Context> error_context;
+  if (!in_recursion && error->GetCreationContext().ToHandle(&error_context)) {
     DCHECK(error_context->IsNativeContext());
 
     if (isolate->HasPrepareStackTraceCallback()) {

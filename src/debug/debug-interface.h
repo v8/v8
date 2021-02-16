@@ -73,7 +73,7 @@ V8_EXPORT_PRIVATE bool GetPrivateMembers(Local<Context> context,
  * Forwards to v8::Object::CreationContext, but with special handling for
  * JSGlobalProxy objects.
  */
-Local<Context> GetCreationContext(Local<Object> value);
+MaybeLocal<Context> GetCreationContext(Local<Object> value);
 
 enum ExceptionBreakState {
   NoBreakOnException = 0,

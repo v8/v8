@@ -82,7 +82,9 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
   void TracePrologue(EmbedderHeapTracer::TraceFlags) final {
     if (prologue_behavior_ == TracePrologueBehavior::kCallV8WriteBarrier) {
       auto local = array_.Get(isolate());
-      local->Set(local->CreationContext(), 0, v8::Object::New(isolate()))
+      local
+          ->Set(local->GetCreationContext().ToLocalChecked(), 0,
+                v8::Object::New(isolate()))
           .Check();
     }
   }

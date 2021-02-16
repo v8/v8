@@ -1423,8 +1423,9 @@ void Debug::InstallDebugBreakTrampoline() {
             }
             if (recorded.find(accessor_pair) != recorded.end()) continue;
 
-            needs_instantiate.emplace_back(handle(accessor_pair, isolate_),
-                                           object.GetCreationContext());
+            needs_instantiate.emplace_back(
+                handle(accessor_pair, isolate_),
+                object.GetCreationContext().ToHandleChecked());
             recorded.insert(accessor_pair);
           }
         }

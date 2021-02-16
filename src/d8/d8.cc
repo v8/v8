@@ -1527,7 +1527,12 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
       i::Handle<i::JSGlobalProxy>::cast(i_object)->IsDetached()) {
     return;
   }
-  int index = data->RealmFind(object->CreationContext());
+  Local<Context> creation_context;
+  if (!object->GetCreationContext().ToLocal(&creation_context)) {
+    Throw(args.GetIsolate(), "object doesn't have creation context");
+    return;
+  }
+  int index = data->RealmFind(creation_context);
   if (index == -1) return;
   args.GetReturnValue().Set(index);
 }

@@ -192,12 +192,12 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> value,
   return true;
 }
 
-Local<Context> GetCreationContext(Local<Object> value) {
+MaybeLocal<Context> GetCreationContext(Local<Object> value) {
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   if (val->IsJSGlobalProxy()) {
-    return Local<Context>();
+    return MaybeLocal<Context>();
   }
-  return value->CreationContext();
+  return value->GetCreationContext();
 }
 
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {

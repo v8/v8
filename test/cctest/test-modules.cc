@@ -743,7 +743,7 @@ TEST(ModuleNamespace) {
     Local<Value> ns = module->GetModuleNamespace();
     CHECK_EQ(Module::kInstantiated, module->GetStatus());
     Local<v8::Object> nsobj = ns->ToObject(env.local()).ToLocalChecked();
-    CHECK_EQ(nsobj->CreationContext(), env.local());
+    CHECK_EQ(nsobj->GetCreationContext().ToLocalChecked(), env.local());
 
     // a, b
     CHECK(nsobj->Get(env.local(), v8_str("a")).ToLocalChecked()->IsUndefined());

@@ -2574,7 +2574,8 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
       isolate(), prototype,
       JSReceiver::GetPrototype(isolate(), target_function), JSBoundFunction);
 
-  SaveAndSwitchContext save(isolate(), *target_function->GetCreationContext());
+  SaveAndSwitchContext save(
+      isolate(), *target_function->GetCreationContext().ToHandleChecked());
 
   // Create the [[BoundArguments]] for the result.
   Handle<FixedArray> bound_arguments;

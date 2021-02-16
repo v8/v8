@@ -19079,49 +19079,49 @@ THREADED_TEST(CreationContext) {
   {
     Local<Context> other_context = Context::New(isolate);
     Context::Scope scope(other_context);
-    CHECK(object1->CreationContext() == context1);
+    CHECK(object1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(object1, 1);
-    CHECK(func1->CreationContext() == context1);
+    CHECK(func1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(func1, 1);
-    CHECK(instance1->CreationContext() == context1);
+    CHECK(instance1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(instance1, 1);
-    CHECK(object2->CreationContext() == context2);
+    CHECK(object2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(object2, 2);
-    CHECK(func2->CreationContext() == context2);
+    CHECK(func2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(func2, 2);
-    CHECK(instance2->CreationContext() == context2);
+    CHECK(instance2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(instance2, 2);
   }
 
   {
     Context::Scope scope(context1);
-    CHECK(object1->CreationContext() == context1);
+    CHECK(object1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(object1, 1);
-    CHECK(func1->CreationContext() == context1);
+    CHECK(func1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(func1, 1);
-    CHECK(instance1->CreationContext() == context1);
+    CHECK(instance1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(instance1, 1);
-    CHECK(object2->CreationContext() == context2);
+    CHECK(object2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(object2, 2);
-    CHECK(func2->CreationContext() == context2);
+    CHECK(func2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(func2, 2);
-    CHECK(instance2->CreationContext() == context2);
+    CHECK(instance2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(instance2, 2);
   }
 
   {
     Context::Scope scope(context2);
-    CHECK(object1->CreationContext() == context1);
+    CHECK(object1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(object1, 1);
-    CHECK(func1->CreationContext() == context1);
+    CHECK(func1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(func1, 1);
-    CHECK(instance1->CreationContext() == context1);
+    CHECK(instance1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(instance1, 1);
-    CHECK(object2->CreationContext() == context2);
+    CHECK(object2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(object2, 2);
-    CHECK(func2->CreationContext() == context2);
+    CHECK(func2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(func2, 2);
-    CHECK(instance2->CreationContext() == context2);
+    CHECK(instance2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(instance2, 2);
   }
 }
@@ -19140,7 +19140,7 @@ THREADED_TEST(CreationContextOfJsFunction) {
 
   Local<Context> other_context = Context::New(CcTest::isolate());
   Context::Scope scope(other_context);
-  CHECK(function->CreationContext() == context);
+  CHECK(function->GetCreationContext().ToLocalChecked() == context);
   CheckContextId(function, 1);
 }
 
@@ -19171,12 +19171,11 @@ THREADED_TEST(CreationContextOfJsBoundFunction) {
 
   Local<Context> other_context = Context::New(CcTest::isolate());
   Context::Scope scope(other_context);
-  CHECK(bound_function1->CreationContext() == context1);
+  CHECK(bound_function1->GetCreationContext().ToLocalChecked() == context1);
   CheckContextId(bound_function1, 1);
-  CHECK(bound_function2->CreationContext() == context1);
+  CHECK(bound_function2->GetCreationContext().ToLocalChecked() == context1);
   CheckContextId(bound_function2, 1);
 }
-
 
 void HasOwnPropertyIndexedPropertyGetter(
     uint32_t index,
@@ -24775,7 +24774,7 @@ TEST(ClassPrototypeCreationContext) {
 
   Local<Object> result = Local<Object>::Cast(
       CompileRun("'use strict'; class Example { }; Example.prototype"));
-  CHECK(env.local() == result->CreationContext());
+  CHECK(env.local() == result->GetCreationContext().ToLocalChecked());
 }
 
 
@@ -25554,7 +25553,7 @@ TEST(ObjectTemplatePerContextIntrinsics) {
       object->Get(env.local(), v8_str("values")).ToLocalChecked());
   auto fn = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values));
   auto ctx = v8::Utils::OpenHandle(*env.local());
-  CHECK_EQ(*fn->GetCreationContext(), *ctx);
+  CHECK_EQ(*(fn->GetCreationContext().ToHandleChecked()), *ctx);
 
   {
     LocalContext env2;
@@ -25570,7 +25569,7 @@ TEST(ObjectTemplatePerContextIntrinsics) {
         object2->Get(env2.local(), v8_str("values")).ToLocalChecked());
     auto fn2 = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values2));
     auto ctx2 = v8::Utils::OpenHandle(*env2.local());
-    CHECK_EQ(*fn2->GetCreationContext(), *ctx2);
+    CHECK_EQ(*(fn2->GetCreationContext().ToHandleChecked()), *ctx2);
   }
 }
 
