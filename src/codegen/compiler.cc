@@ -1745,18 +1745,17 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
 }
 
 // static
-bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
+bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
                        ClearExceptionFlag flag,
                        IsCompiledScope* is_compiled_scope) {
   // We should never reach here if the function is already compiled.
   DCHECK(!shared_info->is_compiled());
   DCHECK(!is_compiled_scope->is_compiled());
-
-  Isolate* isolate = shared_info->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!shared_info->HasBytecodeArray());
+
   VMState<BYTECODE_COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
@@ -1820,7 +1819,8 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
 }
 
 // static
-bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
+bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
+                       ClearExceptionFlag flag,
                        IsCompiledScope* is_compiled_scope) {
   // We should never reach here if the function is already compiled or
   // optimized.
@@ -1832,13 +1832,12 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   // flushed.
   function->ResetIfBytecodeFlushed();
 
-  Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared_info = handle(function->shared(), isolate);
 
   // Ensure shared function info is compiled.
   *is_compiled_scope = shared_info->is_compiled_scope(isolate);
   if (!is_compiled_scope->is_compiled() &&
-      !Compile(shared_info, flag, is_compiled_scope)) {
+      !Compile(isolate, shared_info, flag, is_compiled_scope)) {
     return false;
   }
 
@@ -1941,11 +1940,9 @@ bool Compiler::FinalizeBackgroundCompileTask(
 }
 
 // static
-bool Compiler::CompileOptimized(Handle<JSFunction> function,
+bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
-
-  Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   Handle<Code> code;

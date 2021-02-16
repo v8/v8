@@ -1461,7 +1461,8 @@ void Debug::InstallDebugBreakTrampoline() {
   // to shared code, we bypass CompileLazy. Perform CompileLazy here instead.
   for (Handle<JSFunction> fun : needs_compile) {
     IsCompiledScope is_compiled_scope;
-    Compiler::Compile(fun, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
+    Compiler::Compile(isolate_, fun, Compiler::CLEAR_EXCEPTION,
+                      &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
     fun->set_code(*trampoline);
   }
@@ -1529,7 +1530,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
       if (!is_compiled_scope.is_compiled()) {
         // Code that cannot be compiled lazily are internal and not debuggable.
         DCHECK(candidate->allows_lazy_compilation());
-        if (!Compiler::Compile(candidate, Compiler::CLEAR_EXCEPTION,
+        if (!Compiler::Compile(isolate_, candidate, Compiler::CLEAR_EXCEPTION,
                                &is_compiled_scope)) {
           return false;
         } else {
@@ -1667,8 +1668,8 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     HandleScope scope(isolate_);
     // Code that cannot be compiled lazily are internal and not debuggable.
     DCHECK(shared.allows_lazy_compilation());
-    if (!Compiler::Compile(handle(shared, isolate_), Compiler::CLEAR_EXCEPTION,
-                           &is_compiled_scope)) {
+    if (!Compiler::Compile(isolate_, handle(shared, isolate_),
+                           Compiler::CLEAR_EXCEPTION, &is_compiled_scope)) {
       break;
     }
   }
@@ -1684,7 +1685,7 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   }
   IsCompiledScope is_compiled_scope = shared->is_compiled_scope(isolate_);
   if (!is_compiled_scope.is_compiled() &&
-      !Compiler::Compile(shared, Compiler::CLEAR_EXCEPTION,
+      !Compiler::Compile(isolate_, shared, Compiler::CLEAR_EXCEPTION,
                          &is_compiled_scope)) {
     return false;
   }
@@ -2423,7 +2424,7 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate_));
   if (!function->is_compiled() &&
-      !Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+      !Compiler::Compile(isolate_, function, Compiler::KEEP_EXCEPTION,
                          &is_compiled_scope)) {
     return false;
   }
