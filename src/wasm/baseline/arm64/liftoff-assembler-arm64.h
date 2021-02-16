@@ -392,10 +392,14 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   }
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
-  DCHECK_LE(0, offset);
+void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
   Ldr(dst, liftoff::GetInstanceOperand());
-  MemOperand src{dst, offset};
+}
+
+void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
+                                        int offset, int size) {
+  DCHECK_LE(0, offset);
+  MemOperand src{instance, offset};
   switch (size) {
     case 1:
       Ldrb(dst.W(), src);
@@ -411,10 +415,11 @@ void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
   }
 }
 
-void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst, int offset) {
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     Register instance,
+                                                     int offset) {
   DCHECK_LE(0, offset);
-  Ldr(dst, liftoff::GetInstanceOperand());
-  LoadTaggedPointerField(dst, MemOperand(dst, offset));
+  LoadTaggedPointerField(dst, MemOperand{instance, offset});
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {

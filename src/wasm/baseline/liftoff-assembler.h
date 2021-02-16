@@ -192,6 +192,7 @@ class LiftoffAssembler : public TurboAssembler {
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
+    Register cached_instance = no_reg;
 
     bool has_unused_register(RegClass rc, LiftoffRegList pinned = {}) const {
       if (kNeedI64RegPair && rc == kGpRegPair) {
@@ -239,6 +240,51 @@ class LiftoffAssembler : public TurboAssembler {
       LiftoffRegList available_regs =
           candidates.MaskOut(used_registers).MaskOut(pinned);
       return available_regs.GetFirstRegSet();
+    }
+
+    // Volatile registers are registers which are used for caching values that
+    // can easily be reloaded. Those are returned first if we run out of free
+    // registers.
+    // Note: This interface is a bit more generic than currently needed, in
+    // anticipation of more "volatile registers" being added later.
+    bool has_volatile_register(LiftoffRegList candidates) {
+      return cached_instance != no_reg && candidates.has(cached_instance);
+    }
+
+    LiftoffRegister take_volatile_register(LiftoffRegList candidates) {
+      DCHECK(candidates.has(cached_instance));
+      LiftoffRegister ret{cached_instance};
+      DCHECK_EQ(1, register_use_count[ret.liftoff_code()]);
+      register_use_count[ret.liftoff_code()] = 0;
+      used_registers.clear(ret);
+      cached_instance = no_reg;
+      return ret;
+    }
+
+    void SetInstanceCacheRegister(Register reg) {
+      DCHECK_EQ(no_reg, cached_instance);
+      cached_instance = reg;
+      int liftoff_code = LiftoffRegister{reg}.liftoff_code();
+      DCHECK_EQ(0, register_use_count[liftoff_code]);
+      register_use_count[liftoff_code] = 1;
+      used_registers.set(reg);
+    }
+
+    Register TrySetCachedInstanceRegister(LiftoffRegList pinned) {
+      DCHECK_EQ(no_reg, cached_instance);
+      if (!has_unused_register(kGpCacheRegList, pinned)) return no_reg;
+      SetInstanceCacheRegister(unused_register(kGpCacheRegList, pinned).gp());
+      DCHECK_NE(no_reg, cached_instance);
+      return cached_instance;
+    }
+
+    void ClearCachedInstanceRegister() {
+      if (cached_instance == no_reg) return;
+      int liftoff_code = LiftoffRegister{cached_instance}.liftoff_code();
+      DCHECK_EQ(1, register_use_count[liftoff_code]);
+      register_use_count[liftoff_code] = 0;
+      used_registers.clear(cached_instance);
+      cached_instance = no_reg;
     }
 
     void inc_used(LiftoffRegister reg) {
@@ -445,13 +491,18 @@ class LiftoffAssembler : public TurboAssembler {
     if (cache_state_.has_unused_register(candidates, pinned)) {
       return cache_state_.unused_register(candidates, pinned);
     }
+    if (cache_state_.has_volatile_register(candidates)) {
+      LiftoffRegister reg = cache_state_.take_volatile_register(candidates);
+      DCHECK(!pinned.has(reg));
+      return reg;
+    }
     return SpillOneRegister(candidates, pinned);
   }
 
   void MaterializeMergedConstants(uint32_t arity);
 
-  void MergeFullStackWith(const CacheState& target, const CacheState& source);
-  void MergeStackWith(const CacheState& target, uint32_t arity);
+  void MergeFullStackWith(CacheState& target, const CacheState& source);
+  void MergeStackWith(CacheState& target, uint32_t arity);
 
   void Spill(VarState* slot);
   void SpillLocals();
@@ -469,7 +520,12 @@ class LiftoffAssembler : public TurboAssembler {
   template <typename... Regs>
   void SpillRegisters(Regs... regs) {
     for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
-      if (cache_state()->is_used(r)) SpillRegister(r);
+      if (cache_state_.is_free(r)) continue;
+      if (r.is_gp() && cache_state_.cached_instance == r.gp()) {
+        cache_state_.ClearCachedInstanceRegister();
+      } else {
+        SpillRegister(r);
+      }
     }
   }
 
@@ -548,8 +604,11 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
                            RelocInfo::Mode rmode = RelocInfo::NONE);
-  inline void LoadFromInstance(Register dst, int offset, int size);
-  inline void LoadTaggedPointerFromInstance(Register dst, int offset);
+  inline void LoadInstanceFromFrame(Register dst);
+  inline void LoadFromInstance(Register dst, Register instance, int offset,
+                               int size);
+  inline void LoadTaggedPointerFromInstance(Register dst, Register instance,
+                                            int offset);
   inline void SpillInstance(Register instance);
   inline void FillInstanceInto(Register dst);
   inline void LoadTaggedPointer(Register dst, Register src_addr,

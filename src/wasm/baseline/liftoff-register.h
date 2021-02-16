@@ -377,6 +377,10 @@ class LiftoffRegList {
     }
     return reg;
   }
+  Register clear(Register reg) { return clear(LiftoffRegister{reg}).gp(); }
+  DoubleRegister clear(DoubleRegister reg) {
+    return clear(LiftoffRegister{reg}).fp();
+  }
 
   bool has(LiftoffRegister reg) const {
     if (reg.is_pair()) {
@@ -385,8 +389,8 @@ class LiftoffRegList {
     }
     return (regs_ & (storage_t{1} << reg.liftoff_code())) != 0;
   }
-  bool has(Register reg) const { return has(LiftoffRegister(reg)); }
-  bool has(DoubleRegister reg) const { return has(LiftoffRegister(reg)); }
+  bool has(Register reg) const { return has(LiftoffRegister{reg}); }
+  bool has(DoubleRegister reg) const { return has(LiftoffRegister{reg}); }
 
   constexpr bool is_empty() const { return regs_ == 0; }
 
