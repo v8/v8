@@ -9557,10 +9557,11 @@ void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
       use_precise_sampling);
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
-                                               CpuProfilingOptions options) {
+CpuProfilingStatus CpuProfiler::StartProfiling(
+    Local<String> title, CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), options);
+      *Utils::OpenHandle(*title), options, std::move(delegate));
 }
 
 CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
