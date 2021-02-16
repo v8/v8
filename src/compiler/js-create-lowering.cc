@@ -1498,7 +1498,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
 
   MapRef sloppy_arguments_elements_map(
       broker(), factory()->sloppy_arguments_elements_map());
-  if (AllocationBuilder::CanAllocateSloppyArgumentElements(
+  if (!AllocationBuilder::CanAllocateSloppyArgumentElements(
           mapped_count, sloppy_arguments_elements_map)) {
     return nullptr;
   }
@@ -1518,8 +1518,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   // another indirection away and then linked into the parameter map below,
   // whereas mapped argument values are replaced with a hole instead.
   AllocationBuilder ab(jsgraph(), effect, control);
-  ab.AllocateArray(argument_count,
-                   MapRef(broker(), factory()->fixed_array_map()));
+  ab.AllocateArray(argument_count, fixed_array_map);
   for (int i = 0; i < mapped_count; ++i) {
     ab.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
              jsgraph()->TheHoleConstant());
@@ -1564,7 +1563,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   int mapped_count = parameter_count;
   MapRef sloppy_arguments_elements_map(
       broker(), factory()->sloppy_arguments_elements_map());
-  if (AllocationBuilder::CanAllocateSloppyArgumentElements(
+  if (!AllocationBuilder::CanAllocateSloppyArgumentElements(
           mapped_count, sloppy_arguments_elements_map)) {
     return nullptr;
   }
@@ -1786,7 +1785,6 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
   }
 
   // Allocate the backing store array and store the elements.
-  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
   AllocationBuilder ab(jsgraph(), effect, control);
   CHECK(ab.CanAllocateArray(elements_length, elements_map, allocation));
   ab.AllocateArray(elements_length, elements_map, allocation);
