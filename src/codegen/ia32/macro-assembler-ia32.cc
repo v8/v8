@@ -2548,9 +2548,17 @@ void TurboAssembler::CallCodeObject(Register code_object) {
   call(code_object);
 }
 
-void TurboAssembler::JumpCodeObject(Register code_object) {
+void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   LoadCodeObjectEntry(code_object, code_object);
-  jmp(code_object);
+  switch (jump_mode) {
+    case JumpMode::kJump:
+      jmp(code_object);
+      return;
+    case JumpMode::kPushAndReturn:
+      push(code_object);
+      ret(0);
+      return;
+  }
 }
 
 void TurboAssembler::Jump(const ExternalReference& reference) {

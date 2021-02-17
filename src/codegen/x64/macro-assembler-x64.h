@@ -531,7 +531,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
-  void JumpCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override;
 
   void RetpolineCall(Register reg);
   void RetpolineCall(Address destination, RelocInfo::Mode rmode);

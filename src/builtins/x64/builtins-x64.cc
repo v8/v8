@@ -45,8 +45,9 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
           RelocInfo::CODE_TARGET);
 }
 
-static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
-                                           Runtime::FunctionId function_id) {
+static void GenerateTailCallToReturnedCode(
+    MacroAssembler* masm, Runtime::FunctionId function_id,
+    JumpMode jump_mode = JumpMode::kJump) {
   // ----------- S t a t e -------------
   //  -- rax : actual argument count
   //  -- rdx : new target (preserved for callee)
@@ -73,7 +74,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     __ Pop(kJavaScriptCallTargetRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  __ JumpCodeObject(rcx);
+  __ JumpCodeObject(rcx, jump_mode);
 }
 
 namespace {
@@ -917,7 +918,8 @@ static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
 
 static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       Register optimized_code_entry,
-                                      Register scratch1, Register scratch2) {
+                                      Register scratch1, Register scratch2,
+                                      JumpMode jump_mode) {
   // ----------- S t a t e -------------
   //  -- rax : actual argument count
   //  -- rdx : new target (preserved for callee if needed, and caller)
@@ -947,13 +949,14 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       scratch1, scratch2);
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   __ Move(rcx, optimized_code_entry);
-  __ JumpCodeObject(rcx);
+  __ JumpCodeObject(rcx, jump_mode);
 
   // Optimized code slot contains deoptimized code or code is cleared and
   // optimized code marker isn't updated. Evict the code, update the marker
   // and re-enter the closure's code.
   __ bind(&heal_optimized_code_slot);
-  GenerateTailCallToReturnedCode(masm, Runtime::kHealOptimizedCodeSlot);
+  GenerateTailCallToReturnedCode(masm, Runtime::kHealOptimizedCodeSlot,
+                                 jump_mode);
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -1039,8 +1042,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 }
 
 static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-    MacroAssembler* masm, Register optimization_state,
-    Register feedback_vector) {
+    MacroAssembler* masm, Register optimization_state, Register feedback_vector,
+    JumpMode jump_mode = JumpMode::kJump) {
   Label maybe_has_optimized_code;
   __ testl(
       optimization_state,
@@ -1056,7 +1059,7 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   __ LoadAnyTaggedField(
       optimized_code_entry,
       FieldOperand(feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset));
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, r11, r15);
+  TailCallOptimizedCodeSlot(masm, optimized_code_entry, r11, r15, jump_mode);
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -1717,10 +1720,13 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ bind(&has_optimized_code_or_marker);
   {
     __ RecordComment("[ Optimized marker check");
-    // TODO(v8:11429,verwaest): Overwrite return address instead.
-    // Drop the return adress
+    // Drop the return address, rebalancing the return stack buffer by using
+    // JumpMode::kPushAndReturn. We can't leave the slot and overwrite it on
+    // return since we may do a runtime call along the way that requires the
+    // stack to only contain valid frames.
     __ Drop(1);
-    MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, rcx, feedback_vector);
+    MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, rcx, feedback_vector,
+                                                 JumpMode::kPushAndReturn);
     __ Trap();
     __ RecordComment("]");
   }
@@ -1829,7 +1835,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 
 void Builtins::Generate_TailCallOptimizedCodeSlot(MacroAssembler* masm) {
   Register optimized_code_entry = kJavaScriptCallCodeStartRegister;
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, r11, r15);
+  TailCallOptimizedCodeSlot(masm, optimized_code_entry, r11, r15,
+                            JumpMode::kJump);
 }
 
 // static

@@ -15,6 +15,12 @@
 namespace v8 {
 namespace internal {
 
+enum class JumpMode {
+  kJump,          // Does a direct jump to the given address
+  kPushAndReturn  // Pushes the given address as the current return address and
+                  // does a return
+};
+
 // Common base class for platform-specific TurboAssemblers containing
 // platform-independent bits.
 // You will encounter two subclasses, TurboAssembler (derives from
@@ -67,7 +73,8 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   // Calls/jumps to the given Code object. If builtins are embedded, the
   // trampoline Code object on the heap is not used.
   virtual void CallCodeObject(Register code_object) = 0;
-  virtual void JumpCodeObject(Register code_object) = 0;
+  virtual void JumpCodeObject(Register code_object,
+                              JumpMode jump_mode = JumpMode::kJump) = 0;
 
   // Loads the given Code object's entry point into the destination register.
   virtual void LoadCodeObjectEntry(Register destination,
