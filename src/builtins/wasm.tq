@@ -192,6 +192,12 @@ builtin WasmRefFunc(index: uint32): Object {
   }
 }
 
+builtin WasmAllocateFixedArray(size: intptr): FixedArray {
+  if (size == 0) return kEmptyFixedArray;
+  return UnsafeCast<FixedArray>(AllocateFixedArray(
+      ElementsKind::PACKED_ELEMENTS, size, AllocationFlag::kNone));
+}
+
 builtin WasmThrow(tag: Object, values: FixedArray): JSAny {
   tail runtime::WasmThrow(LoadContextFromFrame(), tag, values);
 }

@@ -71,6 +71,7 @@ struct WasmModule;
   V(WasmTableSet)                        \
   V(WasmStackGuard)                      \
   V(WasmStackOverflow)                   \
+  V(WasmAllocateFixedArray)              \
   V(WasmThrow)                           \
   V(WasmRethrow)                         \
   V(WasmTraceEnter)                      \

@@ -148,27 +148,14 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
       isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
-RUNTIME_FUNCTION(Runtime_WasmCreateFixedArrayForThrow) {
-  ClearThreadInWasmScope clear_wasm_flag;
-  // TODO(wasm): Replace this by equivalent TurboFan code.
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_SMI_ARG_CHECKED(size, 0);
-  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
-  return *values;
-}
-
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
   // Do not clear the flag in a scope. The unwinder will set it if the exception
   // is caught by a wasm frame, otherwise we keep it cleared.
   trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  // The context is still set from WasmCreateFixedArrayForThrow.
-  DCHECK_EQ(isolate->context(),
-            GetNativeContextFromWasmInstanceOnStackTop(isolate));
+  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
+
   CONVERT_ARG_CHECKED(WasmExceptionTag, tag_raw, 0);
   CONVERT_ARG_CHECKED(FixedArray, values_raw, 1);
   // TODO(wasm): Manually box because parameters are not visited yet.

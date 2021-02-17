@@ -579,7 +579,6 @@ namespace internal {
   F(WasmAtomicNotify, 3, 1)             \
   F(WasmMemoryGrow, 2, 1)               \
   F(WasmStackGuard, 0, 1)               \
-  F(WasmCreateFixedArrayForThrow, 1, 1) \
   F(WasmThrow, 2, 1)                    \
   F(WasmReThrow, 1, 1)                  \
   F(WasmThrowJSTypeError, 0, 1)         \
