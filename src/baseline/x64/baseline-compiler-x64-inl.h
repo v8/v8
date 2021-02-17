@@ -453,8 +453,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ RecordComment("[ Update Interrupt Budget");
   __ AddToInterruptBudget(weight);
 
-  // Use compare flags set by add
-  // TODO(v8:11429,leszeks): This might be trickier cross-arch.
+  // Use compare flags set by AddToInterruptBudget
   Label skip_interrupt_label;
   __ JumpIf(Condition::kGreaterThanEqual, &skip_interrupt_label);
   {
