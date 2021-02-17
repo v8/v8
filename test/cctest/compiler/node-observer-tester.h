@@ -15,22 +15,28 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Test TurboFan compilation using the %ObserveNode intrinsic.
-class TestWithObserveNode : public HandleAndZoneScope {
+// Helpers to test TurboFan compilation using the %ObserveNode intrinsic.
+struct ObserveNodeScope {
  public:
-  explicit TestWithObserveNode(Isolate* isolate, const char* script)
-      : isolate_(isolate), script_(script) {
+  ObserveNodeScope(Isolate* isolate, NodeObserver* node_observer)
+      : isolate_(isolate) {
     DCHECK_NOT_NULL(isolate_);
-    DCHECK_NOT_NULL(script_);
-    CompileRun(script_);
+    DCHECK_NULL(isolate_->node_observer());
+    isolate_->set_node_observer(node_observer);
   }
 
-  void OptimizeFunctionWithObserver(const char* function_name,
-                                    NodeObserver* observer);
+  ~ObserveNodeScope() {
+    DCHECK_NOT_NULL(isolate_->node_observer());
+
+    // Checks that the code wrapped by %ObserveNode() was actually compiled in
+    // the test.
+    CHECK(isolate_->node_observer()->has_observed_changes());
+
+    isolate_->set_node_observer(nullptr);
+  }
 
  private:
   Isolate* isolate_;
-  const char* script_;
 };
 
 class CreationObserver : public NodeObserver {
@@ -53,7 +59,8 @@ class ModificationObserver : public NodeObserver {
  public:
   explicit ModificationObserver(
       std::function<void(const Node*)> on_created_handler,
-      std::function<void(const Node*, const ObservableNodeState& old_state)>
+      std::function<NodeObserver::Observation(
+          const Node*, const ObservableNodeState& old_state)>
           on_changed_handler)
       : on_created_handler_(on_created_handler),
         on_changed_handler_(on_changed_handler) {
@@ -68,13 +75,13 @@ class ModificationObserver : public NodeObserver {
 
   Observation OnNodeChanged(const char* reducer_name, const Node* node,
                             const ObservableNodeState& old_state) override {
-    on_changed_handler_(node, old_state);
-    return Observation::kContinue;
+    return on_changed_handler_(node, old_state);
   }
 
  private:
   std::function<void(const Node*)> on_created_handler_;
-  std::function<void(const Node*, const ObservableNodeState& old_state)>
+  std::function<NodeObserver::Observation(const Node*,
+                                          const ObservableNodeState& old_state)>
       on_changed_handler_;
 };
 

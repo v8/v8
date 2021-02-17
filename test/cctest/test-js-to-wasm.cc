@@ -8,6 +8,7 @@
 #include "src/api/api.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/compiler/node-observer-tester.h"
 #include "test/cctest/test-api.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
@@ -48,6 +49,13 @@ struct ExportedFunction {
   FunctionSig* signature;
   std::vector<ValueType> locals;
   std::vector<uint8_t> code;
+
+  bool DoesSignatureContainI64() const {
+    for (auto type : signature->all()) {
+      if (type == wasm::kWasmI64) return true;
+    }
+    return false;
+  }
 };
 
 #define WASM_CODE(...) __VA_ARGS__
@@ -246,6 +254,8 @@ DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
                                        WASM_I32V(kDeoptLoopCount))),
              WASM_CALL_FUNCTION(0, WASM_F64_SCONVERT_I32(WASM_LOCAL_GET(0))))}))
 
+enum TestMode { kJSToWasmInliningDisabled, kJSToWasmInliningEnabled };
+
 class FastJSWasmCallTester {
  public:
   FastJSWasmCallTester()
@@ -269,6 +279,14 @@ class FastJSWasmCallTester {
     func->Emit(kExprEnd);
     builder_->AddExport(CStrVector(exported_func.name.c_str()),
                         kExternalFunction, func->func_index());
+
+    // JS-to-Wasm inlining is disabled when targeting 32 bits if the Wasm
+    // function signature contains an I64.
+#if defined(V8_TARGET_ARCH_32_BIT)
+    if (exported_func.DoesSignatureContainI64()) {
+      test_mode_ = kJSToWasmInliningDisabled;
+    }
+#endif
   }
 
   // Executes a test function that returns a value of type T.
@@ -351,9 +369,9 @@ class FastJSWasmCallTester {
         "let module = new WebAssembly.Module(buf);"
         "let instance = new WebAssembly.Instance(module, importObj);"
         "function test(value) {"
-        "  return instance.exports." +
+        "  return %ObserveNode(instance.exports." +
         exported_function_name +
-        "(value);"
+        "(value));"
         "}"
         "%PrepareFunctionForOptimization(test);"
         "test(" +
@@ -363,7 +381,8 @@ class FastJSWasmCallTester {
         "test(" +
         arg + ");";
 
-    v8::Local<v8::Value> result_value = CompileRun(js_code.c_str());
+    v8::Local<v8::Value> result_value =
+        CompileRunWithJSWasmCallNodeObserver(js_code.c_str());
     CHECK(CheckType<T>(result_value));
     T result = ConvertJSValue<T>::Get(result_value, env.local()).ToChecked();
     CHECK_EQ(result, expected_result);
@@ -399,9 +418,9 @@ class FastJSWasmCallTester {
         exported_function_name +
         ";"
         "function test() {"
-        "  return " +
+        "  return %ObserveNode(" +
         exported_function_name +
-        "(arg);"
+        "(arg));"
         "}"
         "%PrepareFunctionForOptimization(test);"
         "test();";
@@ -410,7 +429,8 @@ class FastJSWasmCallTester {
     CHECK(try_catch.HasCaught());
 
     try_catch.Reset();
-    CompileRun("%OptimizeFunctionOnNextCall(test); test();");
+    CompileRunWithJSWasmCallNodeObserver(
+        "%OptimizeFunctionOnNextCall(test); test();");
     CHECK(try_catch.HasCaught());
   }
 
@@ -557,7 +577,39 @@ class FastJSWasmCallTester {
                                          exported_function_name, args.size())
             : GetJSTestCode(WasmModuleAsJSArray(), exported_function_name,
                             args.size());
-    return CompileRun(js_code.c_str());
+    return CompileRunWithJSWasmCallNodeObserver(js_code);
+  }
+
+  v8::Local<v8::Value> CompileRunWithJSWasmCallNodeObserver(
+      const std::string& js_code) {
+    compiler::ModificationObserver js_wasm_call_observer(
+        [](const compiler::Node* node) {
+          CHECK_EQ(compiler::IrOpcode::kJSCall, node->opcode());
+        },
+        [this](const compiler::Node* node,
+               const compiler::ObservableNodeState& old_state)
+            -> compiler::NodeObserver::Observation {
+          if (old_state.opcode() != node->opcode()) {
+            CHECK_EQ(compiler::IrOpcode::kJSCall, old_state.opcode());
+
+            // JS-to-Wasm inlining is disabled when targeting 32 bits if the
+            // Wasm function signature contains an I64.
+            if (test_mode_ == kJSToWasmInliningEnabled) {
+              CHECK_EQ(compiler::IrOpcode::kJSWasmCall, node->opcode());
+            } else {
+              CHECK_EQ(compiler::IrOpcode::kCall, node->opcode());
+            }
+
+            return compiler::NodeObserver::Observation::kStop;
+          }
+          return compiler::NodeObserver::Observation::kContinue;
+        });
+
+    {
+      compiler::ObserveNodeScope scope(CcTest::i_isolate(),
+                                       &js_wasm_call_observer);
+      return CompileRun(js_code.c_str());
+    }
   }
 
   // Format the JS test code that loads and instantiates a Wasm module and
@@ -585,9 +637,9 @@ class FastJSWasmCallTester {
            wasm_exported_function_name +
            ";"
            "function test() {"
-           "  let result = " +
+           "  let result = %ObserveNode(" +
            wasm_exported_function_name + "(" + js_args +
-           ");"
+           "));"
            "  return result;"
            "}"
            "%PrepareFunctionForOptimization(test);"
@@ -652,10 +704,11 @@ class FastJSWasmCallTester {
         "  var result = 0;"
         "  for (let i = 0; i < " +
         std::to_string(kDeoptLoopCount) + " + 5; i++) {";
-    code += bigint_arg ? "    result = " + wasm_exported_function_name + "(" +
-                             js_args + "+ BigInt(b)) + BigInt(n);"
-                       : "    result = " + wasm_exported_function_name + "(" +
-                             js_args + "+ b) + n;";
+    code += bigint_arg
+                ? "    result = %ObserveNode(" + wasm_exported_function_name +
+                      "(" + js_args + " + BigInt(b))) + BigInt(n);"
+                : "    result = %ObserveNode(" + wasm_exported_function_name +
+                      "(" + js_args + " + b)) + n;";
     code +=
         "  }"
         "  return result;"
@@ -684,6 +737,7 @@ class FastJSWasmCallTester {
   AccountingAllocator allocator_;
   Zone zone_;
   WasmModuleBuilder* builder_;
+  TestMode test_mode_ = kJSToWasmInliningEnabled;
 };
 
 TEST(TestFastJSWasmCall_Nop) {

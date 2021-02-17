@@ -196,6 +196,10 @@
   'test-streaming-compilation/SingleThreadedTestDeserializationFails': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
+
+  # %ObserveNode tests relies on TurboFan.
+  'test-sloppy-equality/*' : [SKIP],
+  'test-js-to-wasm/*': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################

@@ -89,7 +89,6 @@ v8_source_set("cctest_sources") {
     "compiler/function-tester.cc",
     "compiler/function-tester.h",
     "compiler/graph-builder-tester.h",
-    "compiler/node-observer-tester.cc",
     "compiler/node-observer-tester.h",
     "compiler/serializer-tester.cc",
     "compiler/serializer-tester.h",

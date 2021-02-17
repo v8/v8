@@ -75,6 +75,12 @@ class NodeObserver : public ZoneObject {
                                     const ObservableNodeState& old_state) {
     return Observation::kContinue;
   }
+
+  void set_has_observed_changes() { has_observed_changes_ = true; }
+  bool has_observed_changes() const { return has_observed_changes_; }
+
+ private:
+  bool has_observed_changes_ = false;
 };
 inline NodeObserver::~NodeObserver() = default;
 
