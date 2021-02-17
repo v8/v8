@@ -34,7 +34,7 @@ class BaselineAssembler::ScratchRegisterScope {
   UseScratchRegisterScope wrapped_scope_;
 };
 
-// TODO(v8:11429,leszeks): Unify condition names in the MacroAssembler.
+// TODO(v8:11461): Unify condition names in the MacroAssembler.
 enum class Condition : uint8_t {
   kEqual = eq,
   kNotEqual = ne,
