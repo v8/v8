@@ -15,8 +15,8 @@ class SharedFunctionInfo;
 class BytecodeArray;
 
 // TODO(v8:11429): Restrict header visibility to just this file.
-Handle<Code> CompileWithBaseline(Isolate* isolate,
-                                 Handle<SharedFunctionInfo> shared);
+Handle<Code> GenerateBaselineCode(Isolate* isolate,
+                                  Handle<SharedFunctionInfo> shared);
 
 }  // namespace internal
 }  // namespace v8

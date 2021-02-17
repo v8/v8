@@ -551,7 +551,7 @@ void BaselineCompiler::VerifyFrame() {
 
 #ifdef V8_TRACE_UNOPTIMIZED
 void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
-  if (!FLAG_trace_baseline) return;
+  if (!FLAG_trace_baseline_exec) return;
 
   __ RecordComment(function_id == Runtime::kTraceUnoptimizedBytecodeEntry
                        ? "[ Trace bytecode entry"

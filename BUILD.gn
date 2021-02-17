@@ -125,9 +125,9 @@ declare_args() {
   v8_enable_v8_checks = ""
 
   # Sets -dV8_TRACE_UNOPTIMIZED.
-  v8_enable_trace_unoptimized = false
+  v8_enable_trace_unoptimized = ""
   v8_enable_trace_ignition = false
-  v8_enable_trace_baseline = false
+  v8_enable_trace_baseline_exec = false
 
   # Sets -dV8_TRACE_FEEDBACK_UPDATES.
   v8_enable_trace_feedback_updates = false
@@ -358,11 +358,11 @@ assert(!v8_enable_concurrent_marking || v8_enable_atomic_marking_state,
        "Concurrent marking requires atomic marking state.")
 if (v8_enable_trace_unoptimized == "") {
   v8_enable_trace_unoptimized =
-      v8_enable_trace_ignition || v8_enable_trace_baseline
+      v8_enable_trace_ignition || v8_enable_trace_baseline_exec
 }
 assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
        "Ignition tracing requires unoptimized tracing to be enabled.")
-assert(!v8_enable_trace_baseline || v8_enable_trace_unoptimized,
+assert(!v8_enable_trace_baseline_exec || v8_enable_trace_unoptimized,
        "Baseline tracing requires unoptimized tracing to be enabled.")
 
 # Toggle pointer compression for correctness fuzzing when building the

@@ -538,10 +538,10 @@ DEFINE_BOOL(trace_unoptimized, false,
             "trace the bytecodes executed by all unoptimized execution")
 DEFINE_BOOL(trace_ignition, false,
             "trace the bytecodes executed by the ignition interpreter")
-DEFINE_BOOL(trace_baseline, false,
+DEFINE_BOOL(trace_baseline_exec, false,
             "trace the bytecodes executed by the baseline code")
 DEFINE_WEAK_IMPLICATION(trace_unoptimized, trace_ignition)
-DEFINE_WEAK_IMPLICATION(trace_unoptimized, trace_baseline)
+DEFINE_WEAK_IMPLICATION(trace_unoptimized, trace_baseline_exec)
 #endif
 #ifdef V8_TRACE_FEEDBACK_UPDATES
 DEFINE_BOOL(
@@ -584,6 +584,7 @@ DEFINE_INT(ticks_scale_factor_for_top_tier, 10,
 // Flags for Sparkplug
 DEFINE_BOOL(sparkplug, false, "enable experimental sparkplug baseline compiler")
 DEFINE_BOOL(always_sparkplug, false, "directly tier up to sparkplug")
+DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
 DEFINE_NEG_IMPLICATION(sparkplug, write_protect_code_memory)
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 

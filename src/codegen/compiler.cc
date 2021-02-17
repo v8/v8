@@ -13,6 +13,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/base/platform/time.h"
 #include "src/baseline/baseline.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -65,24 +66,6 @@ namespace {
 
 class CompilerTracer : public AllStatic {
  public:
-  static void PrintTracePrefix(const CodeTracer::Scope& scope,
-                               const char* header,
-                               OptimizedCompilationInfo* info) {
-    PrintTracePrefix(scope, header, info->closure(), info->code_kind());
-  }
-
-  static void PrintTracePrefix(const CodeTracer::Scope& scope,
-                               const char* header, Handle<JSFunction> function,
-                               CodeKind code_kind) {
-    PrintF(scope.file(), "[%s ", header);
-    function->ShortPrint(scope.file());
-    PrintF(scope.file(), " (target %s)", CodeKindToString(code_kind));
-  }
-
-  static void PrintTraceSuffix(const CodeTracer::Scope& scope) {
-    PrintF(scope.file(), "]\n");
-  }
-
   static void TracePrepareJob(Isolate* isolate, OptimizedCompilationInfo* info,
                               const char* compiler_name) {
     if (!FLAG_trace_opt || !info->IsOptimizing()) return;
@@ -90,6 +73,15 @@ class CompilerTracer : public AllStatic {
     PrintTracePrefix(scope, "compiling method", info);
     PrintF(scope.file(), " using %s%s", compiler_name,
            info->is_osr() ? " OSR" : "");
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceStartBaselineCompile(Isolate* isolate,
+                                        Handle<SharedFunctionInfo> shared) {
+    if (!FLAG_trace_baseline) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "compiling method", shared, CodeKind::BASELINE);
+    PrintF(scope.file(), " using Sparkplug");
     PrintTraceSuffix(scope);
   }
 
@@ -102,6 +94,16 @@ class CompilerTracer : public AllStatic {
     PrintTracePrefix(scope, "optimizing", info);
     PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms", ms_creategraph,
            ms_optimize, ms_codegen);
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceFinishBaselineCompile(Isolate* isolate,
+                                         Handle<SharedFunctionInfo> shared,
+                                         double ms_timetaken) {
+    if (!FLAG_trace_baseline) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "compiling", shared, CodeKind::BASELINE);
+    PrintF(scope.file(), " - took %0.3f ms", ms_timetaken);
     PrintTraceSuffix(scope);
   }
 
@@ -153,6 +155,34 @@ class CompilerTracer : public AllStatic {
     PrintF(scope.file(), "[marking ");
     function->ShortPrint(scope.file());
     PrintF(scope.file(), " for optimized recompilation because --always-opt");
+    PrintF(scope.file(), "]\n");
+  }
+
+ private:
+  static void PrintTracePrefix(const CodeTracer::Scope& scope,
+                               const char* header,
+                               OptimizedCompilationInfo* info) {
+    PrintTracePrefix(scope, header, info->closure(), info->code_kind());
+  }
+
+  static void PrintTracePrefix(const CodeTracer::Scope& scope,
+                               const char* header, Handle<JSFunction> function,
+                               CodeKind code_kind) {
+    PrintF(scope.file(), "[%s ", header);
+    function->ShortPrint(scope.file());
+    PrintF(scope.file(), " (target %s)", CodeKindToString(code_kind));
+  }
+
+  static void PrintTracePrefix(const CodeTracer::Scope& scope,
+                               const char* header,
+                               Handle<SharedFunctionInfo> shared,
+                               CodeKind code_kind) {
+    PrintF(scope.file(), "[%s ", header);
+    shared->ShortPrint(scope.file());
+    PrintF(scope.file(), " (target %s)", CodeKindToString(code_kind));
+  }
+
+  static void PrintTraceSuffix(const CodeTracer::Scope& scope) {
     PrintF(scope.file(), "]\n");
   }
 };
@@ -604,6 +634,58 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
       literal->has_static_private_methods_or_accessors());
 
   shared_info.SetScopeInfo(*literal->scope()->scope_info());
+}
+
+bool CompileSharedWithBaseline(Isolate* isolate,
+                               Handle<SharedFunctionInfo> shared,
+                               Compiler::ClearExceptionFlag flag,
+                               IsCompiledScope* is_compiled_scope) {
+  DCHECK(FLAG_sparkplug);
+  DCHECK(is_compiled_scope->is_compiled());
+
+  if (shared->HasBaselineData()) return true;
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    if (flag == Compiler::KEEP_EXCEPTION) {
+      isolate->StackOverflow();
+    }
+    return false;
+  }
+
+  // Check if we actually have bytecode.
+  if (!shared->HasBytecodeArray()) return false;
+
+  // Do not optimize when debugger needs to hook into every call.
+  if (isolate->debug()->needs_check_on_function_call()) return false;
+
+  // Functions with breakpoints have to stay interpreted.
+  if (shared->HasBreakInfo()) return false;
+
+  CompilerTracer::TraceStartBaselineCompile(isolate, shared);
+  Handle<Code> code;
+  base::TimeDelta time_taken;
+  {
+    ScopedTimer timer(&time_taken);
+    code = GenerateBaselineCode(isolate, shared);
+
+    Handle<HeapObject> function_data =
+        handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
+    Handle<BaselineData> baseline_data =
+        isolate->factory()->NewBaselineData(code, function_data);
+    shared->set_baseline_data(*baseline_data);
+  }
+  double time_taken_ms = time_taken.InMillisecondsF();
+
+  CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
+
+  if (shared->script().IsScript()) {
+    Compiler::LogFunctionCompilation(
+        isolate, CodeEventListener::FUNCTION_TAG, shared,
+        handle(Script::cast(shared->script()), isolate),
+        Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms);
+  }
+  return true;
 }
 
 // Finalize a single compilation job. This function can return
@@ -1237,10 +1319,9 @@ void FinalizeUnoptimizedCompilation(
     if (FLAG_interpreted_frames_native_stack) {
       InstallInterpreterTrampolineCopy(isolate, shared_info);
     }
-    if (FLAG_always_sparkplug && shared_info->HasBytecodeArray() &&
-        !shared_info->HasBreakInfo()) {
-      // TODO(v8:11429) Extract to Compiler::CompileX
-      CompileWithBaseline(isolate, shared_info);
+    if (FLAG_always_sparkplug) {
+      CompileSharedWithBaseline(isolate, shared_info, Compiler::KEEP_EXCEPTION,
+                                &is_compiled_scope);
     }
     Handle<CoverageInfo> coverage_info;
     if (finalize_data.coverage_info().ToHandle(&coverage_info)) {
@@ -1885,6 +1966,25 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
+  return true;
+}
+
+// static
+bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
+                               ClearExceptionFlag flag,
+                               IsCompiledScope* is_compiled_scope) {
+  Handle<SharedFunctionInfo> shared(function->shared(isolate), isolate);
+  if (!CompileSharedWithBaseline(isolate, shared, flag, is_compiled_scope)) {
+    return false;
+  }
+
+  // Baseline code needs a feedback vector.
+  JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+
+  Code baseline_code = shared->baseline_data().baseline_code(isolate);
+  DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
+  function->set_code(baseline_code);
+
   return true;
 }
 

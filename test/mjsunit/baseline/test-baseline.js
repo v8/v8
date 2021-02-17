@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --super-ic
+// Flags: --allow-natives-syntax --super-ic --sparkplug
 
 function run(f, ...args) {
   try { f(...args); } catch (e) {}

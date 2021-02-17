@@ -97,7 +97,7 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
-  if (!FLAG_trace_ignition && !FLAG_trace_baseline) {
+  if (!FLAG_trace_ignition && !FLAG_trace_baseline_exec) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -108,7 +108,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
   if (frame->is_interpreted() && !FLAG_trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
-  if (frame->is_baseline() && !FLAG_trace_baseline) {
+  if (frame->is_baseline() && !FLAG_trace_baseline_exec) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -148,7 +148,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
 }
 
 RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
-  if (!FLAG_trace_ignition && !FLAG_trace_baseline) {
+  if (!FLAG_trace_ignition && !FLAG_trace_baseline_exec) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -159,7 +159,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
   if (frame->is_interpreted() && !FLAG_trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
-  if (frame->is_baseline() && !FLAG_trace_baseline) {
+  if (frame->is_baseline() && !FLAG_trace_baseline_exec) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 

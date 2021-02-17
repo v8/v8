@@ -433,40 +433,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   return Object();
 }
 
-RUNTIME_FUNCTION(Runtime_CompileBaseline) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  Handle<SharedFunctionInfo> shared(function->shared(isolate), isolate);
-  IsCompiledScope is_compiled_scope = shared->is_compiled_scope(isolate);
-
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    return isolate->StackOverflow();
-  }
-  if (!shared->IsUserJavaScript()) {
-    return *function;
-  }
-  if (!is_compiled_scope.is_compiled()) {
-    if (!Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
-                           &is_compiled_scope)) {
-      return ReadOnlyRoots(isolate).exception();
-    }
-  }
-
-  // TODO(v8:11429): Add a Compiler::Compile* method for this.
-  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-
-  if (!shared->HasBaselineData()) {
-    Handle<Code> code = CompileWithBaseline(isolate, shared);
-    function->set_code(*code);
-  } else {
-    function->set_code(shared->baseline_data().baseline_code(isolate));
-  }
-  return *function;
-}
-
 static Object CompileGlobalEval(Isolate* isolate,
                                 Handle<i::Object> source_object,
                                 Handle<SharedFunctionInfo> outer_info,

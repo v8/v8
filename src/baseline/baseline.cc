@@ -17,62 +17,18 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> CompileWithBaseline(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_function_info,
-    Handle<BytecodeArray> bytecode) {
+Handle<Code> GenerateBaselineCode(Isolate* isolate,
+                                  Handle<SharedFunctionInfo> shared) {
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      RuntimeCallCounterId::kCompileBaseline);
-  baseline::BaselineCompiler compiler(isolate, shared_function_info, bytecode);
+  baseline::BaselineCompiler compiler(
+      isolate, shared, handle(shared->GetBytecodeArray(isolate), isolate));
 
   compiler.GenerateCode();
-
-  return compiler.Build(isolate);
-}
-
-// TODO(v8:11429): This can be the basis of Compiler::CompileBaseline
-Handle<Code> CompileWithBaseline(Isolate* isolate,
-                                 Handle<SharedFunctionInfo> shared) {
-  if (shared->HasBaselineData()) {
-    return handle(shared->baseline_data().baseline_code(), isolate);
-  }
-
-  if (FLAG_trace_opt) {
-    PrintF("[compiling method ");
-    shared->ShortPrint();
-    PrintF(" using Baseline]\n");
-  }
-
-  base::ElapsedTimer timer;
-  timer.Start();
-
-  Handle<Code> code = CompileWithBaseline(
-      isolate, shared, handle(shared->GetBytecodeArray(isolate), isolate));
-  Handle<HeapObject> function_data =
-      handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
-  Handle<BaselineData> baseline_data =
-      isolate->factory()->NewBaselineData(code, function_data);
-  shared->set_baseline_data(*baseline_data);
-
+  Handle<Code> code = compiler.Build(isolate);
   if (FLAG_print_code) {
     code->Print();
   }
-
-  if (shared->script().IsScript()) {
-    Compiler::LogFunctionCompilation(
-        isolate, CodeEventListener::FUNCTION_TAG, shared,
-        handle(Script::cast(shared->script()), isolate),
-        Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
-        timer.Elapsed().InMillisecondsF());
-  }
-
-  if (FLAG_trace_opt) {
-    // TODO(v8:11429): Move to Compiler.
-    PrintF("[completed compiling ");
-    shared->ShortPrint();
-    PrintF(" using Sparkplug - took %0.3f ms]\n",
-           timer.Elapsed().InMillisecondsF());
-  }
-
   return code;
 }
 
@@ -84,8 +40,8 @@ Handle<Code> CompileWithBaseline(Isolate* isolate,
 namespace v8 {
 namespace internal {
 
-Handle<Code> CompileWithBaseline(Isolate* isolate,
-                                 Handle<SharedFunctionInfo> shared) {
+Handle<Code> GenerateBaselineCode(Isolate* isolate,
+                                  Handle<SharedFunctionInfo> shared) {
   UNREACHABLE();
 }
 

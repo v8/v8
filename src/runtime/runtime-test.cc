@@ -385,6 +385,33 @@ bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
 
 }  // namespace
 
+RUNTIME_FUNCTION(Runtime_CompileBaseline) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  IsCompiledScope is_compiled_scope =
+      function->shared(isolate).is_compiled_scope(isolate);
+
+  if (!function->shared(isolate).IsUserJavaScript()) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
+  // First compile the bytecode, if we have to.
+  if (!is_compiled_scope.is_compiled() &&
+      !Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
+                         &is_compiled_scope)) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
+  if (!Compiler::CompileBaseline(isolate, function, Compiler::KEEP_EXCEPTION,
+                                 &is_compiled_scope)) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
+  return *function;
+}
+
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
   return OptimizeFunctionOnNextCall(args, isolate, TierupKind::kTierupBytecode);
