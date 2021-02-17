@@ -41,8 +41,8 @@ TF_BUILTIN(ToNumeric_Baseline, CodeStubAssembler) {
   auto context = [this] { return LoadContextFromBaseline(); };
 
   TVARIABLE(Smi, var_type_feedback);
-  TNode<Number> result = CAST(ToNumberOrNumeric(
-      context, input, &var_type_feedback, Object::Conversion::kToNumeric));
+  TNode<Numeric> result = ToNumberOrNumeric(context, input, &var_type_feedback,
+                                            Object::Conversion::kToNumeric);
 
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
