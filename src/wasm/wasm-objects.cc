@@ -858,7 +858,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   // limits the number of memories that can be allocated, causing OOMs in many
   // tests. For now, on 32-bit we never reserve more than initial, unless the
   // memory is shared.
-  if (shared == SharedFlag::kNotShared || !FLAG_wasm_grow_shared_memory) {
+  if (shared == SharedFlag::kNotShared) {
     heuristic_maximum = initial;
   }
 #endif
@@ -936,30 +936,27 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
   // Try to handle shared memory first.
   if (old_buffer->is_shared()) {
-    if (FLAG_wasm_grow_shared_memory) {
-      base::Optional<size_t> result =
-          backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages);
-      // Shared memories can only be grown in place; no copying.
-      if (result.has_value()) {
-        BackingStore::BroadcastSharedWasmMemoryGrow(isolate, backing_store);
-        // Broadcasting the update should update this memory object too.
-        CHECK_NE(*old_buffer, memory_object->array_buffer());
-        size_t new_pages = result.value() + pages;
-        // If the allocation succeeded, then this can't possibly overflow:
-        size_t new_byte_length = new_pages * wasm::kWasmPageSize;
-        // This is a less than check, as it is not guaranteed that the SAB
-        // length here will be equal to the stashed length above as calls to
-        // grow the same memory object can come in from different workers.
-        // It is also possible that a call to Grow was in progress when
-        // handling this call.
-        CHECK_LE(new_byte_length, memory_object->array_buffer().byte_length());
-        // As {old_pages} was read racefully, we return here the synchronized
-        // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
-        // read-modify-write behavior required by the spec.
-        return static_cast<int32_t>(result.value());  // success
-      }
-    }
-    return -1;
+    base::Optional<size_t> result =
+        backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages);
+    // Shared memories can only be grown in place; no copying.
+    if (!result.has_value()) return -1;
+
+    BackingStore::BroadcastSharedWasmMemoryGrow(isolate, backing_store);
+    // Broadcasting the update should update this memory object too.
+    CHECK_NE(*old_buffer, memory_object->array_buffer());
+    size_t new_pages = result.value() + pages;
+    // If the allocation succeeded, then this can't possibly overflow:
+    size_t new_byte_length = new_pages * wasm::kWasmPageSize;
+    // This is a less than check, as it is not guaranteed that the SAB
+    // length here will be equal to the stashed length above as calls to
+    // grow the same memory object can come in from different workers.
+    // It is also possible that a call to Grow was in progress when
+    // handling this call.
+    CHECK_LE(new_byte_length, memory_object->array_buffer().byte_length());
+    // As {old_pages} was read racefully, we return here the synchronized
+    // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
+    // read-modify-write behavior required by the spec.
+    return static_cast<int32_t>(result.value());  // success
   }
 
   base::Optional<size_t> result =

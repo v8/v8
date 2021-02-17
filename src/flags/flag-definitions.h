@@ -932,9 +932,6 @@ DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
 DEFINE_BOOL(wasm_lazy_validation, false,
             "enable lazy validation for lazily compiled wasm functions")
-
-DEFINE_BOOL(wasm_grow_shared_memory, true,
-            "allow growing shared WebAssembly memory objects")
 DEFINE_BOOL(wasm_simd_post_mvp, false,
             "allow experimental SIMD operations for prototyping that are not "
             "included in the current proposal")
