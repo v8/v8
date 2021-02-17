@@ -189,8 +189,8 @@
       except1, catchstmt1, kExprCatch, except2, catchstmt2, kExprEnd
 #define WASM_TRY_CATCH_R(t, trystmt, catchstmt) \
   kExprTry, WASM_REF_TYPE(t), trystmt, kExprCatch, catchstmt, kExprEnd
-#define WASM_TRY_CATCH_ALL_T(t, trystmt, catchstmt)                       \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprElse, \
+#define WASM_TRY_CATCH_ALL_T(t, trystmt, catchstmt)                           \
+  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatchAll, \
       catchstmt, kExprEnd
 #define WASM_TRY_DELEGATE(trystmt, depth) \
   kExprTry, kVoidCode, trystmt, kExprDelegate, depth

@@ -76,7 +76,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmStmt,
           kExprUnreachable,
-        kExprElse,
+        kExprCatchAll,
         kExprEnd
       ]).exportFunc();
   builder.addFunction('unreachable_in_try_unwind', kSig_v_v)
@@ -106,7 +106,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprLocalGet, 1,
           kExprCallFunction, func_div.index,
-        kExprElse,
+        kExprCatchAll,
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
@@ -141,7 +141,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmI32,
           kExprCallFunction, imp,
-        kExprElse,
+        kExprCatchAll,
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
@@ -197,7 +197,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmI32,
           kExprCallFunction, imp,
-        kExprElse,
+        kExprCatchAll,
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
@@ -1016,7 +1016,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprTry, kWasmStmt,
             kExprThrow, except,
           kExprDelegate, 1,
-        kExprElse,
+        kExprCatchAll,
         kExprEnd
       ]).exportFunc();
   builder.addFunction('test_unwind', kSig_v_v)

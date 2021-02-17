@@ -21,7 +21,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprCallFunction, f.index,
           kExprCallFunction, f.index,
           kExprLocalSet, 0,
-        kExprElse,
+        kExprCatchAll,
           kExprLocalGet, 0,
           kExprCallFunction, f.index,
           kExprLocalSet, 0,

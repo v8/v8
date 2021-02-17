@@ -112,7 +112,7 @@ WASM_EXEC_TEST(TryCatchAllThrow) {
                  WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except1)),
                  WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_I32V(1)),
                          WASM_THROW(except2))),
-      kExprCatch, except1, WASM_STMTS(WASM_I32V(kResult0)), kExprElse,
+      kExprCatch, except1, WASM_STMTS(WASM_I32V(kResult0)), kExprCatchAll,
       WASM_STMTS(WASM_I32V(kResult1)), kExprEnd);
 
   if (execution_tier != TestExecutionTier::kInterpreter) {

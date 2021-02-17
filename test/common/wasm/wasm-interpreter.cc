@@ -825,49 +825,50 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprElse: {
-          // Alias for catch_all if the current block is a try.
+          TRACE("control @%u: Else\n", i.pc_offset());
           Control* c = &control_stack.back();
-          if (*c->pc == kExprIf) {
-            copy_unreachable();
-            TRACE("control @%u: Else\n", i.pc_offset());
-            if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
-            DCHECK_NOT_NULL(c->else_label);
-            c->else_label->Bind(i.pc() + 1);
-            c->else_label->Finish(&map_, code->start);
-            stack_height = c->else_label->target_stack_height;
-            c->else_label = nullptr;
-            DCHECK_IMPLIES(!unreachable,
-                           stack_height >= c->end_label->target_stack_height);
-          } else {
-            DCHECK_EQ(*c->pc, kExprTry);
-            if (!exception_stack.empty() &&
-                exception_stack.back() == control_stack.size() - 1) {
-              // Only pop the exception stack if this is the only catch handler.
-              exception_stack.pop_back();
-            }
-            copy_unreachable();
-            TRACE("control @%u: CatchAll\n", i.pc_offset());
-            if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
-            DCHECK_NOT_NULL(c->else_label);
-            int control_index = static_cast<int>(control_stack.size()) - 1;
-            c->else_label->Bind(i.pc() + 1, kCatchAllExceptionIndex,
-                                control_index);
-            c->else_label->Finish(&map_, code->start);
-            c->else_label = nullptr;
-            DCHECK_IMPLIES(!unreachable,
-                           stack_height >= c->end_label->target_stack_height);
-            stack_height = c->end_label->target_stack_height;
+          DCHECK_EQ(*c->pc, kExprIf);
+          copy_unreachable();
+          if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
+          DCHECK_NOT_NULL(c->else_label);
+          c->else_label->Bind(i.pc() + 1);
+          c->else_label->Finish(&map_, code->start);
+          stack_height = c->else_label->target_stack_height;
+          c->else_label = nullptr;
+          DCHECK_IMPLIES(!unreachable,
+                         stack_height >= c->end_label->target_stack_height);
+          break;
+        }
+        case kExprCatchAll: {
+          TRACE("control @%u: CatchAll\n", i.pc_offset());
+          Control* c = &control_stack.back();
+          DCHECK_EQ(*c->pc, kExprTry);
+          if (!exception_stack.empty() &&
+              exception_stack.back() == control_stack.size() - 1) {
+            // Only pop the exception stack if this is the only catch handler.
+            exception_stack.pop_back();
           }
+          copy_unreachable();
+          if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
+          DCHECK_NOT_NULL(c->else_label);
+          int control_index = static_cast<int>(control_stack.size()) - 1;
+          c->else_label->Bind(i.pc() + 1, kCatchAllExceptionIndex,
+                              control_index);
+          c->else_label->Finish(&map_, code->start);
+          c->else_label = nullptr;
+          DCHECK_IMPLIES(!unreachable,
+                         stack_height >= c->end_label->target_stack_height);
+          stack_height = c->end_label->target_stack_height;
           break;
         }
         case kExprUnwind: {
+          TRACE("control @%u: Unwind\n", i.pc_offset());
           Control* c = &control_stack.back();
           DCHECK_EQ(*c->pc, kExprTry);
           DCHECK(!exception_stack.empty());
           DCHECK_EQ(exception_stack.back(), control_stack.size() - 1);
           exception_stack.pop_back();
           copy_unreachable();
-          TRACE("control @%u: Unwind\n", i.pc_offset());
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
           DCHECK_NOT_NULL(c->else_label);
           int control_index = static_cast<int>(control_stack.size()) - 1;
@@ -3472,7 +3473,8 @@ class WasmInterpreterInternals {
         }
         case kExprElse:
         case kExprUnwind:
-        case kExprCatch: {
+        case kExprCatch:
+        case kExprCatchAll: {
           len = LookupTargetDelta(code, pc);
           TRACE("  end => @%zu\n", pc + len);
           break;

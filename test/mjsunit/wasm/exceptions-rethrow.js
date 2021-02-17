@@ -49,7 +49,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmStmt,
           kExprThrow, except,
-        kExprElse,
+        kExprCatchAll,
           kExprRethrow, 0,
         kExprEnd,
   ]).exportFunc();
@@ -57,7 +57,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmI32,
           kExprThrow, except,
-        kExprElse,
+        kExprCatchAll,
           kExprLocalGet, 0,
           kExprI32Eqz,
           kExprIf, kWasmStmt,

@@ -2872,12 +2872,17 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   byte ex = builder.AddException(sigs.v_v());
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprEnd});
   ExpectValidates(sigs.v_v(),
-                  {WASM_TRY_OP, kExprCatch, ex, kExprElse, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprElse, kExprCatch, ex, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprElse, kExprElse, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprEnd});    // Missing catch.
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex});  // Missing end.
-  ExpectFailure(sigs.v_v(), {kExprCatch, kExprEnd});     // Missing try.
+                  {WASM_TRY_OP, kExprCatch, ex, kExprCatchAll, kExprEnd});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprCatchAll, kExprCatch, ex, kExprEnd},
+                kAppendEnd, "catch after catch-all for try");
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd},
+                kAppendEnd, "catch-all already present for try");
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprEnd}, kAppendEnd,
+                "missing catch or catch-all in try");
+  ExpectFailure(sigs.v_v(), {kExprCatch, ex, kExprEnd}, kAppendEnd,
+                "catch does not match a try");
 }
 
 TEST_F(FunctionBodyDecoderTest, TryUnwind) {
@@ -2885,16 +2890,20 @@ TEST_F(FunctionBodyDecoderTest, TryUnwind) {
   byte ex = builder.AddException(sigs.v_v());
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprUnwind, kExprEnd});
   ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprUnwind, kExprCatch, ex, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprElse, kExprUnwind, kExprEnd});
-  ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprCatch, ex, kExprUnwind, kExprEnd});
+                {WASM_TRY_OP, kExprUnwind, kExprCatch, ex, kExprEnd},
+                kAppendEnd, "catch after unwind for try");
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatchAll, kExprUnwind, kExprEnd},
+                kAppendEnd,
+                "catch, catch-all or unwind already present for try");
+  ExpectFailure(
+      sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprUnwind, kExprEnd},
+      kAppendEnd, "catch, catch-all or unwind already present for try");
 }
 
 TEST_F(FunctionBodyDecoderTest, Rethrow) {
   WASM_FEATURE_SCOPE(eh);
   ExpectValidates(sigs.v_v(),
-                  {WASM_TRY_OP, kExprElse, kExprRethrow, 0, kExprEnd});
+                  {WASM_TRY_OP, kExprCatchAll, kExprRethrow, 0, kExprEnd});
   ExpectFailure(sigs.v_v(),
                 {WASM_TRY_OP, kExprRethrow, 0, kExprCatch, kExprEnd},
                 kAppendEnd, "rethrow not targeting catch or catch-all");
@@ -2941,7 +2950,7 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
       kAppendEnd, "delegate does not match a try");
   ExpectFailure(
       sigs.v_v(),
-      {WASM_TRY_OP, WASM_TRY_OP, kExprElse, kExprDelegate, 1, kExprEnd},
+      {WASM_TRY_OP, WASM_TRY_OP, kExprCatchAll, kExprDelegate, 1, kExprEnd},
       kAppendEnd, "delegate does not match a try");
 }
 
