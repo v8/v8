@@ -77,6 +77,14 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs =
 constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
     d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12);
 
+#elif V8_TARGET_ARCH_PPC64
+
+constexpr RegList kLiftoffAssemblerGpCacheRegs =
+    Register::ListOf(r3, r4, r5, r6, r7, r8, r9, r10, r11);
+
+constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
+    d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12);
+
 #elif V8_TARGET_ARCH_RISCV64
 
 // Any change of kLiftoffAssemblerGpCacheRegs also need to update
