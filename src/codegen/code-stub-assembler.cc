@@ -2637,6 +2637,25 @@ TNode<Context> CodeStubAssembler::LoadModuleContext(TNode<Context> context) {
   return UncheckedCast<Context>(cur_context.value());
 }
 
+TNode<Object> CodeStubAssembler::GetImportMetaObject(TNode<Context> context) {
+  const TNode<Context> module_context = LoadModuleContext(context);
+  const TNode<HeapObject> module =
+      CAST(LoadContextElement(module_context, Context::EXTENSION_INDEX));
+  const TNode<Object> import_meta =
+      LoadObjectField(module, SourceTextModule::kImportMetaOffset);
+
+  TVARIABLE(Object, return_value, import_meta);
+
+  Label end(this);
+  GotoIfNot(IsTheHole(import_meta), &end);
+
+  return_value = CallRuntime(Runtime::kGetImportMetaObject, context);
+  Goto(&end);
+
+  BIND(&end);
+  return return_value.value();
+}
+
 TNode<Map> CodeStubAssembler::LoadObjectFunctionInitialMap(
     TNode<NativeContext> native_context) {
   TNode<JSFunction> object_function =
@@ -8818,6 +8837,43 @@ TNode<Object> CodeStubAssembler::GetIteratorMethod(
     Label* if_iteratorundefined) {
   return GetMethod(context, heap_obj, isolate()->factory()->iterator_symbol(),
                    if_iteratorundefined);
+}
+
+TNode<Object> CodeStubAssembler::CreateAsyncFromSyncIterator(
+    TNode<Context> context, TNode<Object> sync_iterator) {
+  Label not_receiver(this, Label::kDeferred);
+  Label done(this);
+  TVARIABLE(Object, return_value);
+
+  GotoIf(TaggedIsSmi(sync_iterator), &not_receiver);
+  GotoIfNot(IsJSReceiver(CAST(sync_iterator)), &not_receiver);
+
+  const TNode<Object> next =
+      GetProperty(context, sync_iterator, factory()->next_string());
+
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Map> map = CAST(LoadContextElement(
+      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX));
+  const TNode<JSObject> iterator = AllocateJSObjectFromMap(map);
+
+  StoreObjectFieldNoWriteBarrier(
+      iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
+  StoreObjectFieldNoWriteBarrier(iterator, JSAsyncFromSyncIterator::kNextOffset,
+                                 next);
+
+  return_value = iterator;
+  Goto(&done);
+
+  BIND(&not_receiver);
+  {
+    return_value = CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
+
+    // Unreachable due to the Throw in runtime call.
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return return_value.value();
 }
 
 void CodeStubAssembler::LoadPropertyFromFastObject(

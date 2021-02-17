@@ -1477,6 +1477,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Calling this is only valid if there's a module context in the chain.
   TNode<Context> LoadModuleContext(TNode<Context> context);
 
+  TNode<Object> GetImportMetaObject(TNode<Context> context);
+
   void GotoIfContextElementEqual(SloppyTNode<Object> value,
                                  TNode<NativeContext> native_context,
                                  int slot_index, Label* if_equal) {
@@ -3024,6 +3026,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> GetIteratorMethod(TNode<Context> context,
                                   TNode<HeapObject> heap_obj,
                                   Label* if_iteratorundefined);
+
+  TNode<Object> CreateAsyncFromSyncIterator(TNode<Context> context,
+                                            TNode<Object> sync_iterator);
 
   template <class... TArgs>
   TNode<Object> CallBuiltin(Builtins::Name id, SloppyTNode<Object> context,

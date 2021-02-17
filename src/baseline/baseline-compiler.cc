@@ -193,8 +193,6 @@ struct ArgumentSettingHelper<interpreter::RegisterList> {
                   int i, interpreter::RegisterList list) {
     // Either all the values are in machine registers, or they're all on the
     // stack.
-    // TODO(v8:11429,leszeks): Support splitting the register list over
-    // registers and stack.
     if (i < descriptor.GetRegisterParameterCount()) {
       for (int reg_index = 0; reg_index < list.register_count();
            ++reg_index, ++i) {
@@ -545,7 +543,7 @@ void BaselineCompiler::VerifyFrame() {
       __ Bind(&is_ok);
     }
 
-    // TODO(v8:11429,leszeks): More verification.
+    // TODO(leszeks): More verification.
 
     __ RecordComment("]");
   }
@@ -582,8 +580,7 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
   __ AddToInterruptBudget(weight);
 
   if (weight < 0) {
-    // Use compare flags set by add
-    // TODO(v8:11429,leszeks): This might be trickier cross-arch.
+    // Use compare flags set by AddToInterruptBudget
     __ JumpIf(Condition::kGreaterThanEqual, skip_interrupt_label);
     SaveAccumulatorScope accumulator_scope(&basm_);
     CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode,
@@ -1407,8 +1404,7 @@ void BaselineCompiler::VisitIntrinsicCall(interpreter::RegisterList args) {
 
 void BaselineCompiler::VisitIntrinsicCreateAsyncFromSyncIterator(
     interpreter::RegisterList args) {
-  // TODO(v8:11429,leszeks): Add fast-path.
-  CallRuntime(Runtime::kCreateAsyncFromSyncIterator, args);
+  CallBuiltin(Builtins::kCreateAsyncFromSyncIteratorBaseline, args[0]);
 }
 
 void BaselineCompiler::VisitIntrinsicCreateJSGeneratorObject(
@@ -1435,8 +1431,7 @@ void BaselineCompiler::VisitIntrinsicGeneratorClose(
 
 void BaselineCompiler::VisitIntrinsicGetImportMetaObject(
     interpreter::RegisterList args) {
-  // TODO(v8:11429,leszeks): Add fast-path.
-  CallRuntime(Runtime::kGetImportMetaObject, args);
+  CallBuiltin(Builtins::kGetImportMetaObjectBaseline);
 }
 
 void BaselineCompiler::VisitIntrinsicAsyncFunctionAwaitCaught(
@@ -2217,8 +2212,6 @@ void BaselineCompiler::VisitResumeGenerator() {
     __ StoreRegister(interpreter::Register(i), value);
   }
 
-  // TODO(v8:11429,leszeks): Just load the known InputOrDebugPosOffset value
-  // directly.
   __ LoadTaggedAnyField(kInterpreterAccumulatorRegister, generator_object,
                         JSGeneratorObject::kInputOrDebugPosOffset);
 }

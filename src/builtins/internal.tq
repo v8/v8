@@ -85,4 +85,12 @@ transitioning builtin ForInNext(
       UpdateFeedbackMode::kGuaranteedFeedback);
 }
 
+extern macro GetImportMetaObject(Context): Object;
+extern macro LoadContextFromBaseline(): Context;
+
+builtin GetImportMetaObjectBaseline(): Object {
+  const context: Context = LoadContextFromBaseline();
+  return GetImportMetaObject(context);
+}
+
 }  // namespace internal
