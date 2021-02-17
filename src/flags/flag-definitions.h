@@ -249,8 +249,7 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
-  V(harmony_import_assertions, "harmony import assertions")                    \
-  V(harmony_private_brand_checks, "harmony private brand checks")
+  V(harmony_import_assertions, "harmony import assertions")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
@@ -261,9 +260,10 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                          \
-  V(harmony_top_level_await, "harmony top level await") \
-  V(harmony_relative_indexing_methods, "harmony relative indexing methods")
+#define HARMONY_STAGED_BASE(V)                                              \
+  V(harmony_top_level_await, "harmony top level await")                     \
+  V(harmony_relative_indexing_methods, "harmony relative indexing methods") \
+  V(harmony_private_brand_checks, "harmony private brand checks")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)               \
