@@ -12,7 +12,8 @@ namespace subtle {
 // static
 bool HeapState::IsMarking(const HeapHandle& heap_handle) {
   const auto& heap_base = internal::HeapBase::From(heap_handle);
-  return heap_base.marker();
+  const internal::MarkerBase* marker = heap_base.marker();
+  return marker && marker->IsMarking();
 }
 
 // static

@@ -202,7 +202,7 @@ MarkerBase::~MarkerBase() {
 }
 
 void MarkerBase::StartMarking() {
-  DCHECK(!is_marking_started_);
+  DCHECK(!is_marking_);
   StatsCollector::EnabledScope stats_scope(
       heap().stats_collector(),
       config_.marking_type == MarkingConfig::MarkingType::kAtomic
@@ -212,7 +212,7 @@ void MarkerBase::StartMarking() {
   heap().stats_collector()->NotifyMarkingStarted(config_.collection_type,
                                                  config_.is_forced_gc);
 
-  is_marking_started_ = true;
+  is_marking_ = true;
   if (EnterIncrementalMarkingIfNeeded(config_, heap())) {
     StatsCollector::EnabledScope stats_scope(
         heap().stats_collector(), StatsCollector::kMarkIncrementalStart);
@@ -268,7 +268,7 @@ void MarkerBase::LeaveAtomicPause() {
   heap().stats_collector()->NotifyMarkingCompleted(
       // GetOverallMarkedBytes also includes concurrently marked bytes.
       schedule_.GetOverallMarkedBytes());
-  is_marking_started_ = false;
+  is_marking_ = false;
   {
     // Weakness callbacks are forbidden from allocating objects.
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_);
@@ -278,7 +278,7 @@ void MarkerBase::LeaveAtomicPause() {
 }
 
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
-  DCHECK(is_marking_started_);
+  DCHECK(is_marking_);
   StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
                                            StatsCollector::kAtomicMark);
   EnterAtomicPause(stack_state);

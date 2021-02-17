@@ -131,6 +131,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void NotifyCompactionCancelled();
 
+  bool IsMarking() const { return is_marking_; }
+
  protected:
   static constexpr v8::base::TimeDelta kMaximumIncrementalStepDuration =
       v8::base::TimeDelta::FromMilliseconds(2);
@@ -170,7 +172,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   MarkingWorklists marking_worklists_;
   MutatorMarkingState mutator_marking_state_;
-  bool is_marking_started_{false};
+  bool is_marking_{false};
 
   IncrementalMarkingSchedule schedule_;
 
