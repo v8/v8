@@ -169,7 +169,10 @@ class V8_EXPORT Visitor {
     const K* k = key.GetRawAtomic();
     if (!k) return;
     TraceDescriptor value_desc = TraceTrait<V>::GetTraceDescriptor(value);
-    if (!value_desc.base_object_payload) return;
+    // `value` must always be non-null. `value_desc.base_object_payload` may be
+    // null in the case that value is not a garbage-collected object but only
+    // traceable.
+    CPPGC_DCHECK(value);
     VisitEphemeron(key, value, value_desc);
   }
 
