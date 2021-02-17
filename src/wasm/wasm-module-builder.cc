@@ -248,6 +248,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       data_segments_(zone),
       indirect_functions_(zone),
       globals_(zone),
+      exceptions_(zone),
       signature_map_(zone),
       start_function_index_(-1),
       min_memory_size_(16),
@@ -278,6 +279,14 @@ uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
   signature_map_.emplace(*sig, index);
   types_.push_back(Type(sig));
   return index;
+}
+
+uint32_t WasmModuleBuilder::AddException(FunctionSig* type) {
+  DCHECK_EQ(0, type->return_count());
+  int type_index = AddSignature(type);
+  uint32_t except_index = static_cast<uint32_t>(exceptions_.size());
+  exceptions_.push_back(type_index);
+  return except_index;
 }
 
 uint32_t WasmModuleBuilder::AddStructType(StructType* type) {
@@ -619,6 +628,17 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_u32v(min_memory_size_);
     if (has_max_memory_size_) {
       buffer->write_u32v(max_memory_size_);
+    }
+    FixupSection(buffer, start);
+  }
+
+  // Emit event section.
+  if (exceptions_.size() > 0) {
+    size_t start = EmitSection(kExceptionSectionCode, buffer);
+    buffer->write_size(exceptions_.size());
+    for (int type : exceptions_) {
+      buffer->write_u32v(kExceptionAttribute);
+      buffer->write_u32v(type);
     }
     FixupSection(buffer, start);
   }
