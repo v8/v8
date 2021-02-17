@@ -167,6 +167,8 @@ class Symbol;
   V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
   V(OrderedNameDictionary, empty_ordered_property_dictionary,                  \
     EmptyOrderedPropertyDictionary)                                            \
+  V(SwissNameDictionary, empty_swiss_property_dictionary,                      \
+    EmptySwissPropertyDictionary)                                              \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
