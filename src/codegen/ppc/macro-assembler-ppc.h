@@ -443,7 +443,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
-  void JumpCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override;
 
   void CallBuiltinByIndex(Register builtin_index) override;
   void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
