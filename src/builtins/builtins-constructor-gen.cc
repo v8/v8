@@ -47,13 +47,12 @@ TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
 
   // TODO(verwaest): Only emit context loads where necessary
   auto context = LoadContextFromBaseline();
-  // TODO(verwaest): Make sure CollectConstructFeedback knows we have a
-  // feedback vector.
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
+                           UpdateFeedbackMode::kGuaranteedFeedback,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -76,6 +75,7 @@ TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
+                           UpdateFeedbackMode::kOptionalFeedback,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -107,6 +107,7 @@ TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
+                           UpdateFeedbackMode::kOptionalFeedback,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -137,13 +138,12 @@ TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
 
   // TODO(verwaest): Only emit context loads where necessary
   auto context = LoadContextFromBaseline();
-  // TODO(verwaest): Make sure CollectConstructFeedback knows we have a
-  // feedback vector.
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
+                           UpdateFeedbackMode::kGuaranteedFeedback,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 
@@ -167,6 +167,7 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
+                           UpdateFeedbackMode::kOptionalFeedback,
                            &if_construct_generic, &if_construct_array,
                            &allocation_site);
 

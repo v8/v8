@@ -3172,6 +3172,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<JSFunction> closure);
 
   // Update the type feedback vector.
+  bool UpdateFeedbackModeEqual(UpdateFeedbackMode a, UpdateFeedbackMode b) {
+    return a == b;
+  }
   void UpdateFeedback(TNode<Smi> feedback,
                       TNode<HeapObject> maybe_feedback_vector,
                       TNode<UintPtrT> slot_id, UpdateFeedbackMode mode);

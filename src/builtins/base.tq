@@ -228,6 +228,10 @@ type Callable = JSFunction|JSBoundFunction|CallableJSProxy|CallableApiObject;
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
+extern enum UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback }
+extern operator '==' macro UpdateFeedbackModeEqual(
+    constexpr UpdateFeedbackMode, constexpr UpdateFeedbackMode): constexpr bool;
+
 extern enum UnicodeEncoding { UTF16, UTF32 }
 
 // Promise constants

@@ -802,8 +802,8 @@ TNode<Object> InterpreterAssembler::Construct(
       construct_array(this, &var_site);
 
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
-                           slot_id, &construct_generic, &construct_array,
-                           &var_site);
+                           slot_id, UpdateFeedbackMode::kOptionalFeedback,
+                           &construct_generic, &construct_array, &var_site);
 
   BIND(&construct_generic);
   {
