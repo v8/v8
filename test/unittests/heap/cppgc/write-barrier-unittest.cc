@@ -175,7 +175,7 @@ class NoWriteBarrierTest : public testing::TestWithHeap {};
 TEST_F(WriteBarrierTest, EnableDisableIncrementalMarking) {
   {
     IncrementalMarkingScope scope(marker());
-    EXPECT_TRUE(ProcessHeap::IsAnyIncrementalOrConcurrentMarking());
+    EXPECT_TRUE(WriteBarrier::IsAnyIncrementalOrConcurrentMarking());
   }
 }
 

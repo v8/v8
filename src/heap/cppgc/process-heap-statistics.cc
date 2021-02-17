@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/process-heap.h"
+#include "src/heap/cppgc/process-heap-statistics.h"
 
 namespace cppgc {
-namespace internal {
 
-v8::base::LazyMutex g_process_mutex = LAZY_MUTEX_INITIALIZER;
+std::atomic_size_t ProcessHeapStatistics::total_allocated_space_{0};
+std::atomic_size_t ProcessHeapStatistics::total_allocated_object_size_{0};
 
-}  // namespace internal
 }  // namespace cppgc

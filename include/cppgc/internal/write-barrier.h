@@ -7,7 +7,7 @@
 
 #include "cppgc/heap-state.h"
 #include "cppgc/internal/api-constants.h"
-#include "cppgc/internal/process-heap.h"
+#include "cppgc/internal/atomic-entry-flag.h"
 #include "cppgc/sentinel-pointer.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -86,6 +86,13 @@ class V8_EXPORT WriteBarrier final {
   static void CheckParams(Type expected_type, const Params& params) {}
 #endif  // !V8_ENABLE_CHECKS
 
+  // The IncrementalOrConcurrentUpdater class allows cppgc internal to update
+  // |incremental_or_concurrent_marking_flag_|.
+  class IncrementalOrConcurrentMarkingFlagUpdater;
+  static bool IsAnyIncrementalOrConcurrentMarking() {
+    return incremental_or_concurrent_marking_flag_.MightBeEntered();
+  }
+
  private:
   WriteBarrier() = delete;
 
@@ -111,6 +118,8 @@ class V8_EXPORT WriteBarrier final {
                                       const AgeTable& ageTable,
                                       const void* slot, uintptr_t value_offset);
 #endif  // CPPGC_YOUNG_GENERATION
+
+  static AtomicEntryFlag incremental_or_concurrent_marking_flag_;
 };
 
 template <WriteBarrier::Type type>
@@ -218,7 +227,7 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
       return SetAndReturnType<WriteBarrier::Type::kGenerational>(params);
     }
 #else   // !CPPGC_YOUNG_GENERATION
-    if (V8_LIKELY(!ProcessHeap::IsAnyIncrementalOrConcurrentMarking())) {
+    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
     HeapHandle& handle = callback();
@@ -288,7 +297,7 @@ struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
   static V8_INLINE WriteBarrier::Type Get(const void*, const void*,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
-    if (V8_UNLIKELY(ProcessHeap::IsAnyIncrementalOrConcurrentMarking())) {
+    if (V8_UNLIKELY(WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
       HeapHandle& handle = callback();
       if (IsMarking(handle)) {
         params.heap = &handle;

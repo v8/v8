@@ -4697,7 +4697,6 @@ v8_source_set("cppgc_base") {
     "include/cppgc/internal/persistent-node.h",
     "include/cppgc/internal/pointer-policies.h",
     "include/cppgc/internal/prefinalizer-handler.h",
-    "include/cppgc/internal/process-heap.h",
     "include/cppgc/internal/write-barrier.h",
     "include/cppgc/liveness-broker.h",
     "include/cppgc/macros.h",
@@ -4707,6 +4706,7 @@ v8_source_set("cppgc_base") {
     "include/cppgc/persistent.h",
     "include/cppgc/platform.h",
     "include/cppgc/prefinalizer.h",
+    "include/cppgc/process-heap-statistics.h",
     "include/cppgc/sentinel-pointer.h",
     "include/cppgc/source-location.h",
     "include/cppgc/trace-trait.h",
@@ -4773,6 +4773,8 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/pointer-policies.cc",
     "src/heap/cppgc/prefinalizer-handler.cc",
     "src/heap/cppgc/prefinalizer-handler.h",
+    "src/heap/cppgc/process-heap-statistics.cc",
+    "src/heap/cppgc/process-heap-statistics.h",
     "src/heap/cppgc/process-heap.cc",
     "src/heap/cppgc/process-heap.h",
     "src/heap/cppgc/raw-heap.cc",
@@ -4790,6 +4792,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/virtual-memory.h",
     "src/heap/cppgc/visitor.cc",
     "src/heap/cppgc/write-barrier.cc",
+    "src/heap/cppgc/write-barrier.h",
   ]
 
   if (cppgc_is_standalone) {

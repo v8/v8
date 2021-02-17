@@ -225,14 +225,21 @@ class V8_EXPORT_PRIVATE StatsCollector final {
     // the deltas is interesting.
     //
     // May trigger GC.
-    virtual void AllocatedObjectSizeIncreased(size_t) = 0;
-    virtual void AllocatedObjectSizeDecreased(size_t) = 0;
+    virtual void AllocatedObjectSizeIncreased(size_t) {}
+    virtual void AllocatedObjectSizeDecreased(size_t) {}
 
     // Called when the exact size of allocated object size is known. In
     // practice, this is after marking when marked bytes == allocated bytes.
     //
     // Must not trigger GC synchronously.
-    virtual void ResetAllocatedObjectSize(size_t) = 0;
+    virtual void ResetAllocatedObjectSize(size_t) {}
+
+    // Called upon allocating/releasing chunks of memory (e.g. pages) that can
+    // contain objects.
+    //
+    // Must not trigger GC.
+    virtual void AllocatedSizeIncreased(size_t) {}
+    virtual void AllocatedSizeDecreased(size_t) {}
   };
 
   // Observers are implemented using virtual calls. Avoid notifications below

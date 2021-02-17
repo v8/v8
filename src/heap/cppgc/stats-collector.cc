@@ -236,10 +236,16 @@ size_t StatsCollector::allocated_object_size() const {
 
 void StatsCollector::NotifyAllocatedMemory(int64_t size) {
   memory_allocated_bytes_ += size;
+  ForAllAllocationObservers([size](AllocationObserver* observer) {
+    observer->AllocatedSizeIncreased(static_cast<size_t>(size));
+  });
 }
 
 void StatsCollector::NotifyFreedMemory(int64_t size) {
   memory_freed_bytes_since_end_of_marking_ += size;
+  ForAllAllocationObservers([size](AllocationObserver* observer) {
+    observer->AllocatedSizeDecreased(static_cast<size_t>(size));
+  });
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,

@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "include/cppgc/heap-consistency.h"
-#include "include/cppgc/internal/process-heap.h"
 #include "include/cppgc/platform.h"
 #include "src/base/platform/time.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -20,6 +19,7 @@
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/process-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc/write-barrier.h"
 
 #if defined(CPPGC_CAGED_HEAP)
 #include "include/cppgc/internal/caged-heap-local-data.h"
@@ -35,7 +35,7 @@ bool EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-    ProcessHeap::EnterIncrementalOrConcurrentMarking();
+    WriteBarrier::IncrementalOrConcurrentMarkingFlagUpdater::Enter();
 #if defined(CPPGC_CAGED_HEAP)
     heap.caged_heap().local_data().is_incremental_marking_in_progress = true;
 #endif
@@ -49,7 +49,7 @@ bool ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-    ProcessHeap::ExitIncrementalOrConcurrentMarking();
+    WriteBarrier::IncrementalOrConcurrentMarkingFlagUpdater::Exit();
 #if defined(CPPGC_CAGED_HEAP)
     heap.caged_heap().local_data().is_incremental_marking_in_progress = false;
 #endif

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/cppgc/internal/write-barrier.h"
+#include "src/heap/cppgc/write-barrier.h"
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/pointer-policies.h"
@@ -19,6 +19,9 @@
 
 namespace cppgc {
 namespace internal {
+
+// static
+AtomicEntryFlag WriteBarrier::incremental_or_concurrent_marking_flag_;
 
 namespace {
 

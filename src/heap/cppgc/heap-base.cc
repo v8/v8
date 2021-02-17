@@ -78,6 +78,8 @@ HeapBase::HeapBase(
                         stats_collector_.get()),
       sweeper_(&raw_heap_, platform_.get(), stats_collector_.get()),
       stack_support_(stack_support) {
+  stats_collector_->RegisterObserver(
+      &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
 }
 
 HeapBase::~HeapBase() = default;

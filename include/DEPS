@@ -5,7 +5,6 @@ include_rules = [
   # Used by v8-cppgc.h to bridge to cppgc.
   "+cppgc/custom-space.h",
   "+cppgc/heap-statistics.h",
-  "+cppgc/internal/process-heap.h",
   "+cppgc/internal/write-barrier.h",
   "+cppgc/visitor.h",
 ]

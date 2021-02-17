@@ -17,6 +17,7 @@
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
+#include "src/heap/cppgc/process-heap-statistics.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -189,6 +190,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   PersistentRegion strong_cross_thread_persistent_region_;
   PersistentRegion weak_cross_thread_persistent_region_;
 
+  ProcessHeapStatisticsUpdater::AllocationObserverImpl
+      allocation_observer_for_PROCESS_HEAP_STATISTICS_;
 #if defined(CPPGC_YOUNG_GENERATION)
   std::set<void*> remembered_slots_;
 #endif

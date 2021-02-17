@@ -11,7 +11,6 @@
 
 #include "cppgc/custom-space.h"
 #include "cppgc/heap-statistics.h"
-#include "cppgc/internal/process-heap.h"
 #include "cppgc/internal/write-barrier.h"
 #include "cppgc/visitor.h"
 #include "v8-internal.h"  // NOLINT(build/include_directory)
@@ -168,7 +167,7 @@ class V8_EXPORT JSHeapConsistency final {
                       WriteBarrierParams& params, HeapHandleCallback callback) {
     if (ref.IsEmpty()) return WriteBarrierType::kNone;
 
-    if (V8_LIKELY(!cppgc::internal::ProcessHeap::
+    if (V8_LIKELY(!cppgc::internal::WriteBarrier::
                       IsAnyIncrementalOrConcurrentMarking())) {
       return cppgc::internal::WriteBarrier::Type::kNone;
     }
