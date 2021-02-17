@@ -58,10 +58,10 @@ enum FunctionKind : uint8_t {
   kConciseMethod,
   kStaticConciseMethod,
   kClassMembersInitializerFunction,
-  kStaticClassMembersInitializerFunction,
+  kClassStaticInitializerFunction,
   // END concise methods 2
 
-  kLastFunctionKind = kStaticClassMembersInitializerFunction,
+  kLastFunctionKind = kClassStaticInitializerFunction,
 };
 
 constexpr int kFunctionKindBitSize = 5;
@@ -104,7 +104,7 @@ inline bool IsConciseMethod(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kAsyncConciseMethod,
                          FunctionKind::kStaticAsyncConciseGeneratorMethod) ||
          base::IsInRange(kind, FunctionKind::kConciseGeneratorMethod,
-                         FunctionKind::kStaticClassMembersInitializerFunction);
+                         FunctionKind::kClassStaticInitializerFunction);
 }
 
 inline bool IsStrictFunctionWithoutPrototype(FunctionKind kind) {
@@ -113,7 +113,7 @@ inline bool IsStrictFunctionWithoutPrototype(FunctionKind kind) {
          base::IsInRange(kind, FunctionKind::kAsyncConciseMethod,
                          FunctionKind::kStaticAsyncConciseGeneratorMethod) ||
          base::IsInRange(kind, FunctionKind::kConciseGeneratorMethod,
-                         FunctionKind::kStaticClassMembersInitializerFunction);
+                         FunctionKind::kClassStaticInitializerFunction);
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
@@ -153,7 +153,7 @@ inline bool IsClassConstructor(FunctionKind kind) {
 
 inline bool IsClassMembersInitializerFunction(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kClassMembersInitializerFunction,
-                         FunctionKind::kStaticClassMembersInitializerFunction);
+                         FunctionKind::kClassStaticInitializerFunction);
 }
 
 inline bool IsConstructable(FunctionKind kind) {
@@ -169,7 +169,7 @@ inline bool IsStatic(FunctionKind kind) {
     case FunctionKind::kStaticConciseGeneratorMethod:
     case FunctionKind::kStaticAsyncConciseMethod:
     case FunctionKind::kStaticAsyncConciseGeneratorMethod:
-    case FunctionKind::kStaticClassMembersInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunction:
       return true;
     default:
       return false;
@@ -213,8 +213,8 @@ inline const char* FunctionKind2String(FunctionKind kind) {
       return "AsyncModule";
     case FunctionKind::kClassMembersInitializerFunction:
       return "ClassMembersInitializerFunction";
-    case FunctionKind::kStaticClassMembersInitializerFunction:
-      return "StaticClassMembersInitializerFunction";
+    case FunctionKind::kClassStaticInitializerFunction:
+      return "ClassStaticInitializerFunction";
     case FunctionKind::kDefaultBaseConstructor:
       return "DefaultBaseConstructor";
     case FunctionKind::kDefaultDerivedConstructor:

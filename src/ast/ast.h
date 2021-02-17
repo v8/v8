@@ -54,21 +54,22 @@ namespace internal {
   V(Block)                     \
   V(SwitchStatement)
 
-#define STATEMENT_NODE_LIST(V)    \
-  ITERATION_NODE_LIST(V)          \
-  BREAKABLE_NODE_LIST(V)          \
-  V(ExpressionStatement)          \
-  V(EmptyStatement)               \
-  V(SloppyBlockFunctionStatement) \
-  V(IfStatement)                  \
-  V(ContinueStatement)            \
-  V(BreakStatement)               \
-  V(ReturnStatement)              \
-  V(WithStatement)                \
-  V(TryCatchStatement)            \
-  V(TryFinallyStatement)          \
-  V(DebuggerStatement)            \
-  V(InitializeClassMembersStatement)
+#define STATEMENT_NODE_LIST(V)       \
+  ITERATION_NODE_LIST(V)             \
+  BREAKABLE_NODE_LIST(V)             \
+  V(ExpressionStatement)             \
+  V(EmptyStatement)                  \
+  V(SloppyBlockFunctionStatement)    \
+  V(IfStatement)                     \
+  V(ContinueStatement)               \
+  V(BreakStatement)                  \
+  V(ReturnStatement)                 \
+  V(WithStatement)                   \
+  V(TryCatchStatement)               \
+  V(TryFinallyStatement)             \
+  V(DebuggerStatement)               \
+  V(InitializeClassMembersStatement) \
+  V(InitializeClassStaticElementsStatement)
 
 #define LITERAL_NODE_LIST(V) \
   V(RegExpLiteral)           \
@@ -2366,6 +2367,40 @@ class ClassLiteralProperty final : public LiteralProperty {
   Variable* private_or_computed_name_var_;
 };
 
+class ClassLiteralStaticElement final : public ZoneObject {
+ public:
+  enum Kind : uint8_t { PROPERTY, STATIC_BLOCK };
+
+  Kind kind() const { return kind_; }
+
+  ClassLiteralProperty* property() const {
+    DCHECK(kind() == PROPERTY);
+    return property_;
+  }
+
+  Block* static_block() const {
+    DCHECK(kind() == STATIC_BLOCK);
+    return static_block_;
+  }
+
+ private:
+  friend class AstNodeFactory;
+  friend Zone;
+
+  explicit ClassLiteralStaticElement(ClassLiteralProperty* property)
+      : kind_(PROPERTY), property_(property) {}
+
+  explicit ClassLiteralStaticElement(Block* static_block)
+      : kind_(STATIC_BLOCK), static_block_(static_block) {}
+
+  Kind kind_;
+
+  union {
+    ClassLiteralProperty* property_;
+    Block* static_block_;
+  };
+};
+
 class InitializeClassMembersStatement final : public Statement {
  public:
   using Property = ClassLiteralProperty;
@@ -2382,9 +2417,28 @@ class InitializeClassMembersStatement final : public Statement {
   ZonePtrList<Property>* fields_;
 };
 
+class InitializeClassStaticElementsStatement final : public Statement {
+ public:
+  using StaticElement = ClassLiteralStaticElement;
+
+  ZonePtrList<StaticElement>* elements() const { return elements_; }
+
+ private:
+  friend class AstNodeFactory;
+  friend Zone;
+
+  InitializeClassStaticElementsStatement(ZonePtrList<StaticElement>* elements,
+                                         int pos)
+      : Statement(pos, kInitializeClassStaticElementsStatement),
+        elements_(elements) {}
+
+  ZonePtrList<StaticElement>* elements_;
+};
+
 class ClassLiteral final : public Expression {
  public:
   using Property = ClassLiteralProperty;
+  using StaticElement = ClassLiteralStaticElement;
 
   ClassScope* scope() const { return scope_; }
   Expression* extends() const { return extends_; }
@@ -2410,9 +2464,7 @@ class ClassLiteral final : public Expression {
     return is_anonymous_expression();
   }
 
-  FunctionLiteral* static_fields_initializer() const {
-    return static_fields_initializer_;
-  }
+  FunctionLiteral* static_initializer() const { return static_initializer_; }
 
   FunctionLiteral* instance_members_initializer_function() const {
     return instance_members_initializer_function_;
@@ -2430,7 +2482,7 @@ class ClassLiteral final : public Expression {
                FunctionLiteral* constructor,
                ZonePtrList<Property>* public_members,
                ZonePtrList<Property>* private_members,
-               FunctionLiteral* static_fields_initializer,
+               FunctionLiteral* static_initializer,
                FunctionLiteral* instance_members_initializer_function,
                int start_position, int end_position,
                bool has_name_static_property, bool has_static_computed_names,
@@ -2443,7 +2495,7 @@ class ClassLiteral final : public Expression {
         constructor_(constructor),
         public_members_(public_members),
         private_members_(private_members),
-        static_fields_initializer_(static_fields_initializer),
+        static_initializer_(static_initializer),
         instance_members_initializer_function_(
             instance_members_initializer_function),
         home_object_(home_object),
@@ -2460,7 +2512,7 @@ class ClassLiteral final : public Expression {
   FunctionLiteral* constructor_;
   ZonePtrList<Property>* public_members_;
   ZonePtrList<Property>* private_members_;
-  FunctionLiteral* static_fields_initializer_;
+  FunctionLiteral* static_initializer_;
   FunctionLiteral* instance_members_initializer_function_;
   using HasNameStaticProperty = Expression::NextBitField<bool, 1>;
   using HasStaticComputedNames = HasNameStaticProperty::Next<bool, 1>;
@@ -3174,11 +3226,21 @@ class AstNodeFactory final {
                                               is_computed_name, is_private);
   }
 
+  ClassLiteral::StaticElement* NewClassLiteralStaticElement(
+      ClassLiteral::Property* property) {
+    return zone_->New<ClassLiteral::StaticElement>(property);
+  }
+
+  ClassLiteral::StaticElement* NewClassLiteralStaticElement(
+      Block* static_block) {
+    return zone_->New<ClassLiteral::StaticElement>(static_block);
+  }
+
   ClassLiteral* NewClassLiteral(
       ClassScope* scope, Expression* extends, FunctionLiteral* constructor,
       ZonePtrList<ClassLiteral::Property>* public_members,
       ZonePtrList<ClassLiteral::Property>* private_members,
-      FunctionLiteral* static_fields_initializer,
+      FunctionLiteral* static_initializer,
       FunctionLiteral* instance_members_initializer_function,
       int start_position, int end_position, bool has_name_static_property,
       bool has_static_computed_names, bool is_anonymous,
@@ -3186,7 +3248,7 @@ class AstNodeFactory final {
       Variable* static_home_object) {
     return zone_->New<ClassLiteral>(
         scope, extends, constructor, public_members, private_members,
-        static_fields_initializer, instance_members_initializer_function,
+        static_initializer, instance_members_initializer_function,
         start_position, end_position, has_name_static_property,
         has_static_computed_names, is_anonymous, has_private_methods,
         home_object, static_home_object);
@@ -3240,6 +3302,12 @@ class AstNodeFactory final {
   InitializeClassMembersStatement* NewInitializeClassMembersStatement(
       ZonePtrList<ClassLiteral::Property>* args, int pos) {
     return zone_->New<InitializeClassMembersStatement>(args, pos);
+  }
+
+  InitializeClassStaticElementsStatement*
+  NewInitializeClassStaticElementsStatement(
+      ZonePtrList<ClassLiteral::StaticElement>* args, int pos) {
+    return zone_->New<InitializeClassStaticElementsStatement>(args, pos);
   }
 
   Zone* zone() const { return zone_; }

@@ -319,6 +319,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                 Register value);
   void BuildPrivateMethods(ClassLiteral* expr, bool is_static,
                            Register home_object);
+  void BuildClassProperty(ClassLiteral::Property* property);
   void BuildClassLiteral(ClassLiteral* expr, Register name);
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);

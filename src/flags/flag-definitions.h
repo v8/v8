@@ -249,7 +249,8 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
-  V(harmony_import_assertions, "harmony import assertions")
+  V(harmony_import_assertions, "harmony import assertions")                    \
+  V(harmony_class_static_blocks, "harmony static initializer blocks")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \

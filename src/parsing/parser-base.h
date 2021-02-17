@@ -214,6 +214,7 @@ class ParserBase {
   using BreakableStatementT = typename Types::BreakableStatement;
   using ClassLiteralPropertyT = typename Types::ClassLiteralProperty;
   using ClassPropertyListT = typename Types::ClassPropertyList;
+  using ClassStaticElementListT = typename Types::ClassStaticElementList;
   using ExpressionT = typename Types::Expression;
   using ExpressionListT = typename Types::ExpressionList;
   using FormalParametersT = typename Types::FormalParameters;
@@ -589,38 +590,40 @@ class ParserBase {
         : extends(parser->impl()->NullExpression()),
           public_members(parser->impl()->NewClassPropertyList(4)),
           private_members(parser->impl()->NewClassPropertyList(4)),
-          static_fields(parser->impl()->NewClassPropertyList(4)),
+          static_elements(parser->impl()->NewClassStaticElementList(4)),
           instance_fields(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
           has_seen_constructor(false),
           has_name_static_property(false),
           has_static_computed_names(false),
-          has_static_class_fields(false),
+          has_static_elements(false),
           has_static_private_methods(false),
+          has_static_blocks(false),
           has_instance_members(false),
           requires_brand(false),
           is_anonymous(false),
           has_private_methods(false),
-          static_fields_scope(nullptr),
+          static_elements_scope(nullptr),
           instance_members_scope(nullptr),
           computed_field_count(0) {}
     ExpressionT extends;
     ClassPropertyListT public_members;
     ClassPropertyListT private_members;
-    ClassPropertyListT static_fields;
+    ClassStaticElementListT static_elements;
     ClassPropertyListT instance_fields;
     FunctionLiteralT constructor;
 
     bool has_seen_constructor;
     bool has_name_static_property;
     bool has_static_computed_names;
-    bool has_static_class_fields;
+    bool has_static_elements;
     bool has_static_private_methods;
+    bool has_static_blocks;
     bool has_instance_members;
     bool requires_brand;
     bool is_anonymous;
     bool has_private_methods;
-    DeclarationScope* static_fields_scope;
+    DeclarationScope* static_elements_scope;
     DeclarationScope* instance_members_scope;
     int computed_field_count;
     Variable* home_object_variable = nullptr;
@@ -1057,6 +1060,10 @@ class ParserBase {
   bool is_resumable() const {
     return IsResumableFunction(function_state_->kind());
   }
+  bool is_class_static_block() const {
+    return function_state_->kind() ==
+           FunctionKind::kClassStaticInitializerFunction;
+  }
   bool is_await_allowed() const {
     return is_async_function() || (flags().allow_harmony_top_level_await() &&
                                    IsModule(function_state_->kind()));
@@ -1176,6 +1183,7 @@ class ParserBase {
                             bool* has_seen_constructor);
   ExpressionT ParseMemberInitializer(ClassInfo* class_info, int beg_pos,
                                      bool is_static);
+  BlockT ParseClassStaticBlock(ClassInfo* class_info);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ParsePropertyInfo* prop_info, bool* has_seen_proto);
   void ParseArguments(
@@ -1295,6 +1303,8 @@ class ParserBase {
   StatementT ParseStatement(ZonePtrList<const AstRawString>* labels,
                             ZonePtrList<const AstRawString>* own_labels,
                             AllowLabelledFunctionStatement allow_function);
+  BlockT ParseBlock(ZonePtrList<const AstRawString>* labels,
+                    Scope* block_scope);
   BlockT ParseBlock(ZonePtrList<const AstRawString>* labels);
 
   // Parse a SubStatement in strict mode, or with an extra block scope in
@@ -1633,14 +1643,16 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
     IdentifierT name = impl()->GetIdentifier();
     if (V8_UNLIKELY(impl()->IsArguments(name) &&
                     scope()->ShouldBanArguments())) {
-      ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
+      ReportMessage(
+          MessageTemplate::kArgumentsDisallowedInInitializerAndStaticBlock);
       return impl()->EmptyIdentifierString();
     }
     return name;
   }
 
   if (!Token::IsValidIdentifier(next, language_mode(), is_generator(),
-                                flags().is_module() || is_async_function())) {
+                                flags().is_module() || is_async_function() ||
+                                    is_class_static_block())) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
   }
@@ -2433,10 +2445,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
     ClassInfo* class_info, int beg_pos, bool is_static) {
   FunctionParsingScope body_parsing_scope(impl());
   DeclarationScope* initializer_scope =
-      is_static ? class_info->static_fields_scope
+      is_static ? class_info->static_elements_scope
                 : class_info->instance_members_scope;
   FunctionKind function_kind =
-      is_static ? FunctionKind::kStaticClassMembersInitializerFunction
+      is_static ? FunctionKind::kClassStaticInitializerFunction
                 : FunctionKind::kClassMembersInitializerFunction;
 
   if (initializer_scope == nullptr) {
@@ -2459,14 +2471,40 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
 
   initializer_scope->set_end_position(end_position());
   if (is_static) {
-    class_info->static_fields_scope = initializer_scope;
-    class_info->has_static_class_fields = true;
+    class_info->static_elements_scope = initializer_scope;
+    class_info->has_static_elements = true;
   } else {
     class_info->instance_members_scope = initializer_scope;
     class_info->has_instance_members = true;
   }
 
   return initializer;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
+    ClassInfo* class_info) {
+  Consume(Token::STATIC);
+
+  DeclarationScope* initializer_scope = class_info->static_elements_scope;
+  if (initializer_scope == nullptr) {
+    initializer_scope =
+        NewFunctionScope(FunctionKind::kClassStaticInitializerFunction);
+    initializer_scope->set_start_position(position());
+    initializer_scope->SetLanguageMode(LanguageMode::kStrict);
+    class_info->static_elements_scope = initializer_scope;
+  }
+
+  FunctionState initializer_state(&function_state_, &scope_, initializer_scope);
+  AcceptINScope accept_in(this, true);
+
+  // Each static block has its own var and lexical scope, so make a new var
+  // block scope instead of using the synthetic members initializer function
+  // scope.
+  BlockT static_block = ParseBlock(nullptr, NewVarblockScope());
+  initializer_scope->set_end_position(end_position());
+  class_info->has_static_elements = true;
+  return static_block;
 }
 
 template <typename Impl>
@@ -4623,12 +4661,22 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   const bool has_extends = !impl()->IsNull(class_info.extends);
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
+
+    // Either we're parsing a `static { }` initialization block or a property.
+    if (FLAG_harmony_class_static_blocks && peek() == Token::STATIC &&
+        PeekAhead() == Token::LBRACE) {
+      BlockT static_block = ParseClassStaticBlock(&class_info);
+      impl()->AddClassStaticBlock(static_block, &class_info);
+      continue;
+    }
+
     FuncNameInferrerState fni_state(&fni_);
     // If we haven't seen the constructor yet, it potentially is the next
     // property.
     bool is_constructor = !class_info.has_seen_constructor;
     ParsePropertyInfo prop_info(this);
     prop_info.position = PropertyPosition::kClassLiteral;
+
     ClassLiteralPropertyT property =
         ParseClassPropertyDefinition(&class_info, &prop_info, has_extends);
 
@@ -5196,7 +5244,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
-    ZonePtrList<const AstRawString>* labels) {
+    ZonePtrList<const AstRawString>* labels, Scope* block_scope) {
   // Block ::
   //   '{' StatementList '}'
 
@@ -5207,7 +5255,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   CheckStackOverflow();
 
   {
-    BlockState block_state(zone(), &scope_);
+    BlockState block_state(&scope_, block_scope);
     scope()->set_start_position(peek_position());
     Target target(this, body, labels, nullptr, Target::TARGET_FOR_NAMED_ONLY);
 
@@ -5231,6 +5279,12 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
   body->InitializeStatements(statements, zone_);
   return body;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
+    ZonePtrList<const AstRawString>* labels) {
+  return ParseBlock(labels, NewScope(BLOCK_SCOPE));
 }
 
 template <typename Impl>

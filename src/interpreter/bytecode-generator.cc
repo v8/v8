@@ -2441,7 +2441,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         .LoadAccumulatorWithRegister(class_constructor);
   }
 
-  if (expr->static_fields_initializer() != nullptr) {
+  if (expr->static_initializer() != nullptr) {
     // TODO(gsathya): This can be optimized away to be a part of the
     // class boilerplate in the future. The name argument can be
     // passed to the DefineClass runtime function and have it set
@@ -2461,8 +2461,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     }
 
     RegisterList args = register_allocator()->NewRegisterList(1);
-    Register initializer =
-        VisitForRegisterValue(expr->static_fields_initializer());
+    Register initializer = VisitForRegisterValue(expr->static_initializer());
 
     builder()
         ->MoveRegister(class_constructor, args[0])
@@ -2488,46 +2487,64 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr, Register name) {
   }
 }
 
-void BytecodeGenerator::VisitInitializeClassMembersStatement(
-    InitializeClassMembersStatement* stmt) {
+void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
+  RegisterAllocationScope register_scope(this);
   RegisterList args = register_allocator()->NewRegisterList(3);
   Register constructor = args[0], key = args[1], value = args[2];
   builder()->MoveRegister(builder()->Receiver(), constructor);
 
+  // Private methods are not initialized in BuildClassProperty.
+  DCHECK_IMPLIES(property->is_private(),
+                 property->kind() == ClassLiteral::Property::FIELD);
+
+  if (property->is_computed_name()) {
+    DCHECK_EQ(property->kind(), ClassLiteral::Property::FIELD);
+    DCHECK(!property->is_private());
+    Variable* var = property->computed_name_var();
+    DCHECK_NOT_NULL(var);
+    // The computed name is already evaluated and stored in a variable at class
+    // definition time.
+    BuildVariableLoad(var, HoleCheckMode::kElided);
+    builder()->StoreAccumulatorInRegister(key);
+  } else if (property->is_private()) {
+    Variable* private_name_var = property->private_name_var();
+    DCHECK_NOT_NULL(private_name_var);
+    BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
+    builder()->StoreAccumulatorInRegister(key);
+  } else {
+    BuildLoadPropertyKey(property, key);
+  }
+
+  builder()->SetExpressionAsStatementPosition(property->value());
+  VisitForRegisterValue(property->value(), value);
+
+  Runtime::FunctionId function_id =
+      property->kind() == ClassLiteral::Property::FIELD &&
+              !property->is_private()
+          ? Runtime::kCreateDataProperty
+          : Runtime::kAddPrivateField;
+  builder()->CallRuntime(function_id, args);
+}
+
+void BytecodeGenerator::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* stmt) {
   for (int i = 0; i < stmt->fields()->length(); i++) {
-    ClassLiteral::Property* property = stmt->fields()->at(i);
-    // Private methods are not initialized in the
-    // InitializeClassMembersStatement.
-    DCHECK_IMPLIES(property->is_private(),
-                   property->kind() == ClassLiteral::Property::FIELD);
+    BuildClassProperty(stmt->fields()->at(i));
+  }
+}
 
-    if (property->is_computed_name()) {
-      DCHECK_EQ(property->kind(), ClassLiteral::Property::FIELD);
-      DCHECK(!property->is_private());
-      Variable* var = property->computed_name_var();
-      DCHECK_NOT_NULL(var);
-      // The computed name is already evaluated and stored in a
-      // variable at class definition time.
-      BuildVariableLoad(var, HoleCheckMode::kElided);
-      builder()->StoreAccumulatorInRegister(key);
-    } else if (property->is_private()) {
-      Variable* private_name_var = property->private_name_var();
-      DCHECK_NOT_NULL(private_name_var);
-      BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
-      builder()->StoreAccumulatorInRegister(key);
-    } else {
-      BuildLoadPropertyKey(property, key);
+void BytecodeGenerator::VisitInitializeClassStaticElementsStatement(
+    InitializeClassStaticElementsStatement* stmt) {
+  for (int i = 0; i < stmt->elements()->length(); i++) {
+    ClassLiteral::StaticElement* element = stmt->elements()->at(i);
+    switch (element->kind()) {
+      case ClassLiteral::StaticElement::PROPERTY:
+        BuildClassProperty(element->property());
+        break;
+      case ClassLiteral::StaticElement::STATIC_BLOCK:
+        VisitBlock(element->static_block());
+        break;
     }
-
-    builder()->SetExpressionAsStatementPosition(property->value());
-    VisitForRegisterValue(property->value(), value);
-
-    Runtime::FunctionId function_id =
-        property->kind() == ClassLiteral::Property::FIELD &&
-                !property->is_private()
-            ? Runtime::kCreateDataProperty
-            : Runtime::kAddPrivateField;
-    builder()->CallRuntime(function_id, args);
   }
 }
 
@@ -2876,7 +2893,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         // the class, meaning we can't wait until the
         // StoreDataPropertyInLiteral call later to set the name.
         if (property->value()->IsClassLiteral() &&
-            property->value()->AsClassLiteral()->static_fields_initializer() !=
+            property->value()->AsClassLiteral()->static_initializer() !=
                 nullptr) {
           value = register_allocator()->NewRegister();
           VisitClassLiteral(property->value()->AsClassLiteral(), key);
