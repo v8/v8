@@ -294,6 +294,9 @@ assertEquals(run((x)=>{
   }
   let f1 = factory();
   let f2 = factory();
+  %NeverOptimizeFunction(f1);
+  %NeverOptimizeFunction(f2);
+
   assertEquals(f1(0), 0);
   assertEquals(f2(0), 0);
   assertTrue(isInterpreted(f1))
