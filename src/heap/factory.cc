@@ -553,27 +553,6 @@ Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
   return object;
 }
 
-Handle<SwissNameDictionary> Factory::CreateCanonicalEmptySwissNameDictionary() {
-  // This function is only supposed to be used to create the canonical empty
-  // version and should not be used afterwards.
-  DCHECK_EQ(kNullAddress, ReadOnlyRoots(isolate()).at(
-                              RootIndex::kEmptySwissPropertyDictionary));
-
-  ReadOnlyRoots roots(isolate());
-
-  Handle<ByteArray> empty_meta_table =
-      NewByteArray(SwissNameDictionary::kMetaTableEnumerationTableStartOffset,
-                   AllocationType::kReadOnly);
-
-  Map map = roots.swiss_name_dictionary_map();
-  int size = SwissNameDictionary::SizeFor(0);
-  HeapObject obj =
-      AllocateRawWithImmortalMap(size, AllocationType::kReadOnly, map);
-  SwissNameDictionary result = SwissNameDictionary::cast(obj);
-  result.Initialize(isolate(), *empty_meta_table, 0);
-  return handle(result, isolate());
-}
-
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeUtf8String(
     const Vector<const char>& string) {

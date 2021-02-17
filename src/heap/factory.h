@@ -171,8 +171,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int capacity = kSmallOrderedHashMapMinCapacity,
       AllocationType allocation = AllocationType::kYoung);
 
-  Handle<SwissNameDictionary> CreateCanonicalEmptySwissNameDictionary();
-
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
 
