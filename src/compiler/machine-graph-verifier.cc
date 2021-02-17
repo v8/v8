@@ -582,7 +582,7 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kTaggedSigned:
                 if (COMPRESS_POINTERS_BOOL &&
                     node->opcode() == IrOpcode::kStore &&
-                    CanBeTaggedPointer(
+                    IsAnyTagged(
                         StoreRepresentationOf(node->op()).representation())) {
                   CheckValueInputIsCompressedOrTagged(node, 2);
                 } else {
