@@ -11056,7 +11056,7 @@ TNode<Context> CodeStubAssembler::GotoIfHasContextExtensionUpToDepth(
   Label no_extension(this);
 
   // Loop until the depth is 0.
-  // TODO(v8:11429): Assert that cur_depth isn't zero to start with.
+  CSA_ASSERT(this, Word32NotEqual(cur_depth.value(), Int32Constant(0)));
   Goto(&context_search);
   BIND(&context_search);
   {
