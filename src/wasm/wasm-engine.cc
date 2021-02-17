@@ -1019,6 +1019,8 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   isolate->counters()->wasm_throw_count()->AddSample(info->throw_count);
   isolate->counters()->wasm_rethrow_count()->AddSample(info->rethrow_count);
   isolate->counters()->wasm_catch_count()->AddSample(info->catch_count);
+  isolate->counters()->wasm_uncaught_count()->AddSample(
+      info->throw_count + info->rethrow_count - info->catch_count);
 }
 
 void WasmEngine::LogCode(Vector<WasmCode*> code_vec) {
