@@ -1126,10 +1126,9 @@ bool LiftoffAssembler::ValidateCacheState() const {
 }
 #endif
 
-LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
-                                                   LiftoffRegList pinned) {
+LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates) {
   // Spill one cached value to free a register.
-  LiftoffRegister spill_reg = cache_state_.GetNextSpillReg(candidates, pinned);
+  LiftoffRegister spill_reg = cache_state_.GetNextSpillReg(candidates);
   SpillRegister(spill_reg);
   return spill_reg;
 }
@@ -1161,7 +1160,7 @@ LiftoffRegister LiftoffAssembler::SpillAdjacentFpRegisters(
   //  b. If used, spill it.
   // We spill one register in 2 and 3a, and two registers in 3b.
 
-  LiftoffRegister first_reg = GetUnusedRegister(kFpCacheRegList, pinned);
+  LiftoffRegister first_reg = GetUnusedRegister(kFpReg, pinned);
   LiftoffRegister second_reg = first_reg, low_reg = first_reg;
 
   if (first_reg.fp().code() % 2 == 0) {

@@ -206,13 +206,11 @@ class LiftoffAssembler : public TurboAssembler {
       }
       DCHECK(rc == kGpReg || rc == kFpReg);
       LiftoffRegList candidates = GetCacheRegList(rc);
-      return has_unused_register(candidates, pinned);
+      return has_unused_register(candidates.MaskOut(pinned));
     }
 
-    bool has_unused_register(LiftoffRegList candidates,
-                             LiftoffRegList pinned = {}) const {
-      LiftoffRegList available_regs =
-          candidates.MaskOut(used_registers).MaskOut(pinned);
+    bool has_unused_register(LiftoffRegList candidates) const {
+      LiftoffRegList available_regs = candidates.MaskOut(used_registers);
       return !available_regs.is_empty();
     }
 
@@ -272,8 +270,9 @@ class LiftoffAssembler : public TurboAssembler {
 
     Register TrySetCachedInstanceRegister(LiftoffRegList pinned) {
       DCHECK_EQ(no_reg, cached_instance);
-      if (!has_unused_register(kGpCacheRegList, pinned)) return no_reg;
-      SetInstanceCacheRegister(unused_register(kGpCacheRegList, pinned).gp());
+      LiftoffRegList candidates = kGpCacheRegList.MaskOut(pinned);
+      if (!has_unused_register(candidates)) return no_reg;
+      SetInstanceCacheRegister(unused_register(candidates).gp());
       DCHECK_NE(no_reg, cached_instance);
       return cached_instance;
     }
@@ -340,15 +339,13 @@ class LiftoffAssembler : public TurboAssembler {
       memset(register_use_count, 0, sizeof(register_use_count));
     }
 
-    LiftoffRegister GetNextSpillReg(LiftoffRegList candidates,
-                                    LiftoffRegList pinned = {}) {
-      LiftoffRegList unpinned = candidates.MaskOut(pinned);
-      DCHECK(!unpinned.is_empty());
+    LiftoffRegister GetNextSpillReg(LiftoffRegList candidates) {
+      DCHECK(!candidates.is_empty());
       // This method should only be called if none of the candidates is free.
-      DCHECK(unpinned.MaskOut(used_registers).is_empty());
-      LiftoffRegList unspilled = unpinned.MaskOut(last_spilled_regs);
+      DCHECK(candidates.MaskOut(used_registers).is_empty());
+      LiftoffRegList unspilled = candidates.MaskOut(last_spilled_regs);
       if (unspilled.is_empty()) {
-        unspilled = unpinned;
+        unspilled = candidates;
         last_spilled_regs = {};
       }
       LiftoffRegister reg = unspilled.GetFirstRegSet();
@@ -467,9 +464,9 @@ class LiftoffAssembler : public TurboAssembler {
   // Get an unused register for class {rc}, potentially spilling to free one.
   LiftoffRegister GetUnusedRegister(RegClass rc, LiftoffRegList pinned) {
     if (kNeedI64RegPair && rc == kGpRegPair) {
-      LiftoffRegList candidates = kGpCacheRegList;
-      Register low = pinned.set(GetUnusedRegister(candidates, pinned)).gp();
-      Register high = GetUnusedRegister(candidates, pinned).gp();
+      LiftoffRegList candidates = kGpCacheRegList.MaskOut(pinned);
+      Register low = candidates.clear(GetUnusedRegister(candidates)).gp();
+      Register high = GetUnusedRegister(candidates).gp();
       return LiftoffRegister::ForPair(low, high);
     } else if (kNeedS128RegPair && rc == kFpRegPair) {
       // kFpRegPair specific logic here because we need adjacent registers, not
@@ -481,22 +478,20 @@ class LiftoffAssembler : public TurboAssembler {
       return LiftoffRegister::ForFpPair(low_fp);
     }
     DCHECK(rc == kGpReg || rc == kFpReg);
-    LiftoffRegList candidates = GetCacheRegList(rc);
-    return GetUnusedRegister(candidates, pinned);
+    LiftoffRegList candidates = GetCacheRegList(rc).MaskOut(pinned);
+    return GetUnusedRegister(candidates);
   }
 
   // Get an unused register of {candidates}, potentially spilling to free one.
-  LiftoffRegister GetUnusedRegister(LiftoffRegList candidates,
-                                    LiftoffRegList pinned = {}) {
-    if (cache_state_.has_unused_register(candidates, pinned)) {
-      return cache_state_.unused_register(candidates, pinned);
+  LiftoffRegister GetUnusedRegister(LiftoffRegList candidates) {
+    DCHECK(!candidates.is_empty());
+    if (cache_state_.has_unused_register(candidates)) {
+      return cache_state_.unused_register(candidates);
     }
     if (cache_state_.has_volatile_register(candidates)) {
-      LiftoffRegister reg = cache_state_.take_volatile_register(candidates);
-      DCHECK(!pinned.has(reg));
-      return reg;
+      return cache_state_.take_volatile_register(candidates);
     }
-    return SpillOneRegister(candidates, pinned);
+    return SpillOneRegister(candidates);
   }
 
   void MaterializeMergedConstants(uint32_t arity);
@@ -1433,8 +1428,7 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const char* bailout_detail_ = nullptr;
 
-  V8_NOINLINE LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
-                                               LiftoffRegList pinned);
+  V8_NOINLINE LiftoffRegister SpillOneRegister(LiftoffRegList candidates);
   // Spill one or two fp registers to get a pair of adjacent fp registers.
   LiftoffRegister SpillAdjacentFpRegisters(LiftoffRegList pinned);
 };

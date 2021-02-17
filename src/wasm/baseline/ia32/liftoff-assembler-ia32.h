@@ -157,7 +157,7 @@ inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
   if (candidate.is_byte_register()) return candidate;
   // {GetUnusedRegister()} may insert move instructions to spill registers to
   // the stack. This is OK because {mov} does not change the status flags.
-  return assm->GetUnusedRegister(liftoff::kByteRegs, {}).gp();
+  return assm->GetUnusedRegister(liftoff::kByteRegs).gp();
 }
 
 inline void MoveStackValue(LiftoffAssembler* assm, const Operand& src,
@@ -478,7 +478,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
         LiftoffRegList pinned_byte = pinned | LiftoffRegList::ForRegs(dst_addr);
         if (offset_reg != no_reg) pinned_byte.set(offset_reg);
         Register byte_src =
-            GetUnusedRegister(liftoff::kByteRegs, pinned_byte).gp();
+            GetUnusedRegister(liftoff::kByteRegs.MaskOut(pinned_byte)).gp();
         mov(byte_src, src.gp());
         mov_b(dst_op, byte_src);
       }
@@ -572,11 +572,12 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     // If there are no unused candidate registers, but {src} is a candidate,
     // then spill other uses of {src}. Otherwise spill any candidate register
     // and use that.
-    if (!cache_state_.has_unused_register(src_candidates, pinned) &&
+    LiftoffRegList unpinned_candidates = src_candidates.MaskOut(pinned);
+    if (!cache_state_.has_unused_register(unpinned_candidates) &&
         src_candidates.has(src)) {
       SpillRegister(src);
     } else {
-      Register safe_src = GetUnusedRegister(src_candidates, pinned).gp();
+      Register safe_src = GetUnusedRegister(unpinned_candidates).gp();
       mov(safe_src, src_gp);
       src_gp = safe_src;
     }
@@ -624,7 +625,7 @@ inline void AtomicAddOrSubOrExchange32(LiftoffAssembler* lasm, Binop binop,
   // Ensure that {value_reg} is a valid register.
   if (is_byte_store && !liftoff::kByteRegs.has(value_reg)) {
     Register safe_value_reg =
-        __ GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+        __ GetUnusedRegister(liftoff::kByteRegs.MaskOut(pinned)).gp();
     __ mov(safe_value_reg, value_reg);
     value_reg = safe_value_reg;
   }
@@ -991,7 +992,8 @@ void LiftoffAssembler::AtomicCompareExchange(
     // Ensure that {value_reg} is a valid register.
     if (is_byte_store && !liftoff::kByteRegs.has(value_reg)) {
       Register safe_value_reg =
-          pinned.set(GetUnusedRegister(liftoff::kByteRegs, pinned)).gp();
+          pinned.set(GetUnusedRegister(liftoff::kByteRegs.MaskOut(pinned)))
+              .gp();
       mov(safe_value_reg, value_reg);
       value_reg = safe_value_reg;
       pinned.clear(LiftoffRegister(value_reg));
