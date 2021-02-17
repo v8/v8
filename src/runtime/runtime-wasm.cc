@@ -148,31 +148,16 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
       isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
-RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
+RUNTIME_FUNCTION(Runtime_WasmCreateFixedArrayForThrow) {
   ClearThreadInWasmScope clear_wasm_flag;
-  // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
+  // TODO(wasm): Replace this by equivalent TurboFan code.
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_CHECKED(WasmExceptionTag, tag_raw, 0);
-  CONVERT_SMI_ARG_CHECKED(size, 1);
-  // TODO(wasm): Manually box because parameters are not visited yet.
-  Handle<Object> tag(tag_raw, isolate);
-  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
-      MessageTemplate::kWasmExceptionError);
-  CHECK(!Object::SetProperty(isolate, exception,
-                             isolate->factory()->wasm_exception_tag_symbol(),
-                             tag, StoreOrigin::kMaybeKeyed,
-                             Just(ShouldThrow::kThrowOnError))
-             .is_null());
+  CONVERT_SMI_ARG_CHECKED(size, 0);
   Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
-  CHECK(!Object::SetProperty(isolate, exception,
-                             isolate->factory()->wasm_exception_values_symbol(),
-                             values, StoreOrigin::kMaybeKeyed,
-                             Just(ShouldThrow::kThrowOnError))
-             .is_null());
-  return *exception;
+  return *values;
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
@@ -180,9 +165,29 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
   // is caught by a wasm frame, otherwise we keep it cleared.
   trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
+  // The context is still set from WasmCreateFixedArrayForThrow.
+  DCHECK_EQ(isolate->context(),
+            GetNativeContextFromWasmInstanceOnStackTop(isolate));
+  CONVERT_ARG_CHECKED(WasmExceptionTag, tag_raw, 0);
+  CONVERT_ARG_CHECKED(FixedArray, values_raw, 1);
+  // TODO(wasm): Manually box because parameters are not visited yet.
+  Handle<WasmExceptionTag> tag(tag_raw, isolate);
+  Handle<FixedArray> values(values_raw, isolate);
+
+  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
+      MessageTemplate::kWasmExceptionError);
+  Object::SetProperty(
+      isolate, exception, isolate->factory()->wasm_exception_tag_symbol(), tag,
+      StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
+      .Check();
+  Object::SetProperty(
+      isolate, exception, isolate->factory()->wasm_exception_values_symbol(),
+      values, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
+      .Check();
+
   isolate->wasm_engine()->SampleThrowEvent(isolate);
-  return isolate->Throw(args[0]);
+  return isolate->Throw(*exception);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmReThrow) {

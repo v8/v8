@@ -2277,19 +2277,12 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
                               wasm::WasmCodePosition position) {
   needs_stack_check_ = true;
   uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
-  Node* create_parameters[] = {
-      LoadExceptionTagFromTable(exception_index),
-      BuildChangeUint31ToSmi(mcgraph()->Uint32Constant(encoded_size))};
-  Node* except_obj =
-      BuildCallToRuntime(Runtime::kWasmThrowCreate, create_parameters,
-                         arraysize(create_parameters));
-  SetSourcePosition(except_obj, position);
-  Node* values_array = CALL_BUILTIN(
-      WasmGetOwnProperty, except_obj,
-      LOAD_FULL_POINTER(BuildLoadIsolateRoot(),
-                        IsolateData::root_slot_offset(
-                            RootIndex::kwasm_exception_values_symbol)),
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+  Node* encoded_size_smi =
+      BuildChangeUint31ToSmi(mcgraph()->Uint32Constant(encoded_size));
+  Node* values_array = BuildCallToRuntime(
+      Runtime::kWasmCreateFixedArrayForThrow, &encoded_size_smi, 1);
+  SetSourcePosition(values_array, position);
+
   uint32_t index = 0;
   const wasm::WasmExceptionSig* sig = exception->sig;
   MachineOperatorBuilder* m = mcgraph()->machine();
@@ -2343,6 +2336,9 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
     }
   }
   DCHECK_EQ(encoded_size, index);
+
+  Node* exception_tag = LoadExceptionTagFromTable(exception_index);
+
   WasmThrowDescriptor interface_descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       mcgraph()->zone(), interface_descriptor,
@@ -2350,9 +2346,8 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
       Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
   Node* call_target = mcgraph()->RelocatableIntPtrConstant(
       wasm::WasmCode::kWasmThrow, RelocInfo::WASM_STUB_CALL);
-  Node* call = SetEffectControl(
-      graph()->NewNode(mcgraph()->common()->Call(call_descriptor), call_target,
-                       except_obj, effect(), control()));
+  Node* call =
+      gasm_->Call(call_descriptor, call_target, exception_tag, values_array);
   SetSourcePosition(call, position);
   return call;
 }
