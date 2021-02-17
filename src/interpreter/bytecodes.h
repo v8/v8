@@ -21,9 +21,29 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-// The list of bytecodes which are interpreted by the interpreter.
+// The list of single-byte Star variants, in the format of BYTECODE_LIST.
+#define SHORT_STAR_BYTECODE_LIST(V)                              \
+  V(Star15, ImplicitRegisterUse::kReadAccumulatorWriteShortStar) \
+  V(Star14, ImplicitRegisterUse::kReadAccumulatorWriteShortStar) \
+  V(Star13, ImplicitRegisterUse::kReadAccumulatorWriteShortStar) \
+  V(Star12, ImplicitRegisterUse::kReadAccumulatorWriteShortStar) \
+  V(Star11, ImplicitRegisterUse::kReadAccumulatorWriteShortStar) \
+  V(Star10, ImplicitRegisterUse::kReadAccumulatorWriteShortStar) \
+  V(Star9, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star8, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star7, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star6, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star5, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star4, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star3, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star2, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star1, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)  \
+  V(Star0, ImplicitRegisterUse::kReadAccumulatorWriteShortStar)
+
+// The list of bytecodes which have unique handlers (no other bytecode is
+// executed using identical code).
 // Format is V(<bytecode>, <implicit_register_use>, <operands>).
-#define BYTECODE_LIST(V)                                                       \
+#define BYTECODE_LIST_WITH_UNIQUE_HANDLERS(V)                                  \
   /* Extended width operands */                                                \
   V(Wide, ImplicitRegisterUse::kNone)                                          \
   V(ExtraWide, ImplicitRegisterUse::kNone)                                     \
@@ -421,9 +441,17 @@ namespace interpreter {
   V(IncBlockCounter, ImplicitRegisterUse::kNone, OperandType::kIdx)            \
                                                                                \
   /* Execution Abort (internal error) */                                       \
-  V(Abort, ImplicitRegisterUse::kNone, OperandType::kIdx)                      \
-                                                                               \
-  /* Illegal bytecode  */                                                      \
+  V(Abort, ImplicitRegisterUse::kNone, OperandType::kIdx)
+
+// The list of bytecodes which are interpreted by the interpreter.
+// Format is V(<bytecode>, <implicit_register_use>, <operands>).
+#define BYTECODE_LIST(V)                                             \
+  BYTECODE_LIST_WITH_UNIQUE_HANDLERS(V)                              \
+                                                                     \
+  /* Special-case Star for common register numbers, to save space */ \
+  SHORT_STAR_BYTECODE_LIST(V)                                        \
+                                                                     \
+  /* Illegal bytecode  */                                            \
   V(Illegal, ImplicitRegisterUse::kNone)
 
 // List of debug break bytecodes.
@@ -523,7 +551,9 @@ enum class Bytecode : uint8_t {
 #define COUNT_BYTECODE(x, ...) +1
   // The COUNT_BYTECODE macro will turn this into kLast = -1 +1 +1... which will
   // evaluate to the same value as the last real bytecode.
-  kLast = -1 BYTECODE_LIST(COUNT_BYTECODE)
+  kLast = -1 BYTECODE_LIST(COUNT_BYTECODE),
+  kFirstShortStar = kStar15,
+  kLastShortStar = kStar0
 #undef COUNT_BYTECODE
 };
 
@@ -534,6 +564,10 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 
   // The total number of bytecodes used.
   static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
+
+  static const int kShortStarCount =
+      static_cast<int>(Bytecode::kLastShortStar) -
+      static_cast<int>(Bytecode::kFirstShortStar) + 1;
 
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
@@ -606,6 +640,13 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
         GetImplicitRegisterUse(bytecode));
   }
 
+  // Returns true if |bytecode| writes to a register not specified by an
+  // operand.
+  static bool WritesImplicitRegister(Bytecode bytecode) {
+    return BytecodeOperands::WritesImplicitRegister(
+        GetImplicitRegisterUse(bytecode));
+  }
+
   // Return true if |bytecode| is an accumulator load without effects,
   // e.g. LdaConstant, LdaTrue, Ldar.
   static constexpr bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode) {
@@ -630,11 +671,20 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
            bytecode == Bytecode::kTestTypeOf;
   }
 
+  static constexpr bool IsShortStar(Bytecode bytecode) {
+    return bytecode >= Bytecode::kFirstShortStar &&
+           bytecode <= Bytecode::kLastShortStar;
+  }
+
+  static constexpr bool IsAnyStar(Bytecode bytecode) {
+    return bytecode == Bytecode::kStar || IsShortStar(bytecode);
+  }
+
   // Return true if |bytecode| is a register load without effects,
   // e.g. Mov, Star.
   static constexpr bool IsRegisterLoadWithoutEffects(Bytecode bytecode) {
     return bytecode == Bytecode::kMov || bytecode == Bytecode::kPopContext ||
-           bytecode == Bytecode::kPushContext || bytecode == Bytecode::kStar;
+           bytecode == Bytecode::kPushContext || IsAnyStar(bytecode);
   }
 
   // Returns true if the bytecode is a conditional jump taking
@@ -724,7 +774,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 
   // Returns true if the bytecode is Ldar or Star.
   static constexpr bool IsLdarOrStar(Bytecode bytecode) {
-    return bytecode == Bytecode::kLdar || bytecode == Bytecode::kStar;
+    return bytecode == Bytecode::kLdar || IsAnyStar(bytecode);
   }
 
   // Returns true if the bytecode is a call or a constructor call.

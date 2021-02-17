@@ -113,7 +113,9 @@ enum class ImplicitRegisterUse : uint8_t {
   kNone = 0,
   kReadAccumulator = 1 << 0,
   kWriteAccumulator = 1 << 1,
-  kReadWriteAccumulator = kReadAccumulator | kWriteAccumulator
+  kWriteShortStar = 1 << 2,
+  kReadWriteAccumulator = kReadAccumulator | kWriteAccumulator,
+  kReadAccumulatorWriteShortStar = kReadAccumulator | kWriteShortStar
 };
 
 constexpr inline ImplicitRegisterUse operator&(ImplicitRegisterUse lhs,
@@ -184,6 +186,14 @@ class BytecodeOperands : public AllStatic {
       ImplicitRegisterUse implicit_register_use) {
     return (implicit_register_use & ImplicitRegisterUse::kWriteAccumulator) ==
            ImplicitRegisterUse::kWriteAccumulator;
+  }
+
+  // Returns true if |implicit_register_use| writes to a
+  // register not specified by an operand.
+  static constexpr bool WritesImplicitRegister(
+      ImplicitRegisterUse implicit_register_use) {
+    return (implicit_register_use & ImplicitRegisterUse::kWriteShortStar) ==
+           ImplicitRegisterUse::kWriteShortStar;
   }
 
   // Returns true if |operand_type| is a scalable signed byte.

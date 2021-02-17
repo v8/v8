@@ -405,6 +405,8 @@ class SerializerForBackgroundCompilation {
   SUPPORTED_BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
+  void VisitShortStar(interpreter::Register reg);
+
   Hints& register_hints(interpreter::Register reg);
 
   // Return a vector containing the hints for the given register range (in
@@ -1311,13 +1313,20 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
       }
     }
 
-    switch (iterator.current_bytecode()) {
+    interpreter::Bytecode current_bytecode = iterator.current_bytecode();
+    switch (current_bytecode) {
 #define DEFINE_BYTECODE_CASE(name)     \
   case interpreter::Bytecode::k##name: \
     Visit##name(&iterator);            \
     break;
       SUPPORTED_BYTECODE_LIST(DEFINE_BYTECODE_CASE)
 #undef DEFINE_BYTECODE_CASE
+
+#define DEFINE_SHORT_STAR_CASE(Name, ...) case interpreter::Bytecode::k##Name:
+      SHORT_STAR_BYTECODE_LIST(DEFINE_SHORT_STAR_CASE)
+#undef DEFINE_SHORT_STAR_CASE
+      VisitShortStar(interpreter::Register::FromShortStar(current_bytecode));
+      break;
     }
   }
 
@@ -1695,6 +1704,11 @@ void SerializerForBackgroundCompilation::VisitLdar(
 void SerializerForBackgroundCompilation::VisitStar(
     BytecodeArrayIterator* iterator) {
   interpreter::Register reg = iterator->GetRegisterOperand(0);
+  register_hints(reg).Reset(&environment()->accumulator_hints(), zone());
+}
+
+void SerializerForBackgroundCompilation::VisitShortStar(
+    interpreter::Register reg) {
   register_hints(reg).Reset(&environment()->accumulator_hints(), zone());
 }
 

@@ -145,6 +145,20 @@ IGNITION_HANDLER(Star, InterpreterAssembler) {
   Dispatch();
 }
 
+// Star0 - StarN
+//
+// Store accumulator to one of a special batch of registers, without using a
+// second byte to specify the destination.
+//
+// Even though this handler is declared as Star0, multiple entries in
+// the jump table point to this handler.
+IGNITION_HANDLER(Star0, InterpreterAssembler) {
+  TNode<Object> accumulator = GetAccumulator();
+  TNode<WordT> opcode = LoadBytecode(BytecodeOffset());
+  StoreRegisterForShortStar(accumulator, opcode);
+  Dispatch();
+}
+
 // Mov <src> <dst>
 //
 // Stores the value of register <src> to register <dst>.
@@ -2783,7 +2797,7 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
     TNode<IntPtrT> original_bytecode = SmiUntag(Projection<1>(result_pair)); \
     MaybeDropFrames(context);                                                \
     SetAccumulator(return_value);                                            \
-    DispatchToBytecode(original_bytecode, BytecodeOffset());                 \
+    DispatchToBytecodeWithOptionalStarLookahead(original_bytecode);          \
   }
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 #undef DEBUG_BREAK
@@ -3103,8 +3117,19 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
   case Bytecode::k##Name:                             \
     Name##Assembler::Generate(&state, operand_scale); \
     break;
-    BYTECODE_LIST(CALL_GENERATOR);
+    BYTECODE_LIST_WITH_UNIQUE_HANDLERS(CALL_GENERATOR);
 #undef CALL_GENERATOR
+    case Bytecode::kIllegal:
+      IllegalAssembler::Generate(&state, operand_scale);
+      break;
+    case Bytecode::kStar0:
+      Star0Assembler::Generate(&state, operand_scale);
+      break;
+    default:
+      // Others (the rest of the short stars, and the rest of the illegal range)
+      // must not get their own handler generated. Rather, multiple entries in
+      // the jump table point to those handlers.
+      UNREACHABLE();
   }
 
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
