@@ -2011,6 +2011,91 @@ TEST(InternalizeExternalStringTwoByte) {
   CHECK(string.equals(internal));
 }
 
+class UncachedExternalOneByteResource
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit UncachedExternalOneByteResource(const char* data)
+      : data_(data), length_(strlen(data)) {}
+
+  ~UncachedExternalOneByteResource() override { i::DeleteArray(data_); }
+
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  bool IsCacheable() const override { return false; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+// Show that we can internalize an external uncached string, by creating a copy.
+TEST(InternalizeExternalStringUncachedWithCopy) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Create the string.
+  const char* raw_string = "external";
+  UncachedExternalOneByteResource* resource =
+      new UncachedExternalOneByteResource(i::StrDup(raw_string));
+  Handle<String> string =
+      factory->NewExternalStringFromOneByte(resource).ToHandleChecked();
+  CHECK(string->IsExternalString());
+
+  // Check it is uncached.
+  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  CHECK(external->is_uncached());
+
+  // Internalize succesfully, with a copy.
+  Handle<String> internal = factory->InternalizeString(external);
+  CHECK(!external->IsInternalizedString());
+  CHECK(internal->IsInternalizedString());
+}
+
+class UncachedExternalResource : public v8::String::ExternalStringResource {
+ public:
+  explicit UncachedExternalResource(const uint16_t* data)
+      : data_(data), length_(0) {
+    while (data[length_]) ++length_;
+  }
+
+  ~UncachedExternalResource() override { i::DeleteArray(data_); }
+
+  const uint16_t* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  bool IsCacheable() const override { return false; }
+
+ private:
+  const uint16_t* data_;
+  size_t length_;
+};
+
+// Show that we can internalize an external uncached string, by creating a copy.
+// Two byte version.
+TEST(InternalizeExternalStringUncachedWithCopyTwoByte) {
+  CcTest::InitializeVM();
+  Factory* factory = CcTest::i_isolate()->factory();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Create the string.
+  const char* raw_string = "external";
+  UncachedExternalResource* resource =
+      new UncachedExternalResource(AsciiToTwoByteString(raw_string));
+  Handle<String> string =
+      factory->NewExternalStringFromTwoByte(resource).ToHandleChecked();
+  CHECK(string->IsExternalString());
+
+  // Check it is uncached.
+  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  CHECK(external->is_uncached());
+
+  // Internalize succesfully, with a copy.
+  CHECK(!external->IsInternalizedString());
+  Handle<String> internal = factory->InternalizeString(external);
+  CHECK(!external->IsInternalizedString());
+  CHECK(internal->IsInternalizedString());
+}
+
 }  // namespace test_strings
 }  // namespace internal
 }  // namespace v8
