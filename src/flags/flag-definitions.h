@@ -582,8 +582,9 @@ DEFINE_INT(ticks_scale_factor_for_top_tier, 10,
            "scale factor for profiler ticks when tiering up from midtier")
 
 // Flags for Sparkplug
-DEFINE_BOOL(sparkplug, false, "enable experimental sparkplug baseline compiler")
-DEFINE_BOOL(always_sparkplug, false, "directly tier up to sparkplug")
+DEFINE_BOOL(sparkplug, false, "enable experimental Sparkplug baseline compiler")
+DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
+DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
 DEFINE_NEG_IMPLICATION(sparkplug, write_protect_code_memory)
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)

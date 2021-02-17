@@ -636,23 +636,8 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
   shared_info.SetScopeInfo(*literal->scope()->scope_info());
 }
 
-bool CompileSharedWithBaseline(Isolate* isolate,
-                               Handle<SharedFunctionInfo> shared,
-                               Compiler::ClearExceptionFlag flag,
-                               IsCompiledScope* is_compiled_scope) {
-  DCHECK(FLAG_sparkplug);
-  DCHECK(is_compiled_scope->is_compiled());
-
-  if (shared->HasBaselineData()) return true;
-
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    if (flag == Compiler::KEEP_EXCEPTION) {
-      isolate->StackOverflow();
-    }
-    return false;
-  }
-
+bool CanCompileWithBaseline(Isolate* isolate,
+                            Handle<SharedFunctionInfo> shared) {
   // Check if we actually have bytecode.
   if (!shared->HasBytecodeArray()) return false;
 
@@ -661,6 +646,36 @@ bool CompileSharedWithBaseline(Isolate* isolate,
 
   // Functions with breakpoints have to stay interpreted.
   if (shared->HasBreakInfo()) return false;
+
+  // Do not baseline compile if sparkplug is disabled or function doesn't pass
+  // sparkplug_filter.
+  if (!FLAG_sparkplug || !shared->PassesFilter(FLAG_sparkplug_filter)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool CompileSharedWithBaseline(Isolate* isolate,
+                               Handle<SharedFunctionInfo> shared,
+                               Compiler::ClearExceptionFlag flag,
+                               IsCompiledScope* is_compiled_scope) {
+  // We shouldn't be passing uncompiled functions into this function.
+  DCHECK(is_compiled_scope->is_compiled());
+
+  // Early return for already baseline-compiled functions.
+  if (shared->HasBaselineData()) return true;
+
+  // Check if we actually can compile with baseline.
+  if (!CanCompileWithBaseline(isolate, shared)) return false;
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    if (flag == Compiler::KEEP_EXCEPTION) {
+      isolate->StackOverflow();
+    }
+    return false;
+  }
 
   CompilerTracer::TraceStartBaselineCompile(isolate, shared);
   Handle<Code> code;
@@ -1934,10 +1949,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
 
   // If --always-sparkplug is enabled, make sure we have baseline code.
-  // TODO(v8:11429): Extract out the rest of the if into a "can baseline
-  // compile" predicate, or similar.
-  if (FLAG_always_sparkplug && !function->shared().HasAsmWasmData() &&
-      !function->shared().HasDebugInfo()) {
+  if (FLAG_always_sparkplug && CanCompileWithBaseline(isolate, shared_info)) {
     DCHECK(shared_info->HasBaselineData());
   }
 
