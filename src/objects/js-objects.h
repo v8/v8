@@ -311,6 +311,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
       Isolate* isolate, Handle<Object> prototype);
 
+  DECL_GETTER(elements, FixedArrayBase)
+  DECL_RELAXED_GETTER(elements, FixedArrayBase)
+
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);

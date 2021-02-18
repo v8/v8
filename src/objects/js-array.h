@@ -25,6 +25,7 @@ class JSArray : public JSObject {
  public:
   // [length]: The length property.
   DECL_ACCESSORS(length, Object)
+  inline Object length(IsolateRoot isolate, RelaxedLoadTag tag) const;
 
   // Overload the length setter to skip write barrier when the length
   // is set to a smi. This matches the set function on FixedArray.
