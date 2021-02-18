@@ -553,7 +553,6 @@ class WasmGraphBuilder {
   Node* BuildCallRef(uint32_t sig_index, Vector<Node*> args, Vector<Node*> rets,
                      CheckForNull null_check, IsReturnCall continuation,
                      wasm::WasmCodePosition position);
-  Node* GetBuiltinPointerTarget(int builtin_id);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

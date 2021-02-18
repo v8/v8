@@ -81,18 +81,6 @@ MachineType assert_size(int expected_size, MachineType type) {
 #define WASM_INSTANCE_OBJECT_OFFSET(name) \
   wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
-// We would like to use gasm_->Call() to implement this macro,
-// but this doesn't work currently when we try to call it from functions
-// which set IfSuccess/IfFailure control paths (e.g. within Throw()).
-// TODO(manoskouk): Maybe clean this up at some point and unite with
-// GraphAssembler::CallRuntimeStub?
-#define CALL_BUILTIN(name, ...)                                            \
-  SetEffect(graph()->NewNode(                                              \
-      mcgraph()->common()->Call(GetBuiltinCallDescriptor(                  \
-          Builtins::k##name, zone_, StubCallMode::kCallBuiltinPointer)),   \
-      GetBuiltinPointerTarget(Builtins::k##name), ##__VA_ARGS__, effect(), \
-      control()))
-
 #define LOAD_INSTANCE_FIELD(name, type)                           \
   gasm_->Load(assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), \
               instance_node_.get(), WASM_INSTANCE_OBJECT_OFFSET(name))
@@ -197,6 +185,13 @@ CallDescriptor* GetBuiltinCallDescriptor(Builtins::Name name, Zone* zone,
       stub_mode);                                    // stub call mode
 }
 
+Node* GetBuiltinPointerTarget(MachineGraph* mcgraph,
+                              Builtins::Name builtin_id) {
+  static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+  return mcgraph->graph()->NewNode(
+      mcgraph->common()->NumberConstant(builtin_id));
+}
+
 }  // namespace
 
 JSWasmCallData::JSWasmCallData(const wasm::FunctionSig* wasm_signature)
@@ -217,7 +212,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   template <typename... Args>
   Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id, Args*... args) {
-    auto call_descriptor = GetBuiltinCallDescriptor(
+    auto* call_descriptor = GetBuiltinCallDescriptor(
         WasmRuntimeStubIdToBuiltinName(stub_id), temp_zone(),
         StubCallMode::kCallWasmRuntimeStub);
     // A direct call to a wasm runtime stub defined in this module.
@@ -225,6 +220,22 @@ class WasmGraphAssembler : public GraphAssembler {
     Node* call_target = mcgraph()->RelocatableIntPtrConstant(
         stub_id, RelocInfo::WASM_STUB_CALL);
     return Call(call_descriptor, call_target, args...);
+  }
+
+  template <typename... Args>
+  Node* CallBuiltin(Builtins::Name name, Args*... args) {
+    // We would like to use gasm_->Call() to implement this method,
+    // but this doesn't work currently when we try to call it from functions
+    // which set IfSuccess/IfFailure control paths (e.g. within Throw()).
+    // TODO(manoskouk): Maybe clean this up at some point and unite with
+    // CallRuntimeStub?
+    auto* call_descriptor = GetBuiltinCallDescriptor(
+        name, temp_zone(), StubCallMode::kCallBuiltinPointer);
+    Node* call_target = GetBuiltinPointerTarget(mcgraph(), name);
+    Node* call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
+                                  call_target, args..., effect(), control());
+    InitializeEffectControl(call, control());
+    return call;
   }
 
   // Helper functions for dealing with HeapObjects.
@@ -2415,8 +2426,8 @@ Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
 }
 
 Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
-  return CALL_BUILTIN(
-      WasmGetOwnProperty, except_obj,
+  return gasm_->CallBuiltin(
+      Builtins::kWasmGetOwnProperty, except_obj,
       LOAD_FULL_POINTER(
           BuildLoadIsolateRoot(),
           IsolateData::root_slot_offset(RootIndex::kwasm_exception_tag_symbol)),
@@ -2426,8 +2437,8 @@ Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
 Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
                                            const wasm::WasmException* exception,
                                            Vector<Node*> values) {
-  Node* values_array = CALL_BUILTIN(
-      WasmGetOwnProperty, except_obj,
+  Node* values_array = gasm_->CallBuiltin(
+      Builtins::kWasmGetOwnProperty, except_obj,
       LOAD_FULL_POINTER(BuildLoadIsolateRoot(),
                         IsolateData::root_slot_offset(
                             RootIndex::kwasm_exception_values_symbol)),
@@ -2778,11 +2789,6 @@ Node* WasmGraphBuilder::BuildI64RemU(Node* left, Node* right,
   }
   return graph()->NewNode(mcgraph()->machine()->Uint64Mod(), left, right,
                           ZeroCheck64(wasm::kTrapRemByZero, right, position));
-}
-
-Node* WasmGraphBuilder::GetBuiltinPointerTarget(int builtin_id) {
-  static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
-  return graph()->NewNode(mcgraph()->common()->NumberConstant(builtin_id));
 }
 
 Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
@@ -3234,8 +3240,8 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
         wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset));
     // TODO(manoskouk): Find an elegant way to avoid allocating this pair for
     // every call.
-    Node* function_instance_node =
-        CALL_BUILTIN(WasmAllocatePair, instance_node_.get(), callable);
+    Node* function_instance_node = gasm_->CallBuiltin(
+        Builtins::kWasmAllocatePair, instance_node_.get(), callable);
 
     gasm_->Goto(&end_label, call_target, function_instance_node);
   }
@@ -5674,7 +5680,7 @@ Node* WasmGraphBuilder::TableFill(uint32_t table_index, Node* start,
 Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
                                          const wasm::StructType* type,
                                          Node* rtt, Vector<Node*> fields) {
-  Node* s = CALL_BUILTIN(WasmAllocateStructWithRtt, rtt);
+  Node* s = gasm_->CallBuiltin(Builtins::kWasmAllocateStructWithRtt, rtt);
   for (uint32_t i = 0; i < type->field_count(); i++) {
     gasm_->StoreStructField(s, type, i, fields[i]);
   }
@@ -5691,7 +5697,8 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                   length, gasm_->Uint32Constant(wasm::kV8MaxWasmArrayLength)),
               position);
   wasm::ValueType element_type = type->element_type();
-  Node* a = CALL_BUILTIN(WasmAllocateArrayWithRtt, rtt, length,
+  Node* a =
+      gasm_->CallBuiltin(Builtins::kWasmAllocateArrayWithRtt, rtt, length,
                          graph()->NewNode(mcgraph()->common()->Int32Constant(
                              element_type.element_size_bytes())));
   auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
@@ -5725,8 +5732,8 @@ Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
 }
 
 Node* WasmGraphBuilder::RttSub(uint32_t type_index, Node* parent_rtt) {
-  return CALL_BUILTIN(
-      WasmAllocateRtt,
+  return gasm_->CallBuiltin(
+      Builtins::kWasmAllocateRtt,
       graph()->NewNode(mcgraph()->common()->Int32Constant(type_index)),
       parent_rtt);
 }
@@ -6195,7 +6202,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
                ? mcgraph()->RelocatableIntPtrConstant(wasm_stub,
                                                       RelocInfo::WASM_STUB_CALL)
-               : GetBuiltinPointerTarget(builtin_id);
+               : GetBuiltinPointerTarget(mcgraph(), builtin_id);
   }
 
   Node* BuildLoadUndefinedValueFromInstance() {
@@ -6406,16 +6413,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   // through JavaScript, where they show up as opaque boxes. This will disappear
   // once we have a proper WasmGC <-> JS interaction story.
   Node* BuildAllocateObjectWrapper(Node* input) {
-    return CALL_BUILTIN(
-        WasmAllocateObjectWrapper, input,
+    return gasm_->CallBuiltin(
+        Builtins::kWasmAllocateObjectWrapper, input,
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
   }
 
   enum UnpackFailureBehavior : bool { kReturnInput, kReturnNull };
 
   Node* BuildUnpackObjectWrapper(Node* input, UnpackFailureBehavior failure) {
-    Node* obj = CALL_BUILTIN(
-        WasmGetOwnProperty, input,
+    Node* obj = gasm_->CallBuiltin(
+        Builtins::kWasmGetOwnProperty, input,
         LOAD_FULL_POINTER(BuildLoadIsolateRoot(),
                           IsolateData::root_slot_offset(
                               RootIndex::kwasm_wrapped_object_symbol)),
@@ -6698,7 +6705,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                                Node* iterable, Node* context) {
     Node* length = BuildChangeUint31ToSmi(
         mcgraph()->Uint32Constant(static_cast<uint32_t>(sig->return_count())));
-    return CALL_BUILTIN(IterableToFixedArrayForWasm, iterable, length, context);
+    return gasm_->CallBuiltin(Builtins::kIterableToFixedArrayForWasm, iterable,
+                              length, context);
   }
 
   // Generate a call to the AllocateJSArray builtin.
@@ -6707,7 +6715,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // we make sure this is true based on statically known limits.
     STATIC_ASSERT(wasm::kV8MaxWasmFunctionMultiReturns <=
                   JSArray::kInitialMaxFastElementArray);
-    return SetControl(CALL_BUILTIN(WasmAllocateJSArray, array_length, context));
+    return SetControl(gasm_->CallBuiltin(Builtins::kWasmAllocateJSArray,
+                                         array_length, context));
   }
 
   Node* BuildCallAndReturn(bool is_import, Node* js_context,
@@ -7087,7 +7096,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case WasmImportCallKind::kUseCallBuiltin: {
         base::SmallVector<Node*, 16> args(wasm_count + 7);
         int pos = 0;
-        args[pos++] = GetBuiltinPointerTarget(Builtins::kCall_ReceiverIsAny);
+        args[pos++] =
+            GetBuiltinPointerTarget(mcgraph(), Builtins::kCall_ReceiverIsAny);
         args[pos++] = callable_node;
         args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
         args[pos++] = undefined_node;                        // receiver
@@ -7278,7 +7288,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Call the underlying closure.
     base::SmallVector<Node*, 16> args(wasm_count + 7);
     int pos = 0;
-    args[pos++] = GetBuiltinPointerTarget(Builtins::kCall_ReceiverIsAny);
+    args[pos++] =
+        GetBuiltinPointerTarget(mcgraph(), Builtins::kCall_ReceiverIsAny);
     args[pos++] = callable;
     args[pos++] = mcgraph()->Int32Constant(wasm_count);   // argument count
     args[pos++] = BuildLoadUndefinedValueFromInstance();  // receiver
@@ -8375,7 +8386,6 @@ AssemblerOptions WasmStubAssemblerOptions() {
 }
 
 #undef FATAL_UNSUPPORTED_OPCODE
-#undef CALL_BUILTIN
 #undef WASM_INSTANCE_OBJECT_SIZE
 #undef WASM_INSTANCE_OBJECT_OFFSET
 #undef LOAD_INSTANCE_FIELD
