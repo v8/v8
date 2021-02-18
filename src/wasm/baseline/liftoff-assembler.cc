@@ -702,7 +702,7 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target,
     transfers.TransferStackSlot(target.stack_state[i], source.stack_state[i]);
   }
 
-  if (cache_state_.cached_instance != target.cached_instance) {
+  if (source.cached_instance != target.cached_instance) {
     // Backward jumps (to loop headers) do not have a cached instance anyway, so
     // ignore this. On forward jumps, jump reset the cached instance in the
     // target state.
