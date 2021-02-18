@@ -55,8 +55,9 @@ class StackTransferRecipe {
         return {kConstant, kWasmI32, constant.to_i32()};
       }
       DCHECK_EQ(kWasmI64, constant.type());
-      DCHECK_EQ(constant.to_i32_unchecked(), constant.to_i64_unchecked());
-      return {kConstant, kWasmI64, constant.to_i32_unchecked()};
+      int32_t i32_const = static_cast<int32_t>(constant.to_i64());
+      DCHECK_EQ(constant.to_i64(), i32_const);
+      return {kConstant, kWasmI64, i32_const};
     }
     static RegisterLoad Stack(int32_t offset, ValueType type) {
       return {kStack, type, offset};
