@@ -586,7 +586,10 @@ DEFINE_BOOL(sparkplug, false, "enable experimental Sparkplug baseline compiler")
 DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
 DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
+#if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+// Don't disable --write-protect-code-memory on Apple Silicon.
 DEFINE_NEG_IMPLICATION(sparkplug, write_protect_code_memory)
+#endif
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 
 // Flags for concurrent recompilation.
