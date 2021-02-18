@@ -2137,9 +2137,10 @@ void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
 void TurboAssembler::I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
-    // Copy top half (64-bit) of src into both halves of dst.
-    vpunpckhqdq(dst, src, src);
-    vpmovsxwd(dst, dst);
+    // src = |a|b|c|d|e|f|g|h| (high)
+    // dst = |e|e|f|f|g|g|h|h|
+    vpunpckhwd(dst, src, src);
+    vpsrad(dst, dst, 16);
   } else {
     if (dst == src) {
       // 2 bytes shorter than pshufd, but has depdency on dst.
@@ -2178,9 +2179,10 @@ void TurboAssembler::I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src) {
 void TurboAssembler::I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
-    // Copy top half (64-bit) of src into both halves of dst.
-    vpunpckhqdq(dst, src, src);
-    vpmovsxbw(dst, dst);
+    // src = |a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p| (high)
+    // dst = |i|i|j|j|k|k|l|l|m|m|n|n|o|o|p|p|
+    vpunpckhbw(dst, src, src);
+    vpsraw(dst, dst, 8);
   } else {
     if (dst == src) {
       // 2 bytes shorter than pshufd, but has depdency on dst.
