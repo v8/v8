@@ -84,11 +84,12 @@ MachineType assert_size(int expected_size, MachineType type) {
 // We would like to use gasm_->Call() to implement this macro,
 // but this doesn't work currently when we try to call it from functions
 // which set IfSuccess/IfFailure control paths (e.g. within Throw()).
-// TODO(manoskouk): Maybe clean this up at some point?
+// TODO(manoskouk): Maybe clean this up at some point and unite with
+// GraphAssembler::CallRuntimeStub?
 #define CALL_BUILTIN(name, ...)                                             \
   SetEffect(graph()->NewNode(                                               \
       mcgraph()->common()->Call(GetBuiltinCallDescriptor<name##Descriptor>( \
-          this, StubCallMode::kCallBuiltinPointer)),                        \
+          zone_, StubCallMode::kCallBuiltinPointer)),                       \
       GetBuiltinPointerTarget(Builtins::k##name), ##__VA_ARGS__, effect(),  \
       control()))
 
@@ -163,12 +164,11 @@ bool ContainsInt64(const wasm::FunctionSig* sig) {
 }
 
 template <typename BuiltinDescriptor>
-CallDescriptor* GetBuiltinCallDescriptor(WasmGraphBuilder* builder,
-                                         StubCallMode stub_mode,
+CallDescriptor* GetBuiltinCallDescriptor(Zone* zone, StubCallMode stub_mode,
                                          bool needs_frame_state = false) {
   BuiltinDescriptor interface_descriptor;
   return Linkage::GetStubCallDescriptor(
-      builder->mcgraph()->zone(),                     // zone
+      zone,                                           // zone
       interface_descriptor,                           // descriptor
       interface_descriptor.GetStackParameterCount(),  // stack parameter count
       needs_frame_state ? CallDescriptor::kNeedsFrameState
@@ -193,6 +193,17 @@ class WasmGraphAssembler : public GraphAssembler {
  public:
   WasmGraphAssembler(MachineGraph* mcgraph, Zone* zone)
       : GraphAssembler(mcgraph, zone) {}
+
+  template <typename BuiltinDescriptor, typename... Args>
+  Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id, Args*... args) {
+    auto call_descriptor = GetBuiltinCallDescriptor<BuiltinDescriptor>(
+        temp_zone(), StubCallMode::kCallWasmRuntimeStub);
+    // A direct call to a wasm runtime stub defined in this module.
+    // Just encode the stub index. This will be patched at relocation.
+    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+        stub_id, RelocInfo::WASM_STUB_CALL);
+    return Call(call_descriptor, call_target, args...);
+  }
 
   // Helper functions for dealing with HeapObjects.
   // Rule of thumb: if access to a given field in an object is required in
@@ -499,16 +510,8 @@ Node* WasmGraphBuilder::RefNull() {
 }
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
-  auto call_descriptor = GetBuiltinCallDescriptor<WasmRefFuncDescriptor>(
-      this, StubCallMode::kCallWasmRuntimeStub);
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-      wasm::WasmCode::kWasmRefFunc, RelocInfo::WASM_STUB_CALL);
-
-  return SetEffectControl(graph()->NewNode(
-      mcgraph()->common()->Call(call_descriptor), call_target,
-      mcgraph()->Uint32Constant(function_index), effect(), control()));
+  return gasm_->CallRuntimeStub<WasmRefFuncDescriptor>(
+      wasm::WasmCode::kWasmRefFunc, gasm_->Uint32Constant(function_index));
 }
 
 Node* WasmGraphBuilder::RefAsNonNull(Node* arg,
@@ -2253,22 +2256,8 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
 
 Node* WasmGraphBuilder::MemoryGrow(Node* input) {
   needs_stack_check_ = true;
-
-  WasmMemoryGrowDescriptor interface_descriptor;
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      mcgraph()->zone(),                              // zone
-      interface_descriptor,                           // descriptor
-      interface_descriptor.GetStackParameterCount(),  // stack parameter count
-      CallDescriptor::kNoFlags,                       // flags
-      Operator::kNoProperties,                        // properties
-      StubCallMode::kCallWasmRuntimeStub);            // stub call mode
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-      wasm::WasmCode::kWasmMemoryGrow, RelocInfo::WASM_STUB_CALL);
-  return SetEffectControl(
-      graph()->NewNode(mcgraph()->common()->Call(call_descriptor), call_target,
-                       input, effect(), control()));
+  return gasm_->CallRuntimeStub<WasmMemoryGrowDescriptor>(
+      wasm::WasmCode::kWasmMemoryGrow, input);
 }
 
 Node* WasmGraphBuilder::Throw(uint32_t exception_index,
@@ -2278,19 +2267,10 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
   needs_stack_check_ = true;
   uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
 
-  Node* values_array;
-  {
-    WasmAllocateFixedArrayDescriptor interface_descriptor;
-    auto* call_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(), interface_descriptor,
-        interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
-        Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
-    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-        wasm::WasmCode::kWasmAllocateFixedArray, RelocInfo::WASM_STUB_CALL);
-    values_array = gasm_->Call(call_descriptor, call_target,
-                               gasm_->IntPtrConstant(encoded_size));
-    SetSourcePosition(values_array, position);
-  }
+  Node* values_array = gasm_->CallRuntimeStub<WasmAllocateFixedArrayDescriptor>(
+      wasm::WasmCode::kWasmAllocateFixedArray,
+      gasm_->IntPtrConstant(encoded_size));
+  SetSourcePosition(values_array, position);
 
   uint32_t index = 0;
   const wasm::WasmExceptionSig* sig = exception->sig;
@@ -2348,19 +2328,9 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
 
   Node* exception_tag = LoadExceptionTagFromTable(exception_index);
 
-  Node* throw_call;
-  {
-    WasmThrowDescriptor interface_descriptor;
-    auto* call_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(), interface_descriptor,
-        interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
-        Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
-    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-        wasm::WasmCode::kWasmThrow, RelocInfo::WASM_STUB_CALL);
-    throw_call =
-        gasm_->Call(call_descriptor, call_target, exception_tag, values_array);
-    SetSourcePosition(throw_call, position);
-  }
+  Node* throw_call = gasm_->CallRuntimeStub<WasmThrowDescriptor>(
+      wasm::WasmCode::kWasmThrow, exception_tag, values_array);
+  SetSourcePosition(throw_call, position);
   return throw_call;
 }
 
@@ -2407,14 +2377,8 @@ Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   // TODO(v8:8091): Currently the message of the original exception is not being
   // preserved when rethrown to the console. The pending message will need to be
   // saved when caught and restored here while being rethrown.
-  WasmRethrowDescriptor interface_descriptor;
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      mcgraph()->zone(), interface_descriptor,
-      interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
-  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-      wasm::WasmCode::kWasmRethrow, RelocInfo::WASM_STUB_CALL);
-  return gasm_->Call(call_descriptor, call_target, except_obj);
+  return gasm_->CallRuntimeStub<WasmRethrowDescriptor>(
+      wasm::WasmCode::kWasmRethrow, except_obj);
 }
 
 Node* WasmGraphBuilder::ExceptionTagEqual(Node* caught_tag,
@@ -3757,29 +3721,15 @@ Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
 
 Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
                                  wasm::WasmCodePosition position) {
-  auto call_descriptor = GetBuiltinCallDescriptor<WasmTableGetDescriptor>(
-      this, StubCallMode::kCallWasmRuntimeStub);
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-      wasm::WasmCode::kWasmTableGet, RelocInfo::WASM_STUB_CALL);
-
-  return SetEffectControl(graph()->NewNode(
-      mcgraph()->common()->Call(call_descriptor), call_target,
-      mcgraph()->IntPtrConstant(table_index), index, effect(), control()));
+  return gasm_->CallRuntimeStub<WasmTableGetDescriptor>(
+      wasm::WasmCode::kWasmTableGet, gasm_->IntPtrConstant(table_index), index);
 }
 
 Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
                                  wasm::WasmCodePosition position) {
-  auto call_descriptor = GetBuiltinCallDescriptor<WasmTableSetDescriptor>(
-      this, StubCallMode::kCallWasmRuntimeStub);
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-      wasm::WasmCode::kWasmTableSet, RelocInfo::WASM_STUB_CALL);
-
-  return gasm_->Call(call_descriptor, call_target,
-                     gasm_->IntPtrConstant(table_index), index, val);
+  return gasm_->CallRuntimeStub<WasmTableSetDescriptor>(
+      wasm::WasmCode::kWasmTableSet, gasm_->IntPtrConstant(table_index), index,
+      val);
 }
 
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(
@@ -4585,12 +4535,12 @@ CallDescriptor* WasmGraphBuilder::GetI32AtomicWaitCallDescriptor() {
 
   i32_atomic_wait_descriptor_ =
       GetBuiltinCallDescriptor<WasmI32AtomicWait64Descriptor>(
-          this, StubCallMode::kCallWasmRuntimeStub);
+          zone_, StubCallMode::kCallWasmRuntimeStub);
 
   AddInt64LoweringReplacement(
       i32_atomic_wait_descriptor_,
       GetBuiltinCallDescriptor<WasmI32AtomicWait32Descriptor>(
-          this, StubCallMode::kCallWasmRuntimeStub));
+          zone_, StubCallMode::kCallWasmRuntimeStub));
 
   return i32_atomic_wait_descriptor_;
 }
@@ -4600,12 +4550,12 @@ CallDescriptor* WasmGraphBuilder::GetI64AtomicWaitCallDescriptor() {
 
   i64_atomic_wait_descriptor_ =
       GetBuiltinCallDescriptor<WasmI64AtomicWait64Descriptor>(
-          this, StubCallMode::kCallWasmRuntimeStub);
+          zone_, StubCallMode::kCallWasmRuntimeStub);
 
   AddInt64LoweringReplacement(
       i64_atomic_wait_descriptor_,
       GetBuiltinCallDescriptor<WasmI64AtomicWait32Descriptor>(
-          this, StubCallMode::kCallWasmRuntimeStub));
+          zone_, StubCallMode::kCallWasmRuntimeStub));
 
   return i64_atomic_wait_descriptor_;
 }
@@ -5497,15 +5447,9 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
       gasm_->IntAdd(gasm_->UintPtrConstant(capped_offset), index);
 
   switch (opcode) {
-    case wasm::kExprAtomicNotify: {
-      auto* call_descriptor =
-          GetBuiltinCallDescriptor<WasmAtomicNotifyDescriptor>(
-              this, StubCallMode::kCallWasmRuntimeStub);
-      Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-          wasm::WasmCode::kWasmAtomicNotify, RelocInfo::WASM_STUB_CALL);
-      return gasm_->Call(call_descriptor, call_target, effective_offset,
-                         inputs[1]);
-    }
+    case wasm::kExprAtomicNotify:
+      return gasm_->CallRuntimeStub<WasmAtomicNotifyDescriptor>(
+          wasm::WasmCode::kWasmAtomicNotify, effective_offset, inputs[1]);
 
     case wasm::kExprI32AtomicWait: {
       auto* call_descriptor = GetI32AtomicWaitCallDescriptor();
@@ -5641,15 +5585,8 @@ Node* WasmGraphBuilder::TableInit(uint32_t table_index,
                                   uint32_t elem_segment_index, Node* dst,
                                   Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
-  auto call_descriptor = GetBuiltinCallDescriptor<WasmTableInitDescriptor>(
-      this, StubCallMode::kCallWasmRuntimeStub);
-
-  intptr_t target = wasm::WasmCode::kWasmTableInit;
-  Node* call_target =
-      mcgraph()->RelocatableIntPtrConstant(target, RelocInfo::WASM_STUB_CALL);
-
-  return gasm_->Call(
-      call_descriptor, call_target, dst, src, size,
+  return gasm_->CallRuntimeStub<WasmTableInitDescriptor>(
+      wasm::WasmCode::kWasmTableInit, dst, src, size,
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
       graph()->NewNode(
           mcgraph()->common()->NumberConstant(elem_segment_index)));
@@ -5675,15 +5612,8 @@ Node* WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
                                   uint32_t table_src_index, Node* dst,
                                   Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
-  auto call_descriptor = GetBuiltinCallDescriptor<WasmTableCopyDescriptor>(
-      this, StubCallMode::kCallWasmRuntimeStub);
-
-  intptr_t target = wasm::WasmCode::kWasmTableCopy;
-  Node* call_target =
-      mcgraph()->RelocatableIntPtrConstant(target, RelocInfo::WASM_STUB_CALL);
-
-  return gasm_->Call(
-      call_descriptor, call_target, dst, src, size,
+  return gasm_->CallRuntimeStub<WasmTableCopyDescriptor>(
+      wasm::WasmCode::kWasmTableCopy, dst, src, size,
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_dst_index)),
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_src_index)));
 }
@@ -6219,11 +6149,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (i64_to_bigint_descriptor_) return i64_to_bigint_descriptor_;
 
     i64_to_bigint_descriptor_ =
-        GetBuiltinCallDescriptor<I64ToBigIntDescriptor>(this, stub_mode_);
+        GetBuiltinCallDescriptor<I64ToBigIntDescriptor>(zone_, stub_mode_);
 
     AddInt64LoweringReplacement(
         i64_to_bigint_descriptor_,
-        GetBuiltinCallDescriptor<I32PairToBigIntDescriptor>(this, stub_mode_));
+        GetBuiltinCallDescriptor<I32PairToBigIntDescriptor>(zone_, stub_mode_));
     return i64_to_bigint_descriptor_;
   }
 
@@ -6231,11 +6161,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (bigint_to_i64_descriptor_) return bigint_to_i64_descriptor_;
 
     bigint_to_i64_descriptor_ = GetBuiltinCallDescriptor<BigIntToI64Descriptor>(
-        this, stub_mode_, needs_frame_state);
+        zone_, stub_mode_, needs_frame_state);
 
     AddInt64LoweringReplacement(
         bigint_to_i64_descriptor_,
-        GetBuiltinCallDescriptor<BigIntToI32PairDescriptor>(this, stub_mode_));
+        GetBuiltinCallDescriptor<BigIntToI32PairDescriptor>(zone_, stub_mode_));
     return bigint_to_i64_descriptor_;
   }
 
