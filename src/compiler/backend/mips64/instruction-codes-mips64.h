@@ -210,6 +210,9 @@ namespace compiler {
   V(Mips64F64x2Floor)                        \
   V(Mips64F64x2Trunc)                        \
   V(Mips64F64x2NearestInt)                   \
+  V(Mips64F64x2ConvertLowI32x4S)             \
+  V(Mips64F64x2ConvertLowI32x4U)             \
+  V(Mips64F64x2PromoteLowF32x4)              \
   V(Mips64I64x2Splat)                        \
   V(Mips64I64x2ExtractLane)                  \
   V(Mips64I64x2ReplaceLane)                  \
@@ -250,6 +253,7 @@ namespace compiler {
   V(Mips64F32x4Floor)                        \
   V(Mips64F32x4Trunc)                        \
   V(Mips64F32x4NearestInt)                   \
+  V(Mips64F32x4DemoteF64x2Zero)              \
   V(Mips64I32x4SConvertF32x4)                \
   V(Mips64I32x4UConvertF32x4)                \
   V(Mips64I32x4Neg)                          \
@@ -260,6 +264,8 @@ namespace compiler {
   V(Mips64I32x4Abs)                          \
   V(Mips64I32x4BitMask)                      \
   V(Mips64I32x4DotI16x8S)                    \
+  V(Mips64I32x4TruncSatF64x2SZero)           \
+  V(Mips64I32x4TruncSatF64x2UZero)           \
   V(Mips64I16x8Splat)                        \
   V(Mips64I16x8ExtractLaneU)                 \
   V(Mips64I16x8ExtractLaneS)                 \
