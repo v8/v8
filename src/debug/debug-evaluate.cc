@@ -834,6 +834,23 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kMapPrototypeClear:
     case Builtins::kMapPrototypeDelete:
     case Builtins::kMapPrototypeSet:
+    // Date builtins.
+    case Builtins::kDatePrototypeSetDate:
+    case Builtins::kDatePrototypeSetFullYear:
+    case Builtins::kDatePrototypeSetHours:
+    case Builtins::kDatePrototypeSetMilliseconds:
+    case Builtins::kDatePrototypeSetMinutes:
+    case Builtins::kDatePrototypeSetMonth:
+    case Builtins::kDatePrototypeSetSeconds:
+    case Builtins::kDatePrototypeSetTime:
+    case Builtins::kDatePrototypeSetUTCDate:
+    case Builtins::kDatePrototypeSetUTCFullYear:
+    case Builtins::kDatePrototypeSetUTCHours:
+    case Builtins::kDatePrototypeSetUTCMilliseconds:
+    case Builtins::kDatePrototypeSetUTCMinutes:
+    case Builtins::kDatePrototypeSetUTCMonth:
+    case Builtins::kDatePrototypeSetUTCSeconds:
+    case Builtins::kDatePrototypeSetYear:
     // RegExp builtins.
     case Builtins::kRegExpPrototypeTest:
     case Builtins::kRegExpPrototypeExec:
