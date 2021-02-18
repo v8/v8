@@ -218,8 +218,9 @@ class WasmGenerator {
     bool is_unwind = num_catch == 0 && !has_catch_all && !is_delegate;
 
     Vector<const ValueType> return_type_vec =
-        return_type.kind() == ValueType::kStmt ? Vector<ValueType>{}
-                                               : VectorOf({return_type});
+        return_type.kind() == ValueType::kStmt
+            ? Vector<ValueType>{}
+            : Vector<ValueType>(&return_type, 1);
     BlockScope block_scope(this, kExprTry, {}, return_type_vec, return_type_vec,
                            !is_delegate);
     int control_depth = static_cast<int>(blocks_.size()) - 1;
