@@ -32,7 +32,7 @@ static const int kBytecodeSizeAllowancePerTick = 1100;
 // Maximum size in bytes of generate code for a function to allow OSR.
 static const int kOSRBytecodeSizeAllowanceBase = 119;
 
-static const int kOSRBytecodeSizeAllowancePerTick = 43;
+static const int kOSRBytecodeSizeAllowancePerTick = 44;
 
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
