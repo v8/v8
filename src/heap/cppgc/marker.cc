@@ -376,8 +376,7 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
                                           size_t marked_bytes_limit) {
   bool is_done = false;
   if (!main_marking_disabled_for_testing_) {
-    const bool with_schedule = marked_bytes_limit == 0;
-    if (with_schedule) {
+    if (marked_bytes_limit == 0) {
       marked_bytes_limit = mutator_marking_state_.marked_bytes() +
                            GetNextIncrementalStepDuration(schedule_, heap_);
     }
@@ -387,10 +386,8 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
         max_duration.InMillisecondsF());
     is_done = ProcessWorklistsWithDeadline(
         marked_bytes_limit, v8::base::TimeTicks::Now() + max_duration);
-    if (with_schedule) {
-      schedule_.UpdateIncrementalMarkedBytes(
-          mutator_marking_state_.marked_bytes());
-    }
+    schedule_.UpdateMutatorThreadMarkedBytes(
+        mutator_marking_state_.marked_bytes());
   }
   mutator_marking_state_.Publish();
   if (!is_done) {
