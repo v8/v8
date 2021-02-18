@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "include/cppgc/platform.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/heap/cppgc/garbage-collector.h"
@@ -359,6 +360,12 @@ template <StatsCollector::TraceCategory trace_category,
 template <typename... Args>
 void StatsCollector::InternalScope<trace_category, scope_category>::StartTrace(
     Args... args) {
+  // Top level scopes that contribute to histogram should always be enabled.
+  DCHECK_IMPLIES(static_cast<int>(scope_id_) <
+                     (scope_category == kMutatorThread
+                          ? static_cast<int>(kNumHistogramScopeIds)
+                          : static_cast<int>(kNumHistogramConcurrentScopeIds)),
+                 trace_category == StatsCollector::TraceCategory::kEnabled);
   if (trace_category == StatsCollector::TraceCategory::kEnabled)
     StartTraceImpl(args...);
 }
