@@ -530,10 +530,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F32x4RecipApprox, 0xfdb3, s_s)          \
   V(F32x4RecipSqrtApprox, 0xfdbc, s_s)
 
-#define FOREACH_SIMD_POST_MVP_ONE_OPERAND_OPCODE(V) \
-  V(I32x4WidenI8x16S, 0xfd67, s_s)                  \
-  V(I32x4WidenI8x16U, 0xfd68, s_s)
-
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   V(I8x16ExtractLaneS, 0xfd15, _)                \
   V(I8x16ExtractLaneU, 0xfd16, _)                \
@@ -558,8 +554,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V)   \
   FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
-  FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V) \
-  FOREACH_SIMD_POST_MVP_ONE_OPERAND_OPCODE(V)
+  FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
 #define FOREACH_SIMD_OPCODE(V)         \
   FOREACH_SIMD_0_OPERAND_OPCODE(V)     \

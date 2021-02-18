@@ -3966,24 +3966,6 @@ void InstructionSelector::VisitI8x16Popcnt(Node* node) {
   VisitRR(this, code, node);
 }
 
-void InstructionSelector::VisitI32x4WidenI8x16S(Node* node) {
-  InstructionCode opcode = kArm64I32x4WidenI8x16S;
-  uint8_t laneidx = OpParameter<uint8_t>(node->op());
-  DCHECK_GT(4, laneidx);
-  opcode |= LaneSizeField::encode(laneidx);
-  Arm64OperandGenerator g(this);
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
-}
-
-void InstructionSelector::VisitI32x4WidenI8x16U(Node* node) {
-  InstructionCode opcode = kArm64I32x4WidenI8x16U;
-  uint8_t laneidx = OpParameter<uint8_t>(node->op());
-  DCHECK_GT(4, laneidx);
-  opcode |= LaneSizeField::encode(laneidx);
-  Arm64OperandGenerator g(this);
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
-}
-
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

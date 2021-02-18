@@ -2138,10 +2138,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4TruncSatF64x2SZero(node);
     case IrOpcode::kI32x4TruncSatF64x2UZero:
       return MarkAsSimd128(node), VisitI32x4TruncSatF64x2UZero(node);
-    case IrOpcode::kI32x4WidenI8x16S:
-      return MarkAsSimd128(node), VisitI32x4WidenI8x16S(node);
-    case IrOpcode::kI32x4WidenI8x16U:
-      return MarkAsSimd128(node), VisitI32x4WidenI8x16U(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
     case IrOpcode::kI16x8ExtractLaneU:
@@ -2793,13 +2789,6 @@ void InstructionSelector::VisitI32x4SignSelect(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2SignSelect(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_ARM
-
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
-// TODO(v8:11297) Prototype i32x4.widen_i8x16_u
-void InstructionSelector::VisitI32x4WidenI8x16S(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4WidenI8x16U(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

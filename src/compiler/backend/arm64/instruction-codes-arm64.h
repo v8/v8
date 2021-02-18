@@ -273,8 +273,6 @@ namespace compiler {
   V(Arm64I32x4DotI16x8S)                    \
   V(Arm64I32x4TruncSatF64x2SZero)           \
   V(Arm64I32x4TruncSatF64x2UZero)           \
-  V(Arm64I32x4WidenI8x16S)                  \
-  V(Arm64I32x4WidenI8x16U)                  \
   V(Arm64I16x8Splat)                        \
   V(Arm64I16x8ExtractLaneU)                 \
   V(Arm64I16x8ExtractLaneS)                 \
