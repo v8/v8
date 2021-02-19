@@ -437,7 +437,7 @@ std::string CanonicalizeTimeZoneID(const std::string& input) {
         title[1] = 'S';
       }
       return title;
-    } else if (memcmp(upper.c_str(), "SYSTEMV/", 8) == 0) {
+    } else if (strncmp(upper.c_str(), "SYSTEMV/", 8) == 0) {
       upper.replace(0, 8, "SystemV/");
       return upper;
     }
