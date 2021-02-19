@@ -50,7 +50,7 @@ vars = {
   'gn_version': 'git_revision:dfcbc6fed0a8352696f92d67ccad54048ad182b3',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:77944aa535e42e29faadf6cfa81aee252807d468',
+  'luci_go': 'git_revision:fd10124659e991321df2f8a5d3749687b54ceb0a',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -88,9 +88,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '99c7b26e2becfd23bf78293746801febb8364f4e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd9000c9c60795c60308ae93b20f08f9df57404de',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5e37f6ded4ef5805c9db346a834d82e4e86b3e50',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f362f6f961b06f4982c70a4a61495520ddc62aed',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'dc4ceac1fd9c77c3cacf6dec4ac83f684e069644',
   'third_party/instrumented_libraries':
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'X81JiseHcDpE_0A4yjc6A232-BwI6vJSzYlXeAnpNwcC'
+              'version': 'SesU5Vh9_5Zm4yE0Qtuyv2VQ8UhCuhRMW3IkFgT7n0sC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -256,7 +256,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '99902658e15450cecbc103f2e3b413d85547826d',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6cf138ce6f581c771ddcefe2fd57e17ea7ec7f88',
   'tools/luci-go': {
       'packages': [
         {
