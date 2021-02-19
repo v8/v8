@@ -505,7 +505,9 @@ class ModuleDecoderImpl : public Decoder {
         if (enabled_features_.has_eh()) {
           DecodeExceptionSection();
         } else {
-          errorf(pc(), "unexpected section <%s>", SectionName(section_code));
+          errorf(pc(),
+                 "unexpected section <%s> (enable with --experimental-wasm-eh)",
+                 SectionName(section_code));
         }
         break;
       default:
