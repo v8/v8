@@ -122,6 +122,12 @@ bool OSHasAVXSupport() {
 
 }  // namespace
 
+bool CpuFeatures::SupportsWasmSimd128() {
+  if (IsSupported(SSE4_1)) return true;
+  if (FLAG_wasm_simd_ssse3_codegen && IsSupported(SSSE3)) return true;
+  return false;
+}
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   base::CPU cpu;
   CHECK(cpu.has_sse2());  // SSE2 support is mandatory.

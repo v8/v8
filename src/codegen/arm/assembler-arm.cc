@@ -198,6 +198,8 @@ static constexpr unsigned CpuFeaturesFromCompiler() {
 #endif
 }
 
+bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(NEON); }
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   dcache_line_size_ = 64;
 

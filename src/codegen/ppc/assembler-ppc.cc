@@ -54,6 +54,8 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
+bool CpuFeatures::SupportsWasmSimd128() { return false; }
+
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
   icache_line_size_ = 128;

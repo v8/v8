@@ -82,6 +82,7 @@ constexpr unsigned CpuFeaturesFromTargetOS() {
 
 // -----------------------------------------------------------------------------
 // CpuFeatures implementation.
+bool CpuFeatures::SupportsWasmSimd128() { return true; }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
