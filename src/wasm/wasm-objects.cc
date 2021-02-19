@@ -859,7 +859,10 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   // tests. For now, on 32-bit we never reserve more than initial, unless the
   // memory is shared.
   if (shared == SharedFlag::kNotShared) {
-    heuristic_maximum = initial;
+    // On 32-bit systems we reserve a maximum of 1GB.
+    constexpr uint32_t kGB = 1024 * 1024 * 1024;
+    heuristic_maximum = std::min(maximum, kGB / wasm::kWasmPageSize);
+    heuristic_maximum = std::max(heuristic_maximum, initial);
   }
 #endif
 
