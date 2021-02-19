@@ -167,3 +167,17 @@ extern class ScopeInfo extends FixedArrayBase {
   module_variables[flags.scope_type == ScopeType::MODULE_SCOPE ? module_variable_count[0] : 0]:
       ModuleVariable;
 }
+
+// Returns the index of the named local in a ScopeInfo.
+// Assumes that the given name is internalized; uses pointer comparisons.
+@export
+macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
+    intptr labels NotFound {
+  const count: intptr = Convert<intptr>(scopeInfo.context_local_count);
+  for (let i: intptr = 0; i < count; ++i) {
+    if (TaggedEqual(name, scopeInfo.context_local_names[i])) {
+      return i;
+    }
+  }
+  goto NotFound;
+}
