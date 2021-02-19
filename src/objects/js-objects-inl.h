@@ -50,15 +50,6 @@ CAST_ACCESSOR(JSIteratorResult)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSReceiver)
 
-DEF_GETTER(JSObject, elements, FixedArrayBase) {
-  return TaggedField<FixedArrayBase, kElementsOffset>::load(isolate, *this);
-}
-
-FixedArrayBase JSObject::elements(IsolateRoot isolate, RelaxedLoadTag) const {
-  return TaggedField<FixedArrayBase, kElementsOffset>::Relaxed_Load(isolate,
-                                                                    *this);
-}
-
 MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
                                             Handle<JSReceiver> receiver,
                                             Handle<Name> name) {

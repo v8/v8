@@ -1269,49 +1269,5 @@ bool LookupIterator::LookupCachedProperty(Handle<AccessorPair> accessor_pair) {
   return true;
 }
 
-// static
-base::Optional<Object> ConcurrentLookupIterator::TryGetOwnCowElement(
-    Isolate* isolate, FixedArray array_elements, ElementsKind elements_kind,
-    int array_length, size_t index) {
-  DisallowGarbageCollection no_gc;
-
-  CHECK_EQ(array_elements.map(), ReadOnlyRoots(isolate).fixed_cow_array_map());
-  DCHECK(IsFastElementsKind(elements_kind) &&
-         IsSmiOrObjectElementsKind(elements_kind));
-  USE(elements_kind);
-  DCHECK_GE(array_length, 0);
-
-  //  ________________________________________
-  // ( Check against both JSArray::length and )
-  // ( FixedArray::length.                    )
-  //  ----------------------------------------
-  //         o   ^__^
-  //          o  (oo)\_______
-  //             (__)\       )\/\
-  //                 ||----w |
-  //                 ||     ||
-  // The former is the source of truth, but due to concurrent reads it may not
-  // match the given `array_elements`.
-  if (index >= static_cast<size_t>(array_length)) return {};
-  if (index >= static_cast<size_t>(array_elements.length())) return {};
-
-  Object result = array_elements.get(isolate, static_cast<int>(index));
-
-  //  ______________________________________
-  // ( Filter out holes irrespective of the )
-  // ( elements kind.                       )
-  //  --------------------------------------
-  //         o   ^__^
-  //          o  (..)\_______
-  //             (__)\       )\/\
-  //                 ||----w |
-  //                 ||     ||
-  // The elements kind may not be consistent with the given elements backing
-  // store.
-  if (result == ReadOnlyRoots(isolate).the_hole_value()) return {};
-
-  return result;
-}
-
 }  // namespace internal
 }  // namespace v8
