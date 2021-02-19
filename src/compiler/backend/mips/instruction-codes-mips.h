@@ -172,6 +172,7 @@ namespace compiler {
   V(MipsI64x2ShrU)                 \
   V(MipsI64x2BitMask)              \
   V(MipsI64x2Eq)                   \
+  V(MipsI64x2Ne)                   \
   V(MipsI64x2SConvertI32x4Low)     \
   V(MipsI64x2SConvertI32x4High)    \
   V(MipsI64x2UConvertI32x4Low)     \
@@ -306,6 +307,7 @@ namespace compiler {
   V(MipsS128Not)                   \
   V(MipsS128Select)                \
   V(MipsS128AndNot)                \
+  V(MipsV64x2AllTrue)              \
   V(MipsV32x4AllTrue)              \
   V(MipsV16x8AllTrue)              \
   V(MipsV8x16AllTrue)              \

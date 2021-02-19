@@ -75,6 +75,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI64x2ShrU:
     case kMipsI64x2BitMask:
     case kMipsI64x2Eq:
+    case kMipsI64x2Ne:
     case kMipsI64x2SConvertI32x4Low:
     case kMipsI64x2SConvertI32x4High:
     case kMipsI64x2UConvertI32x4Low:
@@ -280,6 +281,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsS16x8InterleaveRight:
     case kMipsS16x8PackEven:
     case kMipsS16x8PackOdd:
+    case kMipsV64x2AllTrue:
     case kMipsV32x4AllTrue:
     case kMipsV16x8AllTrue:
     case kMipsV8x16AllTrue:

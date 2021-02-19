@@ -2427,6 +2427,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1));
       break;
     }
+    case kMips64I64x2Ne: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ ceq_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      __ nor_v(i.OutputSimd128Register(), i.OutputSimd128Register(),
+               i.OutputSimd128Register());
+      break;
+    }
     case kMips64I64x2SConvertI32x4Low: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();
@@ -3308,6 +3316,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(dst, 0l);  // branch delay slot
       __ li(dst, 1);
       __ bind(&all_false);
+      break;
+    }
+    case kMips64V64x2AllTrue: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Label all_true;
+      __ BranchMSA(&all_true, MSA_BRANCH_D, all_not_zero,
+                   i.InputSimd128Register(0), USE_DELAY_SLOT);
+      __ li(dst, 1);  // branch delay slot
+      __ li(dst, 0l);
+      __ bind(&all_true);
       break;
     }
     case kMips64V32x4AllTrue: {
