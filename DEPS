@@ -212,7 +212,7 @@ deps = {
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'fd27d1f5d00dcccc5f763252fc11b575ee0bdd2f',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'f6034ebe9fb92d4d3dea644b9225bdc18b44a7ab',
   'test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '278bcfaed0dcaa13936831fb1769d15e7c1e3b2b',
   'third_party/qemu-linux-x64': {
