@@ -44,7 +44,8 @@
 #endif
 
 #ifndef SWISS_TABLE_HAVE_SSSE3
-#ifdef __SSSE3__
+#if defined(__SSSE3__) && \
+    (defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64))
 #define SWISS_TABLE_HAVE_SSSE3 1
 #else
 #define SWISS_TABLE_HAVE_SSSE3 0
