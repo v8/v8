@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include "src/base/logging.h"
+#include "src/base/threaded-list.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -342,10 +343,25 @@ class BaselineCompiler {
   BytecodeOffsetTableBuilder bytecode_offset_table_builder_;
   Zone zone_;
 
-  // TODO(v8:11429,leszeks): Consider using a sorted vector or similar, instead
-  // of a map.
-  ZoneMap<int, ZoneVector<Label*>> linked_labels_;
-  ZoneMap<int, Label*> unlinked_labels_;
+  struct ThreadedLabel {
+    Label label;
+    ThreadedLabel* ptr;
+    ThreadedLabel** next() { return &ptr; }
+  };
+
+  struct BaselineLabels {
+    base::ThreadedList<ThreadedLabel> linked;
+    Label unlinked;
+  };
+
+  BaselineLabels* EnsureLabels(int i) {
+    if (labels_[i] == nullptr) {
+      labels_[i] = zone_.New<BaselineLabels>();
+    }
+    return labels_[i];
+  }
+
+  BaselineLabels** labels_;
   ZoneSet<int> handler_offsets_;
 };
 

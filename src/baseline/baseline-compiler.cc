@@ -317,9 +317,10 @@ BaselineCompiler::BaselineCompiler(
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(isolate->allocator(), ZONE_NAME),
-      linked_labels_(&zone_),
-      unlinked_labels_(&zone_),
-      handler_offsets_(&zone_) {}
+      labels_(zone_.NewArray<BaselineLabels*>(bytecode_->length())),
+      handler_offsets_(&zone_) {
+  MemsetPointer(labels_, nullptr, bytecode_->length());
+}
 
 #define __ basm_.
 
@@ -464,28 +465,22 @@ void BaselineCompiler::AddPosition() {
 
 void BaselineCompiler::PreVisitSingleBytecode() {
   if (accessor().current_bytecode() == interpreter::Bytecode::kJumpLoop) {
-    unlinked_labels_[accessor().GetJumpTargetOffset()] = zone_.New<Label>();
+    EnsureLabels(accessor().GetJumpTargetOffset());
   }
 }
 
 void BaselineCompiler::VisitSingleBytecode() {
-  // Bind labels for this offset that have already been linked to a
-  // jump (i.e. forward jumps, excluding jump tables).
-  auto linked_labels_for_offset =
-      linked_labels_.find(accessor().current_offset());
-  if (linked_labels_for_offset != linked_labels_.end()) {
-    for (auto&& label : linked_labels_for_offset->second) {
-      __ Bind(label);
+  int offset = accessor().current_offset();
+  if (labels_[offset]) {
+    // Bind labels for this offset that have already been linked to a
+    // jump (i.e. forward jumps, excluding jump tables).
+    for (auto&& label : labels_[offset]->linked) {
+      __ Bind(&label->label);
     }
-    // Since the labels are linked, we can discard them.
-    linked_labels_.erase(linked_labels_for_offset);
-  }
-  // Iterate over labels for this offset that have already not yet been linked
-  // to a jump (i.e. backward jumps and jump table entries).
-  auto unlinked_labels_for_offset =
-      unlinked_labels_.find(accessor().current_offset());
-  if (unlinked_labels_for_offset != unlinked_labels_.end()) {
-    __ Bind(unlinked_labels_for_offset->second);
+#ifdef DEBUG
+    labels_[offset]->linked.Clear();
+#endif
+    __ Bind(&labels_[offset]->unlinked);
   }
 
   // Record positions of exception handlers.
@@ -615,15 +610,9 @@ void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(
 
 Label* BaselineCompiler::BuildForwardJumpLabel() {
   int target_offset = accessor().GetJumpTargetOffset();
-  Label* label = zone_.New<Label>();
-
-  auto linked_labels_for_offset = linked_labels_.find(target_offset);
-  if (linked_labels_for_offset == linked_labels_.end()) {
-    linked_labels_.emplace(target_offset, ZoneVector<Label*>({label}, &zone_));
-  } else {
-    linked_labels_for_offset->second.push_back(label);
-  }
-  return label;
+  ThreadedLabel* threaded_label = zone_.New<ThreadedLabel>();
+  EnsureLabels(target_offset)->linked.Add(threaded_label);
+  return &threaded_label->label;
 }
 
 template <typename... Args>
@@ -1855,10 +1844,8 @@ void BaselineCompiler::VisitJumpLoop() {
   __ RecordComment("]");
 
   __ Bind(&osr_not_armed);
-  Label* label = unlinked_labels_[accessor().GetJumpTargetOffset()];
-  DCHECK_NOT_NULL(label);
+  Label* label = &labels_[accessor().GetJumpTargetOffset()]->unlinked;
   int weight = accessor().GetRelativeJumpTargetOffset();
-  DCHECK_EQ(unlinked_labels_.count(accessor().GetJumpTargetOffset()), 1);
   // We can pass in the same label twice since it's a back edge and thus already
   // bound.
   DCHECK(label->is_bound());
@@ -1979,7 +1966,7 @@ void BaselineCompiler::VisitSwitchOnSmiNoFeedback() {
   std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(offsets.size());
   for (const interpreter::JumpTableTargetOffset& offset : offsets) {
     labels[offset.case_value - case_value_base] =
-        unlinked_labels_[offset.target_offset] = zone_.New<Label>();
+        &EnsureLabels(offset.target_offset)->unlinked;
   }
   Register case_value = scratch_scope.AcquireScratch();
   __ SmiUntag(case_value, kInterpreterAccumulatorRegister);
@@ -2142,8 +2129,7 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
     std::unique_ptr<Label*[]> labels =
         std::make_unique<Label*[]>(offsets.size());
     for (const interpreter::JumpTableTargetOffset& offset : offsets) {
-      labels[offset.case_value] = unlinked_labels_[offset.target_offset] =
-          zone_.New<Label>();
+      labels[offset.case_value] = &EnsureLabels(offset.target_offset)->unlinked;
     }
     __ SmiUntag(continuation);
     __ Switch(continuation, 0, labels.get(), offsets.size());
