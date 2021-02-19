@@ -52,7 +52,7 @@ void JSFunction::ClearOptimizationMarker() {
 }
 
 bool JSFunction::ChecksOptimizationMarker() {
-  return code().checks_optimization_marker();
+  return code(kAcquireLoad).checks_optimization_marker();
 }
 
 bool JSFunction::IsMarkedForOptimization() {
@@ -118,7 +118,7 @@ AbstractCode JSFunction::abstract_code(LocalIsolate* isolate) {
   if (ActiveTierIsIgnition()) {
     return AbstractCode::cast(shared().GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(code());
+    return AbstractCode::cast(code(kAcquireLoad));
   }
 }
 
@@ -136,10 +136,7 @@ void JSFunction::set_code(Code value) {
 #endif
 }
 
-void JSFunction::set_code_no_write_barrier(Code value) {
-  DCHECK(!ObjectInYoungGeneration(value));
-  RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
-}
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, code, Code, kCodeOffset)
 
 // TODO(ishell): Why relaxed read but release store?
 DEF_GETTER(JSFunction, shared, SharedFunctionInfo) {
@@ -255,7 +252,7 @@ DEF_GETTER(JSFunction, prototype, Object) {
 }
 
 bool JSFunction::is_compiled() const {
-  return code().builtin_index() != Builtins::kCompileLazy &&
+  return code(kAcquireLoad).builtin_index() != Builtins::kCompileLazy &&
          shared().is_compiled();
 }
 

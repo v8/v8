@@ -82,9 +82,13 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
+  // Release/Acquire accessors are used when storing a newly-created
+  // optimized code object, or when reading from the background thread.
+  // Storing a builtin doesn't require release semantics because these objects
+  // are fully initialized.
   inline Code code() const;
   inline void set_code(Code code);
-  inline void set_code_no_write_barrier(Code code);
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.

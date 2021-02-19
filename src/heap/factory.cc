@@ -432,8 +432,8 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
                                                  *feedback_vector_map());
   Handle<FeedbackVector> vector(FeedbackVector::cast(result), isolate());
   vector->set_shared_function_info(*shared);
-  vector->set_maybe_optimized_code(
-      HeapObjectReference::ClearedValue(isolate()));
+  vector->set_maybe_optimized_code(HeapObjectReference::ClearedValue(isolate()),
+                                   kReleaseStore);
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);
@@ -3458,7 +3458,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
   function->set_shared(*sfi_);
   function->set_context(*context_);
   function->set_raw_feedback_cell(*feedback_cell);
-  function->set_code(*code);
+  function->set_code(*code, kReleaseStore);
   if (map->has_prototype_slot()) {
     function->set_prototype_or_initial_map(
         ReadOnlyRoots(isolate).the_hole_value());

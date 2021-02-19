@@ -204,10 +204,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       unsigned inlined_bytecode_size = 0;
       if (candidate.functions[i].has_value()) {
         JSFunctionRef function = candidate.functions[i].value();
-        if (function.HasAttachedOptimizedCode()) {
-          inlined_bytecode_size = function.code().inlined_bytecode_size();
-          candidate.total_size += inlined_bytecode_size;
-        }
+        inlined_bytecode_size = function.code().inlined_bytecode_size();
+        candidate.total_size += inlined_bytecode_size;
       }
       candidate_is_small = candidate_is_small &&
                            IsSmall(bytecode.length() + inlined_bytecode_size);
@@ -791,9 +789,11 @@ void JSInliningHeuristic::PrintCandidates() {
         os << ", bytecode size: " << candidate.bytecode[i]->length();
         if (candidate.functions[i].has_value()) {
           JSFunctionRef function = candidate.functions[i].value();
-          if (function.HasAttachedOptimizedCode()) {
+          unsigned inlined_bytecode_size =
+              function.code().inlined_bytecode_size();
+          if (inlined_bytecode_size > 0) {
             os << ", existing opt code's inlined bytecode size: "
-               << function.code().inlined_bytecode_size();
+               << inlined_bytecode_size;
           }
         }
       } else {

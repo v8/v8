@@ -38,6 +38,9 @@ INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
                 kCreateClosureSlotCountOffset)
 
+RELEASE_ACQUIRE_WEAK_ACCESSORS(FeedbackVector, maybe_optimized_code,
+                               kMaybeOptimizedCodeOffset)
+
 int32_t FeedbackMetadata::synchronized_slot_count() const {
   return base::Acquire_Load(
       reinterpret_cast<const base::Atomic32*>(field_address(kSlotCountOffset)));
@@ -113,7 +116,7 @@ FeedbackMetadata FeedbackVector::metadata() const {
 void FeedbackVector::clear_invocation_count() { set_invocation_count(0); }
 
 Code FeedbackVector::optimized_code() const {
-  MaybeObject slot = maybe_optimized_code();
+  MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
   Code code =
@@ -145,7 +148,7 @@ OptimizationTier FeedbackVector::optimization_tier() const {
   // It is possible that the optimization tier bits aren't updated when the code
   // was cleared due to a GC.
   DCHECK_IMPLIES(tier == OptimizationTier::kNone,
-                 maybe_optimized_code()->IsCleared());
+                 maybe_optimized_code(kAcquireLoad)->IsCleared());
   return tier;
 }
 

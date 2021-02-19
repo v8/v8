@@ -198,6 +198,11 @@ class FeedbackVector
   STATIC_ASSERT(OptimizationTier::kLastOptimizationTier <
                 OptimizationTierBits::kMax);
 
+  static const bool kFeedbackVectorMaybeOptimizedCodeIsStoreRelease = true;
+  using TorqueGeneratedFeedbackVector<FeedbackVector,
+                                      HeapObject>::maybe_optimized_code;
+  DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(maybe_optimized_code)
+
   static constexpr uint32_t kHasCompileOptimizedOrLogFirstExecutionMarker =
       kNoneOrInOptimizationQueueMask << OptimizationMarkerBits::kShift;
   static constexpr uint32_t kHasNoTopTierCodeOrCompileOptimizedMarkerMask =

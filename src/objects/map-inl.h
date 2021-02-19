@@ -42,8 +42,9 @@ RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, DescriptorArray,
 // We need to use release-store and acquire-load accessor pairs to ensure
 // that the concurrent marking thread observes initializing stores of the
 // layout descriptor.
-SYNCHRONIZED_WEAK_ACCESSORS(Map, raw_transitions,
-                            kTransitionsOrPrototypeInfoOffset)
+WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
+RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
+                               kTransitionsOrPrototypeInfoOffset)
 
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSReceiver())

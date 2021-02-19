@@ -394,7 +394,8 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // kCompileOptimized or kCompileOptimizedConcurrent.
-  vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code));
+  vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code),
+                                   kReleaseStore);
   int32_t state = vector->flags();
   state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
   state = OptimizationMarkerBits::update(state, OptimizationMarker::kNone);
@@ -404,7 +405,8 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
 void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
   DCHECK_NE(optimization_tier(), OptimizationTier::kNone);
-  set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()));
+  set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()),
+                           kReleaseStore);
   ClearOptimizationTier();
 }
 
@@ -435,7 +437,7 @@ void FeedbackVector::InitializeOptimizationState() {
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     SharedFunctionInfo shared, const char* reason) {
-  MaybeObject slot = maybe_optimized_code();
+  MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   if (slot->IsCleared()) {
     ClearOptimizationTier();
     return;

@@ -72,7 +72,7 @@ void TryInstallNCICode(Isolate* isolate, Handle<JSFunction> function,
 
   Handle<Code> code;
   if (sfi->TryGetCachedCode(isolate).ToHandle(&code)) {
-    function->set_code(*code);
+    function->set_code(*code, kReleaseStore);
     JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
     if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
   }
@@ -428,7 +428,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   }
 
   if (!function->HasAttachedOptimizedCode()) {
-    function->set_code(function->shared().GetCode());
+    function->set_code(function->shared().GetCode(), kReleaseStore);
   }
   return Object();
 }

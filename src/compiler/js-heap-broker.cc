@@ -682,7 +682,6 @@ class JSFunctionData : public JSObjectData {
   bool has_feedback_vector() const { return has_feedback_vector_; }
   bool has_initial_map() const { return has_initial_map_; }
   bool has_prototype() const { return has_prototype_; }
-  bool HasAttachedOptimizedCode() const { return has_attached_optimized_code_; }
   bool PrototypeRequiresRuntimeLookup() const {
     return PrototypeRequiresRuntimeLookup_;
   }
@@ -710,6 +709,7 @@ class JSFunctionData : public JSObjectData {
   }
   ObjectData* code() const {
     DCHECK(serialized_code_and_feedback());
+    DCHECK(!FLAG_turbo_direct_heap_access);
     return code_;
   }
   int initial_map_instance_size_with_min_slack() const {
@@ -721,7 +721,6 @@ class JSFunctionData : public JSObjectData {
   bool has_feedback_vector_;
   bool has_initial_map_;
   bool has_prototype_;
-  bool has_attached_optimized_code_;
   bool PrototypeRequiresRuntimeLookup_;
 
   bool serialized_ = false;
@@ -1346,7 +1345,6 @@ JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
       has_initial_map_(object->has_prototype_slot() &&
                        object->has_initial_map()),
       has_prototype_(object->has_prototype_slot() && object->has_prototype()),
-      has_attached_optimized_code_(object->HasAttachedOptimizedCode()),
       PrototypeRequiresRuntimeLookup_(
           object->PrototypeRequiresRuntimeLookup()) {}
 
@@ -1400,7 +1398,12 @@ void JSFunctionData::SerializeCodeAndFeedback(JSHeapBroker* broker) {
   DCHECK_NULL(feedback_cell_);
   DCHECK_NULL(feedback_vector_);
   DCHECK_NULL(code_);
-  code_ = broker->GetOrCreateData(function->code());
+  if (!FLAG_turbo_direct_heap_access) {
+    // This is conditionalized because Code objects are never serialized now.
+    // We only need to represent the code object in serialized data when
+    // we're unable to perform direct heap accesses.
+    code_ = broker->GetOrCreateData(function->code(kAcquireLoad));
+  }
   feedback_cell_ = broker->GetOrCreateData(function->raw_feedback_cell());
   feedback_vector_ = has_feedback_vector()
                          ? broker->GetOrCreateData(function->feedback_vector())
@@ -2160,7 +2163,9 @@ class CodeData : public HeapObjectData {
  public:
   CodeData(JSHeapBroker* broker, ObjectData** storage, Handle<Code> object)
       : HeapObjectData(broker, storage, object),
-        inlined_bytecode_size_(object->inlined_bytecode_size()) {}
+        inlined_bytecode_size_(object->inlined_bytecode_size()) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 
   unsigned inlined_bytecode_size() const { return inlined_bytecode_size_; }
 
@@ -3485,7 +3490,6 @@ BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
-BIMODAL_ACCESSOR_C(JSFunction, bool, HasAttachedOptimizedCode)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
@@ -3494,7 +3498,6 @@ BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 BIMODAL_ACCESSOR(JSFunction, FeedbackCell, raw_feedback_cell)
 BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
-BIMODAL_ACCESSOR(JSFunction, Code, code)
 
 BIMODAL_ACCESSOR_C(JSGlobalObject, bool, IsDetached)
 
@@ -4389,6 +4392,15 @@ bool JSFunctionRef::serialized() const {
 bool JSFunctionRef::serialized_code_and_feedback() const {
   if (data_->should_access_heap()) return true;
   return data()->AsJSFunction()->serialized_code_and_feedback();
+}
+
+CodeRef JSFunctionRef::code() const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    return CodeRef(broker(), broker()->CanonicalPersistentHandle(
+                                 object()->code(kAcquireLoad)));
+  }
+
+  return CodeRef(broker(), ObjectRef::data()->AsJSFunction()->code());
 }
 
 void SharedFunctionInfoRef::SerializeFunctionTemplateInfo() {

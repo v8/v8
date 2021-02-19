@@ -82,6 +82,7 @@ enum class OddballType : uint8_t {
   V(ArrayBoilerplateDescription)                    \
   V(CallHandlerInfo)                                \
   V(Cell)                                           \
+  V(Code)                                           \
   V(FeedbackCell)                                   \
   V(FeedbackVector)                                 \
   V(RegExpBoilerplateDescription)                   \
@@ -133,7 +134,6 @@ enum class OddballType : uint8_t {
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
-  V(Code)                                     \
   V(DescriptorArray)                          \
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
@@ -389,7 +389,6 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool has_feedback_vector() const;
   bool has_initial_map() const;
   bool has_prototype() const;
-  bool HasAttachedOptimizedCode() const;
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();

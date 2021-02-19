@@ -1151,6 +1151,10 @@ Handle<Code> ContinuationForConcurrentOptimization(
     // code.
     if (!function->HasAttachedOptimizedCode()) {
       DCHECK(function->feedback_vector().has_optimized_code());
+      // Release store isn't required here because it was done on store
+      // into the feedback vector.
+      STATIC_ASSERT(
+          FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
       function->set_code(function->feedback_vector().optimized_code());
     }
     return handle(function->code(), isolate);
@@ -1967,7 +1971,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   // Install code on closure.
-  function->set_code(*code);
+  function->set_code(*code, kReleaseStore);
 
   // Install a feedback vector if necessary.
   if (code->kind() == CodeKind::BASELINE) {
@@ -2069,7 +2073,7 @@ bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   }
 
   if (!CodeKindIsNativeContextIndependentJSFunction(code_kind)) {
-    function->set_code(*code);
+    function->set_code(*code, kReleaseStore);
   }
 
   // Check postconditions on success.
@@ -3225,7 +3229,8 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
       InsertCodeIntoCompilationCache(isolate, compilation_info);
       CompilerTracer::TraceCompletedJob(isolate, compilation_info);
       if (should_install_code_on_function) {
-        compilation_info->closure()->set_code(*compilation_info->code());
+        compilation_info->closure()->set_code(*compilation_info->code(),
+                                              kReleaseStore);
       }
       return CompilationJob::SUCCEEDED;
     }
@@ -3233,7 +3238,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
 
   DCHECK_EQ(job->state(), CompilationJob::State::kFailed);
   CompilerTracer::TraceAbortedJob(isolate, compilation_info);
-  compilation_info->closure()->set_code(shared->GetCode());
+  compilation_info->closure()->set_code(shared->GetCode(), kReleaseStore);
   // Clear the InOptimizationQueue marker, if it exists.
   if (!CodeKindIsNativeContextIndependentJSFunction(code_kind) &&
       compilation_info->closure()->IsInOptimizationQueue()) {
@@ -3267,6 +3272,11 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
         // Caching of optimized code enabled and optimized code found.
         DCHECK(!code.marked_for_deoptimization());
         DCHECK(function->shared().is_compiled());
+
+        // We don't need a release store because the optimized code was
+        // stored with release semantics into the vector
+        STATIC_ASSERT(
+            FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
         function->set_code(code);
       }
     }

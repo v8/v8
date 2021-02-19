@@ -24,13 +24,14 @@ CodeKinds JSFunction::GetAttachedCodeKinds() const {
   // Note: There's a special case when bytecode has been aged away. After
   // flushing the bytecode, the JSFunction will still have the interpreter
   // entry trampoline attached, but the bytecode is no longer available.
-  if (code().is_interpreter_trampoline_builtin()) {
+  Code code = this->code(kAcquireLoad);
+  if (code.is_interpreter_trampoline_builtin()) {
     result |= CodeKindFlag::INTERPRETED_FUNCTION;
   }
 
-  const CodeKind kind = code().kind();
+  const CodeKind kind = code.kind();
   if (!CodeKindIsOptimizedJSFunction(kind) ||
-      code().marked_for_deoptimization()) {
+      code.marked_for_deoptimization()) {
     DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
     return result;
   }
@@ -117,12 +118,14 @@ bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
 bool JSFunction::ActiveTierIsIgnition() const {
   if (!shared().HasBytecodeArray()) return false;
   bool result = (GetActiveTier() == CodeKind::INTERPRETED_FUNCTION);
-  DCHECK_IMPLIES(result,
-                 code().is_interpreter_trampoline_builtin() ||
-                     (CodeKindIsOptimizedJSFunction(code().kind()) &&
-                      code().marked_for_deoptimization()) ||
-                     (code().builtin_index() == Builtins::kCompileLazy &&
-                      shared().IsInterpreted()));
+#ifdef DEBUG
+  Code code = this->code(kAcquireLoad);
+  DCHECK_IMPLIES(result, code.is_interpreter_trampoline_builtin() ||
+                             (CodeKindIsOptimizedJSFunction(code.kind()) &&
+                              code.marked_for_deoptimization()) ||
+                             (code.builtin_index() == Builtins::kCompileLazy &&
+                              shared().IsInterpreted()));
+#endif  // DEBUG
   return result;
 }
 
