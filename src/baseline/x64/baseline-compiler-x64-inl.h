@@ -391,27 +391,24 @@ void BaselineCompiler::PrologueFillFrame() {
   const int kLoopUnrollSize = 8;
   const int new_target_index = new_target_or_generator_register.index();
   const bool has_new_target = new_target_index != kMaxInt;
-  int i = 0;
   if (has_new_target) {
     DCHECK_LE(new_target_index, register_count);
-    for (; i < new_target_index; i++) {
+    for (int i = 0; i < new_target_index; i++) {
       __ Push(kInterpreterAccumulatorRegister);
     }
     // Push new_target_or_generator.
     __ Push(kJavaScriptCallNewTargetRegister);
-    i++;
+    register_count -= new_target_index + 1;
   }
   if (register_count < 2 * kLoopUnrollSize) {
     // If the frame is small enough, just unroll the frame fill completely.
-    for (; i < register_count; ++i) {
+    for (int i = 0; i < register_count; ++i) {
       __ Push(kInterpreterAccumulatorRegister);
     }
   } else {
-    register_count -= i;
-    i = 0;
     // Extract the first few registers to round to the unroll size.
     int first_registers = register_count % kLoopUnrollSize;
-    for (; i < first_registers; ++i) {
+    for (int i = 0; i < first_registers; ++i) {
       __ Push(kInterpreterAccumulatorRegister);
     }
     BaselineAssembler::ScratchRegisterScope scope(&basm_);
@@ -422,7 +419,7 @@ void BaselineCompiler::PrologueFillFrame() {
     DCHECK_GT(register_count / kLoopUnrollSize, 0);
     Label loop;
     __ Bind(&loop);
-    for (int j = 0; j < kLoopUnrollSize; ++j) {
+    for (int i = 0; i < kLoopUnrollSize; ++i) {
       __ Push(kInterpreterAccumulatorRegister);
     }
     __ masm()->decl(scratch);

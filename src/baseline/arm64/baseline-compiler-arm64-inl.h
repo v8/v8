@@ -503,7 +503,7 @@ void BaselineCompiler::PrologueFillFrame() {
   const int new_target_index = new_target_or_generator_register.index();
   const bool has_new_target = new_target_index != kMaxInt;
   // BaselineOutOfLinePrologue already pushed one undefined.
-  int i = 1;
+  register_count -= 1;
   if (has_new_target) {
     if (new_target_index == 0) {
       // Oops, need to fix up that undefined that BaselineOutOfLinePrologue
@@ -511,24 +511,25 @@ void BaselineCompiler::PrologueFillFrame() {
       __ masm()->Poke(kJavaScriptCallNewTargetRegister, Operand(0));
     } else {
       DCHECK_LE(new_target_index, register_count);
-      for (; i + 2 <= new_target_index; i += 2) {
+      int index = 1;
+      for (; index + 2 <= new_target_index; index += 2) {
         __ masm()->Push(kInterpreterAccumulatorRegister,
                         kInterpreterAccumulatorRegister);
       }
-      if (i == new_target_index) {
+      if (index == new_target_index) {
         __ masm()->Push(kJavaScriptCallNewTargetRegister,
                         kInterpreterAccumulatorRegister);
       } else {
-        DCHECK_EQ(i, new_target_index - 1);
+        DCHECK_EQ(index, new_target_index - 1);
         __ masm()->Push(kInterpreterAccumulatorRegister,
                         kJavaScriptCallNewTargetRegister);
       }
-      i += 2;
+      register_count -= (index + 2);
     }
   }
   if (register_count < 2 * kLoopUnrollSize) {
     // If the frame is small enough, just unroll the frame fill completely.
-    for (; i < register_count; i += 2) {
+    for (int i = 0; i < register_count; i += 2) {
       __ masm()->Push(kInterpreterAccumulatorRegister,
                       kInterpreterAccumulatorRegister);
     }
@@ -536,11 +537,9 @@ void BaselineCompiler::PrologueFillFrame() {
     BaselineAssembler::ScratchRegisterScope temps(&basm_);
     Register scratch = temps.AcquireScratch();
 
-    register_count -= i;
-    i = 0;
     // Extract the first few registers to round to the unroll size.
     int first_registers = register_count % kLoopUnrollSize;
-    for (; i < first_registers; i += 2) {
+    for (int i = 0; i < first_registers; i += 2) {
       __ masm()->Push(kInterpreterAccumulatorRegister,
                       kInterpreterAccumulatorRegister);
     }
@@ -550,7 +549,7 @@ void BaselineCompiler::PrologueFillFrame() {
     DCHECK_GT(register_count / kLoopUnrollSize, 0);
     Label loop;
     __ Bind(&loop);
-    for (int j = 0; j < kLoopUnrollSize; j += 2) {
+    for (int i = 0; i < kLoopUnrollSize; i += 2) {
       __ masm()->Push(kInterpreterAccumulatorRegister,
                       kInterpreterAccumulatorRegister);
     }
