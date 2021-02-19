@@ -1863,6 +1863,12 @@ void LiftoffAssembler::emit_i64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
   ceq_d(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
 }
 
+void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  ceq_d(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
+  nor_v(dst.fp().toW(), dst.fp().toW(), dst.fp().toW());
+}
+
 void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   fceq_d(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
@@ -2061,6 +2067,11 @@ void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   max_u_b(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
+}
+
+void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
+                                         LiftoffRegister src) {
+  pcnt_b(dst.fp().toW(), src.fp().toW());
 }
 
 void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
@@ -2295,6 +2306,11 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
   subv_d(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
+}
+
+void LiftoffAssembler::emit_v64x2_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_D);
 }
 
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
@@ -2602,6 +2618,27 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   bsel_v(dst_msa, lhs_msa, rhs_msa);
 }
 
+void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  ilvr_w(kSimd128RegZero, kSimd128RegZero, src.fp().toW());
+  slli_d(kSimd128RegZero, kSimd128RegZero, 32);
+  srai_d(kSimd128RegZero, kSimd128RegZero, 32);
+  ffint_s_d(dst.fp().toW(), kSimd128RegZero);
+}
+
+void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  ilvr_w(kSimd128RegZero, kSimd128RegZero, src.fp().toW());
+  ffint_u_d(dst.fp().toW(), kSimd128RegZero);
+}
+
+void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
+                                                    LiftoffRegister src) {
+  fexupr_d(dst.fp().toW(), src.fp().toW());
+}
+
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   ftrunc_s_w(dst.fp().toW(), src.fp().toW());
@@ -2612,6 +2649,22 @@ void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
   ftrunc_u_w(dst.fp().toW(), src.fp().toW());
 }
 
+void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
+                                                         LiftoffRegister src) {
+  xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  ftrunc_s_d(kSimd128ScratchReg, src.fp().toW());
+  sat_s_d(kSimd128ScratchReg, kSimd128ScratchReg, 31);
+  pckev_w(dst.fp().toW(), kSimd128RegZero, kSimd128ScratchReg);
+}
+
+void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
+                                                         LiftoffRegister src) {
+  xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  ftrunc_u_d(kSimd128ScratchReg, src.fp().toW());
+  sat_u_d(kSimd128ScratchReg, kSimd128ScratchReg, 31);
+  pckev_w(dst.fp().toW(), kSimd128RegZero, kSimd128ScratchReg);
+}
+
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   ffint_s_w(dst.fp().toW(), src.fp().toW());
@@ -2620,6 +2673,12 @@ void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
 void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   ffint_u_w(dst.fp().toW(), src.fp().toW());
+}
+
+void LiftoffAssembler::emit_f32x4_demote_f64x2_zero(LiftoffRegister dst,
+                                                    LiftoffRegister src) {
+  xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  fexdo_w(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
