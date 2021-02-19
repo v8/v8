@@ -222,7 +222,8 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
       case MachineRepresentation::kFloat64: {
         __ StoreObjectFieldNoWriteBarrier(
             __ Cast(__ LoadFixedArrayElement(result_array, i)),
-            HeapNumber::kValueOffset, __ UncheckedCast<Float64T>(param));
+            __ IntPtrConstant(HeapNumber::kValueOffset),
+            __ UncheckedCast<Float64T>(param));
       } break;
       case MachineRepresentation::kSimd128: {
         TNode<FixedArray> vector =

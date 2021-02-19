@@ -520,8 +520,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #undef HEAP_CONSTANT_ACCESSOR
 
 #define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name) \
-  TNode<BoolT> Is##name(SloppyTNode<Object> value);               \
-  TNode<BoolT> IsNot##name(SloppyTNode<Object> value);
+  TNode<BoolT> Is##name(TNode<Object> value);                     \
+  TNode<BoolT> IsNot##name(TNode<Object> value);
   HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
@@ -882,7 +882,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
             single_char[0]));
   }
 
-  TNode<Int32T> TruncateWordToInt32(SloppyTNode<WordT> value);
+  TNode<Int32T> TruncateWordToInt32(TNode<WordT> value);
   TNode<Int32T> TruncateIntPtrToInt32(SloppyTNode<IntPtrT> value);
 
   // Check a value for smi-ness
@@ -890,9 +890,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> TaggedIsNotSmi(TNode<MaybeObject> a);
 
   // Check that the value is a non-negative smi.
-  TNode<BoolT> TaggedIsPositiveSmi(SloppyTNode<Object> a);
+  TNode<BoolT> TaggedIsPositiveSmi(TNode<Object> a);
   // Check that a word has a word-aligned address.
-  TNode<BoolT> WordIsAligned(SloppyTNode<WordT> word, size_t alignment);
+  TNode<BoolT> WordIsAligned(TNode<WordT> word, size_t alignment);
   TNode<BoolT> WordIsPowerOfTwo(SloppyTNode<IntPtrT> value);
 
   // Check if lower_limit <= value <= higher_limit.
@@ -944,17 +944,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Branches to {if_true} if ToBoolean applied to {value} yields true,
   // otherwise goes to {if_false}.
-  void BranchIfToBooleanIsTrue(SloppyTNode<Object> value, Label* if_true,
+  void BranchIfToBooleanIsTrue(TNode<Object> value, Label* if_true,
                                Label* if_false);
 
   // Branches to {if_false} if ToBoolean applied to {value} yields false,
   // otherwise goes to {if_true}.
-  void BranchIfToBooleanIsFalse(SloppyTNode<Object> value, Label* if_false,
+  void BranchIfToBooleanIsFalse(TNode<Object> value, Label* if_false,
                                 Label* if_true) {
     BranchIfToBooleanIsTrue(value, if_true, if_false);
   }
 
-  void BranchIfJSReceiver(SloppyTNode<Object> object, Label* if_true,
+  void BranchIfJSReceiver(TNode<Object> object, Label* if_true,
                           Label* if_false);
 
   // Branches to {if_true} when --force-slow-path flag has been passed.
@@ -1269,7 +1269,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                TNode<Int32T> instance_type,
                                                Label* bailout);
   // Load the identity hash of a JSRececiver.
-  TNode<IntPtrT> LoadJSReceiverIdentityHash(SloppyTNode<Object> receiver,
+  TNode<IntPtrT> LoadJSReceiverIdentityHash(TNode<Object> receiver,
                                             Label* if_no_hash = nullptr);
 
   // This is only used on a newly allocated PropertyArray which
@@ -1472,14 +1472,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Context manipulation:
   void StoreContextElementNoWriteBarrier(TNode<Context> context, int slot_index,
-                                         SloppyTNode<Object> value);
+                                         TNode<Object> value);
   TNode<NativeContext> LoadNativeContext(TNode<Context> context);
   // Calling this is only valid if there's a module context in the chain.
   TNode<Context> LoadModuleContext(TNode<Context> context);
 
   TNode<Object> GetImportMetaObject(TNode<Context> context);
 
-  void GotoIfContextElementEqual(SloppyTNode<Object> value,
+  void GotoIfContextElementEqual(TNode<Object> value,
                                  TNode<NativeContext> native_context,
                                  int slot_index, Label* if_equal) {
     GotoIf(TaggedEqual(value, LoadContextElement(native_context, slot_index)),
@@ -1493,7 +1493,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Map> LoadJSArrayElementsMap(ElementsKind kind,
                                     TNode<NativeContext> native_context);
-  TNode<Map> LoadJSArrayElementsMap(SloppyTNode<Int32T> kind,
+  TNode<Map> LoadJSArrayElementsMap(TNode<Int32T> kind,
                                     TNode<NativeContext> native_context);
 
   TNode<BoolT> IsJSFunctionWithPrototypeSlot(TNode<HeapObject> object);
@@ -1514,7 +1514,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<Word32T> value);
 
   // Store the floating point value of a HeapNumber.
-  void StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
+  void StoreHeapNumberValue(TNode<HeapNumber> object,
                             SloppyTNode<Float64T> value);
   // Store a field to an object on the heap.
   void StoreObjectField(TNode<HeapObject> object, int offset,
@@ -1899,13 +1899,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResult(TNode<Context> context,
-                                           SloppyTNode<Object> value,
+                                           TNode<Object> value,
                                            SloppyTNode<Oddball> done);
 
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
                                                    TNode<Object> key,
-                                                   SloppyTNode<Object> value);
+                                                   TNode<Object> value);
 
   TNode<JSReceiver> ArraySpeciesCreate(TNode<Context> context,
                                        TNode<Object> originalArray,
@@ -2216,9 +2216,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Float64T> TryTaggedToFloat64(TNode<Object> value,
                                      Label* if_valueisnotnumber);
   TNode<Float64T> TruncateTaggedToFloat64(TNode<Context> context,
-                                          SloppyTNode<Object> value);
+                                          TNode<Object> value);
   TNode<Word32T> TruncateTaggedToWord32(TNode<Context> context,
-                                        SloppyTNode<Object> value);
+                                        TNode<Object> value);
   void TaggedToWord32OrBigInt(TNode<Context> context, TNode<Object> value,
                               Label* if_number, TVariable<Word32T>* var_word32,
                               Label* if_bigint,
@@ -2260,7 +2260,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    TVariable<Numeric>* var_numeric,
                                    TVariable<Smi>* var_feedback);
 
-  TNode<WordT> TimesSystemPointerSize(SloppyTNode<WordT> value);
+  TNode<WordT> TimesSystemPointerSize(TNode<WordT> value);
   TNode<IntPtrT> TimesSystemPointerSize(TNode<IntPtrT> value) {
     return Signed(TimesSystemPointerSize(implicit_cast<TNode<WordT>>(value)));
   }
@@ -2268,7 +2268,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Unsigned(TimesSystemPointerSize(implicit_cast<TNode<WordT>>(value)));
   }
 
-  TNode<WordT> TimesTaggedSize(SloppyTNode<WordT> value);
+  TNode<WordT> TimesTaggedSize(TNode<WordT> value);
   TNode<IntPtrT> TimesTaggedSize(TNode<IntPtrT> value) {
     return Signed(TimesTaggedSize(implicit_cast<TNode<WordT>>(value)));
   }
@@ -2276,7 +2276,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Unsigned(TimesTaggedSize(implicit_cast<TNode<WordT>>(value)));
   }
 
-  TNode<WordT> TimesDoubleSize(SloppyTNode<WordT> value);
+  TNode<WordT> TimesDoubleSize(TNode<WordT> value);
   TNode<UintPtrT> TimesDoubleSize(TNode<UintPtrT> value) {
     return Unsigned(TimesDoubleSize(implicit_cast<TNode<WordT>>(value)));
   }
@@ -2327,16 +2327,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.
-  TNode<BoolT> InstanceTypeEqual(SloppyTNode<Int32T> instance_type, int type);
+  TNode<BoolT> InstanceTypeEqual(TNode<Int32T> instance_type, int type);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
   TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
-  TNode<BoolT> IsBigIntInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsBigIntInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsBigInt(TNode<HeapObject> object);
   TNode<BoolT> IsBoolean(TNode<HeapObject> object);
   TNode<BoolT> IsCallableMap(TNode<Map> map);
   TNode<BoolT> IsCallable(TNode<HeapObject> object);
   TNode<BoolT> TaggedIsCallable(TNode<Object> object);
-  TNode<BoolT> IsConsStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsConsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsConstructorMap(TNode<Map> map);
   TNode<BoolT> IsConstructor(TNode<HeapObject> object);
   TNode<BoolT> IsDeprecatedMap(TNode<Map> map);
@@ -2345,7 +2345,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsGlobalDictionary(TNode<HeapObject> object);
   TNode<BoolT> IsExtensibleMap(TNode<Map> map);
   TNode<BoolT> IsExtensibleNonPrototypeMap(TNode<Map> map);
-  TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsExternalStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsFixedArray(TNode<HeapObject> object);
   TNode<BoolT> IsFixedArraySubclass(TNode<HeapObject> object);
   TNode<BoolT> IsFixedArrayWithKind(TNode<HeapObject> object,
@@ -2355,27 +2355,27 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsFunctionWithPrototypeSlotMap(TNode<Map> map);
   TNode<BoolT> IsHashTable(TNode<HeapObject> object);
   TNode<BoolT> IsEphemeronHashTable(TNode<HeapObject> object);
-  TNode<BoolT> IsHeapNumberInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsHeapNumberInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsOddball(TNode<HeapObject> object);
-  TNode<BoolT> IsOddballInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsIndirectStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsOddballInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsIndirectStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSArrayBuffer(TNode<HeapObject> object);
   TNode<BoolT> IsJSDataView(TNode<HeapObject> object);
-  TNode<BoolT> IsJSArrayInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSArrayInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSArrayMap(TNode<Map> map);
   TNode<BoolT> IsJSArray(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayIterator(TNode<HeapObject> object);
   TNode<BoolT> IsJSAsyncGeneratorObject(TNode<HeapObject> object);
   TNode<BoolT> IsFunctionInstanceType(TNode<Int32T> instance_type);
-  TNode<BoolT> IsJSFunctionInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSFunctionInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSFunctionMap(TNode<Map> map);
   TNode<BoolT> IsJSFunction(TNode<HeapObject> object);
   TNode<BoolT> IsJSBoundFunction(TNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorObject(TNode<HeapObject> object);
-  TNode<BoolT> IsJSGlobalProxyInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSGlobalProxyInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSGlobalProxyMap(TNode<Map> map);
   TNode<BoolT> IsJSGlobalProxy(TNode<HeapObject> object);
-  TNode<BoolT> IsJSObjectInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSObjectInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSObjectMap(TNode<Map> map);
   TNode<BoolT> IsJSObject(TNode<HeapObject> object);
   TNode<BoolT> IsJSFinalizationRegistryMap(TNode<Map> map);
@@ -2385,28 +2385,27 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSProxy(TNode<HeapObject> object);
   TNode<BoolT> IsJSStringIterator(TNode<HeapObject> object);
   TNode<BoolT> IsJSRegExpStringIterator(TNode<HeapObject> object);
-  TNode<BoolT> IsJSReceiverInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSReceiverInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSReceiverMap(TNode<Map> map);
   TNode<BoolT> IsJSReceiver(TNode<HeapObject> object);
   TNode<BoolT> IsJSRegExp(TNode<HeapObject> object);
-  TNode<BoolT> IsJSTypedArrayInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSTypedArrayInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSTypedArrayMap(TNode<Map> map);
   TNode<BoolT> IsJSTypedArray(TNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorMap(TNode<Map> map);
-  TNode<BoolT> IsJSPrimitiveWrapperInstanceType(
-      SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSPrimitiveWrapperInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSPrimitiveWrapperMap(TNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapper(TNode<HeapObject> object);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
   TNode<BoolT> IsName(TNode<HeapObject> object);
-  TNode<BoolT> IsNameInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsNameInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsNullOrJSReceiver(TNode<HeapObject> object);
-  TNode<BoolT> IsNullOrUndefined(SloppyTNode<Object> object);
+  TNode<BoolT> IsNullOrUndefined(TNode<Object> object);
   TNode<BoolT> IsNumberDictionary(TNode<HeapObject> object);
   TNode<BoolT> IsOneByteStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsSeqOneByteStringInstanceType(TNode<Int32T> instance_type);
-  TNode<BoolT> IsPrimitiveInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsPrivateName(SloppyTNode<Symbol> symbol);
+  TNode<BoolT> IsPrimitiveInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsPrivateName(TNode<Symbol> symbol);
   TNode<BoolT> IsPropertyArray(TNode<HeapObject> object);
   TNode<BoolT> IsPropertyCell(TNode<HeapObject> object);
   TNode<BoolT> IsPromiseReactionJobTask(TNode<HeapObject> object);
@@ -2422,26 +2421,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsSloppyArgumentsMap(TNode<Context> context, TNode<Map> map);
   TNode<BoolT> IsStrictArgumentsMap(TNode<Context> context, TNode<Map> map);
 
-  TNode<BoolT> IsSequentialStringInstanceType(
-      SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsSequentialStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsUncachedExternalStringInstanceType(
-      SloppyTNode<Int32T> instance_type);
+      TNode<Int32T> instance_type);
   TNode<BoolT> IsSpecialReceiverInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsCustomElementsReceiverInstanceType(
       TNode<Int32T> instance_type);
   TNode<BoolT> IsSpecialReceiverMap(TNode<Map> map);
-  TNode<BoolT> IsStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsString(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
 
-  TNode<BoolT> IsSymbolInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsUniqueName(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoIndex(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoCachedIndex(TNode<HeapObject> object);
   TNode<BoolT> IsUndetectableMap(TNode<Map> map);
   TNode<BoolT> IsNotWeakFixedArraySubclass(TNode<HeapObject> object);
-  TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
+  TNode<BoolT> IsZeroOrContext(TNode<Object> object);
 
   TNode<BoolT> IsPromiseResolveProtectorCellInvalid();
   TNode<BoolT> IsPromiseThenProtectorCellInvalid();
@@ -2468,7 +2466,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
-  TNode<BoolT> IsNumeric(SloppyTNode<Object> object);
+  TNode<BoolT> IsNumeric(TNode<Object> object);
 
   // True iff |number| is either a Smi, or a HeapNumber whose value is not
   // within Smi range.
@@ -2520,7 +2518,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return v8::internal::IsDoubleElementsKind(kind);
   }
   TNode<BoolT> IsFastSmiOrTaggedElementsKind(TNode<Int32T> elements_kind);
-  TNode<BoolT> IsFastSmiElementsKind(SloppyTNode<Int32T> elements_kind);
+  TNode<BoolT> IsFastSmiElementsKind(TNode<Int32T> elements_kind);
   TNode<BoolT> IsHoleyFastElementsKind(TNode<Int32T> elements_kind);
   TNode<BoolT> IsHoleyFastElementsKindForRead(TNode<Int32T> elements_kind);
   TNode<BoolT> IsElementsKindGreaterThan(TNode<Int32T> target_kind,
@@ -2562,8 +2560,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> ToNumber(
       TNode<Context> context, TNode<Object> input,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
-  TNode<Number> ToNumber_Inline(TNode<Context> context,
-                                SloppyTNode<Object> input);
+  TNode<Number> ToNumber_Inline(TNode<Context> context, TNode<Object> input);
   TNode<Numeric> ToNumberOrNumeric(
       LazyNode<Context> context, TNode<Object> input,
       TVariable<Smi>* var_type_feedback, Object::Conversion mode,
@@ -2579,13 +2576,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Converts |input| to one of 2^32 integer values in the range 0 through
   // 2^32-1, inclusive.
   // ES#sec-touint32
-  TNode<Number> ToUint32(TNode<Context> context, SloppyTNode<Object> input);
+  TNode<Number> ToUint32(TNode<Context> context, TNode<Object> input);
 
   // Convert any object to a String.
-  TNode<String> ToString_Inline(TNode<Context> context,
-                                SloppyTNode<Object> input);
+  TNode<String> ToString_Inline(TNode<Context> context, TNode<Object> input);
 
-  TNode<JSReceiver> ToObject(TNode<Context> context, SloppyTNode<Object> input);
+  TNode<JSReceiver> ToObject(TNode<Context> context, TNode<Object> input);
 
   // Same as ToObject but avoids the Builtin call if |input| is already a
   // JSReceiver.
@@ -2593,8 +2589,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TNode<Object> input);
 
   // ES6 7.1.15 ToLength, but with inlined fast path.
-  TNode<Number> ToLength_Inline(TNode<Context> context,
-                                SloppyTNode<Object> input);
+  TNode<Number> ToLength_Inline(TNode<Context> context, TNode<Object> input);
 
   TNode<Object> OrdinaryToPrimitive(TNode<Context> context, TNode<Object> input,
                                     OrdinaryToPrimitiveHint hint);
@@ -2609,7 +2604,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word|. Returns result as a word-size node.
   template <typename BitField>
-  TNode<UintPtrT> DecodeWord(SloppyTNode<WordT> word) {
+  TNode<UintPtrT> DecodeWord(TNode<WordT> word) {
     return DecodeWord(word, BitField::kShift, BitField::kMask);
   }
 
@@ -2623,7 +2618,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word|. Returns result as an uint32 node.
   template <typename BitField>
-  TNode<Uint32T> DecodeWord32FromWord(SloppyTNode<WordT> word) {
+  TNode<Uint32T> DecodeWord32FromWord(TNode<WordT> word) {
     return UncheckedCast<Uint32T>(
         TruncateIntPtrToInt32(Signed(DecodeWord<BitField>(word))));
   }
@@ -2633,8 +2628,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               uint32_t mask);
 
   // Decodes an unsigned (!) value from |word| to a word-size node.
-  TNode<UintPtrT> DecodeWord(SloppyTNode<WordT> word, uint32_t shift,
-                             uintptr_t mask);
+  TNode<UintPtrT> DecodeWord(TNode<WordT> word, uint32_t shift, uintptr_t mask);
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
@@ -2717,12 +2711,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Returns true if any of the |T|'s bits in given |word| are set.
   template <typename T>
-  TNode<BoolT> IsSetWord(SloppyTNode<WordT> word) {
+  TNode<BoolT> IsSetWord(TNode<WordT> word) {
     return IsSetWord(word, T::kMask);
   }
 
   // Returns true if any of the mask's bits in given |word| are set.
-  TNode<BoolT> IsSetWord(SloppyTNode<WordT> word, uint32_t mask) {
+  TNode<BoolT> IsSetWord(TNode<WordT> word, uint32_t mask) {
     return WordNotEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
@@ -2749,12 +2743,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Returns true if all of the |T|'s bits in given |word| are clear.
   template <typename T>
-  TNode<BoolT> IsClearWord(SloppyTNode<WordT> word) {
+  TNode<BoolT> IsClearWord(TNode<WordT> word) {
     return IsClearWord(word, T::kMask);
   }
 
   // Returns true if all of the mask's bits in given |word| are clear.
-  TNode<BoolT> IsClearWord(SloppyTNode<WordT> word, uint32_t mask) {
+  TNode<BoolT> IsClearWord(TNode<WordT> word, uint32_t mask) {
     return IntPtrEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
@@ -2781,7 +2775,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Note: If |key| does not yet have a hash, |if_notinternalized| will be taken
   // even if |key| is an array index. |if_keyisunique| will never
   // be taken for array indices.
-  void TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
+  void TryToName(TNode<Object> key, Label* if_keyisindex,
                  TVariable<IntPtrT>* var_index, Label* if_keyisunique,
                  TVariable<Name>* var_unique, Label* if_bailout,
                  Label* if_notinternalized = nullptr);
@@ -2990,14 +2984,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          TVariable<Object>* var_raw_value, Label* if_not_found,
                          Label* if_bailout, GetOwnPropertyMode mode);
 
-  TNode<Object> GetProperty(TNode<Context> context,
-                            SloppyTNode<Object> receiver, Handle<Name> name) {
+  TNode<Object> GetProperty(TNode<Context> context, TNode<Object> receiver,
+                            Handle<Name> name) {
     return GetProperty(context, receiver, HeapConstant(name));
   }
 
-  TNode<Object> GetProperty(TNode<Context> context,
-                            SloppyTNode<Object> receiver,
-                            SloppyTNode<Object> name) {
+  TNode<Object> GetProperty(TNode<Context> context, TNode<Object> receiver,
+                            TNode<Object> name) {
     return CallBuiltin(Builtins::kGetProperty, context, receiver, name);
   }
 
@@ -3025,14 +3018,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                             TNode<Object> sync_iterator);
 
   template <class... TArgs>
-  TNode<Object> CallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
+  TNode<Object> CallBuiltin(Builtins::Name id, TNode<Object> context,
                             TArgs... args) {
     return CallStub<Object>(Builtins::CallableFor(isolate(), id), context,
                             args...);
   }
 
   template <class... TArgs>
-  void TailCallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
+  void TailCallBuiltin(Builtins::Name id, TNode<Object> context,
                        TArgs... args) {
     return TailCallStub(Builtins::CallableFor(isolate(), id), context, args...);
   }
@@ -3071,9 +3064,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Note: this code does not check if the global dictionary points to deleted
   // entry! This has to be done by the caller.
   void TryLookupProperty(TNode<HeapObject> object, TNode<Map> map,
-                         SloppyTNode<Int32T> instance_type,
-                         TNode<Name> unique_name, Label* if_found_fast,
-                         Label* if_found_dict, Label* if_found_global,
+                         TNode<Int32T> instance_type, TNode<Name> unique_name,
+                         Label* if_found_fast, Label* if_found_dict,
+                         Label* if_found_global,
                          TVariable<HeapObject>* var_meta_storage,
                          TVariable<IntPtrT>* var_name_index,
                          Label* if_not_found, Label* if_bailout);
@@ -3094,7 +3087,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // if_absent if it's known to not exist. To if_not_found if the prototype
   // chain needs to be checked. And if_bailout if the lookup is unsupported.
   void TryLookupElement(TNode<HeapObject> object, TNode<Map> map,
-                        SloppyTNode<Int32T> instance_type,
+                        TNode<Int32T> instance_type,
                         SloppyTNode<IntPtrT> intptr_index, Label* if_found,
                         Label* if_absent, Label* if_not_found,
                         Label* if_bailout);
@@ -3202,7 +3195,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // used for a property store or deletion.
   void CheckForAssociatedProtector(TNode<Name> name, Label* if_protector);
 
-  TNode<Map> LoadReceiverMap(SloppyTNode<Object> receiver);
+  TNode<Map> LoadReceiverMap(TNode<Object> receiver);
 
   // Loads script context from the script context table.
   TNode<Context> LoadScriptContext(TNode<Context> context,
@@ -3399,25 +3392,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfNumberGreaterThanOrEqual(TNode<Number> left, TNode<Number> right,
                                       Label* if_false);
 
-  TNode<Oddball> Equal(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
+  TNode<Oddball> Equal(TNode<Object> lhs, TNode<Object> rhs,
                        TNode<Context> context,
                        TVariable<Smi>* var_type_feedback = nullptr) {
     return Equal(
         lhs, rhs, [=]() { return context; }, var_type_feedback);
   }
-  TNode<Oddball> Equal(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
+  TNode<Oddball> Equal(TNode<Object> lhs, TNode<Object> rhs,
                        const LazyNode<Context>& context,
                        TVariable<Smi>* var_type_feedback = nullptr);
 
-  TNode<Oddball> StrictEqual(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
+  TNode<Oddball> StrictEqual(TNode<Object> lhs, TNode<Object> rhs,
                              TVariable<Smi>* var_type_feedback = nullptr);
 
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero
   // differs from positive zero.
   enum class SameValueMode { kNumbersOnly, kFull };
-  void BranchIfSameValue(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
-                         Label* if_true, Label* if_false,
+  void BranchIfSameValue(TNode<Object> lhs, TNode<Object> rhs, Label* if_true,
+                         Label* if_false,
                          SameValueMode mode = SameValueMode::kFull);
   // A part of BranchIfSameValue() that handles two double values.
   // Treats NaN == NaN and +0 != -0.
@@ -3427,9 +3420,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 
-  TNode<Oddball> HasProperty(TNode<Context> context, SloppyTNode<Object> object,
-                             SloppyTNode<Object> key,
-                             HasPropertyLookupMode mode);
+  TNode<Oddball> HasProperty(TNode<Context> context, TNode<Object> object,
+                             TNode<Object> key, HasPropertyLookupMode mode);
 
   // Due to naming conflict with the builtin function namespace.
   TNode<Oddball> HasProperty_Inline(TNode<Context> context,
@@ -3445,12 +3437,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                     TNode<Smi>* cache_length_out,
                     UpdateFeedbackMode update_feedback_mode);
 
-  TNode<String> Typeof(SloppyTNode<Object> value);
+  TNode<String> Typeof(TNode<Object> value);
 
   TNode<HeapObject> GetSuperConstructor(TNode<JSFunction> active_function);
 
   TNode<JSReceiver> SpeciesConstructor(TNode<Context> context,
-                                       SloppyTNode<Object> object,
+                                       TNode<Object> object,
                                        TNode<JSReceiver> default_constructor);
 
   TNode<Oddball> InstanceOf(TNode<Object> object, TNode<Object> callable,
@@ -3687,7 +3679,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<Object> receiver, Label* if_bailout,
                                      GetOwnPropertyMode mode = kCallJSGetter);
 
-  TNode<IntPtrT> TryToIntptr(SloppyTNode<Object> key, Label* if_not_intptr,
+  TNode<IntPtrT> TryToIntptr(TNode<Object> key, Label* if_not_intptr,
                              TVariable<Int32T>* var_instance_type = nullptr);
 
   TNode<JSArray> ArrayCreate(TNode<Context> context, TNode<Number> length);
@@ -3764,8 +3756,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> GetSortedKeyIndex(TNode<Array> descriptors,
                                    TNode<Uint32T> entry_index);
 
-  TNode<Smi> CollectFeedbackForString(SloppyTNode<Int32T> instance_type);
-  void GenerateEqual_Same(SloppyTNode<Object> value, Label* if_equal,
+  TNode<Smi> CollectFeedbackForString(TNode<Int32T> instance_type);
+  void GenerateEqual_Same(TNode<Object> value, Label* if_equal,
                           Label* if_notequal,
                           TVariable<Smi>* var_type_feedback = nullptr);
 

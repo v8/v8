@@ -249,12 +249,12 @@ HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
-#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name)          \
-  TNode<BoolT> CodeStubAssembler::Is##name(SloppyTNode<Object> value) {    \
-    return TaggedEqual(value, name##Constant());                           \
-  }                                                                        \
-  TNode<BoolT> CodeStubAssembler::IsNot##name(SloppyTNode<Object> value) { \
-    return TaggedNotEqual(value, name##Constant());                        \
+#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name)    \
+  TNode<BoolT> CodeStubAssembler::Is##name(TNode<Object> value) {    \
+    return TaggedEqual(value, name##Constant());                     \
+  }                                                                  \
+  TNode<BoolT> CodeStubAssembler::IsNot##name(TNode<Object> value) { \
+    return TaggedNotEqual(value, name##Constant());                  \
   }
 HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
@@ -992,7 +992,7 @@ TNode<Smi> CodeStubAssembler::SmiLexicographicCompare(TNode<Smi> x,
                             std::make_pair(MachineType::AnyTagged(), y)));
 }
 
-TNode<Int32T> CodeStubAssembler::TruncateWordToInt32(SloppyTNode<WordT> value) {
+TNode<Int32T> CodeStubAssembler::TruncateWordToInt32(TNode<WordT> value) {
   if (Is64()) {
     return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));
   }
@@ -1019,7 +1019,7 @@ TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(TNode<MaybeObject> a) {
   return Word32BinaryNot(TaggedIsSmi(a));
 }
 
-TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(SloppyTNode<Object> a) {
+TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(TNode<Object> a) {
 #if defined(V8_HOST_ARCH_32_BIT) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   return Word32Equal(
       Word32And(
@@ -1033,7 +1033,7 @@ TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(SloppyTNode<Object> a) {
 #endif
 }
 
-TNode<BoolT> CodeStubAssembler::WordIsAligned(SloppyTNode<WordT> word,
+TNode<BoolT> CodeStubAssembler::WordIsAligned(TNode<WordT> word,
                                               size_t alignment) {
   DCHECK(base::bits::IsPowerOfTwo(alignment));
   DCHECK_LE(alignment, kMaxUInt32);
@@ -1056,8 +1056,8 @@ TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
   return LoadFixedDoubleArrayElement(array, index, if_hole);
 }
 
-void CodeStubAssembler::BranchIfJSReceiver(SloppyTNode<Object> object,
-                                           Label* if_true, Label* if_false) {
+void CodeStubAssembler::BranchIfJSReceiver(TNode<Object> object, Label* if_true,
+                                           Label* if_false) {
   GotoIf(TaggedIsSmi(object), if_false);
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   Branch(IsJSReceiver(CAST(object)), if_true, if_false);
@@ -1314,7 +1314,7 @@ TNode<BoolT> CodeStubAssembler::IsRegularHeapObjectSize(TNode<IntPtrT> size) {
                                 IntPtrConstant(kMaxRegularHeapObjectSize));
 }
 
-void CodeStubAssembler::BranchIfToBooleanIsTrue(SloppyTNode<Object> value,
+void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
                                                 Label* if_true,
                                                 Label* if_false) {
   Label if_smi(this), if_notsmi(this), if_heapnumber(this, Label::kDeferred),
@@ -1776,7 +1776,7 @@ TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
-    SloppyTNode<Object> receiver, Label* if_no_hash) {
+    TNode<Object> receiver, Label* if_no_hash) {
   TVARIABLE(IntPtrT, var_hash);
   Label done(this), if_smi(this), if_property_array(this),
       if_ordered_property_dictionary(this), if_property_dictionary(this),
@@ -2596,7 +2596,7 @@ TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
 }
 
 void CodeStubAssembler::StoreContextElementNoWriteBarrier(
-    TNode<Context> context, int slot_index, SloppyTNode<Object> value) {
+    TNode<Context> context, int slot_index, TNode<Object> value) {
   int offset = Context::SlotOffset(slot_index);
   StoreNoWriteBarrier(MachineRepresentation::kTagged, context,
                       IntPtrConstant(offset), value);
@@ -2671,7 +2671,7 @@ TNode<Map> CodeStubAssembler::LoadSlowObjectWithNullPrototypeMap(
 }
 
 TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
-    SloppyTNode<Int32T> kind, TNode<NativeContext> native_context) {
+    TNode<Int32T> kind, TNode<NativeContext> native_context) {
   CSA_ASSERT(this, IsFastElementsKind(kind));
   TNode<IntPtrT> offset =
       IntPtrAdd(IntPtrConstant(Context::FIRST_JS_ARRAY_MAP_SLOT),
@@ -2788,7 +2788,7 @@ void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,
                       IntPtrConstant(offset - kHeapObjectTag), value);
 }
 
-void CodeStubAssembler::StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
+void CodeStubAssembler::StoreHeapNumberValue(TNode<HeapNumber> object,
                                              SloppyTNode<Float64T> value) {
   StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value);
 }
@@ -3282,7 +3282,7 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   return CAST(result);
 }
 
-TNode<BoolT> CodeStubAssembler::IsZeroOrContext(SloppyTNode<Object> object) {
+TNode<BoolT> CodeStubAssembler::IsZeroOrContext(TNode<Object> object) {
   return Select<BoolT>(
       TaggedEqual(object, SmiConstant(0)), [=] { return Int32TrueConstant(); },
       [=] { return IsContext(CAST(object)); });
@@ -5172,7 +5172,7 @@ TNode<Float64T> CodeStubAssembler::TryTaggedToFloat64(
 }
 
 TNode<Float64T> CodeStubAssembler::TruncateTaggedToFloat64(
-    TNode<Context> context, SloppyTNode<Object> value) {
+    TNode<Context> context, TNode<Object> value) {
   // We might need to loop once due to ToNumber conversion.
   TVARIABLE(Object, var_value, value);
   TVARIABLE(Float64T, var_result);
@@ -5201,8 +5201,8 @@ TNode<Float64T> CodeStubAssembler::TruncateTaggedToFloat64(
   return var_result.value();
 }
 
-TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(
-    TNode<Context> context, SloppyTNode<Object> value) {
+TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(TNode<Context> context,
+                                                         TNode<Object> value) {
   TVARIABLE(Word32T, var_result);
   Label done(this);
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(context, value,
@@ -5636,16 +5636,15 @@ TNode<Float64T> CodeStubAssembler::ChangeTaggedToFloat64(TNode<Context> context,
   return var_result.value();
 }
 
-TNode<WordT> CodeStubAssembler::TimesSystemPointerSize(
-    SloppyTNode<WordT> value) {
+TNode<WordT> CodeStubAssembler::TimesSystemPointerSize(TNode<WordT> value) {
   return WordShl(value, kSystemPointerSizeLog2);
 }
 
-TNode<WordT> CodeStubAssembler::TimesTaggedSize(SloppyTNode<WordT> value) {
+TNode<WordT> CodeStubAssembler::TimesTaggedSize(TNode<WordT> value) {
   return WordShl(value, kTaggedSizeLog2);
 }
 
-TNode<WordT> CodeStubAssembler::TimesDoubleSize(SloppyTNode<WordT> value) {
+TNode<WordT> CodeStubAssembler::TimesDoubleSize(TNode<WordT> value) {
   return WordShl(value, kDoubleSizeLog2);
 }
 
@@ -5843,8 +5842,8 @@ void CodeStubAssembler::ThrowTypeError(TNode<Context> context,
   Unreachable();
 }
 
-TNode<BoolT> CodeStubAssembler::InstanceTypeEqual(
-    SloppyTNode<Int32T> instance_type, int type) {
+TNode<BoolT> CodeStubAssembler::InstanceTypeEqual(TNode<Int32T> instance_type,
+                                                  int type) {
   return Word32Equal(instance_type, Int32Constant(type));
 }
 
@@ -6023,7 +6022,7 @@ TNode<BoolT> CodeStubAssembler::IsCustomElementsReceiverInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsStringInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   STATIC_ASSERT(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
   return Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE));
 }
@@ -6037,7 +6036,7 @@ TNode<BoolT> CodeStubAssembler::IsOneByteStringInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsSequentialStringInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   return Word32Equal(
       Word32And(instance_type, Int32Constant(kStringRepresentationMask)),
@@ -6054,7 +6053,7 @@ TNode<BoolT> CodeStubAssembler::IsSeqOneByteStringInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsConsStringInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   return Word32Equal(
       Word32And(instance_type, Int32Constant(kStringRepresentationMask)),
@@ -6062,7 +6061,7 @@ TNode<BoolT> CodeStubAssembler::IsConsStringInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsIndirectStringInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   STATIC_ASSERT(kIsIndirectStringMask == 0x1);
   STATIC_ASSERT(kIsIndirectStringTag == 0x1);
@@ -6071,7 +6070,7 @@ TNode<BoolT> CodeStubAssembler::IsIndirectStringInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsExternalStringInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   return Word32Equal(
       Word32And(instance_type, Int32Constant(kStringRepresentationMask)),
@@ -6079,14 +6078,14 @@ TNode<BoolT> CodeStubAssembler::IsExternalStringInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsUncachedExternalStringInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   STATIC_ASSERT(kUncachedExternalStringTag != 0);
   return IsSetWord32(instance_type, kUncachedExternalStringMask);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSReceiverInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   return Int32GreaterThanOrEqual(instance_type,
                                  Int32Constant(FIRST_JS_RECEIVER_TYPE));
@@ -6104,12 +6103,12 @@ TNode<BoolT> CodeStubAssembler::IsNullOrJSReceiver(TNode<HeapObject> object) {
   return UncheckedCast<BoolT>(Word32Or(IsJSReceiver(object), IsNull(object)));
 }
 
-TNode<BoolT> CodeStubAssembler::IsNullOrUndefined(SloppyTNode<Object> value) {
+TNode<BoolT> CodeStubAssembler::IsNullOrUndefined(TNode<Object> value) {
   return UncheckedCast<BoolT>(Word32Or(IsUndefined(value), IsNull(value)));
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSGlobalProxyInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_GLOBAL_PROXY_TYPE);
 }
 
@@ -6126,7 +6125,7 @@ TNode<BoolT> CodeStubAssembler::IsJSGeneratorMap(TNode<Map> map) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSObjectInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   return Int32GreaterThanOrEqual(instance_type,
                                  Int32Constant(FIRST_JS_OBJECT_TYPE));
@@ -6176,7 +6175,7 @@ TNode<BoolT> CodeStubAssembler::IsMap(TNode<HeapObject> map) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_PRIMITIVE_WRAPPER_TYPE);
 }
 
@@ -6189,7 +6188,7 @@ TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperMap(TNode<Map> map) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_ARRAY_TYPE);
 }
 
@@ -6289,7 +6288,7 @@ TNode<BoolT> CodeStubAssembler::IsPropertyCell(TNode<HeapObject> object) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsHeapNumberInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, HEAP_NUMBER_TYPE);
 }
 
@@ -6298,7 +6297,7 @@ TNode<BoolT> CodeStubAssembler::IsOddball(TNode<HeapObject> object) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsOddballInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, ODDBALL_TYPE);
 }
 
@@ -6307,7 +6306,7 @@ TNode<BoolT> CodeStubAssembler::IsName(TNode<HeapObject> object) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsNameInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return Int32LessThanOrEqual(instance_type, Int32Constant(LAST_NAME_TYPE));
 }
 
@@ -6320,7 +6319,7 @@ TNode<BoolT> CodeStubAssembler::IsSeqOneByteString(TNode<HeapObject> object) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsSymbolInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, SYMBOL_TYPE);
 }
 
@@ -6375,7 +6374,7 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoCachedIndex(
 }
 
 TNode<BoolT> CodeStubAssembler::IsBigIntInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, BIGINT_TYPE);
 }
 
@@ -6384,12 +6383,12 @@ TNode<BoolT> CodeStubAssembler::IsBigInt(TNode<HeapObject> object) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsPrimitiveInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return Int32LessThanOrEqual(instance_type,
                               Int32Constant(LAST_PRIMITIVE_HEAP_OBJECT_TYPE));
 }
 
-TNode<BoolT> CodeStubAssembler::IsPrivateName(SloppyTNode<Symbol> symbol) {
+TNode<BoolT> CodeStubAssembler::IsPrivateName(TNode<Symbol> symbol) {
   TNode<Uint32T> flags = LoadObjectField<Uint32T>(symbol, Symbol::kFlagsOffset);
   return IsSetWord32<Symbol::IsPrivateNameBit>(flags);
 }
@@ -6433,7 +6432,7 @@ TNode<BoolT> CodeStubAssembler::IsFunctionInstanceType(
                    LAST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE);
 }
 TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return IsInRange(instance_type, FIRST_JS_FUNCTION_TYPE,
                    LAST_JS_FUNCTION_TYPE);
 }
@@ -6451,7 +6450,7 @@ TNode<BoolT> CodeStubAssembler::IsJSFunctionMap(TNode<Map> map) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE);
 }
 
@@ -6475,7 +6474,7 @@ TNode<BoolT> CodeStubAssembler::IsJSRegExp(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_REG_EXP_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsNumeric(SloppyTNode<Object> object) {
+TNode<BoolT> CodeStubAssembler::IsNumeric(TNode<Object> object) {
   return Select<BoolT>(
       TaggedIsSmi(object), [=] { return Int32TrueConstant(); },
       [=] {
@@ -7159,7 +7158,7 @@ TNode<Number> CodeStubAssembler::ToNumber(TNode<Context> context,
 }
 
 TNode<Number> CodeStubAssembler::ToNumber_Inline(TNode<Context> context,
-                                                 SloppyTNode<Object> input) {
+                                                 TNode<Object> input) {
   TVARIABLE(Number, var_result);
   Label end(this), not_smi(this, Label::kDeferred);
 
@@ -7350,7 +7349,7 @@ void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
 
 // ES#sec-touint32
 TNode<Number> CodeStubAssembler::ToUint32(TNode<Context> context,
-                                          SloppyTNode<Object> input) {
+                                          TNode<Object> input) {
   const TNode<Float64T> float_zero = Float64Constant(0.0);
   const TNode<Float64T> float_two_32 =
       Float64Constant(static_cast<double>(1ULL << 32));
@@ -7453,7 +7452,7 @@ TNode<Number> CodeStubAssembler::ToUint32(TNode<Context> context,
 }
 
 TNode<String> CodeStubAssembler::ToString_Inline(TNode<Context> context,
-                                                 SloppyTNode<Object> input) {
+                                                 TNode<Object> input) {
   TVARIABLE(Object, var_result, input);
   Label stub_call(this, Label::kDeferred), out(this);
 
@@ -7469,7 +7468,7 @@ TNode<String> CodeStubAssembler::ToString_Inline(TNode<Context> context,
 }
 
 TNode<JSReceiver> CodeStubAssembler::ToObject(TNode<Context> context,
-                                              SloppyTNode<Object> input) {
+                                              TNode<Object> input) {
   return CAST(CallBuiltin(Builtins::kToObject, context, input));
 }
 
@@ -7498,7 +7497,7 @@ TNode<JSReceiver> CodeStubAssembler::ToObject_Inline(TNode<Context> context,
 }
 
 TNode<Number> CodeStubAssembler::ToLength_Inline(TNode<Context> context,
-                                                 SloppyTNode<Object> input) {
+                                                 TNode<Object> input) {
   TNode<Smi> smi_zero = SmiConstant(0);
   return Select<Number>(
       TaggedIsSmi(input), [=] { return SmiMax(CAST(input), smi_zero); },
@@ -7518,8 +7517,8 @@ TNode<Uint32T> CodeStubAssembler::DecodeWord32(TNode<Word32T> word32,
                             Int32Constant(mask >> shift)));
 }
 
-TNode<UintPtrT> CodeStubAssembler::DecodeWord(SloppyTNode<WordT> word,
-                                              uint32_t shift, uintptr_t mask) {
+TNode<UintPtrT> CodeStubAssembler::DecodeWord(TNode<WordT> word, uint32_t shift,
+                                              uintptr_t mask) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   return Unsigned(WordAnd(WordShr(word, static_cast<int>(shift)),
                           IntPtrConstant(mask >> shift)));
@@ -7618,7 +7617,7 @@ void CodeStubAssembler::Use(Label* label) {
   GotoIf(Word32Equal(Int32Constant(0), Int32Constant(1)), label);
 }
 
-void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
+void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
                                   TVariable<IntPtrT>* var_index,
                                   Label* if_keyisunique,
                                   TVariable<Name>* var_unique,
@@ -8760,7 +8759,7 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
 }
 
 void CodeStubAssembler::TryLookupProperty(
-    TNode<HeapObject> object, TNode<Map> map, SloppyTNode<Int32T> instance_type,
+    TNode<HeapObject> object, TNode<Map> map, TNode<Int32T> instance_type,
     TNode<Name> unique_name, Label* if_found_fast, Label* if_found_dict,
     Label* if_found_global, TVariable<HeapObject>* var_meta_storage,
     TVariable<IntPtrT>* var_name_index, Label* if_not_found,
@@ -9202,7 +9201,7 @@ void CodeStubAssembler::TryGetOwnProperty(
 }
 
 void CodeStubAssembler::TryLookupElement(
-    TNode<HeapObject> object, TNode<Map> map, SloppyTNode<Int32T> instance_type,
+    TNode<HeapObject> object, TNode<Map> map, TNode<Int32T> instance_type,
     SloppyTNode<IntPtrT> intptr_index, Label* if_found, Label* if_absent,
     Label* if_not_found, Label* if_bailout) {
   // Handle special objects in runtime.
@@ -9862,14 +9861,14 @@ void CodeStubAssembler::CheckForAssociatedProtector(TNode<Name> name,
   // Fall through if no case matched.
 }
 
-TNode<Map> CodeStubAssembler::LoadReceiverMap(SloppyTNode<Object> receiver) {
+TNode<Map> CodeStubAssembler::LoadReceiverMap(TNode<Object> receiver) {
   return Select<Map>(
       TaggedIsSmi(receiver), [=] { return HeapNumberMapConstant(); },
       [=] { return LoadMap(UncheckedCast<HeapObject>(receiver)); });
 }
 
 TNode<IntPtrT> CodeStubAssembler::TryToIntptr(
-    SloppyTNode<Object> key, Label* if_not_intptr,
+    TNode<Object> key, Label* if_not_intptr,
     TVariable<Int32T>* var_instance_type) {
   TVARIABLE(IntPtrT, var_intptr_key);
   Label done(this, &var_intptr_key), key_is_smi(this), key_is_heapnumber(this);
@@ -11522,7 +11521,7 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
 }
 
 TNode<Smi> CodeStubAssembler::CollectFeedbackForString(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   TNode<Smi> feedback = SelectSmiConstant(
       Word32Equal(
           Word32And(instance_type, Int32Constant(kIsNotInternalizedMask)),
@@ -11532,8 +11531,8 @@ TNode<Smi> CodeStubAssembler::CollectFeedbackForString(
   return feedback;
 }
 
-void CodeStubAssembler::GenerateEqual_Same(SloppyTNode<Object> value,
-                                           Label* if_equal, Label* if_notequal,
+void CodeStubAssembler::GenerateEqual_Same(TNode<Object> value, Label* if_equal,
+                                           Label* if_notequal,
                                            TVariable<Smi>* var_type_feedback) {
   // In case of abstract or strict equality checks, we need additional checks
   // for NaN values because they are not considered equal, even if both the
@@ -11625,8 +11624,7 @@ void CodeStubAssembler::GenerateEqual_Same(SloppyTNode<Object> value,
 }
 
 // ES6 section 7.2.12 Abstract Equality Comparison
-TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
-                                        SloppyTNode<Object> right,
+TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
                                         const LazyNode<Context>& context,
                                         TVariable<Smi>* var_type_feedback) {
   // This is a slightly optimized version of Object::Equals. Whenever you
@@ -12068,8 +12066,7 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
 }
 
 TNode<Oddball> CodeStubAssembler::StrictEqual(
-    SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
-    TVariable<Smi>* var_type_feedback) {
+    TNode<Object> lhs, TNode<Object> rhs, TVariable<Smi>* var_type_feedback) {
   // Pseudo-code for the algorithm below:
   //
   // if (lhs == rhs) {
@@ -12444,8 +12441,7 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
 // ECMA#sec-samevalue
 // This algorithm differs from the Strict Equality Comparison Algorithm in its
 // treatment of signed zeroes and NaNs.
-void CodeStubAssembler::BranchIfSameValue(SloppyTNode<Object> lhs,
-                                          SloppyTNode<Object> rhs,
+void CodeStubAssembler::BranchIfSameValue(TNode<Object> lhs, TNode<Object> rhs,
                                           Label* if_true, Label* if_false,
                                           SameValueMode mode) {
   TVARIABLE(Float64T, var_lhs_value);
@@ -12569,8 +12565,8 @@ void CodeStubAssembler::BranchIfSameNumberValue(TNode<Float64T> lhs_value,
 }
 
 TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
-                                              SloppyTNode<Object> object,
-                                              SloppyTNode<Object> key,
+                                              TNode<Object> object,
+                                              TNode<Object> key,
                                               HasPropertyLookupMode mode) {
   Label call_runtime(this, Label::kDeferred), return_true(this),
       return_false(this), end(this), if_proxy(this, Label::kDeferred);
@@ -12716,7 +12712,7 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
   *cache_length_out = cache_length.value();
 }
 
-TNode<String> CodeStubAssembler::Typeof(SloppyTNode<Object> value) {
+TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
   TVARIABLE(String, result_var);
 
   Label return_number(this, Label::kDeferred), if_oddball(this),
@@ -12811,7 +12807,7 @@ TNode<HeapObject> CodeStubAssembler::GetSuperConstructor(
 }
 
 TNode<JSReceiver> CodeStubAssembler::SpeciesConstructor(
-    TNode<Context> context, SloppyTNode<Object> object,
+    TNode<Context> context, TNode<Object> object,
     TNode<JSReceiver> default_constructor) {
   Isolate* isolate = this->isolate();
   TVARIABLE(JSReceiver, var_result, default_constructor);
@@ -13099,8 +13095,7 @@ TNode<Number> CodeStubAssembler::BitwiseOp(TNode<Word32T> left32,
 }
 
 TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
-    TNode<Context> context, SloppyTNode<Object> value,
-    SloppyTNode<Oddball> done) {
+    TNode<Context> context, TNode<Object> value, SloppyTNode<Oddball> done) {
   CSA_ASSERT(this, IsBoolean(done));
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = CAST(
@@ -13117,7 +13112,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
 }
 
 TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
-    TNode<Context> context, TNode<Object> key, SloppyTNode<Object> value) {
+    TNode<Context> context, TNode<Object> key, TNode<Object> value) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Smi> length = SmiConstant(2);
   int const elements_size = FixedArray::SizeFor(2);
@@ -13361,7 +13356,7 @@ TNode<BoolT> CodeStubAssembler::IsFastSmiOrTaggedElementsKind(
 }
 
 TNode<BoolT> CodeStubAssembler::IsFastSmiElementsKind(
-    SloppyTNode<Int32T> elements_kind) {
+    TNode<Int32T> elements_kind) {
   return Uint32LessThanOrEqual(elements_kind,
                                Int32Constant(HOLEY_SMI_ELEMENTS));
 }

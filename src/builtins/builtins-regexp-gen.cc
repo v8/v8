@@ -746,8 +746,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<ExternalReference> pending_exception_address =
         ExternalConstant(ExternalReference::Create(
             IsolateAddressId::kPendingExceptionAddress, isolate()));
-    CSA_ASSERT(this, IsTheHole(Load(MachineType::AnyTagged(),
-                                    pending_exception_address)));
+    CSA_ASSERT(this, IsTheHole(Load<Object>(pending_exception_address)));
 #endif  // DEBUG
     CallRuntime(Runtime::kThrowStackOverflow, context);
     Unreachable();
