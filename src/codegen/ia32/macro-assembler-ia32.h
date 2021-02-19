@@ -473,9 +473,25 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
   AVX_PACKED_OP3_WITH_TYPE(Psrad, psrad, XMMRegister, uint8_t)
 
-  AVX_PACKED_OP3_WITH_TYPE(Movlps, movlps, XMMRegister, Operand)
-  AVX_PACKED_OP3_WITH_TYPE(Movhps, movhps, XMMRegister, Operand)
 #undef AVX_PACKED_OP3_WITH_TYPE
+
+// Macro for instructions that have 2 operands for AVX version and 1 operand for
+// SSE version. Will move src1 to dst if dst != src1.
+#define AVX_OP3_WITH_MOVE(macro_name, name, dst_type, src_type) \
+  void macro_name(dst_type dst, dst_type src1, src_type src2) { \
+    if (CpuFeatures::IsSupported(AVX)) {                        \
+      CpuFeatureScope scope(this, AVX);                         \
+      v##name(dst, src1, src2);                                 \
+    } else {                                                    \
+      if (dst != src1) {                                        \
+        movaps(dst, src1);                                      \
+      }                                                         \
+      name(dst, src2);                                          \
+    }                                                           \
+  }
+  AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
+  AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
+#undef AVX_OP3_WITH_MOVE
 
 // Non-SSE2 instructions.
 #define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \

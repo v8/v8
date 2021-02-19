@@ -432,7 +432,8 @@ void InstructionSelector::VisitLoadLane(Node* node) {
   }
 
   IA32OperandGenerator g(this);
-  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand outputs[] = {IsSupported(AVX) ? g.DefineAsRegister(node)
+                                                   : g.DefineSameAsFirst(node)};
   // Input 0 is value node, 1 is lane idx, and GetEffectiveAddressMemoryOperand
   // uses up to 3 inputs. This ordering is consistent with other operations that
   // use the same opcode.
