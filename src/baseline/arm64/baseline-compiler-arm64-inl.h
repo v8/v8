@@ -524,7 +524,9 @@ void BaselineCompiler::PrologueFillFrame() {
         __ masm()->Push(kInterpreterAccumulatorRegister,
                         kJavaScriptCallNewTargetRegister);
       }
-      register_count -= (index + 2);
+      // We pushed "index" registers, minus the one the prologue pushed, plus
+      // the two registers that included new_target.
+      register_count -= (index - 1 + 2);
     }
   }
   if (register_count < 2 * kLoopUnrollSize) {
