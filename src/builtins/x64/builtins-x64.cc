@@ -1644,8 +1644,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ incl(
       FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
-  // Normally r12 is callee saved, but since this isn't a "real" call, we know
-  // that the baseline code doesn't care about r12, so we can reuse it here.
   Register return_address = r12;
 
   __ RecordComment("[ Frame Setup");
@@ -1714,7 +1712,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Push the return address back onto the stack for return.
   __ PushReturnAddressFrom(return_address);
-  // Do "fast" return to caller pushed pc.
+  // Return to caller pushed pc, without any frame teardown.
   __ Ret();
 
   __ bind(&has_optimized_code_or_marker);
@@ -1734,13 +1732,18 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ bind(&call_stack_guard);
   {
     __ RecordComment("[ Stack/interrupt call");
-    // Save incoming new target or generator
-    __ Push(kJavaScriptCallNewTargetRegister);
-    __ CallRuntime(Runtime::kStackGuard, 0);
-    __ Pop(kJavaScriptCallNewTargetRegister);
+    {
+      // Push the baseline code return address now, as if it had been pushed by
+      // the call to this builtin.
+      __ PushReturnAddressFrom(return_address);
+      FrameScope frame_scope(masm, StackFrame::INTERNAL);
+      // Save incoming new target or generator
+      __ Push(kJavaScriptCallNewTargetRegister);
+      __ CallRuntime(Runtime::kStackGuard, 0);
+      __ Pop(kJavaScriptCallNewTargetRegister);
+    }
 
-    // Push the return address back onto the stack for return.
-    __ PushReturnAddressFrom(return_address);
+    // Return to caller pushed pc, without any frame teardown.
     __ Ret();
     __ RecordComment("]");
   }
