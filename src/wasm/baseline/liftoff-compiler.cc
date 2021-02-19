@@ -3549,10 +3549,132 @@ class LiftoffCompiler {
     __ PushRegister(kWasmS128, dst);
   }
 
-  void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>&,
-             const Vector<Value>& args) {
-    unsupported(decoder, kExceptionHandling, "throw");
+  void ToSmi(Register reg) {
+    if (COMPRESS_POINTERS_BOOL || kSystemPointerSize == 4) {
+      __ emit_i32_shli(reg, reg, kSmiShiftSize + kSmiTagSize);
+    } else {
+      __ emit_i64_shli(LiftoffRegister{reg}, LiftoffRegister{reg},
+                       kSmiShiftSize + kSmiTagSize);
+    }
   }
+
+  void Store32BitExceptionValue(Register values_array, int* index_in_array,
+                                Register value, LiftoffRegList pinned) {
+    LiftoffRegister tmp_reg = __ GetUnusedRegister(kGpReg, pinned);
+    // Get the lower half word into tmp_reg and extend to a Smi.
+    --*index_in_array;
+    __ emit_i32_andi(tmp_reg.gp(), value, 0xffff);
+    ToSmi(tmp_reg.gp());
+    __ StoreTaggedPointer(
+        values_array, no_reg,
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
+        tmp_reg, pinned);
+
+    // Get the upper half word into tmp_reg and extend to a Smi.
+    --*index_in_array;
+    __ emit_i32_shri(tmp_reg.gp(), value, 16);
+    ToSmi(tmp_reg.gp());
+    __ StoreTaggedPointer(
+        values_array, no_reg,
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
+        tmp_reg, pinned);
+  }
+
+  void StoreExceptionValue(ValueType type, Register values_array,
+                           int* index_in_array, LiftoffRegList pinned) {
+    // TODO(clemensb): Handle more types.
+    DCHECK_EQ(kWasmI32, type);
+    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+    Store32BitExceptionValue(values_array, index_in_array, value.gp(), pinned);
+  }
+
+  void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,
+             const Vector<Value>& /* args */) {
+    LiftoffRegList pinned;
+
+    // Load the encoded size in a register for the builtin call.
+    int encoded_size = WasmExceptionPackage::GetEncodedSize(imm.exception);
+    LiftoffRegister encoded_size_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(encoded_size_reg, WasmValue(encoded_size));
+
+    // Call the WasmAllocateFixedArray builtin to create the values array.
+    DEBUG_CODE_COMMENT("call WasmAllocateFixedArray builtin");
+    compiler::CallDescriptor* create_values_descriptor =
+        GetBuiltinCallDescriptor<WasmAllocateFixedArrayDescriptor>(
+            compilation_zone_);
+
+    ValueType create_values_sig_reps[] = {kPointerValueType,
+                                          LiftoffAssembler::kWasmIntPtr};
+    FunctionSig create_values_sig(1, 1, create_values_sig_reps);
+
+    __ PrepareBuiltinCall(
+        &create_values_sig, create_values_descriptor,
+        {LiftoffAssembler::VarState{kSmiValueType,
+                                    LiftoffRegister{encoded_size_reg}, 0}});
+    __ CallRuntimeStub(WasmCode::kWasmAllocateFixedArray);
+    DefineSafepoint();
+
+    // The FixedArray for the exception values is now in the first gp return
+    // register.
+    DCHECK_EQ(kReturnRegister0.code(),
+              create_values_descriptor->GetReturnLocation(0).AsRegister());
+    LiftoffRegister values_array{kReturnRegister0};
+    pinned.set(values_array);
+
+    // Now store the exception values in the FixedArray. Do this from last to
+    // first value, such that we can just pop them from the value stack.
+    DEBUG_CODE_COMMENT("fill values array");
+    int index = encoded_size;
+    auto* sig = imm.exception->sig;
+    for (size_t param_idx = sig->parameter_count(); param_idx > 0;
+         --param_idx) {
+      ValueType type = sig->GetParam(param_idx - 1);
+      if (type != kWasmI32) {
+        unsupported(decoder, kExceptionHandling,
+                    "unsupported type in exception payload");
+        return;
+      }
+      StoreExceptionValue(type, values_array.gp(), &index, pinned);
+    }
+    DCHECK_EQ(0, index);
+
+    // Since we need to call another builtin before the final use of the values
+    // array, put the reference on the stack, such that it survives the builtin
+    // call.
+    __ PushRegister(kPointerValueType, values_array);
+
+    // Load the exception tag.
+    DEBUG_CODE_COMMENT("load exception tag");
+    Register exception_tag =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(exception_tag, ExceptionsTable, pinned);
+    __ LoadTaggedPointer(
+        exception_tag, exception_tag, no_reg,
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), {});
+
+    // Pop the values array reference back into a register.
+    values_array = __ PopToRegister(pinned);
+
+    // Finally, call WasmThrow.
+    DEBUG_CODE_COMMENT("call WasmThrow builtin");
+    compiler::CallDescriptor* throw_descriptor =
+        GetBuiltinCallDescriptor<WasmThrowDescriptor>(compilation_zone_);
+
+    ValueType throw_sig_reps[] = {kPointerValueType, kPointerValueType};
+    FunctionSig throw_sig(0, 2, throw_sig_reps);
+
+    __ PrepareBuiltinCall(
+        &throw_sig, throw_descriptor,
+        {LiftoffAssembler::VarState{kPointerValueType,
+                                    LiftoffRegister{exception_tag}, 0},
+         LiftoffAssembler::VarState{kPointerValueType, values_array, 0}});
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), true);
+    __ CallRuntimeStub(WasmCode::kWasmThrow);
+    DefineSafepoint();
+  }
+
   void Rethrow(FullDecoder* decoder, const Value& exception) {
     unsupported(decoder, kExceptionHandling, "rethrow");
   }
