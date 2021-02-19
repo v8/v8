@@ -14,71 +14,24 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-namespace {
-
-class OnHeapBytecodeArray final : public AbstractBytecodeArray {
- public:
-  explicit OnHeapBytecodeArray(Handle<BytecodeArray> bytecode_array)
-      : AbstractBytecodeArray(), array_(bytecode_array) {}
-
-  int length() const override { return array_->length(); }
-
-  int parameter_count() const override { return array_->parameter_count(); }
-
-  Address GetFirstBytecodeAddress() const override {
-    return array_->GetFirstBytecodeAddress();
-  }
-
-  Handle<Object> GetConstantAtIndex(int index,
-                                    Isolate* isolate) const override {
-    return handle(array_->constant_pool().get(index), isolate);
-  }
-
-  bool IsConstantAtIndexSmi(int index) const override {
-    return array_->constant_pool().get(index).IsSmi();
-  }
-
-  Smi GetConstantAtIndexAsSmi(int index) const override {
-    return Smi::cast(array_->constant_pool().get(index));
-  }
-
- private:
-  Handle<BytecodeArray> array_;
-};
-
-}  // namespace
-
-// TODO(verwaest): Pass the LocalHeap into the constructor.
-AbstractBytecodeArray::AbstractBytecodeArray()
-    : local_heap_(LocalHeap::Current()) {
-  if (!local_heap_) {
-    local_heap_ = Isolate::Current()->main_thread_local_heap();
-  }
-}
-
 BytecodeArrayAccessor::BytecodeArrayAccessor(
-    std::unique_ptr<AbstractBytecodeArray> bytecode_array, int initial_offset)
-    : bytecode_array_(std::move(bytecode_array)),
+    Handle<BytecodeArray> bytecode_array, int initial_offset)
+    : bytecode_array_(bytecode_array),
       start_(reinterpret_cast<uint8_t*>(
           bytecode_array_->GetFirstBytecodeAddress())),
       end_(start_ + bytecode_array_->length()),
       cursor_(start_ + initial_offset),
       operand_scale_(OperandScale::kSingle),
-      prefix_size_(0) {
-  bytecode_array_->local_heap()->AddGCEpilogueCallback(UpdatePointersCallback,
-                                                       this);
+      prefix_size_(0),
+      local_heap_(LocalHeap::Current()
+                      ? LocalHeap::Current()
+                      : Isolate::Current()->main_thread_local_heap()) {
+  local_heap_->AddGCEpilogueCallback(UpdatePointersCallback, this);
   UpdateOperandScale();
 }
 
-BytecodeArrayAccessor::BytecodeArrayAccessor(
-    Handle<BytecodeArray> bytecode_array, int initial_offset)
-    : BytecodeArrayAccessor(
-          std::make_unique<OnHeapBytecodeArray>(bytecode_array),
-          initial_offset) {}
-
 BytecodeArrayAccessor::~BytecodeArrayAccessor() {
-  bytecode_array_->local_heap()->RemoveGCEpilogueCallback(
-      UpdatePointersCallback, this);
+  local_heap_->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
 }
 
 void BytecodeArrayAccessor::SetOffset(int offset) {
@@ -251,23 +204,31 @@ Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
+template <typename LocalIsolate>
 Handle<Object> BytecodeArrayAccessor::GetConstantAtIndex(
-    int index, Isolate* isolate) const {
-  return bytecode_array()->GetConstantAtIndex(index, isolate);
+    int index, LocalIsolate* isolate) const {
+  return handle(bytecode_array()->constant_pool().get(index), isolate);
 }
 
 bool BytecodeArrayAccessor::IsConstantAtIndexSmi(int index) const {
-  return bytecode_array()->IsConstantAtIndexSmi(index);
+  return bytecode_array()->constant_pool().get(index).IsSmi();
 }
 
 Smi BytecodeArrayAccessor::GetConstantAtIndexAsSmi(int index) const {
-  return bytecode_array()->GetConstantAtIndexAsSmi(index);
+  return Smi::cast(bytecode_array()->constant_pool().get(index));
 }
 
+template <typename LocalIsolate>
 Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
-    int operand_index, Isolate* isolate) const {
+    int operand_index, LocalIsolate* isolate) const {
   return GetConstantAtIndex(GetIndexOperand(operand_index), isolate);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
+        int operand_index, Isolate* isolate) const;
+template Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
+    int operand_index, LocalIsolate* isolate) const;
 
 int BytecodeArrayAccessor::GetRelativeJumpTargetOffset() const {
   Bytecode bytecode = current_bytecode();
@@ -313,6 +274,19 @@ int BytecodeArrayAccessor::GetAbsoluteOffset(int relative_offset) const {
 std::ostream& BytecodeArrayAccessor::PrintTo(std::ostream& os) const {
   return BytecodeDecoder::Decode(os, cursor_ - prefix_size_,
                                  bytecode_array()->parameter_count());
+}
+
+void BytecodeArrayAccessor::UpdatePointers() {
+  DisallowGarbageCollection no_gc;
+  uint8_t* start =
+      reinterpret_cast<uint8_t*>(bytecode_array_->GetFirstBytecodeAddress());
+  if (start != start_) {
+    start_ = start;
+    uint8_t* end = start + bytecode_array_->length();
+    size_t distance_to_end = end_ - cursor_;
+    cursor_ = end - distance_to_end;
+    end_ = end;
+  }
 }
 
 JumpTableTargetOffsets::JumpTableTargetOffsets(

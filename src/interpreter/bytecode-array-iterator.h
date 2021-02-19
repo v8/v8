@@ -16,8 +16,6 @@ namespace interpreter {
 class V8_EXPORT_PRIVATE BytecodeArrayIterator final
     : public BytecodeArrayAccessor {
  public:
-  explicit BytecodeArrayIterator(std::unique_ptr<AbstractBytecodeArray> array);
-
   explicit BytecodeArrayIterator(Handle<BytecodeArray> array);
 
   BytecodeArrayIterator(const BytecodeArrayIterator&) = delete;

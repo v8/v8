@@ -467,21 +467,6 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 // compilation is finished.
 bool CanInlineElementAccess(MapRef const& map);
 
-class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
- public:
-  explicit OffHeapBytecodeArray(BytecodeArrayRef bytecode_array);
-
-  int length() const override;
-  int parameter_count() const override;
-  Address GetFirstBytecodeAddress() const override;
-  Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const override;
-  bool IsConstantAtIndexSmi(int index) const override;
-  Smi GetConstantAtIndexAsSmi(int index) const override;
-
- private:
-  BytecodeArrayRef array_;
-};
-
 // Scope that unparks the LocalHeap, if:
 //   a) We have a JSHeapBroker,
 //   b) Said JSHeapBroker has a LocalIsolate and thus a LocalHeap,

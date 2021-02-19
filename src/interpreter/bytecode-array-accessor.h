@@ -67,30 +67,8 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
   int case_value_base_;
 };
 
-class V8_EXPORT_PRIVATE AbstractBytecodeArray {
- public:
-  AbstractBytecodeArray();
-  virtual int length() const = 0;
-  virtual int parameter_count() const = 0;
-  virtual Address GetFirstBytecodeAddress() const = 0;
-
-  virtual Handle<Object> GetConstantAtIndex(int index,
-                                            Isolate* isolate) const = 0;
-  virtual bool IsConstantAtIndexSmi(int index) const = 0;
-  virtual Smi GetConstantAtIndexAsSmi(int index) const = 0;
-
-  virtual ~AbstractBytecodeArray() = default;
-  LocalHeap* local_heap() const { return local_heap_; }
-
- private:
-  LocalHeap* local_heap_;
-};
-
 class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
  public:
-  BytecodeArrayAccessor(std::unique_ptr<AbstractBytecodeArray> bytecode_array,
-                        int initial_offset);
-
   BytecodeArrayAccessor(Handle<BytecodeArray> bytecode_array,
                         int initial_offset);
   ~BytecodeArrayAccessor();
@@ -119,9 +97,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
     return static_cast<int>(cursor_ - start_ - prefix_size_);
   }
   OperandScale current_operand_scale() const { return operand_scale_; }
-  AbstractBytecodeArray* bytecode_array() const {
-    return bytecode_array_.get();
-  }
+  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
   uint32_t GetFlagOperand(int operand_index) const;
   uint32_t GetUnsignedImmediateOperand(int operand_index) const;
@@ -138,11 +114,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   Runtime::FunctionId GetRuntimeIdOperand(int operand_index) const;
   Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
   uint32_t GetNativeContextIndexOperand(int operand_index) const;
-  Handle<Object> GetConstantAtIndex(int offset, Isolate* isolate) const;
+  template <typename LocalIsolate>
+  Handle<Object> GetConstantAtIndex(int offset, LocalIsolate* isolate) const;
   bool IsConstantAtIndexSmi(int offset) const;
   Smi GetConstantAtIndexAsSmi(int offset) const;
+  template <typename LocalIsolate>
   Handle<Object> GetConstantForIndexOperand(int operand_index,
-                                            Isolate* isolate) const;
+                                            LocalIsolate* isolate) const;
 
   // Returns the relative offset of the branch target at the current bytecode.
   // It is an error to call this method if the bytecode is not for a jump or
@@ -167,18 +145,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
     reinterpret_cast<BytecodeArrayAccessor*>(accessor)->UpdatePointers();
   }
 
-  void UpdatePointers() {
-    DisallowGarbageCollection no_gc;
-    uint8_t* start =
-        reinterpret_cast<uint8_t*>(bytecode_array_->GetFirstBytecodeAddress());
-    if (start != start_) {
-      start_ = start;
-      uint8_t* end = start + bytecode_array_->length();
-      size_t distance_to_end = end_ - cursor_;
-      cursor_ = end - distance_to_end;
-      end_ = end;
-    }
-  }
+  void UpdatePointers();
 
   inline bool done() const { return cursor_ >= end_; }
 
@@ -202,7 +169,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
     }
   }
 
-  std::unique_ptr<AbstractBytecodeArray> bytecode_array_;
+  Handle<BytecodeArray> bytecode_array_;
   uint8_t* start_;
   uint8_t* end_;
   // The cursor always points to the active bytecode. If there's a prefix, the
@@ -210,6 +177,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   uint8_t* cursor_;
   OperandScale operand_scale_;
   int prefix_size_;
+  LocalHeap* const local_heap_;
 };
 
 }  // namespace interpreter

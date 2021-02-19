@@ -1766,7 +1766,7 @@ class BytecodeArrayData : public FixedArrayBaseData {
   void SerializeForCompilation(JSHeapBroker* broker) {
     if (is_serialized_for_compilation_) return;
 
-    // Convinience cast: object() is already a canonical persistent handle.
+    // Convenience cast: object() is already a canonical persistent handle.
     Handle<BytecodeArray> bytecodes = Handle<BytecodeArray>::cast(object());
 
     DCHECK(constant_pool_.empty());
@@ -5565,32 +5565,6 @@ RegExpLiteralFeedback const& ProcessedFeedback::AsRegExpLiteral() const {
 TemplateObjectFeedback const& ProcessedFeedback::AsTemplateObject() const {
   CHECK_EQ(kTemplateObject, kind());
   return *static_cast<TemplateObjectFeedback const*>(this);
-}
-
-OffHeapBytecodeArray::OffHeapBytecodeArray(BytecodeArrayRef bytecode_array)
-    : AbstractBytecodeArray(), array_(bytecode_array) {}
-
-int OffHeapBytecodeArray::length() const { return array_.length(); }
-
-int OffHeapBytecodeArray::parameter_count() const {
-  return array_.parameter_count();
-}
-
-Address OffHeapBytecodeArray::GetFirstBytecodeAddress() const {
-  return array_.GetFirstBytecodeAddress();
-}
-
-Handle<Object> OffHeapBytecodeArray::GetConstantAtIndex(
-    int index, Isolate* isolate) const {
-  return array_.GetConstantAtIndex(index);
-}
-
-bool OffHeapBytecodeArray::IsConstantAtIndexSmi(int index) const {
-  return array_.IsConstantAtIndexSmi(index);
-}
-
-Smi OffHeapBytecodeArray::GetConstantAtIndexAsSmi(int index) const {
-  return array_.GetConstantAtIndexAsSmi(index);
 }
 
 #undef BIMODAL_ACCESSOR
