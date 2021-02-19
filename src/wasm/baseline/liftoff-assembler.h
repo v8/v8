@@ -1098,6 +1098,10 @@ class LiftoffAssembler : public TurboAssembler {
                                LiftoffRegister rhs);
   inline void emit_i16x8_max_u(LiftoffRegister dst, LiftoffRegister lhs,
                                LiftoffRegister rhs);
+  inline void emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
+                                                 LiftoffRegister src);
+  inline void emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
+                                                 LiftoffRegister src);
   inline void emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
                                             LiftoffRegister src1,
                                             LiftoffRegister src2);
@@ -1144,6 +1148,10 @@ class LiftoffAssembler : public TurboAssembler {
                                LiftoffRegister rhs);
   inline void emit_i32x4_dot_i16x8_s(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs);
+  inline void emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
+                                                 LiftoffRegister src);
+  inline void emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
+                                                 LiftoffRegister src);
   inline void emit_i32x4_extmul_low_i16x8_s(LiftoffRegister dst,
                                             LiftoffRegister src1,
                                             LiftoffRegister src2);

@@ -3260,6 +3260,18 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
       this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
 }
 
+void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
+                                                          LiftoffRegister src) {
+  I16x8ExtAddPairwiseI8x16S(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
+                                                          LiftoffRegister src) {
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i8x16_splat_0x01());
+  Pmaddubsw(dst.fp(), src.fp(), op);
+}
+
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
@@ -3403,6 +3415,18 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
                                               LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaddwd, &Assembler::pmaddwd>(
       this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
+                                                          LiftoffRegister src) {
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i16x8_splat_0x0001());
+  Pmaddwd(dst.fp(), src.fp(), op);
+}
+
+void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
+                                                          LiftoffRegister src) {
+  I32x4ExtAddPairwiseI16x8U(dst.fp(), src.fp());
 }
 
 namespace liftoff {

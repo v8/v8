@@ -3127,19 +3127,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4ExtAddPairwiseI16x8U: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-
-      // src = |a|b|c|d|e|f|g|h|
-      // kScratchDoubleReg = i32x4.splat(0x0000FFFF)
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Psrld(kScratchDoubleReg, byte{16});
-      // kScratchDoubleReg =|0|b|0|d|0|f|0|h|
-      __ Pand(kScratchDoubleReg, src);
-      // dst = |0|a|0|c|0|e|0|g|
-      __ Psrld(dst, src, byte{16});
-      // dst = |a+b|c+d|e+f|g+h|
-      __ Paddd(dst, kScratchDoubleReg);
+      __ I32x4ExtAddPairwiseI16x8U(i.OutputSimd128Register(),
+                                   i.InputSimd128Register(0));
       break;
     }
     case kX64S128Const: {
@@ -3362,13 +3351,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8ExtAddPairwiseI8x16S: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      DCHECK_NE(dst, src);
-      __ Movdqa(dst,
-                __ ExternalReferenceAsOperand(
-                    ExternalReference::address_of_wasm_i8x16_splat_0x01()));
-      __ Pmaddubsw(dst, dst, src);
+      __ I16x8ExtAddPairwiseI8x16S(i.OutputSimd128Register(),
+                                   i.InputSimd128Register(0));
       break;
     }
     case kX64I16x8ExtAddPairwiseI8x16U: {

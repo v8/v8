@@ -552,7 +552,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Trap() override;
   void DebugBreak() override;
 
-  // Supports both AVX (dst != src1) and SSE (checks that dst == src1).
+  // Will move src1 to dst if dst != src1.
   void Pmaddwd(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pmaddwd(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, Operand src2);
@@ -633,6 +633,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void I64x2GtS(XMMRegister dst, XMMRegister src0, XMMRegister src1);
   void I64x2GeS(XMMRegister dst, XMMRegister src0, XMMRegister src1);
+
+  void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src);
+  void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src);
 
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);

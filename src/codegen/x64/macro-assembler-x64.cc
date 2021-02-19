@@ -1828,7 +1828,9 @@ void TurboAssembler::Pmaddwd(XMMRegister dst, XMMRegister src1, Operand src2) {
     CpuFeatureScope avx_scope(this, AVX);
     vpmaddwd(dst, src1, src2);
   } else {
-    DCHECK_EQ(dst, src1);
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
     pmaddwd(dst, src2);
   }
 }
@@ -1839,7 +1841,9 @@ void TurboAssembler::Pmaddwd(XMMRegister dst, XMMRegister src1,
     CpuFeatureScope avx_scope(this, AVX);
     vpmaddwd(dst, src1, src2);
   } else {
-    DCHECK_EQ(dst, src1);
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
     pmaddwd(dst, src2);
   }
 }
@@ -1851,7 +1855,9 @@ void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
     vpmaddubsw(dst, src1, src2);
   } else {
     CpuFeatureScope ssse3_scope(this, SSSE3);
-    DCHECK_EQ(dst, src1);
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
     pmaddubsw(dst, src2);
   }
 }
@@ -1863,7 +1869,9 @@ void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
     vpmaddubsw(dst, src1, src2);
   } else {
     CpuFeatureScope ssse3_scope(this, SSSE3);
-    DCHECK_EQ(dst, src1);
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
     pmaddubsw(dst, src2);
   }
 }
@@ -2541,6 +2549,43 @@ void TurboAssembler::I64x2GeS(XMMRegister dst, XMMRegister src0,
     pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
     pxor(dst, kScratchDoubleReg);
   }
+}
+
+void TurboAssembler::I16x8ExtAddPairwiseI8x16S(XMMRegister dst,
+                                               XMMRegister src) {
+  // pmaddubsw treats the first operand as unsigned, so the external reference
+  // to be passed to it as the first operand.
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i8x16_splat_0x01());
+  if (dst == src) {
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      vmovdqa(kScratchDoubleReg, op);
+      vpmaddubsw(dst, kScratchDoubleReg, src);
+    } else {
+      CpuFeatureScope sse_scope(this, SSSE3);
+      movaps(kScratchDoubleReg, op);
+      pmaddubsw(kScratchDoubleReg, src);
+      movaps(dst, kScratchDoubleReg);
+    }
+  } else {
+    Movdqa(dst, op);
+    Pmaddubsw(dst, dst, src);
+  }
+}
+
+void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
+                                               XMMRegister src) {
+  // src = |a|b|c|d|e|f|g|h|
+  // kScratchDoubleReg = i32x4.splat(0x0000FFFF)
+  Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+  Psrld(kScratchDoubleReg, byte{16});
+  // kScratchDoubleReg =|0|b|0|d|0|f|0|h|
+  Pand(kScratchDoubleReg, src);
+  // dst = |0|a|0|c|0|e|0|g|
+  Psrld(dst, src, byte{16});
+  // dst = |a+b|c+d|e+f|g+h|
+  Paddd(dst, kScratchDoubleReg);
 }
 
 void TurboAssembler::Abspd(XMMRegister dst) {
