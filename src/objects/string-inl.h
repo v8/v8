@@ -864,23 +864,15 @@ void ExternalString::DisposeResource(Isolate* isolate) {
 
 DEF_GETTER(ExternalOneByteString, resource,
            const ExternalOneByteString::Resource*) {
-  return mutable_resource();
-}
-
-DEF_GETTER(ExternalOneByteString, mutable_resource,
-           ExternalOneByteString::Resource*) {
   return reinterpret_cast<Resource*>(resource_as_address(isolate));
 }
 
 void ExternalOneByteString::update_data_cache(Isolate* isolate) {
+  if (is_uncached()) return;
   DisallowGarbageCollection no_gc;
-  if (is_uncached()) {
-    if (resource()->IsCacheable()) mutable_resource()->UpdateDataCache();
-  } else {
-    WriteExternalPointerField(kResourceDataOffset, isolate,
-                              reinterpret_cast<Address>(resource()->data()),
-                              kExternalStringResourceDataTag);
-  }
+  WriteExternalPointerField(kResourceDataOffset, isolate,
+                            reinterpret_cast<Address>(resource()->data()),
+                            kExternalStringResourceDataTag);
 }
 
 void ExternalOneByteString::SetResource(
@@ -902,23 +894,6 @@ void ExternalOneByteString::set_resource(
 
 const uint8_t* ExternalOneByteString::GetChars() {
   DisallowGarbageCollection no_gc;
-  if (is_uncached()) {
-    if (resource()->IsCacheable()) {
-      // TODO(solanes): Teach TurboFan/CSA to not bailout to the runtime to
-      // avoid this call.
-      return reinterpret_cast<const uint8_t*>(resource()->cached_data());
-    }
-#if DEBUG
-    // Check that this method is called only from the main thread if we have an
-    // uncached string with an uncacheable resource.
-    {
-      Isolate* isolate;
-      DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate),
-                     ThreadId::Current() == isolate->thread_id());
-    }
-#endif
-  }
-
   return reinterpret_cast<const uint8_t*>(resource()->data());
 }
 
@@ -929,23 +904,15 @@ uint8_t ExternalOneByteString::Get(int index) {
 
 DEF_GETTER(ExternalTwoByteString, resource,
            const ExternalTwoByteString::Resource*) {
-  return mutable_resource();
-}
-
-DEF_GETTER(ExternalTwoByteString, mutable_resource,
-           ExternalTwoByteString::Resource*) {
   return reinterpret_cast<Resource*>(resource_as_address(isolate));
 }
 
 void ExternalTwoByteString::update_data_cache(Isolate* isolate) {
+  if (is_uncached()) return;
   DisallowGarbageCollection no_gc;
-  if (is_uncached()) {
-    if (resource()->IsCacheable()) mutable_resource()->UpdateDataCache();
-  } else {
-    WriteExternalPointerField(kResourceDataOffset, isolate,
-                              reinterpret_cast<Address>(resource()->data()),
-                              kExternalStringResourceDataTag);
-  }
+  WriteExternalPointerField(kResourceDataOffset, isolate,
+                            reinterpret_cast<Address>(resource()->data()),
+                            kExternalStringResourceDataTag);
 }
 
 void ExternalTwoByteString::SetResource(
@@ -967,23 +934,6 @@ void ExternalTwoByteString::set_resource(
 
 const uint16_t* ExternalTwoByteString::GetChars() {
   DisallowGarbageCollection no_gc;
-  if (is_uncached()) {
-    if (resource()->IsCacheable()) {
-      // TODO(solanes): Teach TurboFan/CSA to not bailout to the runtime to
-      // avoid this call.
-      return resource()->cached_data();
-    }
-#if DEBUG
-    // Check that this method is called only from the main thread if we have an
-    // uncached string with an uncacheable resource.
-    {
-      Isolate* isolate;
-      DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate),
-                     ThreadId::Current() == isolate->thread_id());
-    }
-#endif
-  }
-
   return resource()->data();
 }
 
