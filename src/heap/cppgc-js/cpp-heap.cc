@@ -271,11 +271,12 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   // Finish sweeping in case it is still running.
   sweeper_.FinishIfRunning();
 
+  current_flags_ = flags;
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
       cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
-      flags == TraceFlags::kForced
+      flags & TraceFlags::kForced
           ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
           : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
   if ((flags == TraceFlags::kReduceMemory) || (flags == TraceFlags::kForced)) {
@@ -353,8 +354,11 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
     cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
         compactable_space_handling = compactor_.CompactSpacesIfEnabled();
     const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
-        cppgc::internal::Sweeper::SweepingConfig::SweepingType::
-            kIncrementalAndConcurrent,
+        // In case the GC was forced, also finalize sweeping right away.
+        current_flags_ & TraceFlags::kForced
+            ? cppgc::internal::Sweeper::SweepingConfig::SweepingType::kAtomic
+            : cppgc::internal::Sweeper::SweepingConfig::SweepingType::
+                  kIncrementalAndConcurrent,
         compactable_space_handling};
     sweeper().Start(sweeping_config);
   }

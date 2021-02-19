@@ -75,6 +75,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
+  TraceFlags current_flags_ = TraceFlags::kNoFlags;
 
   // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
   // atomic pause. Allocated bytes are buffer in case this is temporarily
