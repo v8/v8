@@ -3323,7 +3323,8 @@ class V8_EXPORT String : public Name {
     ~ExternalStringResource() override = default;
 
     /**
-     * The string data from the underlying buffer.
+     * The string data from the underlying buffer. If the resource is cacheable
+     * then data() must return the same value for all invocations.
      */
     virtual const uint16_t* data() const = 0;
 
@@ -3332,8 +3333,31 @@ class V8_EXPORT String : public Name {
      */
     virtual size_t length() const = 0;
 
+    /**
+     * Returns the cached data from the underlying buffer. This method can be
+     * called only for cacheable resources (i.e. IsCacheable() == true) and only
+     * after UpdateDataCache() was called.
+     */
+    const uint16_t* cached_data() const {
+#if DEBUG
+      CheckCachedDataInvariants();
+#endif
+      return cached_data_;
+    }
+
+    /**
+     * Update {cached_data_} with the data from the underlying buffer. This can
+     * be called only for cacheable resources.
+     */
+    void UpdateDataCache();
+
    protected:
     ExternalStringResource() = default;
+
+   private:
+    void CheckCachedDataInvariants() const;
+
+    const uint16_t* cached_data_ = nullptr;
   };
 
   /**
@@ -3354,12 +3378,41 @@ class V8_EXPORT String : public Name {
      * buffer.
      */
     ~ExternalOneByteStringResource() override = default;
-    /** The string data from the underlying buffer.*/
+
+    /**
+     * The string data from the underlying buffer. If the resource is cacheable
+     * then data() must return the same value for all invocations.
+     */
     virtual const char* data() const = 0;
+
     /** The number of Latin-1 characters in the string.*/
     virtual size_t length() const = 0;
+
+    /**
+     * Returns the cached data from the underlying buffer. If the resource is
+     * uncacheable or if UpdateDataCache() was not called before, it has
+     * undefined behaviour.
+     */
+    const char* cached_data() const {
+#if DEBUG
+      CheckCachedDataInvariants();
+#endif
+      return cached_data_;
+    }
+
+    /**
+     * Update {cached_data_} with the data from the underlying buffer. This can
+     * be called only for cacheable resources.
+     */
+    void UpdateDataCache();
+
    protected:
     ExternalOneByteStringResource() = default;
+
+   private:
+    void CheckCachedDataInvariants() const;
+
+    const char* cached_data_ = nullptr;
   };
 
   /**

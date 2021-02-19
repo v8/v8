@@ -864,6 +864,10 @@ class ExternalOneByteString : public ExternalString {
   STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
   OBJECT_CONSTRUCTORS(ExternalOneByteString, ExternalString);
+
+ private:
+  // The underlying resource as a non-const pointer.
+  DECL_GETTER(mutable_resource, Resource*)
 };
 
 // The ExternalTwoByteString class is an external string backed by a UTF-16
@@ -909,6 +913,10 @@ class ExternalTwoByteString : public ExternalString {
   STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
   OBJECT_CONSTRUCTORS(ExternalTwoByteString, ExternalString);
+
+ private:
+  // The underlying resource as a non-const pointer.
+  DECL_GETTER(mutable_resource, Resource*)
 };
 
 // A flat string reader provides random access to the contents of a
