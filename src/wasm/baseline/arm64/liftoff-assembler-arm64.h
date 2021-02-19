@@ -444,12 +444,16 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
-                                          LiftoffRegList pinned) {
+                                          LiftoffRegList pinned,
+                                          SkipWriteBarrier skip_write_barrier) {
   // Store the value.
   UseScratchRegisterScope temps(this);
   MemOperand dst_op =
       liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
   StoreTaggedField(src.gp(), dst_op);
+
+  if (skip_write_barrier) return;
+
   // The write barrier.
   Label write_barrier;
   Label exit;

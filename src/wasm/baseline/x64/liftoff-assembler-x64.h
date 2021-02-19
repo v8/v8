@@ -335,13 +335,16 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
-                                          LiftoffRegList pinned) {
+                                          LiftoffRegList pinned,
+                                          SkipWriteBarrier skip_write_barrier) {
   DCHECK_GE(offset_imm, 0);
-  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg,
                                      static_cast<uint32_t>(offset_imm));
   StoreTaggedField(dst_op, src.gp());
 
+  if (skip_write_barrier) return;
+
+  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Label write_barrier;
   Label exit;
   CheckPageFlag(dst_addr, scratch,

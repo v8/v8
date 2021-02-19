@@ -720,7 +720,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
-                                          LiftoffRegList pinned) {
+                                          LiftoffRegList pinned,
+                                          SkipWriteBarrier skip_write_barrier) {
   STATIC_ASSERT(kTaggedSize == kInt32Size);
   Register actual_offset_reg = offset_reg;
   if (offset_reg != no_reg && offset_imm != 0) {
@@ -733,6 +734,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                           ? MemOperand(dst_addr, offset_imm)
                           : MemOperand(dst_addr, actual_offset_reg);
   str(src.gp(), dst_op);
+
+  if (skip_write_barrier) return;
+
   // The write barrier.
   Label write_barrier;
   Label exit;

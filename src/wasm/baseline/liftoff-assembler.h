@@ -609,9 +609,14 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
                                 LiftoffRegList pinned);
+  enum SkipWriteBarrier : bool {
+    kSkipWriteBarrier = true,
+    kNoSkipWriteBarrier = false
+  };
   inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
                                  int32_t offset_imm, LiftoffRegister src,
-                                 LiftoffRegList pinned);
+                                 LiftoffRegList pinned,
+                                 SkipWriteBarrier = kNoSkipWriteBarrier);
   inline void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
                                           LiftoffRegList pinned) {
     int offset = FixedArray::kLengthOffset - kHeapObjectTag;

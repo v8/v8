@@ -3570,7 +3570,7 @@ class LiftoffCompiler {
     __ StoreTaggedPointer(
         values_array, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
-        tmp_reg, pinned);
+        tmp_reg, pinned, LiftoffAssembler::kSkipWriteBarrier);
 
     // Get the upper half word into tmp_reg and extend to a Smi.
     --*index_in_array;
@@ -3579,7 +3579,7 @@ class LiftoffCompiler {
     __ StoreTaggedPointer(
         values_array, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
-        tmp_reg, pinned);
+        tmp_reg, pinned, LiftoffAssembler::kSkipWriteBarrier);
   }
 
   void StoreExceptionValue(ValueType type, Register values_array,
@@ -3641,11 +3641,6 @@ class LiftoffCompiler {
     }
     DCHECK_EQ(0, index);
 
-    // Since we need to call another builtin before the final use of the values
-    // array, put the reference on the stack, such that it survives the builtin
-    // call.
-    __ PushRegister(kPointerValueType, values_array);
-
     // Load the exception tag.
     DEBUG_CODE_COMMENT("load exception tag");
     Register exception_tag =
@@ -3654,9 +3649,6 @@ class LiftoffCompiler {
     __ LoadTaggedPointer(
         exception_tag, exception_tag, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), {});
-
-    // Pop the values array reference back into a register.
-    values_array = __ PopToRegister(pinned);
 
     // Finally, call WasmThrow.
     DEBUG_CODE_COMMENT("call WasmThrow builtin");
