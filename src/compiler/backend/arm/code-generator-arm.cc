@@ -2159,13 +2159,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI64x2Abs: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(0);
-      UseScratchRegisterScope temps(tasm());
-      Simd128Register tmp = temps.AcquireQ();
-      __ vshr(NeonS64, tmp, src, 63);
-      __ veor(dst, src, tmp);
-      __ vsub(Neon64, dst, dst, tmp);
+      __ I64x2Abs(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kArmI64x2Neg: {

@@ -2686,6 +2686,14 @@ void TurboAssembler::V64x2AllTrue(Register dst, QwNeonRegister src) {
   // = defintion of i64x2.all_true.
 }
 
+void TurboAssembler::I64x2Abs(QwNeonRegister dst, QwNeonRegister src) {
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = temps.AcquireQ();
+  vshr(NeonS64, tmp, src, 63);
+  veor(dst, src, tmp);
+  vsub(Neon64, dst, dst, tmp);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -4025,7 +4025,7 @@ void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "i64x2.abs");
+  I64x2Abs(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
