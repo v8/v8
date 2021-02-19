@@ -40,7 +40,6 @@ namespace internal {
 //       identity hash: 4 bytes, raw int32_t
 //   Meta table pointer: kTaggedSize bytes.
 //     See below for explanation of the meta table.
-//     For capacity 0, this contains the Smi |kNoMetaTableSentinel| instead.
 //   Data table:
 //     For each logical bucket of the hash table, contains the corresponding key
 //     and value.
@@ -73,16 +72,40 @@ class SwissNameDictionary : public HeapObject {
  public:
   using Group = swiss_table::Group;
 
+  inline int NumberOfElements();
+  inline int NumberOfDeletedElements();
+
   inline int Capacity();
+  inline int UsedCapacity();
+
+  template <typename LocalIsolate>
+  void Initialize(LocalIsolate* isolate, ByteArray meta_table, int capacity);
+
+  inline void SetHash(int hash);
+  inline int Hash();
 
   inline static constexpr bool IsValidCapacity(int capacity);
+  inline static int CapacityFor(int at_least_space_for);
+
+  // Given a capacity, how much of it can we fill before resizing?
+  inline static constexpr int MaxUsableCapacity(int capacity);
+
+  // The maximum allowed capacity for any SwissNameDictionary.
+  inline static constexpr int MaxCapacity();
 
   // Returns total size in bytes required for a table of given capacity.
   inline static constexpr int SizeFor(int capacity);
 
-  // TODO(v8:11388) This is a temporary placeholder for the actual value, which
-  // is added here in a follow-up CL.
-  static const int kGroupWidth = 8;
+  inline static constexpr int MetaTableSizePerEntryFor(int capacity);
+  inline static constexpr int MetaTableSizeFor(int capacity);
+
+  inline static constexpr int DataTableSize(int capacity);
+  inline static constexpr int CtrlTableSize(int capacity);
+
+  // Indicates that IterateEntries() returns entries ordered.
+  static constexpr bool kIsOrderedDictionaryType = true;
+
+  static const int kGroupWidth = Group::kWidth;
 
   class BodyDescriptor;
 
@@ -93,9 +116,19 @@ class SwissNameDictionary : public HeapObject {
   // Defines how many kTaggedSize sized values are associcated which each entry
   // in the data table.
   static constexpr int kDataTableEntryCount = 2;
+  static constexpr int kDataTableKeyEntryIndex = 0;
+  static constexpr int kDataTableValueEntryIndex = kDataTableKeyEntryIndex + 1;
 
-  inline static constexpr int DataTableSize(int capacity);
-  inline static constexpr int CtrlTableSize(int capacity);
+  static constexpr int kMetaTableElementCountOffset = 0;
+  static constexpr int kMetaTableDeletedElementCountOffset = 1;
+  static constexpr int kMetaTableEnumerationTableStartOffset = 2;
+
+  // The maximum capacity of any SwissNameDictionary whose meta table can use 1
+  // byte per entry.
+  static constexpr int kMax1ByteMetaTableCapacity = (1 << 8);
+  // The maximum capacity of any SwissNameDictionary whose meta table can use 2
+  // bytes per entry.
+  static constexpr int kMax2ByteMetaTableCapacity = (1 << 16);
 
   // TODO(v8:11388) We would like to use Torque-generated constants here, but
   // those are currently incorrect.
@@ -114,6 +147,28 @@ class SwissNameDictionary : public HeapObject {
   DECL_PRINTER(SwissNameDictionary)
   DECL_CAST(SwissNameDictionary)
   OBJECT_CONSTRUCTORS(SwissNameDictionary, HeapObject);
+
+ private:
+  using ctrl_t = swiss_table::ctrl_t;
+  using Ctrl = swiss_table::Ctrl;
+
+  // Not intended for modification, use set_ctrl instead to get correct copying
+  // of first group.
+  inline const ctrl_t* CtrlTable();
+
+  inline void SetCapacity(int capacity);
+  inline void SetNumberOfElements(int elements);
+  inline void SetNumberOfDeletedElements(int deleted_elements);
+
+  DECL_ACCESSORS(meta_table, ByteArray)
+  inline void SetMetaTableField(int field_index, int value);
+  inline int GetMetaTableField(int field_index);
+
+  template <typename T>
+  inline static void SetMetaTableField(ByteArray meta_table, int field_index,
+                                       int value);
+  template <typename T>
+  inline static int GetMetaTableField(ByteArray meta_table, int field_index);
 };
 
 }  // namespace internal

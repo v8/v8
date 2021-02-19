@@ -16,15 +16,30 @@
 #ifndef V8_OBJECTS_SWISS_HASH_TABLE_HELPERS_H_
 #define V8_OBJECTS_SWISS_HASH_TABLE_HELPERS_H_
 
-// The following #defines are taken from Abseil's have_sse.h (but renamed). Only
-// defined within this file.
+// The following #defines are taken from Abseil's have_sse.h (but renamed). They
+// are only defined within this file. However, we also take cross platform
+// snapshot creation into account, by only using SSE if the target supports it,
+// too. The SSE implementation uses a group width of 16, whereas the non-SSE
+// version uses 8. We therefore have to avoid building a snapshot that contains
+// Swiss Tables with one group size and use it in code that excepts a different
+// group size.
 #ifndef SWISS_TABLE_HAVE_SSE2
-#if defined(__SSE2__) ||  \
-    (defined(_MSC_VER) && \
-     (defined(_M_X64) || (defined(_M_IX86) && _M_IX86_FP >= 2)))
+#if (defined(__SSE2__) ||                                             \
+     (defined(_MSC_VER) &&                                            \
+      (defined(_M_X64) || (defined(_M_IX86) && _M_IX86_FP >= 2)))) && \
+    (defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64))
 #define SWISS_TABLE_HAVE_SSE2 1
 #else
 #define SWISS_TABLE_HAVE_SSE2 0
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+// TODO(v8:11388) Currently, building on a non-SSE platform for a SSE target
+// means that we cannot use the (more performant) SSE implementations of Swiss
+// Tables, even if the target would support it, just because the host doesn't.
+// This is due to the difference in group sizes (see comment at the beginning of
+// the file). We can solve this by implementating a new non-SSE Group that
+// behaves like GroupSse2Impl (and uses group size 16) in the future.
+#warning "You should avoid building on a non-SSE platform for a SSE target!"
+#endif
 #endif
 #endif
 

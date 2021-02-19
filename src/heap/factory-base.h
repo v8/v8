@@ -221,6 +221,13 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
 
   Handle<ClassPositions> NewClassPositions(int start, int end);
 
+  Handle<SwissNameDictionary> NewSwissNameDictionary(
+      int at_least_space_for = kSwissNameDictionaryInitialCapacity,
+      AllocationType allocation = AllocationType::kYoung);
+
+  Handle<SwissNameDictionary> NewSwissNameDictionaryWithCapacity(
+      int capacity, AllocationType allocation);
+
  protected:
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject AllocateRawArray(int size, AllocationType allocation);

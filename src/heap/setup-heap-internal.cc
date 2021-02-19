@@ -819,6 +819,11 @@ void Heap::CreateInitialObjects() {
           .ToHandleChecked();
   set_empty_ordered_property_dictionary(*empty_ordered_property_dictionary);
 
+  // Allocate the empty SwissNameDictionary
+  Handle<SwissNameDictionary> empty_swiss_property_dictionary =
+      factory->CreateCanonicalEmptySwissNameDictionary();
+  set_empty_swiss_property_dictionary(*empty_swiss_property_dictionary);
+
   // Allocate the empty FeedbackMetadata.
   Handle<FeedbackMetadata> empty_feedback_metadata =
       factory->NewFeedbackMetadata(0, 0, AllocationType::kReadOnly);
