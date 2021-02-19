@@ -3912,9 +3912,9 @@ void CppClassGenerator::GenerateClass() {
     const Field& last_field = type_->LastField();
     std::string last_field_item_size =
         std::get<1>(*SizeOf(last_field.name_and_type.type));
-    hdr_ << "  inline int AllocatedSize() const;\n\n";
+    hdr_ << "  inline int AllocatedSize();\n\n";
     inl_ << "template <class D, class P>\n";
-    inl_ << "int " << gen_name_T_ << "::AllocatedSize() const {\n";
+    inl_ << "int " << gen_name_T_ << "::AllocatedSize() {\n";
     inl_ << "  auto slice = "
          << Callable::PrefixNameForCCOutput(
                 type_->GetSliceMacroName(last_field))
@@ -3954,7 +3954,7 @@ void CppClassGenerator::GenerateClass() {
     }
     hdr_ << "    return size;\n";
     hdr_ << "  }\n\n";
-    hdr_ << "  V8_INLINE int32_t AllocatedSize() const {\n";
+    hdr_ << "  V8_INLINE int32_t AllocatedSize() {\n";
     hdr_ << "    return SizeFor(";
     first = true;
     for (auto field : *index_fields) {

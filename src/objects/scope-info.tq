@@ -99,7 +99,7 @@ struct ModuleVariable {
 
 @generateCppClass
 @generateBodyDescriptor
-extern class ScopeInfo extends HeapObject {
+extern class ScopeInfo extends FixedArrayBase {
   const flags: SmiTagged<ScopeFlags>;
 
   // The number of parameters. For non-function scopes this is 0.
@@ -166,18 +166,4 @@ extern class ScopeInfo extends HeapObject {
       Smi;
   module_variables[flags.scope_type == ScopeType::MODULE_SCOPE ? module_variable_count[0] : 0]:
       ModuleVariable;
-}
-
-// Returns the index of the named local in a ScopeInfo.
-// Assumes that the given name is internalized; uses pointer comparisons.
-@export
-macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
-    intptr labels NotFound {
-  const count: intptr = Convert<intptr>(scopeInfo.context_local_count);
-  for (let i: intptr = 0; i < count; ++i) {
-    if (TaggedEqual(name, scopeInfo.context_local_names[i])) {
-      return i;
-    }
-  }
-  goto NotFound;
 }

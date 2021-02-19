@@ -3074,14 +3074,34 @@ void AccessorAssembler::ScriptContextTableLookup(
     TNode<ScopeInfo> scope_info =
         CAST(LoadContextElement(script_context, Context::SCOPE_INFO_INDEX));
 
-    TNode<IntPtrT> context_local_index =
-        IndexOfLocalName(scope_info, name, &loop);
+    TVARIABLE(IntPtrT, scope_var_index,
+              IntPtrConstant(ScopeInfo::kVariablePartIndex - 1));
+    TNode<IntPtrT> num_scope_vars = SmiUntag(
+        CAST(LoadObjectField(scope_info, ScopeInfo::kContextLocalCountOffset)));
+    TNode<IntPtrT> end_index = IntPtrAdd(
+        num_scope_vars, IntPtrConstant(ScopeInfo::kVariablePartIndex));
+    Label loop_scope_info(this, &scope_var_index);
+    Goto(&loop_scope_info);
 
-    TNode<IntPtrT> var_index = IntPtrAdd(
-        IntPtrConstant(Context::MIN_CONTEXT_SLOTS), context_local_index);
-    TNode<Object> result = LoadContextElement(script_context, var_index);
-    GotoIf(IsTheHole(result), found_hole);
-    Return(result);
+    BIND(&loop_scope_info);
+    {
+      scope_var_index = IntPtrAdd(scope_var_index.value(), IntPtrConstant(1));
+      GotoIf(IntPtrGreaterThanOrEqual(scope_var_index.value(), end_index),
+             &loop);
+
+      FixedArrayBoundsCheck(scope_info, scope_var_index.value(), 0);
+      TNode<Object> var_name = CAST(LoadArrayElement(
+          scope_info, FixedArray::kHeaderSize, scope_var_index.value()));
+      GotoIf(TaggedNotEqual(var_name, name), &loop_scope_info);
+
+      TNode<IntPtrT> var_index =
+          IntPtrAdd(IntPtrConstant(Context::MIN_CONTEXT_SLOTS),
+                    IntPtrSub(scope_var_index.value(),
+                              IntPtrConstant(ScopeInfo::kVariablePartIndex)));
+      TNode<Object> result = LoadContextElement(script_context, var_index);
+      GotoIf(IsTheHole(result), found_hole);
+      Return(result);
+    }
   }
 }
 

@@ -740,7 +740,8 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
   if (VisitContextLocals(visitor, scope_info, context_, ScopeTypeModule))
     return;
 
-  int module_variable_count = scope_info->ModuleVariableCount();
+  int count_index = scope_info->ModuleVariableCountIndex();
+  int module_variable_count = Smi::cast(scope_info->get(count_index)).value();
 
   Handle<SourceTextModule> module(context_->module(), isolate_);
 
