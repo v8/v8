@@ -157,7 +157,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8"},
+    properties = {"builder_group": "client.v8", "track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
     use_goma = GOMA.DEFAULT,
     to_notify = ["clemensb@chromium.org", "v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
