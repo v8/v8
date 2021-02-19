@@ -163,6 +163,13 @@ struct MaybeBoolFlag {
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
 #endif
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#define ENABLE_SPARKPLUG true
+#else
+// TODO(v8:11421): Enable Sparkplug for other architectures
+#define ENABLE_SPARKPLUG false
+#endif
+
 // Supported ARM configurations are:
 //  "armv6":       ARMv6 + VFPv2
 //  "armv7":       ARMv7 + VFPv3-D32 + NEON
@@ -436,9 +443,11 @@ DEFINE_NEG_IMPLICATION(jitless, track_field_types)
 DEFINE_NEG_IMPLICATION(jitless, track_heap_object_fields)
 // Regexps are interpreted.
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
+#if ENABLE_SPARKPLUG
 // No Sparkplug compilation.
 DEFINE_NEG_IMPLICATION(jitless, sparkplug)
 DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
+#endif
 // asm.js validation is disabled since it triggers wasm code generation.
 DEFINE_NEG_IMPLICATION(jitless, validate_asm)
 // --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
@@ -583,15 +592,26 @@ DEFINE_INT(ticks_scale_factor_for_top_tier, 10,
            "scale factor for profiler ticks when tiering up from midtier")
 
 // Flags for Sparkplug
+#undef FLAG
+#if ENABLE_SPARKPLUG
+#define FLAG FLAG_FULL
+#else
+#define FLAG FLAG_READONLY
+#endif
 DEFINE_BOOL(sparkplug, false, "enable experimental Sparkplug baseline compiler")
-DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
 DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
+#if ENABLE_SPARKPLUG
+DEFINE_IMPLICATION(always_sparkplug, sparkplug)
+#endif
+DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
 #if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
 // Don't disable --write-protect-code-memory on Apple Silicon.
 DEFINE_NEG_IMPLICATION(sparkplug, write_protect_code_memory)
 #endif
-DEFINE_IMPLICATION(always_sparkplug, sparkplug)
+
+#undef FLAG
+#define FLAG FLAG_FULL
 
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
