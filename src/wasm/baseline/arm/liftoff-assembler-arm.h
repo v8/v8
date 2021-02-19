@@ -3151,12 +3151,14 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  bailout(kSimd, "i32x4.extadd_pairwise_i16x8_s");
+  vpaddl(NeonS16, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  bailout(kSimd, "i32x4.extadd_pairwise_i16x8_u");
+  vpaddl(NeonU16, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_s(LiftoffRegister dst,
@@ -3369,12 +3371,14 @@ void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  bailout(kSimd, "i16x8.extadd_pairwise_i8x16_s");
+  vpaddl(NeonS8, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  bailout(kSimd, "i16x8.extadd_pairwise_i8x16_u");
+  vpaddl(NeonU8, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
