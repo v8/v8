@@ -88,9 +88,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd9000c9c60795c60308ae93b20f08f9df57404de',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6bdef69fbdcbd4ae471bec3b6d473ede187c2043',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f362f6f961b06f4982c70a4a61495520ddc62aed',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '011cc41c3d07b1577de9e794adfb73591223a995',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'dc4ceac1fd9c77c3cacf6dec4ac83f684e069644',
   'third_party/instrumented_libraries':
@@ -196,7 +196,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '1b0cdaae57c046c87fb99cb4f69c312a7e794adb',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'ec94d9f24c92a5090fda5567156d6dde99cdbf31',
   'third_party/google_benchmark/src': {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '7f27afe83b82f3a98baf58ef595814b9d42a5b2b',
     'condition': 'checkout_google_benchmark',
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'SesU5Vh9_5Zm4yE0Qtuyv2VQ8UhCuhRMW3IkFgT7n0sC'
+              'version': 'GzdPpQtyS5ZFre4nU7kS8n0fu_RX5NV9C2PkWL0tWEYC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
