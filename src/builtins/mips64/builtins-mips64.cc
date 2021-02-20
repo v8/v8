@@ -974,6 +974,28 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ bind(&end);
 }
 
+static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+    MacroAssembler* masm, Register optimization_state,
+    Register feedback_vector) {
+  Label maybe_has_optimized_code;
+  // Check if optimized code marker is available
+  __ andi(t0, optimization_state,
+          FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker);
+  __ Branch(&maybe_has_optimized_code, eq, t0, Operand(zero_reg));
+
+  Register optimization_marker = optimization_state;
+  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
+  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
+
+  __ bind(&maybe_has_optimized_code);
+  Register optimized_code_entry = optimization_state;
+  __ Ld(optimization_marker,
+        FieldMemOperand(feedback_vector,
+                        FeedbackVector::kMaybeOptimizedCodeOffset));
+
+  TailCallOptimizedCodeSlot(masm, optimized_code_entry, t3, a5);
+}
+
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
 // stack left to right.
@@ -1178,25 +1200,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&has_optimized_code_or_marker);
-  Label maybe_has_optimized_code;
-  // Check if optimized code marker is available
-  __ andi(t0, optimization_state,
-          FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker);
-  __ Branch(&maybe_has_optimized_code, eq, t0, Operand(zero_reg));
-
-  Register optimization_marker = optimization_state;
-  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
-  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
-  // Fall through if there's no runnable optimized code.
-  __ jmp(&not_optimized);
-
-  __ bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = optimization_state;
-  __ Ld(optimization_marker,
-         FieldMemOperand(feedback_vector,
-                         FeedbackVector::kMaybeOptimizedCodeOffset));
-
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, t3, a5);
+  MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
+                                               feedback_vector);
 
   __ bind(&compile_lazy);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);

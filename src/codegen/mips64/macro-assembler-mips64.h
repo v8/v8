@@ -250,7 +250,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     // TODO(mips): Implement.
     UNIMPLEMENTED();
   }
-  void JumpCodeObject(Register code_object) override {
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override {
     // TODO(mips): Implement.
     UNIMPLEMENTED();
   }

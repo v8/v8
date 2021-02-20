@@ -385,19 +385,22 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   }
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, int32_t offset,
-                                        int size) {
-  DCHECK_LE(0, offset);
+void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
   Ld(dst, liftoff::GetInstanceOperand());
+}
+
+void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
+                                        int offset, int size) {
+  DCHECK_LE(0, offset);
   switch (size) {
     case 1:
-      Lb(dst, MemOperand(dst, offset));
+      Lb(dst, MemOperand(instance, offset));
       break;
     case 4:
-      Lw(dst, MemOperand(dst, offset));
+      Lw(dst, MemOperand(instance, offset));
       break;
     case 8:
-      Ld(dst, MemOperand(dst, offset));
+      Ld(dst, MemOperand(instance, offset));
       break;
     default:
       UNIMPLEMENTED();
@@ -405,8 +408,10 @@ void LiftoffAssembler::LoadFromInstance(Register dst, int32_t offset,
 }
 
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
+                                                     Register instance,
                                                      int32_t offset) {
-  LoadFromInstance(dst, offset, kTaggedSize);
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  Ld(dst, MemOperand(instance, offset));
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
