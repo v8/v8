@@ -3787,14 +3787,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
-        __ Movdqa(kScratchDoubleReg, dst);
-        __ Pcmpeqd(dst, dst);
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ Pxor(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
         __ Pxor(dst, src);
       }
-
       break;
     }
     case kX64S128Select: {
