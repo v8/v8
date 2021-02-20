@@ -49,10 +49,14 @@ namespace wasm {
           CASE_I8x16_OP(name, str)
 #define CASE_SIMDF_OP(name, str) \
   CASE_F32x4_OP(name, str) CASE_F64x2_OP(name, str)
-#define CASE_SIMDI_OP(name, str) \
+#define CASE_SIMDI_OP(name, str)                                             \
+  CASE_I64x2_OP(name, str) CASE_I32x4_OP(name, str) CASE_I16x8_OP(name, str) \
+      CASE_I8x16_OP(name, str)
+#define CASE_SIMDI_NO64X2_OP(name, str) \
   CASE_I32x4_OP(name, str) CASE_I16x8_OP(name, str) CASE_I8x16_OP(name, str)
-#define CASE_SIMDV_OP(name, str) \
-  CASE_V32x4_OP(name, str) CASE_V16x8_OP(name, str) CASE_V8x16_OP(name, str)
+#define CASE_SIMDV_OP(name, str)                                             \
+  CASE_V64x2_OP(name, str) CASE_V32x4_OP(name, str) CASE_V16x8_OP(name, str) \
+      CASE_V8x16_OP(name, str)
 #define CASE_SIGN_OP(TYPE, name, str) \
   CASE_##TYPE##_OP(name##S, str "_s") CASE_##TYPE##_OP(name##U, str "_u")
 #define CASE_UNSIGNED_OP(TYPE, name, str) CASE_##TYPE##_OP(name##U, str "_u")
@@ -265,27 +269,24 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMDF_OP(ExtractLane, "extract_lane")
     CASE_SIMDF_OP(ReplaceLane, "replace_lane")
     CASE_I64x2_OP(ExtractLane, "extract_lane")
-    CASE_I64x2_OP(ReplaceLane, "replace_lane")
     CASE_I32x4_OP(ExtractLane, "extract_lane")
     CASE_SIGN_OP(I16x8, ExtractLane, "extract_lane")
     CASE_SIGN_OP(I8x16, ExtractLane, "extract_lane")
     CASE_SIMDI_OP(ReplaceLane, "replace_lane")
-    CASE_SIGN_OP(SIMDI, Min, "min")
-    CASE_SIGN_OP(SIMDI, Max, "max")
-    CASE_SIGN_OP(SIMDI, Lt, "lt")
+    CASE_SIGN_OP(SIMDI_NO64X2, Min, "min")
+    CASE_SIGN_OP(SIMDI_NO64X2, Max, "max")
+    CASE_SIGN_OP(SIMDI_NO64X2, Lt, "lt")
     CASE_I64x2_OP(LtS, "lt_s")
     CASE_I64x2_OP(GtS, "gt_s")
     CASE_I64x2_OP(LeS, "le_s")
     CASE_I64x2_OP(GeS, "ge_s")
-    CASE_SIGN_OP(SIMDI, Le, "le")
-    CASE_SIGN_OP(SIMDI, Gt, "gt")
-    CASE_SIGN_OP(SIMDI, Ge, "ge")
+    CASE_SIGN_OP(SIMDI_NO64X2, Le, "le")
+    CASE_SIGN_OP(SIMDI_NO64X2, Gt, "gt")
+    CASE_SIGN_OP(SIMDI_NO64X2, Ge, "ge")
     CASE_CONVERT_OP(Convert, I64x2, I32x4Low, "i32x4_low", "convert")
     CASE_CONVERT_OP(Convert, I64x2, I32x4High, "i32x4_high", "convert")
     CASE_SIGN_OP(SIMDI, Shr, "shr")
-    CASE_SIGN_OP(I64x2, Shr, "shr")
     CASE_SIMDI_OP(Shl, "shl")
-    CASE_I64x2_OP(Shl, "shl")
     CASE_I32x4_OP(AddHoriz, "add_horizontal")
     CASE_I16x8_OP(AddHoriz, "add_horizontal")
     CASE_SIGN_OP(I16x8, AddSat, "add_sat")
@@ -302,7 +303,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I8x16_OP(Shuffle, "shuffle")
     CASE_V128_OP(AnyTrue, "any_true")
     CASE_SIMDV_OP(AllTrue, "all_true")
-    CASE_V64x2_OP(AllTrue, "all_true")
     CASE_SIMDF_OP(Qfma, "qfma")
     CASE_SIMDF_OP(Qfms, "qfms")
 
@@ -332,27 +332,17 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I16x8_OP(Q15MulRSatS, "q15mulr_sat_s")
 
     CASE_SIMDI_OP(Abs, "abs")
-    CASE_I64x2_OP(Abs, "abs")
+    CASE_SIMDI_OP(BitMask, "bitmask")
     CASE_I8x16_OP(Popcnt, "popcnt")
 
-    CASE_I8x16_OP(BitMask, "bitmask")
-    CASE_I16x8_OP(BitMask, "bitmask")
-    CASE_I32x4_OP(BitMask, "bitmask")
-    CASE_I64x2_OP(BitMask, "bitmask")
 
-    CASE_F32x4_OP(Pmin, "pmin")
-    CASE_F32x4_OP(Pmax, "pmax")
-    CASE_F64x2_OP(Pmin, "pmin")
-    CASE_F64x2_OP(Pmax, "pmax")
+    CASE_SIMDF_OP(Pmin, "pmin")
+    CASE_SIMDF_OP(Pmax, "pmax")
 
-    CASE_F32x4_OP(Ceil, "ceil")
-    CASE_F32x4_OP(Floor, "floor")
-    CASE_F32x4_OP(Trunc, "trunc")
-    CASE_F32x4_OP(NearestInt, "nearest")
-    CASE_F64x2_OP(Ceil, "ceil")
-    CASE_F64x2_OP(Floor, "floor")
-    CASE_F64x2_OP(Trunc, "trunc")
-    CASE_F64x2_OP(NearestInt, "nearest")
+    CASE_SIMDF_OP(Ceil, "ceil")
+    CASE_SIMDF_OP(Floor, "floor")
+    CASE_SIMDF_OP(Trunc, "trunc")
+    CASE_SIMDF_OP(NearestInt, "nearest")
 
     CASE_I32x4_OP(DotI16x8S, "dot_i16x8_s")
 
@@ -362,7 +352,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(I32x4, ExtMulHighI16x8, "extmul_high_i16x8")
     CASE_SIGN_OP(I64x2, ExtMulLowI32x4, "extmul_low_i32x4")
     CASE_SIGN_OP(I64x2, ExtMulHighI32x4, "extmul_high_i32x4")
-    CASE_SIMDI_OP(SignSelect, "signselect")
+    CASE_SIMDI_NO64X2_OP(SignSelect, "signselect")
     CASE_I64x2_OP(SignSelect, "signselect")
 
     CASE_SIGN_OP(I32x4, ExtAddPairwiseI16x8, "extadd_pairwise_i16x8")
@@ -460,6 +450,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_ALL_OP
 #undef CASE_SIMD_OP
 #undef CASE_SIMDI_OP
+#undef CASE_SIMDI_NO64X2_OP
 #undef CASE_SIGN_OP
 #undef CASE_UNSIGNED_OP
 #undef CASE_UNSIGNED_ALL_OP
