@@ -407,8 +407,16 @@ void LiftoffAssembler::LoadFromInstance(Register dst, int32_t offset,
                                         int size) {
   DCHECK_LE(0, offset);
   lw(dst, liftoff::GetInstanceOperand());
-  DCHECK_EQ(4, size);
-  lw(dst, MemOperand(dst, offset));
+  switch (size) {
+    case 1:
+      lb(dst, MemOperand(dst, offset));
+      break;
+    case 4:
+      lw(dst, MemOperand(dst, offset));
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
 }
 
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,

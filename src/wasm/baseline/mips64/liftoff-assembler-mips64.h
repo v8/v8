@@ -389,11 +389,18 @@ void LiftoffAssembler::LoadFromInstance(Register dst, int32_t offset,
                                         int size) {
   DCHECK_LE(0, offset);
   Ld(dst, liftoff::GetInstanceOperand());
-  DCHECK(size == 4 || size == 8);
-  if (size == 4) {
-    Lw(dst, MemOperand(dst, offset));
-  } else {
-    Ld(dst, MemOperand(dst, offset));
+  switch (size) {
+    case 1:
+      Lb(dst, MemOperand(dst, offset));
+      break;
+    case 4:
+      Lw(dst, MemOperand(dst, offset));
+      break;
+    case 8:
+      Ld(dst, MemOperand(dst, offset));
+      break;
+    default:
+      UNIMPLEMENTED();
   }
 }
 
