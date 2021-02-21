@@ -829,7 +829,7 @@ DEFINE_BOOL(wasm_generic_wrapper, true,
 #ifdef V8_ENABLE_WEBASSEMBLY
 DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
 #else
-DEFINE_BOOL(expose_wasm, false, "expose wasm interface to JavaScript")
+DEFINE_BOOL_READONLY(expose_wasm, false, "expose wasm interface to JavaScript")
 #endif
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")

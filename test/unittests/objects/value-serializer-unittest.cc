@@ -2480,6 +2480,7 @@ TEST_F(ValueSerializerTestWithHostArrayBufferView, RoundTripUint8ArrayInput) {
   ExpectScriptTrue("result.a === result.b");
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 // It's expected that WebAssembly has more exhaustive tests elsewhere; this
 // mostly checks that the logic to embed it in structured clone serialization
 // works correctly.
@@ -2731,6 +2732,7 @@ TEST_F(ValueSerializerTestWithWasm, ComplexObjectWithManyTransfer) {
   VerifyComplexObject(value);
   ExpectScriptTrue("result.mod1 != result.mod2");
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class ValueSerializerTestWithLimitedMemory : public ValueSerializerTest {
  protected:
