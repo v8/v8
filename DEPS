@@ -88,7 +88,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6bdef69fbdcbd4ae471bec3b6d473ede187c2043',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'be4bea4bee02c20f3856ebe0ec67de824bbfd2fe',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '011cc41c3d07b1577de9e794adfb73591223a995',
   'third_party/icu':
@@ -196,7 +196,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'ec94d9f24c92a5090fda5567156d6dde99cdbf31',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '5e0cf72b7cd0ee0b1d66308da708c103caadce51',
   'third_party/google_benchmark/src': {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '7f27afe83b82f3a98baf58ef595814b9d42a5b2b',
     'condition': 'checkout_google_benchmark',
