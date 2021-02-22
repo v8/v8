@@ -776,7 +776,7 @@ config("features") {
   if (v8_etw_guid != "") {
     defines += [ "V8_ETW_GUID=\"$v8_etw_guid\"" ]
   }
-  if (v8_enable_webassembly) {
+  if (v8_enable_webassembly && !v8_enable_lite_mode) {
     defines += [ "V8_ENABLE_WEBASSEMBLY" ]
   }
   if (v8_dict_property_const_tracking) {
@@ -1850,6 +1850,7 @@ action("v8_dump_build_config") {
     "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
+    "v8_enable_webassembly=$v8_enable_webassembly",
     "v8_control_flow_integrity=$v8_control_flow_integrity",
     "v8_target_cpu=\"$v8_target_cpu\"",
   ]

@@ -509,12 +509,8 @@
 }],
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-
-  # Slow tests
-  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
-
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
   'test-api-wasm/WasmStreaming*': [SKIP],
@@ -537,6 +533,13 @@
   'test-wasm-stack/*': [SKIP],
   'test-wasm-trap-position/*': [SKIP],
   'wasm-run-utils/*': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+##############################################################################
+['lite_mode or variant == jitless', {
+
+  # Slow tests
+  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
   # Tests that generate code at runtime.
   'codegen-tester/*': [SKIP],

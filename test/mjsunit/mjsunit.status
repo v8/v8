@@ -325,26 +325,27 @@
 }],  # 'gc_stress'
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-  # Skip tests not suitable for lite_mode.
-
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  # Skip tests that require webassembly.
   'regress/regress-5888': [SKIP],
   'regress/regress-5911': [SKIP],
+  'regress/regress-8947': [SKIP],
+  'regress/regress-9209': [SKIP],
+  'regress/regress-9832': [SKIP],
   'regress/regress-813440': [SKIP],
+  'regress/regress-863810': [SKIP],
+  'regress/regress-1034394': [SKIP],
   'regress/regress-crbug-746835': [SKIP],
   'regress/regress-crbug-772056': [SKIP],
   'regress/regress-crbug-816961': [SKIP],
   'regress/regress-crbug-969498': [SKIP],
   'regress/regress-crbug-1047368': [SKIP],
-  'regress/wasm/*': [SKIP],
-  'regress/regress-8947': [SKIP],
-  'regress/regress-9209': [SKIP],
-  'regress/regress-1034394': [SKIP],
   'regress/regress-v8-9106': [SKIP],
+  'regress/wasm/*': [SKIP],
+
   'wasm/*': [SKIP],
 
-  # Other tests that use asm / wasm / optimized code.
   'asm/asm-heap': [SKIP],
   'asm/asm-validation': [SKIP],
   'asm/call-stdlib': [SKIP],
@@ -356,6 +357,14 @@
   'asm/regress-937650': [SKIP],
   'asm/regress-9531': [SKIP],
   'asm/return-types': [SKIP],
+
+  # Tests tracing when generating wasm in TurboFan.
+  'tools/compiler-trace-flags-wasm': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+##############################################################################
+['lite_mode or variant == jitless', {
+  # Other tests that use optimized code.
   'regress/regress-599719': [SKIP],
   'regress/regress-6196': [SKIP],
   'regress/regress-6700': [SKIP],
@@ -363,7 +372,6 @@
   'regress/regress-6838-3': [SKIP],
   'regress/regress-6838-4': [SKIP],
   'regress/regress-9022': [SKIP],
-  'regress/regress-9832': [SKIP],
   'regress/regress-crbug-934138': [SKIP],
   'regress/regress-crbug-976934': [SKIP],
 
@@ -375,7 +383,6 @@
   'regress/regress-617526': [SKIP],
   'regress/regress-7893': [SKIP],
   'regress/regress-8377': [SKIP],
-  'regress/regress-863810': [SKIP],
   'regress/regress-crbug-721835': [SKIP],
   'regress/regress-crbug-759327': [SKIP],
   'regress/regress-crbug-898974': [SKIP],
@@ -385,7 +392,6 @@
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
-  'tools/compiler-trace-flags-wasm': [SKIP],
 
   # Too slow on arm64 simulator and debug: https://crbug.com/v8/7783
   'md5': [PASS, ['arch == arm64 and mode == debug and simulator_run', SKIP]],

@@ -52,6 +52,17 @@
 }],  # variant != default
 
 ##############################################################################
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  'debugger/asm-js-stack': [SKIP],
+  'debugger/asm-js-breakpoint-before-exec': [SKIP],
+  'debugger/asm-js-breakpoint-during-exec': [SKIP],
+  'debugger/wasm-*': [SKIP],
+  'cpu-profiler/console-profile-wasm': [SKIP],
+  'runtime/get-properties': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+##############################################################################
 ['lite_mode or variant == jitless', {
   # Lite mode does not allocate feedback vector.
   'type-profiler/type-profile-start-stop': [SKIP],
@@ -59,14 +70,6 @@
   'type-profiler/type-profile-with-to-string-tag': [SKIP],
   'type-profiler/type-profile-with-classes': [SKIP],
   'type-profiler/type-profile-disable': [SKIP],
-
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
-  'debugger/asm-js-stack': [SKIP],
-  'debugger/asm-js-breakpoint-before-exec': [SKIP],
-  'debugger/asm-js-breakpoint-during-exec': [SKIP],
-  'debugger/wasm-*': [SKIP],
-  'cpu-profiler/console-profile-wasm': [SKIP],
-  'runtime/get-properties': [SKIP],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################

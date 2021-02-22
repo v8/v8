@@ -189,6 +189,7 @@ class BuildConfig(object):
     self.verify_csa = build_config['v8_enable_verify_csa']
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
+    self.webassembly = build_config['v8_enable_webassembly']
     # Export only for MIPS target
     if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
       self.mips_arch_variant = build_config['mips_arch_variant']
@@ -228,6 +229,8 @@ class BuildConfig(object):
       detected_options.append('lite_mode')
     if self.pointer_compression:
       detected_options.append('pointer_compression')
+    if self.webassembly:
+      detected_options.append('webassembly')
 
     return '\n'.join(detected_options)
 
@@ -643,6 +646,9 @@ class BaseTestRunner(object):
                                            '--noenable-sse4-1',
                                            '--no-enable-sse4_1'])
 
+    has_webassembly = self.build_config.webassembly and \
+        not self.build_config.lite_mode
+
     # Set no_simd_sse on architectures without Simd enabled.
     if self.build_config.arch == 'ppc64':
        no_simd_sse = True
@@ -660,6 +666,7 @@ class BaseTestRunner(object):
       "gc_fuzzer": False,
       "gc_stress": False,
       "gcov_coverage": self.build_config.gcov_coverage,
+      "has_webassembly": has_webassembly,
       "isolates": options.isolates,
       "is_clang": self.build_config.is_clang,
       "is_full_debug": self.build_config.is_full_debug,
