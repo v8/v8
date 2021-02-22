@@ -1567,15 +1567,11 @@ class WasmInterpreterInternals {
 
   // Returns true if the call was successful, false if the stack check failed
   // and the stack was fully unwound.
-  bool DoCall(Decoder* decoder, InterpreterCode* target, pc_t* pc,
+  bool DoCall(Decoder* decoder, InterpreterCode** target, pc_t* pc,
               pc_t* limit) V8_WARN_UNUSED_RESULT {
     frames_.back().pc = *pc;
-    PushFrame(target);
-    if (!DoStackCheck()) return false;
-    *pc = frames_.back().pc;
-    *limit = target->end - target->start;
-    decoder->Reset(target->start, target->end);
-    return true;
+    PushFrame(*target);
+    return DoStackCheck(decoder, target, pc, limit);
   }
 
   // Returns true if the tail call was successful, false if the stack check
@@ -3155,7 +3151,8 @@ class WasmInterpreterInternals {
   // Returns true if execution can continue, false if the stack was fully
   // unwound. Do call this function immediately *after* pushing a new frame. The
   // pc of the top frame will be reset to 0 if the stack check fails.
-  bool DoStackCheck() V8_WARN_UNUSED_RESULT {
+  bool DoStackCheck(Decoder* decoder, InterpreterCode** target, pc_t* pc,
+                    pc_t* limit) V8_WARN_UNUSED_RESULT {
     // The goal of this stack check is not to prevent actual stack overflows,
     // but to simulate stack overflows during the execution of compiled code.
     // That is why this function uses FLAG_stack_size, even though the value
@@ -3165,13 +3162,20 @@ class WasmInterpreterInternals {
     const size_t current_stack_size = (sp_ - stack_.get()) * sizeof(*sp_) +
                                       frames_.size() * sizeof(frames_[0]);
     if (V8_LIKELY(current_stack_size <= stack_size_limit)) {
+      *pc = frames_.back().pc;
+      *limit = (*target)->end - (*target)->start;
+      decoder->Reset((*target)->start, (*target)->end);
       return true;
     }
     // The pc of the top frame is initialized to the first instruction. We reset
     // it to 0 here such that we report the same position as in compiled code.
     frames_.back().pc = 0;
     isolate_->StackOverflow();
-    return HandleException(isolate_) == WasmInterpreter::HANDLED;
+    if (HandleException(isolate_) == WasmInterpreter::HANDLED) {
+      ReloadFromFrameOnException(decoder, target, pc, limit);
+      return true;
+    }
+    return false;
   }
 
   void EncodeI32ExceptionValue(Handle<FixedArray> encoded_values,
@@ -3668,7 +3672,7 @@ class WasmInterpreterInternals {
           InterpreterCode* target = codemap_.GetCode(imm.index);
           CHECK(!target->function->imported);
           // Execute an internal call.
-          if (!DoCall(&decoder, target, &pc, &limit)) return;
+          if (!DoCall(&decoder, &target, &pc, &limit)) return;
           code = target;
           continue;  // Do not bump pc.
         } break;
@@ -3683,7 +3687,7 @@ class WasmInterpreterInternals {
           switch (result.type) {
             case CallResult::INTERNAL:
               // The import is a function of this instance. Call it directly.
-              if (!DoCall(&decoder, result.interpreter_code, &pc, &limit))
+              if (!DoCall(&decoder, &result.interpreter_code, &pc, &limit))
                 return;
               code = result.interpreter_code;
               continue;  // Do not bump pc.
