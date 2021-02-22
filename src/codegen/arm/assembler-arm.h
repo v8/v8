@@ -887,6 +887,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vorr(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vorn(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);

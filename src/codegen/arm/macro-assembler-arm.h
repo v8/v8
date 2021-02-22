@@ -571,6 +571,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // and be used in both TurboFan and Liftoff.
   void I64x2BitMask(Register dst, QwNeonRegister src);
   void I64x2Eq(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void I64x2Ne(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void I64x2GtS(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void I64x2GeS(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void V64x2AllTrue(Register dst, QwNeonRegister src);

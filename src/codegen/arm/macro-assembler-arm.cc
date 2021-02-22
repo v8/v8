@@ -2650,6 +2650,16 @@ void TurboAssembler::I64x2Eq(QwNeonRegister dst, QwNeonRegister src1,
   vand(dst, dst, scratch);
 }
 
+void TurboAssembler::I64x2Ne(QwNeonRegister dst, QwNeonRegister src1,
+                             QwNeonRegister src2) {
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = temps.AcquireQ();
+  vceq(Neon32, dst, src1, src2);
+  vrev64(Neon32, tmp, dst);
+  vmvn(dst, dst);
+  vorn(dst, dst, tmp);
+}
+
 void TurboAssembler::I64x2GtS(QwNeonRegister dst, QwNeonRegister src1,
                               QwNeonRegister src2) {
   vqsub(NeonS64, dst, src2, src1);

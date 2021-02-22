@@ -5034,6 +5034,11 @@ void Simulator::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
         }
       }
       set_neon_register(Vd, src1);
+    } else if (!u && opc == 1 && sz == 3 && q && op1) {
+      // vorn, Qd, Qm, Qn.
+      // NeonSize does not matter.
+      Binop<uint32_t>(this, Vd, Vm, Vn,
+                      [](uint32_t x, uint32_t y) { return x | (~y); });
     } else if (!u && opc == 1 && sz == 0 && q && op1) {
       // vand Qd, Qm, Qn.
       uint32_t src1[4], src2[4];
