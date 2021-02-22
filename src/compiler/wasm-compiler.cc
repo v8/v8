@@ -8165,7 +8165,6 @@ class LinkageLocationAllocator {
 
   void SetStackOffset(int offset) { allocator_.SetStackOffset(offset); }
   int NumStackSlots() const { return allocator_.NumStackSlots(); }
-  void EndSlotArea() { allocator_.EndSlotArea(); }
 
  private:
   wasm::LinkageAllocator allocator_;
@@ -8204,10 +8203,6 @@ CallDescriptor* GetWasmCallDescriptor(
     auto l = params.Next(param);
     locations.AddParamAt(i + param_offset, l);
   }
-
-  // End the untagged area, so tagged slots come after.
-  params.EndSlotArea();
-
   for (size_t i = 0; i < parameter_count; i++) {
     MachineRepresentation param = fsig->GetParam(i).machine_representation();
     // Skip untagged parameters.

@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_FRAME_H_
 #define V8_COMPILER_FRAME_H_
 
-#include "src/base/bits.h"
-#include "src/codegen/aligned-slot-allocator.h"
 #include "src/execution/frame-constants.h"
 #include "src/utils/bit-vector.h"
 
@@ -94,9 +92,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   Frame(const Frame&) = delete;
   Frame& operator=(const Frame&) = delete;
 
-  inline int GetTotalFrameSlotCount() const {
-    return slot_allocator_.Size() + return_slot_count_;
-  }
+  inline int GetTotalFrameSlotCount() const { return frame_slot_count_; }
   inline int GetFixedSlotCount() const { return fixed_slot_count_; }
   inline int GetSpillSlotCount() const { return spill_slot_count_; }
   inline int GetReturnSlotCount() const { return return_slot_count_; }
@@ -116,55 +112,38 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   }
 
   void AlignSavedCalleeRegisterSlots(int alignment = kDoubleSize) {
-#if DEBUG
-    spill_slots_finished_ = true;
-#endif
-    DCHECK(base::bits::IsPowerOfTwo(alignment));
-    DCHECK_LE(alignment, kSimd128Size);
-    int alignment_in_slots = AlignedSlotAllocator::NumSlotsForWidth(alignment);
-    int padding = slot_allocator_.Align(alignment_in_slots);
-    spill_slot_count_ += padding;
+    int alignment_slots = alignment / kSystemPointerSize;
+    int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
+    if (delta != alignment_slots) {
+      frame_slot_count_ += delta;
+    }
+    spill_slot_count_ += delta;
   }
 
   void AllocateSavedCalleeRegisterSlots(int count) {
-#if DEBUG
-    spill_slots_finished_ = true;
-#endif
-    slot_allocator_.AllocateUnaligned(count);
+    frame_slot_count_ += count;
   }
 
   int AllocateSpillSlot(int width, int alignment = 0) {
-    DCHECK_EQ(GetTotalFrameSlotCount(),
+    DCHECK_EQ(frame_slot_count_,
               fixed_slot_count_ + spill_slot_count_ + return_slot_count_);
-    // Never allocate spill slots after the callee-saved slots are defined.
-    DCHECK(!spill_slots_finished_);
-    int actual_width = std::max({width, AlignedSlotAllocator::kSlotSize});
-    int actual_alignment =
-        std::max({alignment, AlignedSlotAllocator::kSlotSize});
-    int slots = AlignedSlotAllocator::NumSlotsForWidth(actual_width);
-    int old_end = slot_allocator_.Size();
-    int slot;
-    if (actual_width == actual_alignment) {
-      // Simple allocation, alignment equal to width.
-      slot = slot_allocator_.Allocate(slots);
-    } else {
-      // Complex allocation, alignment different from width.
-      if (actual_alignment > AlignedSlotAllocator::kSlotSize) {
-        // Alignment required.
-        int alignment_in_slots =
-            AlignedSlotAllocator::NumSlotsForWidth(actual_alignment);
-        slot_allocator_.Align(alignment_in_slots);
-      }
-      slot = slot_allocator_.AllocateUnaligned(slots);
+    int frame_slot_count_before = frame_slot_count_;
+    if (alignment > kSystemPointerSize) {
+      // Slots are pointer sized, so alignment greater than a pointer size
+      // requires allocating additional slots.
+      width += alignment - kSystemPointerSize;
     }
-    int end = slot_allocator_.Size();
-
-    spill_slot_count_ += end - old_end;
-    return slot + slots - 1;
+    AllocateAlignedFrameSlots(width);
+    spill_slot_count_ += frame_slot_count_ - frame_slot_count_before;
+    return frame_slot_count_ - return_slot_count_ - 1;
   }
 
   void EnsureReturnSlots(int count) {
-    return_slot_count_ = std::max(return_slot_count_, count);
+    if (count > return_slot_count_) {
+      count -= return_slot_count_;
+      frame_slot_count_ += count;
+      return_slot_count_ += count;
+    }
   }
 
   void AlignFrame(int alignment = kDoubleSize);
@@ -172,22 +151,30 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   int ReserveSpillSlots(size_t slot_count) {
     DCHECK_EQ(0, spill_slot_count_);
     spill_slot_count_ += static_cast<int>(slot_count);
-    slot_allocator_.AllocateUnaligned(static_cast<int>(slot_count));
-    return slot_allocator_.Size() - 1;
+    frame_slot_count_ += static_cast<int>(slot_count);
+    return frame_slot_count_ - 1;
+  }
+
+ private:
+  void AllocateAlignedFrameSlots(int width) {
+    DCHECK_LT(0, width);
+    int new_frame_slots = (width + kSystemPointerSize - 1) / kSystemPointerSize;
+    // Align to 8 bytes if width is a multiple of 8 bytes, and to 16 bytes if
+    // multiple of 16.
+    int align_to =
+        (width & 15) == 0 ? 16 : (width & 7) == 0 ? 8 : kSystemPointerSize;
+    frame_slot_count_ = RoundUp(frame_slot_count_ + new_frame_slots,
+                                align_to / kSystemPointerSize);
+    DCHECK_LT(0, frame_slot_count_);
   }
 
  private:
   int fixed_slot_count_;
-  int spill_slot_count_ = 0;
-  // Account for return slots separately. Conceptually, they follow all
-  // allocated spill slots.
-  int return_slot_count_ = 0;
-  AlignedSlotAllocator slot_allocator_;
+  int frame_slot_count_;
+  int spill_slot_count_;
+  int return_slot_count_;
   BitVector* allocated_registers_;
   BitVector* allocated_double_registers_;
-#if DEBUG
-  bool spill_slots_finished_ = false;
-#endif
 };
 
 // Represents an offset from either the stack pointer or frame pointer.
