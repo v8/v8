@@ -3139,12 +3139,57 @@ void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2.gt_s");
+  // Different register alias requirements depending on CpuFeatures supported:
+  if (CpuFeatures::IsSupported(AVX)) {
+    // 1. AVX, no requirements.
+    I64x2GtS(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    // 2. SSE4_2, dst == lhs.
+    if (dst != lhs) {
+      movdqa(dst.fp(), lhs.fp());
+    }
+    I64x2GtS(dst.fp(), dst.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+  } else {
+    // 3. Else, dst != lhs && dst != rhs (lhs == rhs is ok).
+    if (dst == lhs || dst == rhs) {
+      LiftoffRegister tmp = GetUnusedRegister(
+          RegClass::kFpReg, LiftoffRegList::ForRegs(lhs, rhs));
+      I64x2GtS(tmp.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+      movaps(dst.fp(), tmp.fp());
+    } else {
+      I64x2GtS(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+    }
+  }
 }
 
 void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2.ge_s");
+  // Different register alias requirements depending on CpuFeatures supported:
+  if (CpuFeatures::IsSupported(AVX)) {
+    // 1. AVX, no requirements.
+    I64x2GeS(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    // 2. SSE4_2, dst != lhs.
+    if (dst == lhs) {
+      LiftoffRegister tmp = GetUnusedRegister(RegClass::kFpReg, {rhs},
+                                              LiftoffRegList::ForRegs(lhs));
+      // macro-assembler uses kScratchDoubleReg, so don't use it.
+      I64x2GeS(tmp.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+      movdqa(dst.fp(), tmp.fp());
+    } else {
+      I64x2GeS(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+    }
+  } else {
+    // 3. Else, dst != lhs && dst != rhs (lhs == rhs is ok).
+    if (dst == lhs || dst == rhs) {
+      LiftoffRegister tmp = GetUnusedRegister(
+          RegClass::kFpReg, LiftoffRegList::ForRegs(lhs, rhs));
+      I64x2GeS(tmp.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+      movaps(dst.fp(), tmp.fp());
+    } else {
+      I64x2GeS(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
+    }
+  }
 }
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
