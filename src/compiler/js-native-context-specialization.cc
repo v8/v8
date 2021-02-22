@@ -1959,18 +1959,21 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
       // We didn't find a constant element, but if the receiver is a cow-array
       // we can exploit the fact that any future write to the element will
       // replace the whole elements storage.
-      element = receiver_ref.AsJSArray().GetOwnCowElement(index);
-      if (element.has_value()) {
-        Node* elements = effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-            receiver, effect, control);
-        FixedArrayRef array_elements =
-            receiver_ref.AsJSArray().elements().AsFixedArray();
-        Node* check = graph()->NewNode(simplified()->ReferenceEqual(), elements,
-                                       jsgraph()->Constant(array_elements));
-        effect = graph()->NewNode(
-            simplified()->CheckIf(DeoptimizeReason::kCowArrayElementsChanged),
-            check, effect, control);
+      JSArrayRef array_ref = receiver_ref.AsJSArray();
+      base::Optional<FixedArrayBaseRef> array_elements = array_ref.elements();
+      if (array_elements.has_value()) {
+        element = array_ref.GetOwnCowElement(*array_elements, index);
+        if (element.has_value()) {
+          Node* elements = effect = graph()->NewNode(
+              simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+              receiver, effect, control);
+          Node* check =
+              graph()->NewNode(simplified()->ReferenceEqual(), elements,
+                               jsgraph()->Constant(*array_elements));
+          effect = graph()->NewNode(
+              simplified()->CheckIf(DeoptimizeReason::kCowArrayElementsChanged),
+              check, effect, control);
+        }
       }
     }
     if (element.has_value()) {

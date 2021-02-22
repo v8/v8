@@ -506,6 +506,7 @@ void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker) {
 }
 
 namespace {
+
 base::Optional<ObjectRef> GetOwnElementFromHeap(JSHeapBroker* broker,
                                                 Handle<Object> receiver,
                                                 uint32_t index,
@@ -1802,7 +1803,10 @@ class JSArrayData : public JSObjectData {
               Handle<JSArray> object);
 
   void Serialize(JSHeapBroker* broker);
-  ObjectData* length() const { return length_; }
+  ObjectData* length() const {
+    CHECK(serialized_);
+    return length_;
+  }
 
   ObjectData* GetOwnElement(
       JSHeapBroker* broker, uint32_t index,
@@ -1824,6 +1828,8 @@ JSArrayData::JSArrayData(JSHeapBroker* broker, ObjectData** storage,
     : JSObjectData(broker, storage, object), own_elements_(broker->zone()) {}
 
 void JSArrayData::Serialize(JSHeapBroker* broker) {
+  CHECK(!FLAG_turbo_direct_heap_access);
+
   if (serialized_) return;
   serialized_ = true;
 
@@ -2224,7 +2230,10 @@ bool JSObjectData::cow_or_empty_elements_tenured() const {
   return cow_or_empty_elements_tenured_;
 }
 
-ObjectData* JSObjectData::elements() const { return elements_; }
+ObjectData* JSObjectData::elements() const {
+  CHECK(serialized_elements_);
+  return elements_;
+}
 
 void JSObjectData::SerializeAsBoilerplate(JSHeapBroker* broker) {
   SerializeRecursiveAsBoilerplate(broker, kMaxFastLiteralDepth);
@@ -2353,6 +2362,8 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
   }
 
   DCHECK_NULL(elements_);
+  DCHECK(!serialized_elements_);
+  serialized_elements_ = true;
   elements_ = broker->GetOrCreateData(elements_object);
   DCHECK(elements_->IsFixedArrayBase());
 
@@ -2425,7 +2436,9 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
     map()->AsMap()->SerializeOwnDescriptors(broker);
   }
 
-  if (IsJSArray()) AsJSArray()->Serialize(broker);
+  if (IsJSArray() && !FLAG_turbo_direct_heap_access) {
+    AsJSArray()->Serialize(broker);
+  }
 }
 
 void RegExpBoilerplateDescriptionData::Serialize(JSHeapBroker* broker) {
@@ -3193,7 +3206,7 @@ void JSObjectRef::SerializeElements() {
 
 void JSObjectRef::EnsureElementsTenured() {
   if (data_->should_access_heap()) {
-    Handle<FixedArrayBase> object_elements = elements().object();
+    Handle<FixedArrayBase> object_elements = elements().value().object();
     if (ObjectInYoungGeneration(*object_elements)) {
       // If we would like to pretenure a fixed cow array, we must ensure that
       // the array is already in old space, otherwise we'll create too many
@@ -3478,8 +3491,6 @@ BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 
 BIMODAL_ACCESSOR_C(HeapNumber, double, value)
-
-BIMODAL_ACCESSOR(JSArray, Object, length)
 
 BIMODAL_ACCESSOR(JSBoundFunction, JSReceiver, bound_target_function)
 BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_this)
@@ -4004,25 +4015,81 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnDataProperty(
   return ObjectRef(broker(), property);
 }
 
+ObjectRef JSArrayRef::GetBoilerplateLength() const {
+  // Safe to read concurrently because:
+  // - boilerplates are immutable after initialization.
+  // - boilerplates are published into the feedback vector.
+  return length_unsafe();
+}
+
+ObjectRef JSArrayRef::length_unsafe() const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    Object o = object()->length(broker()->isolate(), kRelaxedLoad);
+    return ObjectRef{broker(), broker()->CanonicalPersistentHandle(o)};
+  } else {
+    return ObjectRef{broker(), data()->AsJSArray()->length()};
+  }
+}
+
 base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
-    uint32_t index, SerializationPolicy policy) const {
-  if (data_->should_access_heap()) {
-    if (!object()->elements().IsCowArray()) return base::nullopt;
-    return GetOwnElementFromHeap(broker(), object(), index, false);
-  }
+    FixedArrayBaseRef elements_ref, uint32_t index,
+    SerializationPolicy policy) const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // `elements` are currently still serialized as members of JSObjectRef.
+    // TODO(jgruber,v8:7790): Remove the elements equality DCHECK below once
+    // JSObject is no longer serialized.
+    static_assert(std::is_base_of<JSObject, JSArray>::value, "");
+    STATIC_ASSERT(IsSerializedHeapObject<JSObject>());
 
-  if (policy == SerializationPolicy::kSerializeIfNeeded) {
-    data()->AsJSObject()->SerializeElements(broker());
-  } else if (!data()->AsJSObject()->serialized_elements()) {
-    TRACE(broker(), "'elements' on " << this);
-    return base::nullopt;
-  }
-  if (!elements().map().IsFixedCowArrayMap()) return base::nullopt;
+    // The elements_ref is passed in by callers to make explicit that it is
+    // also used outside of this function, and must match the `elements` used
+    // inside this function.
+    DCHECK(elements_ref.equals(elements().value()));
 
-  ObjectData* element =
-      data()->AsJSArray()->GetOwnElement(broker(), index, policy);
-  if (element == nullptr) return base::nullopt;
-  return ObjectRef(broker(), element);
+    // Due to concurrency, the kind read here may not be consistent with
+    // `elements_ref`. But consistency is guaranteed at runtime due to the
+    // `elements` equality check in the caller.
+    ElementsKind elements_kind = GetElementsKind();
+
+    // We only inspect fixed COW arrays, which may only occur for fast
+    // smi/objects elements kinds.
+    if (!IsSmiOrObjectElementsKind(elements_kind)) return {};
+    DCHECK(IsFastElementsKind(elements_kind));
+    if (!elements_ref.map().IsFixedCowArrayMap()) return {};
+
+    // As the name says, the `length` read here is unsafe and may not match
+    // `elements`. We rely on the invariant that any `length` change will
+    // also result in an `elements` change to make this safe. The `elements`
+    // equality check in the caller thus also guards the value of `length`.
+    ObjectRef length_ref = length_unsafe();
+
+    // Likewise we only deal with smi lengths.
+    if (!length_ref.IsSmi()) return {};
+
+    base::Optional<Object> result =
+        ConcurrentLookupIterator::TryGetOwnCowElement(
+            broker()->isolate(), *elements_ref.AsFixedArray().object(),
+            elements_kind, length_ref.AsSmi(), index);
+
+    if (!result.has_value()) return {};
+
+    return ObjectRef{broker(),
+                     broker()->CanonicalPersistentHandle(result.value())};
+  } else {
+    DCHECK(!data_->should_access_heap());
+    DCHECK(!FLAG_turbo_direct_heap_access);
+
+    // Just to clarify that `elements_ref` is not used on this path.
+    // GetOwnElement accesses the serialized `elements` field on its own.
+    USE(elements_ref);
+
+    if (!elements().value().map().IsFixedCowArrayMap()) return base::nullopt;
+
+    ObjectData* element =
+        data()->AsJSArray()->GetOwnElement(broker(), index, policy);
+    if (element == nullptr) return base::nullopt;
+    return ObjectRef(broker(), element);
+  }
 }
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
@@ -4117,12 +4184,17 @@ ElementsKind JSObjectRef::GetElementsKind() const {
   return map().elements_kind();
 }
 
-FixedArrayBaseRef JSObjectRef::elements() const {
+base::Optional<FixedArrayBaseRef> JSObjectRef::elements() const {
   if (data_->should_access_heap()) {
     return FixedArrayBaseRef(
         broker(), broker()->CanonicalPersistentHandle(object()->elements()));
   }
-  return FixedArrayBaseRef(broker(), data()->AsJSObject()->elements());
+  const JSObjectData* d = data()->AsJSObject();
+  if (!d->serialized_elements()) {
+    TRACE(broker(), "'elements' on " << this);
+    return base::nullopt;
+  }
+  return FixedArrayBaseRef(broker(), d->elements());
 }
 
 int FixedArrayBaseRef::length() const {

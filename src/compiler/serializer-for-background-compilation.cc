@@ -3330,8 +3330,11 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
             // We didn't find a constant element, but if the receiver is a
             // cow-array we can exploit the fact that any future write to the
             // element will replace the whole elements storage.
-            receiver_ref.AsJSArray().GetOwnCowElement(
-                key_ref.AsSmi(), SerializationPolicy::kSerializeIfNeeded);
+            JSArrayRef array_ref = receiver_ref.AsJSArray();
+            array_ref.SerializeElements();
+            array_ref.GetOwnCowElement(array_ref.elements().value(),
+                                       key_ref.AsSmi(),
+                                       SerializationPolicy::kSerializeIfNeeded);
           }
         }
       }

@@ -25,6 +25,7 @@ class JSArray : public JSObject {
  public:
   // [length]: The length property.
   DECL_ACCESSORS(length, Object)
+  DECL_RELAXED_GETTER(length, Object)
 
   // Acquire/release semantics on this field are explicitly forbidden to avoid
   // confusion, since the default setter uses relaxed semantics. If

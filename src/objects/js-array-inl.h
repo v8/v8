@@ -31,6 +31,10 @@ void JSArray::set_length(Object value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
 }
 
+Object JSArray::length(IsolateRoot isolate, RelaxedLoadTag tag) const {
+  return TaggedField<Object, kLengthOffset>::Relaxed_Load(isolate, *this);
+}
+
 void JSArray::set_length(Smi length) {
   // Don't need a write barrier for a Smi.
   set_length(Object(length.ptr()), SKIP_WRITE_BARRIER);

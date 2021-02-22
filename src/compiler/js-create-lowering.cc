@@ -1735,7 +1735,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
     JSArrayRef boilerplate_array = boilerplate.AsJSArray();
     builder.Store(
         AccessBuilder::ForJSArrayLength(boilerplate_array.GetElementsKind()),
-        boilerplate_array.length());
+        boilerplate_array.GetBoilerplateLength());
   }
   for (auto const& inobject_field : inobject_fields) {
     builder.Store(inobject_field.first, inobject_field.second);
@@ -1746,7 +1746,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
 Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
                                                     JSObjectRef boilerplate,
                                                     AllocationType allocation) {
-  FixedArrayBaseRef boilerplate_elements = boilerplate.elements();
+  FixedArrayBaseRef boilerplate_elements = boilerplate.elements().value();
 
   // Empty or copy-on-write elements just store a constant.
   int const elements_length = boilerplate_elements.length();
@@ -1754,7 +1754,7 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
   if (boilerplate_elements.length() == 0 || elements_map.IsFixedCowArrayMap()) {
     if (allocation == AllocationType::kOld) {
       boilerplate.EnsureElementsTenured();
-      boilerplate_elements = boilerplate.elements();
+      boilerplate_elements = boilerplate.elements().value();
     }
     return jsgraph()->HeapConstant(boilerplate_elements.object());
   }

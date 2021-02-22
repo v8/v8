@@ -292,6 +292,32 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   InternalIndex number_ = InternalIndex::NotFound();
 };
 
+// Similar to the LookupIterator, but for concurrent accesses from a background
+// thread.
+//
+// Note: This is a work in progress, intended to bundle code related to
+// concurrent lookups here. In its current state, the class is obviously not an
+// 'iterator'. Still, keeping the name for now, with the intent to clarify
+// names and implementation once we've gotten some experience with more
+// involved logic.
+// TODO(jgruber, v8:7790): Consider using a LookupIterator-style interface.
+// TODO(jgruber, v8:7790): Consider merging back into the LookupIterator once
+// functionality and constraints are better known.
+class ConcurrentLookupIterator final : public AllStatic {
+ public:
+  // Implements the own data property lookup for the specialized case of
+  // fixed_cow_array backing stores (these are only in use for array literal
+  // boilerplates). The contract is that the elements, elements kind, and array
+  // length passed to this function should all be read from the same JSArray
+  // instance; but due to concurrency it's possible that they may not be
+  // consistent among themselves (e.g. the elements kind may not match the
+  // given elements backing store). We are thus extra-careful to handle
+  // exceptional situations.
+  V8_EXPORT_PRIVATE static base::Optional<Object> TryGetOwnCowElement(
+      Isolate* isolate, FixedArray array_elements, ElementsKind elements_kind,
+      int array_length, size_t index);
+};
+
 }  // namespace internal
 }  // namespace v8
 
