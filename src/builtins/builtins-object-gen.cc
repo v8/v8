@@ -1226,7 +1226,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
       IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                 formal_parameter_count);
   TNode<FixedArrayBase> parameters_and_registers =
-      AllocateFixedArray(HOLEY_ELEMENTS, size);
+      AllocateFixedArray(HOLEY_ELEMENTS, size, kAllowLargeObjectAllocation);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
