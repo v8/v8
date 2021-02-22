@@ -349,7 +349,7 @@ inline int ReadUint(ByteArray array, int* index) {
 
 int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc) {
   DisallowGarbageCollection no_gc;
-  if (is_baseline_prologue_builtin()) return kFunctionEntryBytecodeOffset;
+  CHECK(!is_baseline_prologue_builtin());
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   ByteArray data = ByteArray::cast(source_position_table());

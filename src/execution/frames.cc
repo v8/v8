@@ -225,13 +225,10 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeAdvance);
   Code interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
-  Code baseline_prologue =
-      isolate->builtins()->builtin(Builtins::kBaselineOutOfLinePrologue);
 
   if (interpreter_entry_trampoline.contains(pc) ||
       interpreter_bytecode_advance.contains(pc) ||
-      interpreter_bytecode_dispatch.contains(pc) ||
-      baseline_prologue.contains(pc)) {
+      interpreter_bytecode_dispatch.contains(pc)) {
     return true;
   } else if (FLAG_interpreted_frames_native_stack) {
     intptr_t marker = Memory<intptr_t>(
@@ -590,8 +587,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             if (code_obj.is_interpreter_trampoline_builtin()) {
               return INTERPRETED;
             }
-            if (code_obj.is_baseline_prologue_builtin() ||
-                code_obj.is_baseline_leave_frame_builtin()) {
+            if (code_obj.is_baseline_leave_frame_builtin()) {
               return BASELINE;
             }
             if (code_obj.is_turbofanned()) {
