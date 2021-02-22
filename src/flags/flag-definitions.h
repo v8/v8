@@ -431,6 +431,9 @@ DEFINE_WEAK_IMPLICATION(future, write_protect_code_memory)
 DEFINE_WEAK_IMPLICATION(future, finalize_streaming_on_background)
 DEFINE_WEAK_IMPLICATION(future, super_ic)
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
+#if ENABLE_SPARKPLUG
+DEFINE_WEAK_IMPLICATION(future, sparkplug)
+#endif
 
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
