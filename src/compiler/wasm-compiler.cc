@@ -538,9 +538,20 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
 }
 
 Node* WasmGraphBuilder::RefNull() {
-  return LOAD_FULL_POINTER(
-      BuildLoadIsolateRoot(),
-      IsolateData::root_slot_offset(RootIndex::kNullValue));
+  // Technically speaking, this does not generate a valid graph since the effect
+  // of the last Load is not consumed.
+  // TODO(manoskouk): Remove this code once we implement Load elimination
+  // optimization for wasm.
+  if (!ref_null_node_.is_set()) {
+    Node* current_effect = effect();
+    Node* current_control = control();
+    SetEffectControl(mcgraph()->graph()->start());
+    ref_null_node_.set(LOAD_FULL_POINTER(
+        BuildLoadIsolateRoot(),
+        IsolateData::root_slot_offset(RootIndex::kNullValue)));
+    SetEffectControl(current_effect, current_control);
+  }
+  return ref_null_node_.get();
 }
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
