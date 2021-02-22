@@ -134,7 +134,7 @@ CodeEntry* CodeEntry::root_entry() {
 }
 
 uint32_t CodeEntry::GetHash() const {
-  uint32_t hash = ComputeUnseededHash(tag());
+  uint32_t hash = 0;
   if (script_id_ != v8::UnboundScript::kNoScriptId) {
     hash ^= ComputeUnseededHash(static_cast<uint32_t>(script_id_));
     hash ^= ComputeUnseededHash(static_cast<uint32_t>(position_));
