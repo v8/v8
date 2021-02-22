@@ -2137,6 +2137,7 @@ void TurboAssembler::I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src) {
     vpunpckhwd(dst, src, src);
     vpsrad(dst, dst, 16);
   } else {
+    CpuFeatureScope sse_scope(this, SSE4_1);
     if (dst == src) {
       // 2 bytes shorter than pshufd, but has depdency on dst.
       movhlps(dst, src);
@@ -2159,6 +2160,7 @@ void TurboAssembler::I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src) {
     vpxor(scratch, scratch, scratch);
     vpunpckhwd(dst, src, scratch);
   } else {
+    CpuFeatureScope sse_scope(this, SSE4_1);
     if (dst == src) {
       // xorps can be executed on more ports than pshufd.
       xorps(kScratchDoubleReg, kScratchDoubleReg);
@@ -2179,6 +2181,7 @@ void TurboAssembler::I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src) {
     vpunpckhbw(dst, src, src);
     vpsraw(dst, dst, 8);
   } else {
+    CpuFeatureScope sse_scope(this, SSE4_1);
     if (dst == src) {
       // 2 bytes shorter than pshufd, but has depdency on dst.
       movhlps(dst, src);
@@ -2206,6 +2209,7 @@ void TurboAssembler::I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src) {
       xorps(kScratchDoubleReg, kScratchDoubleReg);
       punpckhbw(dst, kScratchDoubleReg);
     } else {
+      CpuFeatureScope sse_scope(this, SSE4_1);
       // No dependency on dst.
       pshufd(dst, src, 0xEE);
       pmovzxbw(dst, dst);

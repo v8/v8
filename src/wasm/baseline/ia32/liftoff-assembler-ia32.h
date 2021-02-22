@@ -4551,8 +4551,7 @@ void LiftoffAssembler::emit_i16x8_sconvert_i8x16_low(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_sconvert_i8x16_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  Palignr(dst.fp(), src.fp(), static_cast<uint8_t>(8));
-  Pmovsxbw(dst.fp(), dst.fp());
+  I16x8SConvertI8x16High(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i8x16_low(LiftoffRegister dst,
@@ -4562,8 +4561,7 @@ void LiftoffAssembler::emit_i16x8_uconvert_i8x16_low(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_uconvert_i8x16_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  Palignr(dst.fp(), src.fp(), static_cast<uint8_t>(8));
-  Pmovzxbw(dst.fp(), dst.fp());
+  I16x8UConvertI8x16High(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_i16x8_low(LiftoffRegister dst,
@@ -4573,8 +4571,7 @@ void LiftoffAssembler::emit_i32x4_sconvert_i16x8_low(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_sconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  Palignr(dst.fp(), src.fp(), static_cast<uint8_t>(8));
-  Pmovsxwd(dst.fp(), dst.fp());
+  I32x4SConvertI16x8High(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_low(LiftoffRegister dst,
@@ -4584,8 +4581,7 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_low(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  Palignr(dst.fp(), src.fp(), static_cast<uint8_t>(8));
-  Pmovzxwd(dst.fp(), dst.fp());
+  I32x4UConvertI16x8High(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,

@@ -2666,9 +2666,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I32x4SConvertI16x8High: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Palignr(dst, i.InputOperand(0), 8);
-      __ Pmovsxwd(dst, dst);
+      __ I32x4SConvertI16x8High(i.OutputSimd128Register(),
+                                i.InputSimd128Register(0));
       break;
     }
     case kIA32I32x4Neg: {
@@ -2876,9 +2875,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I32x4UConvertI16x8High: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Palignr(dst, i.InputOperand(0), 8);
-      __ Pmovzxwd(dst, dst);
+      __ I32x4UConvertI16x8High(i.OutputSimd128Register(),
+                                i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
     case kIA32I32x4ShrU: {
@@ -2979,9 +2977,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I16x8SConvertI8x16High: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Palignr(dst, i.InputOperand(0), 8);
-      __ Pmovsxbw(dst, dst);
+      __ I16x8SConvertI8x16High(i.OutputSimd128Register(),
+                                i.InputSimd128Register(0));
       break;
     }
     case kIA32I16x8Neg: {
@@ -3163,9 +3160,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I16x8UConvertI8x16High: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Palignr(dst, i.InputOperand(0), 8);
-      __ Pmovzxbw(dst, dst);
+      __ I16x8UConvertI8x16High(i.OutputSimd128Register(),
+                                i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
     case kIA32I16x8ShrU: {
