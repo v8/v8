@@ -263,8 +263,8 @@ class DeferredBlocksRegion final {
   // a spill slot until we enter this deferred block region.
   void DeferSpillOutputUntilEntry(int vreg) { spilled_vregs_.insert(vreg); }
 
-  ZoneSet<int>::iterator begin() const { return spilled_vregs_.begin(); }
-  ZoneSet<int>::iterator end() const { return spilled_vregs_.end(); }
+  ZoneSet<int>::const_iterator begin() const { return spilled_vregs_.begin(); }
+  ZoneSet<int>::const_iterator end() const { return spilled_vregs_.end(); }
 
   const BitVector* blocks_covered() const { return &blocks_covered_; }
 
@@ -587,6 +587,8 @@ void VirtualRegisterData::AddSpillUse(int instr_index,
 
   const InstructionBlock* block = data->GetBlock(instr_index);
   if (CouldSpillOnEntryToDeferred(block)) {
+    // TODO(1180335): Remove once crbug.com/1180335 is fixed.
+    CHECK(HasSpillRange());
     data->block_state(block->rpo_number())
         .deferred_blocks_region()
         ->DeferSpillOutputUntilEntry(vreg());
@@ -612,6 +614,8 @@ void VirtualRegisterData::AddDeferredSpillOutput(
     AllocatedOperand allocated_op, int instr_index,
     MidTierRegisterAllocationData* data) {
   DCHECK(!NeedsSpillAtOutput());
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(HasSpillRange());
   spill_range_->AddDeferredSpillOutput(allocated_op, instr_index, data);
 }
 
@@ -2118,6 +2122,8 @@ void SinglePassRegisterAllocator::AllocateDeferredBlockSpillOutput(
   DCHECK(data()->GetBlock(deferred_block)->IsDeferred());
   VirtualRegisterData& vreg_data =
       data()->VirtualRegisterDataFor(virtual_register);
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(vreg_data.HasSpillRange());
   if (!vreg_data.NeedsSpillAtOutput() &&
       !DefinedAfter(virtual_register, instr_index, UsePosition::kEnd)) {
     // If a register has been assigned to the virtual register, and the virtual
@@ -2775,9 +2781,8 @@ void MidTierRegisterAllocator::AllocateRegisters(
     for (RpoNumber successor : block->successors()) {
       if (!data()->GetBlock(successor)->IsDeferred()) continue;
       DCHECK_GT(successor, block_rpo);
-      for (int virtual_register :
+      for (const int virtual_register :
            *data()->block_state(successor).deferred_blocks_region()) {
-        USE(virtual_register);
         AllocatorFor(RepresentationFor(virtual_register))
             .AllocateDeferredBlockSpillOutput(block->last_instruction_index(),
                                               successor, virtual_register);
