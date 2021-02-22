@@ -50,6 +50,21 @@ CAST_ACCESSOR(JSIteratorResult)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSReceiver)
 
+DEF_GETTER(JSObject, elements, FixedArrayBase) {
+  return TaggedField<FixedArrayBase, kElementsOffset>::load(isolate, *this);
+}
+
+FixedArrayBase JSObject::elements(IsolateRoot isolate, RelaxedLoadTag) const {
+  return TaggedField<FixedArrayBase, kElementsOffset>::Relaxed_Load(isolate,
+                                                                    *this);
+}
+
+void JSObject::set_elements(FixedArrayBase value, WriteBarrierMode mode) {
+  // Note the relaxed atomic store.
+  TaggedField<FixedArrayBase, kElementsOffset>::Relaxed_Store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kElementsOffset, value, mode);
+}
+
 MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
                                             Handle<JSReceiver> receiver,
                                             Handle<Name> name) {

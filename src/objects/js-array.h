@@ -26,6 +26,15 @@ class JSArray : public JSObject {
   // [length]: The length property.
   DECL_ACCESSORS(length, Object)
 
+  // Acquire/release semantics on this field are explicitly forbidden to avoid
+  // confusion, since the default setter uses relaxed semantics. If
+  // acquire/release semantics ever become necessary, the default setter should
+  // be reverted to non-atomic behavior, and setters with explicit tags
+  // introduced and used when required.
+  Object length(IsolateRoot isolate, AcquireLoadTag tag) const = delete;
+  void set_length(Object value, ReleaseStoreTag tag,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
+
   // Overload the length setter to skip write barrier when the length
   // is set to a smi. This matches the set function on FixedArray.
   inline void set_length(Smi length);
