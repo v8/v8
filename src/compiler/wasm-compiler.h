@@ -39,6 +39,7 @@ enum class TrapId : uint32_t;
 struct Int64LoweringSpecialCase;
 template <size_t VarCount>
 class GraphAssemblerLabel;
+enum class BranchHint : uint8_t;
 }  // namespace compiler
 
 namespace wasm {
@@ -621,11 +622,11 @@ class WasmGraphBuilder {
   // generates {index > max ? Smi(max) : Smi(index)}
   Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
 
-  using NodeConsumer = std::function<void(Node*)>;
+  using BranchBuilder = std::function<void(Node*, BranchHint)>;
   struct Callbacks {
-    NodeConsumer succeed_if;
-    NodeConsumer fail_if;
-    NodeConsumer fail_if_not;
+    BranchBuilder succeed_if;
+    BranchBuilder fail_if;
+    BranchBuilder fail_if_not;
   };
 
   // This type is used to collect control/effect nodes we need to merge at the
