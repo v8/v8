@@ -19,7 +19,7 @@
 #include "src/objects/struct.h"
 #include "src/roots/roots.h"
 #include "src/wasm/value-type.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 #include "torque-generated/bit-fields.h"
 #include "torque-generated/field-offsets.h"
 
