@@ -2774,12 +2774,12 @@ void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2.gt_s");
+  Cmgt(dst.fp().V2D(), lhs.fp().V2D(), rhs.fp().V2D());
 }
 
 void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2.ge_s");
+  Cmge(dst.fp().V2D(), lhs.fp().V2D(), rhs.fp().V2D());
 }
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
