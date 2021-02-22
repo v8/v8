@@ -5453,6 +5453,24 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   return nullptr;
 }
 
+void String::ExternalStringResource::UpdateDataCache() {
+  DCHECK(IsCacheable());
+  cached_data_ = data();
+}
+
+void String::ExternalStringResource::CheckCachedDataInvariants() const {
+  DCHECK(IsCacheable() && cached_data_ != nullptr);
+}
+
+void String::ExternalOneByteStringResource::UpdateDataCache() {
+  DCHECK(IsCacheable());
+  cached_data_ = data();
+}
+
+void String::ExternalOneByteStringResource::CheckCachedDataInvariants() const {
+  DCHECK(IsCacheable() && cached_data_ != nullptr);
+}
+
 String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
     String::Encoding* encoding_out) const {
   i::DisallowGarbageCollection no_gc;
