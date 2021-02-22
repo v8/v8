@@ -1423,22 +1423,22 @@ class WasmInterpreterInternals {
       WasmValue val;
       switch (p.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
-  case ValueType::valuetype:        \
+  case valuetype:                   \
     val = WasmValue(ctype{});       \
     break;
         FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
-        case ValueType::kOptRef: {
+        case kOptRef: {
           val = WasmValue(isolate_->factory()->null_value());
           break;
         }
-        case ValueType::kRef:  // TODO(7748): Implement.
-        case ValueType::kRtt:
-        case ValueType::kRttWithDepth:
-        case ValueType::kStmt:
-        case ValueType::kBottom:
-        case ValueType::kI8:
-        case ValueType::kI16:
+        case kRef:  // TODO(7748): Implement.
+        case kRtt:
+        case kRttWithDepth:
+        case kStmt:
+        case kBottom:
+        case kI8:
+        case kI16:
           UNREACHABLE();
           break;
       }
@@ -3215,27 +3215,27 @@ class WasmInterpreterInternals {
     for (size_t i = 0; i < sig->parameter_count(); ++i) {
       WasmValue value = GetStackValue(base_index + i);
       switch (sig->GetParam(i).kind()) {
-        case ValueType::kI32: {
+        case kI32: {
           uint32_t u32 = value.to_u32();
           EncodeI32ExceptionValue(encoded_values, &encoded_index, u32);
           break;
         }
-        case ValueType::kF32: {
+        case kF32: {
           uint32_t f32 = value.to_f32_boxed().get_bits();
           EncodeI32ExceptionValue(encoded_values, &encoded_index, f32);
           break;
         }
-        case ValueType::kI64: {
+        case kI64: {
           uint64_t u64 = value.to_u64();
           EncodeI64ExceptionValue(encoded_values, &encoded_index, u64);
           break;
         }
-        case ValueType::kF64: {
+        case kF64: {
           uint64_t f64 = value.to_f64_boxed().get_bits();
           EncodeI64ExceptionValue(encoded_values, &encoded_index, f64);
           break;
         }
-        case ValueType::kS128: {
+        case kS128: {
           int4 s128 = value.to_s128().to_i32x4();
           EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[0]);
           EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[1]);
@@ -3243,8 +3243,8 @@ class WasmInterpreterInternals {
           EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[3]);
           break;
         }
-        case ValueType::kRef:
-        case ValueType::kOptRef: {
+        case kRef:
+        case kOptRef: {
           switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
             case HeapType::kFunc:
@@ -3265,12 +3265,12 @@ class WasmInterpreterInternals {
           }
           break;
         }
-        case ValueType::kRtt:  // TODO(7748): Implement.
-        case ValueType::kRttWithDepth:
-        case ValueType::kI8:
-        case ValueType::kI16:
-        case ValueType::kStmt:
-        case ValueType::kBottom:
+        case kRtt:  // TODO(7748): Implement.
+        case kRttWithDepth:
+        case kI8:
+        case kI16:
+        case kStmt:
+        case kBottom:
           UNREACHABLE();
       }
     }
@@ -3331,31 +3331,31 @@ class WasmInterpreterInternals {
     for (size_t i = 0; i < sig->parameter_count(); ++i) {
       WasmValue value;
       switch (sig->GetParam(i).kind()) {
-        case ValueType::kI32: {
+        case kI32: {
           uint32_t u32 = 0;
           DecodeI32ExceptionValue(encoded_values, &encoded_index, &u32);
           value = WasmValue(u32);
           break;
         }
-        case ValueType::kF32: {
+        case kF32: {
           uint32_t f32_bits = 0;
           DecodeI32ExceptionValue(encoded_values, &encoded_index, &f32_bits);
           value = WasmValue(Float32::FromBits(f32_bits));
           break;
         }
-        case ValueType::kI64: {
+        case kI64: {
           uint64_t u64 = 0;
           DecodeI64ExceptionValue(encoded_values, &encoded_index, &u64);
           value = WasmValue(u64);
           break;
         }
-        case ValueType::kF64: {
+        case kF64: {
           uint64_t f64_bits = 0;
           DecodeI64ExceptionValue(encoded_values, &encoded_index, &f64_bits);
           value = WasmValue(Float64::FromBits(f64_bits));
           break;
         }
-        case ValueType::kS128: {
+        case kS128: {
           int4 s128 = {0, 0, 0, 0};
           uint32_t* vals = reinterpret_cast<uint32_t*>(s128.val);
           DecodeI32ExceptionValue(encoded_values, &encoded_index, &vals[0]);
@@ -3365,8 +3365,8 @@ class WasmInterpreterInternals {
           value = WasmValue(Simd128(s128));
           break;
         }
-        case ValueType::kRef:
-        case ValueType::kOptRef: {
+        case kRef:
+        case kOptRef: {
           switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
             case HeapType::kFunc:
@@ -3383,12 +3383,12 @@ class WasmInterpreterInternals {
           }
           break;
         }
-        case ValueType::kRtt:  // TODO(7748): Implement.
-        case ValueType::kRttWithDepth:
-        case ValueType::kI8:
-        case ValueType::kI16:
-        case ValueType::kStmt:
-        case ValueType::kBottom:
+        case kRtt:  // TODO(7748): Implement.
+        case kRttWithDepth:
+        case kI8:
+        case kI16:
+        case kStmt:
+        case kBottom:
           UNREACHABLE();
       }
       Push(value);
@@ -3759,7 +3759,7 @@ class WasmInterpreterInternals {
           auto& global = module()->globals[imm.index];
           switch (global.type.kind()) {
 #define CASE_TYPE(valuetype, ctype)                                     \
-  case ValueType::valuetype: {                                          \
+  case valuetype: {                                                     \
     uint8_t* ptr =                                                      \
         WasmInstanceObject::GetGlobalStorage(instance_object_, global); \
     WriteLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr),       \
@@ -3768,8 +3768,8 @@ class WasmInterpreterInternals {
   }
             FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
-            case ValueType::kRef:
-            case ValueType::kOptRef: {
+            case kRef:
+            case kOptRef: {
               // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
@@ -3781,12 +3781,12 @@ class WasmInterpreterInternals {
               global_buffer->set(global_index, *ref);
               break;
             }
-            case ValueType::kRtt:  // TODO(7748): Implement.
-            case ValueType::kRttWithDepth:
-            case ValueType::kI8:
-            case ValueType::kI16:
-            case ValueType::kStmt:
-            case ValueType::kBottom:
+            case kRtt:  // TODO(7748): Implement.
+            case kRttWithDepth:
+            case kI8:
+            case kI16:
+            case kStmt:
+            case kBottom:
               UNREACHABLE();
           }
           len = 1 + imm.length;
@@ -4155,19 +4155,19 @@ class WasmInterpreterInternals {
       }
       WasmValue val = GetStackValue(i);
       switch (val.type().kind()) {
-        case ValueType::kI32:
+        case kI32:
           PrintF("i32:%d", val.to<int32_t>());
           break;
-        case ValueType::kI64:
+        case kI64:
           PrintF("i64:%" PRId64 "", val.to<int64_t>());
           break;
-        case ValueType::kF32:
+        case kF32:
           PrintF("f32:%a", val.to<float>());
           break;
-        case ValueType::kF64:
+        case kF64:
           PrintF("f64:%la", val.to<double>());
           break;
-        case ValueType::kS128: {
+        case kS128: {
           // This defaults to tracing all S128 values as i32x4 values for now,
           // when there is more state to know what type of values are on the
           // stack, the right format should be printed here.
@@ -4175,11 +4175,11 @@ class WasmInterpreterInternals {
           PrintF("i32x4:%d,%d,%d,%d", s.val[0], s.val[1], s.val[2], s.val[3]);
           break;
         }
-        case ValueType::kStmt:
+        case kStmt:
           PrintF("void");
           break;
-        case ValueType::kRef:
-        case ValueType::kOptRef: {
+        case kRef:
+        case kOptRef: {
           if (val.type().is_reference_to(HeapType::kExtern)) {
             Handle<Object> ref = val.to_externref();
             if (ref->IsNull()) {
@@ -4193,14 +4193,14 @@ class WasmInterpreterInternals {
           }
           break;
         }
-        case ValueType::kRtt:
-        case ValueType::kRttWithDepth:
+        case kRtt:
+        case kRttWithDepth:
           // TODO(7748): Implement properly.
           PrintF("rtt");
           break;
-        case ValueType::kI8:
-        case ValueType::kI16:
-        case ValueType::kBottom:
+        case kI8:
+        case kI16:
+        case kBottom:
           UNREACHABLE();
           break;
       }

@@ -74,19 +74,19 @@ inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueType type) {
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       return reg.gp().W();
-    case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kI64:
+    case kRef:
+    case kOptRef:
+    case kRtt:
+    case kRttWithDepth:
       return reg.gp().X();
-    case ValueType::kF32:
+    case kF32:
       return reg.fp().S();
-    case ValueType::kF64:
+    case kF64:
       return reg.fp().D();
-    case ValueType::kS128:
+    case kS128:
       return reg.fp().Q();
     default:
       UNREACHABLE();
@@ -106,13 +106,13 @@ inline CPURegList PadVRegList(RegList list) {
 inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
                                  ValueType type) {
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       return temps->AcquireW();
-    case ValueType::kI64:
+    case kI64:
       return temps->AcquireX();
-    case ValueType::kF32:
+    case kF32:
       return temps->AcquireS();
-    case ValueType::kF64:
+    case kF64:
       return temps->AcquireD();
     default:
       UNREACHABLE();
@@ -361,7 +361,7 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
   // TODO(zhin): Unaligned access typically take additional cycles, we should do
   // some performance testing to see how big an effect it will take.
   switch (type.kind()) {
-    case ValueType::kS128:
+    case kS128:
       return type.element_size_bytes();
     default:
       return kStackSlotSize;
@@ -369,22 +369,22 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return type.kind() == ValueType::kS128 || type.is_reference_type();
+  return type.kind() == kS128 || type.is_reference_type();
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type().kind()) {
-    case ValueType::kI32:
+    case kI32:
       Mov(reg.gp().W(), Immediate(value.to_i32(), rmode));
       break;
-    case ValueType::kI64:
+    case kI64:
       Mov(reg.gp().X(), Immediate(value.to_i64(), rmode));
       break;
-    case ValueType::kF32:
+    case kF32:
       Fmov(reg.fp().S(), value.to_f32_boxed().get_scalar());
       break;
-    case ValueType::kF64:
+    case kF64:
       Fmov(reg.fp().D(), value.to_f64_boxed().get_scalar());
       break;
     default:
@@ -894,7 +894,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   UseScratchRegisterScope temps(this);
   CPURegister src = CPURegister::no_reg();
   switch (value.type().kind()) {
-    case ValueType::kI32:
+    case kI32:
       if (value.to_i32() == 0) {
         src = wzr;
       } else {
@@ -902,7 +902,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
         Mov(src.W(), value.to_i32());
       }
       break;
-    case ValueType::kI64:
+    case kI64:
       if (value.to_i64() == 0) {
         src = xzr;
       } else {
@@ -1506,21 +1506,21 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
                                       Register lhs, Register rhs) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       if (rhs.is_valid()) {
         Cmp(lhs.W(), rhs.W());
       } else {
         Cmp(lhs.W(), wzr);
       }
       break;
-    case ValueType::kRef:
-    case ValueType::kOptRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kRef:
+    case kOptRef:
+    case kRtt:
+    case kRttWithDepth:
       DCHECK(rhs.is_valid());
       DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
       V8_FALLTHROUGH;
-    case ValueType::kI64:
+    case kI64:
       if (rhs.is_valid()) {
         Cmp(lhs.X(), rhs.X());
       } else {

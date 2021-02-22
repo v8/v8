@@ -824,17 +824,17 @@ Handle<WasmValueObject> WasmValueObject::New(Isolate* isolate, Type type,
 Handle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
                                              const wasm::WasmValue& value) {
   switch (value.type().kind()) {
-    case wasm::ValueType::kF32:
+    case wasm::kF32:
       return New(isolate, kF32, isolate->factory()->NewNumber(value.to_f32()));
-    case wasm::ValueType::kF64:
+    case wasm::kF64:
       return New(isolate, kF64, isolate->factory()->NewNumber(value.to_f64()));
-    case wasm::ValueType::kI32:
+    case wasm::kI32:
       return New(isolate, kI32, isolate->factory()->NewNumber(value.to_i32()));
-    case wasm::ValueType::kI64:
+    case wasm::kI64:
       return New(isolate, kI64, BigInt::FromInt64(isolate, value.to_i64()));
-    case wasm::ValueType::kRef:
+    case wasm::kRef:
       return New(isolate, kExternRef, value.to_externref());
-    case wasm::ValueType::kS128:
+    case wasm::kS128:
       return New(isolate, kV128, WasmSimd128ToString(isolate, value.to_s128()));
     default:
       UNREACHABLE();

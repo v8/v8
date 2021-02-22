@@ -1806,13 +1806,13 @@ class RepresentationSelector {
 
   static MachineType MachineTypeForWasmReturnType(wasm::ValueType type) {
     switch (type.kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         return MachineType::Int32();
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         return MachineType::Float32();
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         return MachineType::Float64();
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         // Not used for i64, see VisitJSWasmCall().
       default:
         UNREACHABLE();
@@ -1826,12 +1826,12 @@ class RepresentationSelector {
     // UseInfo::AnyTagged to signal that WasmWrapperGraphBuilder will need to
     // add Nodes to perform the conversion (in WasmWrapperGraphBuilder::FromJS).
     switch (type.kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         return UseInfo::AnyTagged();
-      case wasm::ValueType::kF32:
-      case wasm::ValueType::kF64:
+      case wasm::kF32:
+      case wasm::kF64:
         // For Float32, TruncateFloat64ToFloat32 will be inserted later in
         // WasmWrapperGraphBuilder::BuildJSToWasmWrapper.
         return UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
@@ -1883,7 +1883,7 @@ class RepresentationSelector {
     ProcessRemainingInputs<T>(node, NodeProperties::FirstEffectIndex(node));
 
     if (wasm_signature->return_count() == 1) {
-      if (wasm_signature->GetReturn().kind() == wasm::ValueType::kI64) {
+      if (wasm_signature->GetReturn().kind() == wasm::kI64) {
         // Conversion between negative int64 and BigInt not supported yet.
         // Do not bypass the type conversion when the result type is i64.
         SetOutput<T>(node, MachineRepresentation::kTagged);

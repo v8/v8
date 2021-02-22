@@ -858,20 +858,20 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
         raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
         global.type.name().c_str());
   switch (global.type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
                                       DoubleToInt32(num));
       break;
-    case ValueType::kI64:
+    case kI64:
       // The Wasm-BigInt proposal currently says that i64 globals may
       // only be initialized with BigInts. See:
       // https://github.com/WebAssembly/JS-BigInt-integration/issues/12
       UNREACHABLE();
-    case ValueType::kF32:
+    case kF32:
       WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
                                     DoubleToFloat32(num));
       break;
-    case ValueType::kF64:
+    case kF64:
       WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
       break;
     default:
@@ -892,42 +892,42 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
   TRACE("init [globals_start=%p + %u] = ", raw_buffer_ptr(untagged_globals_, 0),
         global.offset);
   switch (global.type.kind()) {
-    case ValueType::kI32: {
+    case kI32: {
       int32_t num = value->GetI32();
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global), num);
       TRACE("%d", num);
       break;
     }
-    case ValueType::kI64: {
+    case kI64: {
       int64_t num = value->GetI64();
       WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
       TRACE("%" PRId64, num);
       break;
     }
-    case ValueType::kF32: {
+    case kF32: {
       float num = value->GetF32();
       WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global), num);
       TRACE("%f", num);
       break;
     }
-    case ValueType::kF64: {
+    case kF64: {
       double num = value->GetF64();
       WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
       TRACE("%lf", num);
       break;
     }
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
-    case ValueType::kRef:
-    case ValueType::kOptRef: {
+    case kRtt:
+    case kRttWithDepth:
+    case kRef:
+    case kOptRef: {
       tagged_globals_->set(global.offset, *value->GetRef());
       break;
     }
-    case ValueType::kStmt:
-    case ValueType::kS128:
-    case ValueType::kBottom:
-    case ValueType::kI8:
-    case ValueType::kI16:
+    case kStmt:
+    case kS128:
+    case kBottom:
+    case kI8:
+    case kI16:
       UNREACHABLE();
   }
   TRACE(", type = %s (from WebAssembly.Global)\n", global.type.name().c_str());

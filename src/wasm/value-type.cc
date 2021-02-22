@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-base::Optional<wasm::ValueType::Kind> WasmReturnTypeFromSignature(
+base::Optional<wasm::ValueKind> WasmReturnTypeFromSignature(
     const FunctionSig* wasm_signature) {
   if (wasm_signature->return_count() == 0) {
     return {};
@@ -18,10 +18,10 @@ base::Optional<wasm::ValueType::Kind> WasmReturnTypeFromSignature(
     DCHECK_EQ(wasm_signature->return_count(), 1);
     ValueType return_type = wasm_signature->GetReturn(0);
     switch (return_type.kind()) {
-      case ValueType::kI32:
-      case ValueType::kI64:
-      case ValueType::kF32:
-      case ValueType::kF64:
+      case kI32:
+      case kI64:
+      case kF32:
+      case kF64:
         return {return_type.kind()};
       default:
         UNREACHABLE();

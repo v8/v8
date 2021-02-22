@@ -275,32 +275,32 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   DCHECK(subtype != supertype || sub_module != super_module);
 
   switch (subtype.kind()) {
-    case ValueType::kI32:
-    case ValueType::kI64:
-    case ValueType::kF32:
-    case ValueType::kF64:
-    case ValueType::kS128:
-    case ValueType::kI8:
-    case ValueType::kI16:
-    case ValueType::kStmt:
-    case ValueType::kBottom:
+    case kI32:
+    case kI64:
+    case kF32:
+    case kF64:
+    case kS128:
+    case kI8:
+    case kI16:
+    case kStmt:
+    case kBottom:
       return subtype == supertype;
-    case ValueType::kRtt:
-      return supertype.kind() == ValueType::kRtt &&
+    case kRtt:
+      return supertype.kind() == kRtt &&
              EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                sub_module, super_module);
-    case ValueType::kRttWithDepth:
-      return (supertype.kind() == ValueType::kRtt &&
+    case kRttWithDepth:
+      return (supertype.kind() == kRtt &&
               ((sub_module == super_module &&
                 subtype.ref_index() == supertype.ref_index()) ||
                EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                  sub_module, super_module))) ||
-             (supertype.kind() == ValueType::kRttWithDepth &&
+             (supertype.kind() == kRttWithDepth &&
               supertype.depth() == subtype.depth() &&
               EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                 sub_module, super_module));
-    case ValueType::kRef:
-    case ValueType::kOptRef:
+    case kRef:
+    case kOptRef:
       break;
   }
 

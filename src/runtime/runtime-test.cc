@@ -1117,22 +1117,22 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
   if (num_returns == 1) {
     wasm::ValueType return_type = sig->GetReturn(0);
     switch (return_type.kind()) {
-      case wasm::ValueType::kI32: {
+      case wasm::kI32: {
         int32_t value = ReadUnalignedValue<int32_t>(value_addr_smi.ptr());
         PrintF(" -> %d\n", value);
         break;
       }
-      case wasm::ValueType::kI64: {
+      case wasm::kI64: {
         int64_t value = ReadUnalignedValue<int64_t>(value_addr_smi.ptr());
         PrintF(" -> %" PRId64 "\n", value);
         break;
       }
-      case wasm::ValueType::kF32: {
+      case wasm::kF32: {
         float_t value = ReadUnalignedValue<float_t>(value_addr_smi.ptr());
         PrintF(" -> %f\n", value);
         break;
       }
-      case wasm::ValueType::kF64: {
+      case wasm::kF64: {
         double_t value = ReadUnalignedValue<double_t>(value_addr_smi.ptr());
         PrintF(" -> %f\n", value);
         break;

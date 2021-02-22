@@ -173,6 +173,12 @@ class HeapType {
 
 enum Nullability : bool { kNonNullable, kNullable };
 
+enum ValueKind : uint8_t {
+#define DEF_ENUM(kind, ...) k##kind,
+  FOREACH_VALUE_TYPE(DEF_ENUM)
+#undef DEF_ENUM
+};
+
 // A ValueType is encoded by three components: A Kind, a heap representation
 // (for reference types), and an inheritance depth (for rtts only). Those are
 // encoded into 32 bits using base::BitField. The underlying Kind enumeration
@@ -181,15 +187,9 @@ enum Nullability : bool { kNonNullable, kNullable };
 // value (for internal use).
 class ValueType {
  public:
-  enum Kind : uint8_t {
-#define DEF_ENUM(kind, ...) k##kind,
-    FOREACH_VALUE_TYPE(DEF_ENUM)
-#undef DEF_ENUM
-  };
-
   /******************************* Constructors *******************************/
   constexpr ValueType() : bit_field_(KindField::encode(kStmt)) {}
-  static constexpr ValueType Primitive(Kind kind) {
+  static constexpr ValueType Primitive(ValueKind kind) {
     CONSTEXPR_DCHECK(kind == kBottom || kind <= kI16);
     return ValueType(KindField::encode(kind));
   }
@@ -262,7 +262,7 @@ class ValueType {
   }
 
   /***************************** Field Accessors ******************************/
-  constexpr Kind kind() const { return KindField::decode(bit_field_); }
+  constexpr ValueKind kind() const { return KindField::decode(bit_field_); }
   constexpr HeapType::Representation heap_representation() const {
     CONSTEXPR_DCHECK(is_object_reference_type());
     return static_cast<HeapType::Representation>(
@@ -472,7 +472,7 @@ class ValueType {
   // Note: we currently conservatively allow only 5 bits, but have room to
   // store 6, so we can raise the limit if needed.
   STATIC_ASSERT(kV8MaxRttSubtypingDepth < (1u << kDepthBits));
-  using KindField = base::BitField<Kind, 0, kKindBits>;
+  using KindField = base::BitField<ValueKind, 0, kKindBits>;
   using HeapTypeField = KindField::Next<uint32_t, kHeapTypeBits>;
   using DepthField = HeapTypeField::Next<uint8_t, kDepthBits>;
 
@@ -491,7 +491,6 @@ class ValueType {
 #undef TYPE_NAME
     };
 
-    CONSTEXPR_DCHECK(kind() < arraysize(kTypeName));
     return kTypeName[kind()];
   }
 
@@ -511,15 +510,15 @@ inline std::ostream& operator<<(std::ostream& oss, ValueType type) {
 }
 
 // Precomputed primitive types.
-constexpr ValueType kWasmI32 = ValueType::Primitive(ValueType::kI32);
-constexpr ValueType kWasmI64 = ValueType::Primitive(ValueType::kI64);
-constexpr ValueType kWasmF32 = ValueType::Primitive(ValueType::kF32);
-constexpr ValueType kWasmF64 = ValueType::Primitive(ValueType::kF64);
-constexpr ValueType kWasmS128 = ValueType::Primitive(ValueType::kS128);
-constexpr ValueType kWasmI8 = ValueType::Primitive(ValueType::kI8);
-constexpr ValueType kWasmI16 = ValueType::Primitive(ValueType::kI16);
-constexpr ValueType kWasmStmt = ValueType::Primitive(ValueType::kStmt);
-constexpr ValueType kWasmBottom = ValueType::Primitive(ValueType::kBottom);
+constexpr ValueType kWasmI32 = ValueType::Primitive(kI32);
+constexpr ValueType kWasmI64 = ValueType::Primitive(kI64);
+constexpr ValueType kWasmF32 = ValueType::Primitive(kF32);
+constexpr ValueType kWasmF64 = ValueType::Primitive(kF64);
+constexpr ValueType kWasmS128 = ValueType::Primitive(kS128);
+constexpr ValueType kWasmI8 = ValueType::Primitive(kI8);
+constexpr ValueType kWasmI16 = ValueType::Primitive(kI16);
+constexpr ValueType kWasmStmt = ValueType::Primitive(kStmt);
+constexpr ValueType kWasmBottom = ValueType::Primitive(kBottom);
 // Established reference-type proposal shorthands.
 constexpr ValueType kWasmFuncRef = ValueType::Ref(HeapType::kFunc, kNullable);
 constexpr ValueType kWasmExternRef =
@@ -576,19 +575,19 @@ class LoadType {
 
   static LoadType ForValueType(ValueType type, bool is_signed = false) {
     switch (type.kind()) {
-      case ValueType::kI32:
+      case kI32:
         return kI32Load;
-      case ValueType::kI64:
+      case kI64:
         return kI64Load;
-      case ValueType::kF32:
+      case kF32:
         return kF32Load;
-      case ValueType::kF64:
+      case kF64:
         return kF64Load;
-      case ValueType::kS128:
+      case kS128:
         return kS128Load;
-      case ValueType::kI8:
+      case kI8:
         return is_signed ? kI32Load8S : kI32Load8U;
-      case ValueType::kI16:
+      case kI16:
         return is_signed ? kI32Load16S : kI32Load16U;
       default:
         UNREACHABLE();
@@ -608,7 +607,7 @@ class LoadType {
   };
 
   static constexpr ValueType kValueType[] = {
-#define VALUE_TYPE(type, ...) ValueType::Primitive(ValueType::k##type),
+#define VALUE_TYPE(type, ...) ValueType::Primitive(k##type),
       FOREACH_LOAD_TYPE(VALUE_TYPE)
 #undef VALUE_TYPE
   };
@@ -652,19 +651,19 @@ class StoreType {
 
   static StoreType ForValueType(ValueType type) {
     switch (type.kind()) {
-      case ValueType::kI32:
+      case kI32:
         return kI32Store;
-      case ValueType::kI64:
+      case kI64:
         return kI64Store;
-      case ValueType::kF32:
+      case kF32:
         return kF32Store;
-      case ValueType::kF64:
+      case kF64:
         return kF64Store;
-      case ValueType::kS128:
+      case kS128:
         return kS128Store;
-      case ValueType::kI8:
+      case kI8:
         return kI32Store8;
-      case ValueType::kI16:
+      case kI16:
         return kI32Store16;
       default:
         UNREACHABLE();
@@ -683,7 +682,7 @@ class StoreType {
   };
 
   static constexpr ValueType kValueType[] = {
-#define VALUE_TYPE(type, ...) ValueType::Primitive(ValueType::k##type),
+#define VALUE_TYPE(type, ...) ValueType::Primitive(k##type),
       FOREACH_STORE_TYPE(VALUE_TYPE)
 #undef VALUE_TYPE
   };
@@ -695,7 +694,7 @@ class StoreType {
   };
 };
 
-base::Optional<wasm::ValueType::Kind> WasmReturnTypeFromSignature(
+base::Optional<wasm::ValueKind> WasmReturnTypeFromSignature(
     const FunctionSig* wasm_signature);
 
 }  // namespace wasm

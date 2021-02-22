@@ -86,10 +86,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                 ref_type != kWasmFuncRef && ref_type != kWasmExternRef &&
                     ref_type != kWasmAnyRef);
       // Non-nullable struct/array types are subtypes of dataref.
-      EXPECT_EQ(
-          IsSubtypeOf(ref_type, kWasmDataRef, module1, module),
-          ref_type == kWasmDataRef ||
-              (ref_type.kind() == ValueType::kRef && ref_type.has_index()));
+      EXPECT_EQ(IsSubtypeOf(ref_type, kWasmDataRef, module1, module),
+                ref_type == kWasmDataRef ||
+                    (ref_type.kind() == kRef && ref_type.has_index()));
       // Each reference type is a subtype of itself.
       EXPECT_TRUE(IsSubtypeOf(ref_type, ref_type, module1, module));
       // Each reference type is a subtype of anyref.

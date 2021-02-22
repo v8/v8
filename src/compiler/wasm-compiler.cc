@@ -197,11 +197,11 @@ Node* GetBuiltinPointerTarget(MachineGraph* mcgraph,
 JSWasmCallData::JSWasmCallData(const wasm::FunctionSig* wasm_signature)
     : result_needs_conversion_(wasm_signature->return_count() == 1 &&
                                wasm_signature->GetReturn().kind() ==
-                                   wasm::ValueType::kI64) {
+                                   wasm::kI64) {
   arg_needs_conversion_.resize(wasm_signature->parameter_count());
   for (size_t i = 0; i < wasm_signature->parameter_count(); i++) {
     wasm::ValueType type = wasm_signature->GetParam(i);
-    arg_needs_conversion_[i] = type.kind() == wasm::ValueType::kI64;
+    arg_needs_conversion_[i] = type.kind() == wasm::kI64;
   }
 }
 
@@ -1441,21 +1441,21 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
   bool isFloat = false;
 
   switch (wasmtype.kind()) {
-    case wasm::ValueType::kF64:
+    case wasm::kF64:
       value = graph()->NewNode(m->BitcastFloat64ToInt64(), node);
       isFloat = true;
       V8_FALLTHROUGH;
-    case wasm::ValueType::kI64:
+    case wasm::kI64:
       result = mcgraph()->Int64Constant(0);
       break;
-    case wasm::ValueType::kF32:
+    case wasm::kF32:
       value = graph()->NewNode(m->BitcastFloat32ToInt32(), node);
       isFloat = true;
       V8_FALLTHROUGH;
-    case wasm::ValueType::kI32:
+    case wasm::kI32:
       result = mcgraph()->Int32Constant(0);
       break;
-    case wasm::ValueType::kS128:
+    case wasm::kS128:
       DCHECK(ReverseBytesSupported(m, valueSizeInBytes));
       break;
     default:
@@ -1545,10 +1545,10 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
 
   if (isFloat) {
     switch (wasmtype.kind()) {
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         result = graph()->NewNode(m->BitcastInt64ToFloat64(), result);
         break;
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         result = graph()->NewNode(m->BitcastInt32ToFloat32(), result);
         break;
       default:
@@ -2322,16 +2322,16 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     Node* value = values[i];
     switch (sig->GetParam(i).kind()) {
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         value = graph()->NewNode(m->BitcastFloat32ToInt32(), value);
         V8_FALLTHROUGH;
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         BuildEncodeException32BitValue(values_array, &index, value);
         break;
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         value = graph()->NewNode(m->BitcastFloat64ToInt64(), value);
         V8_FALLTHROUGH;
-      case wasm::ValueType::kI64: {
+      case wasm::kI64: {
         Node* upper32 = graph()->NewNode(
             m->TruncateInt64ToInt32(),
             Binop(wasm::kExprI64ShrU, value, Int64Constant(32)));
@@ -2340,7 +2340,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         BuildEncodeException32BitValue(values_array, &index, lower32);
         break;
       }
-      case wasm::ValueType::kS128:
+      case wasm::kS128:
         BuildEncodeException32BitValue(
             values_array, &index,
             graph()->NewNode(m->I32x4ExtractLane(0), value));
@@ -2354,17 +2354,17 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
             values_array, &index,
             graph()->NewNode(m->I32x4ExtractLane(3), value));
         break;
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef:
+      case wasm::kRef:
+      case wasm::kOptRef:
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
         break;
-      case wasm::ValueType::kRtt:  // TODO(7748): Implement.
-      case wasm::ValueType::kRttWithDepth:
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
-      case wasm::ValueType::kStmt:
-      case wasm::ValueType::kBottom:
+      case wasm::kRtt:  // TODO(7748): Implement.
+      case wasm::kRttWithDepth:
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kStmt:
+      case wasm::kBottom:
         UNREACHABLE();
     }
   }
@@ -2461,23 +2461,23 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     Node* value;
     switch (sig->GetParam(i).kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         value = BuildDecodeException32BitValue(values_array, &index);
         break;
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         value = BuildDecodeException64BitValue(values_array, &index);
         break;
-      case wasm::ValueType::kF32: {
+      case wasm::kF32: {
         value = Unop(wasm::kExprF32ReinterpretI32,
                      BuildDecodeException32BitValue(values_array, &index));
         break;
       }
-      case wasm::ValueType::kF64: {
+      case wasm::kF64: {
         value = Unop(wasm::kExprF64ReinterpretI64,
                      BuildDecodeException64BitValue(values_array, &index));
         break;
       }
-      case wasm::ValueType::kS128:
+      case wasm::kS128:
         value = graph()->NewNode(
             mcgraph()->machine()->I32x4Splat(),
             BuildDecodeException32BitValue(values_array, &index));
@@ -2491,17 +2491,17 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
             mcgraph()->machine()->I32x4ReplaceLane(3), value,
             BuildDecodeException32BitValue(values_array, &index));
         break;
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef:
+      case wasm::kRef:
+      case wasm::kOptRef:
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
         break;
-      case wasm::ValueType::kRtt:  // TODO(7748): Implement.
-      case wasm::ValueType::kRttWithDepth:
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
-      case wasm::ValueType::kStmt:
-      case wasm::ValueType::kBottom:
+      case wasm::kRtt:  // TODO(7748): Implement.
+      case wasm::kRttWithDepth:
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kStmt:
+      case wasm::kBottom:
         UNREACHABLE();
     }
     values[i] = value;
@@ -6370,19 +6370,19 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* ToJS(Node* node, wasm::ValueType type) {
     switch (type.kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         return BuildChangeInt32ToNumber(node);
-      case wasm::ValueType::kS128:
+      case wasm::kS128:
         UNREACHABLE();
-      case wasm::ValueType::kI64: {
+      case wasm::kI64: {
         return BuildChangeInt64ToBigInt(node);
       }
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         return BuildChangeFloat32ToNumber(node);
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         return BuildChangeFloat64ToNumber(node);
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef: {
+      case wasm::kRef:
+      case wasm::kOptRef: {
         uint32_t representation = type.heap_representation();
         if (representation == wasm::HeapType::kExtern ||
             representation == wasm::HeapType::kFunc) {
@@ -6411,14 +6411,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         // TODO(7748): Figure out a JS interop story for arrays and structs.
         UNREACHABLE();
       }
-      case wasm::ValueType::kRtt:
-      case wasm::ValueType::kRttWithDepth:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth:
         // TODO(7748): Figure out what to do for RTTs.
         UNIMPLEMENTED();
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
-      case wasm::ValueType::kStmt:
-      case wasm::ValueType::kBottom:
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kStmt:
+      case wasm::kBottom:
         UNREACHABLE();
     }
   }
@@ -6525,8 +6525,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* FromJS(Node* input, Node* js_context, wasm::ValueType type,
                Node* frame_state = nullptr) {
     switch (type.kind()) {
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef: {
+      case wasm::kRef:
+      case wasm::kOptRef: {
         switch (type.heap_representation()) {
           case wasm::HeapType::kExtern:
             return input;
@@ -6556,28 +6556,28 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             UNREACHABLE();
         }
       }
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         return graph()->NewNode(
             mcgraph()->machine()->TruncateFloat64ToFloat32(),
             BuildChangeTaggedToFloat64(input, js_context, frame_state));
 
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         return BuildChangeTaggedToFloat64(input, js_context, frame_state);
 
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         return BuildChangeTaggedToInt32(input, js_context, frame_state);
 
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         // i64 values can only come from BigInt.
         return BuildChangeBigIntToInt64(input, js_context, frame_state);
 
-      case wasm::ValueType::kRtt:  // TODO(7748): Implement.
-      case wasm::ValueType::kRttWithDepth:
-      case wasm::ValueType::kS128:
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
-      case wasm::ValueType::kBottom:
-      case wasm::ValueType::kStmt:
+      case wasm::kRtt:  // TODO(7748): Implement.
+      case wasm::kRttWithDepth:
+      case wasm::kS128:
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kBottom:
+      case wasm::kStmt:
         UNREACHABLE();
         break;
     }
@@ -6600,9 +6600,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* FromJSFast(Node* input, wasm::ValueType type) {
     switch (type.kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         return BuildChangeSmiToInt32(input);
-      case wasm::ValueType::kF32: {
+      case wasm::kF32: {
         auto done = gasm_->MakeLabel(MachineRepresentation::kFloat32);
         auto heap_number = gasm_->MakeLabel();
         gasm_->GotoIfNot(IsSmi(input), &heap_number);
@@ -6615,7 +6615,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         gasm_->Bind(&done);
         return done.PhiAt(0);
       }
-      case wasm::ValueType::kF64: {
+      case wasm::kF64: {
         auto done = gasm_->MakeLabel(MachineRepresentation::kFloat64);
         auto heap_number = gasm_->MakeLabel();
         gasm_->GotoIfNot(IsSmi(input), &heap_number);
@@ -6625,16 +6625,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         gasm_->Bind(&done);
         return done.PhiAt(0);
       }
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kI64:
-      case wasm::ValueType::kRtt:
-      case wasm::ValueType::kRttWithDepth:
-      case wasm::ValueType::kS128:
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
-      case wasm::ValueType::kBottom:
-      case wasm::ValueType::kStmt:
+      case wasm::kRef:
+      case wasm::kOptRef:
+      case wasm::kI64:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth:
+      case wasm::kS128:
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kBottom:
+      case wasm::kStmt:
         UNREACHABLE();
         break;
     }
@@ -6807,20 +6807,20 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     for (int i = 0; i < wasm_count; ++i) {
       wasm::ValueType type = sig_->GetParam(i);
       switch (type.kind()) {
-        case wasm::ValueType::kRef:
-        case wasm::ValueType::kOptRef:
-        case wasm::ValueType::kI64:
-        case wasm::ValueType::kRtt:
-        case wasm::ValueType::kRttWithDepth:
-        case wasm::ValueType::kS128:
-        case wasm::ValueType::kI8:
-        case wasm::ValueType::kI16:
-        case wasm::ValueType::kBottom:
-        case wasm::ValueType::kStmt:
+        case wasm::kRef:
+        case wasm::kOptRef:
+        case wasm::kI64:
+        case wasm::kRtt:
+        case wasm::kRttWithDepth:
+        case wasm::kS128:
+        case wasm::kI8:
+        case wasm::kI16:
+        case wasm::kBottom:
+        case wasm::kStmt:
           return false;
-        case wasm::ValueType::kI32:
-        case wasm::ValueType::kF32:
-        case wasm::ValueType::kF64:
+        case wasm::kI32:
+        case wasm::kF32:
+        case wasm::kF64:
           break;
       }
     }
@@ -6838,12 +6838,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Node* input, wasm::ValueType type,
       v8::internal::compiler::GraphAssemblerLabel<0>* slow_path) {
     switch (type.kind()) {
-      case wasm::ValueType::kI32: {
+      case wasm::kI32: {
         gasm_->GotoIfNot(IsSmi(input), slow_path);
         return;
       }
-      case wasm::ValueType::kF32:
-      case wasm::ValueType::kF64: {
+      case wasm::kF32:
+      case wasm::kF64: {
         auto done = gasm_->MakeLabel();
         gasm_->GotoIf(IsSmi(input), &done);
         Node* map =
@@ -6858,16 +6858,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         gasm_->Bind(&done);
         return;
       }
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kI64:
-      case wasm::ValueType::kRtt:
-      case wasm::ValueType::kRttWithDepth:
-      case wasm::ValueType::kS128:
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
-      case wasm::ValueType::kBottom:
-      case wasm::ValueType::kStmt:
+      case wasm::kRef:
+      case wasm::kOptRef:
+      case wasm::kI64:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth:
+      case wasm::kS128:
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kBottom:
+      case wasm::kStmt:
         UNREACHABLE();
         break;
     }
@@ -6960,7 +6960,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         // we set UseInfo::CheckedNumberOrOddballAsFloat64 in
         // simplified-lowering and we need to add here a conversion from Float64
         // to Float32.
-        if (sig_->GetParam(i).kind() == wasm::ValueType::kF32) {
+        if (sig_->GetParam(i).kind() == wasm::kF32) {
           wasm_param = graph()->NewNode(
               mcgraph()->machine()->TruncateFloat64ToFloat32(), wasm_param);
         }

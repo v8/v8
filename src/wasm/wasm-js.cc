@@ -1296,7 +1296,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Convert value to a WebAssembly value, the default value is 0.
   Local<v8::Value> value = Local<Value>::Cast(args[1]);
   switch (type.kind()) {
-    case i::wasm::ValueType::kI32: {
+    case i::wasm::kI32: {
       int32_t i32_value = 0;
       if (!value->IsUndefined()) {
         v8::Local<v8::Int32> int32_value;
@@ -1306,7 +1306,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetI32(i32_value);
       break;
     }
-    case i::wasm::ValueType::kI64: {
+    case i::wasm::kI64: {
       int64_t i64_value = 0;
       if (!value->IsUndefined()) {
         v8::Local<v8::BigInt> bigint_value;
@@ -1316,7 +1316,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetI64(i64_value);
       break;
     }
-    case i::wasm::ValueType::kF32: {
+    case i::wasm::kF32: {
       float f32_value = 0;
       if (!value->IsUndefined()) {
         double f64_value = 0;
@@ -1328,7 +1328,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF32(f32_value);
       break;
     }
-    case i::wasm::ValueType::kF64: {
+    case i::wasm::kF64: {
       double f64_value = 0;
       if (!value->IsUndefined()) {
         v8::Local<v8::Number> number_value;
@@ -1338,8 +1338,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF64(f64_value);
       break;
     }
-    case i::wasm::ValueType::kRef:
-    case i::wasm::ValueType::kOptRef: {
+    case i::wasm::kRef:
+    case i::wasm::kOptRef: {
       switch (type.heap_representation()) {
         case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kAny: {
@@ -1380,15 +1380,15 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       }
       break;
     }
-    case i::wasm::ValueType::kRtt:
-    case i::wasm::ValueType::kRttWithDepth:
+    case i::wasm::kRtt:
+    case i::wasm::kRttWithDepth:
       // TODO(7748): Implement.
       UNIMPLEMENTED();
-    case i::wasm::ValueType::kI8:
-    case i::wasm::ValueType::kI16:
-    case i::wasm::ValueType::kStmt:
-    case i::wasm::ValueType::kS128:
-    case i::wasm::ValueType::kBottom:
+    case i::wasm::kI8:
+    case i::wasm::kI16:
+    case i::wasm::kStmt:
+    case i::wasm::kS128:
+    case i::wasm::kBottom:
       UNREACHABLE();
   }
 
@@ -1820,25 +1820,25 @@ void WebAssemblyGlobalGetValueCommon(
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
 
   switch (receiver->type().kind()) {
-    case i::wasm::ValueType::kI32:
+    case i::wasm::kI32:
       return_value.Set(receiver->GetI32());
       break;
-    case i::wasm::ValueType::kI64: {
+    case i::wasm::kI64: {
       Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
       return_value.Set(value);
       break;
     }
-    case i::wasm::ValueType::kF32:
+    case i::wasm::kF32:
       return_value.Set(receiver->GetF32());
       break;
-    case i::wasm::ValueType::kF64:
+    case i::wasm::kF64:
       return_value.Set(receiver->GetF64());
       break;
-    case i::wasm::ValueType::kS128:
+    case i::wasm::kS128:
       thrower.TypeError("Can't get the value of s128 WebAssembly.Global");
       break;
-    case i::wasm::ValueType::kRef:
-    case i::wasm::ValueType::kOptRef:
+    case i::wasm::kRef:
+    case i::wasm::kOptRef:
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kFunc:
@@ -1856,14 +1856,14 @@ void WebAssemblyGlobalGetValueCommon(
           break;
       }
       break;
-    case i::wasm::ValueType::kRtt:
-    case i::wasm::ValueType::kRttWithDepth:
+    case i::wasm::kRtt:
+    case i::wasm::kRttWithDepth:
       UNIMPLEMENTED();  // TODO(7748): Implement.
       break;
-    case i::wasm::ValueType::kI8:
-    case i::wasm::ValueType::kI16:
-    case i::wasm::ValueType::kBottom:
-    case i::wasm::ValueType::kStmt:
+    case i::wasm::kI8:
+    case i::wasm::kI16:
+    case i::wasm::kBottom:
+    case i::wasm::kStmt:
       UNREACHABLE();
   }
 }
@@ -1899,35 +1899,35 @@ void WebAssemblyGlobalSetValue(
   }
 
   switch (receiver->type().kind()) {
-    case i::wasm::ValueType::kI32: {
+    case i::wasm::kI32: {
       int32_t i32_value = 0;
       if (!args[0]->Int32Value(context).To(&i32_value)) return;
       receiver->SetI32(i32_value);
       break;
     }
-    case i::wasm::ValueType::kI64: {
+    case i::wasm::kI64: {
       v8::Local<v8::BigInt> bigint_value;
       if (!args[0]->ToBigInt(context).ToLocal(&bigint_value)) return;
       receiver->SetI64(bigint_value->Int64Value());
       break;
     }
-    case i::wasm::ValueType::kF32: {
+    case i::wasm::kF32: {
       double f64_value = 0;
       if (!args[0]->NumberValue(context).To(&f64_value)) return;
       receiver->SetF32(i::DoubleToFloat32(f64_value));
       break;
     }
-    case i::wasm::ValueType::kF64: {
+    case i::wasm::kF64: {
       double f64_value = 0;
       if (!args[0]->NumberValue(context).To(&f64_value)) return;
       receiver->SetF64(f64_value);
       break;
     }
-    case i::wasm::ValueType::kS128:
+    case i::wasm::kS128:
       thrower.TypeError("Can't set the value of s128 WebAssembly.Global");
       break;
-    case i::wasm::ValueType::kRef:
-    case i::wasm::ValueType::kOptRef:
+    case i::wasm::kRef:
+    case i::wasm::kOptRef:
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kAny:
@@ -1952,15 +1952,15 @@ void WebAssemblyGlobalSetValue(
           break;
       }
       break;
-    case i::wasm::ValueType::kRtt:
-    case i::wasm::ValueType::kRttWithDepth:
+    case i::wasm::kRtt:
+    case i::wasm::kRttWithDepth:
       // TODO(7748): Implement.
       UNIMPLEMENTED();
       break;
-    case i::wasm::ValueType::kI8:
-    case i::wasm::ValueType::kI16:
-    case i::wasm::ValueType::kBottom:
-    case i::wasm::ValueType::kStmt:
+    case i::wasm::kI8:
+    case i::wasm::kI16:
+    case i::wasm::kBottom:
+    case i::wasm::kStmt:
       UNREACHABLE();
   }
 }

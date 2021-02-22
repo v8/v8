@@ -2632,12 +2632,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Control* c = control_at(imm.depth);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
     switch (ref_object.type.kind()) {
-      case ValueType::kBottom:
+      case kBottom:
         // We are in a polymorphic stack. No need to push an additional bottom
         // value.
         DCHECK(check_result != kReachableBranch);
         break;
-      case ValueType::kRef: {
+      case kRef: {
         // Simply forward the popped argument to the result.
         Value* result = Push(ref_object.type);
         if (V8_LIKELY(check_result == kReachableBranch)) {
@@ -2645,7 +2645,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         break;
       }
-      case ValueType::kOptRef: {
+      case kOptRef: {
         if (V8_LIKELY(check_result == kReachableBranch)) {
           CALL_INTERFACE_IF_REACHABLE(BrOnNull, ref_object, imm.depth);
           Value* result =
@@ -2969,12 +2969,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Value value = Pop(0);
     Value* result = Push(kWasmI32);
     switch (value.type.kind()) {
-      case ValueType::kOptRef:
+      case kOptRef:
         CALL_INTERFACE_IF_REACHABLE(UnOp, kExprRefIsNull, value, result);
         return 1;
-      case ValueType::kBottom:
+      case kBottom:
         // We are in unreachable code, the return value does not matter.
-      case ValueType::kRef:
+      case kRef:
         // For non-nullable references, the result is always false.
         CALL_INTERFACE_IF_REACHABLE(Drop);
         CALL_INTERFACE_IF_REACHABLE(I32Const, result, 0);
@@ -3004,14 +3004,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     Value value = Pop(0);
     switch (value.type.kind()) {
-      case ValueType::kBottom:
+      case kBottom:
         // We are in unreachable code. Forward the bottom value.
-      case ValueType::kRef: {
+      case kRef: {
         Value* result = Push(value.type);
         CALL_INTERFACE_IF_REACHABLE(Forward, value, result);
         return 1;
       }
-      case ValueType::kOptRef: {
+      case kOptRef: {
         Value* result =
             Push(ValueType::Ref(value.type.heap_type(), kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(RefAsNonNull, value, result);

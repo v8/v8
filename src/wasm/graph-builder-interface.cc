@@ -561,33 +561,34 @@ class WasmGraphBuildingInterface {
     LoadContextIntoSsa(ssa_env_);
   }
 
-  enum CallMode { kDirect, kIndirect, kRef };
+  enum CallMode { kCallDirect, kCallIndirect, kCallRef };
 
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    DoCall(decoder, kDirect, 0, CheckForNull::kWithoutNullCheck, nullptr,
+    DoCall(decoder, kCallDirect, 0, CheckForNull::kWithoutNullCheck, nullptr,
            imm.sig, imm.index, args, returns);
   }
 
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
-    DoReturnCall(decoder, kDirect, 0, CheckForNull::kWithoutNullCheck, nullptr,
-                 imm.sig, imm.index, args);
+    DoReturnCall(decoder, kCallDirect, 0, CheckForNull::kWithoutNullCheck,
+                 nullptr, imm.sig, imm.index, args);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    DoCall(decoder, kIndirect, imm.table_index, CheckForNull::kWithoutNullCheck,
-           index.node, imm.sig, imm.sig_index, args, returns);
+    DoCall(decoder, kCallIndirect, imm.table_index,
+           CheckForNull::kWithoutNullCheck, index.node, imm.sig, imm.sig_index,
+           args, returns);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
-    DoReturnCall(decoder, kIndirect, imm.table_index,
+    DoReturnCall(decoder, kCallIndirect, imm.table_index,
                  CheckForNull::kWithoutNullCheck, index.node, imm.sig,
                  imm.sig_index, args);
   }
@@ -598,8 +599,8 @@ class WasmGraphBuildingInterface {
     CheckForNull null_check = func_ref.type.is_nullable()
                                   ? CheckForNull::kWithNullCheck
                                   : CheckForNull::kWithoutNullCheck;
-    DoCall(decoder, kRef, 0, null_check, func_ref.node, sig, sig_index, args,
-           returns);
+    DoCall(decoder, kCallRef, 0, null_check, func_ref.node, sig, sig_index,
+           args, returns);
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
@@ -608,8 +609,8 @@ class WasmGraphBuildingInterface {
     CheckForNull null_check = func_ref.type.is_nullable()
                                   ? CheckForNull::kWithNullCheck
                                   : CheckForNull::kWithoutNullCheck;
-    DoReturnCall(decoder, kRef, 0, null_check, func_ref.node, sig, sig_index,
-                 args);
+    DoReturnCall(decoder, kCallRef, 0, null_check, func_ref.node, sig,
+                 sig_index, args);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
@@ -1162,25 +1163,25 @@ class WasmGraphBuildingInterface {
   TFNode* DefaultValue(ValueType type) {
     DCHECK(type.is_defaultable());
     switch (type.kind()) {
-      case ValueType::kI8:
-      case ValueType::kI16:
-      case ValueType::kI32:
+      case kI8:
+      case kI16:
+      case kI32:
         return builder_->Int32Constant(0);
-      case ValueType::kI64:
+      case kI64:
         return builder_->Int64Constant(0);
-      case ValueType::kF32:
+      case kF32:
         return builder_->Float32Constant(0);
-      case ValueType::kF64:
+      case kF64:
         return builder_->Float64Constant(0);
-      case ValueType::kS128:
+      case kS128:
         return builder_->S128Zero();
-      case ValueType::kOptRef:
+      case kOptRef:
         return builder_->RefNull();
-      case ValueType::kRtt:
-      case ValueType::kRttWithDepth:
-      case ValueType::kStmt:
-      case ValueType::kBottom:
-      case ValueType::kRef:
+      case kRtt:
+      case kRttWithDepth:
+      case kStmt:
+      case kBottom:
+      case kRef:
         UNREACHABLE();
     }
   }
@@ -1344,15 +1345,15 @@ class WasmGraphBuildingInterface {
       arg_nodes[i + 1] = args[i].node;
     }
     switch (call_mode) {
-      case kIndirect:
+      case kCallIndirect:
         BUILD(CallIndirect, table_index, sig_index, VectorOf(arg_nodes),
               VectorOf(return_nodes), decoder->position());
         break;
-      case kDirect:
+      case kCallDirect:
         BUILD(CallDirect, sig_index, VectorOf(arg_nodes),
               VectorOf(return_nodes), decoder->position());
         break;
-      case kRef:
+      case kCallRef:
         BUILD(CallRef, sig_index, VectorOf(arg_nodes), VectorOf(return_nodes),
               null_check, decoder->position());
         break;
@@ -1376,14 +1377,14 @@ class WasmGraphBuildingInterface {
       arg_nodes[i + 1] = args[i].node;
     }
     switch (call_mode) {
-      case kIndirect:
+      case kCallIndirect:
         BUILD(ReturnCallIndirect, table_index, sig_index, VectorOf(arg_nodes),
               decoder->position());
         break;
-      case kDirect:
+      case kCallDirect:
         BUILD(ReturnCall, sig_index, VectorOf(arg_nodes), decoder->position());
         break;
-      case kRef:
+      case kCallRef:
         BUILD(ReturnCallRef, sig_index, VectorOf(arg_nodes), null_check,
               decoder->position());
         break;

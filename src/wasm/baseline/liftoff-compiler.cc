@@ -387,12 +387,6 @@ class LiftoffCompiler {
 
   using Value = ValueBase<validate>;
 
-  static constexpr auto kI32 = ValueType::kI32;
-  static constexpr auto kI64 = ValueType::kI64;
-  static constexpr auto kF32 = ValueType::kF32;
-  static constexpr auto kF64 = ValueType::kF64;
-  static constexpr auto kS128 = ValueType::kS128;
-
   struct ElseState {
     MovableLabel label;
     LiftoffAssembler::CacheState state;
@@ -551,26 +545,26 @@ class LiftoffCompiler {
                           const char* context) {
     LiftoffBailoutReason bailout_reason = kOtherReason;
     switch (type.kind()) {
-      case ValueType::kI32:
-      case ValueType::kI64:
-      case ValueType::kF32:
-      case ValueType::kF64:
+      case kI32:
+      case kI64:
+      case kF32:
+      case kF64:
         return true;
-      case ValueType::kS128:
+      case kS128:
         if (CpuFeatures::SupportsWasmSimd128()) return true;
         bailout_reason = kMissingCPUFeature;
         break;
-      case ValueType::kRef:
-      case ValueType::kOptRef:
-      case ValueType::kRtt:
-      case ValueType::kRttWithDepth:
-      case ValueType::kI8:
-      case ValueType::kI16:
+      case kRef:
+      case kOptRef:
+      case kRtt:
+      case kRttWithDepth:
+      case kI8:
+      case kI16:
         if (FLAG_experimental_liftoff_extern_ref) return true;
         bailout_reason = kRefTypes;
         break;
-      case ValueType::kBottom:
-      case ValueType::kStmt:
+      case kBottom:
+      case kStmt:
         UNREACHABLE();
     }
     EmbeddedVector<char, 128> buffer;
@@ -1221,7 +1215,7 @@ class LiftoffCompiler {
     CallEmitFn(bound_fn.fn, bound_fn.first_arg, ConvertAssemblerArg(args)...);
   }
 
-  template <ValueType::Kind src_type, ValueType::Kind result_type, class EmitFn>
+  template <ValueKind src_type, ValueKind result_type, class EmitFn>
   void EmitUnOp(EmitFn fn) {
     constexpr RegClass src_rc = reg_class_for(src_type);
     constexpr RegClass result_rc = reg_class_for(result_type);
@@ -1233,7 +1227,7 @@ class LiftoffCompiler {
     __ PushRegister(ValueType::Primitive(result_type), dst);
   }
 
-  template <ValueType::Kind type>
+  template <ValueKind type>
   void EmitFloatUnOpWithCFallback(
       bool (LiftoffAssembler::*emit_fn)(DoubleRegister, DoubleRegister),
       ExternalReference (*fallback_fn)()) {
@@ -1248,7 +1242,7 @@ class LiftoffCompiler {
   }
 
   enum TypeConversionTrapping : bool { kCanTrap = true, kNoTrap = false };
-  template <ValueType::Kind dst_type, ValueType::Kind src_type,
+  template <ValueKind dst_type, ValueKind src_type,
             TypeConversionTrapping can_trap>
   void EmitTypeConversion(WasmOpcode opcode, ExternalReference (*fallback_fn)(),
                           WasmCodePosition trap_position) {
@@ -1437,8 +1431,8 @@ class LiftoffCompiler {
 #undef CASE_TYPE_CONVERSION
   }
 
-  template <ValueType::Kind src_type, ValueType::Kind result_type,
-            typename EmitFn, typename EmitFnImm>
+  template <ValueKind src_type, ValueKind result_type, typename EmitFn,
+            typename EmitFnImm>
   void EmitBinOpImm(EmitFn fn, EmitFnImm fnImm) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
     static constexpr RegClass result_rc = reg_class_for(result_type);
@@ -1465,7 +1459,7 @@ class LiftoffCompiler {
     }
   }
 
-  template <ValueType::Kind src_type, ValueType::Kind result_type,
+  template <ValueKind src_type, ValueKind result_type,
             bool swap_lhs_rhs = false, typename EmitFn>
   void EmitBinOp(EmitFn fn) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
@@ -1796,7 +1790,7 @@ class LiftoffCompiler {
           }
         });
       case kExprRefEq: {
-        return EmitBinOp<ValueType::kOptRef, kI32>(
+        return EmitBinOp<kOptRef, kI32>(
             BindFirst(&LiftoffAssembler::emit_ptrsize_set_cond, kEqual));
       }
 
@@ -2904,8 +2898,7 @@ class LiftoffCompiler {
                     ref);
   }
 
-  template <ValueType::Kind src_type, ValueType::Kind result_type,
-            typename EmitFn>
+  template <ValueKind src_type, ValueKind result_type, typename EmitFn>
   void EmitTerOp(EmitFn fn) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
     static constexpr RegClass result_rc = reg_class_for(result_type);
@@ -2926,7 +2919,7 @@ class LiftoffCompiler {
 
   template <typename EmitFn, typename EmitFnImm>
   void EmitSimdShiftOp(EmitFn fn, EmitFnImm fnImm) {
-    static constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+    static constexpr RegClass result_rc = reg_class_for(kS128);
 
     LiftoffAssembler::VarState rhs_slot = __ cache_state()->stack_state.back();
     // Check if the RHS is an immediate.
@@ -3427,8 +3420,7 @@ class LiftoffCompiler {
     }
   }
 
-  template <ValueType::Kind src_type, ValueType::Kind result_type,
-            typename EmitFn>
+  template <ValueKind src_type, ValueKind result_type, typename EmitFn>
   void EmitSimdExtractLaneOp(EmitFn fn,
                              const SimdLaneImmediate<validate>& imm) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
@@ -3441,7 +3433,7 @@ class LiftoffCompiler {
     __ PushRegister(ValueType::Primitive(result_type), dst);
   }
 
-  template <ValueType::Kind src2_type, typename EmitFn>
+  template <ValueKind src2_type, typename EmitFn>
   void EmitSimdReplaceLaneOp(EmitFn fn,
                              const SimdLaneImmediate<validate>& imm) {
     static constexpr RegClass src1_rc = reg_class_for(kS128);
@@ -3517,7 +3509,7 @@ class LiftoffCompiler {
     if (!CpuFeatures::SupportsWasmSimd128()) {
       return unsupported(decoder, kSimd, "simd");
     }
-    constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+    constexpr RegClass result_rc = reg_class_for(kS128);
     LiftoffRegister dst = __ GetUnusedRegister(result_rc, {});
     bool all_zeroes = std::all_of(std::begin(imm.value), std::end(imm.value),
                                   [](uint8_t v) { return v == 0; });
@@ -3541,7 +3533,7 @@ class LiftoffCompiler {
     if (!CpuFeatures::SupportsWasmSimd128()) {
       return unsupported(decoder, kSimd, "simd");
     }
-    static constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+    static constexpr RegClass result_rc = reg_class_for(kS128);
     LiftoffRegister rhs = __ PopToRegister();
     LiftoffRegister lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs));
     LiftoffRegister dst = __ GetUnusedRegister(result_rc, {lhs, rhs}, {});
@@ -5405,26 +5397,26 @@ class LiftoffCompiler {
                        LiftoffRegList pinned) {
     DCHECK(type.is_defaultable());
     switch (type.kind()) {
-      case ValueType::kI8:
-      case ValueType::kI16:
-      case ValueType::kI32:
+      case kI8:
+      case kI16:
+      case kI32:
         return __ LoadConstant(reg, WasmValue(int32_t{0}));
-      case ValueType::kI64:
+      case kI64:
         return __ LoadConstant(reg, WasmValue(int64_t{0}));
-      case ValueType::kF32:
+      case kF32:
         return __ LoadConstant(reg, WasmValue(float{0.0}));
-      case ValueType::kF64:
+      case kF64:
         return __ LoadConstant(reg, WasmValue(double{0.0}));
-      case ValueType::kS128:
+      case kS128:
         DCHECK(CpuFeatures::SupportsWasmSimd128());
         return __ emit_s128_xor(reg, reg, reg);
-      case ValueType::kOptRef:
+      case kOptRef:
         return LoadNullValue(reg.gp(), pinned);
-      case ValueType::kRtt:
-      case ValueType::kRttWithDepth:
-      case ValueType::kStmt:
-      case ValueType::kBottom:
-      case ValueType::kRef:
+      case kRtt:
+      case kRttWithDepth:
+      case kStmt:
+      case kBottom:
+      case kRef:
         UNREACHABLE();
     }
   }

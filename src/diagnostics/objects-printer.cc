@@ -1744,27 +1744,27 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
     uint32_t field_offset = struct_type->field_offset(i);
     Address field_address = RawField(field_offset).address();
     switch (field.kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         os << base::ReadUnalignedValue<int32_t>(field_address);
         break;
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         os << base::ReadUnalignedValue<int64_t>(field_address);
         break;
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         os << base::ReadUnalignedValue<float>(field_address);
         break;
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         os << base::ReadUnalignedValue<double>(field_address);
         break;
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
-      case wasm::ValueType::kS128:
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kRtt:
-      case wasm::ValueType::kRttWithDepth:
-      case wasm::ValueType::kBottom:
-      case wasm::ValueType::kStmt:
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kS128:
+      case wasm::kRef:
+      case wasm::kOptRef:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth:
+      case wasm::kBottom:
+      case wasm::kStmt:
         os << "UNIMPLEMENTED";  // TODO(7748): Implement.
         break;
     }
@@ -1780,31 +1780,31 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - length: " << len;
   Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
   switch (array_type->element_type().kind()) {
-    case wasm::ValueType::kI32:
+    case wasm::kI32:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
                               true);
       break;
-    case wasm::ValueType::kI64:
+    case wasm::kI64:
       PrintTypedArrayElements(os, reinterpret_cast<int64_t*>(data_ptr), len,
                               true);
       break;
-    case wasm::ValueType::kF32:
+    case wasm::kF32:
       PrintTypedArrayElements(os, reinterpret_cast<float*>(data_ptr), len,
                               true);
       break;
-    case wasm::ValueType::kF64:
+    case wasm::kF64:
       PrintTypedArrayElements(os, reinterpret_cast<double*>(data_ptr), len,
                               true);
       break;
-    case wasm::ValueType::kI8:
-    case wasm::ValueType::kI16:
-    case wasm::ValueType::kS128:
-    case wasm::ValueType::kRef:
-    case wasm::ValueType::kOptRef:
-    case wasm::ValueType::kRtt:
-    case wasm::ValueType::kRttWithDepth:
-    case wasm::ValueType::kBottom:
-    case wasm::ValueType::kStmt:
+    case wasm::kI8:
+    case wasm::kI16:
+    case wasm::kS128:
+    case wasm::kRef:
+    case wasm::kOptRef:
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+    case wasm::kBottom:
+    case wasm::kStmt:
       os << "\n   Printing elements of this type is unimplemented, sorry";
       // TODO(7748): Implement.
       break;

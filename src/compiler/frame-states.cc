@@ -180,7 +180,7 @@ FrameState CreateStubBuiltinContinuationFrameState(
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
     const wasm::FunctionSig* signature) {
-  base::Optional<wasm::ValueType::Kind> wasm_return_type =
+  base::Optional<wasm::ValueKind> wasm_return_type =
       wasm::WasmReturnTypeFromSignature(signature);
   Node* node_return_type =
       jsgraph->SmiConstant(wasm_return_type ? wasm_return_type.value() : -1);

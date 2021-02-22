@@ -1370,12 +1370,10 @@ class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
                                FrameStateDescriptor* outer_state,
                                const wasm::FunctionSig* wasm_signature);
 
-  base::Optional<wasm::ValueType::Kind> return_type() const {
-    return return_type_;
-  }
+  base::Optional<wasm::ValueKind> return_type() const { return return_type_; }
 
  private:
-  base::Optional<wasm::ValueType::Kind> return_type_;
+  base::Optional<wasm::ValueKind> return_type_;
 };
 
 // A deoptimization entry is a pair of the reason why we deoptimize and the

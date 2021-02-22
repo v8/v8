@@ -1601,7 +1601,7 @@ wasm::WasmValue WasmInstanceObject::GetGlobalValue(
   using wasm::Simd128;
   switch (global.type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
-  case wasm::ValueType::valuetype:  \
+  case wasm::valuetype:             \
     return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(ptr));
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
@@ -1743,30 +1743,30 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
   uint32_t encoded_size = 0;
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     switch (sig->GetParam(i).kind()) {
-      case wasm::ValueType::kI32:
-      case wasm::ValueType::kF32:
+      case wasm::kI32:
+      case wasm::kF32:
         DCHECK_EQ(2, ComputeEncodedElementSize(sig->GetParam(i)));
         encoded_size += 2;
         break;
-      case wasm::ValueType::kI64:
-      case wasm::ValueType::kF64:
+      case wasm::kI64:
+      case wasm::kF64:
         DCHECK_EQ(4, ComputeEncodedElementSize(sig->GetParam(i)));
         encoded_size += 4;
         break;
-      case wasm::ValueType::kS128:
+      case wasm::kS128:
         DCHECK_EQ(8, ComputeEncodedElementSize(sig->GetParam(i)));
         encoded_size += 8;
         break;
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef:
+      case wasm::kRef:
+      case wasm::kOptRef:
         encoded_size += 1;
         break;
-      case wasm::ValueType::kRtt:
-      case wasm::ValueType::kRttWithDepth:
-      case wasm::ValueType::kStmt:
-      case wasm::ValueType::kBottom:
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth:
+      case wasm::kStmt:
+      case wasm::kBottom:
+      case wasm::kI8:
+      case wasm::kI16:
         UNREACHABLE();
     }
   }
@@ -2110,10 +2110,10 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                        const char** error_message) {
   DCHECK(expected.is_reference_type());
   switch (expected.kind()) {
-    case ValueType::kOptRef:
+    case kOptRef:
       if (value->IsNull(isolate)) return true;
       V8_FALLTHROUGH;
-    case ValueType::kRef:
+    case kRef:
       switch (expected.heap_representation()) {
         case HeapType::kFunc: {
           if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
@@ -2207,7 +2207,7 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
               "Assigning to struct/array globals not supported yet.";
           return false;
       }
-    case ValueType::kRtt:
+    case kRtt:
       // TODO(7748): Implement when the JS API for rtts is decided on.
       *error_message = "Assigning to rtt globals not supported yet.";
       return false;

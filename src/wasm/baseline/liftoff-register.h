@@ -53,23 +53,23 @@ static inline constexpr bool needs_fp_reg_pair(ValueType type) {
   return kNeedS128RegPair && type == kWasmS128;
 }
 
-static inline constexpr RegClass reg_class_for(ValueType::Kind kind) {
+static inline constexpr RegClass reg_class_for(ValueKind kind) {
   switch (kind) {
-    case ValueType::kF32:
-    case ValueType::kF64:
+    case kF32:
+    case kF64:
       return kFpReg;
-    case ValueType::kI8:
-    case ValueType::kI16:
-    case ValueType::kI32:
+    case kI8:
+    case kI16:
+    case kI32:
       return kGpReg;
-    case ValueType::kI64:
+    case kI64:
       return kNeedI64RegPair ? kGpRegPair : kGpReg;
-    case ValueType::kS128:
+    case kS128:
       return kNeedS128RegPair ? kFpRegPair : kFpReg;
-    case ValueType::kRef:
-    case ValueType::kOptRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kRef:
+    case kOptRef:
+    case kRtt:
+    case kRttWithDepth:
       return kGpReg;
     default:
       return kNoReg;  // unsupported type

@@ -68,24 +68,24 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
                  int32_t offset, ValueType type) {
   Operand src(base, offset);
   switch (type.kind()) {
-    case ValueType::kI32:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kI32:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kRttWithDepth:
       assm->mov(dst.gp(), src);
       break;
-    case ValueType::kI64:
+    case kI64:
       assm->mov(dst.low_gp(), src);
       assm->mov(dst.high_gp(), Operand(base, offset + 4));
       break;
-    case ValueType::kF32:
+    case kF32:
       assm->movss(dst.fp(), src);
       break;
-    case ValueType::kF64:
+    case kF64:
       assm->movsd(dst.fp(), src);
       break;
-    case ValueType::kS128:
+    case kS128:
       assm->movdqu(dst.fp(), src);
       break;
     default:
@@ -97,20 +97,20 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
                   LiftoffRegister src, ValueType type) {
   Operand dst(base, offset);
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       assm->mov(dst, src.gp());
       break;
-    case ValueType::kI64:
+    case kI64:
       assm->mov(dst, src.low_gp());
       assm->mov(Operand(base, offset + 4), src.high_gp());
       break;
-    case ValueType::kF32:
+    case kF32:
       assm->movss(dst, src.fp());
       break;
-    case ValueType::kF64:
+    case kF64:
       assm->movsd(dst, src.fp());
       break;
-    case ValueType::kS128:
+    case kS128:
       assm->movdqu(dst, src.fp());
       break;
     default:
@@ -120,24 +120,24 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
 
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   switch (type.kind()) {
-    case ValueType::kI32:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
+    case kI32:
+    case kRef:
+    case kOptRef:
       assm->push(reg.gp());
       break;
-    case ValueType::kI64:
+    case kI64:
       assm->push(reg.high_gp());
       assm->push(reg.low_gp());
       break;
-    case ValueType::kF32:
+    case kF32:
       assm->AllocateStackSpace(sizeof(float));
       assm->movss(Operand(esp, 0), reg.fp());
       break;
-    case ValueType::kF64:
+    case kF64:
       assm->AllocateStackSpace(sizeof(double));
       assm->movsd(Operand(esp, 0), reg.fp());
       break;
-    case ValueType::kS128:
+    case kS128:
       assm->AllocateStackSpace(sizeof(double) * 2);
       assm->movdqu(Operand(esp, 0), reg.fp());
       break;
@@ -273,10 +273,10 @@ bool LiftoffAssembler::NeedsAlignment(ValueType type) {
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type().kind()) {
-    case ValueType::kI32:
+    case kI32:
       TurboAssembler::Move(reg.gp(), Immediate(value.to_i32(), rmode));
       break;
-    case ValueType::kI64: {
+    case kI64: {
       DCHECK(RelocInfo::IsNone(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
@@ -284,10 +284,10 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::Move(reg.high_gp(), Immediate(high_word));
       break;
     }
-    case ValueType::kF32:
+    case kF32:
       TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
       break;
-    case ValueType::kF64:
+    case kF64:
       TurboAssembler::Move(reg.fp(), value.to_f64_boxed().get_bits());
       break;
     default:
@@ -1138,24 +1138,24 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   Operand dst = liftoff::GetStackSlot(offset);
   switch (type.kind()) {
-    case ValueType::kI32:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kI32:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kRttWithDepth:
       mov(dst, reg.gp());
       break;
-    case ValueType::kI64:
+    case kI64:
       mov(liftoff::GetHalfStackSlot(offset, kLowWord), reg.low_gp());
       mov(liftoff::GetHalfStackSlot(offset, kHighWord), reg.high_gp());
       break;
-    case ValueType::kF32:
+    case kF32:
       movss(dst, reg.fp());
       break;
-    case ValueType::kF64:
+    case kF64:
       movsd(dst, reg.fp());
       break;
-    case ValueType::kS128:
+    case kS128:
       movdqu(dst, reg.fp());
       break;
     default:
@@ -1167,10 +1167,10 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   Operand dst = liftoff::GetStackSlot(offset);
   switch (value.type().kind()) {
-    case ValueType::kI32:
+    case kI32:
       mov(dst, Immediate(value.to_i32()));
       break;
-    case ValueType::kI64: {
+    case kI64: {
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
       mov(liftoff::GetHalfStackSlot(offset, kLowWord), Immediate(low_word));
@@ -2404,13 +2404,13 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   if (rhs != no_reg) {
     switch (type.kind()) {
-      case ValueType::kRef:
-      case ValueType::kOptRef:
-      case ValueType::kRtt:
-      case ValueType::kRttWithDepth:
+      case kRef:
+      case kOptRef:
+      case kRtt:
+      case kRttWithDepth:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
         V8_FALLTHROUGH;
-      case ValueType::kI32:
+      case kI32:
         cmp(lhs, rhs);
         break;
       default:
@@ -2631,7 +2631,7 @@ template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),
           void (Assembler::*sse_op)(XMMRegister, XMMRegister), uint8_t width>
 void EmitSimdShiftOp(LiftoffAssembler* assm, LiftoffRegister dst,
                      LiftoffRegister operand, LiftoffRegister count) {
-  static constexpr RegClass tmp_rc = reg_class_for(ValueType::kI32);
+  static constexpr RegClass tmp_rc = reg_class_for(kI32);
   LiftoffRegister tmp =
       assm->GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(count));
   constexpr int mask = (1 << width) - 1;
@@ -3284,8 +3284,8 @@ void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  static constexpr RegClass tmp_rc = reg_class_for(ValueType::kI32);
-  static constexpr RegClass tmp_simd_rc = reg_class_for(ValueType::kS128);
+  static constexpr RegClass tmp_rc = reg_class_for(kI32);
+  static constexpr RegClass tmp_simd_rc = reg_class_for(kS128);
   LiftoffRegister tmp = GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(rhs));
   LiftoffRegister tmp_simd =
       GetUnusedRegister(tmp_simd_rc, LiftoffRegList::ForRegs(dst, lhs));
@@ -3312,7 +3312,7 @@ void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  static constexpr RegClass tmp_rc = reg_class_for(ValueType::kI32);
+  static constexpr RegClass tmp_rc = reg_class_for(kI32);
   LiftoffRegister tmp = GetUnusedRegister(tmp_rc, {});
   byte shift = static_cast<byte>(rhs & 0x7);
   if (CpuFeatures::IsSupported(AVX)) {
@@ -3412,7 +3412,7 @@ void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  static constexpr RegClass tmp_rc = reg_class_for(ValueType::kS128);
+  static constexpr RegClass tmp_rc = reg_class_for(kS128);
   LiftoffRegister tmp =
       GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs));
   if (CpuFeatures::IsSupported(AVX)) {
@@ -3942,7 +3942,7 @@ void LiftoffAssembler::emit_i64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  static constexpr RegClass tmp_rc = reg_class_for(ValueType::kS128);
+  static constexpr RegClass tmp_rc = reg_class_for(kS128);
   LiftoffRegister tmp1 =
       GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs));
   LiftoffRegister tmp2 =
@@ -4374,7 +4374,7 @@ void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  static constexpr RegClass tmp_rc = reg_class_for(ValueType::kS128);
+  static constexpr RegClass tmp_rc = reg_class_for(kS128);
   DoubleRegister tmp =
       GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, src)).fp();
   // NAN->0, negative->0.

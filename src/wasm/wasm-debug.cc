@@ -559,15 +559,15 @@ class DebugInfoImpl {
     // Otherwise load the value from the stack.
     Address stack_address = stack_frame_base - value->stack_offset;
     switch (value->type.kind()) {
-      case ValueType::kI32:
+      case kI32:
         return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
-      case ValueType::kI64:
+      case kI64:
         return WasmValue(ReadUnalignedValue<int64_t>(stack_address));
-      case ValueType::kF32:
+      case kF32:
         return WasmValue(ReadUnalignedValue<float>(stack_address));
-      case ValueType::kF64:
+      case kF64:
         return WasmValue(ReadUnalignedValue<double>(stack_address));
-      case ValueType::kS128: {
+      case kS128: {
         return WasmValue(Simd128(ReadUnalignedValue<int16>(stack_address)));
       }
       default:

@@ -708,12 +708,12 @@ int JSWasmCallParameters::input_count() const {
 // static
 Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   switch (type.kind()) {
-    case wasm::ValueType::kI32:
+    case wasm::kI32:
       return Type::Signed32();
-    case wasm::ValueType::kI64:
+    case wasm::kI64:
       return Type::BigInt();
-    case wasm::ValueType::kF32:
-    case wasm::ValueType::kF64:
+    case wasm::kF32:
+    case wasm::kF64:
       return Type::Number();
     default:
       UNREACHABLE();

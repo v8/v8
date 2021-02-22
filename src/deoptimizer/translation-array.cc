@@ -22,8 +22,8 @@ constexpr int kCompressedDataOffset =
 constexpr int kTranslationArrayElementSize = kInt32Size;
 
 // Encodes the return type of a Wasm function as the integer value of
-// wasm::ValueType::Kind, or kNoWasmReturnType if the function returns void.
-int EncodeWasmReturnType(base::Optional<wasm::ValueType::Kind> return_type) {
+// wasm::ValueKind, or kNoWasmReturnType if the function returns void.
+int EncodeWasmReturnType(base::Optional<wasm::ValueKind> return_type) {
   return return_type ? static_cast<int>(return_type.value())
                      : kNoWasmReturnType;
 }
@@ -146,7 +146,7 @@ void TranslationArrayBuilder::BeginBuiltinContinuationFrame(
 
 void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
-    base::Optional<wasm::ValueType::Kind> return_type) {
+    base::Optional<wasm::ValueKind> return_type) {
   auto opcode = TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME;
   Add(opcode);
   Add(bytecode_offset.ToInt());

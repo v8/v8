@@ -268,10 +268,10 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
 namespace {
 
 // Decodes the return type of a Wasm function as the integer value of
-// wasm::ValueType::Kind, or kNoWasmReturnType if the function returns void.
-base::Optional<wasm::ValueType::Kind> DecodeWasmReturnType(int code) {
+// wasm::ValueKind, or kNoWasmReturnType if the function returns void.
+base::Optional<wasm::ValueKind> DecodeWasmReturnType(int code) {
   if (code != kNoWasmReturnType) {
-    return {static_cast<wasm::ValueType::Kind>(code)};
+    return {static_cast<wasm::ValueKind>(code)};
   }
   return {};
 }
@@ -658,7 +658,7 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
 
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
-    base::Optional<wasm::ValueType::Kind> return_type) {
+    base::Optional<wasm::ValueKind> return_type) {
   TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
   frame.bytecode_offset_ = bytecode_offset;
   frame.return_type_ = return_type;
@@ -810,7 +810,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
-      base::Optional<wasm::ValueType::Kind> return_type =
+      base::Optional<wasm::ValueKind> return_type =
           DecodeWasmReturnType(iterator->Next());
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();

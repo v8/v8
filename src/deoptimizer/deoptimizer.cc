@@ -1558,24 +1558,24 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
 }
 
 TranslatedValue Deoptimizer::TranslatedValueForWasmReturnType(
-    base::Optional<wasm::ValueType::Kind> wasm_call_return_type) {
+    base::Optional<wasm::ValueKind> wasm_call_return_type) {
   if (wasm_call_return_type) {
     switch (wasm_call_return_type.value()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         return TranslatedValue::NewInt32(
             &translated_state_,
             (int32_t)input_->GetRegister(kReturnRegister0.code()));
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         return TranslatedValue::NewInt64ToBigInt(
             &translated_state_,
             (int64_t)input_->GetRegister(kReturnRegister0.code()));
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         return TranslatedValue::NewFloat(
             &translated_state_,
             Float32(*reinterpret_cast<float*>(
                 input_->GetDoubleRegister(wasm::kFpReturnRegisters[0].code())
                     .get_bits_address())));
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         return TranslatedValue::NewDouble(
             &translated_state_,
             input_->GetDoubleRegister(wasm::kFpReturnRegisters[0].code()));

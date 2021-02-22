@@ -251,7 +251,7 @@ class TranslatedFrame {
   const_reference front() const { return values_.front(); }
 
   // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueType::Kind> wasm_call_return_type() const {
+  base::Optional<wasm::ValueKind> wasm_call_return_type() const {
     DCHECK_EQ(kind(), kJSToWasmBuiltinContinuation);
     return return_type_;
   }
@@ -276,7 +276,7 @@ class TranslatedFrame {
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height,
-      base::Optional<wasm::ValueType::Kind> return_type);
+      base::Optional<wasm::ValueKind> return_type);
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
@@ -315,7 +315,7 @@ class TranslatedFrame {
   ValuesContainer values_;
 
   // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueType::Kind> return_type_;
+  base::Optional<wasm::ValueKind> return_type_;
 };
 
 // Auxiliary class for translating deoptimization values.

@@ -471,35 +471,35 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kNone: {
       // No initializer, emit a default value.
       switch (type.kind()) {
-        case ValueType::kI32:
+        case kI32:
           buffer->write_u8(kExprI32Const);
           // LEB encoding of 0.
           buffer->write_u8(0);
           break;
-        case ValueType::kI64:
+        case kI64:
           buffer->write_u8(kExprI64Const);
           // LEB encoding of 0.
           buffer->write_u8(0);
           break;
-        case ValueType::kF32:
+        case kF32:
           buffer->write_u8(kExprF32Const);
           buffer->write_f32(0.f);
           break;
-        case ValueType::kF64:
+        case kF64:
           buffer->write_u8(kExprF64Const);
           buffer->write_f64(0.);
           break;
-        case ValueType::kOptRef:
+        case kOptRef:
           buffer->write_u8(kExprRefNull);
           break;
-        case ValueType::kI8:
-        case ValueType::kI16:
-        case ValueType::kStmt:
-        case ValueType::kS128:
-        case ValueType::kBottom:
-        case ValueType::kRef:
-        case ValueType::kRtt:
-        case ValueType::kRttWithDepth:
+        case kI8:
+        case kI16:
+        case kStmt:
+        case kS128:
+        case kBottom:
+        case kRef:
+        case kRtt:
+        case kRttWithDepth:
           UNREACHABLE();
       }
       break;
