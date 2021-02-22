@@ -366,10 +366,7 @@ namespace compiler {
   V(Mips64S8x8Reverse)                       \
   V(Mips64S8x4Reverse)                       \
   V(Mips64S8x2Reverse)                       \
-  V(Mips64S128Load8Splat)                    \
-  V(Mips64S128Load16Splat)                   \
-  V(Mips64S128Load32Splat)                   \
-  V(Mips64S128Load64Splat)                   \
+  V(Mips64S128LoadSplat)                     \
   V(Mips64S128Load8x8S)                      \
   V(Mips64S128Load8x8U)                      \
   V(Mips64S128Load16x4S)                     \

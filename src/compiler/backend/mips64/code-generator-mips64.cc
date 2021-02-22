@@ -1817,28 +1817,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ByteSwapSigned(i.OutputRegister(0), i.InputRegister(0), 4);
       break;
     }
-    case kMips64S128Load8Splat: {
+    case kMips64S128LoadSplat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ Lb(kScratchReg, i.MemoryOperand());
-      __ fill_b(i.OutputSimd128Register(), kScratchReg);
-      break;
-    }
-    case kMips64S128Load16Splat: {
-      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ Lh(kScratchReg, i.MemoryOperand());
-      __ fill_h(i.OutputSimd128Register(), kScratchReg);
-      break;
-    }
-    case kMips64S128Load32Splat: {
-      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ Lw(kScratchReg, i.MemoryOperand());
-      __ fill_w(i.OutputSimd128Register(), kScratchReg);
-      break;
-    }
-    case kMips64S128Load64Splat: {
-      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ Ld(kScratchReg, i.MemoryOperand());
-      __ fill_d(i.OutputSimd128Register(), kScratchReg);
+      auto sz = static_cast<MSASize>(MiscField::decode(instr->opcode()));
+      __ LoadSplat(sz, i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kMips64S128Load8x8S: {

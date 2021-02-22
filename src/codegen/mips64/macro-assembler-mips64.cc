@@ -2755,6 +2755,31 @@ void TurboAssembler::ExtMulHigh(MSADataType type, MSARegister dst,
 }
 #undef EXT_MUL_BINOP
 
+void TurboAssembler::LoadSplat(MSASize sz, MSARegister dst, MemOperand src) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  switch (sz) {
+    case MSA_B:
+      Lb(scratch, src);
+      fill_b(dst, scratch);
+      break;
+    case MSA_H:
+      Lh(scratch, src);
+      fill_h(dst, scratch);
+      break;
+    case MSA_W:
+      Lw(scratch, src);
+      fill_w(dst, scratch);
+      break;
+    case MSA_D:
+      Ld(scratch, src);
+      fill_d(dst, scratch);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void TurboAssembler::MSARoundW(MSARegister dst, MSARegister src,
                                FPURoundingMode mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);

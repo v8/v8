@@ -434,16 +434,20 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   InstructionCode opcode = kArchNop;
   switch (params.transformation) {
     case LoadTransformation::kS128Load8Splat:
-      opcode = kMips64S128Load8Splat;
+      opcode = kMips64S128LoadSplat;
+      opcode |= MiscField::encode(MSASize::MSA_B);
       break;
     case LoadTransformation::kS128Load16Splat:
-      opcode = kMips64S128Load16Splat;
+      opcode = kMips64S128LoadSplat;
+      opcode |= MiscField::encode(MSASize::MSA_H);
       break;
     case LoadTransformation::kS128Load32Splat:
-      opcode = kMips64S128Load32Splat;
+      opcode = kMips64S128LoadSplat;
+      opcode |= MiscField::encode(MSASize::MSA_W);
       break;
     case LoadTransformation::kS128Load64Splat:
-      opcode = kMips64S128Load64Splat;
+      opcode = kMips64S128LoadSplat;
+      opcode |= MiscField::encode(MSASize::MSA_D);
       break;
     case LoadTransformation::kS128Load8x8S:
       opcode = kMips64S128Load8x8S;
