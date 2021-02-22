@@ -2293,6 +2293,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.OutputSimd128Register());
       break;
     }
+    case kMipsI64x2GtS: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ clt_s_d(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
+      break;
+    }
+    case kMipsI64x2GeS: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cle_s_d(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
+      break;
+    }
     case kMipsI64x2SConvertI32x4Low: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();

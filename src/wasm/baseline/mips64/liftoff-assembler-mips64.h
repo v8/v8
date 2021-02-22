@@ -2384,6 +2384,16 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   mulv_d(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
 }
 
+void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  clt_s_d(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
+}
+
+void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  cle_s_d(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
+}
+
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   bclri_w(dst.fp().toW(), src.fp().toW(), 31);

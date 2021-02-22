@@ -2384,6 +2384,16 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kSimd, "emit_i64x2_mul");
 }
 
+void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i64x2_gt_s");
+}
+
+void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i64x2_ge_s");
+}
+
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   bailout(kSimd, "emit_f32x4_abs");
