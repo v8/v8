@@ -3228,7 +3228,7 @@ void TurboAssembler::Prologue() {
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   pushq(rbp);
   movq(rbp, rsp);
-  if (type != StackFrame::MANUAL) {
+  if (!StackFrame::IsJavaScript(type)) {
     Push(Immediate(StackFrame::TypeToMarker(type)));
   }
 }
@@ -3237,7 +3237,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   // TODO(v8:11429): Consider passing BASELINE instead, and checking for
   // IsJSFrame or similar. Could then unify with manual frame leaves in the
   // interpreter too.
-  if (emit_debug_code() && type != StackFrame::MANUAL) {
+  if (emit_debug_code() && !StackFrame::IsJavaScript(type)) {
     cmpq(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
          Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, AbortReason::kStackFrameTypesMustMatch);

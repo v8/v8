@@ -1651,7 +1651,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // set-up frame once we're done setting it up.
   __ PopReturnAddressTo(return_address);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterFrame(StackFrame::MANUAL);
+  __ EnterFrame(StackFrame::BASELINE);
 
   __ Push(descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kCalleeContext));  // Callee's

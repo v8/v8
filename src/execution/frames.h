@@ -233,12 +233,12 @@ class StackFrame {
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
 
-  bool is_java_script() const {
+  static bool IsJavaScript(Type t) {
     STATIC_ASSERT(INTERPRETED + 1 == BASELINE);
     STATIC_ASSERT(BASELINE + 1 == OPTIMIZED);
-    Type t = type();
     return t >= INTERPRETED && t <= OPTIMIZED;
   }
+  bool is_java_script() const { return IsJavaScript(type()); }
   bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
   bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
 

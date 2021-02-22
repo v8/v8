@@ -481,7 +481,7 @@ void BaselineCompiler::Prologue() {
   __ masm()->Mov(kInterpreterBytecodeArrayRegister, Operand(bytecode_));
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
   // Enter the frame here, since CallBuiltin will override lr.
-  __ masm()->EnterFrame(StackFrame::MANUAL);
+  __ masm()->EnterFrame(StackFrame::BASELINE);
   CallBuiltin(Builtins::kBaselineOutOfLinePrologue, kContextRegister,
               kJSFunctionRegister, kJavaScriptCallArgCountRegister,
               kInterpreterBytecodeArrayRegister);
@@ -617,7 +617,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ Bind(&corrected_args_count);
 
   // Leave the frame (also dropping the register file).
-  __ masm()->LeaveFrame(StackFrame::MANUAL);
+  __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
   __ masm()->Add(params_size, params_size, 1);  // Include the receiver.
