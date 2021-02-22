@@ -997,50 +997,134 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  bailout(kUnsupportedArchitecture, "i32_divs");
+  Label cont;
+
+  // Check for division by zero.
+  ltr(r0, rhs);
+  b(eq, trap_div_by_zero);
+
+  // Check for kMinInt / -1. This is unrepresentable.
+  CmpS32(rhs, Operand(-1));
+  bne(&cont);
+  CmpS32(lhs, Operand(kMinInt));
+  b(eq, trap_div_unrepresentable);
+
+  bind(&cont);
+  DivS32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i32_divu");
+  // Check for division by zero.
+  ltr(r0, rhs);
+  beq(trap_div_by_zero);
+  DivU32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i32_rems");
+  Label cont;
+  Label done;
+  Label trap_div_unrepresentable;
+  // Check for division by zero.
+  ltr(r0, rhs);
+  beq(trap_div_by_zero);
+
+  // Check kMinInt/-1 case.
+  CmpS32(rhs, Operand(-1));
+  bne(&cont);
+  CmpS32(lhs, Operand(kMinInt));
+  beq(&trap_div_unrepresentable);
+
+  // Continue noraml calculation.
+  bind(&cont);
+  ModS32(dst, lhs, rhs);
+  bne(&done);
+
+  // trap by kMinInt/-1 case.
+  bind(&trap_div_unrepresentable);
+  mov(dst, Operand(0));
+  bind(&done);
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i32_remu");
+  // Check for division by zero.
+  ltr(r0, rhs);
+  beq(trap_div_by_zero);
+  ModU32(dst, lhs, rhs);
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  bailout(kUnsupportedArchitecture, "i64_divs");
+  // Use r0 to check for kMinInt / -1.
+  constexpr int64_t kMinInt64 = static_cast<int64_t>(1) << 63;
+  Label cont;
+  // Check for division by zero.
+  ltgr(r0, rhs.gp());
+  beq(trap_div_by_zero);
+
+  // Check for kMinInt / -1. This is unrepresentable.
+  CmpS64(rhs.gp(), Operand(-1));
+  bne(&cont);
+  mov(r0, Operand(kMinInt64));
+  CmpS64(lhs.gp(), r0);
+  b(eq, trap_div_unrepresentable);
+
+  bind(&cont);
+  DivS64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i64_divu");
+  ltgr(r0, rhs.gp());
+  b(eq, trap_div_by_zero);
+  // Do div.
+  DivU64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i64_rems");
+  constexpr int64_t kMinInt64 = static_cast<int64_t>(1) << 63;
+
+  Label trap_div_unrepresentable;
+  Label done;
+  Label cont;
+
+  // Check for division by zero.
+  ltgr(r0, rhs.gp());
+  beq(trap_div_by_zero);
+
+  // Check for kMinInt / -1. This is unrepresentable.
+  CmpS64(rhs.gp(), Operand(-1));
+  bne(&cont);
+  mov(r0, Operand(kMinInt64));
+  CmpS64(lhs.gp(), r0);
+  beq(&trap_div_unrepresentable);
+
+  bind(&cont);
+  ModS64(dst.gp(), lhs.gp(), rhs.gp());
+  bne(&done);
+
+  bind(&trap_div_unrepresentable);
+  mov(dst.gp(), Operand(0));
+  bind(&done);
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i64_remu");
+  // Check for division by zero.
+  ltgr(r0, rhs.gp());
+  beq(trap_div_by_zero);
+  ModU64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
