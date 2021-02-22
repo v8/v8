@@ -204,6 +204,8 @@ experiment_builder(
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
     use_goma = GOMA.DEFAULT,
+    # TODO consider moving tree closer builder out of the experimental file
+    close_tree = True,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
