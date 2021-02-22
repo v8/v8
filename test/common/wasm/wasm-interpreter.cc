@@ -459,13 +459,14 @@ dst_type CallExternalIntToFloatFunction(src_type input) {
   return ReadUnalignedValue<dst_type>(data_addr);
 }
 
-template <typename dst_type, typename src_type, int32_t (*fn)(Address)>
-dst_type CallExternalFloatToIntFunction(src_type input, TrapReason* trap) {
-  uint8_t data[std::max(sizeof(dst_type), sizeof(src_type))];
-  Address data_addr = reinterpret_cast<Address>(data);
-  WriteUnalignedValue<src_type>(data_addr, input);
-  if (!fn(data_addr)) *trap = kTrapFloatUnrepresentable;
-  return ReadUnalignedValue<dst_type>(data_addr);
+template <typename dst_type, typename src_type>
+dst_type ConvertFloatToIntOrTrap(src_type input, TrapReason* trap) {
+  if (base::IsValueInRangeForNumericType<dst_type>(input)) {
+    return static_cast<dst_type>(input);
+  } else {
+    *trap = kTrapFloatUnrepresentable;
+    return 0;
+  }
 }
 
 uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
@@ -473,23 +474,19 @@ uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
 }
 
 int64_t ExecuteI64SConvertF32(float a, TrapReason* trap) {
-  return CallExternalFloatToIntFunction<int64_t, float,
-                                        float32_to_int64_wrapper>(a, trap);
+  return ConvertFloatToIntOrTrap<int64_t, float>(a, trap);
 }
 
 int64_t ExecuteI64SConvertF64(double a, TrapReason* trap) {
-  return CallExternalFloatToIntFunction<int64_t, double,
-                                        float64_to_int64_wrapper>(a, trap);
+  return ConvertFloatToIntOrTrap<int64_t, double>(a, trap);
 }
 
 uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
-  return CallExternalFloatToIntFunction<uint64_t, float,
-                                        float32_to_uint64_wrapper>(a, trap);
+  return ConvertFloatToIntOrTrap<uint64_t, float>(a, trap);
 }
 
 uint64_t ExecuteI64UConvertF64(double a, TrapReason* trap) {
-  return CallExternalFloatToIntFunction<uint64_t, double,
-                                        float64_to_uint64_wrapper>(a, trap);
+  return ConvertFloatToIntOrTrap<uint64_t, double>(a, trap);
 }
 
 int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
