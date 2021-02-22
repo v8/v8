@@ -320,7 +320,7 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(
   return Signed(IntPtrAdd(value, IntPtrConstant(1)));
 }
 
-TNode<BoolT> CodeStubAssembler::WordIsPowerOfTwo(SloppyTNode<IntPtrT> value) {
+TNode<BoolT> CodeStubAssembler::WordIsPowerOfTwo(TNode<IntPtrT> value) {
   intptr_t constant;
   if (TryToIntPtrConstant(value, &constant)) {
     return BoolConstant(base::bits::IsPowerOfTwo(constant));
@@ -334,7 +334,7 @@ TNode<BoolT> CodeStubAssembler::WordIsPowerOfTwo(SloppyTNode<IntPtrT> value) {
       IntPtrConstant(0));
 }
 
-TNode<Float64T> CodeStubAssembler::Float64Round(SloppyTNode<Float64T> x) {
+TNode<Float64T> CodeStubAssembler::Float64Round(TNode<Float64T> x) {
   TNode<Float64T> one = Float64Constant(1.0);
   TNode<Float64T> one_half = Float64Constant(0.5);
 
@@ -352,7 +352,7 @@ TNode<Float64T> CodeStubAssembler::Float64Round(SloppyTNode<Float64T> x) {
   return TNode<Float64T>::UncheckedCast(var_x.value());
 }
 
-TNode<Float64T> CodeStubAssembler::Float64Ceil(SloppyTNode<Float64T> x) {
+TNode<Float64T> CodeStubAssembler::Float64Ceil(TNode<Float64T> x) {
   if (IsFloat64RoundUpSupported()) {
     return Float64RoundUp(x);
   }
@@ -404,7 +404,7 @@ TNode<Float64T> CodeStubAssembler::Float64Ceil(SloppyTNode<Float64T> x) {
   return TNode<Float64T>::UncheckedCast(var_x.value());
 }
 
-TNode<Float64T> CodeStubAssembler::Float64Floor(SloppyTNode<Float64T> x) {
+TNode<Float64T> CodeStubAssembler::Float64Floor(TNode<Float64T> x) {
   if (IsFloat64RoundDownSupported()) {
     return Float64RoundDown(x);
   }
@@ -456,7 +456,7 @@ TNode<Float64T> CodeStubAssembler::Float64Floor(SloppyTNode<Float64T> x) {
   return TNode<Float64T>::UncheckedCast(var_x.value());
 }
 
-TNode<Float64T> CodeStubAssembler::Float64RoundToEven(SloppyTNode<Float64T> x) {
+TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
   if (IsFloat64RoundTiesEvenSupported()) {
     return Float64RoundTiesEven(x);
   }
@@ -487,7 +487,7 @@ TNode<Float64T> CodeStubAssembler::Float64RoundToEven(SloppyTNode<Float64T> x) {
   return TNode<Float64T>::UncheckedCast(var_result.value());
 }
 
-TNode<Float64T> CodeStubAssembler::Float64Trunc(SloppyTNode<Float64T> x) {
+TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
   if (IsFloat64RoundTruncateSupported()) {
     return Float64RoundTruncate(x);
   }
@@ -638,7 +638,7 @@ TNode<BoolT> CodeStubAssembler::IsValidPositiveSmi(TNode<IntPtrT> value) {
   return UintPtrLessThanOrEqual(value, IntPtrConstant(Smi::kMaxValue));
 }
 
-TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
+TNode<Smi> CodeStubAssembler::SmiTag(TNode<IntPtrT> value) {
   int32_t constant_value;
   if (TryToInt32Constant(value, &constant_value) &&
       Smi::IsValid(constant_value)) {
@@ -652,7 +652,7 @@ TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
   return smi;
 }
 
-TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
+TNode<IntPtrT> CodeStubAssembler::SmiUntag(TNode<Smi> value) {
   intptr_t constant_value;
   if (TryToIntPtrConstant(value, &constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
@@ -665,7 +665,7 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
   return Signed(WordSarShiftOutZeros(raw_bits, SmiShiftBitsConstant()));
 }
 
-TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
+TNode<Int32T> CodeStubAssembler::SmiToInt32(TNode<Smi> value) {
   if (COMPRESS_POINTERS_BOOL) {
     return Signed(Word32SarShiftOutZeros(
         TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(value)),
@@ -675,7 +675,7 @@ TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
   return TruncateIntPtrToInt32(result);
 }
 
-TNode<Float64T> CodeStubAssembler::SmiToFloat64(SloppyTNode<Smi> value) {
+TNode<Float64T> CodeStubAssembler::SmiToFloat64(TNode<Smi> value) {
   return ChangeInt32ToFloat64(SmiToInt32(value));
 }
 
@@ -999,8 +999,7 @@ TNode<Int32T> CodeStubAssembler::TruncateWordToInt32(TNode<WordT> value) {
   return ReinterpretCast<Int32T>(value);
 }
 
-TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(
-    SloppyTNode<IntPtrT> value) {
+TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(TNode<IntPtrT> value) {
   if (Is64()) {
     return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));
   }
@@ -2110,7 +2109,7 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 }
 
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
-    TNode<PropertyArray> object, SloppyTNode<IntPtrT> index) {
+    TNode<PropertyArray> object, TNode<IntPtrT> index) {
   int additional_offset = 0;
   LoadSensitivity needs_poisoning = LoadSensitivity::kSafe;
   return CAST(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
@@ -2148,7 +2147,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
 }
 
 TNode<BigInt> CodeStubAssembler::LoadFixedBigInt64ArrayElementAsTagged(
-    SloppyTNode<RawPtrT> data_pointer, SloppyTNode<IntPtrT> offset) {
+    TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
   if (Is64()) {
     TNode<IntPtrT> value = Load<IntPtrT>(data_pointer, offset);
     return BigIntFromInt64(value);
@@ -2273,7 +2272,7 @@ TNode<BigInt> CodeStubAssembler::BigIntFromInt64(TNode<IntPtrT> value) {
 }
 
 TNode<BigInt> CodeStubAssembler::LoadFixedBigUint64ArrayElementAsTagged(
-    SloppyTNode<RawPtrT> data_pointer, SloppyTNode<IntPtrT> offset) {
+    TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
   Label if_zero(this), done(this);
   if (Is64()) {
     TNode<UintPtrT> value = Load<UintPtrT>(data_pointer, offset);
@@ -2452,7 +2451,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
   if (SmiValuesAre32Bits()) {
     return Load<Int32T>(object, offset);
   } else {
-    return SmiToInt32(Load(MachineType::TaggedSigned(), object, offset));
+    return SmiToInt32(Load<Smi>(object, offset));
   }
 }
 
@@ -2780,7 +2779,7 @@ void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,
 }
 
 void CodeStubAssembler::StoreHeapNumberValue(TNode<HeapNumber> object,
-                                             SloppyTNode<Float64T> value) {
+                                             TNode<Float64T> value) {
   StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value);
 }
 
@@ -3606,8 +3605,8 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
 }
 
 void CodeStubAssembler::InitializeJSObjectBodyNoSlackTracking(
-    TNode<HeapObject> object, TNode<Map> map,
-    SloppyTNode<IntPtrT> instance_size, int start_offset) {
+    TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
+    int start_offset) {
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
   CSA_ASSERT(this, IsClearWord32<Map::Bits3::ConstructionCounterBits>(
                        LoadMapBitField3(map)));
@@ -3616,8 +3615,7 @@ void CodeStubAssembler::InitializeJSObjectBodyNoSlackTracking(
 }
 
 void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
-    TNode<HeapObject> object, TNode<Map> map,
-    SloppyTNode<IntPtrT> instance_size) {
+    TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size) {
   Comment("InitializeJSObjectBodyNoSlackTracking");
 
   // Perform in-object slack tracking if requested.
@@ -5407,8 +5405,7 @@ TNode<Number> CodeStubAssembler::ChangeFloat32ToTagged(TNode<Float32T> value) {
   return var_result.value();
 }
 
-TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
-    SloppyTNode<Float64T> value) {
+TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(TNode<Float64T> value) {
   Label if_smi(this), done(this);
   TVARIABLE(Smi, var_smi_result);
   TVARIABLE(Number, var_result);
@@ -7876,8 +7873,8 @@ TNode<IntPtrT> CodeStubAssembler::HashTableComputeCapacity(
   return IntPtrMax(capacity, IntPtrConstant(HashTableBase::kMinCapacity));
 }
 
-TNode<IntPtrT> CodeStubAssembler::IntPtrMax(SloppyTNode<IntPtrT> left,
-                                            SloppyTNode<IntPtrT> right) {
+TNode<IntPtrT> CodeStubAssembler::IntPtrMax(TNode<IntPtrT> left,
+                                            TNode<IntPtrT> right) {
   intptr_t left_constant;
   intptr_t right_constant;
   if (TryToIntPtrConstant(left, &left_constant) &&
@@ -7888,8 +7885,8 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrMax(SloppyTNode<IntPtrT> left,
                                  right);
 }
 
-TNode<IntPtrT> CodeStubAssembler::IntPtrMin(SloppyTNode<IntPtrT> left,
-                                            SloppyTNode<IntPtrT> right) {
+TNode<IntPtrT> CodeStubAssembler::IntPtrMin(TNode<IntPtrT> left,
+                                            TNode<IntPtrT> right) {
   intptr_t left_constant;
   intptr_t right_constant;
   if (TryToIntPtrConstant(left, &left_constant) &&
@@ -9193,7 +9190,7 @@ void CodeStubAssembler::TryGetOwnProperty(
 
 void CodeStubAssembler::TryLookupElement(
     TNode<HeapObject> object, TNode<Map> map, TNode<Int32T> instance_type,
-    SloppyTNode<IntPtrT> intptr_index, Label* if_found, Label* if_absent,
+    TNode<IntPtrT> intptr_index, Label* if_found, Label* if_absent,
     Label* if_not_found, Label* if_bailout) {
   // Handle special objects in runtime.
   GotoIf(IsSpecialReceiverInstanceType(instance_type), if_bailout);
@@ -9672,8 +9669,8 @@ CodeStubAssembler::ElementOffsetFromIndex<IntPtrT>(TNode<IntPtrT> index_node,
                                                    ElementsKind kind,
                                                    int base_size);
 
-TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
-                                                 SloppyTNode<IntPtrT> length,
+TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(TNode<IntPtrT> offset,
+                                                 TNode<IntPtrT> length,
                                                  int header_size,
                                                  ElementsKind kind) {
   // Make sure we point to the last field.
@@ -13086,7 +13083,7 @@ TNode<Number> CodeStubAssembler::BitwiseOp(TNode<Word32T> left32,
 }
 
 TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
-    TNode<Context> context, TNode<Object> value, SloppyTNode<Oddball> done) {
+    TNode<Context> context, TNode<Object> value, TNode<Oddball> done) {
   CSA_ASSERT(this, IsBoolean(done));
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = CAST(

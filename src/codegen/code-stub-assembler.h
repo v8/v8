@@ -537,19 +537,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Round the 32bits payload of the provided word up to the next power of two.
   TNode<IntPtrT> IntPtrRoundUpToPowerOfTwo32(TNode<IntPtrT> value);
   // Select the maximum of the two provided IntPtr values.
-  TNode<IntPtrT> IntPtrMax(SloppyTNode<IntPtrT> left,
-                           SloppyTNode<IntPtrT> right);
+  TNode<IntPtrT> IntPtrMax(TNode<IntPtrT> left, TNode<IntPtrT> right);
   // Select the minimum of the two provided IntPtr values.
-  TNode<IntPtrT> IntPtrMin(SloppyTNode<IntPtrT> left,
-                           SloppyTNode<IntPtrT> right);
+  TNode<IntPtrT> IntPtrMin(TNode<IntPtrT> left, TNode<IntPtrT> right);
   TNode<UintPtrT> UintPtrMin(TNode<UintPtrT> left, TNode<UintPtrT> right);
 
   // Float64 operations.
-  TNode<Float64T> Float64Ceil(SloppyTNode<Float64T> x);
-  TNode<Float64T> Float64Floor(SloppyTNode<Float64T> x);
-  TNode<Float64T> Float64Round(SloppyTNode<Float64T> x);
-  TNode<Float64T> Float64RoundToEven(SloppyTNode<Float64T> x);
-  TNode<Float64T> Float64Trunc(SloppyTNode<Float64T> x);
+  TNode<Float64T> Float64Ceil(TNode<Float64T> x);
+  TNode<Float64T> Float64Floor(TNode<Float64T> x);
+  TNode<Float64T> Float64Round(TNode<Float64T> x);
+  TNode<Float64T> Float64RoundToEven(TNode<Float64T> x);
+  TNode<Float64T> Float64Trunc(TNode<Float64T> x);
   // Select the minimum of the two provided Number values.
   TNode<Number> NumberMax(TNode<Number> left, TNode<Number> right);
   // Select the minimum of the two provided Number values.
@@ -559,17 +557,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsValidPositiveSmi(TNode<IntPtrT> value);
 
   // Tag an IntPtr as a Smi value.
-  TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
+  TNode<Smi> SmiTag(TNode<IntPtrT> value);
   // Untag a Smi value as an IntPtr.
-  TNode<IntPtrT> SmiUntag(SloppyTNode<Smi> value);
+  TNode<IntPtrT> SmiUntag(TNode<Smi> value);
 
   // Smi conversions.
-  TNode<Float64T> SmiToFloat64(SloppyTNode<Smi> value);
-  TNode<Smi> SmiFromIntPtr(SloppyTNode<IntPtrT> value) { return SmiTag(value); }
+  TNode<Float64T> SmiToFloat64(TNode<Smi> value);
+  TNode<Smi> SmiFromIntPtr(TNode<IntPtrT> value) { return SmiTag(value); }
   TNode<Smi> SmiFromInt32(SloppyTNode<Int32T> value);
   TNode<Smi> SmiFromUint32(TNode<Uint32T> value);
-  TNode<IntPtrT> SmiToIntPtr(SloppyTNode<Smi> value) { return SmiUntag(value); }
-  TNode<Int32T> SmiToInt32(SloppyTNode<Smi> value);
+  TNode<IntPtrT> SmiToIntPtr(TNode<Smi> value) { return SmiUntag(value); }
+  TNode<Int32T> SmiToInt32(TNode<Smi> value);
 
   // Smi operations.
 #define SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName, Int32OpName)          \
@@ -883,7 +881,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<Int32T> TruncateWordToInt32(TNode<WordT> value);
-  TNode<Int32T> TruncateIntPtrToInt32(SloppyTNode<IntPtrT> value);
+  TNode<Int32T> TruncateIntPtrToInt32(TNode<IntPtrT> value);
 
   // Check a value for smi-ness
   TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);
@@ -893,7 +891,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> TaggedIsPositiveSmi(TNode<Object> a);
   // Check that a word has a word-aligned address.
   TNode<BoolT> WordIsAligned(TNode<WordT> word, size_t alignment);
-  TNode<BoolT> WordIsPowerOfTwo(SloppyTNode<IntPtrT> value);
+  TNode<BoolT> WordIsPowerOfTwo(TNode<IntPtrT> value);
 
   // Check if lower_limit <= value <= higher_limit.
   template <typename U>
@@ -1392,7 +1390,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<Object> LoadPropertyArrayElement(TNode<PropertyArray> object,
-                                         SloppyTNode<IntPtrT> index);
+                                         TNode<IntPtrT> index);
   TNode<IntPtrT> LoadPropertyArrayLength(TNode<PropertyArray> object);
 
   // Load an element from an array and untag it and return it as Word32.
@@ -1456,9 +1454,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Int32T> elements_kind);
   // Parts of the above, factored out for readability:
   TNode<BigInt> LoadFixedBigInt64ArrayElementAsTagged(
-      SloppyTNode<RawPtrT> data_pointer, SloppyTNode<IntPtrT> offset);
+      TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset);
   TNode<BigInt> LoadFixedBigUint64ArrayElementAsTagged(
-      SloppyTNode<RawPtrT> data_pointer, SloppyTNode<IntPtrT> offset);
+      TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset);
   // 64-bit platforms only:
   TNode<BigInt> BigIntFromInt64(TNode<IntPtrT> value);
   TNode<BigInt> BigIntFromUint64(TNode<UintPtrT> value);
@@ -1514,8 +1512,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<Word32T> value);
 
   // Store the floating point value of a HeapNumber.
-  void StoreHeapNumberValue(TNode<HeapNumber> object,
-                            SloppyTNode<Float64T> value);
+  void StoreHeapNumberValue(TNode<HeapNumber> object, TNode<Float64T> value);
+
   // Store a field to an object on the heap.
   void StoreObjectField(TNode<HeapObject> object, int offset,
                         TNode<Object> value);
@@ -1523,8 +1521,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                         TNode<Object> value);
   template <class T>
   void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,
-                                      SloppyTNode<IntPtrT> offset,
-                                      TNode<T> value) {
+                                      TNode<IntPtrT> offset, TNode<T> value) {
     int const_offset;
     if (TryToInt32Constant(offset, &const_offset)) {
       return StoreObjectFieldNoWriteBarrier<T>(object, const_offset, value);
@@ -1771,12 +1768,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       base::Optional<TNode<FixedArray>> elements = base::nullopt,
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
-  void InitializeJSObjectBodyWithSlackTracking(
-      TNode<HeapObject> object, TNode<Map> map,
-      SloppyTNode<IntPtrT> instance_size);
+  void InitializeJSObjectBodyWithSlackTracking(TNode<HeapObject> object,
+                                               TNode<Map> map,
+                                               TNode<IntPtrT> instance_size);
   void InitializeJSObjectBodyNoSlackTracking(
-      TNode<HeapObject> object, TNode<Map> map,
-      SloppyTNode<IntPtrT> instance_size,
+      TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
       int start_offset = JSObject::kHeaderSize);
 
   TNode<BoolT> IsValidFastJSArrayCapacity(TNode<IntPtrT> capacity);
@@ -1898,7 +1894,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResult(TNode<Context> context,
                                            TNode<Object> value,
-                                           SloppyTNode<Oddball> done);
+                                           TNode<Oddball> done);
 
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
@@ -2240,7 +2236,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void TryFloat64ToSmi(TNode<Float64T> number, TVariable<Smi>* output,
                        Label* if_smi);
   TNode<Number> ChangeFloat32ToTagged(TNode<Float32T> value);
-  TNode<Number> ChangeFloat64ToTagged(SloppyTNode<Float64T> value);
+  TNode<Number> ChangeFloat64ToTagged(TNode<Float64T> value);
   TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);
   TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
@@ -2720,7 +2716,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Returns true if any of the mask's bit are set in the given Smi.
   // Smi-encoding of the mask is performed implicitly!
-  TNode<BoolT> IsSetSmi(SloppyTNode<Smi> smi, int untagged_mask) {
+  TNode<BoolT> IsSetSmi(TNode<Smi> smi, int untagged_mask) {
     intptr_t mask_word = bit_cast<intptr_t>(Smi::FromInt(untagged_mask));
     return WordNotEqual(WordAnd(BitcastTaggedToWordForTagAndSmiBits(smi),
                                 IntPtrConstant(mask_word)),
@@ -3086,7 +3082,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // chain needs to be checked. And if_bailout if the lookup is unsupported.
   void TryLookupElement(TNode<HeapObject> object, TNode<Map> map,
                         TNode<Int32T> instance_type,
-                        SloppyTNode<IntPtrT> intptr_index, Label* if_found,
+                        TNode<IntPtrT> intptr_index, Label* if_found,
                         Label* if_absent, Label* if_not_found,
                         Label* if_bailout);
 
@@ -3478,8 +3474,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         int base_size = 0);
 
   // Check that a field offset is within the bounds of the an object.
-  TNode<BoolT> IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
-                                SloppyTNode<IntPtrT> length, int header_size,
+  TNode<BoolT> IsOffsetInBounds(TNode<IntPtrT> offset, TNode<IntPtrT> length,
+                                int header_size,
                                 ElementsKind kind = HOLEY_ELEMENTS);
 
   // Load a builtin's code from the builtin array in the isolate.
