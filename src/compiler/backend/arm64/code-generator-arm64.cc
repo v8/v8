@@ -3051,6 +3051,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {
+  frame->AlignFrame(16);
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   // Save FP registers.
@@ -3059,6 +3060,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   int saved_count = saves_fp.Count();
   if (saved_count != 0) {
     DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+    DCHECK_EQ(saved_count % 2, 0);
     frame->AllocateSavedCalleeRegisterSlots(saved_count *
                                             (kDoubleSize / kSystemPointerSize));
   }
@@ -3067,9 +3069,9 @@ void CodeGenerator::FinishFrame(Frame* frame) {
                                 call_descriptor->CalleeSavedRegisters());
   saved_count = saves.Count();
   if (saved_count != 0) {
+    DCHECK_EQ(saved_count % 2, 0);
     frame->AllocateSavedCalleeRegisterSlots(saved_count);
   }
-  frame->AlignFrame(16);
 }
 
 void CodeGenerator::AssembleConstructFrame() {

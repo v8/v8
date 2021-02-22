@@ -20,7 +20,6 @@ Frame::Frame(int fixed_frame_size_in_slots)
 void Frame::AlignFrame(int alignment) {
 #if DEBUG
   spill_slots_finished_ = true;
-  frame_aligned_ = true;
 #endif
   // In the calculations below we assume that alignment is a power of 2.
   DCHECK(base::bits::IsPowerOfTwo(alignment));
