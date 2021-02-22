@@ -3323,18 +3323,23 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
         ObjectRef key_ref(broker(), hint);
         // TODO(neis): Do this for integer-HeapNumbers too?
         if (key_ref.IsSmi() && key_ref.AsSmi() >= 0) {
-          base::Optional<ObjectRef> element =
-              receiver_ref.GetOwnConstantElement(
-                  key_ref.AsSmi(), SerializationPolicy::kSerializeIfNeeded);
-          if (!element.has_value() && receiver_ref.IsJSArray()) {
-            // We didn't find a constant element, but if the receiver is a
-            // cow-array we can exploit the fact that any future write to the
-            // element will replace the whole elements storage.
-            JSArrayRef array_ref = receiver_ref.AsJSArray();
-            array_ref.SerializeElements();
-            array_ref.GetOwnCowElement(array_ref.elements().value(),
-                                       key_ref.AsSmi(),
-                                       SerializationPolicy::kSerializeIfNeeded);
+          base::Optional<ObjectRef> element;
+          if (receiver_ref.IsJSObject()) {
+            element = receiver_ref.AsJSObject().GetOwnConstantElement(
+                key_ref.AsSmi(), SerializationPolicy::kSerializeIfNeeded);
+            if (!element.has_value() && receiver_ref.IsJSArray()) {
+              // We didn't find a constant element, but if the receiver is a
+              // cow-array we can exploit the fact that any future write to the
+              // element will replace the whole elements storage.
+              JSArrayRef array_ref = receiver_ref.AsJSArray();
+              array_ref.SerializeElements();
+              array_ref.GetOwnCowElement(
+                  array_ref.elements().value(), key_ref.AsSmi(),
+                  SerializationPolicy::kSerializeIfNeeded);
+            }
+          } else if (receiver_ref.IsString()) {
+            element = receiver_ref.AsString().GetCharAsString(
+                key_ref.AsSmi(), SerializationPolicy::kSerializeIfNeeded);
           }
         }
       }

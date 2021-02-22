@@ -3287,6 +3287,24 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
   return ObjectRef(broker(), descriptors->GetFieldType(descriptor_index));
 }
 
+base::Optional<StringRef> StringRef::GetCharAsString(
+    uint32_t index, SerializationPolicy policy) const {
+  if (data_->should_access_heap()) {
+    // TODO(solanes, neis, v8:7790, v8:11012): Re-enable this optimization for
+    // concurrent inlining when we have the infrastructure to safely do so.
+    if (broker()->is_concurrent_inlining()) return base::nullopt;
+    CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
+    base::Optional<ObjectRef> maybe_result =
+        GetOwnElementFromHeap(broker(), object(), index, true);
+    if (!maybe_result) return {};
+    return maybe_result->AsString();
+  }
+  ObjectData* element =
+      data()->AsString()->GetCharAsString(broker(), index, policy);
+  if (element == nullptr) return base::nullopt;
+  return StringRef(broker(), element);
+}
+
 base::Optional<int> StringRef::length() const {
   if (data_->should_access_heap()) {
     if (data_->kind() == kNeverSerializedHeapObject &&
@@ -3980,23 +3998,14 @@ Maybe<double> ObjectRef::OddballToNumber() const {
   }
 }
 
-base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
+base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
     uint32_t index, SerializationPolicy policy) const {
-  if (!(IsJSObject() || IsString())) return base::nullopt;
   if (data_->should_access_heap()) {
-    // TODO(solanes, neis, v8:7790, v8:11012): Re-enable this optmization for
-    // concurrent inlining when we have the infrastructure to safely do so.
-    if (broker()->is_concurrent_inlining() && IsString()) return base::nullopt;
     CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
     return GetOwnElementFromHeap(broker(), object(), index, true);
   }
-  ObjectData* element = nullptr;
-  if (IsJSObject()) {
-    element =
-        data()->AsJSObject()->GetOwnConstantElement(broker(), index, policy);
-  } else if (IsString()) {
-    element = data()->AsString()->GetCharAsString(broker(), index, policy);
-  }
+  ObjectData* element =
+      data()->AsJSObject()->GetOwnConstantElement(broker(), index, policy);
   if (element == nullptr) return base::nullopt;
   return ObjectRef(broker(), element);
 }

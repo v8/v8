@@ -199,12 +199,6 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool BooleanValue() const;
   Maybe<double> OddballToNumber() const;
 
-  // Return the element at key {index} if {index} is known to be an own data
-  // property of the object that is non-writable and non-configurable.
-  base::Optional<ObjectRef> GetOwnConstantElement(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
-
   Isolate* isolate() const;
 
   struct Hash {
@@ -340,6 +334,12 @@ class JSObjectRef : public JSReceiverRef {
   Handle<JSObject> object() const;
 
   ObjectRef RawFastPropertyAt(FieldIndex index) const;
+
+  // Return the element at key {index} if {index} is known to be an own data
+  // property of the object that is non-writable and non-configurable.
+  base::Optional<ObjectRef> GetOwnConstantElement(
+      uint32_t index, SerializationPolicy policy =
+                          SerializationPolicy::kAssumeSerialized) const;
 
   // Return the value of the property identified by the field {index}
   // if {index} is known to be an own data property of the object.
@@ -916,6 +916,10 @@ class StringRef : public NameRef {
   DEFINE_REF_CONSTRUCTOR(String, NameRef)
 
   Handle<String> object() const;
+
+  base::Optional<StringRef> GetCharAsString(
+      uint32_t index, SerializationPolicy policy =
+                          SerializationPolicy::kAssumeSerialized) const;
 
   base::Optional<int> length() const;
   base::Optional<uint16_t> GetFirstChar();
