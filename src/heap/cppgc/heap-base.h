@@ -169,6 +169,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   bool IsMarking() const { return marker_.get(); }
 
+  void ExecutePreFinalizers();
+
   RawHeap raw_heap_;
   std::shared_ptr<cppgc::Platform> platform_;
 #if defined(CPPGC_CAGED_HEAP)

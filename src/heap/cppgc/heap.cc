@@ -184,11 +184,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
     marker_->FinishMarking(config_.stack_state);
   }
   marker_.reset();
-  {
-    // Pre finalizers are forbidden from allocating objects.
-    cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
-    prefinalizer_handler_->InvokePreFinalizers();
-  }
+  ExecutePreFinalizers();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   MarkingVerifier verifier(*this);

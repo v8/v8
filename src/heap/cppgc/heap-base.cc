@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/heap-base.h"
 
+#include "include/cppgc/heap-consistency.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/base/stack.h"
@@ -91,6 +92,11 @@ size_t HeapBase::ObjectPayloadSize() const {
 void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
   if (marker_) marker_->AdvanceMarkingOnAllocation();
 }
+void HeapBase::ExecutePreFinalizers() {
+  // Pre finalizers are forbidden from allocating objects.
+  cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
+  prefinalizer_handler_->InvokePreFinalizers();
+}
 
 void HeapBase::Terminate() {
   DCHECK(!IsMarking());
@@ -116,6 +122,7 @@ void HeapBase::Terminate() {
         GarbageCollector::Config::IsForcedGC::kForced);
     stats_collector()->NotifyMarkingCompleted(0);
     object_allocator().ResetLinearAllocationBuffers();
+    ExecutePreFinalizers();
     sweeper().Start(
         {Sweeper::SweepingConfig::SweepingType::kAtomic,
          Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
