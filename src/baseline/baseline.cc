@@ -8,6 +8,7 @@
 // architectures.
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
+#include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-compiler.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/counters.h"

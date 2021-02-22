@@ -13,7 +13,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/threaded-list.h"
-#include "src/codegen/macro-assembler.h"
+#include "src/baseline/baseline-assembler.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-register.h"
@@ -29,8 +29,6 @@ namespace internal {
 class BytecodeArray;
 
 namespace baseline {
-
-enum class Condition : uint8_t;
 
 class BytecodeOffsetTableBuilder {
  public:
@@ -59,165 +57,6 @@ class BytecodeOffsetTableBuilder {
   size_t previous_pc_ = 0;
   size_t previous_bytecode_ = 0;
   std::vector<byte> bytes_;
-};
-
-class BaselineAssembler {
- public:
-  class ScratchRegisterScope;
-
-  explicit BaselineAssembler(MacroAssembler* masm) : masm_(masm) {}
-  static MemOperand RegisterFrameOperand(
-      interpreter::Register interpreter_register);
-  MemOperand ContextOperand();
-  MemOperand FunctionOperand();
-  MemOperand FeedbackVectorOperand();
-
-  void GetCode(Isolate* isolate, CodeDesc* desc);
-  int pc_offset() const;
-  bool emit_debug_code() const;
-  void CodeEntry() const;
-  void ExceptionHandler() const;
-  void RecordComment(const char* string);
-  void Trap();
-  void DebugBreak();
-
-  void Bind(Label* label);
-  void JumpIf(Condition cc, Label* target,
-              Label::Distance distance = Label::kFar);
-  void Jump(Label* target, Label::Distance distance = Label::kFar);
-  void JumpIfRoot(Register value, RootIndex index, Label* target,
-                  Label::Distance distance = Label::kFar);
-  void JumpIfNotRoot(Register value, RootIndex index, Label* target,
-                     Label ::Distance distance = Label::kFar);
-  void JumpIfSmi(Register value, Label* target,
-                 Label::Distance distance = Label::kFar);
-  void JumpIfNotSmi(Register value, Label* target,
-                    Label::Distance distance = Label::kFar);
-
-  void Test(Register value, int mask);
-
-  void CmpObjectType(Register object, InstanceType instance_type, Register map);
-  void CmpInstanceType(Register value, InstanceType instance_type);
-  void Cmp(Register value, Smi smi);
-  void ComparePointer(Register value, MemOperand operand);
-  Condition CheckSmi(Register value);
-  void SmiCompare(Register lhs, Register rhs);
-  void CompareTagged(Register value, MemOperand operand);
-  void CompareTagged(MemOperand operand, Register value);
-  void CompareByte(Register value, int32_t byte);
-
-  void LoadMap(Register output, Register value);
-  void LoadRoot(Register output, RootIndex index);
-  void LoadNativeContextSlot(Register output, uint32_t index);
-
-  void Move(Register output, Register source);
-  void Move(Register output, MemOperand operand);
-  void Move(Register output, Smi value);
-  void Move(Register output, TaggedIndex value);
-  void Move(Register output, interpreter::Register source);
-  void Move(interpreter::Register output, Register source);
-  void Move(Register output, RootIndex source);
-  void Move(MemOperand output, Register source);
-  void Move(Register output, ExternalReference reference);
-  void Move(Register output, Handle<HeapObject> value);
-  void Move(Register output, int32_t immediate);
-  void MoveMaybeSmi(Register output, Register source);
-  void MoveSmi(Register output, Register source);
-
-  // Push the given values, in the given order. If the stack needs alignment
-  // (looking at you Arm64), the stack is padded from the front (i.e. before the
-  // first value is pushed).
-  //
-  // This supports pushing a RegisterList as the last value -- the list is
-  // iterated and each interpreter Register is pushed.
-  //
-  // The total number of values pushed is returned. Note that this might be
-  // different from sizeof(T...), specifically if there was a RegisterList.
-  template <typename... T>
-  int Push(T... vals);
-
-  // Like Push(vals...), but pushes in reverse order, to support our reversed
-  // order argument JS calling convention. Doesn't return the number of
-  // arguments pushed though.
-  //
-  // Note that padding is still inserted before the first pushed value (i.e. the
-  // last value).
-  template <typename... T>
-  void PushReverse(T... vals);
-
-  // Pop values off the stack into the given registers.
-  //
-  // Note that this inserts into registers in the given order, i.e. in reverse
-  // order if the registers were pushed. This means that to spill registers,
-  // push and pop have to be in reverse order, e.g.
-  //
-  //     Push(r1, r2, ..., rN);
-  //     ClobberRegisters();
-  //     Pop(rN, ..., r2, r1);
-  //
-  // On stack-alignment architectures, any padding is popped off after the last
-  // register. This the behaviour of Push, which means that the above code still
-  // works even if the number of registers doesn't match stack alignment.
-  template <typename... T>
-  void Pop(T... registers);
-
-  void CallBuiltin(Builtins::Name builtin);
-  void TailCallBuiltin(Builtins::Name builtin);
-  void CallRuntime(Runtime::FunctionId function, int nargs);
-
-  void LoadTaggedPointerField(Register output, Register source, int offset);
-  void LoadTaggedSignedField(Register output, Register source, int offset);
-  void LoadTaggedAnyField(Register output, Register source, int offset);
-  void LoadByteField(Register output, Register source, int offset);
-  void StoreTaggedSignedField(Register target, int offset, Smi value);
-  void StoreTaggedFieldWithWriteBarrier(Register target, int offset,
-                                        Register value);
-  void StoreTaggedFieldNoWriteBarrier(Register target, int offset,
-                                      Register value);
-  void LoadFixedArrayElement(Register output, Register array, int32_t index);
-  void LoadPrototype(Register prototype, Register object);
-
-  // Loads the feedback cell from the function, and sets flags on add so that
-  // we can compare afterward.
-  void AddToInterruptBudget(int32_t weight);
-  void AddToInterruptBudget(Register weight);
-
-  void AddSmi(Register lhs, Smi rhs);
-  void SmiUntag(Register value);
-  void SmiUntag(Register output, Register value);
-
-  void Switch(Register reg, int case_value_base, Label** labels,
-              int num_labels);
-
-  // Register operands.
-  void LoadRegister(Register output, interpreter::Register source);
-  void StoreRegister(interpreter::Register output, Register value);
-
-  // Frame values
-  void LoadFunction(Register output);
-  void LoadContext(Register output);
-  void StoreContext(Register context);
-
-  static void EmitReturn(MacroAssembler* masm);
-
-  MacroAssembler* masm() { return masm_; }
-
- private:
-  MacroAssembler* masm_;
-  ScratchRegisterScope* scratch_register_scope_ = nullptr;
-};
-
-class SaveAccumulatorScope final {
- public:
-  explicit SaveAccumulatorScope(BaselineAssembler* assembler)
-      : assembler_(assembler) {
-    assembler_->Push(kInterpreterAccumulatorRegister);
-  }
-
-  ~SaveAccumulatorScope() { assembler_->Pop(kInterpreterAccumulatorRegister); }
-
- private:
-  BaselineAssembler* assembler_;
 };
 
 class BaselineCompiler {
