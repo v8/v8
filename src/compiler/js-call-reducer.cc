@@ -3462,11 +3462,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
     return NoChange();
   }
 
-  // TODO(paolosev@microsoft.com): Enable inlining for calls in try/catch.
-  if (NodeProperties::IsExceptionalCall(node)) {
-    return NoChange();
-  }
-
   const wasm::FunctionSig* wasm_signature = shared.wasm_function_signature();
   if (!CanInlineJSToWasmCall(wasm_signature)) {
     return NoChange();

@@ -388,6 +388,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   // Create the subgraph for the inlinee.
   Node* start_node;
   Node* end;
+  size_t subgraph_min_node_id;
   {
     Graph::SubgraphScope scope(graph());
 
@@ -404,6 +405,13 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
             jsgraph(), n.context(), n.frame_state(),
             wasm_call_params.signature());
     JSWasmCallData js_wasm_call_data(wasm_call_params.signature());
+
+    // All the nodes inserted by the inlined subgraph will have
+    // id >= subgraph_min_node_id. We use this later to avoid wire nodes that
+    // are not inserted by the inlinee but were already part of the graph to the
+    // surrounding exception handler, if present.
+    subgraph_min_node_id = graph()->NodeCount();
+
     BuildInlinedJSToWasmWrapper(
         graph()->zone(), jsgraph(), wasm_call_params.signature(),
         wasm_call_params.module(), source_positions_,
@@ -427,6 +435,9 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     // Find all uncaught 'calls' in the inlinee.
     AllNodes inlined_nodes(local_zone_, end, graph());
     for (Node* subnode : inlined_nodes.reachable) {
+      // Ignore nodes that are not part of the inlinee.
+      if (subnode->id() < subgraph_min_node_id) continue;
+
       // Every possibly throwing node should get {IfSuccess} and {IfException}
       // projections, unless there already is local exception handling.
       if (subnode->op()->HasProperty(Operator::kNoThrow)) continue;
