@@ -198,6 +198,21 @@ static_assert(kDeleted == -2,
               "kDeleted must be -2 to make the implementation of "
               "ConvertSpecialToEmptyAndFullToDeleted efficient");
 
+// See below for explanation of H2. Just here for documentation purposes, Swiss
+// Table implementations rely on this being 7.
+static constexpr int kH2Bits = 7;
+
+// Extracts H1 from the given overall hash, which means discarding the lowest 7
+// bits of the overall hash. H1 is used to determine the first group to probe.
+inline static uint32_t H1(uint32_t hash) { return (hash >> kH2Bits); }
+
+// Extracts H2 from the given overall hash, which means using only the lowest 7
+// bits of the overall hash. H2 is stored in the control table byte for each
+// present entry.
+inline static swiss_table::ctrl_t H2(uint32_t hash) {
+  return hash & ((1 << kH2Bits) - 1);
+}
+
 #if SWISS_TABLE_HAVE_SSE2
 // https://github.com/abseil/abseil-cpp/issues/209
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87853

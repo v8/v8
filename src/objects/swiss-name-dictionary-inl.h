@@ -28,9 +28,14 @@ namespace internal {
 CAST_ACCESSOR(SwissNameDictionary)
 OBJECT_CONSTRUCTORS_IMPL(SwissNameDictionary, HeapObject)
 
-const swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
+swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
   return reinterpret_cast<ctrl_t*>(
       field_address(CtrlTableStartOffset(Capacity())));
+}
+
+uint8_t* SwissNameDictionary::PropertyDetailsTable() {
+  return reinterpret_cast<uint8_t*>(
+      field_address(PropertyDetailsTableStartOffset(Capacity())));
 }
 
 int SwissNameDictionary::Capacity() {
@@ -40,7 +45,7 @@ int SwissNameDictionary::Capacity() {
 void SwissNameDictionary::SetCapacity(int capacity) {
   DCHECK(IsValidCapacity(capacity));
 
-  WriteField(CapacityOffset(), capacity);
+  WriteField<int32_t>(CapacityOffset(), capacity);
 }
 
 int SwissNameDictionary::NumberOfElements() {
@@ -123,6 +128,228 @@ int SwissNameDictionary::CapacityFor(int at_least_space_for) {
 
   int non_normalized = at_least_space_for + at_least_space_for / 7;
   return base::bits::RoundUpToPowerOfTwo32(non_normalized);
+}
+
+int SwissNameDictionary::EntryForEnumerationIndex(int enumeration_index) {
+  DCHECK_LT(enumeration_index, UsedCapacity());
+  return GetMetaTableField(kMetaTableEnumerationTableStartOffset +
+                           enumeration_index);
+}
+
+void SwissNameDictionary::SetEntryForEnumerationIndex(int enumeration_index,
+                                                      int entry) {
+  DCHECK_LT(enumeration_index, UsedCapacity());
+  DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
+  DCHECK(IsFull(GetCtrl(entry)));
+
+  SetMetaTableField(kMetaTableEnumerationTableStartOffset + enumeration_index,
+                    entry);
+}
+
+template <typename LocalIsolate>
+InternalIndex SwissNameDictionary::FindEntry(LocalIsolate* isolate,
+                                             Object key) {
+  Name name = Name::cast(key);
+  DCHECK(name.IsUniqueName());
+  uint32_t hash = name.hash();
+
+  // We probe the hash table in groups of |kGroupWidth| buckets. One bucket
+  // corresponds to a 1-byte entry in the control table.
+  // Each group can be uniquely identified by the index of its first bucket,
+  // which must be a value between 0 (inclusive) and Capacity() (exclusive).
+  // Note that logically, groups wrap around after index Capacity() - 1. This
+  // means that probing the group starting at, for example, index Capacity() - 1
+  // means probing CtrlTable()[Capacity() - 1] followed by CtrlTable()[0] to
+  // CtrlTable()[6], assuming a group width of 8. However, in memory, this is
+  // achieved by maintaining an additional |kGroupWidth| bytes after the first
+  // Capacity() entries of the control table. These contain a copy of the first
+  // max(Capacity(), kGroupWidth) entries of the control table. If Capacity() <
+  // |kGroupWidth|, then the remaining |kGroupWidth| - Capacity() control bytes
+  // are left as |kEmpty|.
+  // This means that actually, probing the group starting
+  // at index Capacity() - 1 is achieved by probing CtrlTable()[Capacity() - 1],
+  // followed by CtrlTable()[Capacity()] to CtrlTable()[Capacity() + 7].
+
+  ctrl_t* ctrl = CtrlTable();
+  auto seq = probe(hash, Capacity());
+  // At this point, seq.offset() denotes the index of the first bucket in the
+  // first group to probe. Note that this doesn't have to be divisible by
+  // |kGroupWidth|, but can have any value between 0 (inclusive) and Capacity()
+  // (exclusive).
+  while (true) {
+    Group g{ctrl + seq.offset()};
+    for (int i : g.Match(swiss_table::H2(hash))) {
+      int candidate_entry = seq.offset(i);
+      Object candidate_key = KeyAt(candidate_entry);
+      // This key matching is SwissNameDictionary specific!
+      if (candidate_key == key) return InternalIndex(candidate_entry);
+    }
+    if (g.MatchEmpty()) return InternalIndex::NotFound();
+
+    // The following selects the next group to probe. Note that seq.offset()
+    // always advances by a multiple of |kGroupWidth|, modulo Capacity(). This
+    // is done in a way such that we visit Capacity() / |kGroupWidth|
+    // non-overlapping (!) groups before we would visit the same group (or
+    // bucket) again.
+    seq.next();
+
+    // If the following DCHECK weren't true, we would have probed all Capacity()
+    // different buckets without finding one containing |kEmpty| (which would
+    // haved triggered the g.MatchEmpty() check above). This must not be the
+    // case because the maximum load factor of 7/8 guarantees that there must
+    // always remain empty buckets.
+    //
+    // The only exception from this rule are small tables, where 2 * Capacity()
+    // < |kGroupWidth|, in which case all Capacity() entries can be filled
+    // without leaving empty buckets. The layout of the control
+    // table guarantees that after the first Capacity() entries of the control
+    // table, the control table contains a copy of those first Capacity()
+    // entries, followed by kGroupWidth - 2 * Capacity() entries containing
+    // |kEmpty|. This guarantees that the g.MatchEmpty() check above will
+    // always trigger if the element wasn't found, correctly preventing us from
+    // probing more than one group in this special case.
+    DCHECK_LT(seq.index(), Capacity());
+  }
+}
+
+template <typename LocalIsolate>
+InternalIndex SwissNameDictionary::FindEntry(LocalIsolate* isolate,
+                                             Handle<Object> key) {
+  return FindEntry(isolate, *key);
+}
+
+Object SwissNameDictionary::LoadFromDataTable(int entry, int data_offset) {
+  return LoadFromDataTable(GetIsolateForPtrCompr(*this), entry, data_offset);
+}
+
+Object SwissNameDictionary::LoadFromDataTable(IsolateRoot isolate, int entry,
+                                              int data_offset) {
+  DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
+  int offset = DataTableStartOffset() +
+               (entry * kDataTableEntryCount + data_offset) * kTaggedSize;
+  return TaggedField<Object>::Relaxed_Load(isolate, *this, offset);
+}
+
+void SwissNameDictionary::StoreToDataTable(int entry, int data_offset,
+                                           Object data) {
+  DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
+
+  int offset = DataTableStartOffset() +
+               (entry * kDataTableEntryCount + data_offset) * kTaggedSize;
+
+  RELAXED_WRITE_FIELD(*this, offset, data);
+  WRITE_BARRIER(*this, offset, data);
+}
+
+void SwissNameDictionary::StoreToDataTableNoBarrier(int entry, int data_offset,
+                                                    Object data) {
+  DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
+
+  int offset = DataTableStartOffset() +
+               (entry * kDataTableEntryCount + data_offset) * kTaggedSize;
+
+  RELAXED_WRITE_FIELD(*this, offset, data);
+}
+
+void SwissNameDictionary::ClearDataTableEntry(Isolate* isolate, int entry) {
+  ReadOnlyRoots roots(isolate);
+
+  StoreToDataTable(entry, kDataTableKeyEntryIndex, roots.the_hole_value());
+  StoreToDataTable(entry, kDataTableValueEntryIndex, roots.the_hole_value());
+}
+
+void SwissNameDictionary::ValueAtPut(int entry, Object value) {
+  DCHECK(!value.IsTheHole());
+  StoreToDataTable(entry, kDataTableValueEntryIndex, value);
+}
+
+void SwissNameDictionary::ValueAtPut(InternalIndex entry, Object value) {
+  ValueAtPut(entry.as_int(), value);
+}
+
+void SwissNameDictionary::SetKey(int entry, Object key) {
+  DCHECK(!key.IsTheHole());
+  StoreToDataTable(entry, kDataTableKeyEntryIndex, key);
+}
+
+void SwissNameDictionary::DetailsAtPut(int entry, PropertyDetails details) {
+  DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
+  uint8_t encoded_details = details.ToByte();
+  PropertyDetailsTable()[entry] = encoded_details;
+}
+
+void SwissNameDictionary::DetailsAtPut(InternalIndex entry,
+                                       PropertyDetails details) {
+  DetailsAtPut(entry.as_int(), details);
+}
+
+Object SwissNameDictionary::KeyAt(int entry) {
+  return LoadFromDataTable(entry, kDataTableKeyEntryIndex);
+}
+
+Object SwissNameDictionary::KeyAt(InternalIndex entry) {
+  return KeyAt(entry.as_int());
+}
+
+Name SwissNameDictionary::NameAt(InternalIndex entry) {
+  return Name::cast(KeyAt(entry));
+}
+
+// This version can be called on empty buckets.
+Object SwissNameDictionary::ValueAtRaw(int entry) {
+  return LoadFromDataTable(entry, kDataTableValueEntryIndex);
+}
+
+Object SwissNameDictionary::ValueAt(InternalIndex entry) {
+  DCHECK(IsFull(GetCtrl(entry.as_int())));
+  return ValueAtRaw(entry.as_int());
+}
+
+PropertyDetails SwissNameDictionary::DetailsAt(int entry) {
+  // GetCtrl(entry) does a bounds check for |entry| value.
+  DCHECK(IsFull(GetCtrl(entry)));
+
+  uint8_t encoded_details = PropertyDetailsTable()[entry];
+  return PropertyDetails::FromByte(encoded_details);
+}
+
+PropertyDetails SwissNameDictionary::DetailsAt(InternalIndex entry) {
+  return DetailsAt(entry.as_int());
+}
+
+swiss_table::ctrl_t SwissNameDictionary::GetCtrl(int entry) {
+  DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
+
+  return CtrlTable()[entry];
+}
+
+void SwissNameDictionary::SetCtrl(int entry, ctrl_t h) {
+  int capacity = Capacity();
+  DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(capacity));
+
+  ctrl_t* ctrl = CtrlTable();
+  ctrl[entry] = h;
+
+  // The ctrl table contains a copy of the first group (i.e., the group starting
+  // at entry 0) after the first |capacity| entries of the ctrl table. This
+  // means that the ctrl table always has size |capacity| + |kGroupWidth|.
+  // However, note that we may have |capacity| < |kGroupWidth|. For example, if
+  // Capacity() == 8 and |kGroupWidth| == 16, then ctrl[0] is copied to ctrl[8],
+  // ctrl[1] to ctrl[9], etc. In this case, ctrl[16] to ctrl[23] remain unused,
+  // which means that their values are always Ctrl::kEmpty.
+  // We achieve the necessary copying without branching here using some bit
+  // magic: We set {copy_entry = entry} in those cases where we don't actually
+  // have to perform a copy (meaning that we just repeat the {ctrl[entry] = h}
+  // from above). If we do need to do some actual copying, we set {copy_entry =
+  // Capacity() + entry}.
+
+  int mask = capacity - 1;
+  int copy_entry =
+      ((entry - Group::kWidth) & mask) + 1 + ((Group::kWidth - 1) & mask);
+  DCHECK_IMPLIES(entry < static_cast<int>(Group::kWidth),
+                 copy_entry == capacity + entry);
+  DCHECK_IMPLIES(entry >= static_cast<int>(Group::kWidth), copy_entry == entry);
+  ctrl[copy_entry] = h;
 }
 
 void SwissNameDictionary::SetMetaTableField(int field_index, int value) {
@@ -209,6 +436,23 @@ constexpr int SwissNameDictionary::MetaTableSizeFor(int capacity) {
   return per_entry_size * (MaxUsableCapacity(capacity) + 2);
 }
 
+bool SwissNameDictionary::IsKey(ReadOnlyRoots roots, Object key_candidate) {
+  return key_candidate != roots.the_hole_value();
+}
+
+bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, int entry,
+                                Object* out_key) {
+  Object k = KeyAt(entry);
+  if (!IsKey(roots, k)) return false;
+  *out_key = k;
+  return true;
+}
+
+bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, InternalIndex entry,
+                                Object* out_key) {
+  return ToKey(roots, entry.as_int(), out_key);
+}
+
 template <typename LocalIsolate>
 void SwissNameDictionary::Initialize(LocalIsolate* isolate,
                                      ByteArray meta_table, int capacity) {
@@ -219,9 +463,7 @@ void SwissNameDictionary::Initialize(LocalIsolate* isolate,
   SetCapacity(capacity);
   SetHash(PropertyArray::kNoHashSentinel);
 
-  ctrl_t* ctrl_table = reinterpret_cast<ctrl_t*>(
-      field_address(CtrlTableStartOffset(Capacity())));
-  memset(ctrl_table, Ctrl::kEmpty, CtrlTableSize(capacity));
+  memset(CtrlTable(), Ctrl::kEmpty, CtrlTableSize(capacity));
 
   MemsetTagged(RawField(DataTableStartOffset()), roots.the_hole_value(),
                capacity * kDataTableEntryCount);
@@ -232,6 +474,83 @@ void SwissNameDictionary::Initialize(LocalIsolate* isolate,
   SetNumberOfDeletedElements(0);
 
   // We leave the enumeration table PropertyDetails table and uninitialized.
+}
+
+SwissNameDictionary::IndexIterator::IndexIterator(
+    Handle<SwissNameDictionary> dict, int start)
+    : enum_index_{start}, dict_{dict} {
+  if (!COMPRESS_POINTERS_BOOL && dict.is_null()) {
+    used_capacity_ = 0;
+  } else {
+    used_capacity_ = dict->UsedCapacity();
+  }
+}
+
+SwissNameDictionary::IndexIterator&
+SwissNameDictionary::IndexIterator::operator++() {
+  DCHECK_LT(enum_index_, used_capacity_);
+  ++enum_index_;
+  return *this;
+}
+
+bool SwissNameDictionary::IndexIterator::operator==(
+    const SwissNameDictionary::IndexIterator& b) const {
+  DCHECK_LE(enum_index_, used_capacity_);
+  DCHECK_LE(b.enum_index_, used_capacity_);
+  DCHECK(dict_.equals(b.dict_));
+
+  return this->enum_index_ == b.enum_index_;
+}
+
+bool SwissNameDictionary::IndexIterator::operator!=(
+    const IndexIterator& b) const {
+  return !(*this == b);
+}
+
+InternalIndex SwissNameDictionary::IndexIterator::operator*() {
+  DCHECK_LE(enum_index_, used_capacity_);
+
+  if (enum_index_ == used_capacity_) return InternalIndex::NotFound();
+
+  return InternalIndex(dict_->EntryForEnumerationIndex(enum_index_));
+}
+
+SwissNameDictionary::IndexIterable::IndexIterable(
+    Handle<SwissNameDictionary> dict)
+    : dict_{dict} {}
+
+SwissNameDictionary::IndexIterator SwissNameDictionary::IndexIterable::begin() {
+  return IndexIterator(dict_, 0);
+}
+
+SwissNameDictionary::IndexIterator SwissNameDictionary::IndexIterable::end() {
+  if (!COMPRESS_POINTERS_BOOL && dict_.is_null()) {
+    return IndexIterator(dict_, 0);
+  } else {
+    DCHECK(!dict_.is_null());
+    return IndexIterator(dict_, dict_->UsedCapacity());
+  }
+}
+
+SwissNameDictionary::IndexIterable
+SwissNameDictionary::IterateEntriesOrdered() {
+  // If we are supposed to iterate the empty dictionary (which is non-writable)
+  // and pointer compression is disabled, we have no simple way to get the
+  // isolate, which we would need to create a handle.
+  // TODO(emrich): Consider always using roots.empty_swiss_dictionary_handle()
+  // in the condition once this function gets Isolate as a parameter in order to
+  // avoid empty dict checks.
+  if (!COMPRESS_POINTERS_BOOL && Capacity() == 0)
+    return IndexIterable(Handle<SwissNameDictionary>::null());
+
+  Isolate* isolate;
+  GetIsolateFromHeapObject(*this, &isolate);
+  DCHECK_NE(isolate, nullptr);
+  return IndexIterable(handle(*this, isolate));
+}
+
+SwissNameDictionary::IndexIterable SwissNameDictionary::IterateEntries() {
+  return IterateEntriesOrdered();
 }
 
 void SwissNameDictionary::SetHash(int32_t hash) {
@@ -296,6 +615,38 @@ constexpr int SwissNameDictionary::CtrlTableStartOffset(int capacity) {
 constexpr int SwissNameDictionary::PropertyDetailsTableStartOffset(
     int capacity) {
   return CtrlTableStartOffset(capacity) + CtrlTableSize(capacity);
+}
+
+// static
+bool SwissNameDictionary::IsEmpty(ctrl_t c) { return c == Ctrl::kEmpty; }
+
+// static
+bool SwissNameDictionary::IsFull(ctrl_t c) {
+  STATIC_ASSERT(Ctrl::kEmpty < 0);
+  STATIC_ASSERT(Ctrl::kDeleted < 0);
+  STATIC_ASSERT(Ctrl::kSentinel < 0);
+  return c >= 0;
+}
+
+// static
+bool SwissNameDictionary::IsDeleted(ctrl_t c) { return c == Ctrl::kDeleted; }
+
+// static
+bool SwissNameDictionary::IsEmptyOrDeleted(ctrl_t c) {
+  STATIC_ASSERT(Ctrl::kDeleted < Ctrl::kSentinel);
+  STATIC_ASSERT(Ctrl::kEmpty < Ctrl::kSentinel);
+  STATIC_ASSERT(Ctrl::kSentinel < 0);
+  return c < Ctrl::kSentinel;
+}
+
+// static
+swiss_table::ProbeSequence<SwissNameDictionary::kGroupWidth>
+SwissNameDictionary::probe(uint32_t hash, int capacity) {
+  // If |capacity| is 0, we must produce 1 here, such that the - 1 below
+  // yields 0, which is the correct modulo mask for a table of capacity 0.
+  int non_zero_capacity = capacity | (capacity == 0);
+  return swiss_table::ProbeSequence<SwissNameDictionary::kGroupWidth>(
+      swiss_table::H1(hash), static_cast<uint32_t>(non_zero_capacity - 1));
 }
 
 ACCESSORS_CHECKED2(SwissNameDictionary, meta_table, ByteArray,

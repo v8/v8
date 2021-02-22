@@ -72,6 +72,28 @@ class SwissNameDictionary : public HeapObject {
  public:
   using Group = swiss_table::Group;
 
+  template <typename LocalIsolate>
+  inline InternalIndex FindEntry(LocalIsolate* isolate, Object key);
+
+  // This is to make the interfaces of NameDictionary::FindEntry and
+  // OrderedNameDictionary::FindEntry compatible.
+  // TODO(emrich) clean this up: NameDictionary uses Handle<Object>
+  // for FindEntry keys due to its Key typedef, but that's also used
+  // for adding, where we do need handles.
+  template <typename LocalIsolate>
+  inline InternalIndex FindEntry(LocalIsolate* isolate, Handle<Object> key);
+
+  static inline bool IsKey(ReadOnlyRoots roots, Object key_candidate);
+  inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_key);
+
+  inline Object KeyAt(InternalIndex entry);
+  inline Name NameAt(InternalIndex entry);
+  inline Object ValueAt(InternalIndex entry);
+  inline PropertyDetails DetailsAt(InternalIndex entry);
+
+  inline void ValueAtPut(InternalIndex entry, Object value);
+  inline void DetailsAtPut(InternalIndex entry, PropertyDetails value);
+
   inline int NumberOfElements();
   inline int NumberOfDeletedElements();
 
@@ -83,6 +105,47 @@ class SwissNameDictionary : public HeapObject {
 
   inline void SetHash(int hash);
   inline int Hash();
+
+  class IndexIterator {
+   public:
+    inline IndexIterator(Handle<SwissNameDictionary> dict, int start);
+
+    inline IndexIterator& operator++();
+
+    inline bool operator==(const IndexIterator& b) const;
+    inline bool operator!=(const IndexIterator& b) const;
+
+    inline InternalIndex operator*();
+
+   private:
+    int used_capacity_;
+    int enum_index_;
+
+    // This may be an empty handle, but only if the capacity of the table is
+    // 0 and pointer compression is disabled.
+    Handle<SwissNameDictionary> dict_;
+  };
+
+  class IndexIterable {
+   public:
+    inline explicit IndexIterable(Handle<SwissNameDictionary> dict);
+
+    inline IndexIterator begin();
+    inline IndexIterator end();
+
+   private:
+    // This may be an empty handle, but only if the capacity of the table is
+    // 0 and pointer compression is disabled.
+    Handle<SwissNameDictionary> dict_;
+  };
+
+  inline IndexIterable IterateEntriesOrdered();
+  inline IndexIterable IterateEntries();
+
+  // For the given enumeration index, returns the entry (= bucket of the Swiss
+  // Table) containing the data for the mapping with that enumeration index.
+  // The returned bucket may be deleted.
+  inline int EntryForEnumerationIndex(int enumeration_index);
 
   inline static constexpr bool IsValidCapacity(int capacity);
   inline static int CapacityFor(int at_least_space_for);
@@ -152,13 +215,54 @@ class SwissNameDictionary : public HeapObject {
   using ctrl_t = swiss_table::ctrl_t;
   using Ctrl = swiss_table::Ctrl;
 
-  // Not intended for modification, use set_ctrl instead to get correct copying
-  // of first group.
-  inline const ctrl_t* CtrlTable();
+  // Returns table of byte-encoded PropertyDetails (without enumeration index
+  // stored in PropertyDetails).
+  inline uint8_t* PropertyDetailsTable();
+
+  // Sets key and value to the hole for the given entry.
+  inline void ClearDataTableEntry(Isolate* isolate, int entry);
+  inline void SetKey(int entry, Object key);
+
+  inline void DetailsAtPut(int entry, PropertyDetails value);
+  inline void ValueAtPut(int entry, Object value);
+
+  inline PropertyDetails DetailsAt(int entry);
+  inline Object ValueAtRaw(int entry);
+  inline Object KeyAt(int entry);
+
+  inline bool ToKey(ReadOnlyRoots roots, int entry, Object* out_key);
+
+  // Use |set_ctrl| for modifications whenever possible, since that function
+  // correctly maintains the copy of the first group at the end of the ctrl
+  // table.
+  inline ctrl_t* CtrlTable();
+
+  inline static bool IsEmpty(ctrl_t c);
+  inline static bool IsFull(ctrl_t c);
+  inline static bool IsDeleted(ctrl_t c);
+  inline static bool IsEmptyOrDeleted(ctrl_t c);
+
+  // Sets the a control byte, taking the necessary copying of the first group
+  // into account.
+  inline void SetCtrl(int entry, ctrl_t h);
+  inline ctrl_t GetCtrl(int entry);
+
+  inline Object LoadFromDataTable(int entry, int data_offset);
+  inline Object LoadFromDataTable(IsolateRoot root, int entry, int data_offset);
+  inline void StoreToDataTable(int entry, int data_offset, Object data);
+  inline void StoreToDataTableNoBarrier(int entry, int data_offset,
+                                        Object data);
 
   inline void SetCapacity(int capacity);
   inline void SetNumberOfElements(int elements);
   inline void SetNumberOfDeletedElements(int deleted_elements);
+
+  static inline swiss_table::ProbeSequence<Group::kWidth> probe(uint32_t hash,
+                                                                int capacity);
+
+  // Sets that the entry with the given |enumeration_index| is stored at the
+  // given bucket of the data table.
+  inline void SetEntryForEnumerationIndex(int enumeration_index, int entry);
 
   DECL_ACCESSORS(meta_table, ByteArray)
   inline void SetMetaTableField(int field_index, int value);
