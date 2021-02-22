@@ -3687,12 +3687,14 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  bailout(kSimd, "i16x8.extadd_pairwise_i8x16_s");
+  I16x8ExtAddPairwiseI8x16S(dst.fp(), src.fp(), liftoff::kScratchDoubleReg,
+                            GetUnusedRegister(kGpReg, {}).gp());
 }
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  bailout(kSimd, "i16x8.extadd_pairwise_i8x16_u");
+  I16x8ExtAddPairwiseI8x16U(dst.fp(), src.fp(),
+                            GetUnusedRegister(kGpReg, {}).gp());
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
@@ -3843,12 +3845,13 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  bailout(kSimd, "i32x4.extadd_pairwise_i16x8_s");
+  I32x4ExtAddPairwiseI16x8S(dst.fp(), src.fp(),
+                            GetUnusedRegister(kGpReg, {}).gp());
 }
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  bailout(kSimd, "i32x4.extadd_pairwise_i16x8_u");
+  I32x4ExtAddPairwiseI16x8U(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
 }
 
 namespace liftoff {

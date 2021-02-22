@@ -562,9 +562,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
 
   AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
-  AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, XMMRegister, SSSE3)
   AVX_OP3_XO_SSE4(Pminsb, pminsb)
   AVX_OP3_XO_SSE4(Pmaxsb, pmaxsb)
+  AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, XMMRegister, SSSE3)
+  AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, Operand, SSSE3)
 
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
@@ -698,6 +699,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                 XMMRegister scratch);
   void I64x2GeS(XMMRegister dst, XMMRegister src0, XMMRegister src1,
                 XMMRegister scratch);
+  void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
+                                 XMMRegister tmp, Register scratch);
+  void I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
+                                 Register scratch);
+  void I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
+                                 Register scratch);
+  void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
+                                 XMMRegister tmp);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }

@@ -3112,22 +3112,37 @@ void InstructionSelector::VisitI64x2SignSelect(Node* node) {
   VisitSignSelect(this, node, kIA32I64x2SignSelect);
 }
 
+namespace {
+void VisitExtAddPairwise(InstructionSelector* selector, Node* node,
+                         ArchOpcode opcode, bool need_temp) {
+  IA32OperandGenerator g(selector);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand dst = (selector->IsSupported(AVX))
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  if (need_temp) {
+    InstructionOperand temps[] = {g.TempRegister()};
+    selector->Emit(opcode, dst, operand0, arraysize(temps), temps);
+  } else {
+    selector->Emit(opcode, dst, operand0);
+  }
+}
+}  // namespace
+
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
-  VisitRRSimd(this, node, kIA32I32x4ExtAddPairwiseI16x8S);
+  VisitExtAddPairwise(this, node, kIA32I32x4ExtAddPairwiseI16x8S, true);
 }
 
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(Node* node) {
-  VisitRRSimd(this, node, kIA32I32x4ExtAddPairwiseI16x8U);
+  VisitExtAddPairwise(this, node, kIA32I32x4ExtAddPairwiseI16x8U, false);
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32I16x8ExtAddPairwiseI8x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)));
+  VisitExtAddPairwise(this, node, kIA32I16x8ExtAddPairwiseI8x16S, true);
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
-  VisitRRSimd(this, node, kIA32I16x8ExtAddPairwiseI8x16U);
+  VisitExtAddPairwise(this, node, kIA32I16x8ExtAddPairwiseI8x16U, true);
 }
 
 void InstructionSelector::VisitI8x16Popcnt(Node* node) {

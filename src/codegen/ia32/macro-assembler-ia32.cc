@@ -1132,6 +1132,68 @@ void TurboAssembler::I64x2GeS(XMMRegister dst, XMMRegister src0,
   }
 }
 
+void TurboAssembler::I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
+                                               XMMRegister tmp,
+                                               Register scratch) {
+  // pmaddubsw treats the first operand as unsigned, so pass the external
+  // reference to as the first operand.
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i8x16_splat_0x01(), scratch);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vmovdqa(tmp, op);
+    vpmaddubsw(dst, tmp, src);
+  } else {
+    CpuFeatureScope sse_scope(this, SSSE3);
+    if (dst == src) {
+      movaps(tmp, op);
+      pmaddubsw(tmp, src);
+      movaps(dst, tmp);
+    } else {
+      movaps(dst, op);
+      pmaddubsw(dst, src);
+    }
+  }
+}
+
+void TurboAssembler::I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
+                                               Register scratch) {
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i8x16_splat_0x01(), scratch);
+  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+    movaps(dst, src);
+  }
+  Pmaddubsw(dst, src, op);
+}
+
+void TurboAssembler::I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
+                                               Register scratch) {
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i16x8_splat_0x0001(), scratch);
+  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+    movaps(dst, src);
+  }
+  // pmaddwd multiplies signed words in src and op, producing
+  // signed doublewords, then adds pairwise.
+  // src = |a|b|c|d|e|f|g|h|
+  // dst = | a*1 + b*1 | c*1 + d*1 | e*1 + f*1 | g*1 + h*1 |
+  Pmaddwd(dst, src, op);
+}
+
+void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
+                                               XMMRegister tmp) {
+  // src = |a|b|c|d|e|f|g|h|
+  // tmp = i32x4.splat(0x0000FFFF)
+  Pcmpeqd(tmp, tmp);
+  Psrld(tmp, tmp, byte{16});
+  // tmp =|0|b|0|d|0|f|0|h|
+  Pand(tmp, src);
+  // dst = |0|a|0|c|0|e|0|g|
+  Psrld(dst, src, byte{16});
+  // dst = |a+b|c+d|e+f|g+h|
+  Paddd(dst, dst, tmp);
+}
+
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   DCHECK_GE(63, shift);
   if (shift >= 32) {
