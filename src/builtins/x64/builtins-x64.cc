@@ -7,7 +7,6 @@
 #include "src/api/api-arguments.h"
 #include "src/base/bits-iterator.h"
 #include "src/base/iterator.h"
-#include "src/baseline/baseline-compiler.h"
 #include "src/codegen/code-factory.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"

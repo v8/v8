@@ -5,7 +5,6 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/api/api-arguments.h"
-#include "src/baseline/baseline-compiler.h"
 #include "src/codegen/code-factory.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"

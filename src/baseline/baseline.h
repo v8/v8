@@ -12,11 +12,12 @@ namespace internal {
 
 class Code;
 class SharedFunctionInfo;
-class BytecodeArray;
+class MacroAssembler;
 
-// TODO(v8:11429): Restrict header visibility to just this file.
 Handle<Code> GenerateBaselineCode(Isolate* isolate,
                                   Handle<SharedFunctionInfo> shared);
+
+void EmitReturnBaseline(MacroAssembler* masm);
 
 }  // namespace internal
 }  // namespace v8

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api.h"
-#include "src/baseline/baseline-compiler.h"
+#include "src/baseline/baseline.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
@@ -928,7 +928,7 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
 // architectures.
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
-  baseline::BaselineAssembler::EmitReturn(masm);
+  EmitReturnBaseline(masm);
 }
 #else
 // Stub out implementations of arch-specific baseline builtins.

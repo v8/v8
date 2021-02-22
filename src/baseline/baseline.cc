@@ -32,6 +32,10 @@ Handle<Code> GenerateBaselineCode(Isolate* isolate,
   return code;
 }
 
+void EmitReturnBaseline(MacroAssembler* masm) {
+  baseline::BaselineAssembler::EmitReturn(masm);
+}
+
 }  // namespace internal
 }  // namespace v8
 
@@ -44,6 +48,8 @@ Handle<Code> GenerateBaselineCode(Isolate* isolate,
                                   Handle<SharedFunctionInfo> shared) {
   UNREACHABLE();
 }
+
+void EmitReturnBaseline(MacroAssembler* masm) { UNREACHABLE(); }
 
 }  // namespace internal
 }  // namespace v8
