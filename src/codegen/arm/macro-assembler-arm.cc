@@ -2650,6 +2650,19 @@ void TurboAssembler::I64x2Eq(QwNeonRegister dst, QwNeonRegister src1,
   vand(dst, dst, scratch);
 }
 
+void TurboAssembler::I64x2GtS(QwNeonRegister dst, QwNeonRegister src1,
+                              QwNeonRegister src2) {
+  vqsub(NeonS64, dst, src2, src1);
+  vshr(NeonS64, dst, dst, 63);
+}
+
+void TurboAssembler::I64x2GeS(QwNeonRegister dst, QwNeonRegister src1,
+                              QwNeonRegister src2) {
+  vqsub(NeonS64, dst, src1, src2);
+  vshr(NeonS64, dst, dst, 63);
+  vmvn(dst, dst);
+}
+
 void TurboAssembler::V64x2AllTrue(Register dst, QwNeonRegister src) {
   UseScratchRegisterScope temps(this);
   QwNeonRegister tmp = temps.AcquireQ();

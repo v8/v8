@@ -2466,18 +2466,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI64x2GtS: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vqsub(NeonS64, dst, i.InputSimd128Register(1),
-               i.InputSimd128Register(0));
-      __ vshr(NeonS64, dst, dst, 63);
+      __ I64x2GtS(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
       break;
     }
     case kArmI64x2GeS: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vqsub(NeonS64, dst, i.InputSimd128Register(0),
-               i.InputSimd128Register(1));
-      __ vshr(NeonS64, dst, dst, 63);
-      __ vmvn(dst, dst);
+      __ I64x2GeS(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
       break;
     }
     case kArmI32x4Eq: {

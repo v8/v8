@@ -3777,12 +3777,14 @@ void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2.gt_s");
+  I64x2GtS(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
+           liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2.ge_s");
+  I64x2GeS(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
+           liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
