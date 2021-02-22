@@ -1469,7 +1469,8 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   bind(&stack_overflow);
   {
-    FrameScope frame(this, StackFrame::MANUAL);
+    FrameScope frame(this,
+                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     CallRuntime(Runtime::kThrowStackOverflow);
     bkpt(0);
   }
