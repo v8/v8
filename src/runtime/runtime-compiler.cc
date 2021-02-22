@@ -111,8 +111,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   return function->code();
 }
 
-// TODO(v8:11429): Consider renaming PrepareForBaseline.
-RUNTIME_FUNCTION(Runtime_PrepareForBaseline) {
+RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);

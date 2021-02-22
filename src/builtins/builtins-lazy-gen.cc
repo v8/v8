@@ -179,7 +179,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   code = Select<Code>(
       IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
       [=]() {
-        return CAST(CallRuntime(Runtime::kPrepareForBaseline,
+        return CAST(CallRuntime(Runtime::kInstallBaselineCode,
                                 Parameter<Context>(Descriptor::kContext),
                                 function));
       });

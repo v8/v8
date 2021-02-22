@@ -1565,14 +1565,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ LoadTaggedPointerField(
         feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
 
-    Label prepare_for_baseline;
+    Label install_baseline_code;
     // Check if feedback vector is valid. If not, call prepare for baseline to
     // allocate it.
     __ LoadTaggedPointerField(
         x7, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
     __ Ldrh(x7, FieldMemOperand(x7, Map::kInstanceTypeOffset));
     __ Cmp(x7, FEEDBACK_VECTOR_TYPE);
-    __ B(ne, &prepare_for_baseline);
+    __ B(ne, &install_baseline_code);
 
     // Read off the optimization state in the feedback vector.
     // TODO(v8:11429): Is this worth doing here? Baseline code will check it
@@ -1595,8 +1595,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     ReplaceClosureCodeWithOptimizedCode(masm, x2, closure);
     __ JumpCodeObject(x2);
 
-    __ bind(&prepare_for_baseline);
-    GenerateTailCallToReturnedCode(masm, Runtime::kPrepareForBaseline);
+    __ bind(&install_baseline_code);
+    GenerateTailCallToReturnedCode(masm, Runtime::kInstallBaselineCode);
   }
 
   __ bind(&compile_lazy);
