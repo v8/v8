@@ -136,7 +136,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type.kind()) {
-    case ValueType::kS128:
+    case kS128:
       return type.element_size_bytes();
     default:
       return kStackSlotSize;
@@ -144,25 +144,25 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return (type.kind() == ValueType::kS128 || type.is_reference_type());
+  return (type.kind() == kS128 || type.is_reference_type());
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type().kind()) {
-    case ValueType::kI32:
+    case kI32:
       mov(reg.gp(), Operand(value.to_i32(), rmode));
       break;
-    case ValueType::kI64:
+    case kI64:
       mov(reg.gp(), Operand(value.to_i64(), rmode));
       break;
-    case ValueType::kF32: {
+    case kF32: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       LoadF32(reg.fp(), value.to_f32_boxed().get_scalar(), scratch);
       break;
     }
-    case ValueType::kF64: {
+    case kF64: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       LoadF64(reg.fp(), value.to_f64_boxed().get_bits(), scratch);
@@ -468,7 +468,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            ValueType type) {
   int32_t offset = (caller_slot_idx + 1) * 8;
   switch (type.kind()) {
-    case ValueType::kI32: {
+    case kI32: {
 #if defined(V8_TARGET_BIG_ENDIAN)
       LoadS32(dst.gp(), MemOperand(fp, offset + 4));
       break;
@@ -477,22 +477,22 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
       break;
 #endif
     }
-    case ValueType::kRef:
-    case ValueType::kRtt:
-    case ValueType::kOptRef:
-    case ValueType::kI64: {
+    case kRef:
+    case kRtt:
+    case kOptRef:
+    case kI64: {
       LoadU64(dst.gp(), MemOperand(fp, offset));
       break;
     }
-    case ValueType::kF32: {
+    case kF32: {
       LoadF32(dst.fp(), MemOperand(fp, offset));
       break;
     }
-    case ValueType::kF64: {
+    case kF64: {
       LoadF64(dst.fp(), MemOperand(fp, offset));
       break;
     }
-    case ValueType::kS128: {
+    case kS128: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       LoadV128(dst.fp(), MemOperand(fp, offset), scratch);
@@ -508,7 +508,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             ValueType type) {
   int32_t offset = (caller_slot_idx + 1) * 8;
   switch (type.kind()) {
-    case ValueType::kI32: {
+    case kI32: {
 #if defined(V8_TARGET_BIG_ENDIAN)
       StoreU32(src.gp(), MemOperand(fp, offset + 4));
       break;
@@ -517,22 +517,22 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
       break;
 #endif
     }
-    case ValueType::kRef:
-    case ValueType::kRtt:
-    case ValueType::kOptRef:
-    case ValueType::kI64: {
+    case kRef:
+    case kRtt:
+    case kOptRef:
+    case kI64: {
       StoreU64(src.gp(), MemOperand(fp, offset));
       break;
     }
-    case ValueType::kF32: {
+    case kF32: {
       StoreF32(src.fp(), MemOperand(fp, offset));
       break;
     }
-    case ValueType::kF64: {
+    case kF64: {
       StoreF64(src.fp(), MemOperand(fp, offset));
       break;
     }
-    case ValueType::kS128: {
+    case kS128: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       StoreV128(src.fp(), MemOperand(fp, offset), scratch);
@@ -546,7 +546,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
                                            ValueType type) {
   switch (type.kind()) {
-    case ValueType::kI32: {
+    case kI32: {
 #if defined(V8_TARGET_BIG_ENDIAN)
       LoadS32(dst.gp(), MemOperand(sp, offset + 4));
       break;
@@ -555,22 +555,22 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
       break;
 #endif
     }
-    case ValueType::kRef:
-    case ValueType::kRtt:
-    case ValueType::kOptRef:
-    case ValueType::kI64: {
+    case kRef:
+    case kRtt:
+    case kOptRef:
+    case kI64: {
       LoadU64(dst.gp(), MemOperand(sp, offset));
       break;
     }
-    case ValueType::kF32: {
+    case kF32: {
       LoadF32(dst.fp(), MemOperand(sp, offset));
       break;
     }
-    case ValueType::kF64: {
+    case kF64: {
       LoadF64(dst.fp(), MemOperand(sp, offset));
       break;
     }
-    case ValueType::kS128: {
+    case kS128: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       LoadV128(dst.fp(), MemOperand(sp, offset), scratch);
@@ -586,18 +586,18 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   DCHECK_NE(dst_offset, src_offset);
   int length = 0;
   switch (type.kind()) {
-    case ValueType::kI32:
-    case ValueType::kF32:
+    case kI32:
+    case kF32:
       length = 4;
       break;
-    case ValueType::kI64:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
-    case ValueType::kRtt:
-    case ValueType::kF64:
+    case kI64:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kF64:
       length = 8;
       break;
-    case ValueType::kS128:
+    case kS128:
       length = 16;
       break;
     default:
@@ -643,23 +643,23 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       StoreU32(reg.gp(), dst);
       break;
-    case ValueType::kI64:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kI64:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kRttWithDepth:
       StoreU64(reg.gp(), dst);
       break;
-    case ValueType::kF32:
+    case kF32:
       StoreF32(reg.fp(), dst);
       break;
-    case ValueType::kF64:
+    case kF64:
       StoreF64(reg.fp(), dst);
       break;
-    case ValueType::kS128: {
+    case kS128: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       StoreV128(reg.fp(), dst, scratch);
@@ -681,12 +681,12 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
     src = temps.Acquire();
   }
   switch (value.type().kind()) {
-    case ValueType::kI32: {
+    case kI32: {
       mov(src, Operand(value.to_i32()));
       StoreU32(src, dst);
       break;
     }
-    case ValueType::kI64: {
+    case kI64: {
       mov(src, Operand(value.to_i64()));
       StoreU64(src, dst);
       break;
@@ -700,22 +700,22 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   MemOperand src = liftoff::GetStackSlot(offset);
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       LoadS32(reg.gp(), src);
       break;
-    case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
-    case ValueType::kRtt:
+    case kI64:
+    case kRef:
+    case kOptRef:
+    case kRtt:
       LoadU64(reg.gp(), src);
       break;
-    case ValueType::kF32:
+    case kF32:
       LoadF32(reg.fp(), src);
       break;
-    case ValueType::kF64:
+    case kF64:
       LoadF64(reg.fp(), src);
       break;
-    case ValueType::kS128: {
+    case kS128: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       LoadV128(reg.fp(), src, scratch);
@@ -1088,7 +1088,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   bool use_signed = liftoff::UseSignedOp(liftoff_cond);
 
-  if (type.kind() == ValueType::kI32) {
+  if (type.kind() == kI32) {
     if (rhs == no_reg) {
       if (use_signed) {
         CmpS32(lhs, Operand::Zero());
@@ -1103,10 +1103,9 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       }
     }
   } else {
-    CHECK(type.kind() == ValueType::kI64 || type.kind() == ValueType::kOptRef ||
-          type.kind() == ValueType::kRtt ||
-          type.kind() == ValueType::kRttWithDepth ||
-          type.kind() == ValueType::kRef);
+    CHECK(type.kind() == kI64 || type.kind() == kOptRef ||
+          type.kind() == kRtt || type.kind() == kRttWithDepth ||
+          type.kind() == kRef);
     if (rhs == no_reg) {
       if (use_signed) {
         CmpS64(lhs, Operand::Zero());

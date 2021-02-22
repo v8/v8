@@ -74,7 +74,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type.kind()) {
-    case ValueType::kS128:
+    case kS128:
       return type.element_size_bytes();
     default:
       return kStackSlotSize;
@@ -82,7 +82,7 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return (type.kind() == ValueType::kS128 || type.is_reference_type());
+  return (type.kind() == kS128 || type.is_reference_type());
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
