@@ -331,7 +331,7 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  function->raw_feedback_cell().set_interrupt_budget(FLAG_interrupt_budget);
+  function->SetInterruptBudget();
   if (!function->has_feedback_vector()) {
     IsCompiledScope is_compiled_scope(
         function->shared().is_compiled_scope(isolate));
@@ -362,7 +362,7 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromCode) {
 
   DCHECK(feedback_cell->value().IsFeedbackVector());
 
-  feedback_cell->set_interrupt_budget(FLAG_interrupt_budget);
+  FeedbackVector::SetInterruptBudget(*feedback_cell);
 
   SealHandleScope shs(isolate);
   isolate->counters()->runtime_profiler_ticks()->Increment();

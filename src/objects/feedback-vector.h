@@ -228,17 +228,23 @@ class FeedbackVector
   inline OptimizationTier optimization_tier() const;
   inline int global_ticks_at_last_runtime_profiler_interrupt() const;
   inline void set_global_ticks_at_last_runtime_profiler_interrupt(int ticks);
-  void ClearOptimizedCode();
-  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
+  void ClearOptimizedCode(FeedbackCell feedback_cell);
+  void EvictOptimizedCodeMarkedForDeoptimization(FeedbackCell feedback_cell,
+                                                 SharedFunctionInfo shared,
                                                  const char* reason);
-  static void SetOptimizedCode(Handle<FeedbackVector> vector,
-                               Handle<Code> code);
+  static void SetOptimizedCode(Handle<FeedbackVector> vector, Handle<Code> code,
+                               FeedbackCell feedback_cell);
   void SetOptimizationMarker(OptimizationMarker marker);
-  void ClearOptimizationTier();
+  void ClearOptimizationTier(FeedbackCell feedback_cell);
   void InitializeOptimizationState();
 
   // Clears the optimization marker in the feedback vector.
   void ClearOptimizationMarker();
+
+  // Sets the interrupt budget based on the optimized code available on the
+  // feedback vector. This function expects that the feedback cell contains a
+  // feedback vector.
+  static void SetInterruptBudget(FeedbackCell feedback_cell);
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) { return slot.ToInt(); }

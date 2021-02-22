@@ -157,6 +157,10 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // Clears the optimization marker in the function's feedback vector.
   inline void ClearOptimizationMarker();
 
+  // Sets the interrupt budget based on whether the function has a feedback
+  // vector and any optimized code.
+  inline void SetInterruptBudget();
+
   // If slack tracking is active, it computes instance size of the initial map
   // with minimum permissible object slack.  If it is not active, it simply
   // returns the initial map's instance size.

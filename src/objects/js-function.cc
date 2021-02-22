@@ -303,9 +303,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (V8_UNLIKELY(FLAG_feedback_allocation_on_bytecode_size) &&
       (reset_budget_for_feedback_allocation ||
        !has_closure_feedback_cell_array)) {
-    int budget = function->shared().GetBytecodeArray(isolate).length() *
-                 FLAG_scale_factor_for_feedback_allocation;
-    function->raw_feedback_cell().set_interrupt_budget(budget);
+    function->SetInterruptBudget();
   }
 
   if (has_closure_feedback_cell_array) {
@@ -323,9 +321,8 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (function->raw_feedback_cell() == isolate->heap()->many_closures_cell()) {
     Handle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
-    feedback_cell->set_interrupt_budget(
-        function->raw_feedback_cell().interrupt_budget());
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
+    function->SetInterruptBudget();
   } else {
     function->raw_feedback_cell().set_value(*feedback_cell_array,
                                             kReleaseStore);
@@ -355,7 +352,7 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
   DCHECK(function->raw_feedback_cell() !=
          isolate->heap()->many_closures_cell());
   function->raw_feedback_cell().set_value(*feedback_vector, kReleaseStore);
-  function->raw_feedback_cell().SetInterruptBudget();
+  function->SetInterruptBudget();
 }
 
 // static

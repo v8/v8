@@ -234,7 +234,7 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, UnoptimizedFrame* frame) {
     // OSR should happen roughly at the same with or without FLAG_turboprop.
     // Turboprop has much lower interrupt budget so scale the ticks accordingly.
     int scale_factor =
-        FLAG_turboprop ? FLAG_ticks_scale_factor_for_top_tier : 1;
+        FLAG_turboprop ? FLAG_interrupt_budget_scale_factor_for_top_tier : 1;
     int64_t scaled_ticks = static_cast<int64_t>(ticks) / scale_factor;
     int64_t allowance = kOSRBytecodeSizeAllowanceBase +
                         scaled_ticks * kOSRBytecodeSizeAllowancePerTick;
@@ -269,8 +269,6 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   }
   int ticks = function.feedback_vector().profiler_ticks();
   bool active_tier_is_turboprop = function.ActiveTierIsMidtierTurboprop();
-  int scale_factor =
-      active_tier_is_turboprop ? FLAG_ticks_scale_factor_for_top_tier : 1;
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
       (bytecode.length() / kBytecodeSizeAllowancePerTick);
@@ -285,7 +283,6 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
         std::min(global_ticks_diff / kMidTierGlobalTicksScaleFactor,
                  kMaxAdditionalMidTierGlobalTicks);
   }
-  ticks_for_optimization *= scale_factor;
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
   } else if (ShouldOptimizeAsSmallFunction(bytecode.length(), ticks,
