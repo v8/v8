@@ -106,6 +106,10 @@ void HeapBase::Terminate() {
     // Clear root sets.
     strong_persistent_region_.ClearAllUsedNodes();
     strong_cross_thread_persistent_region_.ClearAllUsedNodes();
+    // Clear weak root sets, as the GC below does not execute weakness
+    // callbacks.
+    weak_persistent_region_.ClearAllUsedNodes();
+    weak_cross_thread_persistent_region_.ClearAllUsedNodes();
 
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
