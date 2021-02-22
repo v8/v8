@@ -97,7 +97,7 @@ TEST_F(WasmCallDescriptorTest, Regress_1174500) {
 
   // The stack return slot should be right above our last parameter, and any
   // argument padding slots. The return slot itself should not be padded.
-  const int padding = ShouldPadArguments(1);
+  const int padding = kPadArguments ? 1 : 0;
   const int first_return_slot = -1 - (padding + 1);
   compiler::LinkageLocation return_location =
       desc->GetReturnLocation(kReturns - 1);

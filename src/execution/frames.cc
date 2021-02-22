@@ -2195,11 +2195,13 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
 
 namespace {
 
+int ArgumentPaddingSlots(int arg_count) {
+  return ShouldPadArguments(arg_count) ? 1 : 0;
+}
+
 // Some architectures need to push padding together with the TOS register
 // in order to maintain stack alignment.
-constexpr int TopOfStackRegisterPaddingSlots() {
-  return ArgumentPaddingSlots(1);
-}
+constexpr int TopOfStackRegisterPaddingSlots() { return kPadArguments ? 1 : 0; }
 
 bool BuiltinContinuationModeIsWithCatch(BuiltinContinuationMode mode) {
   switch (mode) {

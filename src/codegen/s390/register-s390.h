@@ -167,12 +167,7 @@ constexpr Register no_reg = Register::no_reg();
 constexpr Register kRootRegister = r10;  // Roots array pointer.
 constexpr Register cp = r13;             // JavaScript context pointer.
 
-// Returns the number of padding slots needed for stack pointer alignment.
-constexpr int ArgumentPaddingSlots(int argument_count) {
-  // No argument padding required.
-  return 0;
-}
-
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 

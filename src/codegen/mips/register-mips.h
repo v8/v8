@@ -203,12 +203,7 @@ int ToNumber(Register reg);
 
 Register ToRegister(int num);
 
-// Returns the number of padding slots needed for stack pointer alignment.
-constexpr int ArgumentPaddingSlots(int argument_count) {
-  // No argument padding required.
-  return 0;
-}
-
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
