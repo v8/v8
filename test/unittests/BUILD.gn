@@ -480,6 +480,7 @@ v8_source_set("unittests_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
+    "../..:v8_shared_internal_headers",
     "../..:v8_wrappers",
     "../..:wasm_test_common",
     "../../third_party/inspector_protocol:crdtp_test",

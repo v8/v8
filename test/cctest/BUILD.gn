@@ -88,7 +88,6 @@ v8_source_set("cctest_sources") {
     "compiler/codegen-tester.h",
     "compiler/function-tester.cc",
     "compiler/function-tester.h",
-    "compiler/graph-builder-tester.h",
     "compiler/node-observer-tester.h",
     "compiler/serializer-tester.cc",
     "compiler/serializer-tester.h",
@@ -447,7 +446,10 @@ v8_source_set("cctest_sources") {
   ]
 
   defines = []
-  deps = [ "../..:run_torque" ]
+  deps = [
+    "../..:run_torque",
+    "../..:v8_shared_internal_headers",
+  ]
 
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]

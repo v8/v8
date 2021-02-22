@@ -1926,6 +1926,8 @@ v8_source_set("v8_initializers") {
 
   deps = [
     ":torque_generated_initializers",
+    ":v8_base_without_compiler",
+    ":v8_shared_internal_headers",
     ":v8_tracing",
   ]
 
@@ -2066,6 +2068,7 @@ v8_source_set("v8_init") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
+    ":v8_base_without_compiler",
     ":v8_initializers",
     ":v8_tracing",
   ]
@@ -2162,14 +2165,22 @@ v8_header_set("v8_wrappers") {
   sources = [ "src/base/platform/wrappers.h" ]
 }
 
-# This is split out to share basic headers with Torque.
+# This is split out to share basic headers with Torque and everything else:(
 v8_header_set("v8_shared_internal_headers") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  visibility = [
+    ":*",
+    "test/cctest:*",
+    "test/unittests:*",
+    "tools/debug_helper/:*",
+  ]
   configs = [ ":internal_config" ]
 
   sources = [ "src/common/globals.h" ]
 
-  deps = [ ":v8_headers" ]
+  deps = [
+    ":v8_headers",
+    ":v8_libbase",
+  ]
 }
 
 v8_compiler_sources = [
@@ -2428,6 +2439,12 @@ v8_source_set("v8_compiler_opt") {
     ":v8_tracing",
   ]
 
+  deps = [
+    ":v8_base_without_compiler",
+    ":v8_libbase",
+    ":v8_shared_internal_headers",
+  ]
+
   if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
     # The :no_optimize config is added to v8_add_configs in v8.gni.
     remove_configs = [ "//build/config/compiler:no_optimize" ]
@@ -2451,6 +2468,12 @@ v8_source_set("v8_compiler") {
     ":run_torque",
     ":v8_maybe_icu",
     ":v8_tracing",
+  ]
+
+  deps = [
+    ":v8_base_without_compiler",
+    ":v8_libbase",
+    ":v8_shared_internal_headers",
   ]
 
   configs = [ ":internal_config" ]
@@ -4618,6 +4641,7 @@ v8_source_set("v8_cppgc_shared") {
     "src/heap/base/stack.h",
     "src/heap/base/worklist.cc",
     "src/heap/base/worklist.h",
+    "src/heap/cppgc/sanitizers.h",
   ]
 
   if (is_clang || !is_win) {
@@ -4672,6 +4696,7 @@ v8_header_set("cppgc_headers") {
     "include/cppgc/visitor.h",
   ]
 
+  deps = [ ":cppgc_base" ]
   public_deps = [ ":v8_headers" ]
 }
 
@@ -4780,7 +4805,6 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/process-heap.h",
     "src/heap/cppgc/raw-heap.cc",
     "src/heap/cppgc/raw-heap.h",
-    "src/heap/cppgc/sanitizers.h",
     "src/heap/cppgc/source-location.cc",
     "src/heap/cppgc/stats-collector.cc",
     "src/heap/cppgc/stats-collector.h",
@@ -4869,6 +4893,7 @@ v8_static_library("wee8") {
     ":v8_libbase",
     ":v8_libplatform",
     ":v8_libsampler",
+    ":v8_shared_internal_headers",
     ":v8_snapshot",
     "//build/win:default_exe_manifest",
   ]
@@ -4900,6 +4925,7 @@ if (current_toolchain == v8_generator_toolchain) {
       "src/builtins/generate-bytecodes-builtins-list.cc",
       "src/interpreter/bytecode-operands.cc",
       "src/interpreter/bytecode-operands.h",
+      "src/interpreter/bytecode-traits.h",
       "src/interpreter/bytecodes.cc",
       "src/interpreter/bytecodes.h",
     ]
@@ -4908,6 +4934,7 @@ if (current_toolchain == v8_generator_toolchain) {
 
     deps = [
       ":v8_libbase",
+      ":v8_shared_internal_headers",
       "//build/win:default_exe_manifest",
     ]
   }
@@ -4948,6 +4975,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_maybe_icu",
+      ":v8_shared_internal_headers",
       ":v8_tracing",
       ":v8_wrappers",
       "//build/win:default_exe_manifest",
@@ -5021,10 +5049,14 @@ if (v8_enable_i18n_support) {
     v8_executable("gen-regexp-special-case") {
       visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-      sources = [ "src/regexp/gen-regexp-special-case.cc" ]
+      sources = [
+        "src/regexp/gen-regexp-special-case.cc",
+        "src/regexp/special-case.h",
+      ]
 
       deps = [
         ":v8_libbase",
+        ":v8_shared_internal_headers",
         "//build/win:default_exe_manifest",
         "//third_party/icu",
       ]
@@ -5525,6 +5557,7 @@ v8_source_set("wasm_test_common") {
   deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_shared_internal_headers",
     ":v8_tracing",
   ]
 
