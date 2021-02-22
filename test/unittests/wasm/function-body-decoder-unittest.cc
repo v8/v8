@@ -2871,22 +2871,49 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   WASM_FEATURE_SCOPE(eh);
   byte ex = builder.AddException(sigs.v_v());
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprEnd});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_OP, kExprCatch, ex, kExprCatchAll, kExprEnd});
   ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprCatchAll, kExprCatch, ex, kExprEnd});
+                {WASM_TRY_OP, kExprCatchAll, kExprCatch, ex, kExprEnd},
+                kAppendEnd, "catch after catch-all for try");
   ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprEnd});    // Missing catch.
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex});  // Missing end.
-  ExpectFailure(sigs.v_v(), {kExprCatch, kExprEnd});     // Missing try.
+                {WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd},
+                kAppendEnd, "catch-all already present for try");
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprEnd}, kAppendEnd,
+                "missing catch or catch-all in try");
+  ExpectFailure(sigs.v_v(), {kExprCatch, ex, kExprEnd}, kAppendEnd,
+                "catch does not match any try");
+}
+
+TEST_F(FunctionBodyDecoderTest, TryUnwind) {
+  WASM_FEATURE_SCOPE(eh);
+  byte ex = builder.AddException(sigs.v_v());
+  ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprUnwind, kExprEnd});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprUnwind, kExprCatch, ex, kExprEnd},
+                kAppendEnd, "catch after unwind for try");
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatchAll, kExprUnwind, kExprEnd},
+                kAppendEnd,
+                "catch, catch-all or unwind already present for try");
+  ExpectFailure(
+      sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprUnwind, kExprEnd},
+      kAppendEnd, "catch, catch-all or unwind already present for try");
 }
 
 TEST_F(FunctionBodyDecoderTest, Rethrow) {
   WASM_FEATURE_SCOPE(eh);
   ExpectValidates(sigs.v_v(),
                   {WASM_TRY_OP, kExprCatchAll, kExprRethrow, 0, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprRethrow, kExprCatch, kExprEnd});
-  ExpectFailure(sigs.v_v(), {WASM_BLOCK(kExprRethrow)});
-  ExpectFailure(sigs.v_v(), {kExprRethrow});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprRethrow, 0, kExprCatch, kExprEnd},
+                kAppendEnd, "rethrow not targeting catch or catch-all");
+  ExpectFailure(sigs.v_v(), {WASM_BLOCK(kExprRethrow, 0)}, kAppendEnd,
+                "rethrow not targeting catch or catch-all");
+  ExpectFailure(sigs.v_v(), {kExprRethrow, 0}, kAppendEnd,
+                "rethrow not targeting catch or catch-all");
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprUnwind, kExprRethrow, 0, kExprEnd},
+                kAppendEnd, "rethrow not targeting catch or catch-all");
 }
 
 TEST_F(FunctionBodyDecoderTest, TryDelegate) {
@@ -2896,15 +2923,22 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP,
                                WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0),
                                kExprCatch, ex, kExprEnd});
-  ExpectValidates(sigs.v_v(),
-                  {WASM_TRY_OP,
-                   WASM_BLOCK(WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0)),
-                   kExprCatch, ex, kExprEnd});
   ExpectValidates(
       sigs.v_v(),
       {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 2),
                   kExprCatch, ex, kExprEnd)});
 
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP,
+                 WASM_BLOCK(WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0)),
+                 kExprCatch, ex, kExprEnd},
+                kAppendEnd,
+                "delegate target must be a try block or the function block");
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprCatch, ex,
+                 WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
+                kAppendEnd,
+                "cannot delegate inside the catch handler of the target");
   ExpectFailure(
       sigs.v_v(),
       {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 3),

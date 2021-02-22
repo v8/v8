@@ -468,6 +468,7 @@ Node* WasmGraphBuilder::Merge(unsigned count, Node** controls) {
 Node* WasmGraphBuilder::Phi(wasm::ValueType type, unsigned count,
                             Node** vals_and_control) {
   DCHECK(IrOpcode::IsMergeOpcode(vals_and_control[count]->opcode()));
+  DCHECK_EQ(vals_and_control[count]->op()->ControlInputCount(), count);
   return graph()->NewNode(
       mcgraph()->common()->Phi(type.machine_representation(), count), count + 1,
       vals_and_control);

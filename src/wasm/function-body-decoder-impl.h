@@ -895,7 +895,8 @@ enum ControlKind : uint8_t {
   kControlLet,
   kControlTry,
   kControlTryCatch,
-  kControlTryCatchAll
+  kControlTryCatchAll,
+  kControlTryUnwind
 };
 
 enum Reachability : uint8_t {
@@ -955,8 +956,10 @@ struct ControlBase : public PcForErrors<validate> {
   bool is_incomplete_try() const { return kind == kControlTry; }
   bool is_try_catch() const { return kind == kControlTryCatch; }
   bool is_try_catchall() const { return kind == kControlTryCatchAll; }
+  bool is_try_unwind() const { return kind == kControlTryUnwind; }
   bool is_try() const {
-    return is_incomplete_try() || is_try_catch() || is_try_catchall();
+    return is_incomplete_try() || is_try_catch() || is_try_catchall() ||
+           is_try_unwind();
   }
 
   inline Merge<Value>* br_merge() {
@@ -1676,6 +1679,7 @@ class WasmDecoder : public Decoder {
       case kExprDrop:
       case kExprSelect:
       case kExprCatchAll:
+      case kExprUnwind:
         return 1;
       case kExprSelectWithType: {
         SelectTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1,
@@ -1978,7 +1982,6 @@ class WasmDecoder : public Decoder {
       case kExprBrIf:
       case kExprBrTable:
       case kExprIf:
-      case kExprRethrow:
         return {1, 0};
       case kExprLocalGet:
       case kExprGlobalGet:
@@ -2015,6 +2018,10 @@ class WasmDecoder : public Decoder {
       case kExprElse:
       case kExprTry:
       case kExprCatch:
+      case kExprCatchAll:
+      case kExprDelegate:
+      case kExprUnwind:
+      case kExprRethrow:
       case kExprNop:
       case kExprReturn:
       case kExprReturnCall:
@@ -2343,6 +2350,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kControlIfElse:
           case kControlTryCatch:
           case kControlTryCatchAll:
+          case kControlTryUnwind:
           case kControlLet:  // TODO(7748): Implement
             break;
         }
@@ -2455,12 +2463,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("catch after catch-all for try");
       return 0;
     }
+    if (!VALIDATE(!c->is_try_unwind())) {
+      this->DecodeError("catch after unwind for try");
+      return 0;
+    }
     c->kind = kControlTryCatch;
     FallThruTo(c);
     DCHECK_LE(stack_ + c->stack_depth, stack_end_);
     stack_end_ = stack_ + c->stack_depth;
     c->reachability = control_at(1)->innerReachability();
     const WasmExceptionSig* sig = imm.exception->sig;
+    EnsureStackSpace(static_cast<int>(sig->parameter_count()));
     for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
       Push(sig->GetParam(i));
     }
@@ -2480,12 +2493,19 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       return 0;
     }
     // +1 because the current try block is not included in the count.
-    uint32_t next_try = imm.depth + 1;
-    while (next_try < control_depth() && !control_at(next_try)->is_try()) {
-      next_try++;
+    Control* target = control_at(imm.depth + 1);
+    if (imm.depth + 1 < control_depth() - 1 && !target->is_try()) {
+      this->DecodeError(
+          "delegate target must be a try block or the function block");
+      return 0;
+    }
+    if (target->is_try_catch() || target->is_try_catchall() ||
+        target->is_try_catchall()) {
+      this->DecodeError(
+          "cannot delegate inside the catch handler of the target");
     }
     FallThruTo(c);
-    CALL_INTERFACE_IF_PARENT_REACHABLE(Delegate, next_try, c);
+    CALL_INTERFACE_IF_PARENT_REACHABLE(Delegate, imm.depth + 1, c);
     current_code_reachable_ = this->ok() && control_.back().reachable();
     EndControl();
     PopControl(c);
@@ -2493,21 +2513,48 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   DECODE(CatchAll) {
-    if (!VALIDATE(!control_.empty())) {
-      this->error("catch-all does not match any try");
-      return 0;
-    }
+    CHECK_PROTOTYPE_OPCODE(eh);
+    DCHECK(!control_.empty());
     Control* c = &control_.back();
     if (!VALIDATE(c->is_try())) {
-      this->error("catch-all does not match any try");
+      this->DecodeError("catch-all does not match a try");
       return 0;
     }
     if (!VALIDATE(!c->is_try_catchall())) {
       this->error("catch-all already present for try");
       return 0;
     }
-    c->kind = kControlTryCatchAll;
+    if (!VALIDATE(!c->is_try_unwind())) {
+      this->error("cannot have catch-all after unwind");
+      return 0;
+    }
     FallThruTo(c);
+    c->kind = kControlTryCatchAll;
+    stack_end_ = stack_ + c->stack_depth;
+    c->reachability = control_at(1)->innerReachability();
+    CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
+    current_code_reachable_ = this->ok() && c->reachable();
+    return 1;
+  }
+
+  DECODE(Unwind) {
+    CHECK_PROTOTYPE_OPCODE(eh);
+    if (!VALIDATE(!control_.empty())) {
+      this->DecodeError("unwind does not match any try");
+      return 0;
+    }
+    Control* c = &control_.back();
+    if (!VALIDATE(c->is_try())) {
+      this->DecodeError("unwind does not match any try");
+      return 0;
+    }
+    if (!VALIDATE(!c->is_try_catch() && !c->is_try_catchall() &&
+                  !c->is_try_unwind())) {
+      this->error("catch, catch-all or unwind already present for try");
+      return 0;
+    }
+    FallThruTo(c);
+    c->kind = kControlTryUnwind;
     stack_end_ = stack_ + c->stack_depth;
     c->reachability = control_at(1)->innerReachability();
     CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
@@ -2658,6 +2705,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       c->reachability = control_at(1)->innerReachability();
       CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
       current_code_reachable_ = this->ok() && control_.back().reachable();
+      CALL_INTERFACE_IF_REACHABLE(Rethrow, c);
+      EndControl();
+    }
+    if (c->is_try_unwind()) {
+      // Unwind implicitly rethrows at the end.
       CALL_INTERFACE_IF_REACHABLE(Rethrow, c);
       EndControl();
     }
@@ -3226,6 +3278,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DECODE_IMPL(Catch);
     DECODE_IMPL(Delegate);
     DECODE_IMPL(CatchAll);
+    DECODE_IMPL(Unwind);
     DECODE_IMPL(BrOnNull);
     DECODE_IMPL(Let);
     DECODE_IMPL(Loop);

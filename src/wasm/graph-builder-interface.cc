@@ -573,8 +573,10 @@ class WasmGraphBuildingInterface {
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch());
+    DCHECK(block->is_try_catchall() || block->is_try_catch() ||
+           block->is_try_unwind());
     TFNode* exception = block->try_info->exception;
+    DCHECK_NOT_NULL(exception);
     BUILD(Rethrow, exception);
     builder_->TerminateThrow(effect(), control());
   }
@@ -632,9 +634,10 @@ class WasmGraphBuildingInterface {
     if (block->try_info->might_throw()) {
       // Merge the current env into the target handler's env.
       SetEnv(block->try_info->catch_env);
-      if (depth == decoder->control_depth()) {
+      if (depth == decoder->control_depth() - 1) {
         builder_->Rethrow(block->try_info->exception);
         builder_->TerminateThrow(effect(), control());
+        current_catch_ = block->previous_catch;
         return;
       }
       DCHECK(decoder->control_at(depth)->is_try());
@@ -646,16 +649,17 @@ class WasmGraphBuildingInterface {
         target_try->exception = block->try_info->exception;
       } else {
         DCHECK_EQ(target_try->catch_env->state, SsaEnv::kMerged);
-        TFNode* inputs[] = {target_try->exception, block->try_info->exception,
-                            target_try->catch_env->control};
-        target_try->exception = builder_->Phi(kWasmExnRef, 2, inputs);
+        target_try->exception = builder_->CreateOrMergeIntoPhi(
+            MachineRepresentation::kTagged, target_try->catch_env->control,
+            target_try->exception, block->try_info->exception);
       }
     }
     current_catch_ = block->previous_catch;
   }
 
   void CatchAll(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch());
+    DCHECK(block->is_try_catchall() || block->is_try_catch() ||
+           block->is_try_unwind());
     DCHECK_EQ(decoder->control_at(0), block);
 
     current_catch_ = block->previous_catch;  // Pop try scope.
@@ -908,6 +912,7 @@ class WasmGraphBuildingInterface {
   TFNode* control() { return builder_->control(); }
 
   TryInfo* current_try_info(FullDecoder* decoder) {
+    DCHECK_LT(current_catch_, decoder->control_depth());
     return decoder->control_at(decoder->control_depth() - 1 - current_catch_)
         ->try_info;
   }

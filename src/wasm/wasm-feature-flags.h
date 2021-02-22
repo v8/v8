@@ -10,11 +10,6 @@
 
 // Experimental features (disabled by default).
 #define FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) /*     (force 80 columns) */ \
-  /* Exception handling proposal. */                                           \
-  /* https://github.com/WebAssembly/exception-handling */                      \
-  /* V8 side owner: thibaudm */                                                \
-  V(eh, "exception handling opcodes", false)                                   \
-                                                                               \
   /* No official proposal (yet?). */                                           \
   /* V8 side owner: clemensb */                                                \
   V(compilation_hints, "compilation hints section", false)                     \
@@ -44,6 +39,11 @@
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
+  /* Exception handling proposal. */                                           \
+  /* https://github.com/WebAssembly/exception-handling */                      \
+  /* V8 side owner: thibaudm */                                                \
+  V(eh, "exception handling opcodes", false)                                   \
+                                                                               \
   /* Reference Types, a.k.a. reftypes proposal. */                             \
   /* https://github.com/WebAssembly/reference-types */                         \
   /* V8 side owner: ahaas */                                                   \
