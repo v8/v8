@@ -2098,7 +2098,11 @@ v8_header_set("v8_version") {
 v8_header_set("v8_config_headers") {
   configs = [ ":internal_config" ]
 
-  sources = [ "include/v8config.h" ]
+  sources = [
+    "include/v8-platform.h",
+    "include/v8config.h",
+  ]
+
   deps = []
 
   if (v8_generate_external_defines_header) {
@@ -2514,7 +2518,6 @@ v8_source_set("v8_base_without_compiler") {
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
     "include/v8-metrics.h",
-    "include/v8-platform.h",
     "include/v8-profiler.h",
     "include/v8-unwinder-state.h",
     "include/v8-util.h",
