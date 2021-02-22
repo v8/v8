@@ -15468,7 +15468,7 @@ static int asm_warning_triggered = 0;
 
 static void AsmJsWarningListener(v8::Local<v8::Message> message,
                                  v8::Local<Value>) {
-  DCHECK_EQ(v8::Isolate::kMessageWarning, message->ErrorLevel());
+  CHECK_EQ(v8::Isolate::kMessageWarning, message->ErrorLevel());
   asm_warning_triggered = 1;
 }
 
@@ -15490,7 +15490,12 @@ TEST(AsmJsWarning) {
       "  return {};\n"
       "}\n"
       "module();");
-  DCHECK_EQ(1, asm_warning_triggered);
+#if V8_ENABLE_WEBASSEMBLY
+  int kExpectedWarnings = 1;
+#else
+  int kExpectedWarnings = 0;
+#endif
+  CHECK_EQ(kExpectedWarnings, asm_warning_triggered);
   isolate->RemoveMessageListeners(AsmJsWarningListener);
 }
 

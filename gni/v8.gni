@@ -64,6 +64,12 @@ declare_args() {
   # Enable WebAssembly debugging via GDB-remote protocol.
   v8_enable_wasm_gdb_remote_debugging = false
 
+  # Include support for WebAssembly. If disabled, the 'WebAssembly' global
+  # will not be available, and embedder APIs to generate WebAssembly modules
+  # will fail. Also, asm.js will not be translated to WebAssembly and will be
+  # executed as standard JavaScript instead.
+  v8_enable_webassembly = true
+
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 

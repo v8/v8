@@ -328,6 +328,7 @@
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
   # Skip tests that require webassembly.
+  'regress/asm/*': [SKIP],
   'regress/wasm/*': [SKIP],
 
   'wasm/*': [SKIP],
@@ -350,28 +351,11 @@
 
 ##############################################################################
 ['lite_mode or variant == jitless', {
-  # Other tests that use optimized code.
-  'regress/asm/regress-599719': [SKIP],
-  'regress/asm/regress-6196': [SKIP],
-  'regress/asm/regress-6700': [SKIP],
-  'regress/asm/regress-6838-2': [SKIP],
-  'regress/asm/regress-6838-3': [SKIP],
-  'regress/asm/regress-6838-4': [SKIP],
-  'regress/asm/regress-9022': [SKIP],
-  'regress/asm/regress-crbug-934138': [SKIP],
-  'regress/asm/regress-crbug-976934': [SKIP],
-
   # Timeouts in lite / jitless mode.
   'asm/embenchen/*': [SKIP],
 
   # Tests that generate code at runtime.
   'code-comments': [SKIP],
-  'regress/asm/regress-617526': [SKIP],
-  'regress/asm/regress-7893': [SKIP],
-  'regress/asm/regress-8377': [SKIP],
-  'regress/asm/regress-crbug-721835': [SKIP],
-  'regress/asm/regress-crbug-759327': [SKIP],
-  'regress/asm/regress-crbug-898974': [SKIP],
   'regexp-tier-up': [SKIP],
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],

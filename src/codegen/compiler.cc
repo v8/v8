@@ -499,6 +499,7 @@ void OptimizedCompilationJob::RecordFunctionCompilation(
 
 namespace {
 
+#if V8_ENABLE_WEBASSEMBLY
 bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
   // Check whether asm.js validation is enabled.
   if (!FLAG_validate_asm) return false;
@@ -513,6 +514,7 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
   // In general, we respect the "use asm" directive.
   return literal->scope()->IsAsmModule();
 }
+#endif
 
 void InstallInterpreterTrampolineCopy(Isolate* isolate,
                                       Handle<SharedFunctionInfo> shared_info) {
@@ -740,6 +742,7 @@ ExecuteSingleUnoptimizedCompilationJob(
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate) {
+#if V8_ENABLE_WEBASSEMBLY
   if (UseAsmWasm(literal, parse_info->flags().is_asm_wasm_broken())) {
     std::unique_ptr<UnoptimizedCompilationJob> asm_job(
         AsmJs::NewCompilationJob(parse_info, literal, allocator));
@@ -752,6 +755,7 @@ ExecuteSingleUnoptimizedCompilationJob(
     // with a validation error or another error that could be solve by falling
     // through to standard unoptimized compile.
   }
+#endif
   std::unique_ptr<UnoptimizedCompilationJob> job(
       interpreter::Interpreter::NewCompilationJob(
           parse_info, literal, allocator, eager_inner_literals, local_isolate));

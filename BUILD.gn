@@ -292,11 +292,6 @@ declare_args() {
   # header files are placed in a separate header file v8-gn.h.
   v8_generate_external_defines_header = false
 
-  # Include support for WebAssembly. If disabled, the 'WebAssembly' global
-  # will not be available, and embedder APIs to generate WebAssembly modules
-  # will fail.
-  v8_enable_webassembly = true
-
   # Experimental feature for tracking constness of properties in non-global
   # dictionaries. Enabling this also always keeps prototypes in dict mode,
   # meaning that they are not switched to fast mode.
@@ -2531,15 +2526,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/api/api-natives.h",
     "src/api/api.cc",
     "src/api/api.h",
-    "src/asmjs/asm-js.cc",
-    "src/asmjs/asm-js.h",
-    "src/asmjs/asm-names.h",
-    "src/asmjs/asm-parser.cc",
-    "src/asmjs/asm-parser.h",
-    "src/asmjs/asm-scanner.cc",
-    "src/asmjs/asm-scanner.h",
-    "src/asmjs/asm-types.cc",
-    "src/asmjs/asm-types.h",
     "src/ast/ast-function-literal-id-reindexer.cc",
     "src/ast/ast-function-literal-id-reindexer.h",
     "src/ast/ast-source-ranges.h",
@@ -3676,6 +3662,20 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone.cc",
     "src/zone/zone.h",
   ]
+
+  if (v8_enable_webassembly) {
+    sources += [
+      "src/asmjs/asm-js.cc",
+      "src/asmjs/asm-js.h",
+      "src/asmjs/asm-names.h",
+      "src/asmjs/asm-parser.cc",
+      "src/asmjs/asm-parser.h",
+      "src/asmjs/asm-scanner.cc",
+      "src/asmjs/asm-scanner.h",
+      "src/asmjs/asm-types.cc",
+      "src/asmjs/asm-types.h",
+    ]
+  }
 
   if (!v8_control_flow_integrity) {
     sources += [ "src/execution/pointer-authentication-dummy.h" ]

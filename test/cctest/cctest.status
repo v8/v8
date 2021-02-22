@@ -511,6 +511,7 @@
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
+  'test-api/TurboAsmDisablesDetach': [SKIP],
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
   'test-api-wasm/WasmStreaming*': [SKIP],
@@ -626,7 +627,6 @@
   'serializer-tester/SerializeConstructWithSpread': [SKIP],
   'serializer-tester/SerializeInlinedClosure': [SKIP],
   'serializer-tester/SerializeInlinedFunction': [SKIP],
-  'test-api/TurboAsmDisablesDetach': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
   'test-js-to-wasm/*': [SKIP],
