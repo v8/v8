@@ -206,6 +206,9 @@ class SwissNameDictionary : public HeapObject {
   inline static constexpr Offset CtrlTableStartOffset(int capacity);
   inline static constexpr Offset PropertyDetailsTableStartOffset(int capacity);
 
+#if VERIFY_HEAP
+  void SwissNameDictionaryVerify(Isolate* isolate, bool slow_checks);
+#endif
   DECL_VERIFIER(SwissNameDictionary)
   DECL_PRINTER(SwissNameDictionary)
   DECL_CAST(SwissNameDictionary)

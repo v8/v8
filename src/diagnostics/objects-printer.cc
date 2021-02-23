@@ -940,9 +940,72 @@ void OrderedNameDictionary::OrderedNameDictionaryPrint(std::ostream& os) {
   PrintDictionaryContentsFull(os, *this);
 }
 
+void print_hex_byte(std::ostream& os, int value) {
+  os << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex
+     << (value & 0xff) << std::setfill(' ');
+}
+
 void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
-  // Here to satisfy compiler, implemented in follow-up CL.
-  UNREACHABLE();
+  this->PrintHeader(os, "SwissNameDictionary");
+  os << "\n - meta table ByteArray: "
+     << reinterpret_cast<void*>(this->meta_table().ptr());
+  os << "\n - capacity: " << this->Capacity();
+  os << "\n - elements: " << this->NumberOfElements();
+  os << "\n - deleted: " << this->NumberOfDeletedElements();
+
+  std::ios_base::fmtflags sav_flags = os.flags();
+  os << "\n - ctrl table (omitting buckets where key is hole value): {";
+  for (int i = 0; i < this->Capacity() + kGroupWidth; i++) {
+    ctrl_t ctrl = CtrlTable()[i];
+
+    if (ctrl == Ctrl::kEmpty) continue;
+
+    os << "\n   " << std::setw(12) << std::dec << i << ": ";
+    switch (ctrl) {
+      case Ctrl::kEmpty:
+        UNREACHABLE();
+        break;
+      case Ctrl::kDeleted:
+        print_hex_byte(os, ctrl);
+        os << " (= kDeleted)";
+        break;
+      case Ctrl::kSentinel:
+        print_hex_byte(os, ctrl);
+        os << " (= kSentinel)";
+        break;
+      default:
+        print_hex_byte(os, ctrl);
+        os << " (= H2 of a key)";
+        break;
+    }
+  }
+  os << "\n }";
+
+  os << "\n - enumeration table: {";
+  for (int enum_index = 0; enum_index < this->UsedCapacity(); enum_index++) {
+    int entry = EntryForEnumerationIndex(enum_index);
+    os << "\n   " << std::setw(12) << std::dec << enum_index << ": " << entry;
+  }
+  os << "\n }";
+
+  os << "\n - data table (omitting slots where key is the hole): {";
+  for (int bucket = 0; bucket < this->Capacity(); ++bucket) {
+    Object k;
+    if (!this->ToKey(this->GetReadOnlyRoots(), bucket, &k)) continue;
+
+    Object value = this->ValueAtRaw(bucket);
+    PropertyDetails details = this->DetailsAt(bucket);
+    os << "\n   " << std::setw(12) << std::dec << bucket << ": ";
+    if (k.IsString()) {
+      String::cast(k).PrintUC16(os);
+    } else {
+      os << Brief(k);
+    }
+    os << " -> " << Brief(value);
+    details.PrintAsSlowTo(os, false);
+  }
+  os << "\n }\n";
+  os.flags(sav_flags);
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
