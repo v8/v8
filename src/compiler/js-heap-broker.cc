@@ -385,32 +385,6 @@ void CallHandlerInfoData::Serialize(JSHeapBroker* broker) {
   data_ = broker->GetOrCreateData(call_handler_info->data());
 }
 
-class JSObjectField {
- public:
-  bool IsDouble() const { return object_ == nullptr; }
-  uint64_t AsBitsOfDouble() const {
-    CHECK(IsDouble());
-    return number_bits_;
-  }
-  double AsDouble() const {
-    CHECK(IsDouble());
-    return bit_cast<double>(number_bits_);
-  }
-
-  bool IsObject() const { return object_ != nullptr; }
-  ObjectData* AsObject() const {
-    CHECK(IsObject());
-    return object_;
-  }
-
-  explicit JSObjectField(uint64_t value_bits) : number_bits_(value_bits) {}
-  explicit JSObjectField(ObjectData* value) : object_(value) {}
-
- private:
-  ObjectData* object_ = nullptr;
-  uint64_t number_bits_ = 0;
-};
-
 class JSReceiverData : public HeapObjectData {
  public:
   JSReceiverData(JSHeapBroker* broker, ObjectData** storage,
@@ -425,7 +399,7 @@ class JSObjectData : public JSReceiverData {
 
   // Recursive serialization of all reachable JSObjects.
   void SerializeAsBoilerplate(JSHeapBroker* broker);
-  const JSObjectField& GetInobjectField(int property_index) const;
+  ObjectData* GetInobjectField(int property_index) const;
 
   // Shallow serialization of {elements}.
   void SerializeElements(JSHeapBroker* broker);
@@ -464,7 +438,7 @@ class JSObjectData : public JSReceiverData {
   bool serialized_as_boilerplate_ = false;
   bool serialized_elements_ = false;
 
-  ZoneVector<JSObjectField> inobject_fields_;
+  ZoneVector<ObjectData*> inobject_fields_;
 
   bool serialized_object_create_map_ = false;
   ObjectData* object_create_map_ = nullptr;
@@ -2225,7 +2199,7 @@ HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
 
-const JSObjectField& JSObjectData::GetInobjectField(int property_index) const {
+ObjectData* JSObjectData::GetInobjectField(int property_index) const {
   CHECK_LT(static_cast<size_t>(property_index), inobject_fields_.size());
   return inobject_fields_[property_index];
 }
@@ -2432,7 +2406,7 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
       value_data->AsJSObject()->SerializeRecursiveAsBoilerplate(broker,
                                                                 depth - 1);
     }
-    inobject_fields_.push_back(JSObjectField{value_data});
+    inobject_fields_.push_back(value_data);
   }
   TRACE(broker, "Copied " << inobject_fields_.size() << " in-object fields");
 
@@ -3182,9 +3156,8 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
   }
   JSObjectData* object_data = data()->AsJSObject();
   CHECK(index.is_inobject());
-  return ObjectRef(
-      broker(),
-      object_data->GetInobjectField(index.property_index()).AsObject());
+  return ObjectRef(broker(),
+                   object_data->GetInobjectField(index.property_index()));
 }
 
 bool AllocationSiteRef::IsFastLiteral() const {
