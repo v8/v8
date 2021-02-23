@@ -1261,7 +1261,7 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
 }  // namespace
 
 void Debug::DiscardBaselineCode(SharedFunctionInfo shared) {
-  DCHECK_EQ(shared.GetCode().kind(), CodeKind::BASELINE);
+  DCHECK(shared.HasBaselineData());
   Isolate* isolate = shared.GetIsolate();
   DiscardBaselineCodeVisitor visitor(shared);
   visitor.VisitThread(isolate, isolate->thread_local_top());
@@ -1274,7 +1274,7 @@ void Debug::DiscardBaselineCode(SharedFunctionInfo shared) {
        obj = iterator.Next()) {
     if (obj.IsJSFunction()) {
       JSFunction fun = JSFunction::cast(obj);
-      if (fun.shared() == shared && fun.code().kind() == CodeKind::BASELINE) {
+      if (fun.shared() == shared && fun.ActiveTierIsBaseline()) {
         fun.set_code(*trampoline);
       }
     }

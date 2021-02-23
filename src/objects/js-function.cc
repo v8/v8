@@ -19,28 +19,22 @@ namespace v8 {
 namespace internal {
 
 CodeKinds JSFunction::GetAttachedCodeKinds() const {
-  CodeKinds result;
-
   // Note: There's a special case when bytecode has been aged away. After
   // flushing the bytecode, the JSFunction will still have the interpreter
   // entry trampoline attached, but the bytecode is no longer available.
   Code code = this->code(kAcquireLoad);
   if (code.is_interpreter_trampoline_builtin()) {
-    result |= CodeKindFlag::INTERPRETED_FUNCTION;
+    return CodeKindFlag::INTERPRETED_FUNCTION;
   }
 
   const CodeKind kind = code.kind();
-  if (!CodeKindIsOptimizedJSFunction(kind) ||
-      code.marked_for_deoptimization()) {
-    DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
-    return result;
+  if (!CodeKindIsJSFunction(kind)) return {};
+
+  if (CodeKindIsOptimizedJSFunction(kind) && code.marked_for_deoptimization()) {
+    // Nothing is attached.
+    return {};
   }
-
-  DCHECK(CodeKindIsOptimizedJSFunction(kind));
-  result |= CodeKindToCodeKindFlag(kind);
-
-  DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
-  return result;
+  return CodeKindToCodeKindFlag(kind);
 }
 
 CodeKinds JSFunction::GetAvailableCodeKinds() const {
@@ -80,6 +74,11 @@ bool JSFunction::HasAttachedOptimizedCode() const {
 bool JSFunction::HasAvailableOptimizedCode() const {
   CodeKinds result = GetAvailableCodeKinds();
   return (result & kOptimizedJSFunctionCodeKindsMask) != 0;
+}
+
+bool JSFunction::HasAttachedCodeKind(CodeKind kind) const {
+  CodeKinds result = GetAttachedCodeKinds();
+  return (result & CodeKindToCodeKindFlag(kind)) != 0;
 }
 
 bool JSFunction::HasAvailableCodeKind(CodeKind kind) const {
@@ -152,9 +151,7 @@ bool JSFunction::ActiveTierIsNCI() const {
 }
 
 bool JSFunction::ActiveTierIsBaseline() const {
-  CodeKind highest_tier;
-  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
-  return highest_tier == CodeKind::BASELINE;
+  return GetActiveTier() == CodeKind::BASELINE;
 }
 
 bool JSFunction::ActiveTierIsIgnitionOrBaseline() const {

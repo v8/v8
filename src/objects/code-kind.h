@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CODE_KIND_H_
 #define V8_OBJECTS_CODE_KIND_H_
 
+#include "src/base/bounds.h"
 #include "src/base/flags.h"
 #include "src/flags/flags.h"
 
@@ -26,8 +27,8 @@ namespace internal {
   V(JS_TO_JS_FUNCTION)          \
   V(C_WASM_ENTRY)               \
   V(INTERPRETED_FUNCTION)       \
-  V(NATIVE_CONTEXT_INDEPENDENT) \
   V(BASELINE)                   \
+  V(NATIVE_CONTEXT_INDEPENDENT) \
   V(TURBOPROP)                  \
   V(TURBOFAN)
 
@@ -38,8 +39,12 @@ enum class CodeKind {
 };
 STATIC_ASSERT(CodeKind::INTERPRETED_FUNCTION < CodeKind::TURBOPROP &&
               CodeKind::INTERPRETED_FUNCTION <
-                  CodeKind::NATIVE_CONTEXT_INDEPENDENT);
-STATIC_ASSERT(CodeKind::TURBOPROP < CodeKind::TURBOFAN &&
+                  CodeKind::NATIVE_CONTEXT_INDEPENDENT &&
+              CodeKind::INTERPRETED_FUNCTION < CodeKind::BASELINE);
+STATIC_ASSERT(CodeKind::BASELINE < CodeKind::TURBOPROP &&
+              CodeKind::BASELINE < CodeKind::NATIVE_CONTEXT_INDEPENDENT);
+STATIC_ASSERT(CodeKind::BASELINE < CodeKind::TURBOFAN &&
+              CodeKind::TURBOPROP < CodeKind::TURBOFAN &&
               CodeKind::NATIVE_CONTEXT_INDEPENDENT < CodeKind::TURBOFAN);
 
 #define V(...) +1
@@ -54,19 +59,33 @@ inline constexpr bool CodeKindIsInterpretedJSFunction(CodeKind kind) {
   return kind == CodeKind::INTERPRETED_FUNCTION;
 }
 
+inline constexpr bool CodeKindIsBaselinedJSFunction(CodeKind kind) {
+  return kind == CodeKind::BASELINE;
+}
+
+inline constexpr bool CodeKindIsUnoptimizedJSFunction(CodeKind kind) {
+  STATIC_ASSERT(static_cast<int>(CodeKind::INTERPRETED_FUNCTION) + 1 ==
+                static_cast<int>(CodeKind::BASELINE));
+  return base::IsInRange(kind, CodeKind::INTERPRETED_FUNCTION,
+                         CodeKind::BASELINE);
+}
+
 inline constexpr bool CodeKindIsNativeContextIndependentJSFunction(
     CodeKind kind) {
   return kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
 inline constexpr bool CodeKindIsOptimizedJSFunction(CodeKind kind) {
-  return kind == CodeKind::TURBOFAN ||
-         kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT ||
-         kind == CodeKind::TURBOPROP;
+  STATIC_ASSERT(static_cast<int>(CodeKind::NATIVE_CONTEXT_INDEPENDENT) + 1 ==
+                static_cast<int>(CodeKind::TURBOPROP));
+  STATIC_ASSERT(static_cast<int>(CodeKind::TURBOPROP) + 1 ==
+                static_cast<int>(CodeKind::TURBOFAN));
+  return base::IsInRange(kind, CodeKind::NATIVE_CONTEXT_INDEPENDENT,
+                         CodeKind::TURBOFAN);
 }
 
 inline constexpr bool CodeKindIsJSFunction(CodeKind kind) {
-  return CodeKindIsInterpretedJSFunction(kind) ||
+  return CodeKindIsUnoptimizedJSFunction(kind) ||
          CodeKindIsOptimizedJSFunction(kind);
 }
 
@@ -87,12 +106,11 @@ inline constexpr bool CodeKindCanOSR(CodeKind kind) {
 
 inline constexpr bool CodeKindIsOptimizedAndCanTierUp(CodeKind kind) {
   return kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT ||
-         kind == CodeKind::BASELINE ||
          (!FLAG_turboprop_as_toptier && kind == CodeKind::TURBOPROP);
 }
 
 inline constexpr bool CodeKindCanTierUp(CodeKind kind) {
-  return CodeKindIsInterpretedJSFunction(kind) ||
+  return CodeKindIsUnoptimizedJSFunction(kind) ||
          CodeKindIsOptimizedAndCanTierUp(kind);
 }
 
