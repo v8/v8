@@ -1053,6 +1053,26 @@ void TurboAssembler::I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,
   }
 }
 
+void TurboAssembler::I64x2Abs(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    XMMRegister tmp = dst == src ? scratch : dst;
+    vpxor(tmp, tmp, tmp);
+    vpsubq(tmp, tmp, src);
+    vblendvpd(dst, src, tmp, src);
+  } else {
+    CpuFeatureScope sse_scope(this, SSE3);
+    movshdup(scratch, src);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    psrad(scratch, 31);
+    xorps(dst, scratch);
+    psubq(dst, scratch);
+  }
+}
+
 void TurboAssembler::I64x2GtS(XMMRegister dst, XMMRegister src0,
                               XMMRegister src1, XMMRegister scratch) {
   if (CpuFeatures::IsSupported(AVX)) {
