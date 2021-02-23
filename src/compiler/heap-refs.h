@@ -917,7 +917,7 @@ class StringRef : public NameRef {
 
   Handle<String> object() const;
 
-  base::Optional<StringRef> GetCharAsString(
+  base::Optional<ObjectRef> GetCharAsStringOrUndefined(
       uint32_t index, SerializationPolicy policy =
                           SerializationPolicy::kAssumeSerialized) const;
 

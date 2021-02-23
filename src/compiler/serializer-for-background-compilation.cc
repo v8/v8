@@ -3338,7 +3338,7 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
                   SerializationPolicy::kSerializeIfNeeded);
             }
           } else if (receiver_ref.IsString()) {
-            element = receiver_ref.AsString().GetCharAsString(
+            element = receiver_ref.AsString().GetCharAsStringOrUndefined(
                 key_ref.AsSmi(), SerializationPolicy::kSerializeIfNeeded);
           }
         }

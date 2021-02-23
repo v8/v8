@@ -1980,7 +1980,7 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
         }
       }
     } else if (receiver_ref.IsString()) {
-      element = receiver_ref.AsString().GetCharAsString(index);
+      element = receiver_ref.AsString().GetCharAsStringOrUndefined(index);
     }
 
     if (element.has_value()) {

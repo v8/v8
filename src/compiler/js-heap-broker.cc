@@ -888,7 +888,7 @@ class StringData : public NameData {
   bool is_external_string() const { return is_external_string_; }
   bool is_seq_string() const { return is_seq_string_; }
 
-  ObjectData* GetCharAsString(
+  ObjectData* GetCharAsStringOrUndefined(
       JSHeapBroker* broker, uint32_t index,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
@@ -932,8 +932,9 @@ class InternalizedStringData : public StringData {
   }
 };
 
-ObjectData* StringData::GetCharAsString(JSHeapBroker* broker, uint32_t index,
-                                        SerializationPolicy policy) {
+ObjectData* StringData::GetCharAsStringOrUndefined(JSHeapBroker* broker,
+                                                   uint32_t index,
+                                                   SerializationPolicy policy) {
   if (index >= static_cast<uint32_t>(length())) return nullptr;
 
   for (auto const& p : chars_as_strings_) {
@@ -3287,22 +3288,19 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
   return ObjectRef(broker(), descriptors->GetFieldType(descriptor_index));
 }
 
-base::Optional<StringRef> StringRef::GetCharAsString(
+base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
     uint32_t index, SerializationPolicy policy) const {
   if (data_->should_access_heap()) {
     // TODO(solanes, neis, v8:7790, v8:11012): Re-enable this optimization for
     // concurrent inlining when we have the infrastructure to safely do so.
     if (broker()->is_concurrent_inlining()) return base::nullopt;
     CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
-    base::Optional<ObjectRef> maybe_result =
-        GetOwnElementFromHeap(broker(), object(), index, true);
-    if (!maybe_result) return {};
-    return maybe_result->AsString();
+    return GetOwnElementFromHeap(broker(), object(), index, true);
   }
   ObjectData* element =
-      data()->AsString()->GetCharAsString(broker(), index, policy);
+      data()->AsString()->GetCharAsStringOrUndefined(broker(), index, policy);
   if (element == nullptr) return base::nullopt;
-  return StringRef(broker(), element);
+  return ObjectRef(broker(), element);
 }
 
 base::Optional<int> StringRef::length() const {
