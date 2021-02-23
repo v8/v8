@@ -937,7 +937,9 @@ void RegisterState::Register::Use(int virtual_register, int instr_index) {
   // A register can have many pending uses, but should only ever have a single
   // non-pending use, since any subsiquent use will commit the preceeding use
   // first.
-  DCHECK(!is_allocated());
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(!is_allocated());
+  CHECK(!is_shared());
   needs_gap_move_on_spill_ = true;
   virtual_register_ = virtual_register;
   last_use_instr_index_ = instr_index;
@@ -948,6 +950,8 @@ void RegisterState::Register::PendingUse(InstructionOperand* operand,
                                          int virtual_register,
                                          bool can_be_constant,
                                          int instr_index) {
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(!was_spilled_while_shared());
   if (!is_allocated()) {
     virtual_register_ = virtual_register;
     last_use_instr_index_ = instr_index;
@@ -968,7 +972,8 @@ void RegisterState::Register::MarkAsPhiMove() {
 
 void RegisterState::Register::AddDeferredBlockSpill(int instr_index,
                                                     bool on_exit, Zone* zone) {
-  DCHECK(is_allocated());
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(is_allocated());
   if (!deferred_block_spills_) {
     deferred_block_spills_.emplace(zone);
   }
@@ -976,23 +981,27 @@ void RegisterState::Register::AddDeferredBlockSpill(int instr_index,
 }
 
 void RegisterState::Register::AddSharedUses(int shared_use_count) {
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(!was_spilled_while_shared());
   is_shared_ = true;
   num_commits_required_ += shared_use_count;
 }
 
 void RegisterState::Register::CommitAtMerge() {
-  DCHECK(is_shared());
-  DCHECK(is_allocated());
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(is_shared());
+  CHECK(is_allocated());
   --num_commits_required_;
   // We should still have commits required that will be resolved in the merge
   // block.
-  DCHECK_GT(num_commits_required_, 0);
+  CHECK_GT(num_commits_required_, 0);
 }
 
 void RegisterState::Register::Commit(AllocatedOperand allocated_op,
                                      MidTierRegisterAllocationData* data) {
-  DCHECK(is_allocated());
-  DCHECK_GT(num_commits_required_, 0);
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(is_allocated());
+  CHECK_GT(num_commits_required_, 0);
 
   if (--num_commits_required_ == 0) {
     // Allocate all pending uses to |allocated_op| if this commit is non-shared,
@@ -1029,7 +1038,8 @@ void RegisterState::Register::Commit(AllocatedOperand allocated_op,
       vreg_data.EmitDeferredSpillOutputs(data);
     }
   }
-  DCHECK_IMPLIES(num_commits_required_ > 0, is_shared());
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK_IMPLIES(num_commits_required_ > 0, is_shared());
 }
 
 void RegisterState::Register::Spill(AllocatedOperand allocated_op,
@@ -1048,7 +1058,12 @@ void RegisterState::Register::Spill(AllocatedOperand allocated_op,
   if (has_deferred_block_spills() || !current_block->IsDeferred()) {
     vreg_data.MarkAsNeedsSpillAtOutput();
   }
-  virtual_register_ = InstructionOperand::kInvalidVirtualRegister;
+  // TODO(1180335): Doing a full reset here shouldn't be necessary, but
+  // investigate if it fixes crbug.com/1180335.
+  bool is_shared = is_shared_;
+  Reset();
+  is_shared_ = is_shared;
+  CHECK_IMPLIES(is_shared_, was_spilled_while_shared());
 }
 
 void RegisterState::Register::SpillPhiGapMove(
@@ -1091,8 +1106,9 @@ void RegisterState::Register::SpillPendingUses(
 void RegisterState::Register::SpillForDeferred(
     AllocatedOperand allocated, int instr_index,
     MidTierRegisterAllocationData* data) {
-  DCHECK(is_allocated());
-  DCHECK(is_shared());
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(is_allocated());
+  CHECK(is_shared());
   // Add a pending deferred spill, then commit the register (with the commit
   // being fullfilled by the deferred spill if the register is fully commited).
   data->VirtualRegisterDataFor(virtual_register())
@@ -1104,6 +1120,8 @@ void RegisterState::Register::SpillForDeferred(
 void RegisterState::Register::MoveToSpillSlotOnDeferred(
     int virtual_register, int instr_index,
     MidTierRegisterAllocationData* data) {
+  // TODO(1180335): Make DCHECK once crbug.com/1180335 is fixed.
+  CHECK(!was_spilled_while_shared());
   if (!is_allocated()) {
     virtual_register_ = virtual_register;
     last_use_instr_index_ = instr_index;
