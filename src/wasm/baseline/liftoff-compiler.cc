@@ -824,6 +824,10 @@ class LiftoffCompiler {
       __ emit_cond_jump(kUnequal, &no_tierup, kWasmI32,
                         old_number_of_calls.gp());
       TierUpFunction(decoder);
+      // After the runtime call, the instance cache register is clobbered (we
+      // reset it already in {SpillAllRegisters} above, but then we still access
+      // the instance afterwards).
+      __ cache_state()->ClearCachedInstanceRegister();
       __ bind(&no_tierup);
     }
 
