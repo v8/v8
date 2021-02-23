@@ -646,9 +646,6 @@ class BaseTestRunner(object):
                                            '--noenable-sse4-1',
                                            '--no-enable-sse4_1'])
 
-    has_webassembly = self.build_config.webassembly and \
-        not self.build_config.lite_mode
-
     # Set no_simd_sse on architectures without Simd enabled.
     if self.build_config.arch == 'ppc64':
        no_simd_sse = True
@@ -666,7 +663,7 @@ class BaseTestRunner(object):
       "gc_fuzzer": False,
       "gc_stress": False,
       "gcov_coverage": self.build_config.gcov_coverage,
-      "has_webassembly": has_webassembly,
+      "has_webassembly": self.build_config.webassembly,
       "isolates": options.isolates,
       "is_clang": self.build_config.is_clang,
       "is_full_debug": self.build_config.is_full_debug,

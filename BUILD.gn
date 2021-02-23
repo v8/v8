@@ -40,11 +40,6 @@ declare_args() {
   # Sets -DV8_ENABLE_FUTURE.
   v8_enable_future = false
 
-  # Lite mode disables a number of performance optimizations to reduce memory
-  # at the cost of performance.
-  # Sets --DV8_LITE_MODE.
-  v8_enable_lite_mode = false
-
   # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
   v8_enable_system_instrumentation = false
 
@@ -771,7 +766,7 @@ config("features") {
   if (v8_etw_guid != "") {
     defines += [ "V8_ETW_GUID=\"$v8_etw_guid\"" ]
   }
-  if (v8_enable_webassembly && !v8_enable_lite_mode) {
+  if (v8_enable_webassembly) {
     defines += [ "V8_ENABLE_WEBASSEMBLY" ]
   }
   if (v8_dict_property_const_tracking) {
