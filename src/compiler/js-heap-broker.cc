@@ -2170,7 +2170,10 @@ class CodeData : public HeapObjectData {
  public:
   CodeData(JSHeapBroker* broker, ObjectData** storage, Handle<Code> object)
       : HeapObjectData(broker, storage, object),
-        inlined_bytecode_size_(object->inlined_bytecode_size()) {
+        inlined_bytecode_size_(object->inlined_bytecode_size() > 0 &&
+                                       !object->marked_for_deoptimization()
+                                   ? object->inlined_bytecode_size()
+                                   : 0) {
     DCHECK(!FLAG_turbo_direct_heap_access);
   }
 
@@ -3558,8 +3561,6 @@ BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR(Map, Object, GetConstructor)
 BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
-
-BIMODAL_ACCESSOR_C(Code, unsigned, inlined_bytecode_size)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR(NativeContext, type, name)
@@ -5565,6 +5566,20 @@ RegExpLiteralFeedback const& ProcessedFeedback::AsRegExpLiteral() const {
 TemplateObjectFeedback const& ProcessedFeedback::AsTemplateObject() const {
   CHECK_EQ(kTemplateObject, kind());
   return *static_cast<TemplateObjectFeedback const*>(this);
+}
+
+unsigned CodeRef::GetInlinedBytecodeSize() const {
+  if (data_->should_access_heap()) {
+    unsigned value = object()->inlined_bytecode_size();
+    if (value > 0) {
+      // Don't report inlined bytecode size if the code object was already
+      // deoptimized.
+      value = object()->marked_for_deoptimization() ? 0 : value;
+    }
+    return value;
+  }
+
+  return ObjectRef::data()->AsCode()->inlined_bytecode_size();
 }
 
 #undef BIMODAL_ACCESSOR

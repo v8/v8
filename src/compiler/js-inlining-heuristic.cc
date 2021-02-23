@@ -204,7 +204,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       unsigned inlined_bytecode_size = 0;
       if (candidate.functions[i].has_value()) {
         JSFunctionRef function = candidate.functions[i].value();
-        inlined_bytecode_size = function.code().inlined_bytecode_size();
+        inlined_bytecode_size = function.code().GetInlinedBytecodeSize();
         candidate.total_size += inlined_bytecode_size;
       }
       candidate_is_small = candidate_is_small &&
@@ -790,7 +790,7 @@ void JSInliningHeuristic::PrintCandidates() {
         if (candidate.functions[i].has_value()) {
           JSFunctionRef function = candidate.functions[i].value();
           unsigned inlined_bytecode_size =
-              function.code().inlined_bytecode_size();
+              function.code().GetInlinedBytecodeSize();
           if (inlined_bytecode_size > 0) {
             os << ", existing opt code's inlined bytecode size: "
                << inlined_bytecode_size;

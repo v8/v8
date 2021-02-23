@@ -1011,7 +1011,7 @@ class CodeRef : public HeapObjectRef {
 
   Handle<Code> object() const;
 
-  unsigned inlined_bytecode_size() const;
+  unsigned GetInlinedBytecodeSize() const;
 };
 
 class InternalizedStringRef : public StringRef {
