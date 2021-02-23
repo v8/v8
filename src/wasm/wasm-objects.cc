@@ -816,8 +816,7 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
 }  // namespace
 
 Handle<WasmMemoryObject> WasmMemoryObject::New(
-    Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
-    uint32_t maximum) {
+    Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer, int maximum) {
   Handle<JSArrayBuffer> buffer;
   if (!maybe_buffer.ToHandle(&buffer)) {
     // If no buffer was provided, create a zero-length one.
@@ -848,21 +847,29 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
 }
 
 MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
-                                                    uint32_t initial,
-                                                    uint32_t maximum,
+                                                    int initial, int maximum,
                                                     SharedFlag shared) {
-  auto heuristic_maximum = maximum;
+  bool has_maximum = maximum != kNoMaximum;
+  int heuristic_maximum = maximum;
+  if (!has_maximum) {
+    heuristic_maximum = static_cast<int>(wasm::max_mem_pages());
+  }
+
 #ifdef V8_TARGET_ARCH_32_BIT
-  // TODO(wasm): use a better heuristic for reserving more than the initial
-  // number of pages on 32-bit systems. Being too greedy in reserving capacity
-  // limits the number of memories that can be allocated, causing OOMs in many
-  // tests. For now, on 32-bit we never reserve more than initial, unless the
-  // memory is shared.
   if (shared == SharedFlag::kNotShared) {
-    // On 32-bit systems we reserve a maximum of 1GB.
-    constexpr uint32_t kGB = 1024 * 1024 * 1024;
-    heuristic_maximum = std::min(maximum, kGB / wasm::kWasmPageSize);
-    heuristic_maximum = std::max(heuristic_maximum, initial);
+    // On 32-bit platforms we need a heuristic here to balance overall memory
+    // and address space consumption. If a maximum memory size is defined, then
+    // we reserve that maximum size up to 1GB. If no maximum memory size is
+    // defined, we just allocate the initial size and grow with a realloc.
+    constexpr int kGBPages = 1024 * 1024 * 1024 / wasm::kWasmPageSize;
+    if (initial > kGBPages || !has_maximum) {
+      // We allocate at least the initial size. If no maximum is specified we
+      // also start with the initial size.
+      heuristic_maximum = initial;
+    } else {
+      // We reserve the maximum size, but at most 1GB.
+      heuristic_maximum = std::min(maximum, kGBPages);
+    }
   }
 #endif
 

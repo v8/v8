@@ -1144,7 +1144,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   // The descriptor's 'maximum'.
-  int64_t maximum = -1;
+  int64_t maximum = i::WasmMemoryObject::kNoMaximum;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
                                   initial, i::wasm::max_mem_pages())) {
@@ -1176,8 +1176,8 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Handle<i::JSObject> memory_obj;
-  if (!i::WasmMemoryObject::New(i_isolate, static_cast<uint32_t>(initial),
-                                static_cast<uint32_t>(maximum), shared)
+  if (!i::WasmMemoryObject::New(i_isolate, static_cast<int>(initial),
+                                static_cast<int>(maximum), shared)
            .ToHandle(&memory_obj)) {
     thrower.RangeError("could not allocate memory");
     return;

@@ -465,9 +465,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // The maximum number of pages isn't strictly necessary for memory
     // objects used for asm.js, as they are never visible, but we might
     // as well make it accurate.
-    auto maximum_pages = static_cast<uint32_t>(
-        RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
-        wasm::kWasmPageSize);
+    auto maximum_pages =
+        static_cast<int>(RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
+                         wasm::kWasmPageSize);
     memory_object_ =
         WasmMemoryObject::New(isolate_, memory_buffer_, maximum_pages);
   } else {
@@ -1632,10 +1632,11 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
 
 // Allocate memory for a module instance as a new JSArrayBuffer.
 bool InstanceBuilder::AllocateMemory() {
-  uint32_t initial_pages = module_->initial_pages;
-  uint32_t maximum_pages =
-      module_->has_maximum_pages ? module_->maximum_pages : max_mem_pages();
-  if (initial_pages > max_mem_pages()) {
+  int initial_pages = static_cast<int>(module_->initial_pages);
+  int maximum_pages = module_->has_maximum_pages
+                          ? static_cast<int>(module_->maximum_pages)
+                          : WasmMemoryObject::kNoMaximum;
+  if (initial_pages > static_cast<int>(max_mem_pages())) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return false;
   }
