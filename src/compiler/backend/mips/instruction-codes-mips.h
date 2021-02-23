@@ -175,6 +175,7 @@ namespace compiler {
   V(MipsI64x2Ne)                   \
   V(MipsI64x2GtS)                  \
   V(MipsI64x2GeS)                  \
+  V(MipsI64x2Abs)                  \
   V(MipsI64x2SConvertI32x4Low)     \
   V(MipsI64x2SConvertI32x4High)    \
   V(MipsI64x2UConvertI32x4Low)     \
