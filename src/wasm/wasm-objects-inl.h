@@ -130,8 +130,7 @@ ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
           kUntaggedBufferOffset)
 ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
-// TODO(7748): This will not suffice to hold the 32-bit encoding of a ValueType.
-// We need to devise and encoding that does, and also encodes is_mutable.
+// TODO(7748): Try to come up with some encoding that includes is_mutable?
 SMI_ACCESSORS(WasmGlobalObject, raw_type, kRawTypeOffset)
 SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
 

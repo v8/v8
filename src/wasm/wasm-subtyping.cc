@@ -258,8 +258,7 @@ bool ArrayIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
   }
 }
 
-// TODO(7748): Expand this with function subtyping once the hiccups
-// with 'exact types' have been cleared.
+// TODO(7748): Expand this with function subtyping when it is introduced.
 bool FunctionIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
                          const WasmModule* sub_module,
                          const WasmModule* super_module) {

@@ -2356,11 +2356,11 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         break;
       case wasm::kRef:
       case wasm::kOptRef:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth:
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
         break;
-      case wasm::kRtt:  // TODO(7748): Implement.
-      case wasm::kRttWithDepth:
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kStmt:
@@ -2493,11 +2493,11 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
         break;
       case wasm::kRef:
       case wasm::kOptRef:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth:
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
         break;
-      case wasm::kRtt:  // TODO(7748): Implement.
-      case wasm::kRttWithDepth:
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kStmt:

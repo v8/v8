@@ -339,8 +339,8 @@ class WasmGlobalObject : public JSObject {
   DECL_INT32_ACCESSORS(offset)
   DECL_INT_ACCESSORS(raw_type)
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
-  // TODO(7748): Once we improve the encoding of mutability/type, turn this back
-  // into a boolean accessor.
+  // TODO(7748): If we encode mutability in raw_type, turn this into a boolean
+  // accessor.
   DECL_INT_ACCESSORS(is_mutable)
 
   // Dispatched behavior.

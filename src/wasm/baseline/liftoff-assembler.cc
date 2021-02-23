@@ -98,7 +98,6 @@ class StackTransferRecipe {
       // edges), we only care that pointer types stay amongst pointer types.
       // It's fine if ref/optref overwrite each other.
       DCHECK(src.is_object_reference_type());
-      // TODO(7748): Check that one type is subtype of the other?
     } else {
       // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
       DCHECK_EQ(dst, src);
