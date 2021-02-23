@@ -3487,10 +3487,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Code> LoadBuiltin(TNode<Smi> builtin_id);
 
   // Figure out the SFI's code object using its data field.
+  // If |data_type_out| is provided, the instance type of the function data will
+  // be stored in it. In case the code object is a builtin (data is a Smi),
+  // data_type_out will be set to 0.
   // If |if_compile_lazy| is provided then the execution will go to the given
   // label in case of an CompileLazy code object.
-  TNode<Code> GetSharedFunctionInfoCode(TNode<SharedFunctionInfo> shared_info,
-                                        Label* if_compile_lazy = nullptr);
+  TNode<Code> GetSharedFunctionInfoCode(
+      TNode<SharedFunctionInfo> shared_info,
+      TVariable<Uint16T>* data_type_out = nullptr,
+      Label* if_compile_lazy = nullptr);
 
   TNode<JSFunction> AllocateFunctionWithMapAndContext(
       TNode<Map> map, TNode<SharedFunctionInfo> shared_info,

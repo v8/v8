@@ -13435,7 +13435,8 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 }
 
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
-    TNode<SharedFunctionInfo> shared_info, Label* if_compile_lazy) {
+    TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
+    Label* if_compile_lazy) {
   TNode<Object> sfi_data =
       LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
 
@@ -13446,6 +13447,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsSmi: Is builtin
   GotoIf(TaggedIsNotSmi(sfi_data), &check_instance_type);
+  if (data_type_out) {
+    *data_type_out = Uint16Constant(0);
+  }
   if (if_compile_lazy) {
     GotoIf(SmiEqual(CAST(sfi_data), SmiConstant(Builtins::kCompileLazy)),
            if_compile_lazy);
@@ -13456,6 +13460,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   // Switch on data's instance type.
   BIND(&check_instance_type);
   TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
+  if (data_type_out) {
+    *data_type_out = data_type;
+  }
 
   int32_t case_values[] = {BYTECODE_ARRAY_TYPE,
                            BASELINE_DATA_TYPE,
