@@ -65,7 +65,7 @@ Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
 
 class V8_NODISCARD ClearThreadInWasmScope {
  public:
-  ClearThreadInWasmScope() {
+  explicit ClearThreadInWasmScope(Isolate* isolate) : isolate_(isolate) {
     DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
                    trap_handler::IsThreadInWasm());
     trap_handler::ClearThreadInWasm();
@@ -73,8 +73,15 @@ class V8_NODISCARD ClearThreadInWasmScope {
   ~ClearThreadInWasmScope() {
     DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
                    !trap_handler::IsThreadInWasm());
-    trap_handler::SetThreadInWasm();
+    if (!isolate_->has_pending_exception()) {
+      trap_handler::SetThreadInWasm();
+    }
+    // Otherwise we only want to set the flag if the exception is caught in
+    // wasm. This is handled by the unwinder.
   }
+
+ private:
+  Isolate* isolate_;
 };
 
 Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
@@ -108,7 +115,7 @@ RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -124,24 +131,25 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
-  ClearThreadInWasmScope clear_wasm_flag;
+  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   return ThrowWasmError(isolate, MessageTemplateFromInt(message_id));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
-  ClearThreadInWasmScope clear_wasm_flag;
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
   return isolate->StackOverflow();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
-  // This runtime function is called both from wasm and from e.g. js-to-js
-  // functions. Hence the "thread in wasm" flag can be either set or not. Both
-  // is OK, since throwing will trigger unwinding anyway, which sets the flag
-  // correctly depending on the handler.
+  // The caller may be wasm or JS. Only clear the thread_in_wasm flag if the
+  // caller is wasm, and let the unwinder set it back depending on the handler.
+  if (trap_handler::IsTrapHandlerEnabled() && trap_handler::IsThreadInWasm()) {
+    trap_handler::ClearThreadInWasm();
+  }
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
@@ -149,9 +157,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
-  // Do not clear the flag in a scope. The unwinder will set it if the exception
-  // is caught by a wasm frame, otherwise we keep it cleared.
-  trap_handler::ClearThreadInWasm();
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
@@ -178,9 +184,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmReThrow) {
-  // Do not clear the flag in a scope. The unwinder will set it if the exception
-  // is caught by a wasm frame, otherwise we keep it cleared.
-  trap_handler::ClearThreadInWasm();
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   isolate->wasm_engine()->SampleRethrowEvent(isolate);
@@ -188,7 +192,7 @@ RUNTIME_FUNCTION(Runtime_WasmReThrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
-  ClearThreadInWasmScope wasm_flag;
+  ClearThreadInWasmScope wasm_flag(isolate);
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
 
@@ -200,7 +204,7 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
-  ClearThreadInWasmScope wasm_flag;
+  ClearThreadInWasmScope wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -306,7 +310,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
-  ClearThreadInWasmScope clear_wasm_flag;
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -322,7 +326,7 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
-  ClearThreadInWasmScope clear_wasm_flag;
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -345,7 +349,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
-  ClearThreadInWasmScope clear_wasm_flag;
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -383,7 +387,7 @@ Object ThrowTableOutOfBounds(Isolate* isolate,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -397,7 +401,7 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -421,7 +425,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -448,7 +452,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -470,7 +474,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -492,7 +496,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   auto instance =
@@ -511,7 +515,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableFill) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   auto instance =
@@ -544,7 +548,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   FrameFinder<WasmFrame, StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK>
@@ -618,7 +622,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateRtt) {
-  ClearThreadInWasmScope flag_scope;
+  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_UINT32_ARG_CHECKED(type_index, 0);

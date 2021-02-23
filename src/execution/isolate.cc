@@ -1563,6 +1563,8 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
 
 Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
+  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                 !trap_handler::IsThreadInWasm());
 
   HandleScope scope(this);
   Handle<Object> exception(raw_exception, this);
@@ -1658,6 +1660,8 @@ Object Isolate::ReThrow(Object exception) {
 
 Object Isolate::UnwindAndFindHandler() {
   Object exception = pending_exception();
+  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                 !trap_handler::IsThreadInWasm());
 
   auto FoundHandler = [&](Context context, Address instruction_start,
                           intptr_t handler_offset,
@@ -1731,11 +1735,6 @@ Object Isolate::UnwindAndFindHandler() {
       }
 
       case StackFrame::WASM: {
-        if (trap_handler::IsThreadInWasm()) {
-          // TODO(thibaudm): The flag should be cleared already.
-          trap_handler::ClearThreadInWasm();
-        }
-
         if (!catchable_by_wasm) break;
 
         // For WebAssembly frames we perform a lookup in the handler table.
@@ -1755,8 +1754,7 @@ Object Isolate::UnwindAndFindHandler() {
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             wasm_code->stack_slots() * kSystemPointerSize;
 
-        // This is going to be handled by Wasm, so we need to set the TLS flag
-        // again. It was cleared above assuming the frame would be unwound.
+        // This is going to be handled by Wasm, so we need to set the TLS flag.
         trap_handler::SetThreadInWasm();
 
         return FoundHandler(Context(), wasm_code->instruction_start(), offset,
