@@ -2483,13 +2483,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
-  XMMRegister mask = kScratchDoubleReg;
-  // Out-of-range indices should return 0, add 112 (0x70) so that any value > 15
-  // saturates to 128 (top bit set), so pshufb will zero that lane.
-  TurboAssembler::Move(mask, uint32_t{0x70707070});
-  Pshufd(mask, mask, uint8_t{0x0});
-  Paddusb(mask, rhs.fp());
-  Pshufb(dst.fp(), lhs.fp(), mask);
+  I8x16Swizzle(dst.fp(), lhs.fp(), rhs.fp());
 }
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,

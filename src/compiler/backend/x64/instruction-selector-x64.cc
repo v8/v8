@@ -3652,10 +3652,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
 
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kX64I8x16Swizzle, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
-       arraysize(temps), temps);
+  Emit(kX64I8x16Swizzle,
+       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 namespace {

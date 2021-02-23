@@ -2598,6 +2598,27 @@ void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
   Paddd(dst, kScratchDoubleReg);
 }
 
+void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
+                                  XMMRegister mask) {
+  // Out-of-range indices should return 0, add 112 so that any value > 15
+  // saturates to 128 (top bit set), so pshufb will zero that lane.
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i8x16_swizzle_mask());
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpaddusb(kScratchDoubleReg, mask, op);
+    vpshufb(dst, src, kScratchDoubleReg);
+  } else {
+    CpuFeatureScope sse_scope(this, SSSE3);
+    movdqa(kScratchDoubleReg, op);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    paddusb(kScratchDoubleReg, mask);
+    pshufb(dst, kScratchDoubleReg);
+  }
+}
+
 void TurboAssembler::Abspd(XMMRegister dst) {
   Andps(dst, ExternalReferenceAsOperand(
                  ExternalReference::address_of_double_abs_constant()));

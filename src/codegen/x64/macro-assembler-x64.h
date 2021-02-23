@@ -635,6 +635,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src);
   void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src);
 
+  void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask);
+
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);
 
