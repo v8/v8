@@ -20,7 +20,8 @@ void BaselineCompiler::Prologue() {
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
   CallBuiltin(Builtins::kBaselineOutOfLinePrologue, kContextRegister,
               kJSFunctionRegister, kJavaScriptCallArgCountRegister,
-              kInterpreterBytecodeArrayRegister);
+              kInterpreterBytecodeArrayRegister,
+              kJavaScriptCallNewTargetRegister);
 
   PrologueFillFrame();
 }

@@ -20,7 +20,8 @@ void BaselineCompiler::Prologue() {
   __ masm()->EnterFrame(StackFrame::BASELINE);
   CallBuiltin(Builtins::kBaselineOutOfLinePrologue, kContextRegister,
               kJSFunctionRegister, kJavaScriptCallArgCountRegister,
-              kInterpreterBytecodeArrayRegister);
+              kInterpreterBytecodeArrayRegister,
+              kJavaScriptCallNewTargetRegister);
 
   __ masm()->AssertSpAligned();
   PrologueFillFrame();

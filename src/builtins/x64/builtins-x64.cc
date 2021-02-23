@@ -1686,6 +1686,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   __ RecordComment("]");
 
+  Register new_target = descriptor.GetRegisterParameter(
+      BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
+
   __ RecordComment("[ Stack/interrupt check");
   Label call_stack_guard;
   {
@@ -1701,7 +1704,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ movzxwl(frame_size,
                FieldOperand(bytecode_array, BytecodeArray::kFrameSizeOffset));
     __ Move(kScratchRegister, rsp);
-    DCHECK_NE(frame_size, kJavaScriptCallNewTargetRegister);
+    DCHECK_NE(frame_size, new_target);
     __ subq(kScratchRegister, frame_size);
     __ cmpq(kScratchRegister,
             __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
@@ -1737,9 +1740,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       __ PushReturnAddressFrom(return_address);
       FrameScope frame_scope(masm, StackFrame::INTERNAL);
       // Save incoming new target or generator
-      __ Push(kJavaScriptCallNewTargetRegister);
+      __ Push(new_target);
       __ CallRuntime(Runtime::kStackGuard, 0);
-      __ Pop(kJavaScriptCallNewTargetRegister);
+      __ Pop(new_target);
     }
 
     // Return to caller pushed pc, without any frame teardown.

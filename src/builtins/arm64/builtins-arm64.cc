@@ -1321,12 +1321,15 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   __ bind(&call_stack_guard);
   {
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
+
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     __ RecordComment("[ Stack/interrupt call");
     // Save incoming new target or generator
-    __ Push(padreg, kJavaScriptCallNewTargetRegister);
+    __ Push(padreg, new_target);
     __ CallRuntime(Runtime::kStackGuard);
-    __ Pop(kJavaScriptCallNewTargetRegister, padreg);
+    __ Pop(new_target, padreg);
     __ RecordComment("]");
   }
   __ Ret();

@@ -333,11 +333,8 @@ void BaselineOutOfLinePrologueDescriptor::InitializePlatformSpecific(
   // TODO(v8:11421): Implement on other platforms.
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   Register registers[] = {
-      kContextRegister,
-      kJSFunctionRegister,
-      kJavaScriptCallArgCountRegister,
-      kInterpreterBytecodeArrayRegister,
-  };
+      kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
+      kInterpreterBytecodeArrayRegister, kJavaScriptCallNewTargetRegister};
   data->InitializePlatformSpecific(kParameterCount, registers);
 #else
   InitializePlatformUnimplemented(data, kParameterCount);

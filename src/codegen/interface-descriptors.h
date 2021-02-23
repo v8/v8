@@ -1467,11 +1467,13 @@ class BaselineOutOfLinePrologueDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kCalleeContext, kClosure,
                                kJavaScriptCallArgCount,
-                               kInterpreterBytecodeArray)
+                               kInterpreterBytecodeArray,
+                               kJavaScriptCallNewTarget)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kCalleeContext
                          MachineType::AnyTagged(),  // kClosure
                          MachineType::Int32(),      // kJavaScriptCallArgCount
-                         MachineType::AnyTagged())  // kInterpreterBytecodeArray
+                         MachineType::AnyTagged(),  // kInterpreterBytecodeArray
+                         MachineType::AnyTagged())  // kJavaScriptCallNewTarget
   DECLARE_DESCRIPTOR(BaselineOutOfLinePrologueDescriptor,
                      CallInterfaceDescriptor)
 };
