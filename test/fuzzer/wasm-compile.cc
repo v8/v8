@@ -1343,6 +1343,8 @@ void WasmGenerator::Generate<kS128>(DataRange* data) {
       &WasmGenerator::op_with_prefix<kExprI16x8ExtMulHighI8x16S, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI16x8ExtMulHighI8x16U, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI16x8Q15MulRSatS, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8ExtAddPairwiseI8x16S, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8ExtAddPairwiseI8x16U, kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI32x4Splat, kI32>,
       &WasmGenerator::op_with_prefix<kExprI32x4Eq, kS128, kS128>,
@@ -1372,6 +1374,8 @@ void WasmGenerator::Generate<kS128>(DataRange* data) {
       &WasmGenerator::op_with_prefix<kExprI32x4ExtMulLowI16x8U, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI32x4ExtMulHighI16x8S, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI32x4ExtMulHighI16x8U, kS128, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4ExtAddPairwiseI16x8S, kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4ExtAddPairwiseI16x8U, kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI64x2Splat, kI64>,
       &WasmGenerator::op_with_prefix<kExprI64x2Eq, kS128, kS128>,
