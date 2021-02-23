@@ -577,8 +577,9 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
 
     logger.StopLogging();
 
-    CHECK(logger.ContainsLine(
-        {"InterpretedFunction", "testLogInterpretedFramesNativeStack"}));
+    CHECK(logger.ContainsLinesInOrder(
+        {{"LazyCompile", "testLogInterpretedFramesNativeStack"},
+         {"LazyCompile", "testLogInterpretedFramesNativeStack"}}));
   }
   isolate->Dispose();
 }
@@ -629,7 +630,11 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
               .ToLocalChecked();
       if (has_cache) {
         logger.StopLogging();
-        CHECK(logger.ContainsLine({"InterpretedFunction", "eyecatcher"}));
+        logger.PrintLog();
+        // Function is logged twice: once as interpreted, and once as the
+        // interpreter entry trampoline builtin.
+        CHECK(logger.ContainsLinesInOrder(
+            {{"Function", "eyecatcher"}, {"Function", "eyecatcher"}}));
       }
       v8::Local<v8::Value> arg = v8_num(3);
       v8::Local<v8::Value> result =
@@ -667,13 +672,16 @@ UNINITIALIZED_TEST(ExternalCodeEventListener) {
         "testCodeEventListenerBeforeStart('1', 1);";
     CompileRun(source_text_before_start);
 
+    CHECK_EQ(code_event_handler.CountLines("Function",
+                                           "testCodeEventListenerBeforeStart"),
+             0);
     CHECK_EQ(code_event_handler.CountLines("LazyCompile",
                                            "testCodeEventListenerBeforeStart"),
              0);
 
     code_event_handler.Enable();
 
-    CHECK_GE(code_event_handler.CountLines("LazyCompile",
+    CHECK_GE(code_event_handler.CountLines("Function",
                                            "testCodeEventListenerBeforeStart"),
              1);
 
@@ -715,9 +723,9 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
     v8::Local<v8::UnboundScript> script =
         v8::ScriptCompiler::CompileUnboundScript(isolate1, &source)
             .ToLocalChecked();
-    CHECK_EQ(code_event_handler.CountLines("Script", "f1"),
+    CHECK_EQ(code_event_handler.CountLines("Function", "f1"),
              i::FLAG_stress_background_compile ? 2 : 1);
-    CHECK_EQ(code_event_handler.CountLines("Script", "f2"),
+    CHECK_EQ(code_event_handler.CountLines("Function", "f2"),
              i::FLAG_stress_background_compile ? 2 : 1);
     cache = v8::ScriptCompiler::CreateCodeCache(script);
   }
@@ -743,8 +751,8 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
           isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
           .ToLocalChecked();
     }
-    CHECK_EQ(code_event_handler.CountLines("Script", "f1"), 1);
-    CHECK_EQ(code_event_handler.CountLines("Script", "f2"), 1);
+    CHECK_EQ(code_event_handler.CountLines("Function", "f1"), 1);
+    CHECK_EQ(code_event_handler.CountLines("Function", "f2"), 1);
   }
   isolate2->Dispose();
 }
@@ -772,24 +780,24 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
         "testCodeEventListenerBeforeStart('1', 1);";
     CompileRun(source_text_before_start);
 
-    CHECK_EQ(code_event_handler.CountLines("InterpretedFunction",
+    CHECK_EQ(code_event_handler.CountLines("Function",
                                            "testCodeEventListenerBeforeStart"),
              0);
 
     code_event_handler.Enable();
 
-    CHECK_GE(code_event_handler.CountLines("InterpretedFunction",
+    CHECK_GE(code_event_handler.CountLines("Function",
                                            "testCodeEventListenerBeforeStart"),
-             1);
+             2);
 
     const char* source_text_after_start =
         "function testCodeEventListenerAfterStart(a,b) { return a + b };"
         "testCodeEventListenerAfterStart('1', 1);";
     CompileRun(source_text_after_start);
 
-    CHECK_GE(code_event_handler.CountLines("InterpretedFunction",
+    CHECK_GE(code_event_handler.CountLines("LazyCompile",
                                            "testCodeEventListenerAfterStart"),
-             1);
+             2);
 
     CHECK_EQ(
         code_event_handler.CountLines("Builtin", "InterpreterEntryTrampoline"),

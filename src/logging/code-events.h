@@ -41,20 +41,19 @@ using WasmName = Vector<const char>;
   V(BYTECODE_FLUSH_EVENT, bytecode-flush)
 // clang-format on
 
-#define TAGS_LIST(V)                               \
-  V(BUILTIN_TAG, Builtin)                          \
-  V(CALLBACK_TAG, Callback)                        \
-  V(EVAL_TAG, Eval)                                \
-  V(FUNCTION_TAG, Function)                        \
-  V(INTERPRETED_FUNCTION_TAG, InterpretedFunction) \
-  V(HANDLER_TAG, Handler)                          \
-  V(BYTECODE_HANDLER_TAG, BytecodeHandler)         \
-  V(LAZY_COMPILE_TAG, LazyCompile)                 \
-  V(REG_EXP_TAG, RegExp)                           \
-  V(SCRIPT_TAG, Script)                            \
-  V(STUB_TAG, Stub)                                \
-  V(NATIVE_FUNCTION_TAG, Function)                 \
-  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)          \
+#define TAGS_LIST(V)                       \
+  V(BUILTIN_TAG, Builtin)                  \
+  V(CALLBACK_TAG, Callback)                \
+  V(EVAL_TAG, Eval)                        \
+  V(FUNCTION_TAG, Function)                \
+  V(HANDLER_TAG, Handler)                  \
+  V(BYTECODE_HANDLER_TAG, BytecodeHandler) \
+  V(LAZY_COMPILE_TAG, LazyCompile)         \
+  V(REG_EXP_TAG, RegExp)                   \
+  V(SCRIPT_TAG, Script)                    \
+  V(STUB_TAG, Stub)                        \
+  V(NATIVE_FUNCTION_TAG, Function)         \
+  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)  \
   V(NATIVE_SCRIPT_TAG, Script)
 // Note that 'NATIVE_' cases for functions and scripts are mapped onto
 // original tags when writing to the log.

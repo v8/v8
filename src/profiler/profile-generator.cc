@@ -314,7 +314,6 @@ CpuProfileNode::SourceType ProfileNode::source_type() const {
     case CodeEventListener::SCRIPT_TAG:
     case CodeEventListener::LAZY_COMPILE_TAG:
     case CodeEventListener::FUNCTION_TAG:
-    case CodeEventListener::INTERPRETED_FUNCTION_TAG:
       return CpuProfileNode::kScript;
     case CodeEventListener::BUILTIN_TAG:
     case CodeEventListener::HANDLER_TAG:

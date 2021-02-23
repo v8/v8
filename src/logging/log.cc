@@ -81,11 +81,20 @@ static v8::CodeEventType GetCodeEventTypeForTag(
   }
 
 static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
+  CodeKind kind = code.kind();
+  // We record interpreter trampoline builting copies as having the
+  // "interpreted" marker.
+  if (FLAG_interpreted_frames_native_stack && kind == CodeKind::BUILTIN &&
+      code.GetCode().is_interpreter_trampoline_builtin() &&
+      code.GetCode() !=
+          *BUILTIN_CODE(shared.GetIsolate(), InterpreterEntryTrampoline)) {
+    kind = CodeKind::INTERPRETED_FUNCTION;
+  }
   if (shared.optimization_disabled() &&
-      code.kind() == CodeKind::INTERPRETED_FUNCTION) {
+      kind == CodeKind::INTERPRETED_FUNCTION) {
     return "";
   }
-  return CodeKindToMarker(code.kind());
+  return CodeKindToMarker(kind);
 }
 
 static const char* ComputeMarker(const wasm::WasmCode* code) {
@@ -2183,17 +2192,14 @@ void ExistingCodeLogger::LogCompiledFunctions() {
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
-              AbstractCode::cast(shared->InterpreterTrampoline()), isolate_),
-          CodeEventListener::INTERPRETED_FUNCTION_TAG);
+              AbstractCode::cast(shared->InterpreterTrampoline()), isolate_));
     }
     if (shared->HasBaselineData()) {
-      // TODO(v8:11429): Add a tag for baseline code. Or use CodeKind?
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
               AbstractCode::cast(shared->baseline_data().baseline_code()),
-              isolate_),
-          CodeEventListener::INTERPRETED_FUNCTION_TAG);
+              isolate_));
     }
     if (pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy)))
       continue;
@@ -2218,7 +2224,7 @@ void ExistingCodeLogger::LogExistingFunction(
         Script::GetColumnNumber(script, shared->StartPosition()) + 1;
     if (script->name().IsString()) {
       Handle<String> script_name(String::cast(script->name()), isolate_);
-      if (line_num > 0) {
+      if (!shared->is_toplevel()) {
         CALL_CODE_EVENT_HANDLER(
             CodeCreateEvent(Logger::ToNativeByScript(tag, *script), code,
                             shared, script_name, line_num, column_num))

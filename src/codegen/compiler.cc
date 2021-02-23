@@ -516,8 +516,9 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
 }
 #endif
 
-void InstallInterpreterTrampolineCopy(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> shared_info) {
+void InstallInterpreterTrampolineCopy(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    CodeEventListener::LogEventsAndTags log_tag) {
   DCHECK(FLAG_interpreted_frames_native_stack);
   if (!shared_info->function_data(kAcquireLoad).IsBytecodeArray()) {
     DCHECK(!shared_info->HasBytecodeArray());
@@ -548,8 +549,6 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
       handle(script->name().IsString() ? String::cast(script->name())
                                        : ReadOnlyRoots(isolate).empty_string(),
              isolate);
-  CodeEventListener::LogEventsAndTags log_tag = Logger::ToNativeByScript(
-      CodeEventListener::INTERPRETED_FUNCTION_TAG, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared_info,
                                    script_name, line_num, column_num));
 }
@@ -586,18 +585,9 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 
 void LogUnoptimizedCompilation(Isolate* isolate,
                                Handle<SharedFunctionInfo> shared_info,
-                               UnoptimizedCompileFlags flags,
+                               CodeEventListener::LogEventsAndTags log_tag,
                                base::TimeDelta time_taken_to_execute,
                                base::TimeDelta time_taken_to_finalize) {
-  CodeEventListener::LogEventsAndTags log_tag;
-  if (flags.is_toplevel()) {
-    log_tag = flags.is_eval() ? CodeEventListener::EVAL_TAG
-                              : CodeEventListener::SCRIPT_TAG;
-  } else {
-    log_tag = flags.is_lazy_compile() ? CodeEventListener::LAZY_COMPILE_TAG
-                                      : CodeEventListener::FUNCTION_TAG;
-  }
-
   RecordUnoptimizedFunctionCompilation(isolate, log_tag, shared_info,
                                        time_taken_to_execute,
                                        time_taken_to_finalize);
@@ -1341,8 +1331,17 @@ void FinalizeUnoptimizedCompilation(
     if (need_source_positions) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     }
+    CodeEventListener::LogEventsAndTags log_tag;
+    if (shared_info->is_toplevel()) {
+      log_tag = flags.is_eval() ? CodeEventListener::EVAL_TAG
+                                : CodeEventListener::SCRIPT_TAG;
+    } else {
+      log_tag = flags.is_lazy_compile() ? CodeEventListener::LAZY_COMPILE_TAG
+                                        : CodeEventListener::FUNCTION_TAG;
+    }
+    log_tag = Logger::ToNativeByScript(log_tag, *script);
     if (FLAG_interpreted_frames_native_stack) {
-      InstallInterpreterTrampolineCopy(isolate, shared_info);
+      InstallInterpreterTrampolineCopy(isolate, shared_info, log_tag);
     }
     if (FLAG_always_sparkplug) {
       CompileSharedWithBaseline(isolate, shared_info, Compiler::KEEP_EXCEPTION,
@@ -1353,7 +1352,7 @@ void FinalizeUnoptimizedCompilation(
       isolate->debug()->InstallCoverageInfo(shared_info, coverage_info);
     }
 
-    LogUnoptimizedCompilation(isolate, shared_info, flags,
+    LogUnoptimizedCompilation(isolate, shared_info, log_tag,
                               finalize_data.time_taken_to_execute(),
                               finalize_data.time_taken_to_finalize());
   }

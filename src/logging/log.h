@@ -91,7 +91,7 @@ class ExistingCodeLogger {
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<AbstractCode> code,
                            CodeEventListener::LogEventsAndTags tag =
-                               CodeEventListener::LAZY_COMPILE_TAG);
+                               CodeEventListener::FUNCTION_TAG);
   void LogCodeObject(Object object);
 
  private:
