@@ -297,6 +297,9 @@
 ['arch == arm and not simulator_run', {
   # crbug.com/v8/7605
   'test-heap/OutOfMemorySmallObjects': [SKIP],
+
+  # crbug.com/v8/11134
+  'test-cpu-profiler/MultipleThreadsSingleIsolate': [PASS, ['system != android', SKIP]],
 }],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
