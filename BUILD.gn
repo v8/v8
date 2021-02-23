@@ -5565,6 +5565,7 @@ v8_source_set("wasm_test_common") {
   deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_libbase",
     ":v8_shared_internal_headers",
     ":v8_tracing",
   ]
@@ -5647,6 +5648,7 @@ v8_source_set("lib_wasm_fuzzer_common") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_tracing",
+    ":wasm_test_common",
   ]
 
   public_deps = [ ":v8_maybe_icu" ]
