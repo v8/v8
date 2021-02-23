@@ -3431,6 +3431,8 @@ class LiftoffCompiler {
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_abs);
       case wasm::kExprI32x4Abs:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_abs);
+      case wasm::kExprI64x2Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_abs);
       default:
         unsupported(decoder, kSimd, "simd");
     }

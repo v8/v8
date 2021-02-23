@@ -2763,22 +2763,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2Abs: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (CpuFeatures::IsSupported(AVX)) {
-        DCHECK_NE(dst, src);
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vpxor(dst, dst, dst);
-        __ vpsubq(dst, dst, src);
-        __ vblendvpd(dst, src, dst, src);
-      } else {
-        DCHECK_EQ(dst, src);
-        CpuFeatureScope sse_scope(tasm(), SSE3);
-        __ movshdup(kScratchDoubleReg, src);
-        __ psrad(kScratchDoubleReg, 31);
-        __ xorps(dst, kScratchDoubleReg);
-        __ psubq(dst, kScratchDoubleReg);
-      }
+      __ I64x2Abs(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64I64x2Neg: {

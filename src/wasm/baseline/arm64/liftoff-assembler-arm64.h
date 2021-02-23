@@ -3066,6 +3066,11 @@ void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
   Abs(dst.fp().V4S(), src.fp().V4S());
 }
 
+void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kSimd, "i64x2.abs");
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   Ldr(limit_address, MemOperand(limit_address));
   Cmp(sp, limit_address);

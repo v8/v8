@@ -2485,6 +2485,25 @@ void TurboAssembler::I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void TurboAssembler::I64x2Abs(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    XMMRegister tmp = dst == src ? kScratchDoubleReg : dst;
+    CpuFeatureScope avx_scope(this, AVX);
+    vpxor(tmp, tmp, tmp);
+    vpsubq(tmp, tmp, src);
+    vblendvpd(dst, src, tmp, src);
+  } else {
+    CpuFeatureScope sse_scope(this, SSE3);
+    movshdup(kScratchDoubleReg, src);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    psrad(kScratchDoubleReg, 31);
+    xorps(dst, kScratchDoubleReg);
+    psubq(dst, kScratchDoubleReg);
+  }
+}
+
 void TurboAssembler::I64x2GtS(XMMRegister dst, XMMRegister src0,
                               XMMRegister src1) {
   if (CpuFeatures::IsSupported(AVX)) {

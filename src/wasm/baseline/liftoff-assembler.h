@@ -1310,6 +1310,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i8x16_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i16x8_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i32x4_abs(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i64x2_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_extract_lane_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         uint8_t imm_lane_idx);

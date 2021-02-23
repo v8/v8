@@ -4632,6 +4632,11 @@ void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
   Pabsd(dst.fp(), src.fp());
 }
 
+void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kSimd, "i64x2.abs");
+}
+
 void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
