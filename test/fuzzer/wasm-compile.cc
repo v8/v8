@@ -13,6 +13,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
@@ -799,6 +800,7 @@ class WasmGenerator {
   void ConsumeAndGenerate(Vector<const ValueType> parameter_types,
                           Vector<const ValueType> return_types,
                           DataRange* data);
+  bool HasSimd() { return has_simd_; }
 
  private:
   WasmFunctionBuilder* builder_;
@@ -810,6 +812,7 @@ class WasmGenerator {
   uint32_t recursion_depth = 0;
   std::vector<int> try_blocks_;
   std::vector<int> catch_blocks_;
+  bool has_simd_;
 
   static constexpr uint32_t kMaxRecursionDepth = 64;
 
@@ -1259,6 +1262,7 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
 template <>
 void WasmGenerator::Generate<kS128>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
+  has_simd_ = true;
   if (recursion_limit_reached() || data->size() <= sizeof(int32_t)) {
     // TODO(v8:8460): v128.const is not implemented yet, and we need a way to
     // "bottom-out", so use a splat to generate this.
@@ -1669,7 +1673,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       Vector<const ValueType> return_types(sig->returns().begin(),
                                            sig->return_count());
       gen.Generate(return_types, &function_range);
-
+      if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return false;
       f->Emit(kExprEnd);
       if (i == 0) builder.AddExport(CStrVector("main"), f);
     }
