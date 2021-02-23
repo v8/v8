@@ -40,11 +40,11 @@ class DebugSideTable {
  public:
   class Entry {
    public:
-    enum ValueKind : int8_t { kConstant, kRegister, kStack };
+    enum Storage : int8_t { kConstant, kRegister, kStack };
     struct Value {
       int index;
-      ValueType type;
       ValueKind kind;
+      Storage storage;
       union {
         int32_t i32_const;  // if kind == kConstant
         int reg_code;       // if kind == kRegister
@@ -53,9 +53,9 @@ class DebugSideTable {
 
       bool operator==(const Value& other) const {
         if (index != other.index) return false;
-        if (type != other.type) return false;
         if (kind != other.kind) return false;
-        switch (kind) {
+        if (storage != other.storage) return false;
+        switch (storage) {
           case kConstant:
             return i32_const == other.i32_const;
           case kRegister:
@@ -66,8 +66,8 @@ class DebugSideTable {
       }
       bool operator!=(const Value& other) const { return !(*this == other); }
 
-      bool is_constant() const { return kind == kConstant; }
-      bool is_register() const { return kind == kRegister; }
+      bool is_constant() const { return storage == kConstant; }
+      bool is_register() const { return storage == kRegister; }
     };
 
     Entry(int pc_offset, int stack_height, std::vector<Value> changed_values)

@@ -45,12 +45,12 @@ static_assert(kNeedS128RegPair == (kFpRegPair != kNoReg),
 
 enum RegPairHalf : uint8_t { kLowWord = 0, kHighWord = 1 };
 
-static inline constexpr bool needs_gp_reg_pair(ValueType type) {
-  return kNeedI64RegPair && type == kWasmI64;
+static inline constexpr bool needs_gp_reg_pair(ValueKind kind) {
+  return kNeedI64RegPair && kind == kI64;
 }
 
-static inline constexpr bool needs_fp_reg_pair(ValueType type) {
-  return kNeedS128RegPair && type == kWasmS128;
+static inline constexpr bool needs_fp_reg_pair(ValueKind kind) {
+  return kNeedS128RegPair && kind == kS128;
 }
 
 static inline constexpr RegClass reg_class_for(ValueKind kind) {
@@ -72,12 +72,8 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
     case kRttWithDepth:
       return kGpReg;
     default:
-      return kNoReg;  // unsupported type
+      return kNoReg;  // unsupported kind
   }
-}
-
-static inline constexpr RegClass reg_class_for(ValueType type) {
-  return reg_class_for(type.kind());
 }
 
 // Description of LiftoffRegister code encoding.
@@ -192,9 +188,9 @@ class LiftoffRegister {
 
   // Shifts the register code depending on the type before converting to a
   // LiftoffRegister.
-  static LiftoffRegister from_external_code(RegClass rc, ValueType type,
+  static LiftoffRegister from_external_code(RegClass rc, ValueKind kind,
                                             int code) {
-    if (!kSimpleFPAliasing && type == kWasmF32) {
+    if (!kSimpleFPAliasing && kind == kF32) {
       // Liftoff assumes a one-to-one mapping between float registers and
       // double registers, and so does not distinguish between f32 and f64
       // registers. The f32 register code must therefore be halved in order
@@ -202,7 +198,7 @@ class LiftoffRegister {
       DCHECK_EQ(0, code % 2);
       return LiftoffRegister::from_code(rc, code >> 1);
     }
-    if (kNeedS128RegPair && type == kWasmS128) {
+    if (kNeedS128RegPair && kind == kS128) {
       // Similarly for double registers and SIMD registers, the SIMD code
       // needs to be doubled to pass the f64 code to Liftoff.
       return LiftoffRegister::ForFpPair(DoubleRegister::from_code(code << 1));

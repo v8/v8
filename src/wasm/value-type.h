@@ -179,12 +179,94 @@ enum ValueKind : uint8_t {
 #undef DEF_ENUM
 };
 
-// A ValueType is encoded by three components: A Kind, a heap representation
-// (for reference types), and an inheritance depth (for rtts only). Those are
-// encoded into 32 bits using base::BitField. The underlying Kind enumeration
-// includes four elements which do not strictly correspond to value types: the
-// two packed types i8 and i16, the type of void blocks (stmt), and a bottom
-// value (for internal use).
+constexpr bool is_reference_type(ValueKind kind) {
+  return kind == kRef || kind == kOptRef || kind == kRtt ||
+         kind == kRttWithDepth;
+}
+
+constexpr bool is_object_reference_type(ValueKind kind) {
+  return kind == kRef || kind == kOptRef;
+}
+
+constexpr int element_size_log2(ValueKind kind) {
+  constexpr int8_t kElementSizeLog2[] = {
+#define ELEM_SIZE_LOG2(kind, log2Size, ...) log2Size,
+      FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
+#undef ELEM_SIZE_LOG2
+  };
+
+  int size_log_2 = kElementSizeLog2[kind];
+  CONSTEXPR_DCHECK(size_log_2 >= 0);
+  return size_log_2;
+}
+
+constexpr int element_size_bytes(ValueKind kind) {
+  constexpr int8_t kElementSize[] = {
+#define ELEM_SIZE_LOG2(kind, log2Size, ...) \
+  log2Size == -1 ? -1 : (1 << std::max(0, log2Size)),
+      FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
+#undef ELEM_SIZE_LOG2
+  };
+
+  int size = kElementSize[kind];
+  CONSTEXPR_DCHECK(size > 0);
+  return size;
+}
+
+constexpr char short_name(ValueKind kind) {
+  constexpr char kShortName[] = {
+#define SHORT_NAME(kind, log2Size, code, machineType, shortName, ...) shortName,
+      FOREACH_VALUE_TYPE(SHORT_NAME)
+#undef SHORT_NAME
+  };
+
+  return kShortName[kind];
+}
+
+constexpr const char* name(ValueKind kind) {
+  constexpr const char* kKindName[] = {
+#define KIND_NAME(kind, log2Size, code, machineType, shortName, kindName, ...) \
+  kindName,
+      FOREACH_VALUE_TYPE(KIND_NAME)
+#undef TYPE_NAME
+  };
+
+  return kKindName[kind];
+}
+
+constexpr MachineType machine_type(ValueKind kind) {
+  CONSTEXPR_DCHECK(kBottom != kind);
+
+  constexpr MachineType kMachineType[] = {
+#define MACH_TYPE(kind, log2Size, code, machineType, ...) \
+  MachineType::machineType(),
+      FOREACH_VALUE_TYPE(MACH_TYPE)
+#undef MACH_TYPE
+  };
+
+  return kMachineType[kind];
+}
+
+constexpr bool is_packed(ValueKind kind) { return kind == kI8 || kind == kI16; }
+constexpr ValueKind unpacked(ValueKind kind) {
+  return is_packed(kind) ? kI32 : kind;
+}
+
+constexpr bool is_rtt(ValueKind kind) {
+  return kind == kRtt || kind == kRttWithDepth;
+}
+
+constexpr bool is_defaultable(ValueKind kind) {
+  CONSTEXPR_DCHECK(kind != kBottom && kind != kStmt);
+  return kind != kRef && !is_rtt(kind);
+}
+
+// A ValueType is encoded by three components: A ValueKind, a heap
+// representation (for reference types), and an inheritance depth (for rtts
+// only). Those are encoded into 32 bits using base::BitField. The underlying
+// ValueKind enumeration includes four elements which do not strictly correspond
+// to value types: the two packed types i8 and i16, the type of void blocks
+// (stmt), and a bottom value (for internal use).
 class ValueType {
  public:
   /******************************* Constructors *******************************/
@@ -224,12 +306,11 @@ class ValueType {
 
   /******************************** Type checks *******************************/
   constexpr bool is_reference_type() const {
-    return kind() == kRef || kind() == kOptRef || kind() == kRtt ||
-           kind() == kRttWithDepth;
+    return wasm::is_reference_type(kind());
   }
 
   constexpr bool is_object_reference_type() const {
-    return kind() == kRef || kind() == kOptRef;
+    return wasm::is_object_reference_type(kind());
   }
 
   constexpr bool is_nullable() const { return kind() == kOptRef; }
@@ -239,23 +320,18 @@ class ValueType {
            heap_representation() == htype;
   }
 
-  constexpr bool is_rtt() const {
-    return kind() == kRtt || kind() == kRttWithDepth;
-  }
+  constexpr bool is_rtt() const { return wasm::is_rtt(kind()); }
   constexpr bool has_depth() const { return kind() == kRttWithDepth; }
 
   constexpr bool has_index() const {
     return is_rtt() || (is_object_reference_type() && heap_type().is_index());
   }
 
-  constexpr bool is_defaultable() const {
-    CONSTEXPR_DCHECK(kind() != kBottom && kind() != kStmt);
-    return kind() != kRef && !is_rtt();
-  }
+  constexpr bool is_defaultable() const { return wasm::is_defaultable(kind()); }
 
   constexpr bool is_bottom() const { return kind() == kBottom; }
 
-  constexpr bool is_packed() const { return kind() == kI8 || kind() == kI16; }
+  constexpr bool is_packed() const { return wasm::is_packed(kind()); }
 
   constexpr ValueType Unpacked() const {
     return is_packed() ? Primitive(kI32) : *this;
@@ -301,42 +377,16 @@ class ValueType {
   }
 
   constexpr int element_size_log2() const {
-    constexpr int8_t kElementSizeLog2[] = {
-#define ELEM_SIZE_LOG2(kind, log2Size, ...) log2Size,
-        FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
-#undef ELEM_SIZE_LOG2
-    };
-
-    int size_log_2 = kElementSizeLog2[kind()];
-    CONSTEXPR_DCHECK(size_log_2 >= 0);
-    return size_log_2;
+    return wasm::element_size_log2(kind());
   }
 
   constexpr int element_size_bytes() const {
-    constexpr int8_t kElementSize[] = {
-#define ELEM_SIZE_LOG2(kind, log2Size, ...) \
-  log2Size == -1 ? -1 : (1 << std::max(0, log2Size)),
-        FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
-#undef ELEM_SIZE_LOG2
-    };
-
-    int size = kElementSize[kind()];
-    CONSTEXPR_DCHECK(size > 0);
-    return size;
+    return wasm::element_size_bytes(kind());
   }
 
   /*************************** Machine-type related ***************************/
   constexpr MachineType machine_type() const {
-    CONSTEXPR_DCHECK(kBottom != kind());
-
-    constexpr MachineType kMachineType[] = {
-#define MACH_TYPE(kind, log2Size, code, machineType, ...) \
-  MachineType::machineType(),
-        FOREACH_VALUE_TYPE(MACH_TYPE)
-#undef MACH_TYPE
-    };
-
-    return kMachineType[kind()];
+    return wasm::machine_type(kind());
   }
 
   constexpr MachineRepresentation machine_representation() const {
@@ -427,15 +477,7 @@ class ValueType {
   static constexpr int kLastUsedBit = 30;
 
   /****************************** Pretty-printing *****************************/
-  constexpr char short_name() const {
-    constexpr char kShortName[] = {
-#define SHORT_NAME(kind, log2Size, code, machineType, shortName, ...) shortName,
-        FOREACH_VALUE_TYPE(SHORT_NAME)
-#undef SHORT_NAME
-    };
-
-    return kShortName[kind()];
-  }
+  constexpr char short_name() const { return wasm::short_name(kind()); }
 
   std::string name() const {
     std::ostringstream buf;
@@ -483,16 +525,7 @@ class ValueType {
 
   constexpr explicit ValueType(uint32_t bit_field) : bit_field_(bit_field) {}
 
-  constexpr const char* kind_name() const {
-    constexpr const char* kTypeName[] = {
-#define KIND_NAME(kind, log2Size, code, machineType, shortName, typeName, ...) \
-  typeName,
-        FOREACH_VALUE_TYPE(KIND_NAME)
-#undef TYPE_NAME
-    };
-
-    return kTypeName[kind()];
-  }
+  constexpr const char* kind_name() const { return wasm::name(kind()); }
 
   uint32_t bit_field_;
 };
@@ -573,8 +606,8 @@ class LoadType {
   constexpr ValueType value_type() const { return kValueType[val_]; }
   constexpr MachineType mem_type() const { return kMemType[val_]; }
 
-  static LoadType ForValueType(ValueType type, bool is_signed = false) {
-    switch (type.kind()) {
+  static LoadType ForValueKind(ValueKind kind, bool is_signed = false) {
+    switch (kind) {
       case kI32:
         return kI32Load;
       case kI64:
@@ -649,8 +682,8 @@ class StoreType {
   constexpr ValueType value_type() const { return kValueType[val_]; }
   constexpr MachineRepresentation mem_rep() const { return kMemRep[val_]; }
 
-  static StoreType ForValueType(ValueType type) {
-    switch (type.kind()) {
+  static StoreType ForValueKind(ValueKind kind) {
+    switch (kind) {
       case kI32:
         return kI32Store;
       case kI64:
