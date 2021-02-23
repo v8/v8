@@ -1176,38 +1176,37 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   bool use_signed = liftoff::UseSignedOp(liftoff_cond);
 
-  if (type.kind() == kI32) {
-    if (rhs == no_reg) {
-      if (use_signed) {
-        CmpS32(lhs, Operand::Zero());
-      } else {
-        CmpU32(lhs, Operand::Zero());
-      }
-    } else {
-      if (use_signed) {
-        CmpS32(lhs, rhs);
-      } else {
-        CmpU32(lhs, rhs);
-      }
+  if (rhs != no_reg) {
+    switch (type.kind()) {
+      case kI32:
+        if (use_signed) {
+          CmpS32(lhs, rhs);
+        } else {
+          CmpU32(lhs, rhs);
+        }
+        break;
+      case kRef:
+      case kOptRef:
+      case kRtt:
+      case kRttWithDepth:
+        DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
+        V8_FALLTHROUGH;
+      case kI64:
+        if (use_signed) {
+          CmpS64(lhs, rhs);
+        } else {
+          CmpU64(lhs, rhs);
+        }
+        break;
+      default:
+        UNREACHABLE();
     }
   } else {
-    CHECK(type.kind() == kI64 || type.kind() == kOptRef ||
-          type.kind() == kRtt || type.kind() == kRttWithDepth ||
-          type.kind() == kRef);
-    if (rhs == no_reg) {
-      if (use_signed) {
-        CmpS64(lhs, Operand::Zero());
-      } else {
-        CmpU64(lhs, Operand::Zero());
-      }
-    } else {
-      if (use_signed) {
-        CmpS64(lhs, rhs);
-      } else {
-        CmpU64(lhs, rhs);
-      }
-    }
+    DCHECK_EQ(type, kWasmI32);
+    CHECK(use_signed);
+    CmpS32(lhs, Operand::Zero());
   }
+
   b(cond, label);
 }
 
