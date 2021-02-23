@@ -65,7 +65,9 @@ void ConservativeMarkingVisitor::VisitFullyConstructedConservatively(
 void ConservativeMarkingVisitor::VisitInConstructionConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
   DCHECK(!marking_state_.IsMarkedWeakContainer(header));
-  marking_state_.MarkNoPush(header);
+  // In construction objects found through conservative can be marked if they
+  // hold a reference to themselves.
+  if (!marking_state_.MarkNoPush(header)) return;
   marking_state_.AccountMarkedBytes(header);
   callback(this, header);
 }
