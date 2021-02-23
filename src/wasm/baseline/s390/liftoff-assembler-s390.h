@@ -484,6 +484,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
     case kRef:
     case kRtt:
     case kOptRef:
+    case kRttWithDepth:
     case kI64: {
       LoadU64(dst.gp(), MemOperand(fp, offset));
       break;
@@ -562,6 +563,7 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
     case kRef:
     case kRtt:
     case kOptRef:
+    case kRttWithDepth:
     case kI64: {
       LoadU64(dst.gp(), MemOperand(sp, offset));
       break;
@@ -711,6 +713,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
     case kRef:
     case kOptRef:
     case kRtt:
+    case kRttWithDepth:
       LoadU64(reg.gp(), src);
       break;
     case kF32:
