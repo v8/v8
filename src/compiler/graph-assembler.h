@@ -48,6 +48,7 @@ class BasicBlock;
   V(Float64ExtractLowWord32)             \
   V(Float64SilenceNaN)                   \
   V(RoundFloat64ToInt32)                 \
+  V(RoundInt32ToFloat32)                 \
   V(TruncateFloat64ToFloat32)            \
   V(TruncateFloat64ToWord32)             \
   V(TruncateInt64ToInt32)                \
@@ -90,6 +91,9 @@ class BasicBlock;
   V(Word64And)                            \
   V(Word64Equal)                          \
   V(Word64Or)                             \
+  V(Word64Sar)                            \
+  V(Word64SarShiftOutZeros)               \
+  V(Word64Shl)                            \
   V(Word64Shr)                            \
   V(WordAnd)                              \
   V(WordEqual)                            \
@@ -106,8 +110,12 @@ class BasicBlock;
   V(Int32Mod)                                \
   V(Int32MulWithOverflow)                    \
   V(Int32SubWithOverflow)                    \
+  V(Int64Div)                                \
+  V(Int64Mod)                                \
   V(Uint32Div)                               \
-  V(Uint32Mod)
+  V(Uint32Mod)                               \
+  V(Uint64Div)                               \
+  V(Uint64Mod)
 
 #define JSGRAPH_SINGLETON_CONSTANT_LIST(V)      \
   V(AllocateInOldGenerationStub, Code)          \

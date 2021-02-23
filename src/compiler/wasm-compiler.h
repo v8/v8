@@ -222,6 +222,8 @@ class WasmGraphBuilder {
   Node* LoopExitValue(Node* value, MachineRepresentation representation);
   Node* TerminateThrow(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
+  template <typename... Nodes>
+  Node* Merge(Node* fst, Nodes*... args);
   Node* Phi(wasm::ValueType type, unsigned count, Node** vals_and_control);
   Node* CreateOrMergeIntoPhi(MachineRepresentation rep, Node* merge,
                              Node* tnode, Node* fnode);
