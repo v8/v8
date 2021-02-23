@@ -112,6 +112,32 @@ type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
+// Represents a std::function which produces the generated TNode type of T.
+// Useful for passing values to and from CSA code that uses LazyNode<T>, which
+// is a typedef for std::function<TNode<T>()>. Can be created with %MakeLazy and
+// accessed with RunLazy.
+type Lazy<T: type>;
+
+// Makes a Lazy. The first parameter is the name of a macro, which is looked up
+// in the context where %MakeLazy is called, as a workaround for the fact that
+// macros can't be used as values directly. The other parameters are saved and
+// passed to the macro when somebody runs the resulting Lazy object. Torque
+// syntax doesn't allow for arbitrary-length generic macros, but the internals
+// support any number of parameters, so if you need more parameters, feel free
+// to add additional declarations here.
+intrinsic %MakeLazy<T: type>(getter: constexpr string): Lazy<T>;
+intrinsic %MakeLazy<T: type, A1: type>(
+    getter: constexpr string, arg1: A1): Lazy<T>;
+intrinsic %MakeLazy<T: type, A1: type, A2: type>(
+    getter: constexpr string, arg1: A1, arg2: A2): Lazy<T>;
+intrinsic %MakeLazy<T: type, A1: type, A2: type, A3: type>(
+    getter: constexpr string, arg1: A1, arg2: A2, arg3: A3): Lazy<T>;
+
+// Executes a Lazy and returns the result. The CSA-side definition is a
+// template, but Torque doesn't understand how to use templates for extern
+// macros, so just add whatever overload definitions you need here.
+extern macro RunLazy(Lazy<Smi>): Smi;
+
 // A Smi value containing a bitfield struct as its integer data.
 @useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
 

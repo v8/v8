@@ -444,6 +444,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(heap_object);
   }
 
+  template <typename T>
+  TNode<T> RunLazy(LazyNode<T> lazy) {
+    return lazy();
+  }
+
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                    \
   TNode<Smi> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
   TNode<IntPtrT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {               \

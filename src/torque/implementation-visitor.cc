@@ -2935,6 +2935,68 @@ VisitResult ImplementationVisitor::GenerateCall(
       const Field& field =
           class_type->LookupField(StringLiteralUnquote(constexpr_arguments[0]));
       return GenerateArrayLength(VisitResult(type, argument_range), field);
+    } else if (intrinsic->ExternalName() == "%MakeLazy") {
+      if (specialization_types[0]->IsStructType()) {
+        ReportError("%MakeLazy can't use macros that return structs");
+      }
+      std::string getter_name = StringLiteralUnquote(constexpr_arguments[0]);
+
+      // Normally the parser would split namespace names for us, but we
+      // sidestepped it by putting the macro name in a string literal.
+      QualifiedName qualified_getter_name = QualifiedName::Parse(getter_name);
+
+      // converted_arguments contains all of the arguments to %MakeLazy. We're
+      // looking for a function that takes all but the first.
+      Arguments arguments_to_getter;
+      arguments_to_getter.parameters.insert(
+          arguments_to_getter.parameters.begin(),
+          converted_arguments.begin() + 1, converted_arguments.end());
+
+      Callable* callable = LookupCallable(
+          qualified_getter_name, Declarations::Lookup(qualified_getter_name),
+          arguments_to_getter, {});
+      Macro* getter = Macro::DynamicCast(callable);
+      if (!getter || getter->IsMethod()) {
+        ReportError(
+            "%MakeLazy expects a macro, not builtin or other type of callable");
+      }
+      if (!getter->signature().labels.empty()) {
+        ReportError("%MakeLazy requires a macro with no labels");
+      }
+      if (!getter->signature().return_type->IsSubtypeOf(
+              specialization_types[0])) {
+        ReportError("%MakeLazy expected return type ", *specialization_types[0],
+                    " but found ", *getter->signature().return_type);
+      }
+      if (getter->signature().implicit_count > 0) {
+        ReportError("Implicit parameters are not yet supported in %MakeLazy");
+      }
+
+      getter->SetUsed();  // Prevent warnings about unused macros.
+
+      // Now that we've looked up the getter macro, we have to convert the
+      // arguments again, so that, for example, constexpr arguments can be
+      // coerced to non-constexpr types and put on the stack.
+
+      std::vector<VisitResult> converted_arguments_for_getter;
+      StackRange argument_range_for_getter = assembler().TopRange(0);
+      std::vector<std::string> constexpr_arguments_for_getter;
+
+      size_t current = 0;
+      for (auto arg : arguments_to_getter.parameters) {
+        DCHECK_LT(current, getter->signature().types().size());
+        const Type* to_type = getter->signature().types()[current++];
+        AddCallParameter(getter, arg, to_type, &converted_arguments_for_getter,
+                         &argument_range_for_getter,
+                         &constexpr_arguments_for_getter,
+                         /*inline_macro=*/false);
+      }
+
+      // Now that the arguments are prepared, emit the instruction that consumes
+      // them.
+      assembler().Emit(MakeLazyNodeInstruction{getter, return_type,
+                                               constexpr_arguments_for_getter});
+      return VisitResult(return_type, assembler().TopRange(1));
     } else {
       assembler().Emit(CallIntrinsicInstruction{intrinsic, specialization_types,
                                                 constexpr_arguments});

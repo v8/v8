@@ -261,6 +261,11 @@ void CCGenerator::EmitInstruction(
   ReportError("Not supported in C++ output: CallCsaMacroAndBranch");
 }
 
+void CCGenerator::EmitInstruction(const MakeLazyNodeInstruction& instruction,
+                                  Stack<std::string>* stack) {
+  ReportError("Not supported in C++ output: MakeLazyNode");
+}
+
 void CCGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
                                   Stack<std::string>* stack) {
   ReportError("Not supported in C++ output: CallBuiltin");

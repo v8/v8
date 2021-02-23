@@ -73,6 +73,7 @@ static const char* const MUTABLE_SLICE_TYPE_STRING = "MutableSlice";
 static const char* const CONST_SLICE_TYPE_STRING = "ConstSlice";
 static const char* const WEAK_TYPE_STRING = "Weak";
 static const char* const SMI_TAGGED_TYPE_STRING = "SmiTagged";
+static const char* const LAZY_TYPE_STRING = "Lazy";
 static const char* const UNINITIALIZED_ITERATOR_TYPE_STRING =
     "UninitializedIterator";
 static const char* const GENERIC_TYPE_INSTANTIATION_NAMESPACE_STRING =

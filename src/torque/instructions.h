@@ -49,6 +49,7 @@ class RuntimeFunction;
   V(ConstexprBranchInstruction)                      \
   V(GotoInstruction)                                 \
   V(GotoExternalInstruction)                         \
+  V(MakeLazyNodeInstruction)                         \
   V(ReturnInstruction)                               \
   V(PrintConstantStringInstruction)                  \
   V(AbortInstruction)                                \
@@ -455,6 +456,21 @@ struct CallCsaMacroAndBranchInstruction : InstructionBase {
   base::Optional<Block*> return_continuation;
   std::vector<Block*> label_blocks;
   base::Optional<Block*> catch_block;
+};
+
+struct MakeLazyNodeInstruction : InstructionBase {
+  TORQUE_INSTRUCTION_BOILERPLATE()
+  MakeLazyNodeInstruction(Macro* macro, const Type* result_type,
+                          std::vector<std::string> constexpr_arguments)
+      : macro(macro),
+        result_type(result_type),
+        constexpr_arguments(std::move(constexpr_arguments)) {}
+
+  DefinitionLocation GetValueDefinition() const;
+
+  Macro* macro;
+  const Type* result_type;
+  std::vector<std::string> constexpr_arguments;
 };
 
 struct CallBuiltinInstruction : InstructionBase {

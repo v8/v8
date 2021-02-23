@@ -663,6 +663,36 @@ DefinitionLocation StoreBitFieldInstruction::GetValueDefinition() const {
   return DefinitionLocation::Instruction(this, 0);
 }
 
+void MakeLazyNodeInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                              ControlFlowGraph* cfg) const {
+  std::vector<const Type*> parameter_types =
+      LowerParameterTypes(macro->signature().parameter_types);
+  for (intptr_t i = parameter_types.size() - 1; i >= 0; --i) {
+    const Type* arg_type = stack->Pop();
+    const Type* parameter_type = parameter_types.back();
+    parameter_types.pop_back();
+    if (arg_type != parameter_type) {
+      ReportError("parameter ", i, ": expected type ", *parameter_type,
+                  " but found type ", *arg_type);
+    }
+  }
+
+  stack->Push(result_type);
+}
+
+void MakeLazyNodeInstruction::RecomputeDefinitionLocations(
+    Stack<DefinitionLocation>* locations, Worklist<Block*>* worklist) const {
+  auto parameter_types =
+      LowerParameterTypes(macro->signature().parameter_types);
+  locations->PopMany(parameter_types.size());
+
+  locations->Push(GetValueDefinition());
+}
+
+DefinitionLocation MakeLazyNodeInstruction::GetValueDefinition() const {
+  return DefinitionLocation::Instruction(this, 0);
+}
+
 bool CallRuntimeInstruction::IsBlockTerminator() const {
   return is_tailcall || runtime_function->signature().return_type ==
                             TypeOracle::GetNeverType();

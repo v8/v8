@@ -184,6 +184,23 @@ std::string Type::GetGeneratedTNodeTypeName() const {
   return result;
 }
 
+std::string AbstractType::GetGeneratedTypeNameImpl() const {
+  // A special case that is not very well represented by the "generates"
+  // syntax in the .tq files: Lazy<T> represents a std::function that
+  // produces a TNode of the wrapped type.
+  if (base::Optional<const Type*> type_wrapped_in_lazy =
+          Type::MatchUnaryGeneric(this, TypeOracle::GetLazyGeneric())) {
+    DCHECK(!IsConstexpr());
+    return "std::function<" + (*type_wrapped_in_lazy)->GetGeneratedTypeName() +
+           "()>";
+  }
+
+  if (generated_type_.empty()) {
+    return parent()->GetGeneratedTypeName();
+  }
+  return IsConstexpr() ? generated_type_ : "TNode<" + generated_type_ + ">";
+}
+
 std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
   if (generated_type_.empty()) return parent()->GetGeneratedTNodeTypeName();
   return generated_type_;
