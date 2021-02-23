@@ -1466,4 +1466,9 @@
   'baseline/*': [SKIP],
 }],
 
+##############################################################################
+['variant == experimental_regexp', {
+  'regress/regress-779407': [SKIP],
+}],  # variant == experimental_regexp
+
 ]
