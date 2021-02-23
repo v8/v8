@@ -1164,8 +1164,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     if (!source_positions_) return true;
     SourcePosition source_position = source_positions_->GetSourcePosition(node);
     if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
-      sequence()->SetSourcePosition(instructions_[instruction_start],
-                                    source_position);
+      sequence()->SetSourcePosition(instructions_.back(), source_position);
     }
     return true;
   };
@@ -1173,8 +1172,9 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   // Generate code for the block control "top down", but schedule the code
   // "bottom up".
   VisitControl(block);
-  if (!FinishEmittedInstructions(block->control_input(), current_block_end))
+  if (!FinishEmittedInstructions(block->control_input(), current_block_end)) {
     return;
+  }
 
   // Visit code in reverse control flow order, because architecture-specific
   // matching may cover more than one node at a time.
