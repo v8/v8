@@ -1725,51 +1725,18 @@ class BytecodeArrayData : public FixedArrayBaseData {
     return incoming_new_target_or_generator_register_;
   }
 
-  Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const {
-    return constant_pool_[index]->object();
-  }
-
-  bool IsConstantAtIndexSmi(int index) const {
-    return constant_pool_[index]->is_smi();
-  }
-
-  Smi GetConstantAtIndexAsSmi(int index) const {
-    return *(Handle<Smi>::cast(constant_pool_[index]->object()));
-  }
-
-  void SerializeForCompilation(JSHeapBroker* broker) {
-    if (is_serialized_for_compilation_) return;
-
-    // Convenience cast: object() is already a canonical persistent handle.
-    Handle<BytecodeArray> bytecodes = Handle<BytecodeArray>::cast(object());
-
-    DCHECK(constant_pool_.empty());
-    Handle<FixedArray> constant_pool(bytecodes->constant_pool(),
-                                     broker->isolate());
-    constant_pool_.reserve(constant_pool->length());
-    for (int i = 0; i < constant_pool->length(); i++) {
-      constant_pool_.push_back(broker->GetOrCreateData(constant_pool->get(i)));
-    }
-
-    is_serialized_for_compilation_ = true;
-  }
-
   BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<BytecodeArray> object)
       : FixedArrayBaseData(broker, storage, object),
         register_count_(object->register_count()),
         parameter_count_(object->parameter_count()),
         incoming_new_target_or_generator_register_(
-            object->incoming_new_target_or_generator_register()),
-        constant_pool_(broker->zone()) {}
+            object->incoming_new_target_or_generator_register()) {}
 
  private:
   int const register_count_;
   int const parameter_count_;
   interpreter::Register const incoming_new_target_or_generator_register_;
-
-  bool is_serialized_for_compilation_ = false;
-  ZoneVector<ObjectData*> constant_pool_;
 };
 
 class JSArrayData : public JSObjectData {
@@ -3351,40 +3318,6 @@ Float64 FixedDoubleArrayRef::get(int i) const {
   } else {
     return data()->AsFixedDoubleArray()->Get(i);
   }
-}
-
-uint8_t BytecodeArrayRef::get(int index) const { return object()->get(index); }
-
-Address BytecodeArrayRef::GetFirstBytecodeAddress() const {
-  return object()->GetFirstBytecodeAddress();
-}
-
-Handle<Object> BytecodeArrayRef::GetConstantAtIndex(int index) const {
-  if (data_->should_access_heap()) {
-    return broker()->CanonicalPersistentHandle(
-        object()->constant_pool().get(index));
-  }
-  return data()->AsBytecodeArray()->GetConstantAtIndex(index,
-                                                       broker()->isolate());
-}
-
-bool BytecodeArrayRef::IsConstantAtIndexSmi(int index) const {
-  if (data_->should_access_heap()) {
-    return object()->constant_pool().get(index).IsSmi();
-  }
-  return data()->AsBytecodeArray()->IsConstantAtIndexSmi(index);
-}
-
-Smi BytecodeArrayRef::GetConstantAtIndexAsSmi(int index) const {
-  if (data_->should_access_heap()) {
-    return Smi::cast(object()->constant_pool().get(index));
-  }
-  return data()->AsBytecodeArray()->GetConstantAtIndexAsSmi(index);
-}
-
-void BytecodeArrayRef::SerializeForCompilation() {
-  if (data_->should_access_heap()) return;
-  data()->AsBytecodeArray()->SerializeForCompilation(broker());
 }
 
 Handle<ByteArray> BytecodeArrayRef::SourcePositionTable() const {

@@ -1267,7 +1267,6 @@ Handle<BytecodeArray> SerializerForBackgroundCompilation::bytecode_array()
 
 void SerializerForBackgroundCompilation::TraverseBytecode() {
   bytecode_analysis_.emplace(bytecode_array(), zone(), osr_offset(), false);
-  BytecodeArrayRef(broker(), bytecode_array()).SerializeForCompilation();
 
   BytecodeArrayIterator iterator(bytecode_array());
   HandlerRangeMatcher try_start_matcher(iterator, bytecode_array());
