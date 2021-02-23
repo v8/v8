@@ -445,6 +445,21 @@ WASM_EXEC_TEST(TryCatchTrapRemByZero) {
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
+TEST(Regress1180457) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
+  constexpr uint32_t kResult0 = 23;
+  constexpr uint32_t kUnreachable = 42;
+  BUILD(r, WASM_TRY_CATCH_ALL_T(
+               kWasmI32,
+               WASM_TRY_DELEGATE_T(
+                   kWasmI32, WASM_STMTS(WASM_I32V(kResult0), WASM_BR(0)), 0),
+               WASM_I32V(kUnreachable)));
+
+  CHECK_EQ(kResult0, r.CallInterpreter());
+}
+
 }  // namespace test_run_wasm_exceptions
 }  // namespace wasm
 }  // namespace internal

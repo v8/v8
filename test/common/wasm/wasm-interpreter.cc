@@ -992,7 +992,7 @@ class SideTable : public ZoneObject {
             }
           }
           c->else_label = nullptr;
-          c->end_label->Bind(i.pc() + 1);
+          c->end_label->Bind(i.pc() + imm.length + 1);
           c->Finish(&map_, code->start);
 
           DCHECK_IMPLIES(!unreachable,
