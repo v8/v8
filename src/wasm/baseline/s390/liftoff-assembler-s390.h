@@ -791,113 +791,120 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 #define LFR_TO_REG(reg) reg.gp()
 
 // V(name, instr, dtype, stype, dcast, scast, rcast)
-#define UNOP_LIST(V)                                                  \
-  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE)       \
-  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE)      \
-  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,  \
-    LFR_TO_REG, LFR_TO_REG, USE)                                      \
-  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister, \
-    LFR_TO_REG, LFR_TO_REG, USE)                                      \
-  V(f32_abs, lpebr, DoubleRegister, DoubleRegister, , , USE)          \
-  V(f32_neg, lcebr, DoubleRegister, DoubleRegister, , , USE)          \
-  V(f32_sqrt, sqebr, DoubleRegister, DoubleRegister, , , USE)         \
-  V(f64_abs, lpdbr, DoubleRegister, DoubleRegister, , , USE)          \
-  V(f64_neg, lcdbr, DoubleRegister, DoubleRegister, , , USE)          \
-  V(f64_sqrt, sqdbr, DoubleRegister, DoubleRegister, , , USE)
+#define UNOP_LIST(V)                                                     \
+  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)  \
+  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void) \
+  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,     \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                 \
+  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,    \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                 \
+  V(f32_abs, lpebr, DoubleRegister, DoubleRegister, , , USE, , void)     \
+  V(f32_neg, lcebr, DoubleRegister, DoubleRegister, , , USE, , void)     \
+  V(f32_sqrt, sqebr, DoubleRegister, DoubleRegister, , , USE, , void)    \
+  V(f64_abs, lpdbr, DoubleRegister, DoubleRegister, , , USE, , void)     \
+  V(f64_neg, lcdbr, DoubleRegister, DoubleRegister, , , USE, , void)     \
+  V(f64_sqrt, sqdbr, DoubleRegister, DoubleRegister, , , USE, , void)
 
-#define EMIT_UNOP_FUNCTION(name, instr, dtype, stype, dcast, scast, rcast) \
-  void LiftoffAssembler::emit_##name(dtype dst, stype src) {               \
+#define EMIT_UNOP_FUNCTION(name, instr, dtype, stype, dcast, scast, rcast, \
+                           ret, return_type)                               \
+  return_type LiftoffAssembler::emit_##name(dtype dst, stype src) {        \
     auto _dst = dcast(dst);                                                \
     auto _src = scast(src);                                                \
     instr(_dst, _src);                                                     \
     rcast(_dst);                                                           \
+    return ret;                                                            \
   }
 UNOP_LIST(EMIT_UNOP_FUNCTION)
 #undef EMIT_UNOP_FUNCTION
 #undef UNOP_LIST
 
-// V(name, instr, dtype, stype1, stype2, dcast, scast1, scast2, rcast)
-#define BINOP_LIST(V)                                                        \
-  V(f64_add, AddF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE)                                                                     \
-  V(f64_sub, SubF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE)                                                                     \
-  V(f64_mul, MulF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE)                                                                     \
-  V(f64_div, DivF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE)                                                                     \
-  V(f32_add, AddF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE)                                                                     \
-  V(f32_sub, SubF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE)                                                                     \
-  V(f32_mul, MulF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE)                                                                     \
-  V(f32_div, DivF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
-    USE)                                                                     \
-  V(i32_shli, ShiftLeftU32, Register, Register, int32_t, , ,                 \
-    INT32_AND_WITH_1F, SIGN_EXT)                                             \
-  V(i32_sari, ShiftRightS32, Register, Register, int32_t, , ,                \
-    INT32_AND_WITH_1F, SIGN_EXT)                                             \
-  V(i32_shri, ShiftRightU32, Register, Register, int32_t, , ,                \
-    INT32_AND_WITH_1F, SIGN_EXT)                                             \
-  V(i32_shl, ShiftLeftU32, Register, Register, Register, , ,                 \
-    REGISTER_AND_WITH_1F, SIGN_EXT)                                          \
-  V(i32_sar, ShiftRightS32, Register, Register, Register, , ,                \
-    REGISTER_AND_WITH_1F, SIGN_EXT)                                          \
-  V(i32_shr, ShiftRightU32, Register, Register, Register, , ,                \
-    REGISTER_AND_WITH_1F, SIGN_EXT)                                          \
-  V(i32_addi, AddS32, Register, Register, int32_t, , , Operand, SIGN_EXT)    \
-  V(i32_subi, SubS32, Register, Register, int32_t, , , Operand, SIGN_EXT)    \
-  V(i32_andi, And, Register, Register, int32_t, , , Operand, SIGN_EXT)       \
-  V(i32_ori, Or, Register, Register, int32_t, , , Operand, SIGN_EXT)         \
-  V(i32_xori, Xor, Register, Register, int32_t, , , Operand, SIGN_EXT)       \
-  V(i32_add, AddS32, Register, Register, Register, , , , SIGN_EXT)           \
-  V(i32_sub, SubS32, Register, Register, Register, , , , SIGN_EXT)           \
-  V(i32_and, And, Register, Register, Register, , , , SIGN_EXT)              \
-  V(i32_or, Or, Register, Register, Register, , , , SIGN_EXT)                \
-  V(i32_xor, Xor, Register, Register, Register, , , , SIGN_EXT)              \
-  V(i32_mul, MulS32, Register, Register, Register, , , , SIGN_EXT)           \
-  V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
-    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
-  V(i64_sub, SubS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
-    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
-  V(i64_mul, MulS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
-    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
-  V(i64_and, AndP, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \
-    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
-  V(i64_or, OrP, LiftoffRegister, LiftoffRegister, LiftoffRegister,          \
-    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
-  V(i64_xor, XorP, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \
-    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE)                                 \
-  V(i64_shl, ShiftLeftU64, LiftoffRegister, LiftoffRegister, Register,       \
-    LFR_TO_REG, LFR_TO_REG, , USE)                                           \
-  V(i64_sar, ShiftRightS64, LiftoffRegister, LiftoffRegister, Register,      \
-    LFR_TO_REG, LFR_TO_REG, , USE)                                           \
-  V(i64_shr, ShiftRightU64, LiftoffRegister, LiftoffRegister, Register,      \
-    LFR_TO_REG, LFR_TO_REG, , USE)                                           \
-  V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG, \
-    LFR_TO_REG, Operand, USE)                                                \
-  V(i64_andi, AndP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,   \
-    LFR_TO_REG, Operand, USE)                                                \
-  V(i64_ori, OrP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,     \
-    LFR_TO_REG, Operand, USE)                                                \
-  V(i64_xori, XorP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,   \
-    LFR_TO_REG, Operand, USE)                                                \
-  V(i64_shli, ShiftLeftU64, LiftoffRegister, LiftoffRegister, int32_t,       \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE)                                    \
-  V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,      \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE)                                    \
-  V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,      \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE)
+// V(name, instr, dtype, stype1, stype2, dcast, scast1, scast2, rcast,
+// return_type, ret)
+#define BINOP_LIST(V)                                                          \
+  V(f64_add, AddF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
+    USE, , void)                                                               \
+  V(f64_sub, SubF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
+    USE, , void)                                                               \
+  V(f64_mul, MulF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
+    USE, , void)                                                               \
+  V(f64_div, DivF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
+    USE, , void)                                                               \
+  V(f32_add, AddF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
+    USE, , void)                                                               \
+  V(f32_sub, SubF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
+    USE, , void)                                                               \
+  V(f32_mul, MulF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
+    USE, , void)                                                               \
+  V(f32_div, DivF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
+    USE, , void)                                                               \
+  V(i32_shli, ShiftLeftU32, Register, Register, int32_t, , ,                   \
+    INT32_AND_WITH_1F, SIGN_EXT, , void)                                       \
+  V(i32_sari, ShiftRightS32, Register, Register, int32_t, , ,                  \
+    INT32_AND_WITH_1F, SIGN_EXT, , void)                                       \
+  V(i32_shri, ShiftRightU32, Register, Register, int32_t, , ,                  \
+    INT32_AND_WITH_1F, SIGN_EXT, , void)                                       \
+  V(i32_shl, ShiftLeftU32, Register, Register, Register, , ,                   \
+    REGISTER_AND_WITH_1F, SIGN_EXT, , void)                                    \
+  V(i32_sar, ShiftRightS32, Register, Register, Register, , ,                  \
+    REGISTER_AND_WITH_1F, SIGN_EXT, , void)                                    \
+  V(i32_shr, ShiftRightU32, Register, Register, Register, , ,                  \
+    REGISTER_AND_WITH_1F, SIGN_EXT, , void)                                    \
+  V(i32_addi, AddS32, Register, Register, int32_t, , , Operand, SIGN_EXT, ,    \
+    void)                                                                      \
+  V(i32_subi, SubS32, Register, Register, int32_t, , , Operand, SIGN_EXT, ,    \
+    void)                                                                      \
+  V(i32_andi, And, Register, Register, int32_t, , , Operand, SIGN_EXT, , void) \
+  V(i32_ori, Or, Register, Register, int32_t, , , Operand, SIGN_EXT, , void)   \
+  V(i32_xori, Xor, Register, Register, int32_t, , , Operand, SIGN_EXT, , void) \
+  V(i32_add, AddS32, Register, Register, Register, , , , SIGN_EXT, , void)     \
+  V(i32_sub, SubS32, Register, Register, Register, , , , SIGN_EXT, , void)     \
+  V(i32_and, And, Register, Register, Register, , , , SIGN_EXT, , void)        \
+  V(i32_or, Or, Register, Register, Register, , , , SIGN_EXT, , void)          \
+  V(i32_xor, Xor, Register, Register, Register, , , , SIGN_EXT, , void)        \
+  V(i32_mul, MulS32, Register, Register, Register, , , , SIGN_EXT, , void)     \
+  V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                           \
+  V(i64_sub, SubS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                           \
+  V(i64_mul, MulS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                           \
+  V(i64_and, AndP, LiftoffRegister, LiftoffRegister, LiftoffRegister,          \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                           \
+  V(i64_or, OrP, LiftoffRegister, LiftoffRegister, LiftoffRegister,            \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                           \
+  V(i64_xor, XorP, LiftoffRegister, LiftoffRegister, LiftoffRegister,          \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                           \
+  V(i64_shl, ShiftLeftU64, LiftoffRegister, LiftoffRegister, Register,         \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                     \
+  V(i64_sar, ShiftRightS64, LiftoffRegister, LiftoffRegister, Register,        \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                     \
+  V(i64_shr, ShiftRightU64, LiftoffRegister, LiftoffRegister, Register,        \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                     \
+  V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG,   \
+    LFR_TO_REG, Operand, USE, , void)                                          \
+  V(i64_andi, AndP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,     \
+    LFR_TO_REG, Operand, USE, , void)                                          \
+  V(i64_ori, OrP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,       \
+    LFR_TO_REG, Operand, USE, , void)                                          \
+  V(i64_xori, XorP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,     \
+    LFR_TO_REG, Operand, USE, , void)                                          \
+  V(i64_shli, ShiftLeftU64, LiftoffRegister, LiftoffRegister, int32_t,         \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                              \
+  V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,        \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                              \
+  V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,        \
+    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)
 
 #define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
-                            scast2, rcast)                                     \
-  void LiftoffAssembler::emit_##name(dtype dst, stype1 lhs, stype2 rhs) {      \
+                            scast2, rcast, ret, return_type)                   \
+  return_type LiftoffAssembler::emit_##name(dtype dst, stype1 lhs,             \
+                                            stype2 rhs) {                      \
     auto _dst = dcast(dst);                                                    \
     auto _lhs = scast1(lhs);                                                   \
     auto _rhs = scast2(rhs);                                                   \
     instr(_dst, _lhs, _rhs);                                                   \
     rcast(_dst);                                                               \
+    return ret;                                                                \
   }
 
 BINOP_LIST(EMIT_BINOP_FUNCTION)
