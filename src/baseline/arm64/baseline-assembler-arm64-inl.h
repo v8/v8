@@ -141,11 +141,16 @@ void BaselineAssembler::CmpObjectType(Register object,
   Register type = temps.AcquireScratch();
   __ CompareObjectType(object, map, type, instance_type);
 }
-void BaselineAssembler::CmpInstanceType(Register value,
+void BaselineAssembler::CmpInstanceType(Register map,
                                         InstanceType instance_type) {
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
-  __ CompareInstanceType(value, type, instance_type);
+  if (emit_debug_code()) {
+    __ AssertNotSmi(map);
+    __ CompareObjectType(map, type, type, MAP_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  __ CompareInstanceType(map, type, instance_type);
 }
 void BaselineAssembler::Cmp(Register value, Smi smi) { __ Cmp(value, smi); }
 void BaselineAssembler::ComparePointer(Register value, MemOperand operand) {

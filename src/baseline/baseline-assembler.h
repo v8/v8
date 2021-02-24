@@ -55,7 +55,7 @@ class BaselineAssembler {
 
   inline void CmpObjectType(Register object, InstanceType instance_type,
                             Register map);
-  inline void CmpInstanceType(Register value, InstanceType instance_type);
+  inline void CmpInstanceType(Register map, InstanceType instance_type);
   inline void Cmp(Register value, Smi smi);
   inline void ComparePointer(Register value, MemOperand operand);
   inline Condition CheckSmi(Register value);

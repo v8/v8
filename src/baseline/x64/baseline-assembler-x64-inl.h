@@ -140,11 +140,17 @@ void BaselineAssembler::Test(Register value, int mask) {
 void BaselineAssembler::CmpObjectType(Register object,
                                       InstanceType instance_type,
                                       Register map) {
+  __ AssertNotSmi(object);
   __ CmpObjectType(object, instance_type, map);
 }
-void BaselineAssembler::CmpInstanceType(Register value,
+void BaselineAssembler::CmpInstanceType(Register map,
                                         InstanceType instance_type) {
-  __ CmpInstanceType(value, instance_type);
+  if (emit_debug_code()) {
+    __ AssertNotSmi(map);
+    __ CmpObjectType(map, MAP_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+  __ CmpInstanceType(map, instance_type);
 }
 void BaselineAssembler::Cmp(Register value, Smi smi) { __ Cmp(value, smi); }
 void BaselineAssembler::ComparePointer(Register value, MemOperand operand) {
