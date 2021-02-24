@@ -36,7 +36,6 @@ include_rules = [
   "+src/heap/conservative-stack-visitor.h",
   "-src/inspector",
   "-src/interpreter",
-  "+src/interpreter/bytecode-array-accessor.h",
   "+src/interpreter/bytecode-array-iterator.h",
   "+src/interpreter/bytecode-array-random-iterator.h",
   "+src/interpreter/bytecode-decoder.h",

@@ -22,7 +22,6 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
-#include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/objects/code.h"
@@ -285,7 +284,7 @@ Handle<Code> BaselineCompiler::Build(Isolate* isolate) {
 }
 
 interpreter::Register BaselineCompiler::RegisterOperand(int operand_index) {
-  return accessor().GetRegisterOperand(operand_index);
+  return iterator().GetRegisterOperand(operand_index);
 }
 
 void BaselineCompiler::LoadRegister(Register output, int operand_index) {
@@ -299,36 +298,36 @@ void BaselineCompiler::StoreRegister(int operand_index, Register value) {
 void BaselineCompiler::StoreRegisterPair(int operand_index, Register val0,
                                          Register val1) {
   interpreter::Register reg0, reg1;
-  std::tie(reg0, reg1) = accessor().GetRegisterPairOperand(operand_index);
+  std::tie(reg0, reg1) = iterator().GetRegisterPairOperand(operand_index);
   __ StoreRegister(reg0, val0);
   __ StoreRegister(reg1, val1);
 }
 template <typename Type>
 Handle<Type> BaselineCompiler::Constant(int operand_index) {
   return Handle<Type>::cast(
-      accessor().GetConstantForIndexOperand(operand_index, isolate_));
+      iterator().GetConstantForIndexOperand(operand_index, isolate_));
 }
 Smi BaselineCompiler::ConstantSmi(int operand_index) {
-  return accessor().GetConstantAtIndexAsSmi(operand_index);
+  return iterator().GetConstantAtIndexAsSmi(operand_index);
 }
 template <typename Type>
 void BaselineCompiler::LoadConstant(Register output, int operand_index) {
   __ Move(output, Constant<Type>(operand_index));
 }
 uint32_t BaselineCompiler::Uint(int operand_index) {
-  return accessor().GetUnsignedImmediateOperand(operand_index);
+  return iterator().GetUnsignedImmediateOperand(operand_index);
 }
 int32_t BaselineCompiler::Int(int operand_index) {
-  return accessor().GetImmediateOperand(operand_index);
+  return iterator().GetImmediateOperand(operand_index);
 }
 uint32_t BaselineCompiler::Index(int operand_index) {
-  return accessor().GetIndexOperand(operand_index);
+  return iterator().GetIndexOperand(operand_index);
 }
 uint32_t BaselineCompiler::Flag(int operand_index) {
-  return accessor().GetFlagOperand(operand_index);
+  return iterator().GetFlagOperand(operand_index);
 }
 uint32_t BaselineCompiler::RegisterCount(int operand_index) {
-  return accessor().GetRegisterCountOperand(operand_index);
+  return iterator().GetRegisterCountOperand(operand_index);
 }
 TaggedIndex BaselineCompiler::IndexAsTagged(int operand_index) {
   return TaggedIndex::FromIntptr(Index(operand_index));
@@ -375,17 +374,17 @@ void BaselineCompiler::SelectBooleanConstant(
 
 void BaselineCompiler::AddPosition() {
   bytecode_offset_table_builder_.AddPosition(__ pc_offset(),
-                                             accessor().current_offset());
+                                             iterator().current_offset());
 }
 
 void BaselineCompiler::PreVisitSingleBytecode() {
-  if (accessor().current_bytecode() == interpreter::Bytecode::kJumpLoop) {
-    EnsureLabels(accessor().GetJumpTargetOffset());
+  if (iterator().current_bytecode() == interpreter::Bytecode::kJumpLoop) {
+    EnsureLabels(iterator().GetJumpTargetOffset());
   }
 }
 
 void BaselineCompiler::VisitSingleBytecode() {
-  int offset = accessor().current_offset();
+  int offset = iterator().current_offset();
   if (labels_[offset]) {
     // Bind labels for this offset that have already been linked to a
     // jump (i.e. forward jumps, excluding jump tables).
@@ -399,7 +398,7 @@ void BaselineCompiler::VisitSingleBytecode() {
   }
 
   // Record positions of exception handlers.
-  if (handler_offsets_.find(accessor().current_offset()) !=
+  if (handler_offsets_.find(iterator().current_offset()) !=
       handler_offsets_.end()) {
     AddPosition();
     __ ExceptionHandler();
@@ -408,7 +407,7 @@ void BaselineCompiler::VisitSingleBytecode() {
   if (FLAG_code_comments) {
     std::ostringstream str;
     str << "[ ";
-    accessor().PrintTo(str);
+    iterator().PrintTo(str);
     __ RecordComment(str.str().c_str());
   }
 
@@ -418,7 +417,7 @@ void BaselineCompiler::VisitSingleBytecode() {
   TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
 
-  switch (accessor().current_bytecode()) {
+  switch (iterator().current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
     Visit##name();                     \
@@ -469,7 +468,7 @@ void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
   SaveAccumulatorScope accumulator_scope(&basm_);
   CallRuntime(function_id, bytecode_,
               Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
-                           accessor().current_offset()),
+                           iterator().current_offset()),
               kInterpreterAccumulatorRegister);
   __ RecordComment("]");
 }
@@ -501,7 +500,7 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
 }
 
 void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJump() {
-  int weight = accessor().GetRelativeJumpTargetOffset();
+  int weight = iterator().GetRelativeJumpTargetOffset();
   UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr);
 }
 
@@ -524,7 +523,7 @@ void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(
 }
 
 Label* BaselineCompiler::BuildForwardJumpLabel() {
-  int target_offset = accessor().GetJumpTargetOffset();
+  int target_offset = iterator().GetJumpTargetOffset();
   ThreadedLabel* threaded_label = zone_.New<ThreadedLabel>();
   EnsureLabels(target_offset)->linked.Add(threaded_label);
   return &threaded_label->label;
@@ -592,7 +591,7 @@ void BaselineCompiler::VisitLdaZero() {
 }
 
 void BaselineCompiler::VisitLdaSmi() {
-  Smi constant = Smi::FromInt(accessor().GetImmediateOperand(0));
+  Smi constant = Smi::FromInt(iterator().GetImmediateOperand(0));
   __ Move(kInterpreterAccumulatorRegister, constant);
 }
 
@@ -691,7 +690,7 @@ void BaselineCompiler::VisitStaContextSlot() {
   Register value = scratch_scope.AcquireScratch();
   __ Move(value, kInterpreterAccumulatorRegister);
   __ StoreTaggedFieldWithWriteBarrier(
-      context, Context::OffsetOfElementAt(accessor().GetIndexOperand(1)),
+      context, Context::OffsetOfElementAt(iterator().GetIndexOperand(1)),
       value);
 }
 
@@ -1110,13 +1109,13 @@ void BaselineCompiler::BuildCall(ConvertReceiverMode mode, uint32_t slot,
 }
 
 void BaselineCompiler::VisitCallAnyReceiver() {
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   uint32_t arg_count = args.register_count() - 1;  // Remove receiver.
   BuildCall(ConvertReceiverMode::kAny, Index(3), arg_count, args);
 }
 
 void BaselineCompiler::VisitCallProperty() {
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   uint32_t arg_count = args.register_count() - 1;  // Remove receiver.
   BuildCall(ConvertReceiverMode::kNotNullOrUndefined, Index(3), arg_count,
             args);
@@ -1138,7 +1137,7 @@ void BaselineCompiler::VisitCallProperty2() {
 }
 
 void BaselineCompiler::VisitCallUndefinedReceiver() {
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   uint32_t arg_count = args.register_count();
   BuildCall(ConvertReceiverMode::kNullOrUndefined, Index(3), arg_count,
             RootIndex::kUndefinedValue, args);
@@ -1160,7 +1159,7 @@ void BaselineCompiler::VisitCallUndefinedReceiver2() {
 }
 
 void BaselineCompiler::VisitCallNoFeedback() {
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   uint32_t arg_count = args.register_count();
   CallBuiltin(Builtins::kCall_ReceiverIsAny,
               RegisterOperand(0),  // kFunction
@@ -1169,7 +1168,7 @@ void BaselineCompiler::VisitCallNoFeedback() {
 }
 
 void BaselineCompiler::VisitCallWithSpread() {
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
 
   // Do not push the spread argument
   interpreter::Register spread_register = args.last_register();
@@ -1186,24 +1185,24 @@ void BaselineCompiler::VisitCallWithSpread() {
 }
 
 void BaselineCompiler::VisitCallRuntime() {
-  CallRuntime(accessor().GetRuntimeIdOperand(0),
-              accessor().GetRegisterListOperand(1));
+  CallRuntime(iterator().GetRuntimeIdOperand(0),
+              iterator().GetRegisterListOperand(1));
 }
 
 void BaselineCompiler::VisitCallRuntimeForPair() {
-  CallRuntime(accessor().GetRuntimeIdOperand(0),
-              accessor().GetRegisterListOperand(1));
+  CallRuntime(iterator().GetRuntimeIdOperand(0),
+              iterator().GetRegisterListOperand(1));
   StoreRegisterPair(3, kReturnRegister0, kReturnRegister1);
 }
 
 void BaselineCompiler::VisitCallJSRuntime() {
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   uint32_t arg_count = args.register_count();
 
   // Load context for LoadNativeContextSlot.
   __ LoadContext(kContextRegister);
   __ LoadNativeContextSlot(kJavaScriptCallTargetRegister,
-                           accessor().GetNativeContextIndexOperand(0));
+                           iterator().GetNativeContextIndexOperand(0));
   CallBuiltin(Builtins::kCall_ReceiverIsNullOrUndefined,
               kJavaScriptCallTargetRegister,  // kFunction
               arg_count,                      // kActualArgumentsCount
@@ -1212,8 +1211,8 @@ void BaselineCompiler::VisitCallJSRuntime() {
 }
 
 void BaselineCompiler::VisitInvokeIntrinsic() {
-  Runtime::FunctionId intrinsic_id = accessor().GetIntrinsicIdOperand(0);
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  Runtime::FunctionId intrinsic_id = iterator().GetIntrinsicIdOperand(0);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   switch (intrinsic_id) {
 #define CASE(Name, ...)         \
   case Runtime::kInline##Name:  \
@@ -1402,7 +1401,7 @@ void BaselineCompiler::VisitIntrinsicAsyncGeneratorYield(
 }
 
 void BaselineCompiler::VisitConstruct() {
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   uint32_t arg_count = args.register_count();
   CallBuiltin(Builtins::kConstruct_Baseline,
               RegisterOperand(0),               // kFunction
@@ -1414,7 +1413,7 @@ void BaselineCompiler::VisitConstruct() {
 }
 
 void BaselineCompiler::VisitConstructWithSpread() {
-  interpreter::RegisterList args = accessor().GetRegisterListOperand(1);
+  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
 
   // Do not push the spread argument
   interpreter::Register spread_register = args.last_register();
@@ -1756,15 +1755,15 @@ void BaselineCompiler::VisitJumpLoop() {
   Register osr_level = scratch;
   __ LoadRegister(osr_level, interpreter::Register::bytecode_array());
   __ LoadByteField(osr_level, osr_level, BytecodeArray::kOsrNestingLevelOffset);
-  int loop_depth = accessor().GetImmediateOperand(1);
+  int loop_depth = iterator().GetImmediateOperand(1);
   __ CompareByte(osr_level, loop_depth);
   __ JumpIf(Condition::kUnsignedLessThanEqual, &osr_not_armed);
   CallBuiltin(Builtins::kBaselineOnStackReplacement);
   __ RecordComment("]");
 
   __ Bind(&osr_not_armed);
-  Label* label = &labels_[accessor().GetJumpTargetOffset()]->unlinked;
-  int weight = accessor().GetRelativeJumpTargetOffset();
+  Label* label = &labels_[iterator().GetJumpTargetOffset()]->unlinked;
+  int weight = iterator().GetRelativeJumpTargetOffset();
   // We can pass in the same label twice since it's a back edge and thus already
   // bound.
   DCHECK(label->is_bound());
@@ -1879,7 +1878,7 @@ void BaselineCompiler::VisitJumpIfJSReceiver() {
 void BaselineCompiler::VisitSwitchOnSmiNoFeedback() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   interpreter::JumpTableTargetOffsets offsets =
-      accessor().GetJumpTableTargetOffsets();
+      iterator().GetJumpTableTargetOffsets();
 
   if (offsets.size() == 0) return;
 
@@ -1903,7 +1902,7 @@ void BaselineCompiler::VisitForInPrepare() {
   StoreRegister(0, kInterpreterAccumulatorRegister);
   CallBuiltin(Builtins::kForInPrepare, kInterpreterAccumulatorRegister,
               IndexAsTagged(1), FeedbackVector());
-  interpreter::Register first = accessor().GetRegisterOperand(0);
+  interpreter::Register first = iterator().GetRegisterOperand(0);
   interpreter::Register second(first.index() + 1);
   interpreter::Register third(first.index() + 2);
   __ StoreRegister(second, kReturnRegister0);
@@ -1923,7 +1922,7 @@ void BaselineCompiler::VisitForInContinue() {
 
 void BaselineCompiler::VisitForInNext() {
   interpreter::Register cache_type, cache_array;
-  std::tie(cache_type, cache_array) = accessor().GetRegisterPairOperand(2);
+  std::tie(cache_type, cache_array) = iterator().GetRegisterPairOperand(2);
   CallBuiltin(Builtins::kForInNext,
               Index(3),            // vector slot
               RegisterOperand(0),  // object
@@ -1961,7 +1960,7 @@ void BaselineCompiler::VisitReThrow() {
 
 void BaselineCompiler::VisitReturn() {
   __ RecordComment("[ Return");
-  int profiling_weight = accessor().current_offset();
+  int profiling_weight = iterator().current_offset();
   int parameter_count = bytecode_->parameter_count();
 
   // We must pop all arguments from the stack (including the receiver). This
@@ -2043,7 +2042,7 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
   __ StoreContext(context);
 
   interpreter::JumpTableTargetOffsets offsets =
-      accessor().GetJumpTableTargetOffsets();
+      iterator().GetJumpTableTargetOffsets();
 
   if (0 < offsets.size()) {
     DCHECK_EQ(0, (*offsets.begin()).case_value);
@@ -2064,7 +2063,7 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
 }
 
 void BaselineCompiler::VisitSuspendGenerator() {
-  DCHECK_EQ(accessor().GetRegisterOperand(1), interpreter::Register(0));
+  DCHECK_EQ(iterator().GetRegisterOperand(1), interpreter::Register(0));
   int register_count = RegisterCount(2);
   uint32_t suspend_id = Uint(3);
 
@@ -2103,12 +2102,12 @@ void BaselineCompiler::VisitSuspendGenerator() {
 
   __ StoreTaggedSignedField(
       generator_object, JSGeneratorObject::kInputOrDebugPosOffset,
-      Smi::FromInt(BytecodeArray::kHeaderSize + accessor().current_offset()));
+      Smi::FromInt(BytecodeArray::kHeaderSize + iterator().current_offset()));
   VisitReturn();
 }
 
 void BaselineCompiler::VisitResumeGenerator() {
-  DCHECK_EQ(accessor().GetRegisterOperand(1), interpreter::Register(0));
+  DCHECK_EQ(iterator().GetRegisterOperand(1), interpreter::Register(0));
   int register_count = RegisterCount(2);
 
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);

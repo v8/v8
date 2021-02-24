@@ -807,7 +807,7 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
 
   // NOTE: Concurrent reads of the actual bytecodes as well as the constant pool
   // (both immutable) do not go through BytecodeArrayRef but are performed
-  // directly through the handle by BytecodeArrayAccessor.
+  // directly through the handle by BytecodeArrayIterator.
 
   int register_count() const;
   int parameter_count() const;

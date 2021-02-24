@@ -170,7 +170,7 @@ class BaselineCompiler {
   INTRINSICS_LIST(DECLARE_VISITOR)
 #undef DECLARE_VISITOR
 
-  const interpreter::BytecodeArrayAccessor& accessor() { return iterator_; }
+  const interpreter::BytecodeArrayIterator& iterator() { return iterator_; }
 
   Isolate* isolate_;
   RuntimeCallStats* stats_;

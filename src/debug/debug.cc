@@ -27,7 +27,6 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/init/bootstrapper.h"
-#include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
@@ -313,7 +312,7 @@ void BreakIterator::SetDebugBreak() {
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
   Handle<BytecodeArray> bytecode_array(debug_info_->DebugBytecodeArray(),
                                        isolate());
-  interpreter::BytecodeArrayAccessor(bytecode_array, code_offset())
+  interpreter::BytecodeArrayIterator(bytecode_array, code_offset())
       .ApplyDebugBreak();
 }
 
@@ -338,12 +337,12 @@ BreakLocation BreakIterator::GetBreakLocation() {
     // bytecode array, and we'll read the actual generator object off the
     // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
     BytecodeArray bytecode_array = debug_info_->OriginalBytecodeArray();
-    interpreter::BytecodeArrayAccessor accessor(
+    interpreter::BytecodeArrayIterator iterator(
         handle(bytecode_array, isolate()), code_offset());
 
-    DCHECK_EQ(accessor.current_bytecode(),
+    DCHECK_EQ(iterator.current_bytecode(),
               interpreter::Bytecode::kSuspendGenerator);
-    interpreter::Register generator_obj_reg = accessor.GetRegisterOperand(0);
+    interpreter::Register generator_obj_reg = iterator.GetRegisterOperand(0);
     generator_object_reg_index = generator_obj_reg.index();
   }
   return BreakLocation(code, type, code_offset(), position_,
@@ -2528,17 +2527,17 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   SharedFunctionInfo shared = frame->function().shared();
   BytecodeArray bytecode_array = shared.GetBytecodeArray(isolate_);
   int offset = frame->GetBytecodeOffset();
-  interpreter::BytecodeArrayAccessor bytecode_accessor(
+  interpreter::BytecodeArrayIterator bytecode_iterator(
       handle(bytecode_array, isolate_), offset);
 
-  Bytecode bytecode = bytecode_accessor.current_bytecode();
+  Bytecode bytecode = bytecode_iterator.current_bytecode();
   interpreter::Register reg;
   switch (bytecode) {
     case Bytecode::kStaCurrentContextSlot:
       reg = interpreter::Register::current_context();
       break;
     default:
-      reg = bytecode_accessor.GetRegisterOperand(0);
+      reg = bytecode_iterator.GetRegisterOperand(0);
       break;
   }
   Handle<Object> object =
