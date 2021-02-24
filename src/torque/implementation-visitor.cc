@@ -1381,10 +1381,19 @@ InitializerResults ImplementationVisitor::VisitInitializerResults(
 }
 
 LocationReference ImplementationVisitor::GenerateFieldReference(
-    VisitResult object, const Field& field, const ClassType* class_type) {
+    VisitResult object, const Field& field, const ClassType* class_type,
+    bool treat_optional_as_indexed) {
   if (field.index.has_value()) {
-    return LocationReference::HeapSlice(
+    LocationReference slice = LocationReference::HeapSlice(
         GenerateCall(class_type->GetSliceMacroName(field), {{object}, {}}));
+    if (field.index->optional && !treat_optional_as_indexed) {
+      // This field was declared using optional syntax, so any reference to it
+      // is implicitly a reference to the first item.
+      return GenerateReferenceToItemInHeapSlice(
+          slice, {TypeOracle::GetConstInt31Type(), "0"});
+    } else {
+      return slice;
+    }
   }
   DCHECK(field.offset.has_value());
   StackRange result_range = assembler().TopRange(0);
@@ -1481,18 +1490,25 @@ VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
     if (field.name_and_type.name == f.name_and_type.name) {
       before_current = false;
     }
+    // We can't generate field references eagerly here, because some preceding
+    // fields might be optional, and attempting to get a reference to an
+    // optional field can crash the program if the field isn't present.
+    // Instead, we use the lazy form of LocalValue to only generate field
+    // references if they are used in the length expression.
     bindings.insert(
         {f.name_and_type.name,
          f.const_qualified
              ? (before_current
-                    ? LocalValue{GenerateFieldReference(object, f, class_type)}
+                    ? LocalValue{[=]() {
+                        return GenerateFieldReference(object, f, class_type);
+                      }}
                     : LocalValue("Array lengths may only refer to fields "
                                  "defined earlier"))
              : LocalValue(
                    "Non-const fields cannot be used for array lengths.")});
   }
   return stack_scope.Yield(
-      GenerateArrayLength(*field.index, class_type->nspace(), bindings));
+      GenerateArrayLength(field.index->expr, class_type->nspace(), bindings));
 }
 
 VisitResult ImplementationVisitor::GenerateArrayLength(
@@ -1515,7 +1531,7 @@ VisitResult ImplementationVisitor::GenerateArrayLength(
                    "Non-const fields cannot be used for array lengths.")});
   }
   return stack_scope.Yield(
-      GenerateArrayLength(*field.index, class_type->nspace(), bindings));
+      GenerateArrayLength(field.index->expr, class_type->nspace(), bindings));
 }
 
 LayoutForInitialization ImplementationVisitor::GenerateLayoutForInitialization(
@@ -2284,20 +2300,25 @@ LocationReference ImplementationVisitor::GetLocationReference(
   LocationReference reference = GetLocationReference(expr->array);
   VisitResult index = Visit(expr->index);
   if (reference.IsHeapSlice()) {
-    Arguments arguments{{index}, {}};
-    const StructType* slice_type =
-        *reference.heap_slice().type()->StructSupertype();
-    Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
-    // The reference has to be treated like a normal value when calling methods
-    // on the underlying slice implementation.
-    LocationReference slice_value = LocationReference::Temporary(
-        reference.GetVisitResult(), "slice as value");
-    return LocationReference::HeapReference(
-        GenerateCall(method, std::move(slice_value), arguments, {}, false));
+    return GenerateReferenceToItemInHeapSlice(reference, index);
   } else {
     return LocationReference::ArrayAccess(GenerateFetchFromLocation(reference),
                                           index);
   }
+}
+
+LocationReference ImplementationVisitor::GenerateReferenceToItemInHeapSlice(
+    LocationReference slice, VisitResult index) {
+  DCHECK(slice.IsHeapSlice());
+  Arguments arguments{{index}, {}};
+  const StructType* slice_type = *slice.heap_slice().type()->StructSupertype();
+  Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
+  // The reference has to be treated like a normal value when calling methods
+  // on the underlying slice implementation.
+  LocationReference slice_value =
+      LocationReference::Temporary(slice.GetVisitResult(), "slice as value");
+  return LocationReference::HeapReference(
+      GenerateCall(method, std::move(slice_value), arguments, {}, false));
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
@@ -2997,6 +3018,21 @@ VisitResult ImplementationVisitor::GenerateCall(
       assembler().Emit(MakeLazyNodeInstruction{getter, return_type,
                                                constexpr_arguments_for_getter});
       return VisitResult(return_type, assembler().TopRange(1));
+    } else if (intrinsic->ExternalName() == "%FieldSlice") {
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%FieldSlice must take a class type parameter");
+      }
+      const Field& field =
+          class_type->LookupField(StringLiteralUnquote(constexpr_arguments[0]));
+      LocationReference ref = GenerateFieldReference(
+          VisitResult(type, argument_range), field, class_type,
+          /*treat_optional_as_indexed=*/true);
+      if (!ref.IsHeapSlice()) {
+        ReportError("%FieldSlice expected an indexed or optional field");
+      }
+      return ref.heap_slice();
     } else {
       assembler().Emit(CallIntrinsicInstruction{intrinsic, specialization_types,
                                                 constexpr_arguments});
@@ -3885,7 +3921,7 @@ base::Optional<std::vector<Field>> GetOrderedUniqueIndexFields(
   std::set<std::string> index_names;
   for (const Field& field : type.ComputeAllFields()) {
     if (field.index) {
-      auto name_and_type = ExtractSimpleFieldArraySize(type, *field.index);
+      auto name_and_type = ExtractSimpleFieldArraySize(type, field.index->expr);
       if (!name_and_type) {
         return base::nullopt;
       }
@@ -4004,7 +4040,7 @@ void CppClassGenerator::GenerateClass() {
     for (const Field& field : type_->ComputeAllFields()) {
       if (field.index) {
         auto index_name_and_type =
-            *ExtractSimpleFieldArraySize(*type_, *field.index);
+            *ExtractSimpleFieldArraySize(*type_, field.index->expr);
         size_t field_size = 0;
         std::tie(field_size, std::ignore) = field.GetFieldSizeInformation();
         hdr_ << "    size += " << index_name_and_type.name << " * "
@@ -4123,7 +4159,7 @@ void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
   os << "  DCHECK_GE(" << index << ", 0);\n";
   std::string length_expression;
   if (base::Optional<NameAndType> array_length =
-          ExtractSimpleFieldArraySize(*type, *f.index)) {
+          ExtractSimpleFieldArraySize(*type, f.index->expr)) {
     length_expression = "this ->" + array_length->name + "()";
   } else {
     // The length is element 2 in the flattened field slice.
@@ -4164,7 +4200,7 @@ void CppClassGenerator::GenerateFieldAccessors(
     return;
   }
 
-  bool indexed = class_field.index.has_value();
+  bool indexed = class_field.index && !class_field.index->optional;
   std::string type_name = GetTypeNameForAccessor(innermost_field);
   bool can_contain_heap_objects = CanContainHeapObjects(field_type);
 
@@ -4288,9 +4324,10 @@ void CppClassGenerator::EmitLoadFieldStatement(
 
   std::string offset = field_offset;
   if (class_field.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, class_field);
-    inl_ << "  int offset = " << field_offset << " + i * " << class_field_size
-         << ";\n";
+    const char* index = class_field.index->optional ? "0" : "i";
+    GenerateBoundsDCheck(inl_, index, type_, class_field);
+    inl_ << "  int offset = " << field_offset << " + " << index << " * "
+         << class_field_size << ";\n";
     offset = "offset";
   }
 
@@ -4353,9 +4390,10 @@ void CppClassGenerator::EmitStoreFieldStatement(
 
   std::string offset = field_offset;
   if (class_field.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, class_field);
-    inl_ << "  int offset = " << field_offset << " + i * " << class_field_size
-         << ";\n";
+    const char* index = class_field.index->optional ? "0" : "i";
+    GenerateBoundsDCheck(inl_, index, type_, class_field);
+    inl_ << "  int offset = " << field_offset << " + " << index << " * "
+         << class_field_size << ";\n";
     offset = "offset";
   }
 

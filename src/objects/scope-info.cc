@@ -580,7 +580,7 @@ Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
       isolate, kVariablePartIndex, *original, kVariablePartIndex,
       scope_info->LocalsBlockListIndex() - kVariablePartIndex,
       WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  scope_info->set_locals_block_list(0, *blocklist);
+  scope_info->set_locals_block_list(*blocklist);
   scope_info->CopyElements(
       isolate, scope_info->LocalsBlockListIndex() + 1, *original,
       scope_info->LocalsBlockListIndex(),
@@ -700,12 +700,12 @@ bool ScopeInfo::HasSharedFunctionName() const {
 void ScopeInfo::SetFunctionName(Object name) {
   DCHECK(HasFunctionName());
   DCHECK(name.IsString() || name == SharedFunctionInfo::kNoSharedNameSentinel);
-  set_function_variable_info_name(0, name);
+  set_function_variable_info_name(name);
 }
 
 void ScopeInfo::SetInferredFunctionName(String name) {
   DCHECK(HasInferredFunctionName());
-  set_inferred_function_name(0, name);
+  set_inferred_function_name(name);
 }
 
 bool ScopeInfo::HasOuterScopeInfo() const {
@@ -736,19 +736,19 @@ bool ScopeInfo::HasLocalsBlockList() const {
 
 StringSet ScopeInfo::LocalsBlockList() const {
   DCHECK(HasLocalsBlockList());
-  return StringSet::cast(locals_block_list(0));
+  return StringSet::cast(locals_block_list());
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
 
 Object ScopeInfo::FunctionName() const {
   DCHECK(HasFunctionName());
-  return function_variable_info_name(0);
+  return function_variable_info_name();
 }
 
 Object ScopeInfo::InferredFunctionName() const {
   DCHECK(HasInferredFunctionName());
-  return inferred_function_name(0);
+  return inferred_function_name();
 }
 
 String ScopeInfo::FunctionDebugName() const {
@@ -766,29 +766,29 @@ String ScopeInfo::FunctionDebugName() const {
 
 int ScopeInfo::StartPosition() const {
   DCHECK(HasPositionInfo());
-  return position_info_start(0);
+  return position_info_start();
 }
 
 int ScopeInfo::EndPosition() const {
   DCHECK(HasPositionInfo());
-  return position_info_end(0);
+  return position_info_end();
 }
 
 void ScopeInfo::SetPositionInfo(int start, int end) {
   DCHECK(HasPositionInfo());
   DCHECK_LE(start, end);
-  set_position_info_start(0, start);
-  set_position_info_end(0, end);
+  set_position_info_start(start);
+  set_position_info_end(end);
 }
 
 ScopeInfo ScopeInfo::OuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
-  return ScopeInfo::cast(outer_scope_info(0));
+  return ScopeInfo::cast(outer_scope_info());
 }
 
 SourceTextModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
   DCHECK(scope_type() == MODULE_SCOPE);
-  return SourceTextModuleInfo::cast(module_info(0));
+  return SourceTextModuleInfo::cast(module_info());
 }
 
 String ScopeInfo::ContextLocalName(int var) const {
@@ -846,7 +846,7 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
   DCHECK_NOT_NULL(init_flag);
   DCHECK_NOT_NULL(maybe_assigned_flag);
 
-  int module_vars_count = module_variable_count(0);
+  int module_vars_count = module_variable_count();
   int entry = ModuleVariablesIndex();
   for (int i = 0; i < module_vars_count; ++i) {
     String var_name = String::cast(get(entry + kModuleVariableNameOffset));
@@ -895,7 +895,7 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
 
 int ScopeInfo::SavedClassVariableContextLocalIndex() const {
   if (HasSavedClassVariableIndexBit::decode(Flags())) {
-    int index = saved_class_variable_info(0);
+    int index = saved_class_variable_info();
     return index - Context::MIN_CONTEXT_SLOTS;
   }
   return -1;
@@ -904,7 +904,7 @@ int ScopeInfo::SavedClassVariableContextLocalIndex() const {
 int ScopeInfo::ReceiverContextSlotIndex() const {
   if (ReceiverVariableBits::decode(Flags()) ==
       VariableAllocationInfo::CONTEXT) {
-    return receiver_info(0);
+    return receiver_info();
   }
   return -1;
 }
@@ -914,7 +914,7 @@ int ScopeInfo::FunctionContextSlotIndex(String name) const {
   if (FunctionVariableBits::decode(Flags()) ==
           VariableAllocationInfo::CONTEXT &&
       FunctionName() == name) {
-    return function_variable_info_context_or_stack_slot_index(0);
+    return function_variable_info_context_or_stack_slot_index();
   }
   return -1;
 }

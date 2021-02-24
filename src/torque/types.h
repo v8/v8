@@ -215,7 +215,7 @@ struct Field {
 
   SourcePosition pos;
   const AggregateType* aggregate;
-  base::Optional<Expression*> index;
+  base::Optional<ClassFieldIndexInfo> index;
   NameAndType name_and_type;
 
   // The byte offset of this field from the beginning of the containing class or
