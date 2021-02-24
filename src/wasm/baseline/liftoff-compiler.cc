@@ -375,12 +375,6 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
     return;
   }
 
-  // TODO(v8:8091): Implement exception handling in Liftoff.
-  if (reason == kExceptionHandling) {
-    DCHECK(env->enabled_features.has_eh());
-    return;
-  }
-
   // Otherwise, bailout is not allowed.
   FATAL("Liftoff bailout should not happen. Cause: %s\n", detail);
 }

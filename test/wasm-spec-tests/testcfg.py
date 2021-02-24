@@ -37,11 +37,6 @@ proposal_flags = [{
                     'flags': ['--experimental-wasm-memory64',
                               '--wasm-staging']
                   },
-                  {
-                    'name': 'exception-handling',
-                    'flags': ['--experimental-wasm-eh',
-                              '--wasm-staging']
-                  },
                   ]
 
 class TestLoader(testsuite.JSTestLoader):
