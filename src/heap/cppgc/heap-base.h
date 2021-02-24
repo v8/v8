@@ -14,6 +14,7 @@
 #include "include/cppgc/macros.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/compactor.h"
+#include "src/heap/cppgc/garbage-collector.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
@@ -39,6 +40,7 @@ class NoGarbageCollectionScope;
 }  // namespace subtle
 
 namespace testing {
+class Heap;
 class OverrideEmbedderStackStateScope;
 }  // namespace testing
 
@@ -161,7 +163,14 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   HeapStatistics CollectStatistics(HeapStatistics::DetailLevel);
 
+  size_t epoch() const { return epoch_; }
+
  protected:
+  // Starts and finalizes stand-alone garbage collections.
+  void StartStandAloneGarbageCollection(GarbageCollector::Config);
+  void FinalizeStandAloneGarbageCollection(GarbageCollector::Config);
+
+  // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
 
@@ -206,10 +215,17 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   bool in_atomic_pause_ = false;
 
+  size_t epoch_ = 0;
+
+ private:
+  void StandAloneGarbageCollectionForTesting(
+      GarbageCollector::Config::StackState);
+
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;
   friend class cppgc::subtle::NoGarbageCollectionScope;
+  friend class cppgc::testing::Heap;
   friend class cppgc::testing::OverrideEmbedderStackStateScope;
 };
 
