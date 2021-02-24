@@ -64,8 +64,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   void AllocatedObjectSizeDecreased(size_t) final;
   void ResetAllocatedObjectSize(size_t) final {}
 
-  void EnableDetachedGarbageCollectionsForTesting();
-
  private:
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
@@ -85,8 +83,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   int64_t buffered_allocated_bytes_ = 0;
 
   v8::WrapperDescriptor wrapper_descriptor_;
-
-  bool in_detached_testing_mode = false;
 };
 
 }  // namespace internal

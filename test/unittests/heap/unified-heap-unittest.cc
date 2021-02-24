@@ -6,7 +6,6 @@
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/platform.h"
-#include "include/cppgc/testing.h"
 #include "include/v8-cppgc.h"
 #include "include/v8.h"
 #include "src/api/api-inl.h"
@@ -141,34 +140,11 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
     cpp_heap.AsBase().sweeper().FinishIfRunning();
     EXPECT_TRUE(weak_holder);
   }
-  USE(object);
   {
     js_heap.SetEmbedderStackStateForNextFinalization(
         EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
     CollectGarbage(OLD_SPACE);
     cpp_heap.AsBase().sweeper().FinishIfRunning();
-    EXPECT_FALSE(weak_holder);
-  }
-}
-
-TEST_F(UnifiedHeapDetachedTest, StandAloneCppGC) {
-  auto heap = v8::CppHeap::Create(
-      V8::GetCurrentPlatform(),
-      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
-  auto* object =
-      cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
-  cppgc::WeakPersistent<Wrappable> weak_holder{object};
-
-  heap->EnableDetachedGarbageCollectionsForTesting();
-  cppgc::testing::Heap testing_heap{heap->GetHeapHandle()};
-  {
-    testing_heap.CollectGarbage(
-        cppgc::EmbedderStackState::kMayContainHeapPointers);
-    EXPECT_TRUE(weak_holder);
-  }
-  USE(object);
-  {
-    testing_heap.CollectGarbage(cppgc::EmbedderStackState::kNoHeapPointers);
     EXPECT_FALSE(weak_holder);
   }
 }
