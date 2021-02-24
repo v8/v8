@@ -30,6 +30,7 @@ class PersistentNode final {
   PersistentNode& operator=(const PersistentNode&) = delete;
 
   void InitializeAsUsedNode(void* owner, TraceCallback trace) {
+    CPPGC_DCHECK(trace);
     owner_ = owner;
     trace_ = trace;
   }
@@ -89,12 +90,14 @@ class V8_EXPORT PersistentRegion final {
     }
     PersistentNode* node = free_list_head_;
     free_list_head_ = free_list_head_->FreeListNext();
+    CPPGC_DCHECK(!node->IsUsed());
     node->InitializeAsUsedNode(owner, trace);
     nodes_in_use_++;
     return node;
   }
 
   void FreeNode(PersistentNode* node) {
+    CPPGC_DCHECK(node->IsUsed());
     node->InitializeAsFreeNode(free_list_head_);
     free_list_head_ = node;
     CPPGC_DCHECK(nodes_in_use_ > 0);

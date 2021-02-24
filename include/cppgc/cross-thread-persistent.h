@@ -44,6 +44,25 @@ class BasicCrossThreadPersistent final : public PersistentBase,
       T* raw, const SourceLocation& loc = SourceLocation::Current())
       : PersistentBase(raw), LocationPolicy(loc) {
     if (!IsValid(raw)) return;
+    PersistentRegionLock guard;
+    PersistentRegion& region = this->GetPersistentRegion(raw);
+    SetNode(region.AllocateNode(this, &Trace));
+    this->CheckPointer(raw);
+  }
+
+  class UnsafeCtorTag {
+   private:
+    UnsafeCtorTag() = default;
+    template <typename U, typename OtherWeaknessPolicy,
+              typename OtherLocationPolicy, typename OtherCheckingPolicy>
+    friend class BasicCrossThreadPersistent;
+  };
+
+  BasicCrossThreadPersistent(  // NOLINT
+      UnsafeCtorTag, T* raw,
+      const SourceLocation& loc = SourceLocation::Current())
+      : PersistentBase(raw), LocationPolicy(loc) {
+    if (!IsValid(raw)) return;
     PersistentRegion& region = this->GetPersistentRegion(raw);
     SetNode(region.AllocateNode(this, &Trace));
     this->CheckPointer(raw);
@@ -225,9 +244,12 @@ class BasicCrossThreadPersistent final : public PersistentBase,
   BasicCrossThreadPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
                              OtherCheckingPolicy>
   To() const {
+    using OtherBasicCrossThreadPersistent =
+        BasicCrossThreadPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                                   OtherCheckingPolicy>;
     PersistentRegionLock guard;
-    return BasicCrossThreadPersistent<U, OtherWeaknessPolicy,
-                                      OtherLocationPolicy, OtherCheckingPolicy>(
+    return OtherBasicCrossThreadPersistent(
+        typename OtherBasicCrossThreadPersistent::UnsafeCtorTag(),
         static_cast<U*>(Get()));
   }
 
