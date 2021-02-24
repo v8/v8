@@ -2514,17 +2514,18 @@ void TurboAssembler::I64x2GtS(XMMRegister dst, XMMRegister src0,
     DCHECK_EQ(dst, src0);
     pcmpgtq(dst, src1);
   } else {
+    CpuFeatureScope sse_scope(this, SSE3);
     DCHECK_NE(dst, src0);
     DCHECK_NE(dst, src1);
-    movdqa(dst, src1);
-    movdqa(kScratchDoubleReg, src0);
+    movaps(dst, src1);
+    movaps(kScratchDoubleReg, src0);
     psubq(dst, src0);
     pcmpeqd(kScratchDoubleReg, src1);
-    pand(dst, kScratchDoubleReg);
-    movdqa(kScratchDoubleReg, src0);
+    andps(dst, kScratchDoubleReg);
+    movaps(kScratchDoubleReg, src0);
     pcmpgtd(kScratchDoubleReg, src1);
-    por(dst, kScratchDoubleReg);
-    pshufd(dst, dst, 0xF5);
+    orps(dst, kScratchDoubleReg);
+    movshdup(dst, dst);
   }
 }
 
@@ -2539,25 +2540,26 @@ void TurboAssembler::I64x2GeS(XMMRegister dst, XMMRegister src0,
     CpuFeatureScope sse_scope(this, SSE4_2);
     DCHECK_NE(dst, src0);
     if (dst != src1) {
-      movdqa(dst, src1);
+      movaps(dst, src1);
     }
     pcmpgtq(dst, src0);
     pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-    pxor(dst, kScratchDoubleReg);
+    xorps(dst, kScratchDoubleReg);
   } else {
+    CpuFeatureScope sse_scope(this, SSE3);
     DCHECK_NE(dst, src0);
     DCHECK_NE(dst, src1);
-    movdqa(dst, src0);
-    movdqa(kScratchDoubleReg, src1);
+    movaps(dst, src0);
+    movaps(kScratchDoubleReg, src1);
     psubq(dst, src1);
     pcmpeqd(kScratchDoubleReg, src0);
-    pand(dst, kScratchDoubleReg);
-    movdqa(kScratchDoubleReg, src1);
+    andps(dst, kScratchDoubleReg);
+    movaps(kScratchDoubleReg, src1);
     pcmpgtd(kScratchDoubleReg, src0);
-    por(dst, kScratchDoubleReg);
-    pshufd(dst, dst, 0xF5);
+    orps(dst, kScratchDoubleReg);
+    movshdup(dst, dst);
     pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-    pxor(dst, kScratchDoubleReg);
+    xorps(dst, kScratchDoubleReg);
   }
 }
 

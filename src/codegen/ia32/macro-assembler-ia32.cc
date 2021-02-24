@@ -1083,7 +1083,7 @@ void TurboAssembler::I64x2GtS(XMMRegister dst, XMMRegister src0,
     DCHECK_EQ(dst, src0);
     pcmpgtq(dst, src1);
   } else {
-    CpuFeatureScope sse_scope(this, SSSE3);
+    CpuFeatureScope sse_scope(this, SSE3);
     DCHECK_NE(dst, src0);
     DCHECK_NE(dst, src1);
     movaps(dst, src1);
@@ -1115,7 +1115,7 @@ void TurboAssembler::I64x2GeS(XMMRegister dst, XMMRegister src0,
     pcmpeqd(scratch, scratch);
     xorps(dst, scratch);
   } else {
-    CpuFeatureScope sse_scope(this, SSSE3);
+    CpuFeatureScope sse_scope(this, SSE3);
     DCHECK_NE(dst, src0);
     DCHECK_NE(dst, src1);
     movaps(dst, src0);
