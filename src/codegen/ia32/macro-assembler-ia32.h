@@ -347,7 +347,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Movmskpd, movmskpd, Register, XMMRegister)
   AVX_OP2_WITH_TYPE(Movmskps, movmskps, Register, XMMRegister)
   AVX_OP2_WITH_TYPE(Movlps, movlps, Operand, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movhps, movlps, Operand, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movhps, movhps, Operand, XMMRegister)
 
 #undef AVX_OP2_WITH_TYPE
 
