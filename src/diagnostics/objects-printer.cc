@@ -2273,18 +2273,13 @@ void JSSegments::JSSegmentsPrint(std::ostream& os) {  // NOLINT
 
 namespace {
 void PrintScopeInfoList(ScopeInfo scope_info, std::ostream& os,
-                        const char* list_name, int nof_internal_slots,
-                        int start, int length) {
+                        const char* list_name, int length) {
   if (length <= 0) return;
-  int end = start + length;
   os << "\n - " << list_name;
-  if (nof_internal_slots > 0) {
-    os << " " << start << "-" << end << " [internal slots]";
-  }
   os << " {\n";
-  for (int i = nof_internal_slots; start < end; ++i, ++start) {
+  for (int i = 0; i < length; ++i) {
     os << "    - " << i << ": ";
-    String::cast(scope_info.get(start)).ShortPrint(os);
+    scope_info.context_local_names(i).ShortPrint(os);
     os << "\n";
   }
   os << "  }";
@@ -2341,8 +2336,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - length: " << length();
   if (length() > 0) {
-    PrintScopeInfoList(*this, os, "context slots", Context::MIN_CONTEXT_SLOTS,
-                       ContextLocalNamesIndex(), ContextLocalCount());
+    PrintScopeInfoList(*this, os, "context slots", ContextLocalCount());
     // TODO(neis): Print module stuff if present.
   }
   os << "\n";
