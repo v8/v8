@@ -1493,7 +1493,7 @@ void BaselineCompiler::VisitTestIn() {
   CallBuiltin(Builtins::kKeyedHasICBaseline,
               kInterpreterAccumulatorRegister,  // object
               RegisterOperand(0),               // name
-              IndexAsSmi(1));                   // slot
+              IndexAsTagged(1));                // slot
 }
 
 void BaselineCompiler::VisitTestUndetectable() {
