@@ -25,8 +25,15 @@
   'proposals/reference-types/limits': [SKIP],
   'proposals/bulk-memory-operations/limits': [SKIP],
   'proposals/js-types/limits': [SKIP],
+  'proposals/exception-handling/limits': [SKIP],
   # TODO(wasm): Update memory limit.
   'limits': [FAIL],
+
+  # TODO(v8:8091): Fix exception handling.
+  'proposals/exception-handling/assertions': [FAIL],
+  'proposals/exception-handling/global/value-get-set.any': [FAIL],
+  'proposals/exception-handling/global/constructor': [FAIL],
+  'proposals/exception-handling/global/value-get-set': [FAIL],
 }], # ALWAYS
 
 ['arch == s390 or arch == s390x or system == aix', {

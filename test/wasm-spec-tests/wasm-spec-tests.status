@@ -9,6 +9,13 @@
   'proposals/simd/imports': [FAIL],
   'proposals/simd/data': [FAIL],
   'proposals/js-types/data': [FAIL],
+  'global': [FAIL],
+  'proposals/simd/simd_i16x8_q15mulr_sat_s': [SKIP],
+  'proposals/simd/simd_i32x4_trunc_sat_f64x2': [SKIP],
+  'proposals/simd/simd_store64_lane': [SKIP],
+
+  # TODO(v8:8091): Fix exception handling.
+  'proposals/exception-handling/unreached-invalid': [FAIL],
 
   # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
