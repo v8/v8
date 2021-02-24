@@ -134,17 +134,17 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
   return liftoff::kInstanceOffset;
 }
 
-int LiftoffAssembler::SlotSizeForType(ValueType type) {
-  switch (type.kind()) {
+int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
+  switch (kind) {
     case kS128:
-      return type.element_size_bytes();
+      return element_size_bytes(kind);
     default:
       return kStackSlotSize;
   }
 }
 
-bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return (type.kind() == kS128 || type.is_reference_type());
+bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
+  return (kind == kS128 || is_reference_type(kind));
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -469,9 +469,9 @@ void LiftoffAssembler::AtomicFence() { bailout(kAtomics, "AtomicFence"); }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
-                                           ValueType type) {
+                                           ValueKind kind) {
   int32_t offset = (caller_slot_idx + 1) * 8;
-  switch (type.kind()) {
+  switch (kind) {
     case kI32: {
 #if defined(V8_TARGET_BIG_ENDIAN)
       LoadS32(dst.gp(), MemOperand(fp, offset + 4));
@@ -510,9 +510,9 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueType type) {
+                                            ValueKind kind) {
   int32_t offset = (caller_slot_idx + 1) * 8;
-  switch (type.kind()) {
+  switch (kind) {
     case kI32: {
 #if defined(V8_TARGET_BIG_ENDIAN)
       StoreU32(src.gp(), MemOperand(fp, offset + 4));
@@ -549,8 +549,8 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
-                                           ValueType type) {
-  switch (type.kind()) {
+                                           ValueKind kind) {
+  switch (kind) {
     case kI32: {
 #if defined(V8_TARGET_BIG_ENDIAN)
       LoadS32(dst.gp(), MemOperand(sp, offset + 4));
@@ -588,10 +588,10 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
-                                      ValueType type) {
+                                      ValueKind kind) {
   DCHECK_NE(dst_offset, src_offset);
   int length = 0;
-  switch (type.kind()) {
+  switch (kind) {
     case kI32:
     case kF32:
       length = 4;
@@ -627,28 +627,28 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   MoveChar(MemOperand(ip), MemOperand(r1), Operand(length));
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
+void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   mov(dst, src);
 }
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueType type) {
+                            ValueKind kind) {
   DCHECK_NE(dst, src);
-  if (type == kWasmF32) {
+  if (kind == kF32) {
     ler(dst, src);
-  } else if (type == kWasmF64) {
+  } else if (kind == kF64) {
     ldr(dst, src);
   } else {
-    DCHECK_EQ(kWasmS128, type);
+    DCHECK_EQ(kS128, kind);
     vlr(dst, src, Condition(0), Condition(0), Condition(0));
   }
 }
 
-void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
+void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
   DCHECK_LT(0, offset);
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
-  switch (type.kind()) {
+  switch (kind) {
     case kI32:
       StoreU32(reg.gp(), dst);
       break;
@@ -703,9 +703,9 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
   MemOperand src = liftoff::GetStackSlot(offset);
-  switch (type.kind()) {
+  switch (kind) {
     case kI32:
       LoadS32(reg.gp(), src);
       break;
@@ -1174,13 +1174,13 @@ void LiftoffAssembler::emit_jump(Label* label) {
 }
 
 void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
-                                      Label* label, ValueType type,
+                                      Label* label, ValueKind kind,
                                       Register lhs, Register rhs) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
   bool use_signed = liftoff::UseSignedOp(liftoff_cond);
 
   if (rhs != no_reg) {
-    switch (type.kind()) {
+    switch (kind) {
       case kI32:
         if (use_signed) {
           CmpS32(lhs, rhs);
@@ -1205,7 +1205,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
         UNREACHABLE();
     }
   } else {
-    DCHECK_EQ(type, kWasmI32);
+    DCHECK_EQ(kind, kI32);
     CHECK(use_signed);
     CmpS32(lhs, Operand::Zero());
   }
@@ -1279,7 +1279,7 @@ void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
 bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
                                    LiftoffRegister true_value,
                                    LiftoffRegister false_value,
-                                   ValueType type) {
+                                   ValueKind kind) {
   return false;
 }
 
@@ -2468,10 +2468,10 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   bailout(kUnsupportedArchitecture, "DropStackSlotsAndRet");
 }
 
-void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
+void LiftoffAssembler::CallC(const ValueKindSig* sig,
                              const LiftoffRegister* args,
                              const LiftoffRegister* rets,
-                             ValueType out_argument_type, int stack_bytes,
+                             ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   bailout(kUnsupportedArchitecture, "CallC");
 }
@@ -2484,7 +2484,7 @@ void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
   bailout(kUnsupportedArchitecture, "TailCallNativeWasmCode");
 }
 
-void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
+void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   bailout(kUnsupportedArchitecture, "CallIndirect");
