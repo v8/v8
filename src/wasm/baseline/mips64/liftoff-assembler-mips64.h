@@ -95,23 +95,23 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
                  ValueType type) {
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       assm->Lw(dst.gp(), src);
       break;
-    case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kI64:
+    case kRef:
+    case kOptRef:
+    case kRtt:
+    case kRttWithDepth:
       assm->Ld(dst.gp(), src);
       break;
-    case ValueType::kF32:
+    case kF32:
       assm->Lwc1(dst.fp(), src);
       break;
-    case ValueType::kF64:
+    case kF64:
       assm->Ldc1(dst.fp(), src);
       break;
-    case ValueType::kS128:
+    case kS128:
       assm->ld_b(dst.fp().toW(), src);
       break;
     default:
@@ -123,23 +123,23 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
                   LiftoffRegister src, ValueType type) {
   MemOperand dst(base, offset);
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       assm->Usw(src.gp(), dst);
       break;
-    case ValueType::kI64:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kI64:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kRttWithDepth:
       assm->Usd(src.gp(), dst);
       break;
-    case ValueType::kF32:
+    case kF32:
       assm->Uswc1(src.fp(), dst, t8);
       break;
-    case ValueType::kF64:
+    case kF64:
       assm->Usdc1(src.fp(), dst, t8);
       break;
-    case ValueType::kS128:
+    case kS128:
       assm->st_b(src.fp().toW(), dst);
       break;
     default:
@@ -149,25 +149,25 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
 
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       assm->daddiu(sp, sp, -kSystemPointerSize);
       assm->sw(reg.gp(), MemOperand(sp, 0));
       break;
-    case ValueType::kI64:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
-    case ValueType::kRtt:
+    case kI64:
+    case kOptRef:
+    case kRef:
+    case kRtt:
       assm->push(reg.gp());
       break;
-    case ValueType::kF32:
+    case kF32:
       assm->daddiu(sp, sp, -kSystemPointerSize);
       assm->swc1(reg.fp(), MemOperand(sp, 0));
       break;
-    case ValueType::kF64:
+    case kF64:
       assm->daddiu(sp, sp, -kSystemPointerSize);
       assm->Sdc1(reg.fp(), MemOperand(sp, 0));
       break;
-    case ValueType::kS128:
+    case kS128:
       assm->daddiu(sp, sp, -kSystemPointerSize * 2);
       assm->st_b(reg.fp().toW(), MemOperand(sp, 0));
       break;
@@ -354,7 +354,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type.kind()) {
-    case ValueType::kS128:
+    case kS128:
       return type.element_size_bytes();
     default:
       return kStackSlotSize;
@@ -362,22 +362,22 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return type.kind() == ValueType::kS128 || type.is_reference_type();
+  return type.kind() == kS128 || type.is_reference_type();
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type().kind()) {
-    case ValueType::kI32:
+    case kI32:
       TurboAssembler::li(reg.gp(), Operand(value.to_i32(), rmode));
       break;
-    case ValueType::kI64:
+    case kI64:
       TurboAssembler::li(reg.gp(), Operand(value.to_i64(), rmode));
       break;
-    case ValueType::kF32:
+    case kF32:
       TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
       break;
-    case ValueType::kF64:
+    case kF64:
       TurboAssembler::Move(reg.fp(), value.to_f64_boxed().get_bits());
       break;
     default:
@@ -435,11 +435,14 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
-                                          LiftoffRegList pinned) {
+                                          LiftoffRegList pinned,
+                                          SkipWriteBarrier skip_write_barrier) {
   STATIC_ASSERT(kTaggedSize == kInt64Size);
   Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   Sd(src.gp(), dst_op);
+
+  if (skip_write_barrier) return;
 
   Label write_barrier;
   Label exit;
@@ -668,23 +671,23 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       Sw(reg.gp(), dst);
       break;
-    case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
-    case ValueType::kRtt:
-    case ValueType::kRttWithDepth:
+    case kI64:
+    case kRef:
+    case kOptRef:
+    case kRtt:
+    case kRttWithDepth:
       Sd(reg.gp(), dst);
       break;
-    case ValueType::kF32:
+    case kF32:
       Swc1(reg.fp(), dst);
       break;
-    case ValueType::kF64:
+    case kF64:
       TurboAssembler::Sdc1(reg.fp(), dst);
       break;
-    case ValueType::kS128:
+    case kS128:
       TurboAssembler::st_b(reg.fp().toW(), dst);
       break;
     default:
@@ -696,15 +699,15 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (value.type().kind()) {
-    case ValueType::kI32: {
+    case kI32: {
       LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
       TurboAssembler::li(tmp.gp(), Operand(value.to_i32()));
       Sw(tmp.gp(), dst);
       break;
     }
-    case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef: {
+    case kI64:
+    case kRef:
+    case kOptRef: {
       LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
       TurboAssembler::li(tmp.gp(), value.to_i64());
       Sd(tmp.gp(), dst);
@@ -720,21 +723,21 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   MemOperand src = liftoff::GetStackSlot(offset);
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       Lw(reg.gp(), src);
       break;
-    case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
+    case kI64:
+    case kRef:
+    case kOptRef:
       Ld(reg.gp(), src);
       break;
-    case ValueType::kF32:
+    case kF32:
       Lwc1(reg.fp(), src);
       break;
-    case ValueType::kF64:
+    case kF64:
       TurboAssembler::Ldc1(reg.fp(), src);
       break;
-    case ValueType::kS128:
+    case kS128:
       TurboAssembler::ld_b(reg.fp().toW(), src);
       break;
     default:
