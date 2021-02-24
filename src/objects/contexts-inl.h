@@ -31,11 +31,11 @@ OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, FixedArray)
 CAST_ACCESSOR(ScriptContextTable)
 
 int ScriptContextTable::synchronized_used() const {
-  return Smi::ToInt(synchronized_get(kUsedSlotIndex));
+  return Smi::ToInt(get(kUsedSlotIndex, kAcquireLoad));
 }
 
 void ScriptContextTable::synchronized_set_used(int used) {
-  synchronized_set(kUsedSlotIndex, Smi::FromInt(used));
+  set(kUsedSlotIndex, Smi::FromInt(used), kReleaseStore);
 }
 
 // static
