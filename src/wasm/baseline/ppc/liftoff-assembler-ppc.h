@@ -1699,6 +1699,11 @@ void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i32x4_abs");
 }
 
+void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kSimd, "i64x2.abs");
+}
+
 void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i8x16sub");

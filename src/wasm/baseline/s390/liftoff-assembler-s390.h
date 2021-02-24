@@ -2432,6 +2432,11 @@ void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i32x4_abs");
 }
 
+void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kSimd, "i64x2.abs");
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   bailout(kUnsupportedArchitecture, "StackCheck");
 }
