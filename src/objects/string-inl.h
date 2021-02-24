@@ -38,14 +38,15 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   // from a background thread.
   explicit SharedStringAccessGuardIfNeeded(LocalIsolate* local_isolate) {
     if (IsNeeded(local_isolate)) {
-      mutex_guard.emplace(local_isolate->string_access());
+      mutex_guard.emplace(local_isolate->internalized_string_access());
     }
   }
 
   // Slow version which gets the isolate from the String.
   explicit SharedStringAccessGuardIfNeeded(String str) {
     Isolate* isolate = GetIsolateIfNeeded(str);
-    if (isolate != nullptr) mutex_guard.emplace(isolate->string_access());
+    if (isolate != nullptr)
+      mutex_guard.emplace(isolate->internalized_string_access());
   }
 
   static SharedStringAccessGuardIfNeeded NotNeeded() {

@@ -171,7 +171,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   }
 
   base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-      isolate->string_access());
+      isolate->internalized_string_access());
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we
@@ -249,7 +249,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   }
 
   base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-      isolate->string_access());
+      isolate->internalized_string_access());
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we

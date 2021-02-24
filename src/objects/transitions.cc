@@ -145,7 +145,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
       base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-          isolate_->transition_array_access());
+          isolate_->full_transition_array_access());
       array.SetRawTarget(index, HeapObjectReference::Weak(*target));
       return;
     }
@@ -158,7 +158,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     // If there is enough capacity, insert new entry into the existing array.
     if (new_nof <= array.Capacity()) {
       base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-          isolate_->transition_array_access());
+          isolate_->full_transition_array_access());
       array.SetNumberOfTransitions(new_nof);
       for (int i = number_of_transitions; i > insertion_index; --i) {
         array.SetKey(i, array.GetKey(i - 1));
@@ -231,7 +231,7 @@ Map TransitionsAccessor::SearchTransition(Name name, PropertyKind kind,
     }
     case kFullTransitionArray: {
       base::SharedMutexGuardIf<base::kShared> scope(
-          isolate_->transition_array_access(), concurrent_access_);
+          isolate_->full_transition_array_access(), concurrent_access_);
       return transitions().SearchAndGetTarget(kind, name, attributes);
     }
   }
