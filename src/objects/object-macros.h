@@ -553,7 +553,15 @@
 #define RELAXED_WRITE_INT32_FIELD(p, offset, value)             \
   base::Relaxed_Store(                                          \
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::Atomic32>(value));
+      static_cast<base::Atomic32>(value))
+
+static_assert(sizeof(int) == sizeof(int32_t),
+              "sizeof int must match sizeof int32_t");
+
+#define RELAXED_READ_INT_FIELD(p, offset) RELAXED_READ_INT32_FIELD(p, offset)
+
+#define RELAXED_WRITE_INT_FIELD(p, offset, value) \
+  RELAXED_WRITE_INT32_FIELD(p, offset, value)
 
 #define RELAXED_READ_BYTE_FIELD(p, offset) \
   static_cast<byte>(base::Relaxed_Load(    \

@@ -492,14 +492,14 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
 }
 
 int Code::builtin_index() const {
-  int index = ReadField<int>(kBuiltinIndexOffset);
+  int index = RELAXED_READ_INT_FIELD(*this, kBuiltinIndexOffset);
   DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
   return index;
 }
 
 void Code::set_builtin_index(int index) {
   DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
-  WriteField<int>(kBuiltinIndexOffset, index);
+  RELAXED_WRITE_INT_FIELD(*this, kBuiltinIndexOffset, index);
 }
 
 bool Code::is_builtin() const {
