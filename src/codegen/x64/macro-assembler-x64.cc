@@ -2610,7 +2610,7 @@ void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
     vpshufb(dst, src, kScratchDoubleReg);
   } else {
     CpuFeatureScope sse_scope(this, SSSE3);
-    movdqa(kScratchDoubleReg, op);
+    movaps(kScratchDoubleReg, op);
     if (dst != src) {
       movaps(dst, src);
     }
