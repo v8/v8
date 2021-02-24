@@ -1482,6 +1482,15 @@ void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
   BreakIterator it(debug_info);
   GetBreakablePositions(&it, start_position, end_position, locations);
 }
+
+void CompileTopLevel(Isolate* isolate, Handle<Script> script) {
+  UnoptimizedCompileState compile_state(isolate);
+  UnoptimizedCompileFlags flags =
+      UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  ParseInfo parse_info(isolate, flags, &compile_state);
+  IsCompiledScope is_compiled_scope;
+  Compiler::CompileToplevel(&parse_info, script, isolate, &is_compiled_scope);
+}
 }  // namespace
 
 bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
@@ -1503,6 +1512,8 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     return true;
   }
 
+  bool candidateSubsumesRange = false;
+  bool triedTopLevelCompile = false;
   while (true) {
     HandleScope scope(isolate_);
     std::vector<Handle<SharedFunctionInfo>> candidates;
@@ -1514,9 +1525,25 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
           info.StartPosition() >= end_position) {
         continue;
       }
+      candidateSubsumesRange |= info.StartPosition() <= start_position &&
+                                info.EndPosition() >= end_position;
       if (!info.IsSubjectToDebugging()) continue;
       if (!info.is_compiled() && !info.allows_lazy_compilation()) continue;
       candidates.push_back(i::handle(info, isolate_));
+    }
+
+    if (!triedTopLevelCompile && !candidateSubsumesRange &&
+        script->shared_function_infos().length() > 0) {
+      MaybeObject maybeToplevel = script->shared_function_infos().Get(0);
+      HeapObject heap_object;
+      const bool topLevelInfoExists =
+          maybeToplevel->GetHeapObject(&heap_object) &&
+          !heap_object.IsUndefined();
+      if (!topLevelInfoExists) {
+        CompileTopLevel(isolate_, script);
+        triedTopLevelCompile = true;
+        continue;
+      }
     }
 
     bool was_compiled = false;
@@ -1631,17 +1658,11 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     IsCompiledScope is_compiled_scope;
     {
       shared = FindSharedFunctionInfoCandidate(position, script, isolate_);
-      if (shared.is_null()) {
+      if (shared.is_null() && iteration == 0) {
         // It might be that the shared function info is not available as the
         // top level functions are removed due to the GC. Try to recompile
         // the top level functions.
-        UnoptimizedCompileState compile_state(isolate_);
-        UnoptimizedCompileFlags flags =
-            UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script);
-        ParseInfo parse_info(isolate_, flags, &compile_state);
-        IsCompiledScope is_compiled_scope;
-        Compiler::CompileToplevel(&parse_info, script, isolate_,
-                                  &is_compiled_scope);
+        CompileTopLevel(isolate_, script);
         continue;
       }
       // We found it if it's already compiled.
