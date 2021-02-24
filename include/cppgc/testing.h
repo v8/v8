@@ -23,13 +23,17 @@ namespace testing {
  */
 class V8_EXPORT Heap final {
  public:
+  explicit Heap(HeapHandle& heap_handle) : heap_handle_(heap_handle) {}
+
   /**
    * Atomically collects garbage on the C++ heap.
    *
-   * \param heap_handle The corresponding heap.
    * \param stack_state The stack state to assume for the garbage collection.
    */
-  void CollectGarbage(HeapHandle& heap_handle, EmbedderStackState stack_state);
+  void CollectGarbage(EmbedderStackState stack_state);
+
+ private:
+  HeapHandle& heap_handle_;
 };
 
 /**

@@ -10,6 +10,7 @@
 #include "include/cppgc/platform.h"
 #include "include/v8-platform.h"
 #include "include/v8.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
@@ -62,6 +63,11 @@ cppgc::HeapStatistics CppHeap::CollectStatistics(
     cppgc::HeapStatistics::DetailLevel detail_level) {
   return internal::CppHeap::From(this)->AsBase().CollectStatistics(
       detail_level);
+}
+
+void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
+  return internal::CppHeap::From(this)
+      ->EnableDetachedGarbageCollectionsForTesting();
 }
 
 void JSHeapConsistency::DijkstraMarkingBarrierSlow(
@@ -221,6 +227,7 @@ void CppHeap::Terminate() {
 }
 
 void CppHeap::AttachIsolate(Isolate* isolate) {
+  CHECK(!in_detached_testing_mode);
   CHECK_NULL(isolate_);
   isolate_ = isolate;
   static_cast<CppgcPlatformAdapter*>(platform())
@@ -388,6 +395,13 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
     IncreaseAllocatedSize(static_cast<size_t>(buffered_allocated_bytes_));
   }
   buffered_allocated_bytes_ = 0;
+}
+
+void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
+  CHECK(!in_detached_testing_mode);
+  CHECK_NULL(isolate_);
+  no_gc_scope_--;
+  in_detached_testing_mode = true;
 }
 
 }  // namespace internal

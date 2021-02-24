@@ -153,7 +153,6 @@ void HeapBase::StandAloneGarbageCollectionForTesting(
       GarbageCollector::Config::CollectionType::kMajor, stack_state,
       GarbageCollector::Config::MarkingType::kAtomic,
       GarbageCollector::Config::SweepingType::kAtomic};
-
   if (in_no_gc_scope()) return;
 
   if (!IsMarking()) {

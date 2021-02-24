@@ -118,6 +118,13 @@ class V8_EXPORT CppHeap {
   cppgc::HeapStatistics CollectStatistics(
       cppgc::HeapStatistics::DetailLevel detail_level);
 
+  /**
+   * Enables a detached mode that allows testing garbage collection using
+   * `cppgc::testing` APIs. Once used, the heap cannot be attached to an
+   * `Isolate` anymore.
+   */
+  void EnableDetachedGarbageCollectionsForTesting();
+
  private:
   CppHeap() = default;
 
