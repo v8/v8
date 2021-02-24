@@ -7829,14 +7829,15 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
                                const wasm::FunctionBody& func_body,
                                int func_index, wasm::WasmFeatures* detected,
                                MachineGraph* mcgraph,
+                               std::vector<compiler::WasmLoopInfo>* loop_infos,
                                NodeOriginTable* node_origins,
                                SourcePositionTable* source_positions) {
   // Create a TF graph during decoding.
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, func_body.sig,
                            source_positions);
-  wasm::VoidResult graph_construction_result =
-      wasm::BuildTFGraph(allocator, env->enabled_features, env->module,
-                         &builder, detected, func_body, node_origins);
+  wasm::VoidResult graph_construction_result = wasm::BuildTFGraph(
+      allocator, env->enabled_features, env->module, &builder, detected,
+      func_body, loop_infos, node_origins);
   if (graph_construction_result.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "
@@ -7943,9 +7944,12 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
                               : nullptr;
   SourcePositionTable* source_positions =
       mcgraph->zone()->New<SourcePositionTable>(mcgraph->graph());
+
+  std::vector<WasmLoopInfo> loop_infos;
+
   if (!BuildGraphForWasmFunction(wasm_engine->allocator(), env, func_body,
-                                 func_index, detected, mcgraph, node_origins,
-                                 source_positions)) {
+                                 func_index, detected, mcgraph, &loop_infos,
+                                 node_origins, source_positions)) {
     return wasm::WasmCompilationResult{};
   }
 
@@ -7966,7 +7970,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 
   Pipeline::GenerateCodeForWasmFunction(
       &info, wasm_engine, mcgraph, call_descriptor, source_positions,
-      node_origins, func_body, env->module, func_index);
+      node_origins, func_body, env->module, func_index, &loop_infos);
 
   if (counters) {
     counters->wasm_compile_function_peak_memory_bytes()->AddSample(

@@ -2322,6 +2322,8 @@ v8_compiler_sources = [
   "src/compiler/loop-analysis.h",
   "src/compiler/loop-peeling.cc",
   "src/compiler/loop-peeling.h",
+  "src/compiler/loop-unrolling.cc",
+  "src/compiler/loop-unrolling.h",
   "src/compiler/loop-variable-optimizer.cc",
   "src/compiler/loop-variable-optimizer.h",
   "src/compiler/machine-graph-verifier.cc",

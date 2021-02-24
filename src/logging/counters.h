@@ -931,6 +931,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LocateSpillSlots)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopExitElimination)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopPeeling)                     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MachineOperatorOptimization)     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MeetRegisterConstraints)         \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MemoryOptimization)              \

@@ -56,6 +56,7 @@
 #include "src/compiler/load-elimination.h"
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/loop-peeling.h"
+#include "src/compiler/loop-unrolling.h"
 #include "src/compiler/loop-variable-optimizer.h"
 #include "src/compiler/machine-graph-verifier.h"
 #include "src/compiler/machine-operator-reducer.h"
@@ -1776,6 +1777,37 @@ struct LoopPeelingPhase {
   }
 };
 
+struct WasmLoopUnrollingPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmLoopUnrolling)
+
+  void Run(PipelineData* data, Zone* temp_zone,
+           std::vector<compiler::WasmLoopInfo>* loop_infos) {
+    for (WasmLoopInfo& loop_info : *loop_infos) {
+      if (loop_info.is_innermost) {
+        ZoneUnorderedSet<Node*>* loop =
+            LoopFinder::FindUnnestedLoopFromHeader(loop_info.header, temp_zone);
+        UnrollLoop(loop_info.header, loop, loop_info.nesting_depth,
+                   data->graph(), data->common(), temp_zone,
+                   data->source_positions(), data->node_origins());
+      }
+    }
+
+    for (WasmLoopInfo& loop_info : *loop_infos) {
+      std::unordered_set<Node*> loop_exits;
+      // We collect exits into a set first because we are not allowed to mutate
+      // them while iterating uses().
+      for (Node* use : loop_info.header->uses()) {
+        if (use->opcode() == IrOpcode::kLoopExit) {
+          loop_exits.insert(use);
+        }
+      }
+      for (Node* use : loop_exits) {
+        LoopPeeler::EliminateLoopExit(use);
+      }
+    }
+  }
+};
+
 struct LoopExitEliminationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LoopExitElimination)
 
@@ -3209,7 +3241,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     MachineGraph* mcgraph, CallDescriptor* call_descriptor,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     wasm::FunctionBody function_body, const wasm::WasmModule* module,
-    int function_index) {
+    int function_index, std::vector<compiler::WasmLoopInfo>* loop_info) {
   ZoneStats zone_stats(wasm_engine->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(wasm_engine, function_body, module, info,
@@ -3236,8 +3268,8 @@ void Pipeline::GenerateCodeForWasmFunction(
   pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
 
   if (FLAG_wasm_loop_unrolling) {
-    pipeline.Run<LoopExitEliminationPhase>();
-    pipeline.RunPrintAndVerify("V8.LoopExitEliminationPhase", true);
+    pipeline.Run<WasmLoopUnrollingPhase>(loop_info);
+    pipeline.RunPrintAndVerify("V8.WasmLoopUnrolling", true);
   }
 
   data.BeginPhaseKind("V8.WasmOptimization");

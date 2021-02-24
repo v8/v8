@@ -177,6 +177,17 @@ struct WasmInstanceCacheNodes {
   Node* mem_mask;
 };
 
+struct WasmLoopInfo {
+  Node* header;
+  uint32_t nesting_depth;
+  bool is_innermost;
+
+  WasmLoopInfo(Node* header, uint32_t nesting_depth, bool is_innermost)
+      : header(header),
+        nesting_depth(nesting_depth),
+        is_innermost(is_innermost) {}
+};
+
 // Abstracts details of building TurboFan graph nodes for wasm to separate
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {

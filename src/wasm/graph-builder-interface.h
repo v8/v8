@@ -15,6 +15,7 @@ namespace internal {
 namespace compiler {  // external declarations from compiler.
 class NodeOriginTable;
 class WasmGraphBuilder;
+struct WasmLoopInfo;
 }  // namespace compiler
 
 namespace wasm {
@@ -27,6 +28,7 @@ V8_EXPORT_PRIVATE DecodeResult
 BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,
              const WasmModule* module, compiler::WasmGraphBuilder* builder,
              WasmFeatures* detected, const FunctionBody& body,
+             std::vector<compiler::WasmLoopInfo>* loop_infos,
              compiler::NodeOriginTable* node_origins);
 
 }  // namespace wasm

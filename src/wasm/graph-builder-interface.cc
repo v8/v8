@@ -178,6 +178,26 @@ class WasmGraphBuildingInterface {
     ssa_env_->state = SsaEnv::kMerged;
 
     TFNode* loop_node = builder_->Loop(control());
+
+    if (FLAG_wasm_loop_unrolling) {
+      uint32_t nesting_depth = 0;
+      for (uint32_t depth = 1; depth < decoder->control_depth(); depth++) {
+        if (decoder->control_at(depth)->is_loop()) {
+          nesting_depth++;
+        }
+      }
+      // If this loop is nested, the parent loop's is_innermost field needs to
+      // be false. If the last loop in loop_infos_ has less depth, it has to be
+      // the parent loop. If it does not, it means another loop has been found
+      // within the parent loop, and that loop will have set the parent's
+      // is_innermost to false, so we do not need to do anything.
+      if (nesting_depth > 0 &&
+          loop_infos_.back().nesting_depth < nesting_depth) {
+        loop_infos_.back().is_innermost = false;
+      }
+      loop_infos_.emplace_back(loop_node, nesting_depth, true);
+    }
+
     builder_->SetControl(loop_node);
     decoder->control_at(0)->loop_node = loop_node;
 
@@ -732,7 +752,8 @@ class WasmGraphBuildingInterface {
       TryInfo* target_try = decoder->control_at(depth)->try_info;
       if (FLAG_wasm_loop_unrolling) {
         StackValueVector stack_values;
-        BuildNestedLoopExits(decoder, depth, true, stack_values);
+        BuildNestedLoopExits(decoder, depth, true, stack_values,
+                             &block->try_info->exception);
       }
       Goto(decoder, target_try->catch_env);
 
@@ -1055,10 +1076,14 @@ class WasmGraphBuildingInterface {
     to->node = from.node;
   }
 
+  std::vector<compiler::WasmLoopInfo> loop_infos() { return loop_infos_; }
+
  private:
   SsaEnv* ssa_env_ = nullptr;
   compiler::WasmGraphBuilder* builder_;
   uint32_t current_catch_ = kNullCatch;
+  // Tracks loop data for loop unrolling.
+  std::vector<compiler::WasmLoopInfo> loop_infos_;
 
   TFNode* effect() { return builder_->effect(); }
 
@@ -1143,7 +1168,7 @@ class WasmGraphBuildingInterface {
     if (FLAG_wasm_loop_unrolling) {
       StackValueVector values;
       BuildNestedLoopExits(decoder, control_depth_of_current_catch(decoder),
-                           true, values);
+                           true, values, &if_exception);
     }
     Goto(decoder, try_info->catch_env);
     if (try_info->exception == nullptr) {
@@ -1421,15 +1446,27 @@ class WasmGraphBuildingInterface {
 
   void BuildNestedLoopExits(FullDecoder* decoder, uint32_t depth_limit,
                             bool wrap_exit_values,
-                            StackValueVector& stack_values) {
+                            StackValueVector& stack_values,
+                            TFNode** exception_value = nullptr) {
     DCHECK(FLAG_wasm_loop_unrolling);
+    Control* control = nullptr;
+    // We are only interested in exits from the innermost loop.
     for (uint32_t i = 0; i < depth_limit; i++) {
-      Control* control = decoder->control_at(i);
-      if (!control->is_loop()) continue;
+      Control* c = decoder->control_at(i);
+      if (c->is_loop()) {
+        control = c;
+        break;
+      }
+    }
+    if (control != nullptr) {
       BuildLoopExits(decoder, control);
       for (Value& value : stack_values) {
         value.node = builder_->LoopExitValue(
             value.node, value.type.machine_representation());
+      }
+      if (exception_value != nullptr) {
+        *exception_value = builder_->LoopExitValue(
+            *exception_value, MachineRepresentation::kWord32);
       }
       if (wrap_exit_values) {
         WrapLocalsAtLoopExit(decoder, control);
@@ -1459,6 +1496,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           const WasmFeatures& enabled, const WasmModule* module,
                           compiler::WasmGraphBuilder* builder,
                           WasmFeatures* detected, const FunctionBody& body,
+                          std::vector<compiler::WasmLoopInfo>* loop_infos,
                           compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kFullValidation, WasmGraphBuildingInterface> decoder(
@@ -1469,6 +1507,9 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
   decoder.Decode();
   if (node_origins) {
     builder->RemoveBytecodePositionDecorator();
+  }
+  if (FLAG_wasm_loop_unrolling) {
+    *loop_infos = decoder.interface().loop_infos();
   }
   return decoder.toResult(nullptr);
 }
