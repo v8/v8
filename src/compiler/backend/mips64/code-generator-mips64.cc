@@ -2480,6 +2480,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     i.InputSimd128Register(1));
       break;
     }
+    case kMips64ExtAddPairwise: {
+      auto dt = static_cast<MSADataType>(MiscField::decode(instr->opcode()));
+      __ ExtAddPairwise(dt, i.OutputSimd128Register(),
+                        i.InputSimd128Register(0));
+      break;
+    }
     case kMips64F32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));

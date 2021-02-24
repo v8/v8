@@ -235,6 +235,7 @@ namespace compiler {
   V(Mips64I64x2UConvertI32x4High)            \
   V(Mips64ExtMulLow)                         \
   V(Mips64ExtMulHigh)                        \
+  V(Mips64ExtAddPairwise)                    \
   V(Mips64F32x4Abs)                          \
   V(Mips64F32x4Neg)                          \
   V(Mips64F32x4Sqrt)                         \

@@ -2780,6 +2780,26 @@ void TurboAssembler::LoadSplat(MSASize sz, MSARegister dst, MemOperand src) {
   }
 }
 
+void TurboAssembler::ExtAddPairwise(MSADataType type, MSARegister dst,
+                                    MSARegister src) {
+  switch (type) {
+    case MSAS8:
+      hadd_s_h(dst, src, src);
+      break;
+    case MSAU8:
+      hadd_u_h(dst, src, src);
+      break;
+    case MSAS16:
+      hadd_s_w(dst, src, src);
+      break;
+    case MSAU16:
+      hadd_u_w(dst, src, src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void TurboAssembler::MSARoundW(MSARegister dst, MSARegister src,
                                FPURoundingMode mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);

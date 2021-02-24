@@ -174,6 +174,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI16x8ExtMulHighI8x16S:
     case kMipsI16x8ExtMulLowI8x16U:
     case kMipsI16x8ExtMulHighI8x16U:
+    case kMipsI16x8ExtAddPairwiseI8x16S:
+    case kMipsI16x8ExtAddPairwiseI8x16U:
+    case kMipsI32x4ExtAddPairwiseI16x8S:
+    case kMipsI32x4ExtAddPairwiseI16x8U:
     case kMipsI32x4Add:
     case kMipsI32x4AddHoriz:
     case kMipsI32x4Eq:

@@ -3278,6 +3278,18 @@ VISIT_EXT_MUL(I16x8, I8x16S, MSAS8)
 VISIT_EXT_MUL(I16x8, I8x16U, MSAU8)
 #undef VISIT_EXT_MUL
 
+#define VISIT_EXTADD_PAIRWISE(OPCODE, TYPE)                          \
+  void InstructionSelector::Visit##OPCODE(Node* node) {              \
+    Mips64OperandGenerator g(this);                                  \
+    Emit(kMips64ExtAddPairwise | MiscField::encode(TYPE),            \
+         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0))); \
+  }
+VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16S, MSAS8)
+VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16U, MSAU8)
+VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, MSAS16)
+VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, MSAU16)
+#undef VISIT_EXTADD_PAIRWISE
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
