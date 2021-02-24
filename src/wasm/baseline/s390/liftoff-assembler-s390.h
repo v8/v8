@@ -1146,6 +1146,40 @@ void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
 #endif
 }
 
+void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  constexpr uint64_t kF64SignBit = uint64_t{1} << 63;
+  UseScratchRegisterScope temps(this);
+  Register scratch2 = temps.Acquire();
+  MovDoubleToInt64(r0, lhs);
+  // Clear sign bit in {r0}.
+  AndP(r0, Operand(~kF64SignBit));
+
+  MovDoubleToInt64(scratch2, rhs);
+  // Isolate sign bit in {scratch2}.
+  AndP(scratch2, Operand(kF64SignBit));
+  // Combine {scratch2} into {r0}.
+  OrP(r0, r0, scratch2);
+  MovInt64ToDouble(dst, r0);
+}
+
+void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  constexpr uint64_t kF64SignBit = uint64_t{1} << 63;
+  UseScratchRegisterScope temps(this);
+  Register scratch2 = temps.Acquire();
+  MovDoubleToInt64(r0, lhs);
+  // Clear sign bit in {r0}.
+  AndP(r0, Operand(~kF64SignBit));
+
+  MovDoubleToInt64(scratch2, rhs);
+  // Isolate sign bit in {scratch2}.
+  AndP(scratch2, Operand(kF64SignBit));
+  // Combine {scratch2} into {r0}.
+  OrP(r0, r0, scratch2);
+  MovInt64ToDouble(dst, r0);
+}
+
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
@@ -2515,16 +2549,6 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffStackSlots::Construct() {
   asm_->bailout(kUnsupportedArchitecture, "LiftoffStackSlots::Construct");
-}
-
-void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
-                                         DoubleRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_f64_copysign");
-}
-
-void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
-                                         DoubleRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_f32_copysign");
 }
 
 }  // namespace wasm
