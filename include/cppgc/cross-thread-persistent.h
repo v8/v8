@@ -271,6 +271,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
   }
 
   void AssignUnsafe(T* ptr) {
+    PersistentRegionLock::AssertLocked();
     const void* old_value = GetValue();
     if (IsValid(old_value)) {
       PersistentRegion& region = this->GetPersistentRegion(old_value);

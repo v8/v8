@@ -121,6 +121,8 @@ class V8_EXPORT PersistentRegionLock final {
  public:
   PersistentRegionLock();
   ~PersistentRegionLock();
+
+  static void AssertLocked();
 };
 
 }  // namespace internal

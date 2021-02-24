@@ -90,5 +90,10 @@ PersistentRegionLock::~PersistentRegionLock() {
   g_process_mutex.Pointer()->Unlock();
 }
 
+// static
+void PersistentRegionLock::AssertLocked() {
+  return g_process_mutex.Pointer()->AssertHeld();
+}
+
 }  // namespace internal
 }  // namespace cppgc
