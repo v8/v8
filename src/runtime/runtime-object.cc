@@ -324,7 +324,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
     Map map = js_obj->map();
     if (!map.IsJSGlobalProxyMap() &&
-        (key.is_element() && key.index() <= JSArray::kMaxArrayIndex
+        (key.is_element() && key.index() <= JSObject::kMaxElementIndex
              ? !map.has_indexed_interceptor()
              : !map.has_named_interceptor())) {
       return ReadOnlyRoots(isolate).false_value();

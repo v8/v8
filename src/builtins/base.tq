@@ -415,8 +415,6 @@ extern enum PropertyAttributes extends int31 {
   ...
 }
 
-const kMaxArrayIndex:
-    constexpr uint32 generates 'JSArray::kMaxArrayIndex';
 const kArrayBufferMaxByteLength:
     constexpr uintptr generates 'JSArrayBuffer::kMaxByteLength';
 const kTypedArrayMaxLength:
