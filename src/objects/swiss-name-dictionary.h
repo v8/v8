@@ -73,18 +73,6 @@ class SwissNameDictionary : public HeapObject {
   using Group = swiss_table::Group;
 
   template <typename LocalIsolate>
-  inline static Handle<SwissNameDictionary> Add(
-      LocalIsolate* isolate, Handle<SwissNameDictionary> table,
-      Handle<Name> key, Handle<Object> value, PropertyDetails details,
-      InternalIndex* entry_out = nullptr);
-
-  static Handle<SwissNameDictionary> Shrink(Isolate* isolate,
-                                            Handle<SwissNameDictionary> table);
-
-  static Handle<SwissNameDictionary> DeleteEntry(
-      Isolate* isolate, Handle<SwissNameDictionary> table, InternalIndex entry);
-
-  template <typename LocalIsolate>
   inline InternalIndex FindEntry(LocalIsolate* isolate, Object key);
 
   // This is to make the interfaces of NameDictionary::FindEntry and
@@ -114,11 +102,6 @@ class SwissNameDictionary : public HeapObject {
 
   template <typename LocalIsolate>
   void Initialize(LocalIsolate* isolate, ByteArray meta_table, int capacity);
-
-  template <typename LocalIsolate>
-  static Handle<SwissNameDictionary> Rehash(LocalIsolate* isolate,
-                                            Handle<SwissNameDictionary> table,
-                                            int new_capacity);
 
   inline void SetHash(int hash);
   inline int Hash();
@@ -235,10 +218,6 @@ class SwissNameDictionary : public HeapObject {
   using ctrl_t = swiss_table::ctrl_t;
   using Ctrl = swiss_table::Ctrl;
 
-  template <typename LocalIsolate>
-  inline static Handle<SwissNameDictionary> EnsureGrowable(
-      LocalIsolate* isolate, Handle<SwissNameDictionary> table);
-
   // Returns table of byte-encoded PropertyDetails (without enumeration index
   // stored in PropertyDetails).
   inline uint8_t* PropertyDetailsTable();
@@ -255,13 +234,6 @@ class SwissNameDictionary : public HeapObject {
   inline Object KeyAt(int entry);
 
   inline bool ToKey(ReadOnlyRoots roots, int entry, Object* out_key);
-
-  inline int FindFirstEmpty(uint32_t hash);
-  // Adds |key| ->  (|value|, |details|) as a new mapping to the table, which
-  // must have sufficient room. Returns the entry (= bucket) used by the new
-  // mapping. Does not update the number of present entries or the
-  // enumeration table.
-  inline int AddInternal(Name key, Object value, PropertyDetails details);
 
   // Use |set_ctrl| for modifications whenever possible, since that function
   // correctly maintains the copy of the first group at the end of the ctrl
