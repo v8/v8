@@ -2297,10 +2297,17 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
     case MFVSRD: {
-      DCHECK(!instr->Bit(0));
       int frt = instr->RTValue();
       int ra = instr->RAValue();
-      int64_t frt_val = get_d_register(frt);
+      int64_t frt_val;
+      if (!instr->Bit(0)) {
+        // if double reg (TX=0).
+        frt_val = get_d_register(frt);
+      } else {
+        // if simd reg (TX=1).
+        DCHECK_EQ(instr->Bit(0), 1);
+        frt_val = get_simd_register_by_lane<int64_t>(frt, 0);
+      }
       set_register(ra, frt_val);
       break;
     }
@@ -2321,6 +2328,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         set_d_register(frt, ra_val);
       } else {
         // if simd reg (TX=1).
+        DCHECK_EQ(instr->Bit(0), 1);
         set_simd_register_by_lane<int64_t>(frt, 0,
                                            static_cast<int64_t>(ra_val));
       }
@@ -3773,6 +3781,54 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VSPLT
+#define VINSERT(type, element)                                              \
+  uint32_t uim = static_cast<uint32_t>(instr->Bits(20, 16)) / sizeof(type); \
+  int vrt = instr->RTValue();                                               \
+  int vrb = instr->RBValue();                                               \
+  set_simd_register_by_lane<type>(                                          \
+      vrt, uim, get_simd_register_by_lane<type>(vrb, element));
+    case VINSERTD: {
+      VINSERT(int64_t, 0)
+      break;
+    }
+    case VINSERTW: {
+      VINSERT(int32_t, 1)
+      break;
+    }
+    case VINSERTH: {
+      VINSERT(int16_t, 3)
+      break;
+    }
+    case VINSERTB: {
+      VINSERT(int8_t, 7)
+      break;
+    }
+#undef VINSERT
+#define VEXTRACT(type, element)                                             \
+  uint32_t uim = static_cast<uint32_t>(instr->Bits(20, 16)) / sizeof(type); \
+  int vrt = instr->RTValue();                                               \
+  int vrb = instr->RBValue();                                               \
+  type val = get_simd_register_by_lane<type>(vrb, uim);                     \
+  set_simd_register_by_lane<uint64_t>(vrt, 0, 0);                           \
+  set_simd_register_by_lane<uint64_t>(vrt, 1, 0);                           \
+  set_simd_register_by_lane<type>(vrt, element, val);
+    case VEXTRACTD: {
+      VEXTRACT(uint64_t, 0)
+      break;
+    }
+    case VEXTRACTUW: {
+      VEXTRACT(uint32_t, 1)
+      break;
+    }
+    case VEXTRACTUH: {
+      VEXTRACT(uint16_t, 3)
+      break;
+    }
+    case VEXTRACTUB: {
+      VEXTRACT(uint8_t, 7)
+      break;
+    }
+#undef VEXTRACT
 #undef FOR_EACH_LANE
     default: {
       UNIMPLEMENTED();
