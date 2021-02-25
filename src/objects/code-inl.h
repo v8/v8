@@ -6,6 +6,7 @@
 #define V8_OBJECTS_CODE_INL_H_
 
 #include "src/base/memory.h"
+#include "src/base/vlq.h"
 #include "src/codegen/code-desc.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
@@ -329,24 +330,6 @@ CodeKind Code::kind() const {
   return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
-namespace detail {
-
-// TODO(v8:11429): Extract out of header, to generic helper, and merge with
-// TranslationArray de/encoding.
-inline int ReadUint(ByteArray array, int* index) {
-  int byte = 0;
-  int value = 0;
-  int shift = 0;
-  do {
-    byte = array.get((*index)++);
-    value += (byte & ((1 << 7) - 1)) << shift;
-    shift += 7;
-  } while (byte & (1 << 7));
-  return value;
-}
-
-}  // namespace detail
-
 int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc) {
   DisallowGarbageCollection no_gc;
   CHECK(!is_baseline_prologue_builtin());
@@ -357,10 +340,12 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc) {
   Address pc = baseline_pc - InstructionStart();
   int index = 0;
   int offset = 0;
+  byte* data_start = data.GetDataStartAddress();
   while (pc > lookup_pc) {
-    lookup_pc += detail::ReadUint(data, &index);
-    offset += detail::ReadUint(data, &index);
+    lookup_pc += base::VLQDecodeUnsigned(data_start, &index);
+    offset += base::VLQDecodeUnsigned(data_start, &index);
   }
+  DCHECK_LE(index, data.Size());
   CHECK_EQ(pc, lookup_pc);
   return offset;
 }
@@ -375,13 +360,15 @@ uintptr_t Code::GetBaselinePCForBytecodeOffset(int bytecode_offset,
   int offset = 0;
   // TODO(v8:11429,cbruni): clean up
   // Return the offset for the last bytecode that matches
+  byte* data_start = data.GetDataStartAddress();
   while (offset < bytecode_offset && index < data.length()) {
-    int delta_pc = detail::ReadUint(data, &index);
-    int delta_offset = detail::ReadUint(data, &index);
+    int delta_pc = base::VLQDecodeUnsigned(data_start, &index);
+    int delta_offset = base::VLQDecodeUnsigned(data_start, &index);
     if (!precise && (bytecode_offset < offset + delta_offset)) break;
     pc += delta_pc;
     offset += delta_offset;
   }
+  DCHECK_LE(index, data.length());
   if (precise) {
     CHECK_EQ(offset, bytecode_offset);
   } else {

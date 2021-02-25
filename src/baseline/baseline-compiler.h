@@ -13,6 +13,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/threaded-list.h"
+#include "src/base/vlq.h"
 #include "src/baseline/baseline-assembler.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -33,8 +34,14 @@ namespace baseline {
 class BytecodeOffsetTableBuilder {
  public:
   void AddPosition(size_t pc_offset, size_t bytecode_offset) {
-    WriteUint(pc_offset - previous_pc_);
-    WriteUint(bytecode_offset - previous_bytecode_);
+    size_t pc_diff = pc_offset - previous_pc_;
+    size_t bytecode_diff = bytecode_offset - previous_bytecode_;
+    DCHECK_GE(pc_diff, 0);
+    DCHECK_LE(pc_diff, std::numeric_limits<uint32_t>::max());
+    DCHECK_GE(bytecode_diff, 0);
+    DCHECK_LE(bytecode_diff, std::numeric_limits<uint32_t>::max());
+    base::VLQEncodeUnsigned(&bytes_, static_cast<uint32_t>(pc_diff));
+    base::VLQEncodeUnsigned(&bytes_, static_cast<uint32_t>(bytecode_diff));
     previous_pc_ = pc_offset;
     previous_bytecode_ = bytecode_offset;
   }
@@ -43,17 +50,6 @@ class BytecodeOffsetTableBuilder {
   Handle<ByteArray> ToBytecodeOffsetTable(LocalIsolate* isolate);
 
  private:
-  void WriteUint(size_t value) {
-    bool has_next;
-    do {
-      uint8_t byte = value & ((1 << 7) - 1);
-      value >>= 7;
-      has_next = value != 0;
-      byte |= (has_next << 7);
-      bytes_.push_back(byte);
-    } while (has_next);
-  }
-
   size_t previous_pc_ = 0;
   size_t previous_bytecode_ = 0;
   std::vector<byte> bytes_;

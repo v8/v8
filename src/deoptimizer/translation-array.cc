@@ -4,6 +4,7 @@
 
 #include "src/deoptimizer/translation-array.h"
 
+#include "src/base/vlq.h"
 #include "src/deoptimizer/translated-state.h"
 #include "src/objects/fixed-array-inl.h"
 #include "third_party/zlib/google/compression_utils_portable.h"
@@ -56,19 +57,9 @@ int32_t TranslationArrayIterator::Next() {
   if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
     return uncompressed_contents_[index_++];
   } else {
-    // Run through the bytes until we reach one with a least significant
-    // bit of zero (marks the end).
-    uint32_t bits = 0;
-    for (int i = 0; true; i += 7) {
-      DCHECK(HasNext());
-      uint8_t next = buffer_.get(index_++);
-      bits |= (next >> 1) << i;
-      if ((next & 1) == 0) break;
-    }
-    // The bits encode the sign in the least significant bit.
-    bool is_negative = (bits & 1) == 1;
-    int32_t result = bits >> 1;
-    return is_negative ? -result : result;
+    int32_t value = base::VLQDecode(buffer_.GetDataStartAddress(), &index_);
+    DCHECK_LE(index_, buffer_.length());
+    return value;
   }
 }
 
@@ -84,19 +75,7 @@ void TranslationArrayBuilder::Add(int32_t value) {
   if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
     contents_for_compression_.push_back(value);
   } else {
-    // This wouldn't handle kMinInt correctly if it ever encountered it.
-    DCHECK_NE(value, kMinInt);
-    // Encode the sign bit in the least significant bit.
-    bool is_negative = (value < 0);
-    uint32_t bits = (static_cast<uint32_t>(is_negative ? -value : value) << 1) |
-                    static_cast<uint32_t>(is_negative);
-    // Encode the individual bytes using the least significant bit of
-    // each byte to indicate whether or not more bytes follow.
-    do {
-      uint32_t next = bits >> 7;
-      contents_.push_back(((bits << 1) & 0xFF) | (next != 0));
-      bits = next;
-    } while (bits != 0);
+    base::VLQEncode(&contents_, value);
   }
 }
 
