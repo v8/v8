@@ -2347,6 +2347,7 @@ void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
                                  XMMRegister tmp) {
   DCHECK_NE(dst, tmp);
   DCHECK_NE(src, tmp);
+  DCHECK_NE(kScratchDoubleReg, tmp);
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
     vmovdqa(tmp, ExternalReferenceAsOperand(
