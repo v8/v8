@@ -306,7 +306,7 @@ ALLOWLIST = [
 ]
 
 GC_PATTERN = ",.*Collect.*Garbage"
-SAFEPOINT_PATTERN = ",EnterSafepoint"
+SAFEPOINT_PATTERN = ",SafepointSlowPath"
 ALLOWLIST_PATTERN = "|".join("(?:%s)" % p for p in ALLOWLIST)
 
 

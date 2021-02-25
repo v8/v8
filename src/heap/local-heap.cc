@@ -4,6 +4,7 @@
 
 #include "src/heap/local-heap.h"
 
+#include <atomic>
 #include <memory>
 
 #include "src/base/logging.h"
@@ -11,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/handles/local-handles.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/local-heap-inl.h"
@@ -43,7 +45,6 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
     : heap_(heap),
       is_main_thread_(kind == ThreadKind::kMain),
       state_(ThreadState::Parked),
-      safepoint_requested_(false),
       allocation_failed_(false),
       prev_(nullptr),
       next_(nullptr),
@@ -122,7 +123,9 @@ bool LocalHeap::IsHandleDereferenceAllowed() {
 #ifdef DEBUG
   VerifyCurrent();
 #endif
-  return state_ == ThreadState::Running;
+  ThreadState state = state_relaxed();
+  return state == ThreadState::Running ||
+         state == ThreadState::SafepointRequested;
 }
 #endif
 
@@ -130,40 +133,53 @@ bool LocalHeap::IsParked() {
 #ifdef DEBUG
   VerifyCurrent();
 #endif
-  return state_ == ThreadState::Parked;
+  ThreadState state = state_relaxed();
+  return state == ThreadState::Parked || state == ThreadState::ParkedSafepoint;
 }
 
 void LocalHeap::Park() {
-  base::MutexGuard guard(&state_mutex_);
-  CHECK_EQ(ThreadState::Running, state_);
-  state_ = ThreadState::Parked;
-  state_change_.NotifyAll();
+  ThreadState expected = ThreadState::Running;
+  if (!state_.compare_exchange_strong(expected, ThreadState::Parked)) {
+    CHECK_EQ(expected, ThreadState::SafepointRequested);
+    expected = ThreadState::SafepointRequested;
+    CHECK(
+        state_.compare_exchange_strong(expected, ThreadState::ParkedSafepoint));
+    heap_->safepoint()->NotifyPark();
+  }
 }
 
 void LocalHeap::Unpark() {
-  base::MutexGuard guard(&state_mutex_);
-  CHECK(state_ == ThreadState::Parked);
-  state_ = ThreadState::Running;
+  while (true) {
+    ThreadState expected = ThreadState::Parked;
+    if (!state_.compare_exchange_strong(expected, ThreadState::Running)) {
+      CHECK_EQ(expected, ThreadState::ParkedSafepoint);
+      DCHECK(!is_main_thread());
+      DCHECK_EQ(LocalHeap::Current(), this);
+      TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_UNPARK,
+                ThreadKind::kBackground);
+      heap_->safepoint()->WaitInUnpark();
+    } else {
+      break;
+    }
+  }
 }
 
 void LocalHeap::EnsureParkedBeforeDestruction() {
-  if (IsParked()) return;
-  base::MutexGuard guard(&state_mutex_);
-  state_ = ThreadState::Parked;
-  state_change_.NotifyAll();
+  DCHECK_IMPLIES(!is_main_thread(), IsParked());
 }
 
-void LocalHeap::RequestSafepoint() {
-  safepoint_requested_.store(true, std::memory_order_relaxed);
-}
-
-void LocalHeap::ClearSafepointRequested() {
-  safepoint_requested_.store(false, std::memory_order_relaxed);
-}
-
-void LocalHeap::EnterSafepoint() {
+void LocalHeap::SafepointSlowPath() {
+  DCHECK(!is_main_thread());
   DCHECK_EQ(LocalHeap::Current(), this);
-  if (state_ == ThreadState::Running) heap_->safepoint()->EnterFromThread(this);
+  TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_SAFEPOINT,
+            ThreadKind::kBackground);
+  LocalHeap::ThreadState expected = LocalHeap::ThreadState::SafepointRequested;
+  CHECK(state_.compare_exchange_strong(expected,
+                                       LocalHeap::ThreadState::Safepoint));
+  heap_->safepoint()->WaitInSafepoint();
+  // This might be a bit surprising, GlobalSafepoint transitions the state from
+  // Safepoint (--> Running) --> Parked when returning from the safepoint.
+  Unpark();
 }
 
 void LocalHeap::FreeLinearAllocationArea() {
