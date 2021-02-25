@@ -343,7 +343,7 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   UnifiedHeapMarkingVerifier verifier(*this);
-  verifier.Run(cppgc::Heap::StackState::kNoHeapPointers);
+  verifier.Run(stack_state_of_prev_gc_);
 #endif
 
   {

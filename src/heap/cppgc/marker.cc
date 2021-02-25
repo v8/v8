@@ -275,6 +275,7 @@ void MarkerBase::LeaveAtomicPause() {
     ProcessWeakness();
   }
   g_process_mutex.Pointer()->Unlock();
+  heap().SetStackStateOfPrevGC(config_.stack_state);
 }
 
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {

@@ -165,6 +165,13 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   size_t epoch() const { return epoch_; }
 
+  EmbedderStackState stack_state_of_prev_gc() const {
+    return stack_state_of_prev_gc_;
+  }
+  void SetStackStateOfPrevGC(EmbedderStackState stack_state) {
+    stack_state_of_prev_gc_ = stack_state;
+  }
+
  protected:
   // Starts and finalizes stand-alone garbage collections.
   void StartStandAloneGarbageCollection(GarbageCollector::Config);
@@ -211,6 +218,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   size_t disallow_gc_scope_ = 0;
 
   const StackSupport stack_support_;
+  EmbedderStackState stack_state_of_prev_gc_ =
+      EmbedderStackState::kNoHeapPointers;
   std::unique_ptr<EmbedderStackState> override_stack_state_;
 
   bool in_atomic_pause_ = false;
