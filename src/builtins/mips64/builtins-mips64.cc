@@ -2374,13 +2374,23 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     STATIC_ASSERT(num_to_push ==
                   WasmCompileLazyFrameConstants::kNumberOfSavedAllParamRegs);
     __ MultiPush(gp_regs);
-    if (CpuFeatures::IsSupported(MIPS_SIMD)) {
-      __ MultiPushMSA(fp_regs);
-    } else {
-      __ MultiPushFPU(fp_regs);
-      __ Dsubu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
-    }
-
+    // Check if machine has simd enabled, if so push vector registers. If not
+    // then only push double registers.
+    Label push_doubles, simd_pushed;
+    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(a1, MemOperand(a1));
+    __ Branch(&push_doubles, le, a1, Operand(zero_reg));
+    // Save vector registers.
+    __ MultiPushMSA(fp_regs);
+    __ Branch(&simd_pushed);
+    __ bind(&push_doubles);
+    __ MultiPushFPU(fp_regs);
+    // kFixedFrameSizeFromFp is hard coded to include space for Simd
+    // registers, so we still need to allocate extra (unused) space on the stack
+    // as if they were saved.
+    __ Dsubu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    __ bind(&simd_pushed);
     // Pass instance and function index as an explicit arguments to the runtime
     // function.
     __ Push(kWasmInstanceRegister, kWasmCompileLazyFuncIndexRegister);
@@ -2390,12 +2400,18 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
 
     // Restore registers.
-    if (CpuFeatures::IsSupported(MIPS_SIMD)) {
-      __ MultiPopMSA(fp_regs);
-    } else {
-      __ Daddu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
-      __ MultiPopFPU(fp_regs);
-    }
+    Label pop_doubles, simd_popped;
+    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(a1, MemOperand(a1));
+    __ Branch(&pop_doubles, le, a1, Operand(zero_reg));
+    // Pop vector registers.
+    __ MultiPopMSA(fp_regs);
+    __ Branch(&simd_popped);
+    __ bind(&pop_doubles);
+    __ Daddu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    __ MultiPopFPU(fp_regs);
+    __ bind(&simd_popped);
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.
