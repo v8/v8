@@ -163,7 +163,8 @@
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 
   # Test is only enabled on ASAN. Takes too long on many other bots.
-  'regress/regress-crbug-9161': [PASS, SLOW, ['asan == False', SKIP]],
+  # Also disabled on Mac ASAN for https://crbug.com/v8/11437.
+  'regress/regress-crbug-9161': [PASS, SLOW, ['not asan or system == macos', SKIP]],
 
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
   # Predictable tests fail due to race between postMessage and GrowMemory
