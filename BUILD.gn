@@ -4403,7 +4403,7 @@ v8_component("v8_libbase") {
 
   public_configs = [ ":libbase_config" ]
 
-  deps = [ ":v8_headers" ]
+  deps = [ ":v8_config_headers" ]
 
   data = []
 
@@ -4686,21 +4686,6 @@ v8_header_set("cppgc_headers") {
   ]
 
   sources = [
-    "include/cppgc/garbage-collected.h",
-    "include/cppgc/member.h",
-    "include/cppgc/persistent.h",
-    "include/cppgc/type-traits.h",
-    "include/cppgc/visitor.h",
-  ]
-
-  deps = [ ":cppgc_base" ]
-  public_deps = [ ":v8_headers" ]
-}
-
-v8_source_set("cppgc_base") {
-  visibility = [ ":*" ]
-
-  sources = [
     "include/cppgc/allocation.h",
     "include/cppgc/common.h",
     "include/cppgc/custom-space.h",
@@ -4735,6 +4720,15 @@ v8_source_set("cppgc_base") {
     "include/cppgc/trace-trait.h",
     "include/cppgc/type-traits.h",
     "include/cppgc/visitor.h",
+  ]
+
+  public_deps = [ ":v8_config_headers" ]
+}
+
+v8_source_set("cppgc_base") {
+  visibility = [ ":*" ]
+
+  sources = [
     "src/heap/cppgc/allocation.cc",
     "src/heap/cppgc/compaction-worklists.cc",
     "src/heap/cppgc/compaction-worklists.h",
@@ -4838,7 +4832,7 @@ v8_source_set("cppgc_base") {
   ]
 
   public_deps = [
-    ":v8_config_headers",
+    ":cppgc_headers",
     ":v8_cppgc_shared",
     ":v8_libbase",
     ":v8_libplatform",
