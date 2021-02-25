@@ -2501,20 +2501,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16Mul: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ vmuleub(kScratchSimd128Reg, src0, src1);
-      __ vmuloub(i.OutputSimd128Register(), src0, src1);
-      __ xxspltib(tempFPReg1, Operand(8));
-      __ vslh(kScratchSimd128Reg, kScratchSimd128Reg, tempFPReg1);
-      __ vslh(dst, dst, tempFPReg1);
-      __ vsrh(dst, dst, tempFPReg1);
-      __ vor(dst, kScratchSimd128Reg, dst);
-      break;
-    }
     case kPPC_I64x2MinS: {
       __ vminsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputSimd128Register(1));

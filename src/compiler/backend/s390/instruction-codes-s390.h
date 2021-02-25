@@ -360,7 +360,6 @@ namespace compiler {
   V(S390_I8x16ReplaceLane)                  \
   V(S390_I8x16Add)                          \
   V(S390_I8x16Sub)                          \
-  V(S390_I8x16Mul)                          \
   V(S390_I8x16MinS)                         \
   V(S390_I8x16MinU)                         \
   V(S390_I8x16MaxS)                         \

@@ -2477,7 +2477,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I16x8ExtMulHighI8x16U) \
   V(I8x16Add)              \
   V(I8x16Sub)              \
-  V(I8x16Mul)              \
   V(I8x16MinS)             \
   V(I8x16MinU)             \
   V(I8x16MaxS)             \

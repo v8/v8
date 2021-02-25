@@ -2992,12 +2992,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Condition(0));
       break;
     }
-    case kS390_I8x16Mul: {
-      __ vml(i.OutputSimd128Register(), i.InputSimd128Register(0),
-             i.InputSimd128Register(1), Condition(0), Condition(0),
-             Condition(0));
-      break;
-    }
     case kS390_I16x8RoundingAverageU: {
       __ vavgl(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1), Condition(0), Condition(0),

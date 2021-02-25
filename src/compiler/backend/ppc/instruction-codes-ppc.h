@@ -349,7 +349,6 @@ namespace compiler {
   V(PPC_I8x16ReplaceLane)            \
   V(PPC_I8x16Add)                    \
   V(PPC_I8x16Sub)                    \
-  V(PPC_I8x16Mul)                    \
   V(PPC_I8x16MinS)                   \
   V(PPC_I8x16MinU)                   \
   V(PPC_I8x16MaxS)                   \

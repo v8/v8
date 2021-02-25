@@ -272,7 +272,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16ReplaceLane:
     case kPPC_I8x16Add:
     case kPPC_I8x16Sub:
-    case kPPC_I8x16Mul:
     case kPPC_I8x16MinS:
     case kPPC_I8x16MinU:
     case kPPC_I8x16MaxS:

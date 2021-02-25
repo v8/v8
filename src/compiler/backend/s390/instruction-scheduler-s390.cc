@@ -307,7 +307,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I8x16ReplaceLane:
     case kS390_I8x16Add:
     case kS390_I8x16Sub:
-    case kS390_I8x16Mul:
     case kS390_I8x16MinS:
     case kS390_I8x16MinU:
     case kS390_I8x16MaxS:
