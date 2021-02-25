@@ -2313,11 +2313,17 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
     case MTVSRD: {
-      DCHECK(!instr->Bit(0));
       int frt = instr->RTValue();
       int ra = instr->RAValue();
       int64_t ra_val = get_register(ra);
-      set_d_register(frt, ra_val);
+      if (!instr->Bit(0)) {
+        // if double reg (TX=0).
+        set_d_register(frt, ra_val);
+      } else {
+        // if simd reg (TX=1).
+        set_simd_register_by_lane<int64_t>(frt, 0,
+                                           static_cast<int64_t>(ra_val));
+      }
       break;
     }
     case MTVSRWA: {
@@ -3712,7 +3718,62 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_d_register_from_double(frt, frt_val);
       return;
     }
-
+    // Vector instructions.
+#define FOR_EACH_LANE(i, type) \
+  for (uint32_t i = 0; i < kSimd128Size / sizeof(type); i++)
+    case STVX: {
+      int vrs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      __int128 vrs_val =
+          *(reinterpret_cast<__int128*>(get_simd_register(vrs).int8));
+      WriteQW((ra_val + rb_val) & 0xFFFFFFFFFFFFFFF0, vrs_val);
+      break;
+    }
+    case LXVD: {
+      int xt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      set_simd_register_by_lane<int64_t>(xt, 0, ReadDW(ra_val + rb_val));
+      set_simd_register_by_lane<int64_t>(
+          xt, 1, ReadDW(ra_val + rb_val + kSystemPointerSize));
+      break;
+    }
+    case STXVD: {
+      int xs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      WriteDW(ra_val + rb_val, get_simd_register_by_lane<int64_t>(xs, 0));
+      WriteDW(ra_val + rb_val + kSystemPointerSize,
+              get_simd_register_by_lane<int64_t>(xs, 1));
+      break;
+    }
+#define VSPLT(type)                                       \
+  uint32_t uim = instr->Bits(20, 16);                     \
+  int vrt = instr->RTValue();                             \
+  int vrb = instr->RBValue();                             \
+  type value = get_simd_register_by_lane<type>(vrb, uim); \
+  FOR_EACH_LANE(i, type) { set_simd_register_by_lane<type>(vrt, i, value); }
+    case VSPLTW: {
+      VSPLT(int32_t)
+      break;
+    }
+    case VSPLTH: {
+      VSPLT(int16_t)
+      break;
+    }
+    case VSPLTB: {
+      VSPLT(int8_t)
+      break;
+    }
+#undef VSPLT
+#undef FOR_EACH_LANE
     default: {
       UNIMPLEMENTED();
       break;

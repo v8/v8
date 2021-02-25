@@ -322,10 +322,12 @@ class Simulator : public SimulatorBase {
     }
   }
 
-#define RW_VAR_LIST(V) \
-  V(DWU, uint64_t)     \
-  V(DW, int64_t)       \
-  V(WU, uint32_t)      \
+#define RW_VAR_LIST(V)      \
+  V(QWU, unsigned __int128) \
+  V(QW, __int128)           \
+  V(DWU, uint64_t)          \
+  V(DW, int64_t)            \
+  V(WU, uint32_t)           \
   V(W, int32_t) V(HU, uint16_t) V(H, int16_t) V(BU, uint8_t) V(B, int8_t)
 
 #define GENERATE_RW_FUNC(size, type)                   \
