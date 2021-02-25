@@ -213,21 +213,17 @@ class DebugSideTableBuilder {
   };
 
   // Adds a new entry in regular code.
-  void NewEntry(int pc_offset, Vector<LiftoffAssembler::VarState> stack_state,
-                AssumeSpilling assume_spilling) {
-    entries_.emplace_back(
-        pc_offset, static_cast<int>(stack_state.size()),
-        GetChangedStackValues(last_values_, stack_state, assume_spilling));
+  void NewEntry(int pc_offset, Vector<DebugSideTable::Entry::Value> values) {
+    entries_.emplace_back(pc_offset, static_cast<int>(values.size()),
+                          GetChangedStackValues(last_values_, values));
   }
 
   // Adds a new entry for OOL code, and returns a pointer to a builder for
   // modifying that entry.
-  EntryBuilder* NewOOLEntry(Vector<LiftoffAssembler::VarState> stack_state,
-                            AssumeSpilling assume_spilling) {
+  EntryBuilder* NewOOLEntry(Vector<DebugSideTable::Entry::Value> values) {
     constexpr int kNoPcOffsetYet = -1;
-    ool_entries_.emplace_back(
-        kNoPcOffsetYet, static_cast<int>(stack_state.size()),
-        GetChangedStackValues(last_ool_values_, stack_state, assume_spilling));
+    ool_entries_.emplace_back(kNoPcOffsetYet, static_cast<int>(values.size()),
+                              GetChangedStackValues(last_ool_values_, values));
     return &ool_entries_.back();
   }
 
@@ -260,40 +256,16 @@ class DebugSideTableBuilder {
  private:
   static std::vector<Value> GetChangedStackValues(
       std::vector<Value>& last_values,
-      Vector<LiftoffAssembler::VarState> stack_state,
-      AssumeSpilling assume_spilling) {
+      Vector<DebugSideTable::Entry::Value> values) {
     std::vector<Value> changed_values;
     int old_stack_size = static_cast<int>(last_values.size());
-    last_values.resize(stack_state.size());
+    last_values.resize(values.size());
 
     int index = 0;
-    for (const auto& slot : stack_state) {
-      Value new_value;
-      new_value.index = index;
-      new_value.kind = slot.kind();
-      switch (slot.loc()) {
-        case kIntConst:
-          new_value.storage = Entry::kConstant;
-          new_value.i32_const = slot.i32_const();
-          break;
-        case kRegister:
-          DCHECK_NE(kDidSpill, assume_spilling);
-          if (assume_spilling == kAllowRegisters) {
-            new_value.storage = Entry::kRegister;
-            new_value.reg_code = slot.reg().liftoff_code();
-            break;
-          }
-          DCHECK_EQ(kAssumeSpilling, assume_spilling);
-          V8_FALLTHROUGH;
-        case kStack:
-          new_value.storage = Entry::kStack;
-          new_value.stack_offset = slot.offset();
-          break;
-      }
-
-      if (index >= old_stack_size || last_values[index] != new_value) {
-        changed_values.push_back(new_value);
-        last_values[index] = new_value;
+    for (const auto& value : values) {
+      if (index >= old_stack_size || last_values[index] != value) {
+        changed_values.push_back(value);
+        last_values[index] = value;
       }
       ++index;
     }
@@ -642,7 +614,7 @@ class LiftoffCompiler {
     return needs_pair ? 2 : 1;
   }
 
-  void StackCheck(WasmCodePosition position) {
+  void StackCheck(FullDecoder* decoder, WasmCodePosition position) {
     DEBUG_CODE_COMMENT("stack check");
     if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) return;
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
@@ -662,7 +634,7 @@ class LiftoffCompiler {
     }
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
         position, regs_to_save, spilled_regs, safepoint_info,
-        RegisterOOLDebugSideTableEntry()));
+        RegisterOOLDebugSideTableEntry(decoder)));
     OutOfLineCode& ool = out_of_line_code_.back();
     LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize,
                         {});
@@ -792,7 +764,7 @@ class LiftoffCompiler {
 
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
-    StackCheck(0);
+    StackCheck(decoder, 0);
 
     if (FLAG_wasm_dynamic_tiering) {
       // TODO(arobin): Avoid spilling registers unconditionally.
@@ -1030,7 +1002,8 @@ class LiftoffCompiler {
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
     // TODO(ahaas): Define a proper safepoint here.
     safepoint_table_builder_.DefineSafepoint(&asm_);
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kAllowRegisters);
+    RegisterDebugSideTableEntry(decoder,
+                                DebugSideTableBuilder::kAllowRegisters);
   }
 
   void Block(FullDecoder* decoder, Control* block) {}
@@ -1054,7 +1027,7 @@ class LiftoffCompiler {
     loop->label_state.Split(*__ cache_state());
 
     // Execute a stack check in the loop header.
-    StackCheck(decoder->position());
+    StackCheck(decoder, decoder->position());
   }
 
   void Try(FullDecoder* decoder, Control* block) {
@@ -1251,19 +1224,18 @@ class LiftoffCompiler {
   enum TypeConversionTrapping : bool { kCanTrap = true, kNoTrap = false };
   template <ValueKind dst_type, ValueKind src_kind,
             TypeConversionTrapping can_trap>
-  void EmitTypeConversion(WasmOpcode opcode, ExternalReference (*fallback_fn)(),
-                          WasmCodePosition trap_position) {
+  void EmitTypeConversion(FullDecoder* decoder, WasmOpcode opcode,
+                          ExternalReference (*fallback_fn)()) {
     static constexpr RegClass src_rc = reg_class_for(src_kind);
     static constexpr RegClass dst_rc = reg_class_for(dst_type);
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = src_rc == dst_rc
                               ? __ GetUnusedRegister(dst_rc, {src}, {})
                               : __ GetUnusedRegister(dst_rc, {});
-    DCHECK_EQ(!!can_trap, trap_position > 0);
-    Label* trap = can_trap ? AddOutOfLineTrap(
-                                 trap_position,
-                                 WasmCode::kThrowWasmTrapFloatUnrepresentable)
-                           : nullptr;
+    Label* trap =
+        can_trap ? AddOutOfLineTrap(
+                       decoder, WasmCode::kThrowWasmTrapFloatUnrepresentable)
+                 : nullptr;
     if (!__ emit_type_conversion(opcode, dst, src, trap)) {
       DCHECK_NOT_NULL(fallback_fn);
       ExternalReference ext_ref = fallback_fn();
@@ -1303,7 +1275,7 @@ class LiftoffCompiler {
 #define CASE_TYPE_CONVERSION(opcode, dst_type, src_kind, ext_ref, can_trap) \
   case kExpr##opcode:                                                       \
     return EmitTypeConversion<k##dst_type, k##src_kind, can_trap>(          \
-        kExpr##opcode, ext_ref, can_trap ? decoder->position() : 0);
+        decoder, kExpr##opcode, ext_ref);
     switch (opcode) {
       CASE_I32_UNOP(I32Clz, i32_clz)
       CASE_I32_UNOP(I32Ctz, i32_ctz)
@@ -1706,51 +1678,47 @@ class LiftoffCompiler {
         return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          WasmCodePosition position = decoder->position();
-          AddOutOfLineTrap(position, WasmCode::kThrowWasmTrapDivByZero);
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapDivByZero);
           // Adding the second trap might invalidate the pointer returned for
           // the first one, thus get both pointers afterwards.
-          AddOutOfLineTrap(position,
-                           WasmCode::kThrowWasmTrapDivUnrepresentable);
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapDivUnrepresentable);
           Label* div_by_zero = out_of_line_code_.end()[-2].label.get();
           Label* div_unrepresentable = out_of_line_code_.end()[-1].label.get();
           __ emit_i32_divs(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero,
                            div_unrepresentable);
         });
       case kExprI32DivU:
-        return EmitBinOp<kI32, kI32>(
-            [this, decoder](LiftoffRegister dst, LiftoffRegister lhs,
-                            LiftoffRegister rhs) {
-              Label* div_by_zero = AddOutOfLineTrap(
-                  decoder->position(), WasmCode::kThrowWasmTrapDivByZero);
-              __ emit_i32_divu(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero);
-            });
+        return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+          Label* div_by_zero =
+              AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapDivByZero);
+          __ emit_i32_divu(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero);
+        });
       case kExprI32RemS:
-        return EmitBinOp<kI32, kI32>(
-            [this, decoder](LiftoffRegister dst, LiftoffRegister lhs,
-                            LiftoffRegister rhs) {
-              Label* rem_by_zero = AddOutOfLineTrap(
-                  decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
-              __ emit_i32_rems(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
-            });
+        return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+          Label* rem_by_zero =
+              AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapRemByZero);
+          __ emit_i32_rems(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
+        });
       case kExprI32RemU:
-        return EmitBinOp<kI32, kI32>(
-            [this, decoder](LiftoffRegister dst, LiftoffRegister lhs,
-                            LiftoffRegister rhs) {
-              Label* rem_by_zero = AddOutOfLineTrap(
-                  decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
-              __ emit_i32_remu(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
-            });
+        return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+          Label* rem_by_zero =
+              AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapRemByZero);
+          __ emit_i32_remu(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
+        });
       case kExprI64DivS:
         return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          WasmCodePosition position = decoder->position();
-          AddOutOfLineTrap(position, WasmCode::kThrowWasmTrapDivByZero);
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapDivByZero);
           // Adding the second trap might invalidate the pointer returned for
           // the first one, thus get both pointers afterwards.
-          AddOutOfLineTrap(position,
-                           WasmCode::kThrowWasmTrapDivUnrepresentable);
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapDivUnrepresentable);
           Label* div_by_zero = out_of_line_code_.end()[-2].label.get();
           Label* div_unrepresentable = out_of_line_code_.end()[-1].label.get();
           if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero,
@@ -1764,30 +1732,30 @@ class LiftoffCompiler {
         return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          Label* div_by_zero = AddOutOfLineTrap(
-              decoder->position(), WasmCode::kThrowWasmTrapDivByZero);
+          Label* div_by_zero =
+              AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapDivByZero);
           if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero)) {
             ExternalReference ext_ref = ExternalReference::wasm_uint64_div();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero);
           }
         });
       case kExprI64RemS:
-        return EmitBinOp<kI64, kI64>(
-            [this, decoder](LiftoffRegister dst, LiftoffRegister lhs,
-                            LiftoffRegister rhs) {
-              Label* rem_by_zero = AddOutOfLineTrap(
-                  decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
-              if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero)) {
-                ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
-                EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
-              }
-            });
+        return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+          Label* rem_by_zero =
+              AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapRemByZero);
+          if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero)) {
+            ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
+          }
+        });
       case kExprI64RemU:
         return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          Label* rem_by_zero = AddOutOfLineTrap(
-              decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
+          Label* rem_by_zero =
+              AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapRemByZero);
           if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero)) {
             ExternalReference ext_ref = ExternalReference::wasm_uint64_mod();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
@@ -2157,7 +2125,7 @@ class LiftoffCompiler {
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(1);
 
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     __ PushRegister(result_kind, LiftoffRegister(kReturnRegister0));
   }
@@ -2190,12 +2158,12 @@ class LiftoffCompiler {
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(2);
 
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
   void Unreachable(FullDecoder* decoder) {
-    Label* unreachable_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapUnreachable);
+    Label* unreachable_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapUnreachable);
     __ emit_jump(unreachable_label);
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
@@ -2378,8 +2346,8 @@ class LiftoffCompiler {
     return spilled;
   }
 
-  Label* AddOutOfLineTrap(WasmCodePosition position,
-                          WasmCode::RuntimeStubId stub, uint32_t pc = 0) {
+  Label* AddOutOfLineTrap(FullDecoder* decoder, WasmCode::RuntimeStubId stub,
+                          uint32_t pc = 0) {
     DCHECK(FLAG_wasm_bounds_checks);
     OutOfLineSafepointInfo* safepoint_info = nullptr;
     if (V8_UNLIKELY(for_debugging_)) {
@@ -2394,10 +2362,10 @@ class LiftoffCompiler {
           LiftoffAssembler::CacheState::SpillLocation::kStackSlots);
     }
     out_of_line_code_.push_back(OutOfLineCode::Trap(
-        stub, position,
+        stub, decoder->position(),
         V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersForInspection()
                                     : nullptr,
-        safepoint_info, pc, RegisterOOLDebugSideTableEntry()));
+        safepoint_info, pc, RegisterOOLDebugSideTableEntry(decoder)));
     return out_of_line_code_.back().label.get();
   }
 
@@ -2435,9 +2403,9 @@ class LiftoffCompiler {
     // TODO(wasm): This adds protected instruction information for the jump
     // instruction we are about to generate. It would be better to just not add
     // protected instruction info when the pc is 0.
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapMemOutOfBounds,
-        env_->use_trap_handler ? __ pc_offset() : 0);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
+                         env_->use_trap_handler ? __ pc_offset() : 0);
 
     if (statically_oob) {
       __ emit_jump(trap_label);
@@ -2487,8 +2455,8 @@ class LiftoffCompiler {
   void AlignmentCheckMem(FullDecoder* decoder, uint32_t access_size,
                          uintptr_t offset, Register index,
                          LiftoffRegList pinned) {
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapUnalignedAccess, 0);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapUnalignedAccess, 0);
     Register address = __ GetUnusedRegister(kGpReg, pinned).gp();
 
     const uint32_t align_mask = access_size - 1;
@@ -2616,8 +2584,7 @@ class LiftoffCompiler {
     uint32_t protected_load_pc = 0;
     __ Load(value, addr, index, offset, type, pinned, &protected_load_pc, true);
     if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder->position(),
-                       WasmCode::kThrowWasmTrapMemOutOfBounds,
+      AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
     }
     __ PushRegister(kind, value);
@@ -2660,8 +2627,7 @@ class LiftoffCompiler {
                      &protected_load_pc);
 
     if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder->position(),
-                       WasmCode::kThrowWasmTrapMemOutOfBounds,
+      AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
     }
     __ PushRegister(kS128, value);
@@ -2702,8 +2668,7 @@ class LiftoffCompiler {
     __ LoadLane(result, value, addr, index, offset, type, laneidx,
                 &protected_load_pc);
     if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder->position(),
-                       WasmCode::kThrowWasmTrapMemOutOfBounds,
+      AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
     }
 
@@ -2739,8 +2704,7 @@ class LiftoffCompiler {
     __ Store(addr, index, offset, value, type, outer_pinned,
              &protected_store_pc, true);
     if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder->position(),
-                       WasmCode::kThrowWasmTrapMemOutOfBounds,
+      AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);
     }
     if (FLAG_trace_wasm_memory) {
@@ -2769,8 +2733,7 @@ class LiftoffCompiler {
     uint32_t protected_store_pc = 0;
     __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc);
     if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder->position(),
-                       WasmCode::kThrowWasmTrapMemOutOfBounds,
+      AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);
     }
     if (FLAG_trace_wasm_memory) {
@@ -2816,7 +2779,7 @@ class LiftoffCompiler {
 
     __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
     DefineSafepoint();
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     if (kReturnRegister0 != result.gp()) {
       __ Move(result.gp(), kReturnRegister0, kI32);
@@ -2825,19 +2788,70 @@ class LiftoffCompiler {
     __ PushRegister(kI32, result);
   }
 
-  void RegisterDebugSideTableEntry(
+  OwnedVector<DebugSideTable::Entry::Value> GetCurrentDebugSideTableEntries(
+      FullDecoder* decoder,
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
-    if (V8_LIKELY(!debug_sidetable_builder_)) return;
-    debug_sidetable_builder_->NewEntry(__ pc_offset(),
-                                       VectorOf(__ cache_state()->stack_state),
-                                       assume_spilling);
+    auto& stack_state = __ cache_state()->stack_state;
+    auto values = OwnedVector<DebugSideTable::Entry::Value>::NewForOverwrite(
+        stack_state.size());
+
+    // The decoder already has the results on the stack, but Liftoff has not.
+    // Hence {decoder->stack_size()} can be bigger than expected. Just ignore
+    // that, and use the lower part only.
+    DCHECK_LE(stack_state.size(),
+              decoder->num_locals() + decoder->stack_size());
+
+    int index = 0;
+    int decoder_stack_index = decoder->stack_size();
+    for (const auto& slot : stack_state) {
+      auto& value = values[index];
+      value.index = index;
+      ValueType type = index < static_cast<int>(__ num_locals())
+                           ? decoder->local_type(index)
+                           : decoder->stack_value(decoder_stack_index--)->type;
+      DCHECK_EQ(slot.kind(), type.kind());
+      value.type = type;
+      switch (slot.loc()) {
+        case kIntConst:
+          value.storage = DebugSideTable::Entry::kConstant;
+          value.i32_const = slot.i32_const();
+          break;
+        case kRegister:
+          DCHECK_NE(DebugSideTableBuilder::kDidSpill, assume_spilling);
+          if (assume_spilling == DebugSideTableBuilder::kAllowRegisters) {
+            value.storage = DebugSideTable::Entry::kRegister;
+            value.reg_code = slot.reg().liftoff_code();
+            break;
+          }
+          DCHECK_EQ(DebugSideTableBuilder::kAssumeSpilling, assume_spilling);
+          V8_FALLTHROUGH;
+        case kStack:
+          value.storage = DebugSideTable::Entry::kStack;
+          value.stack_offset = slot.offset();
+          break;
+      }
+      ++index;
+    }
+    DCHECK_EQ(values.size(), index);
+    return values;
   }
 
-  DebugSideTableBuilder::EntryBuilder* RegisterOOLDebugSideTableEntry() {
+  void RegisterDebugSideTableEntry(
+      FullDecoder* decoder,
+      DebugSideTableBuilder::AssumeSpilling assume_spilling) {
+    if (V8_LIKELY(!debug_sidetable_builder_)) return;
+    debug_sidetable_builder_->NewEntry(
+        __ pc_offset(),
+        GetCurrentDebugSideTableEntries(decoder, assume_spilling).as_vector());
+  }
+
+  DebugSideTableBuilder::EntryBuilder* RegisterOOLDebugSideTableEntry(
+      FullDecoder* decoder) {
     if (V8_LIKELY(!debug_sidetable_builder_)) return nullptr;
     return debug_sidetable_builder_->NewOOLEntry(
-        VectorOf(__ cache_state()->stack_state),
-        DebugSideTableBuilder::kAssumeSpilling);
+        GetCurrentDebugSideTableEntries(decoder,
+                                        DebugSideTableBuilder::kAssumeSpilling)
+            .as_vector());
   }
 
   enum CallKind : bool { kReturnCall = true, kNoReturnCall = false };
@@ -3921,7 +3935,7 @@ class LiftoffCompiler {
     // Pop parameters from the value stack.
     __ DropValues(3);
 
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
   }
@@ -3962,7 +3976,7 @@ class LiftoffCompiler {
     // Pop parameters from the value stack.
     __ DropValues(2);
 
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
   }
@@ -4118,8 +4132,8 @@ class LiftoffCompiler {
     // register for the result.
     LiftoffRegister result(instance);
     GenerateCCall(&result, &sig, kStmt, args, ext_ref);
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapMemOutOfBounds);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp());
   }
 
@@ -4160,8 +4174,8 @@ class LiftoffCompiler {
     // register for the result.
     LiftoffRegister result(instance);
     GenerateCCall(&result, &sig, kStmt, args, ext_ref);
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapMemOutOfBounds);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp());
   }
 
@@ -4182,8 +4196,8 @@ class LiftoffCompiler {
     // register for the result.
     LiftoffRegister result(instance);
     GenerateCCall(&result, &sig, kStmt, args, ext_ref);
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapMemOutOfBounds);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp());
   }
 
@@ -4229,7 +4243,7 @@ class LiftoffCompiler {
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(3);
 
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
   void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
@@ -4286,7 +4300,7 @@ class LiftoffCompiler {
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(3);
 
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
@@ -4389,8 +4403,8 @@ class LiftoffCompiler {
     {
       LiftoffRegister length =
           __ LoadToRegister(__ cache_state()->stack_state.end()[-2], {});
-      Label* trap_label = AddOutOfLineTrap(
-          decoder->position(), WasmCode::kThrowWasmTrapArrayOutOfBounds);
+      Label* trap_label =
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayOutOfBounds);
       __ emit_i32_cond_jumpi(kUnsignedGreaterThan, trap_label, length.gp(),
                              static_cast<int>(wasm::kV8MaxWasmArrayLength));
     }
@@ -4706,8 +4720,8 @@ class LiftoffCompiler {
 
   void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
                Value* result) {
-    Label* trap_label = AddOutOfLineTrap(decoder->position(),
-                                         WasmCode::kThrowWasmTrapIllegalCast);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
     LiftoffRegister obj_reg =
         SubtypeCheck(decoder, obj, rtt, trap_label, kNullSucceeds);
     __ PushRegister(obj.type.kind(), obj_reg);
@@ -4842,8 +4856,8 @@ class LiftoffCompiler {
   template <TypeChecker type_checker>
   void AbstractTypeCast(const Value& object, FullDecoder* decoder,
                         ValueKind result_kind) {
-    Label* trap_label = AddOutOfLineTrap(decoder->position(),
-                                         WasmCode::kThrowWasmTrapIllegalCast);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
     Label match;
     LiftoffRegister obj_reg =
         (this->*type_checker)(object, trap_label, {}, no_reg);
@@ -4987,7 +5001,7 @@ class LiftoffCompiler {
     }
 
     DefineSafepoint();
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     __ FinishCall(sig, call_descriptor);
   }
@@ -5013,8 +5027,8 @@ class LiftoffCompiler {
     Register scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
     // Bounds check against the table size.
-    Label* invalid_func_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapTableOutOfBounds);
+    Label* invalid_func_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapTableOutOfBounds);
 
     uint32_t canonical_sig_num =
         env_->module->canonicalized_type_ids[imm.sig_index];
@@ -5063,8 +5077,8 @@ class LiftoffCompiler {
     // Compare against expected signature.
     __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(canonical_sig_num));
 
-    Label* sig_mismatch_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapFuncSigMismatch);
+    Label* sig_mismatch_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
     __ emit_cond_jump(kUnequal, sig_mismatch_label, LiftoffAssembler::kIntPtr,
                       scratch, tmp_const);
 
@@ -5118,7 +5132,7 @@ class LiftoffCompiler {
     }
 
     DefineSafepoint();
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     __ FinishCall(sig, call_descriptor);
   }
@@ -5327,7 +5341,7 @@ class LiftoffCompiler {
       __ CallIndirect(sig, call_descriptor, target_reg);
     }
     DefineSafepoint();
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     __ FinishCall(sig, call_descriptor);
   }
 
@@ -5341,8 +5355,8 @@ class LiftoffCompiler {
   void MaybeEmitNullCheck(FullDecoder* decoder, Register object,
                           LiftoffRegList pinned, ValueType type) {
     if (!type.is_nullable()) return;
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapNullDereference);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapNullDereference);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
     LoadNullValue(null.gp(), pinned);
     __ emit_cond_jump(LiftoffCondition::kEqual, trap_label, kOptRef, object,
@@ -5351,8 +5365,8 @@ class LiftoffCompiler {
 
   void BoundsCheck(FullDecoder* decoder, LiftoffRegister array,
                    LiftoffRegister index, LiftoffRegList pinned) {
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapArrayOutOfBounds);
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayOutOfBounds);
     LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
     constexpr int kLengthOffset =
         wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);

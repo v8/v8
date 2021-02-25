@@ -43,7 +43,7 @@ class DebugSideTable {
     enum Storage : int8_t { kConstant, kRegister, kStack };
     struct Value {
       int index;
-      ValueKind kind;
+      ValueType type;
       Storage storage;
       union {
         int32_t i32_const;  // if kind == kConstant
@@ -53,7 +53,7 @@ class DebugSideTable {
 
       bool operator==(const Value& other) const {
         if (index != other.index) return false;
-        if (kind != other.kind) return false;
+        if (type != other.type) return false;
         if (storage != other.storage) return false;
         switch (storage) {
           case kConstant:

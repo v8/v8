@@ -177,7 +177,7 @@ struct DebugSideTableEntry {
   // Check for equality, but ignore exact register and stack offset.
   static bool CheckValueEquals(const DebugSideTable::Entry::Value& a,
                                const DebugSideTable::Entry::Value& b) {
-    return a.index == b.index && a.kind == b.kind && a.kind == b.kind &&
+    return a.index == b.index && a.type == b.type && a.storage == b.storage &&
            (a.storage != DebugSideTable::Entry::kConstant ||
             a.i32_const == b.i32_const);
   }
@@ -189,7 +189,7 @@ std::ostream& operator<<(std::ostream& out, const DebugSideTableEntry& entry) {
   out << "stack height " << entry.stack_height << ", changed: {";
   const char* comma = "";
   for (auto& v : entry.changed_values) {
-    out << comma << v.index << ":" << name(v.kind) << " ";
+    out << comma << v.index << ":" << v.type.name() << " ";
     switch (v.storage) {
       case DebugSideTable::Entry::kConstant:
         out << "const:" << v.i32_const;
@@ -213,26 +213,26 @@ std::ostream& operator<<(std::ostream& out,
 #endif  // DEBUG
 
 // Named constructors to make the tests more readable.
-DebugSideTable::Entry::Value Constant(int index, ValueKind kind,
+DebugSideTable::Entry::Value Constant(int index, ValueType type,
                                       int32_t constant) {
   DebugSideTable::Entry::Value value;
   value.index = index;
-  value.kind = kind;
+  value.type = type;
   value.storage = DebugSideTable::Entry::kConstant;
   value.i32_const = constant;
   return value;
 }
-DebugSideTable::Entry::Value Register(int index, ValueKind kind) {
+DebugSideTable::Entry::Value Register(int index, ValueType type) {
   DebugSideTable::Entry::Value value;
   value.index = index;
-  value.kind = kind;
+  value.type = type;
   value.storage = DebugSideTable::Entry::kRegister;
   return value;
 }
-DebugSideTable::Entry::Value Stack(int index, ValueKind kind) {
+DebugSideTable::Entry::Value Stack(int index, ValueType type) {
   DebugSideTable::Entry::Value value;
   value.index = index;
-  value.kind = kind;
+  value.type = type;
   value.storage = DebugSideTable::Entry::kStack;
   return value;
 }
@@ -296,9 +296,9 @@ TEST(Liftoff_debug_side_table_simple) {
   CheckDebugSideTable(
       {
           // function entry, locals in registers.
-          {2, {Register(0, kI32), Register(1, kI32)}},
+          {2, {Register(0, kWasmI32), Register(1, kWasmI32)}},
           // OOL stack check, locals spilled, stack still empty.
-          {2, {Stack(0, kI32), Stack(1, kI32)}},
+          {2, {Stack(0, kWasmI32), Stack(1, kWasmI32)}},
       },
       debug_side_table.get());
 }
@@ -312,9 +312,9 @@ TEST(Liftoff_debug_side_table_call) {
   CheckDebugSideTable(
       {
           // function entry, local in register.
-          {1, {Register(0, kI32)}},
+          {1, {Register(0, kWasmI32)}},
           // call, local spilled, stack empty.
-          {1, {Stack(0, kI32)}},
+          {1, {Stack(0, kWasmI32)}},
           // OOL stack check, local spilled as before, stack empty.
           {1, {}},
       },
@@ -332,11 +332,11 @@ TEST(Liftoff_debug_side_table_call_const) {
   CheckDebugSideTable(
       {
           // function entry, local in register.
-          {1, {Register(0, kI32)}},
+          {1, {Register(0, kWasmI32)}},
           // call, local is kConst.
-          {1, {Constant(0, kI32, kConst)}},
+          {1, {Constant(0, kWasmI32, kConst)}},
           // OOL stack check, local spilled.
-          {1, {Stack(0, kI32)}},
+          {1, {Stack(0, kWasmI32)}},
       },
       debug_side_table.get());
 }
@@ -351,13 +351,13 @@ TEST(Liftoff_debug_side_table_indirect_call) {
   CheckDebugSideTable(
       {
           // function entry, local in register.
-          {1, {Register(0, kI32)}},
+          {1, {Register(0, kWasmI32)}},
           // indirect call, local spilled, stack empty.
-          {1, {Stack(0, kI32)}},
+          {1, {Stack(0, kWasmI32)}},
           // OOL stack check, local still spilled.
           {1, {}},
           // OOL trap (invalid index), local still spilled, stack has {kConst}.
-          {2, {Constant(1, kI32, kConst)}},
+          {2, {Constant(1, kWasmI32, kConst)}},
           // OOL trap (sig mismatch), stack unmodified.
           {2, {}},
       },
@@ -373,11 +373,11 @@ TEST(Liftoff_debug_side_table_loop) {
   CheckDebugSideTable(
       {
           // function entry, local in register.
-          {1, {Register(0, kI32)}},
+          {1, {Register(0, kWasmI32)}},
           // OOL stack check, local spilled, stack empty.
-          {1, {Stack(0, kI32)}},
+          {1, {Stack(0, kWasmI32)}},
           // OOL loop stack check, local still spilled, stack has {kConst}.
-          {2, {Constant(1, kI32, kConst)}},
+          {2, {Constant(1, kWasmI32, kConst)}},
       },
       debug_side_table.get());
 }
@@ -390,9 +390,9 @@ TEST(Liftoff_debug_side_table_trap) {
   CheckDebugSideTable(
       {
           // function entry, locals in registers.
-          {2, {Register(0, kI32), Register(1, kI32)}},
+          {2, {Register(0, kWasmI32), Register(1, kWasmI32)}},
           // OOL stack check, local spilled, stack empty.
-          {2, {Stack(0, kI32), Stack(1, kI32)}},
+          {2, {Stack(0, kWasmI32), Stack(1, kWasmI32)}},
           // OOL trap (div by zero), stack as before.
           {2, {}},
           // OOL trap (unrepresentable), stack as before.
@@ -414,11 +414,11 @@ TEST(Liftoff_breakpoint_simple) {
   CheckDebugSideTable(
       {
           // First break point, locals in registers.
-          {2, {Register(0, kI32), Register(1, kI32)}},
+          {2, {Register(0, kWasmI32), Register(1, kWasmI32)}},
           // Second break point, locals unchanged, two register stack values.
-          {4, {Register(2, kI32), Register(3, kI32)}},
+          {4, {Register(2, kWasmI32), Register(3, kWasmI32)}},
           // OOL stack check, locals spilled, stack empty.
-          {2, {Stack(0, kI32), Stack(1, kI32)}},
+          {2, {Stack(0, kWasmI32), Stack(1, kWasmI32)}},
       },
       debug_side_table.get());
 }

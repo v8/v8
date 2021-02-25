@@ -95,7 +95,7 @@ void DebugSideTable::Entry::Print(std::ostream& os) const {
   os << std::setw(6) << std::hex << pc_offset_ << std::dec << " stack height "
      << stack_height_ << " [";
   for (auto& value : changed_values_) {
-    os << " " << name(value.kind) << ":";
+    os << " " << value.type.name() << ":";
     switch (value.storage) {
       case kConstant:
         os << "const#" << value.i32_const;
@@ -510,9 +510,9 @@ class DebugInfoImpl {
     const auto* value =
         debug_side_table->FindValue(debug_side_table_entry, index);
     if (value->is_constant()) {
-      DCHECK(value->kind == kI32 || value->kind == kI64);
-      return value->kind == kI32 ? WasmValue(value->i32_const)
-                                 : WasmValue(int64_t{value->i32_const});
+      DCHECK(value->type == kWasmI32 || value->type == kWasmI64);
+      return value->type == kWasmI32 ? WasmValue(value->i32_const)
+                                     : WasmValue(int64_t{value->i32_const});
     }
 
     if (value->is_register()) {
@@ -523,14 +523,14 @@ class DebugInfoImpl {
                    reg.code());
       };
       if (reg.is_gp_pair()) {
-        DCHECK_EQ(kI64, value->kind);
+        DCHECK_EQ(kWasmI64, value->type);
         uint32_t low_word = ReadUnalignedValue<uint32_t>(gp_addr(reg.low_gp()));
         uint32_t high_word =
             ReadUnalignedValue<uint32_t>(gp_addr(reg.high_gp()));
         return WasmValue((uint64_t{high_word} << 32) | low_word);
       }
       if (reg.is_gp()) {
-        return value->kind == kI32
+        return value->type == kWasmI32
                    ? WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())))
                    : WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
       }
@@ -544,11 +544,11 @@ class DebugInfoImpl {
       Address spilled_addr =
           debug_break_fp +
           WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(code);
-      if (value->kind == kF32) {
+      if (value->type == kWasmF32) {
         return WasmValue(ReadUnalignedValue<float>(spilled_addr));
-      } else if (value->kind == kF64) {
+      } else if (value->type == kWasmF64) {
         return WasmValue(ReadUnalignedValue<double>(spilled_addr));
-      } else if (value->kind == kS128) {
+      } else if (value->type == kWasmS128) {
         return WasmValue(Simd128(ReadUnalignedValue<int16>(spilled_addr)));
       } else {
         // All other cases should have been handled above.
@@ -558,7 +558,7 @@ class DebugInfoImpl {
 
     // Otherwise load the value from the stack.
     Address stack_address = stack_frame_base - value->stack_offset;
-    switch (value->kind) {
+    switch (value->type.kind()) {
       case kI32:
         return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
       case kI64:
