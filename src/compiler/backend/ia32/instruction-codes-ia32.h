@@ -153,7 +153,6 @@ namespace compiler {
   V(IA32I64x2Ne)                   \
   V(IA32I64x2GtS)                  \
   V(IA32I64x2GeS)                  \
-  V(IA32I64x2SignSelect)           \
   V(IA32I64x2ExtMulLowI32x4S)      \
   V(IA32I64x2ExtMulHighI32x4S)     \
   V(IA32I64x2ExtMulLowI32x4U)      \
@@ -237,7 +236,6 @@ namespace compiler {
   V(IA32I32x4Abs)                  \
   V(IA32I32x4BitMask)              \
   V(IA32I32x4DotI16x8S)            \
-  V(IA32I32x4SignSelect)           \
   V(IA32I32x4ExtMulLowI16x8S)      \
   V(IA32I32x4ExtMulHighI16x8S)     \
   V(IA32I32x4ExtMulLowI16x8U)      \
@@ -299,7 +297,6 @@ namespace compiler {
   V(IA32I16x8RoundingAverageU)     \
   V(IA32I16x8Abs)                  \
   V(IA32I16x8BitMask)              \
-  V(IA32I16x8SignSelect)           \
   V(IA32I16x8ExtMulLowI8x16S)      \
   V(IA32I16x8ExtMulHighI8x16S)     \
   V(IA32I16x8ExtMulLowI8x16U)      \
@@ -346,7 +343,6 @@ namespace compiler {
   V(IA32I8x16RoundingAverageU)     \
   V(IA32I8x16Abs)                  \
   V(IA32I8x16BitMask)              \
-  V(IA32I8x16SignSelect)           \
   V(IA32I8x16Popcnt)               \
   V(IA32S128Const)                 \
   V(IA32S128Zero)                  \

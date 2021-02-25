@@ -219,7 +219,6 @@ namespace compiler {
   V(X64I64x2GeS)                          \
   V(X64I64x2Ne)                           \
   V(X64I64x2ShrU)                         \
-  V(X64I64x2SignSelect)                   \
   V(X64I64x2ExtMulLowI32x4S)              \
   V(X64I64x2ExtMulHighI32x4S)             \
   V(X64I64x2ExtMulLowI32x4U)              \
@@ -257,7 +256,6 @@ namespace compiler {
   V(X64I32x4Abs)                          \
   V(X64I32x4BitMask)                      \
   V(X64I32x4DotI16x8S)                    \
-  V(X64I32x4SignSelect)                   \
   V(X64I32x4ExtMulLowI16x8S)              \
   V(X64I32x4ExtMulHighI16x8S)             \
   V(X64I32x4ExtMulLowI16x8U)              \
@@ -299,7 +297,6 @@ namespace compiler {
   V(X64I16x8RoundingAverageU)             \
   V(X64I16x8Abs)                          \
   V(X64I16x8BitMask)                      \
-  V(X64I16x8SignSelect)                   \
   V(X64I16x8ExtMulLowI8x16S)              \
   V(X64I16x8ExtMulHighI8x16S)             \
   V(X64I16x8ExtMulLowI8x16U)              \
@@ -340,7 +337,6 @@ namespace compiler {
   V(X64I8x16RoundingAverageU)             \
   V(X64I8x16Abs)                          \
   V(X64I8x16BitMask)                      \
-  V(X64I8x16SignSelect)                   \
   V(X64S128Const)                         \
   V(X64S128Zero)                          \
   V(X64S128AllOnes)                       \

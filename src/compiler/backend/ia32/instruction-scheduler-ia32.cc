@@ -138,7 +138,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I64x2Ne:
     case kIA32I64x2GtS:
     case kIA32I64x2GeS:
-    case kIA32I64x2SignSelect:
     case kIA32I64x2ExtMulLowI32x4S:
     case kIA32I64x2ExtMulHighI32x4S:
     case kIA32I64x2ExtMulLowI32x4U:
@@ -222,7 +221,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4Abs:
     case kIA32I32x4BitMask:
     case kIA32I32x4DotI16x8S:
-    case kIA32I32x4SignSelect:
     case kIA32I32x4ExtMulLowI16x8S:
     case kIA32I32x4ExtMulHighI16x8S:
     case kIA32I32x4ExtMulLowI16x8U:
@@ -284,7 +282,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8RoundingAverageU:
     case kIA32I16x8Abs:
     case kIA32I16x8BitMask:
-    case kIA32I16x8SignSelect:
     case kIA32I16x8ExtMulLowI8x16S:
     case kIA32I16x8ExtMulHighI8x16S:
     case kIA32I16x8ExtMulLowI8x16U:
@@ -331,7 +328,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16RoundingAverageU:
     case kIA32I8x16Abs:
     case kIA32I8x16BitMask:
-    case kIA32I8x16SignSelect:
     case kIA32I8x16Popcnt:
     case kIA32S128Const:
     case kIA32S128Zero:

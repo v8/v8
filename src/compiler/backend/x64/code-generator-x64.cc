@@ -3606,35 +3606,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovmskb(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
-    case kX64I8x16SignSelect: {
-      __ Pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), i.InputSimd128Register(2));
-      break;
-    }
-    case kX64I16x8SignSelect: {
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vpsraw(kScratchDoubleReg, i.InputSimd128Register(2), 15);
-        __ vpblendvb(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     i.InputSimd128Register(1), kScratchDoubleReg);
-      } else {
-        DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-        XMMRegister mask = i.InputSimd128Register(2);
-        DCHECK_EQ(xmm0, mask);
-        __ movaps(kScratchDoubleReg, mask);
-        __ xorps(mask, mask);
-        __ pcmpgtw(mask, kScratchDoubleReg);
-        __ pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(1));
-        // Restore mask.
-        __ movaps(mask, kScratchDoubleReg);
-      }
-      break;
-    }
-    case kX64I32x4SignSelect: {
-      __ Blendvps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), i.InputSimd128Register(2));
-      break;
-    }
     case kX64I32x4ExtMulLowI16x8S: {
       __ I32x4ExtMul(i.OutputSimd128Register(), i.InputSimd128Register(0),
                      i.InputSimd128Register(1), /*low=*/true,
@@ -3657,11 +3628,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I32x4ExtMul(i.OutputSimd128Register(), i.InputSimd128Register(0),
                      i.InputSimd128Register(1), /*low=*/false,
                      /*is_signed=*/false);
-      break;
-    }
-    case kX64I64x2SignSelect: {
-      __ Blendvpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), i.InputSimd128Register(2));
       break;
     }
     case kX64S128And: {

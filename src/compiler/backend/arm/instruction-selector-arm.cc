@@ -148,14 +148,6 @@ void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseUniqueRegister(node->InputAt(1)));
 }
 
-void VisitRRRR(InstructionSelector* selector, InstructionCode opcode,
-               Node* node) {
-  ArmOperandGenerator g(selector);
-  selector->Emit(
-      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
-}
-
 template <IrOpcode::Value kOpcode, int kImmMin, int kImmMax,
           AddressingMode kImmMode, AddressingMode kRegMode>
 bool TryMatchShift(InstructionSelector* selector,
@@ -3111,18 +3103,6 @@ VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16U, NeonU8)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, NeonS16)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, NeonU16)
 #undef VISIT_EXTADD_PAIRWISE
-
-#define VISIT_SIGN_SELECT(OPCODE, SIZE)                 \
-  void InstructionSelector::Visit##OPCODE(Node* node) { \
-    InstructionCode opcode = kArmSignSelect;            \
-    opcode |= MiscField::encode(SIZE);                  \
-    VisitRRRR(this, opcode, node);                      \
-  }
-
-VISIT_SIGN_SELECT(I8x16SignSelect, Neon8)
-VISIT_SIGN_SELECT(I16x8SignSelect, Neon16)
-VISIT_SIGN_SELECT(I32x4SignSelect, Neon32)
-VISIT_SIGN_SELECT(I64x2SignSelect, Neon64)
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
   ArmOperandGenerator g(this);

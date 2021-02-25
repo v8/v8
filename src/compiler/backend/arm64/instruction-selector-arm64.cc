@@ -212,14 +212,6 @@ void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseUniqueRegister(node->InputAt(1)));
 }
 
-void VisitRRRR(InstructionSelector* selector, InstructionCode opcode,
-               Node* node) {
-  Arm64OperandGenerator g(selector);
-  selector->Emit(
-      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
-}
-
 struct ExtendingLoadMatcher {
   ExtendingLoadMatcher(Node* node, InstructionSelector* selector)
       : matches_(false), selector_(selector), base_(nullptr), immediate_(0) {
@@ -3621,18 +3613,6 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
-
-#define VISIT_SIGN_SELECT(NAME, SIZE)                 \
-  void InstructionSelector::Visit##NAME(Node* node) { \
-    InstructionCode opcode = kArm64SignSelect;        \
-    opcode |= LaneSizeField::encode(SIZE);            \
-    VisitRRRR(this, opcode, node);                    \
-  }
-
-VISIT_SIGN_SELECT(I8x16SignSelect, 8)
-VISIT_SIGN_SELECT(I16x8SignSelect, 16)
-VISIT_SIGN_SELECT(I32x4SignSelect, 32)
-VISIT_SIGN_SELECT(I64x2SignSelect, 64)
 
 void InstructionSelector::VisitI64x2Mul(Node* node) {
   Arm64OperandGenerator g(this);

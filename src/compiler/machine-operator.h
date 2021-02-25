@@ -687,7 +687,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I64x2ExtMulHighI32x4S();
   const Operator* I64x2ExtMulLowI32x4U();
   const Operator* I64x2ExtMulHighI32x4U();
-  const Operator* I64x2SignSelect();
 
   const Operator* I32x4Splat();
   const Operator* I32x4ExtractLane(int32_t);
@@ -724,7 +723,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4ExtMulHighI16x8S();
   const Operator* I32x4ExtMulLowI16x8U();
   const Operator* I32x4ExtMulHighI16x8U();
-  const Operator* I32x4SignSelect();
   const Operator* I32x4ExtAddPairwiseI16x8S();
   const Operator* I32x4ExtAddPairwiseI16x8U();
   const Operator* I32x4TruncSatF64x2SZero();
@@ -771,7 +769,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8ExtMulHighI8x16S();
   const Operator* I16x8ExtMulLowI8x16U();
   const Operator* I16x8ExtMulHighI8x16U();
-  const Operator* I16x8SignSelect();
   const Operator* I16x8ExtAddPairwiseI8x16S();
   const Operator* I16x8ExtAddPairwiseI8x16U();
 
@@ -806,7 +803,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16Popcnt();
   const Operator* I8x16Abs();
   const Operator* I8x16BitMask();
-  const Operator* I8x16SignSelect();
 
   const Operator* S128Load();
   const Operator* S128Store();
