@@ -317,6 +317,21 @@ PropertyDetails SwissNameDictionary::DetailsAt(InternalIndex entry) {
   return DetailsAt(entry.as_int());
 }
 
+// static
+template <typename LocalIsolate>
+Handle<SwissNameDictionary> SwissNameDictionary::EnsureGrowable(
+    LocalIsolate* isolate, Handle<SwissNameDictionary> table) {
+  int capacity = table->Capacity();
+
+  if (table->UsedCapacity() < MaxUsableCapacity(capacity)) {
+    // We have room for at least one more entry, nothing to do.
+    return table;
+  }
+
+  int new_capacity = capacity == 0 ? kInitialCapacity : capacity * 2;
+  return Rehash(isolate, table, new_capacity);
+}
+
 swiss_table::ctrl_t SwissNameDictionary::GetCtrl(int entry) {
   DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
 
@@ -350,6 +365,25 @@ void SwissNameDictionary::SetCtrl(int entry, ctrl_t h) {
                  copy_entry == capacity + entry);
   DCHECK_IMPLIES(entry >= static_cast<int>(Group::kWidth), copy_entry == entry);
   ctrl[copy_entry] = h;
+}
+
+// static
+inline int SwissNameDictionary::FindFirstEmpty(uint32_t hash) {
+  // See SwissNameDictionary::FindEntry for description of probing algorithm.
+
+  auto seq = probe(hash, Capacity());
+  while (true) {
+    Group g{CtrlTable() + seq.offset()};
+    auto mask = g.MatchEmpty();
+    if (mask) {
+      // Note that picking the lowest bit set here means using the leftmost
+      // empty bucket in the group. Here, "left" means smaller entry/bucket
+      // index.
+      return seq.offset(mask.LowestBitSet());
+    }
+    seq.next();
+    DCHECK_LT(seq.index(), Capacity());
+  }
 }
 
 void SwissNameDictionary::SetMetaTableField(int field_index, int value) {
@@ -451,6 +485,57 @@ bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, int entry,
 bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, InternalIndex entry,
                                 Object* out_key) {
   return ToKey(roots, entry.as_int(), out_key);
+}
+
+// static
+template <typename LocalIsolate>
+Handle<SwissNameDictionary> SwissNameDictionary::Add(
+    LocalIsolate* isolate, Handle<SwissNameDictionary> original_table,
+    Handle<Name> key, Handle<Object> value, PropertyDetails details,
+    InternalIndex* entry_out) {
+  DCHECK(original_table->FindEntry(isolate, *key).is_not_found());
+
+  Handle<SwissNameDictionary> table = EnsureGrowable(isolate, original_table);
+
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+  int new_enum_index = nof + nod;
+
+  int new_entry = table->AddInternal(*key, *value, details);
+
+  table->SetNumberOfElements(nof + 1);
+  table->SetEntryForEnumerationIndex(new_enum_index, new_entry);
+
+  if (entry_out) {
+    *entry_out = InternalIndex(new_entry);
+  }
+
+  return table;
+}
+
+int SwissNameDictionary::AddInternal(Name key, Object value,
+                                     PropertyDetails details) {
+  DisallowHeapAllocation no_gc;
+
+  DCHECK(key.IsUniqueName());
+  DCHECK_LE(UsedCapacity(), MaxUsableCapacity(Capacity()));
+
+  uint32_t hash = key.hash();
+
+  // For now we don't re-use deleted buckets (due to enumeration table
+  // complications), which is why we only look for empty buckets here, not
+  // deleted ones.
+  int target = FindFirstEmpty(hash);
+
+  SetCtrl(target, swiss_table::H2(hash));
+  SetKey(target, key);
+  ValueAtPut(target, value);
+  DetailsAtPut(target, details);
+
+  // Note that we do not update the number of elements or the enumeration table
+  // in this function.
+
+  return target;
 }
 
 template <typename LocalIsolate>
