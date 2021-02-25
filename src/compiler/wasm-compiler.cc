@@ -204,18 +204,10 @@ class WasmGraphAssembler : public GraphAssembler {
 
   template <typename... Args>
   Node* CallBuiltin(Builtins::Name name, Args*... args) {
-    // We would like to use gasm_->Call() to implement this method,
-    // but this doesn't work currently when we try to call it from functions
-    // which set IfSuccess/IfFailure control paths (e.g. within Throw()).
-    // TODO(manoskouk): Maybe clean this up at some point and unite with
-    // CallRuntimeStub?
     auto* call_descriptor = GetBuiltinCallDescriptor(
         name, temp_zone(), StubCallMode::kCallBuiltinPointer);
     Node* call_target = GetBuiltinPointerTarget(name);
-    Node* call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
-                                  call_target, args..., effect(), control());
-    InitializeEffectControl(call, control());
-    return call;
+    return Call(call_descriptor, call_target, args...);
   }
 
   void EnsureEnd() {

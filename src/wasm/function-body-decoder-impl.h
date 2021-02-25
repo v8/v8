@@ -2176,7 +2176,11 @@ MemoryAccessImmediate<validate>::MemoryAccessImmediate(
     : MemoryAccessImmediate(decoder, pc, max_alignment,
                             decoder->module_->is_memory64) {}
 
-#define CALL_INTERFACE(name, ...) interface_.name(this, ##__VA_ARGS__)
+#define CALL_INTERFACE(name, ...)         \
+  do {                                    \
+    DCHECK(this->ok());                   \
+    interface_.name(this, ##__VA_ARGS__); \
+  } while (false)
 #define CALL_INTERFACE_IF_REACHABLE(name, ...)            \
   do {                                                    \
     DCHECK(!control_.empty());                            \
@@ -2227,6 +2231,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     uint32_t params_count = static_cast<uint32_t>(this->num_locals());
     uint32_t locals_length;
     this->DecodeLocals(this->pc(), &locals_length, params_count);
+    if (this->failed()) return TraceFailed();
     this->consume_bytes(locals_length);
     for (uint32_t index = params_count; index < this->num_locals(); index++) {
       if (!VALIDATE(this->local_type(index).is_defaultable())) {
@@ -4770,7 +4775,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     this->end_ = this->pc_;  // Terminate decoding loop.
     this->current_code_reachable_ = false;
     TRACE(" !%s\n", this->error_.message().c_str());
-    CALL_INTERFACE(OnFirstError);
+    // Cannot use CALL_INTERFACE here because it checks if this->ok().
+    interface_.OnFirstError(this);
   }
 
   int BuildSimplePrototypeOperator(WasmOpcode opcode) {
