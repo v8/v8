@@ -2248,8 +2248,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Sub(node);
     case IrOpcode::kI8x16SubSatS:
       return MarkAsSimd128(node), VisitI8x16SubSatS(node);
-    case IrOpcode::kI8x16Mul:
-      return MarkAsSimd128(node), VisitI8x16Mul(node);
     case IrOpcode::kI8x16MinS:
       return MarkAsSimd128(node), VisitI8x16MinS(node);
     case IrOpcode::kI8x16MaxS:

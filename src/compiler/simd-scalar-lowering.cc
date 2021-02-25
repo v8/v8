@@ -296,7 +296,6 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16AddSatS)                 \
   V(I8x16Sub)                     \
   V(I8x16SubSatS)                 \
-  V(I8x16Mul)                     \
   V(I8x16MinS)                    \
   V(I8x16MaxS)                    \
   V(I8x16ShrU)                    \
@@ -1651,8 +1650,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Sub());
       break;
     }
-    case IrOpcode::kI16x8Mul:
-    case IrOpcode::kI8x16Mul: {
+    case IrOpcode::kI16x8Mul: {
       LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Mul());
       break;
     }

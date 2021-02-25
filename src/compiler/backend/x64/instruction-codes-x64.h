@@ -323,7 +323,6 @@ namespace compiler {
   V(X64I8x16AddSatS)                      \
   V(X64I8x16Sub)                          \
   V(X64I8x16SubSatS)                      \
-  V(X64I8x16Mul)                          \
   V(X64I8x16MinS)                         \
   V(X64I8x16MaxS)                         \
   V(X64I8x16Eq)                           \

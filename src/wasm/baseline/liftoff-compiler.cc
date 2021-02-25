@@ -3127,8 +3127,6 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_sub_sat_s);
       case wasm::kExprI8x16SubSatU:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_sub_sat_u);
-      case wasm::kExprI8x16Mul:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_mul);
       case wasm::kExprI8x16MinS:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_min_s);
       case wasm::kExprI8x16MinU:

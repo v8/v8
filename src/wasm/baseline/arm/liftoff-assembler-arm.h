@@ -3615,12 +3615,6 @@ void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
         liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
-void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
-                                      LiftoffRegister rhs) {
-  vmul(Neon8, liftoff::GetSimd128Register(dst),
-       liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
-}
-
 void LiftoffAssembler::emit_i8x16_add_sat_u(LiftoffRegister dst,
                                             LiftoffRegister lhs,
                                             LiftoffRegister rhs) {

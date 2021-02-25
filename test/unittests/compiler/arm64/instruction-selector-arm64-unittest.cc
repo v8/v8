@@ -2165,10 +2165,7 @@ static const SIMDMulDPInst kSIMDMulDPInstructions[] = {
      kArm64I32x4Mla, kArm64I32x4Mls, MachineType::Simd128()},
     {"I16x8Mul", &MachineOperatorBuilder::I16x8Mul,
      &MachineOperatorBuilder::I16x8Add, &MachineOperatorBuilder::I16x8Sub,
-     kArm64I16x8Mla, kArm64I16x8Mls, MachineType::Simd128()},
-    {"I8x16Mul", &MachineOperatorBuilder::I8x16Mul,
-     &MachineOperatorBuilder::I8x16Add, &MachineOperatorBuilder::I8x16Sub,
-     kArm64I8x16Mla, kArm64I8x16Mls, MachineType::Simd128()}};
+     kArm64I16x8Mla, kArm64I16x8Mls, MachineType::Simd128()}};
 
 using InstructionSelectorSIMDDPWithSIMDMulTest =
     InstructionSelectorTestWithParam<SIMDMulDPInst>;

@@ -5049,9 +5049,6 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI8x16SubSatS:
       return graph()->NewNode(mcgraph()->machine()->I8x16SubSatS(), inputs[0],
                               inputs[1]);
-    case wasm::kExprI8x16Mul:
-      return graph()->NewNode(mcgraph()->machine()->I8x16Mul(), inputs[0],
-                              inputs[1]);
     case wasm::kExprI8x16MinS:
       return graph()->NewNode(mcgraph()->machine()->I8x16MinS(), inputs[0],
                               inputs[1]);

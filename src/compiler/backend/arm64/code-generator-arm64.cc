@@ -2564,7 +2564,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I8x16AddSatS, Sqadd, 16B);
       SIMD_BINOP_CASE(kArm64I8x16Sub, Sub, 16B);
       SIMD_BINOP_CASE(kArm64I8x16SubSatS, Sqsub, 16B);
-      SIMD_BINOP_CASE(kArm64I8x16Mul, Mul, 16B);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I8x16Mla, Mla, 16B);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I8x16Mls, Mls, 16B);
       SIMD_BINOP_CASE(kArm64I8x16MinS, Smin, 16B);

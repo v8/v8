@@ -2633,11 +2633,6 @@ void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
   Uqsub(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
-void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
-                                      LiftoffRegister rhs) {
-  Mul(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
-}
-
 void LiftoffAssembler::emit_i8x16_add_sat_u(LiftoffRegister dst,
                                             LiftoffRegister lhs,
                                             LiftoffRegister rhs) {

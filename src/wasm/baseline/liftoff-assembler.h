@@ -1052,8 +1052,6 @@ class LiftoffAssembler : public TurboAssembler {
                                    LiftoffRegister rhs);
   inline void emit_i8x16_sub_sat_u(LiftoffRegister dst, LiftoffRegister lhs,
                                    LiftoffRegister rhs);
-  inline void emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
-                             LiftoffRegister rhs);
   inline void emit_i8x16_min_s(LiftoffRegister dst, LiftoffRegister lhs,
                                LiftoffRegister rhs);
   inline void emit_i8x16_min_u(LiftoffRegister dst, LiftoffRegister lhs,

@@ -2396,7 +2396,6 @@ class WasmInterpreterInternals {
                  SaturateRoundingQMul<int16_t>(a, b))
       BINOP_CASE(I8x16Add, i8x16, int16, 16, base::AddWithWraparound(a, b))
       BINOP_CASE(I8x16Sub, i8x16, int16, 16, base::SubWithWraparound(a, b))
-      BINOP_CASE(I8x16Mul, i8x16, int16, 16, base::MulWithWraparound(a, b))
       BINOP_CASE(I8x16MinS, i8x16, int16, 16, a < b ? a : b)
       BINOP_CASE(I8x16MinU, i8x16, int16, 16,
                  static_cast<uint8_t>(a) < static_cast<uint8_t>(b) ? a : b)

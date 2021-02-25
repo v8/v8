@@ -3522,10 +3522,11 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8GeU, kArm64I16x8GeU)                           \
   V(I16x8RoundingAverageU, kArm64I16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)           \
+  V(I8x16Add, kArm64I8x16Add)                           \
+  V(I8x16Sub, kArm64I8x16Sub)                           \
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)       \
   V(I8x16AddSatS, kArm64I8x16AddSatS)                   \
   V(I8x16SubSatS, kArm64I8x16SubSatS)                   \
-  V(I8x16Mul, kArm64I8x16Mul)                           \
   V(I8x16MinS, kArm64I8x16MinS)                         \
   V(I8x16MaxS, kArm64I8x16MaxS)                         \
   V(I8x16Eq, kArm64I8x16Eq)                             \
@@ -3664,7 +3665,6 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
 
 VISIT_SIMD_ADD(I32x4)
 VISIT_SIMD_ADD(I16x8)
-VISIT_SIMD_ADD(I8x16)
 #undef VISIT_SIMD_ADD
 
 #define VISIT_SIMD_SUB(Type)                                                  \
@@ -3684,7 +3684,6 @@ VISIT_SIMD_ADD(I8x16)
 
 VISIT_SIMD_SUB(I32x4)
 VISIT_SIMD_SUB(I16x8)
-VISIT_SIMD_SUB(I8x16)
 #undef VISIT_SIMD_SUB
 
 void InstructionSelector::VisitS128Select(Node* node) {

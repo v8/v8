@@ -2812,11 +2812,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1));
       break;
     }
-    case kArmI8x16Mul: {
-      __ vmul(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
-      break;
-    }
     case kArmI8x16MinS: {
       __ vmin(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));

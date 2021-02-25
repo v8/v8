@@ -279,7 +279,6 @@ namespace compiler {
   V(ArmI8x16AddSatS)               \
   V(ArmI8x16Sub)                   \
   V(ArmI8x16SubSatS)               \
-  V(ArmI8x16Mul)                   \
   V(ArmI8x16MinS)                  \
   V(ArmI8x16MaxS)                  \
   V(ArmI8x16Eq)                    \

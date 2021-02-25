@@ -3315,14 +3315,6 @@ void InstructionSelector::VisitI16x8BitMask(Node* node) {
        g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitI8x16Mul(Node* node) {
-  X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kX64I8x16Mul, g.DefineSameAsFirst(node),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
-}
-
 void InstructionSelector::VisitI8x16ShrS(Node* node) {
   X64OperandGenerator g(this);
   if (g.CanBeImmediate(node->InputAt(1))) {

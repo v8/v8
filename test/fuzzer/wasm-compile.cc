@@ -1304,7 +1304,6 @@ void WasmGenerator::Generate<kS128>(DataRange* data) {
       &WasmGenerator::op_with_prefix<kExprI8x16SubSatU, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16MinS, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16MinU, kS128, kS128>,
-      // I8x16Mul is prototyped but not in the proposal, thus omitted here.
       &WasmGenerator::op_with_prefix<kExprI8x16MaxS, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16MaxU, kS128, kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16RoundingAverageU, kS128, kS128>,

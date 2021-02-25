@@ -324,8 +324,6 @@ namespace compiler {
   V(IA32I8x16AddSatS)              \
   V(IA32I8x16Sub)                  \
   V(IA32I8x16SubSatS)              \
-  V(SSEI8x16Mul)                   \
-  V(AVXI8x16Mul)                   \
   V(IA32I8x16MinS)                 \
   V(IA32I8x16MaxS)                 \
   V(IA32I8x16Eq)                   \

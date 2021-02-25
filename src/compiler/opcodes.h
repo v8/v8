@@ -947,7 +947,6 @@
   V(I8x16AddSatS)               \
   V(I8x16Sub)                   \
   V(I8x16SubSatS)               \
-  V(I8x16Mul)                   \
   V(I8x16MinS)                  \
   V(I8x16MaxS)                  \
   V(I8x16Eq)                    \

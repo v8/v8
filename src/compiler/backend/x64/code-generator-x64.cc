@@ -3509,39 +3509,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(psubsb);
       break;
     }
-    case kX64I8x16Mul: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      XMMRegister right = i.InputSimd128Register(1);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      // I16x8 view of I8x16
-      // left = AAaa AAaa ... AAaa AAaa
-      // right= BBbb BBbb ... BBbb BBbb
-      // t = 00AA 00AA ... 00AA 00AA
-      // s = 00BB 00BB ... 00BB 00BB
-      __ Movdqa(tmp, dst);
-      __ Movdqa(kScratchDoubleReg, right);
-      __ Psrlw(tmp, byte{8});
-      __ Psrlw(kScratchDoubleReg, byte{8});
-      // dst = left * 256
-      __ Psllw(dst, byte{8});
-      // t = I16x8Mul(t, s)
-      //    => __PP __PP ...  __PP  __PP
-      __ Pmullw(tmp, kScratchDoubleReg);
-      // dst = I16x8Mul(left * 256, right)
-      //    => pp__ pp__ ...  pp__  pp__
-      __ Pmullw(dst, right);
-      // t = I16x8Shl(t, 8)
-      //    => PP00 PP00 ...  PP00  PP00
-      __ Psllw(tmp, byte{8});
-      // dst = I16x8Shr(dst, 8)
-      //    => 00pp 00pp ...  00pp  00pp
-      __ Psrlw(dst, byte{8});
-      // dst = I16x8Or(dst, t)
-      //    => PPpp PPpp ...  PPpp  PPpp
-      __ Por(dst, tmp);
-      break;
-    }
     case kX64I8x16MinS: {
       ASSEMBLE_SIMD_BINOP(pminsb);
       break;

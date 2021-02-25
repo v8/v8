@@ -319,7 +319,6 @@ namespace compiler {
   V(Arm64I8x16AddSatS)                      \
   V(Arm64I8x16Sub)                          \
   V(Arm64I8x16SubSatS)                      \
-  V(Arm64I8x16Mul)                          \
   V(Arm64I8x16Mla)                          \
   V(Arm64I8x16Mls)                          \
   V(Arm64I8x16MinS)                         \
