@@ -3364,7 +3364,6 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
 // test inputs. Test inputs with all true, all false, one true, and one false.
 #define WASM_SIMD_BOOL_REDUCTION_TEST(format, lanes, int_type)                 \
   WASM_SIMD_TEST(ReductionTest##lanes) {                                       \
-    FLAG_SCOPE(wasm_simd_post_mvp);                                            \
     WasmRunner<int32_t> r(execution_tier, lower_simd);                         \
     if (lanes == 2 && lower_simd == kLowerSimd) return;                        \
     byte zero = r.AllocateLocal(kWasmS128);                                    \
@@ -4290,7 +4289,6 @@ WASM_SIMD_TEST_NO_LOWERING(S128Store64Lane) {
 
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AnyTrue) {                                        \
-    FLAG_SCOPE(wasm_simd_post_mvp);                                           \
     WasmRunner<int32_t, param_type> r(execution_tier, lower_simd);            \
     if (lanes == 2 && lower_simd == kLowerSimd) return;                       \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
@@ -4320,7 +4318,6 @@ WASM_SIMD_TEST(V128AnytrueWithNegativeZero) {
 
 #define WASM_SIMD_ALLTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(V##format##AllTrue) {                                        \
-    FLAG_SCOPE(wasm_simd_post_mvp);                                           \
     WasmRunner<int32_t, param_type> r(execution_tier, lower_simd);            \
     if (lanes == 2 && lower_simd == kLowerSimd) return;                       \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
