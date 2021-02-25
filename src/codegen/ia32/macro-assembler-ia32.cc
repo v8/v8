@@ -1182,16 +1182,41 @@ void TurboAssembler::I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
 
 void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
                                                XMMRegister tmp) {
-  // src = |a|b|c|d|e|f|g|h|
-  // tmp = i32x4.splat(0x0000FFFF)
-  Pcmpeqd(tmp, tmp);
-  Psrld(tmp, tmp, byte{16});
-  // tmp =|0|b|0|d|0|f|0|h|
-  Pand(tmp, src);
-  // dst = |0|a|0|c|0|e|0|g|
-  Psrld(dst, src, byte{16});
-  // dst = |a+b|c+d|e+f|g+h|
-  Paddd(dst, dst, tmp);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // src = |a|b|c|d|e|f|g|h| (low)
+    // dst = |0|a|0|c|0|e|0|g|
+    vpsrld(dst, src, 16);
+    // scratch = |0|b|0|d|0|f|0|h|
+    vpblendw(tmp, src, dst, 0xAA);
+    // dst = |a+b|c+d|e+f|g+h|
+    vpaddd(dst, dst, tmp);
+  } else if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    // There is a potentially better lowering if we get rip-relative constants,
+    // see https://github.com/WebAssembly/simd/pull/380.
+    movaps(tmp, src);
+    psrld(tmp, 16);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    pblendw(dst, tmp, 0xAA);
+    paddd(dst, tmp);
+  } else {
+    // src = |a|b|c|d|e|f|g|h|
+    // tmp = i32x4.splat(0x0000FFFF)
+    pcmpeqd(tmp, tmp);
+    psrld(tmp, byte{16});
+    // tmp =|0|b|0|d|0|f|0|h|
+    pand(tmp, src);
+    // dst = |0|a|0|c|0|e|0|g|
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    psrld(dst, byte{16});
+    // dst = |a+b|c+d|e+f|g+h|
+    paddd(dst, tmp);
+  }
 }
 
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {

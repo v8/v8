@@ -10,6 +10,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
@@ -2589,16 +2590,41 @@ void TurboAssembler::I16x8ExtAddPairwiseI8x16S(XMMRegister dst,
 
 void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
                                                XMMRegister src) {
-  // src = |a|b|c|d|e|f|g|h|
-  // kScratchDoubleReg = i32x4.splat(0x0000FFFF)
-  Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-  Psrld(kScratchDoubleReg, byte{16});
-  // kScratchDoubleReg =|0|b|0|d|0|f|0|h|
-  Pand(kScratchDoubleReg, src);
-  // dst = |0|a|0|c|0|e|0|g|
-  Psrld(dst, src, byte{16});
-  // dst = |a+b|c+d|e+f|g+h|
-  Paddd(dst, kScratchDoubleReg);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // src = |a|b|c|d|e|f|g|h| (low)
+    // dst = |0|a|0|c|0|e|0|g|
+    vpsrld(dst, src, 16);
+    // scratch = |0|b|0|d|0|f|0|h|
+    vpblendw(kScratchDoubleReg, src, dst, 0xAA);
+    // dst = |a+b|c+d|e+f|g+h|
+    vpaddd(dst, dst, kScratchDoubleReg);
+  } else if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    // There is a potentially better lowering if we get rip-relative constants,
+    // see https://github.com/WebAssembly/simd/pull/380.
+    movaps(kScratchDoubleReg, src);
+    psrld(kScratchDoubleReg, 16);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    pblendw(dst, kScratchDoubleReg, 0xAA);
+    paddd(dst, kScratchDoubleReg);
+  } else {
+    // src = |a|b|c|d|e|f|g|h|
+    // kScratchDoubleReg = i32x4.splat(0x0000FFFF)
+    pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+    psrld(kScratchDoubleReg, byte{16});
+    // kScratchDoubleReg =|0|b|0|d|0|f|0|h|
+    pand(kScratchDoubleReg, src);
+    // dst = |0|a|0|c|0|e|0|g|
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    psrld(dst, byte{16});
+    // dst = |a+b|c+d|e+f|g+h|
+    paddd(dst, kScratchDoubleReg);
+  }
 }
 
 void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
