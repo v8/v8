@@ -164,16 +164,21 @@ class V8_EXPORT Visitor {
    * \param key WeakMember reference weakly retaining a key object.
    * \param value Member reference weakly retaining a value object.
    */
-  template <typename K, typename V>
-  void TraceEphemeron(const WeakMember<K>& key, const V* value) {
-    const K* k = key.GetRawAtomic();
+  template <typename KeyType, typename ValueType>
+  void TraceEphemeron(const WeakMember<KeyType>& key, const ValueType* value) {
+    const KeyType* k = key.GetRawAtomic();
     if (!k) return;
-    TraceDescriptor value_desc = TraceTrait<V>::GetTraceDescriptor(value);
+    TraceDescriptor value_desc =
+        TraceTrait<ValueType>::GetTraceDescriptor(value);
+    // KeyType might be a GarbageCollectedMixin.
+    const void* key_base_object_payload =
+        TraceTrait<KeyType>::GetTraceDescriptor(k).base_object_payload;
+    CPPGC_DCHECK(key_base_object_payload);
     // `value` must always be non-null. `value_desc.base_object_payload` may be
     // null in the case that value is not a garbage-collected object but only
     // traceable.
     CPPGC_DCHECK(value);
-    VisitEphemeron(key, value, value_desc);
+    VisitEphemeron(key_base_object_payload, value, value_desc);
   }
 
   /**
