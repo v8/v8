@@ -2628,7 +2628,7 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
 }
 
 void MacroAssembler::LoadGlobalProxy(Register dst) {
-  LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+  LoadNativeContextSlot(dst, Context::GLOBAL_PROXY_INDEX);
 }
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
@@ -3117,7 +3117,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   TmpList()->set_list(old_tmp_list);
 }
 
-void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   LoadTaggedPointerField(
       dst, FieldMemOperand(

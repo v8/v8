@@ -2032,7 +2032,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Debugging.
 
-  void LoadNativeContextSlot(int index, Register dst);
+  void LoadNativeContextSlot(Register dst, int index);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

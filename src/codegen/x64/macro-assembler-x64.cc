@@ -3502,7 +3502,7 @@ static const int kRegisterPassedArguments = 4;
 static const int kRegisterPassedArguments = 6;
 #endif
 
-void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   // Load native context.
   LoadMap(dst, rsi);
   LoadTaggedPointerField(

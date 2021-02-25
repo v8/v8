@@ -62,7 +62,7 @@ void BaselineAssembler::LoadRoot(Register output, RootIndex index) {
   __ LoadRoot(output, index);
 }
 void BaselineAssembler::LoadNativeContextSlot(Register output, uint32_t index) {
-  __ LoadNativeContextSlot(index, output);
+  __ LoadNativeContextSlot(output, index);
 }
 
 void BaselineAssembler::Move(Register output, interpreter::Register source) {

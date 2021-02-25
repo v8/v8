@@ -2002,7 +2002,7 @@ void TurboAssembler::LoadMap(Register destination, Register object) {
                          FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
-void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   LoadTaggedPointerField(
       dst, FieldMemOperand(
