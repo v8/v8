@@ -3271,11 +3271,11 @@ base::Optional<uint16_t> StringRef::GetFirstChar() {
       return base::nullopt;
     }
 
-    if (broker()->local_isolate()) {
+    if (!broker()->IsMainThread()) {
       return object()->Get(0, broker()->local_isolate());
     } else {
-      // TODO(solanes, v8:7790): Remove this case once we always have a local
-      // isolate, i.e. the inlining phase is done concurrently all the time.
+      // TODO(solanes, v8:7790): Remove this case once the inlining phase is
+      // done concurrently all the time.
       return object()->Get(0);
     }
   }
@@ -3584,9 +3584,8 @@ BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
 BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray() const {
   if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
     BytecodeArray bytecode_array;
-    LocalIsolate* local_isolate = broker()->local_isolate();
-    if (local_isolate && !local_isolate->is_main_thread()) {
-      bytecode_array = object()->GetBytecodeArray(local_isolate);
+    if (!broker()->IsMainThread()) {
+      bytecode_array = object()->GetBytecodeArray(broker()->local_isolate());
     } else {
       bytecode_array = object()->GetBytecodeArray(broker()->isolate());
     }
@@ -3603,8 +3602,8 @@ BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability()
     const {
   if (data_->should_access_heap()) {
-    if (LocalIsolate* local_isolate = broker()->local_isolate()) {
-      return object()->GetInlineability(local_isolate);
+    if (!broker()->IsMainThread()) {
+      return object()->GetInlineability(broker()->local_isolate());
     } else {
       return object()->GetInlineability(broker()->isolate());
     }
