@@ -3117,12 +3117,12 @@ FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
 }
 
 ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
+  CHECK(index.is_inobject());
   if (data_->should_access_heap()) {
     return ObjectRef(broker(), broker()->CanonicalPersistentHandle(
                                    object()->RawFastPropertyAt(index)));
   }
   JSObjectData* object_data = data()->AsJSObject();
-  CHECK(index.is_inobject());
   return ObjectRef(broker(),
                    object_data->GetInobjectField(index.property_index()));
 }
@@ -3167,12 +3167,16 @@ void JSObjectRef::EnsureElementsTenured() {
 
 FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap()) {
-    return FieldIndex::ForDescriptor(*object(), descriptor_index);
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    FieldIndex result = FieldIndex::ForDescriptor(*object(), descriptor_index);
+    DCHECK(result.is_inobject());
+    return result;
   }
   DescriptorArrayData* descriptors =
       data()->AsMap()->instance_descriptors()->AsDescriptorArray();
-  return descriptors->GetFieldIndexFor(descriptor_index);
+  FieldIndex result = descriptors->GetFieldIndexFor(descriptor_index);
+  DCHECK(result.is_inobject());
+  return result;
 }
 
 int MapRef::GetInObjectPropertyOffset(int i) const {
