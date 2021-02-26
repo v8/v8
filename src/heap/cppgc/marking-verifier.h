@@ -37,7 +37,7 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   MarkingVerifierBase(const MarkingVerifierBase&) = delete;
   MarkingVerifierBase& operator=(const MarkingVerifierBase&) = delete;
 
-  void Run(Heap::Config::StackState);
+  void Run(GarbageCollector::Config::StackState);
 
  protected:
   MarkingVerifierBase(HeapBase&, std::unique_ptr<cppgc::Visitor>);

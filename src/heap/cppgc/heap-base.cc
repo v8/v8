@@ -147,5 +147,75 @@ HeapStatistics HeapBase::CollectStatistics(
   return HeapStatisticsCollector().CollectStatistics(this);
 }
 
+void HeapBase::StandAloneGarbageCollectionForTesting(
+    GarbageCollector::Config::StackState stack_state) {
+  GarbageCollector::Config config = {
+      GarbageCollector::Config::CollectionType::kMajor, stack_state,
+      GarbageCollector::Config::MarkingType::kAtomic,
+      GarbageCollector::Config::SweepingType::kAtomic};
+
+  if (in_no_gc_scope()) return;
+
+  if (!IsMarking()) {
+    StartStandAloneGarbageCollection(config);
+  }
+  DCHECK(IsMarking());
+  FinalizeStandAloneGarbageCollection(config);
+}
+
+void HeapBase::StartStandAloneGarbageCollection(
+    GarbageCollector::Config config) {
+  DCHECK(!IsMarking());
+  DCHECK(!in_no_gc_scope());
+
+  // Finish sweeping in case it is still running.
+  sweeper_.FinishIfRunning();
+
+  epoch_++;
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  if (config.collection_type == Config::CollectionType::kMajor)
+    Unmarker unmarker(&raw_heap());
+#endif
+
+  const Marker::MarkingConfig marking_config{
+      config.collection_type, config.stack_state, config.marking_type,
+      config.is_forced_gc};
+  marker_ = MarkerFactory::CreateAndStartMarking<Marker>(*this, platform_.get(),
+                                                         marking_config);
+}
+
+void HeapBase::FinalizeStandAloneGarbageCollection(
+    GarbageCollector::Config config) {
+  DCHECK(IsMarking());
+  DCHECK(!in_no_gc_scope());
+  CHECK(!in_disallow_gc_scope());
+  if (override_stack_state_) {
+    config.stack_state = *override_stack_state_;
+  }
+  in_atomic_pause_ = true;
+  {
+    // This guards atomic pause marking, meaning that no internal method or
+    // external callbacks are allowed to allocate new objects.
+    cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
+    marker_->FinishMarking(config.stack_state);
+  }
+  marker_.reset();
+  ExecutePreFinalizers();
+  // TODO(chromium:1056170): replace build flag with dedicated flag.
+#if DEBUG
+  MarkingVerifier verifier(*this);
+  verifier.Run(config.stack_state);
+#endif
+
+  subtle::NoGarbageCollectionScope no_gc(*this);
+  const Sweeper::SweepingConfig sweeping_config{
+      config.sweeping_type,
+      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+  sweeper_.Start(sweeping_config);
+  in_atomic_pause_ = false;
+  sweeper_.NotifyDoneIfNeeded();
+}
+
 }  // namespace internal
 }  // namespace cppgc

@@ -19,6 +19,20 @@ class HeapHandle;
 namespace testing {
 
 /**
+ * Testing helper used to acces heap internals.
+ */
+class V8_EXPORT Heap final {
+ public:
+  /**
+   * Atomically collects garbage on the C++ heap.
+   *
+   * \param heap_handle The corresponding heap.
+   * \param stack_state The stack state to assume for the garbage collection.
+   */
+  void CollectGarbage(HeapHandle& heap_handle, EmbedderStackState stack_state);
+};
+
+/**
  * Overrides the state of the stack with the provided value. Takes precedence
  * over other parameters that set the stack state. Must no be nested.
  */
