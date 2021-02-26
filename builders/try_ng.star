@@ -169,8 +169,8 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux64_tsan_no_cm_rel",
-    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
-    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_trigger = {"location_regexp": [".+/[+]/js-heap-broker.cc", ".+/[+]/heap-refs.h"], "cancel_stale": False},
+    cq_properties_triggered = {"location_regexp": [".+/[+]/js-heap-broker.cc", ".+/[+]/heap-refs.h"], "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
