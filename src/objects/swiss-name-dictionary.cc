@@ -94,6 +94,60 @@ Handle<SwissNameDictionary> SwissNameDictionary::Shrink(
   return Rehash(isolate, table, new_capacity);
 }
 
+// TODO(v8::11388) Copying all data into a std::vector and then re-adding into
+// the table doesn't seem like a good algorithm. Abseil's Swiss Tables come with
+// a clever algorithm for re-hashing in place: It first changes the control
+// table, effectively changing the roles of full, empty and deleted buckets. It
+// then moves each entry to its new bucket by swapping entries (see
+// drop_deletes_without_resize in Abseil's raw_hash_set.h). This algorithm could
+// generally adapted to work on our insertion order preserving implementation,
+// too. However, it would require a mapping from hash table buckets back to
+// enumeration indices. This could either be be created in this function
+// (requiring a vector with Capacity() entries and a separate pass over the
+// enumeration table) or by creating this backwards mapping ahead of time and
+// storing it somewhere in the main table or the meta table, for those
+// SwissNameDictionaries that we know will be in-place rehashed, most notably
+// those stored in the snapshot.
+void SwissNameDictionary::Rehash(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
+
+  struct Entry {
+    Name key;
+    Object value;
+    PropertyDetails details;
+  };
+
+  if (Capacity() == 0) return;
+
+  Entry dummy{Name(), Object(), PropertyDetails::Empty()};
+  std::vector<Entry> data(NumberOfElements(), dummy);
+
+  ReadOnlyRoots roots(isolate);
+  int data_index = 0;
+  for (int enum_index = 0; enum_index < UsedCapacity(); ++enum_index) {
+    int entry = EntryForEnumerationIndex(enum_index);
+    Object key;
+    if (!ToKey(roots, entry, &key)) continue;
+
+    data[data_index++] =
+        Entry{Name::cast(key), ValueAtRaw(entry), DetailsAt(entry)};
+  }
+
+  Initialize(isolate, meta_table(), Capacity());
+
+  int new_enum_index = 0;
+  SetNumberOfElements(static_cast<int>(data.size()));
+  for (Entry& e : data) {
+    int new_entry = AddInternal(e.key, e.value, e.details);
+
+    // TODO(v8::11388) Investigate ways of hoisting the branching needed to
+    // select the correct meta table entry size (based on the capacity of the
+    // table) out of the loop.
+    SetEntryForEnumerationIndex(new_enum_index, new_entry);
+    ++new_enum_index;
+  }
+}
+
 // The largest value we ever have to store in the enumeration table is
 // Capacity() - 1. The largest value we ever have to store for the present or
 // deleted element count is MaxUsableCapacity(Capacity()). All data in the

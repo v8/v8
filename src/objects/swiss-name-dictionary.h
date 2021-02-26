@@ -119,6 +119,7 @@ class SwissNameDictionary : public HeapObject {
   static Handle<SwissNameDictionary> Rehash(LocalIsolate* isolate,
                                             Handle<SwissNameDictionary> table,
                                             int new_capacity);
+  void Rehash(Isolate* isolate);
 
   inline void SetHash(int hash);
   inline int Hash();
