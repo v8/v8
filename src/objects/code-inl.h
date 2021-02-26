@@ -327,7 +327,8 @@ int Code::CodeSize() const { return SizeFor(raw_body_size()); }
 
 CodeKind Code::kind() const {
   STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
-  return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
+  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
+  return KindField::decode(flags);
 }
 
 int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc) {
@@ -386,7 +387,7 @@ void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
                    StackSlotsField::encode(stack_slots) |
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);
   STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
-  WriteField<uint32_t>(kFlagsOffset, flags);
+  RELAXED_WRITE_UINT32_FIELD(*this, kFlagsOffset, flags);
   DCHECK_IMPLIES(stack_slots != 0, has_safepoint_info());
 }
 
@@ -423,7 +424,8 @@ inline bool Code::has_tagged_outgoing_params() const {
 }
 
 inline bool Code::is_turbofanned() const {
-  return IsTurbofannedField::decode(ReadField<uint32_t>(kFlagsOffset));
+  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
+  return IsTurbofannedField::decode(flags);
 }
 
 inline bool Code::can_have_weak_objects() const {
@@ -469,7 +471,8 @@ inline void Code::set_is_exception_caught(bool value) {
 }
 
 inline bool Code::is_off_heap_trampoline() const {
-  return IsOffHeapTrampoline::decode(ReadField<uint32_t>(kFlagsOffset));
+  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
+  return IsOffHeapTrampoline::decode(flags);
 }
 
 inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
@@ -494,14 +497,14 @@ bool Code::is_builtin() const {
 }
 
 unsigned Code::inlined_bytecode_size() const {
-  DCHECK(CodeKindIsOptimizedJSFunction(kind()) ||
-         ReadField<unsigned>(kInlinedBytecodeSizeOffset) == 0);
-  return ReadField<unsigned>(kInlinedBytecodeSizeOffset);
+  unsigned size = RELAXED_READ_UINT_FIELD(*this, kInlinedBytecodeSizeOffset);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()) || size == 0);
+  return size;
 }
 
 void Code::set_inlined_bytecode_size(unsigned size) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()) || size == 0);
-  WriteField<unsigned>(kInlinedBytecodeSizeOffset, size);
+  RELAXED_WRITE_UINT_FIELD(*this, kInlinedBytecodeSizeOffset, size);
 }
 
 bool Code::has_safepoint_info() const {
@@ -510,7 +513,8 @@ bool Code::has_safepoint_info() const {
 
 int Code::stack_slots() const {
   DCHECK(has_safepoint_info());
-  return StackSlotsField::decode(ReadField<uint32_t>(kFlagsOffset));
+  const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
+  return StackSlotsField::decode(flags);
 }
 
 bool Code::marked_for_deoptimization() const {
