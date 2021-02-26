@@ -244,12 +244,11 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
-  return is_reference_type(kind) ? kSystemPointerSize
-                                 : element_size_bytes(kind);
+  return is_reference(kind) ? kSystemPointerSize : element_size_bytes(kind);
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
-  return is_reference_type(kind);
+  return is_reference(kind);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -816,7 +815,7 @@ void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   if (kind == kI32) {
     movl(dst, src);
   } else {
-    DCHECK(kI64 == kind || is_reference_type(kind));
+    DCHECK(kI64 == kind || is_reference(kind));
     movq(dst, src);
   }
 }

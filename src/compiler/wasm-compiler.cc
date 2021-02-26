@@ -378,7 +378,7 @@ class WasmGraphAssembler : public GraphAssembler {
       return StoreUnaligned(rep, base, offset, value);
     } else {
       WriteBarrierKind write_barrier =
-          type.is_reference_type() ? kPointerWriteBarrier : kNoWriteBarrier;
+          type.is_reference() ? kPointerWriteBarrier : kNoWriteBarrier;
       StoreRepresentation store_rep(rep, write_barrier);
       return Store(store_rep, base, offset, value);
     }
@@ -3595,7 +3595,7 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
 
 Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
-  if (global.type.is_reference_type()) {
+  if (global.type.is_reference()) {
     if (global.mutability && global.imported) {
       Node* base = nullptr;
       Node* offset = nullptr;
@@ -3623,7 +3623,7 @@ Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
 
 Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
-  if (global.type.is_reference_type()) {
+  if (global.type.is_reference()) {
     if (global.mutability && global.imported) {
       Node* base = nullptr;
       Node* offset = nullptr;

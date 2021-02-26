@@ -70,7 +70,7 @@ class TranslationArrayBuilder {
                                      unsigned height);
   void BeginJSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, int literal_id, unsigned height,
-      base::Optional<wasm::ValueKind> return_type);
+      base::Optional<wasm::ValueKind> return_kind);
   void BeginJavaScriptBuiltinContinuationFrame(BytecodeOffset bailout_id,
                                                int literal_id, unsigned height);
   void BeginJavaScriptBuiltinContinuationWithCatchFrame(

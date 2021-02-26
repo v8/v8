@@ -1181,7 +1181,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
           static_cast<const JSToWasmFrameStateDescriptor*>(descriptor);
       translations_.BeginJSToWasmBuiltinContinuationFrame(
           bailout_id, shared_info_id, height,
-          js_to_wasm_descriptor->return_type());
+          js_to_wasm_descriptor->return_kind());
       break;
     }
     case FrameStateType::kJavaScriptBuiltinContinuation: {

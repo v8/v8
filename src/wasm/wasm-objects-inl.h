@@ -167,7 +167,7 @@ double WasmGlobalObject::GetF64() {
 
 Handle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for externref and funcref.
-  DCHECK(type().is_reference_type());
+  DCHECK(type().is_reference());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
 

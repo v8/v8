@@ -973,7 +973,7 @@ class WasmGraphBuildingInterface {
                                          const WasmModule* module) {
     StaticKnowledge result;
     result.object_can_be_null = object_type.is_nullable();
-    DCHECK(object_type.is_object_reference_type());  // Checked by validation.
+    DCHECK(object_type.is_object_reference());  // Checked by validation.
     // In the bottom case, the result is irrelevant.
     result.reference_kind =
         rtt_type != kWasmBottom && module->has_signature(rtt_type.ref_index())

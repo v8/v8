@@ -1436,7 +1436,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (global.type.is_reference_type()) {
+      } else if (global.type.is_reference()) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
@@ -1892,7 +1892,7 @@ class ModuleDecoderImpl : public Decoder {
     } else {
       const byte* position = pc();
       ValueType result = consume_value_type();
-      if (!result.is_reference_type()) {
+      if (!result.is_reference()) {
         error(position, "expected reference type");
       }
       return result;

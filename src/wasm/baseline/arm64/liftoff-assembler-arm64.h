@@ -369,7 +369,7 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
-  return kind == kS128 || is_reference_type(kind);
+  return kind == kS128 || is_reference(kind);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -869,7 +869,7 @@ void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   if (kind == kI32) {
     Mov(dst.W(), src.W());
   } else {
-    DCHECK(kI64 == kind || is_reference_type(kind));
+    DCHECK(kI64 == kind || is_reference(kind));
     Mov(dst.X(), src.X());
   }
 }

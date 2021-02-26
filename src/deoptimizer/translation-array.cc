@@ -23,10 +23,10 @@ constexpr int kCompressedDataOffset =
 constexpr int kTranslationArrayElementSize = kInt32Size;
 
 // Encodes the return type of a Wasm function as the integer value of
-// wasm::ValueKind, or kNoWasmReturnType if the function returns void.
-int EncodeWasmReturnType(base::Optional<wasm::ValueKind> return_type) {
-  return return_type ? static_cast<int>(return_type.value())
-                     : kNoWasmReturnType;
+// wasm::ValueKind, or kNoWasmReturnKind if the function returns void.
+int EncodeWasmReturnKind(base::Optional<wasm::ValueKind> return_kind) {
+  return return_kind ? static_cast<int>(return_kind.value())
+                     : kNoWasmReturnKind;
 }
 
 }  // namespace
@@ -131,7 +131,7 @@ void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
   Add(bytecode_offset.ToInt());
   Add(literal_id);
   Add(height);
-  Add(EncodeWasmReturnType(return_type));
+  Add(EncodeWasmReturnKind(return_type));
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
 }
 

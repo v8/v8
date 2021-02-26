@@ -2802,7 +2802,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Value fval = Pop(1);
     Value tval = Pop(0, fval.type);
     ValueType type = tval.type == kWasmBottom ? fval.type : tval.type;
-    if (!VALIDATE(!type.is_reference_type())) {
+    if (!VALIDATE(!type.is_reference())) {
       this->DecodeError(
           "select without type is only valid for value type inputs");
       return 0;
@@ -3214,8 +3214,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       // We are in unreachable code, maintain the polymorphic stack.
       return 1;
     }
-    if (!VALIDATE(func_type.is_object_reference_type() &&
-                  func_type.has_index() &&
+    if (!VALIDATE(func_type.is_object_reference() && func_type.has_index() &&
                   this->module_->has_signature(func_type.ref_index()))) {
       PopTypeError(0, func_ref, "function reference");
       return 0;
@@ -3237,8 +3236,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       // We are in unreachable code, maintain the polymorphic stack.
       return 1;
     }
-    if (!VALIDATE(func_type.is_object_reference_type() &&
-                  func_type.has_index() &&
+    if (!VALIDATE(func_type.is_object_reference() && func_type.has_index() &&
                   this->module_->has_signature(func_type.ref_index()))) {
       PopTypeError(0, func_ref, "function reference");
       return 0;

@@ -1268,7 +1268,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     DCHECK_LT(global.index, module_->num_imported_mutable_globals);
     Handle<Object> buffer;
     Address address_or_offset;
-    if (global.type.is_reference_type()) {
+    if (global.type.is_reference()) {
       static_assert(sizeof(global_object->offset()) <= sizeof(Address),
                     "The offset into the globals buffer does not fit into "
                     "the imported_mutable_globals array");
@@ -1347,7 +1347,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return false;
   }
 
-  if (global.type.is_reference_type()) {
+  if (global.type.is_reference()) {
     const char* error_message;
     if (!wasm::TypecheckJSObject(isolate_, module_, value, global.type,
                                  &error_message)) {
@@ -1605,7 +1605,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
         uint32_t old_offset =
             module_->globals[global.init.immediate().index].offset;
         TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
-        if (global.type.is_reference_type()) {
+        if (global.type.is_reference()) {
           DCHECK(enabled_.has_reftypes());
           tagged_globals_->set(new_offset, tagged_globals_->get(old_offset));
         } else {
@@ -1758,7 +1758,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         if (global.mutability && global.imported) {
           Handle<FixedArray> buffers_array(
               instance->imported_mutable_globals_buffers(), isolate_);
-          if (global.type.is_reference_type()) {
+          if (global.type.is_reference()) {
             tagged_buffer = handle(
                 FixedArray::cast(buffers_array->get(global.index)), isolate_);
             // For externref globals we store the relative offset in the
@@ -1782,7 +1782,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
             offset = static_cast<uint32_t>(global_addr - backing_store);
           }
         } else {
-          if (global.type.is_reference_type()) {
+          if (global.type.is_reference()) {
             tagged_buffer = handle(instance->tagged_globals_buffer(), isolate_);
           } else {
             untagged_buffer =

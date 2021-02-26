@@ -180,10 +180,10 @@ FrameState CreateStubBuiltinContinuationFrameState(
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
     const wasm::FunctionSig* signature) {
-  base::Optional<wasm::ValueKind> wasm_return_type =
+  base::Optional<wasm::ValueKind> wasm_return_kind =
       wasm::WasmReturnTypeFromSignature(signature);
   Node* node_return_type =
-      jsgraph->SmiConstant(wasm_return_type ? wasm_return_type.value() : -1);
+      jsgraph->SmiConstant(wasm_return_kind ? wasm_return_kind.value() : -1);
   Node* lazy_deopt_parameters[] = {node_return_type};
   return CreateStubBuiltinContinuationFrameState(
       jsgraph, Builtins::kJSToWasmLazyDeoptContinuation, context,

@@ -1398,16 +1398,16 @@ class LiftoffAssembler : public TurboAssembler {
 
   int GetTotalFrameSize() const { return max_used_spill_offset_; }
 
-  ValueKind local_type(uint32_t index) {
+  ValueKind local_kind(uint32_t index) {
     DCHECK_GT(num_locals_, index);
     ValueKind* locals =
-        num_locals_ <= kInlineLocalTypes ? local_types_ : more_local_types_;
+        num_locals_ <= kInlineLocalKinds ? local_kinds_ : more_local_kinds_;
     return locals[index];
   }
 
-  void set_local_type(uint32_t index, ValueKind kind) {
+  void set_local_kind(uint32_t index, ValueKind kind) {
     ValueKind* locals =
-        num_locals_ <= kInlineLocalTypes ? local_types_ : more_local_types_;
+        num_locals_ <= kInlineLocalKinds ? local_kinds_ : more_local_kinds_;
     locals[index] = kind;
   }
 
@@ -1430,10 +1430,10 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half);
 
   uint32_t num_locals_ = 0;
-  static constexpr uint32_t kInlineLocalTypes = 16;
+  static constexpr uint32_t kInlineLocalKinds = 16;
   union {
-    ValueKind local_types_[kInlineLocalTypes];
-    ValueKind* more_local_types_;
+    ValueKind local_kinds_[kInlineLocalKinds];
+    ValueKind* more_local_kinds_;
   };
   static_assert(sizeof(ValueKind) == 1,
                 "Reconsider this inlining if ValueKind gets bigger");

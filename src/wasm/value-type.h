@@ -179,12 +179,12 @@ enum ValueKind : uint8_t {
 #undef DEF_ENUM
 };
 
-constexpr bool is_reference_type(ValueKind kind) {
+constexpr bool is_reference(ValueKind kind) {
   return kind == kRef || kind == kOptRef || kind == kRtt ||
          kind == kRttWithDepth;
 }
 
-constexpr bool is_object_reference_type(ValueKind kind) {
+constexpr bool is_object_reference(ValueKind kind) {
   return kind == kRef || kind == kOptRef;
 }
 
@@ -305,12 +305,10 @@ class ValueType {
   }
 
   /******************************** Type checks *******************************/
-  constexpr bool is_reference_type() const {
-    return wasm::is_reference_type(kind());
-  }
+  constexpr bool is_reference() const { return wasm::is_reference(kind()); }
 
-  constexpr bool is_object_reference_type() const {
-    return wasm::is_object_reference_type(kind());
+  constexpr bool is_object_reference() const {
+    return wasm::is_object_reference(kind());
   }
 
   constexpr bool is_nullable() const { return kind() == kOptRef; }
@@ -324,7 +322,7 @@ class ValueType {
   constexpr bool has_depth() const { return kind() == kRttWithDepth; }
 
   constexpr bool has_index() const {
-    return is_rtt() || (is_object_reference_type() && heap_type().is_index());
+    return is_rtt() || (is_object_reference() && heap_type().is_index());
   }
 
   constexpr bool is_defaultable() const { return wasm::is_defaultable(kind()); }
@@ -340,12 +338,12 @@ class ValueType {
   /***************************** Field Accessors ******************************/
   constexpr ValueKind kind() const { return KindField::decode(bit_field_); }
   constexpr HeapType::Representation heap_representation() const {
-    CONSTEXPR_DCHECK(is_object_reference_type());
+    CONSTEXPR_DCHECK(is_object_reference());
     return static_cast<HeapType::Representation>(
         HeapTypeField::decode(bit_field_));
   }
   constexpr HeapType heap_type() const {
-    CONSTEXPR_DCHECK(is_object_reference_type());
+    CONSTEXPR_DCHECK(is_object_reference());
     return HeapType(heap_representation());
   }
   constexpr uint8_t depth() const {
@@ -357,7 +355,7 @@ class ValueType {
     return HeapTypeField::decode(bit_field_);
   }
   constexpr Nullability nullability() const {
-    CONSTEXPR_DCHECK(is_object_reference_type());
+    CONSTEXPR_DCHECK(is_object_reference());
     return kind() == kOptRef ? kNullable : kNonNullable;
   }
 

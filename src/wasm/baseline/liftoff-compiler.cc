@@ -578,7 +578,7 @@ class LiftoffCompiler {
     __ set_num_locals(num_locals);
     for (int i = 0; i < num_locals; ++i) {
       ValueKind kind = decoder->local_type(i).kind();
-      __ set_local_type(i, kind);
+      __ set_local_kind(i, kind);
     }
   }
 
@@ -658,7 +658,7 @@ class LiftoffCompiler {
     // because other types cannot be initialized to constants.
     for (uint32_t param_idx = num_params; param_idx < __ num_locals();
          ++param_idx) {
-      ValueKind kind = __ local_type(param_idx);
+      ValueKind kind = __ local_kind(param_idx);
       if (kind != kI32 && kind != kI64) return true;
     }
     return false;
@@ -680,7 +680,7 @@ class LiftoffCompiler {
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder, __ local_type(i), "param")) return;
+      if (!CheckSupportedType(decoder, __ local_kind(i), "param")) return;
     }
 
     // Parameter 0 is the instance parameter.
@@ -717,7 +717,7 @@ class LiftoffCompiler {
     // Input 0 is the code target, 1 is the instance. First parameter at 2.
     uint32_t input_idx = kInstanceParameterIndex + 1;
     for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
-      input_idx += ProcessParameter(__ local_type(param_idx), input_idx);
+      input_idx += ProcessParameter(__ local_kind(param_idx), input_idx);
     }
     int params_size = __ TopSpillOffset();
     DCHECK_EQ(input_idx, descriptor_->InputCount());
@@ -727,7 +727,7 @@ class LiftoffCompiler {
     if (SpillLocalsInitially(decoder, num_params)) {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
-        ValueKind kind = __ local_type(param_idx);
+        ValueKind kind = __ local_kind(param_idx);
         __ PushStack(kind);
       }
       int spill_size = __ TopSpillOffset() - params_size;
@@ -735,7 +735,7 @@ class LiftoffCompiler {
     } else {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
-        ValueKind kind = __ local_type(param_idx);
+        ValueKind kind = __ local_kind(param_idx);
         __ PushConstant(kind, int32_t{0});
       }
     }
@@ -745,8 +745,8 @@ class LiftoffCompiler {
       Register null_ref_reg = no_reg;
       for (uint32_t local_index = num_params; local_index < __ num_locals();
            ++local_index) {
-        ValueKind kind = __ local_type(local_index);
-        if (is_reference_type(kind)) {
+        ValueKind kind = __ local_kind(local_index);
+        if (is_reference(kind)) {
           if (null_ref_reg == no_reg) {
             null_ref_reg = __ GetUnusedRegister(kGpReg, {}).gp();
             LoadNullValue(null_ref_reg, {});
@@ -1214,20 +1214,20 @@ class LiftoffCompiler {
     auto emit_with_c_fallback = [=](LiftoffRegister dst, LiftoffRegister src) {
       if ((asm_.*emit_fn)(dst.fp(), src.fp())) return;
       ExternalReference ext_ref = fallback_fn();
-      ValueKind sig_reps[] = {kind};
-      ValueKindSig sig(0, 1, sig_reps);
+      ValueKind sig_kinds[] = {kind};
+      ValueKindSig sig(0, 1, sig_kinds);
       GenerateCCall(&dst, &sig, kind, &src, ext_ref);
     };
     EmitUnOp<kind, kind>(emit_with_c_fallback);
   }
 
   enum TypeConversionTrapping : bool { kCanTrap = true, kNoTrap = false };
-  template <ValueKind dst_type, ValueKind src_kind,
+  template <ValueKind dst_kind, ValueKind src_kind,
             TypeConversionTrapping can_trap>
   void EmitTypeConversion(FullDecoder* decoder, WasmOpcode opcode,
                           ExternalReference (*fallback_fn)()) {
     static constexpr RegClass src_rc = reg_class_for(src_kind);
-    static constexpr RegClass dst_rc = reg_class_for(dst_type);
+    static constexpr RegClass dst_rc = reg_class_for(dst_kind);
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = src_rc == dst_rc
                               ? __ GetUnusedRegister(dst_rc, {src}, {})
@@ -1241,20 +1241,20 @@ class LiftoffCompiler {
       ExternalReference ext_ref = fallback_fn();
       if (can_trap) {
         // External references for potentially trapping conversions return int.
-        ValueKind sig_reps[] = {kI32, src_kind};
-        ValueKindSig sig(1, 1, sig_reps);
+        ValueKind sig_kinds[] = {kI32, src_kind};
+        ValueKindSig sig(1, 1, sig_kinds);
         LiftoffRegister ret_reg =
             __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst));
         LiftoffRegister dst_regs[] = {ret_reg, dst};
-        GenerateCCall(dst_regs, &sig, dst_type, &src, ext_ref);
+        GenerateCCall(dst_regs, &sig, dst_kind, &src, ext_ref);
         __ emit_cond_jump(kEqual, trap, kI32, ret_reg.gp());
       } else {
-        ValueKind sig_reps[] = {src_kind};
-        ValueKindSig sig(0, 1, sig_reps);
-        GenerateCCall(&dst, &sig, dst_type, &src, ext_ref);
+        ValueKind sig_kinds[] = {src_kind};
+        ValueKindSig sig(0, 1, sig_kinds);
+        GenerateCCall(&dst, &sig, dst_kind, &src, ext_ref);
       }
     }
-    __ PushRegister(dst_type, dst);
+    __ PushRegister(dst_kind, dst);
   }
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
@@ -1272,9 +1272,9 @@ class LiftoffCompiler {
   case kExpr##opcode:                                                        \
     return EmitFloatUnOpWithCFallback<k##kind>(&LiftoffAssembler::emit_##fn, \
                                                &ExternalReference::wasm_##fn);
-#define CASE_TYPE_CONVERSION(opcode, dst_type, src_kind, ext_ref, can_trap) \
+#define CASE_TYPE_CONVERSION(opcode, dst_kind, src_kind, ext_ref, can_trap) \
   case kExpr##opcode:                                                       \
-    return EmitTypeConversion<k##dst_type, k##src_kind, can_trap>(          \
+    return EmitTypeConversion<k##dst_kind, k##src_kind, can_trap>(          \
         decoder, kExpr##opcode, ext_ref);
     switch (opcode) {
       CASE_I32_UNOP(I32Clz, i32_clz)
@@ -1505,9 +1505,9 @@ class LiftoffCompiler {
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           LiftoffRegister args[] = {lhs, rhs};                               \
           auto ext_ref = ExternalReference::ext_ref_fn();                    \
-          ValueKind sig_reps[] = {k##kind, k##kind, k##kind};                \
+          ValueKind sig_kinds[] = {k##kind, k##kind, k##kind};               \
           const bool out_via_stack = k##kind == kI64;                        \
-          ValueKindSig sig(out_via_stack ? 0 : 1, 2, sig_reps);              \
+          ValueKindSig sig(out_via_stack ? 0 : 1, 2, sig_kinds);             \
           ValueKind out_arg_kind = out_via_stack ? kI64 : kStmt;             \
           GenerateCCall(&dst, &sig, out_arg_kind, args, ext_ref);            \
         });
@@ -1818,8 +1818,8 @@ class LiftoffCompiler {
     WasmCode::RuntimeStubId target = WasmCode::kWasmRefFunc;
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmRefFuncDescriptor>(compilation_zone_);
-    ValueKind sig_reps[] = {kRef, kI32};
-    ValueKindSig sig(1, 1, sig_reps);
+    ValueKind sig_kinds[] = {kRef, kI32};
+    ValueKindSig sig(1, 1, sig_kinds);
     LiftoffRegister func_index_reg = __ GetUnusedRegister(kGpReg, {});
     __ LoadConstant(func_index_reg, WasmValue(function_index));
     LiftoffAssembler::VarState func_index_var(kI32, func_index_reg, 0);
@@ -1919,7 +1919,7 @@ class LiftoffCompiler {
       state.dec_used(slot_reg);
       dst_slot->MakeStack();
     }
-    DCHECK_EQ(kind, __ local_type(local_index));
+    DCHECK_EQ(kind, __ local_kind(local_index));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister dst_reg = __ GetUnusedRegister(rc, {});
     __ Fill(dst_reg, src_slot.offset(), kind);
@@ -2023,7 +2023,7 @@ class LiftoffCompiler {
       return;
     }
 
-    if (is_reference_type(kind)) {
+    if (is_reference(kind)) {
       if (global->mutability && global->imported) {
         LiftoffRegList pinned;
         Register base = no_reg;
@@ -2066,7 +2066,7 @@ class LiftoffCompiler {
       return;
     }
 
-    if (is_reference_type(kind)) {
+    if (is_reference(kind)) {
       if (global->mutability && global->imported) {
         LiftoffRegList pinned;
         LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
@@ -2115,8 +2115,8 @@ class LiftoffCompiler {
         GetBuiltinCallDescriptor<WasmTableGetDescriptor>(compilation_zone_);
 
     ValueKind result_kind = env_->module->tables[imm.index].type.kind();
-    ValueKind sig_reps[] = {result_kind, kI32, kI32};
-    ValueKindSig sig(1, 2, sig_reps);
+    ValueKind sig_kinds[] = {result_kind, kI32, kI32};
+    ValueKindSig sig(1, 2, sig_kinds);
 
     __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, index});
     __ CallRuntimeStub(target);
@@ -2148,8 +2148,8 @@ class LiftoffCompiler {
         GetBuiltinCallDescriptor<WasmTableSetDescriptor>(compilation_zone_);
 
     ValueKind table_kind = env_->module->tables[imm.index].type.kind();
-    ValueKind sig_reps[] = {kI32, kI32, table_kind};
-    ValueKindSig sig(0, 3, sig_reps);
+    ValueKind sig_kinds[] = {kI32, kI32, table_kind};
+    ValueKindSig sig(0, 3, sig_kinds);
 
     __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, index, value});
     __ CallRuntimeStub(target);
@@ -3460,11 +3460,11 @@ class LiftoffCompiler {
     __ PushRegister(result_kind, dst);
   }
 
-  template <ValueKind src2_type, typename EmitFn>
+  template <ValueKind src2_kind, typename EmitFn>
   void EmitSimdReplaceLaneOp(EmitFn fn,
                              const SimdLaneImmediate<validate>& imm) {
     static constexpr RegClass src1_rc = reg_class_for(kS128);
-    static constexpr RegClass src2_rc = reg_class_for(src2_type);
+    static constexpr RegClass src2_rc = reg_class_for(src2_kind);
     static constexpr RegClass result_rc = reg_class_for(kS128);
     // On backends which need fp pair, src1_rc and result_rc end up being
     // kFpRegPair, which is != kFpReg, but we still want to pin src2 when it is
@@ -3925,8 +3925,8 @@ class LiftoffCompiler {
       }
     }
 
-    ValueKind sig_reps[] = {kPointerValueType, kind, kI64};
-    ValueKindSig sig(0, 3, sig_reps);
+    ValueKind sig_kinds[] = {kPointerValueType, kind, kI64};
+    ValueKindSig sig(0, 3, sig_kinds);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {index, expected_value, timeout});
@@ -3961,8 +3961,8 @@ class LiftoffCompiler {
       __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
     }
 
-    ValueKind sig_reps[] = {kI32, kPointerValueType, kI32};
-    ValueKindSig sig(1, 2, sig_reps);
+    ValueKind sig_kinds[] = {kI32, kPointerValueType, kI32};
+    ValueKindSig sig(1, 2, sig_kinds);
     auto call_descriptor =
         GetBuiltinCallDescriptor<WasmAtomicNotifyDescriptor>(compilation_zone_);
 
@@ -4124,8 +4124,8 @@ class LiftoffCompiler {
     __ LoadConstant(segment_index, WasmValue(imm.data_segment_index));
 
     ExternalReference ext_ref = ExternalReference::wasm_memory_init();
-    ValueKind sig_reps[] = {kI32, kPointerValueType, kI32, kI32, kI32, kI32};
-    ValueKindSig sig(1, 5, sig_reps);
+    ValueKind sig_kinds[] = {kI32, kPointerValueType, kI32, kI32, kI32, kI32};
+    ValueKindSig sig(1, 5, sig_kinds);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, src,
                               segment_index, size};
     // We don't need the instance anymore after the call. We can use the
@@ -4167,8 +4167,8 @@ class LiftoffCompiler {
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_copy();
-    ValueKind sig_reps[] = {kI32, kPointerValueType, kI32, kI32, kI32};
-    ValueKindSig sig(1, 4, sig_reps);
+    ValueKind sig_kinds[] = {kI32, kPointerValueType, kI32, kI32, kI32};
+    ValueKindSig sig(1, 4, sig_kinds);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, src, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
@@ -4189,8 +4189,8 @@ class LiftoffCompiler {
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_fill();
-    ValueKind sig_reps[] = {kI32, kPointerValueType, kI32, kI32, kI32};
-    ValueKindSig sig(1, 4, sig_reps);
+    ValueKind sig_kinds[] = {kI32, kPointerValueType, kI32, kI32, kI32};
+    ValueKindSig sig(1, 4, sig_kinds);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, value, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
@@ -4232,8 +4232,8 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableInitDescriptor>(compilation_zone_);
 
-    ValueKind sig_reps[] = {kI32, kI32, kI32, kSmiValueType, kSmiValueType};
-    ValueKindSig sig(0, 5, sig_reps);
+    ValueKind sig_kinds[] = {kI32, kI32, kI32, kSmiValueType, kSmiValueType};
+    ValueKindSig sig(0, 5, sig_kinds);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {dst, src, size, table_index, segment_index});
@@ -4289,8 +4289,8 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableCopyDescriptor>(compilation_zone_);
 
-    ValueKind sig_reps[] = {kI32, kI32, kI32, kSmiValueType, kSmiValueType};
-    ValueKindSig sig(0, 5, sig_reps);
+    ValueKind sig_kinds[] = {kI32, kI32, kI32, kSmiValueType, kSmiValueType};
+    ValueKindSig sig(0, 5, sig_kinds);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {dst, src, size, table_dst_index, table_src_index});
@@ -4325,8 +4325,8 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmAllocateStructWithRttDescriptor>(
             compilation_zone_);
-    ValueKind sig_reps[] = {kRef, rtt.type.kind()};
-    ValueKindSig sig(1, 1, sig_reps);
+    ValueKind sig_kinds[] = {kRef, rtt.type.kind()};
+    ValueKindSig sig(1, 1, sig_kinds);
     LiftoffAssembler::VarState rtt_value =
         __ cache_state()->stack_state.end()[-1];
     __ PrepareBuiltinCall(&sig, call_descriptor, {rtt_value});
@@ -4398,7 +4398,7 @@ class LiftoffCompiler {
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
-                ValueKind rtt_type, bool initial_value_on_stack) {
+                ValueKind rtt_kind, bool initial_value_on_stack) {
     // Max length check.
     {
       LiftoffRegister length =
@@ -4416,8 +4416,8 @@ class LiftoffCompiler {
       compiler::CallDescriptor* call_descriptor =
           GetBuiltinCallDescriptor<WasmAllocateArrayWithRttDescriptor>(
               compilation_zone_);
-      ValueKind sig_reps[] = {kRef, rtt_type, kI32, kI32};
-      ValueKindSig sig(1, 3, sig_reps);
+      ValueKind sig_kinds[] = {kRef, rtt_kind, kI32, kI32};
+      ValueKindSig sig(1, 3, sig_kinds);
       LiftoffAssembler::VarState rtt_var =
           __ cache_state()->stack_state.end()[-1];
       LiftoffAssembler::VarState length_var =
@@ -4583,12 +4583,12 @@ class LiftoffCompiler {
   void RttSub(FullDecoder* decoder, uint32_t type_index, const Value& parent,
               Value* result) {
     ValueKind parent_value_kind = parent.type.kind();
-    ValueKind rtt_value_type = kRttWithDepth;
+    ValueKind rtt_value_kind = kRttWithDepth;
     WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateRtt;
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmAllocateRttDescriptor>(compilation_zone_);
-    ValueKind sig_reps[] = {rtt_value_type, kI32, parent_value_kind};
-    ValueKindSig sig(1, 2, sig_reps);
+    ValueKind sig_kinds[] = {rtt_value_kind, kI32, parent_value_kind};
+    ValueKindSig sig(1, 2, sig_kinds);
     LiftoffAssembler::VarState parent_var =
         __ cache_state()->stack_state.end()[-1];
     LiftoffRegister type_reg = __ GetUnusedRegister(kGpReg, {});
@@ -4599,7 +4599,7 @@ class LiftoffCompiler {
     DefineSafepoint();
     // Drop the parent RTT.
     __ cache_state()->stack_state.pop_back(1);
-    __ PushRegister(rtt_value_type, LiftoffRegister(kReturnRegister0));
+    __ PushRegister(rtt_value_kind, LiftoffRegister(kReturnRegister0));
   }
 
   enum NullSucceeds : bool {  // --
@@ -4682,8 +4682,8 @@ class LiftoffCompiler {
       compiler::CallDescriptor* call_descriptor =
           GetBuiltinCallDescriptor<WasmSubtypeCheckDescriptor>(
               compilation_zone_);
-      ValueKind sig_reps[] = {kI32, kOptRef, rtt.type.kind()};
-      ValueKindSig sig(1, 2, sig_reps);
+      ValueKind sig_kinds[] = {kI32, kOptRef, rtt.type.kind()};
+      ValueKindSig sig(1, 2, sig_kinds);
       LiftoffAssembler::VarState rtt_state(kPointerValueType, rtt_reg, 0);
       LiftoffAssembler::VarState tmp1_state(kPointerValueType, tmp1, 0);
       __ PrepareBuiltinCall(&sig, call_descriptor, {tmp1_state, rtt_state});
@@ -5295,8 +5295,8 @@ class LiftoffCompiler {
       compiler::CallDescriptor* builtin_call_descriptor =
           GetBuiltinCallDescriptor<WasmAllocatePairDescriptor>(
               compilation_zone_);
-      ValueKind sig_reps[] = {kOptRef, kOptRef, kOptRef};
-      ValueKindSig builtin_sig(1, 2, sig_reps);
+      ValueKind sig_kinds[] = {kOptRef, kOptRef, kOptRef};
+      ValueKindSig builtin_sig(1, 2, sig_kinds);
       LiftoffRegister current_instance = instance;
       __ FillInstanceInto(current_instance.gp());
       LiftoffAssembler::VarState instance_var(kOptRef, current_instance, 0);
@@ -5384,7 +5384,7 @@ class LiftoffCompiler {
   void LoadObjectField(LiftoffRegister dst, Register src, Register offset_reg,
                        int offset, ValueKind kind, bool is_signed,
                        LiftoffRegList pinned) {
-    if (is_reference_type(kind)) {
+    if (is_reference(kind)) {
       __ LoadTaggedPointer(dst.gp(), src, offset_reg, offset, pinned);
     } else {
       // Primitive kind.
@@ -5396,7 +5396,7 @@ class LiftoffCompiler {
   void StoreObjectField(Register obj, Register offset_reg, int offset,
                         LiftoffRegister value, LiftoffRegList pinned,
                         ValueKind kind) {
-    if (is_reference_type(kind)) {
+    if (is_reference(kind)) {
       __ StoreTaggedPointer(obj, offset_reg, offset, value, pinned);
     } else {
       // Primitive kind.

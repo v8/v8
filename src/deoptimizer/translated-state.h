@@ -251,9 +251,9 @@ class TranslatedFrame {
   const_reference front() const { return values_.front(); }
 
   // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueKind> wasm_call_return_type() const {
+  base::Optional<wasm::ValueKind> wasm_call_return_kind() const {
     DCHECK_EQ(kind(), kJSToWasmBuiltinContinuation);
-    return return_type_;
+    return return_kind_;
   }
 
  private:
@@ -315,7 +315,7 @@ class TranslatedFrame {
   ValuesContainer values_;
 
   // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueKind> return_type_;
+  base::Optional<wasm::ValueKind> return_kind_;
 };
 
 // Auxiliary class for translating deoptimization values.
@@ -442,8 +442,8 @@ class TranslatedState {
   FeedbackSlot feedback_slot_;
 };
 
-// Return type encoding for a Wasm function returning void.
-const int kNoWasmReturnType = -1;
+// Return kind encoding for a Wasm function returning void.
+const int kNoWasmReturnKind = -1;
 
 }  // namespace internal
 }  // namespace v8

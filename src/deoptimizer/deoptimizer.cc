@@ -1557,10 +1557,10 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
   UNREACHABLE();
 }
 
-TranslatedValue Deoptimizer::TranslatedValueForWasmReturnType(
-    base::Optional<wasm::ValueKind> wasm_call_return_type) {
-  if (wasm_call_return_type) {
-    switch (wasm_call_return_type.value()) {
+TranslatedValue Deoptimizer::TranslatedValueForWasmReturnKind(
+    base::Optional<wasm::ValueKind> wasm_call_return_kind) {
+  if (wasm_call_return_kind) {
+    switch (wasm_call_return_kind.value()) {
       case wasm::kI32:
         return TranslatedValue::NewInt32(
             &translated_state_,
@@ -1658,8 +1658,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     // This TranslatedValue will be written in the output frame in place of the
     // hole and we'll use ContinueToCodeStubBuiltin in place of
     // ContinueToCodeStubBuiltinWithResult.
-    TranslatedValue result = TranslatedValueForWasmReturnType(
-        translated_frame->wasm_call_return_type());
+    TranslatedValue result = TranslatedValueForWasmReturnKind(
+        translated_frame->wasm_call_return_kind());
     translated_frame->Add(result);
   }
 

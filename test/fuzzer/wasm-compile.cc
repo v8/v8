@@ -293,7 +293,7 @@ class WasmGenerator {
         kExprBr, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
   }
 
-  template <ValueKind wanted_type>
+  template <ValueKind wanted_kind>
   void br_if(DataRange* data) {
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
@@ -305,9 +305,9 @@ class WasmGenerator {
     builder_->EmitWithI32V(
         kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
     ConsumeAndGenerate(break_types,
-                       wanted_type == kStmt
+                       wanted_kind == kStmt
                            ? Vector<ValueType>{}
-                           : VectorOf({ValueType::Primitive(wanted_type)}),
+                           : VectorOf({ValueType::Primitive(wanted_kind)}),
                        data);
   }
 
@@ -424,13 +424,13 @@ class WasmGenerator {
     }
   }
 
-  template <WasmOpcode memory_op, ValueKind... arg_types>
+  template <WasmOpcode memory_op, ValueKind... arg_kinds>
   void memop(DataRange* data) {
     const uint8_t align = data->get<uint8_t>() % (max_alignment(memory_op) + 1);
     const uint32_t offset = data->get<uint32_t>();
 
     // Generate the index and the arguments, if any.
-    Generate<kI32, arg_types...>(data);
+    Generate<kI32, arg_kinds...>(data);
 
     if (WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(memory_op >> 8))) {
       DCHECK(memory_op >> 8 == kAtomicPrefix || memory_op >> 8 == kSimdPrefix);
@@ -496,14 +496,14 @@ class WasmGenerator {
 
   enum CallDirect : bool { kCallDirect = true, kCallIndirect = false };
 
-  template <ValueKind wanted_type>
+  template <ValueKind wanted_kind>
   void call(DataRange* data) {
-    call(data, ValueType::Primitive(wanted_type), kCallDirect);
+    call(data, ValueType::Primitive(wanted_kind), kCallDirect);
   }
 
-  template <ValueKind wanted_type>
+  template <ValueKind wanted_kind>
   void call_indirect(DataRange* data) {
-    call(data, ValueType::Primitive(wanted_type), kCallIndirect);
+    call(data, ValueType::Primitive(wanted_kind), kCallIndirect);
   }
 
   void Convert(ValueType src, ValueType dst) {
@@ -545,7 +545,7 @@ class WasmGenerator {
     }
   }
 
-  void call(DataRange* data, ValueType wanted_type, CallDirect call_direct) {
+  void call(DataRange* data, ValueType wanted_kind, CallDirect call_direct) {
     uint8_t random_byte = data->get<uint8_t>();
     int func_index = random_byte % functions_.size();
     uint32_t sig_index = functions_[func_index];
@@ -579,12 +579,12 @@ class WasmGenerator {
         builder_->EmitByte(0);  // Table index.
       }
     }
-    if (sig->return_count() == 0 && wanted_type != kWasmStmt) {
+    if (sig->return_count() == 0 && wanted_kind != kWasmStmt) {
       // The call did not generate a value. Thus just generate it here.
-      Generate(wanted_type, data);
+      Generate(wanted_kind, data);
       return;
     }
-    if (wanted_type == kWasmStmt) {
+    if (wanted_kind == kWasmStmt) {
       // The call did generate values, but we did not want one.
       for (size_t i = 0; i < sig->return_count(); ++i) {
         builder_->Emit(kExprDrop);
@@ -593,7 +593,7 @@ class WasmGenerator {
     }
     auto return_types = VectorOf(sig->returns().begin(), sig->return_count());
     auto wanted_types =
-        VectorOf(&wanted_type, wanted_type == kWasmStmt ? 0 : 1);
+        VectorOf(&wanted_kind, wanted_kind == kWasmStmt ? 0 : 1);
     ConsumeAndGenerate(return_types, wanted_types, data);
   }
 
@@ -616,34 +616,34 @@ class WasmGenerator {
     return {index, type};
   }
 
-  template <ValueKind wanted_type>
+  template <ValueKind wanted_kind>
   void local_op(DataRange* data, WasmOpcode opcode) {
     Var local = GetRandomLocal(data);
     // If there are no locals and no parameters, just generate any value (if a
     // value is needed), or do nothing.
     if (!local.is_valid()) {
-      if (wanted_type == kStmt) return;
-      return Generate<wanted_type>(data);
+      if (wanted_kind == kStmt) return;
+      return Generate<wanted_kind>(data);
     }
 
     if (opcode != kExprLocalGet) Generate(local.type, data);
     builder_->EmitWithU32V(opcode, local.index);
-    if (wanted_type != kStmt && local.type.kind() != wanted_type) {
-      Convert(local.type, ValueType::Primitive(wanted_type));
+    if (wanted_kind != kStmt && local.type.kind() != wanted_kind) {
+      Convert(local.type, ValueType::Primitive(wanted_kind));
     }
   }
 
-  template <ValueKind wanted_type>
+  template <ValueKind wanted_kind>
   void get_local(DataRange* data) {
-    static_assert(wanted_type != kStmt, "illegal type");
-    local_op<wanted_type>(data, kExprLocalGet);
+    static_assert(wanted_kind != kStmt, "illegal type");
+    local_op<wanted_kind>(data, kExprLocalGet);
   }
 
   void set_local(DataRange* data) { local_op<kStmt>(data, kExprLocalSet); }
 
-  template <ValueKind wanted_type>
+  template <ValueKind wanted_kind>
   void tee_local(DataRange* data) {
-    local_op<wanted_type>(data, kExprLocalTee);
+    local_op<wanted_kind>(data, kExprLocalTee);
   }
 
   template <size_t num_bytes>
@@ -669,39 +669,39 @@ class WasmGenerator {
     return {index, type};
   }
 
-  template <ValueKind wanted_type>
+  template <ValueKind wanted_kind>
   void global_op(DataRange* data) {
-    constexpr bool is_set = wanted_type == kStmt;
+    constexpr bool is_set = wanted_kind == kStmt;
     Var global = GetRandomGlobal(data, is_set);
     // If there are no globals, just generate any value (if a value is needed),
     // or do nothing.
     if (!global.is_valid()) {
-      if (wanted_type == kStmt) return;
-      return Generate<wanted_type>(data);
+      if (wanted_kind == kStmt) return;
+      return Generate<wanted_kind>(data);
     }
 
     if (is_set) Generate(global.type, data);
     builder_->EmitWithU32V(is_set ? kExprGlobalSet : kExprGlobalGet,
                            global.index);
-    if (!is_set && global.type.kind() != wanted_type) {
-      Convert(global.type, ValueType::Primitive(wanted_type));
+    if (!is_set && global.type.kind() != wanted_kind) {
+      Convert(global.type, ValueType::Primitive(wanted_kind));
     }
   }
 
-  template <ValueKind wanted_type>
+  template <ValueKind wanted_kind>
   void get_global(DataRange* data) {
-    static_assert(wanted_type != kStmt, "illegal type");
-    global_op<wanted_type>(data);
+    static_assert(wanted_kind != kStmt, "illegal type");
+    global_op<wanted_kind>(data);
   }
 
-  template <ValueKind select_type>
+  template <ValueKind select_kind>
   void select_with_type(DataRange* data) {
-    static_assert(select_type != kStmt, "illegal type for select");
-    Generate<select_type, select_type, kI32>(data);
+    static_assert(select_kind != kStmt, "illegal kind for select");
+    Generate<select_kind, select_kind, kI32>(data);
     // num_types is always 1.
     uint8_t num_types = 1;
     builder_->EmitWithU8U8(kExprSelectWithType, num_types,
-                           ValueType::Primitive(select_type).value_type_code());
+                           ValueType::Primitive(select_kind).value_type_code());
   }
 
   void set_global(DataRange* data) { global_op<kStmt>(data); }

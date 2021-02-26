@@ -1970,7 +1970,7 @@ void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
 
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmGlobalObject");
-  if (type().is_reference_type()) {
+  if (type().is_reference()) {
     os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   } else {
     os << "\n - untagged_buffer: " << Brief(untagged_buffer());
@@ -1978,7 +1978,7 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - offset: " << offset();
   os << "\n - raw_type: " << raw_type();
   os << "\n - is_mutable: " << is_mutable();
-  os << "\n - type: " << type().kind();
+  os << "\n - type: " << type();
   os << "\n - is_mutable: " << is_mutable();
   os << "\n";
 }

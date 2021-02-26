@@ -1135,7 +1135,7 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
                            parameters_count, locals_count, stack_count,
                            shared_info, outer_state),
-      return_type_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
+      return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 
 std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
   return os << rpo.ToSize();

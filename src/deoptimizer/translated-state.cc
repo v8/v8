@@ -268,9 +268,9 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
 namespace {
 
 // Decodes the return type of a Wasm function as the integer value of
-// wasm::ValueKind, or kNoWasmReturnType if the function returns void.
-base::Optional<wasm::ValueKind> DecodeWasmReturnType(int code) {
-  if (code != kNoWasmReturnType) {
+// wasm::ValueKind, or kNoWasmReturnKind if the function returns void.
+base::Optional<wasm::ValueKind> DecodeWasmReturnKind(int code) {
+  if (code != kNoWasmReturnKind) {
     return {static_cast<wasm::ValueKind>(code)};
   }
   return {};
@@ -658,10 +658,10 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
 
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
-    base::Optional<wasm::ValueKind> return_type) {
+    base::Optional<wasm::ValueKind> return_kind) {
   TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
   frame.bytecode_offset_ = bytecode_offset;
-  frame.return_type_ = return_type;
+  frame.return_kind_ = return_kind;
   return frame;
 }
 
@@ -810,8 +810,8 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
-      base::Optional<wasm::ValueKind> return_type =
-          DecodeWasmReturnType(iterator->Next());
+      base::Optional<wasm::ValueKind> return_kind =
+          DecodeWasmReturnKind(iterator->Next());
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading JS to Wasm builtin continuation frame %s",
@@ -819,10 +819,10 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file,
                " => bailout_id=%d, height=%d return_type=%d; inputs:\n",
                bailout_id.ToInt(), height,
-               return_type.has_value() ? return_type.value() : -1);
+               return_kind.has_value() ? return_kind.value() : -1);
       }
       return TranslatedFrame::JSToWasmBuiltinContinuationFrame(
-          bailout_id, shared_info, height, return_type);
+          bailout_id, shared_info, height, return_kind);
     }
 
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {

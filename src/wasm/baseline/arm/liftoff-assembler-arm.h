@@ -544,7 +544,7 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
-  return kind == kS128 || is_reference_type(kind);
+  return kind == kS128 || is_reference(kind);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -1373,7 +1373,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   DCHECK_NE(dst, src);
-  DCHECK(kind == kI32 || is_reference_type(kind));
+  DCHECK(kind == kI32 || is_reference(kind));
   TurboAssembler::Move(dst, src);
 }
 
@@ -2193,9 +2193,8 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
     DCHECK_EQ(kind, kI32);
     cmp(lhs, Operand(0));
   } else {
-    DCHECK(kind == kI32 ||
-           (is_reference_type(kind) &&
-            (liftoff_cond == kEqual || liftoff_cond == kUnequal)));
+    DCHECK(kind == kI32 || (is_reference(kind) && (liftoff_cond == kEqual ||
+                                                   liftoff_cond == kUnequal)));
     cmp(lhs, rhs);
   }
   b(label, cond);

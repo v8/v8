@@ -93,11 +93,11 @@ class StackTransferRecipe {
 
 #if DEBUG
   bool CheckCompatibleStackSlotTypes(ValueKind dst, ValueKind src) {
-    if (is_object_reference_type(dst)) {
+    if (is_object_reference(dst)) {
       // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
       // edges), we only care that pointer types stay amongst pointer types.
       // It's fine if ref/optref overwrite each other.
-      DCHECK(is_object_reference_type(src));
+      DCHECK(is_object_reference(src));
     } else {
       // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
       DCHECK_EQ(dst, src);
@@ -533,7 +533,7 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
     ZoneVector<int>* slots, LiftoffRegList* spills,
     SpillLocation spill_location) {
   for (const auto& slot : stack_state) {
-    if (!is_reference_type(slot.kind())) continue;
+    if (!is_reference(slot.kind())) continue;
 
     if (spill_location == SpillLocation::kTopOfStack && slot.is_reg()) {
       // Registers get spilled just before the call to the runtime. In {spills}
@@ -552,7 +552,7 @@ void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
   for (const auto& slot : stack_state) {
     DCHECK(!slot.is_reg());
 
-    if (is_reference_type(slot.kind())) {
+    if (is_reference(slot.kind())) {
       safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
     }
   }
@@ -582,8 +582,8 @@ LiftoffAssembler::LiftoffAssembler(std::unique_ptr<AssemblerBuffer> buffer)
 }
 
 LiftoffAssembler::~LiftoffAssembler() {
-  if (num_locals_ > kInlineLocalTypes) {
-    base::Free(more_local_types_);
+  if (num_locals_ > kInlineLocalKinds) {
+    base::Free(more_local_kinds_);
   }
 }
 
@@ -1203,10 +1203,10 @@ void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
 void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
   DCHECK_EQ(0, num_locals_);  // only call this once.
   num_locals_ = num_locals;
-  if (num_locals > kInlineLocalTypes) {
-    more_local_types_ = reinterpret_cast<ValueKind*>(
+  if (num_locals > kInlineLocalKinds) {
+    more_local_kinds_ = reinterpret_cast<ValueKind*>(
         base::Malloc(num_locals * sizeof(ValueKind)));
-    DCHECK_NOT_NULL(more_local_types_);
+    DCHECK_NOT_NULL(more_local_kinds_);
   }
 }
 
