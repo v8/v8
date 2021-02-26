@@ -1160,19 +1160,20 @@ void TurboAssembler::I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
                                                Register scratch) {
   Operand op = ExternalReferenceAsOperand(
       ExternalReference::address_of_wasm_i8x16_splat_0x01(), scratch);
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddubsw(dst, src, op);
+  } else {
+    CpuFeatureScope sse_scope(this, SSSE3);
     movaps(dst, src);
+    pmaddubsw(dst, op);
   }
-  Pmaddubsw(dst, src, op);
 }
 
 void TurboAssembler::I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
                                                Register scratch) {
   Operand op = ExternalReferenceAsOperand(
       ExternalReference::address_of_wasm_i16x8_splat_0x0001(), scratch);
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
-    movaps(dst, src);
-  }
   // pmaddwd multiplies signed words in src and op, producing
   // signed doublewords, then adds pairwise.
   // src = |a|b|c|d|e|f|g|h|

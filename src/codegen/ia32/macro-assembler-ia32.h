@@ -442,7 +442,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Psrlq, psrlq)
   AVX_PACKED_OP3(Psraw, psraw)
   AVX_PACKED_OP3(Psrad, psrad)
-  AVX_PACKED_OP3(Pmaddwd, pmaddwd)
   AVX_PACKED_OP3(Paddd, paddd)
   AVX_PACKED_OP3(Paddq, paddq)
   AVX_PACKED_OP3(Psubd, psubd)
@@ -491,6 +490,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
+  AVX_OP3_WITH_MOVE(Pmaddwd, pmaddwd, XMMRegister, Operand)
 #undef AVX_OP3_WITH_MOVE
 
 // Non-SSE2 instructions.
@@ -564,8 +564,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
   AVX_OP3_XO_SSE4(Pminsb, pminsb)
   AVX_OP3_XO_SSE4(Pmaxsb, pmaxsb)
-  AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, XMMRegister, SSSE3)
-  AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, Operand, SSSE3)
 
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
