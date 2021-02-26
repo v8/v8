@@ -144,7 +144,7 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
-  return (kind == kS128 || is_reference_type(kind));
+  return (kind == kS128 || is_reference(kind));
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
