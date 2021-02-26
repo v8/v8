@@ -229,7 +229,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI8x16MaxU:
     case kMipsI8x16MinS:
     case kMipsI8x16MinU:
-    case kMipsI8x16Mul:
     case kMipsI8x16Ne:
     case kMipsI8x16Neg:
     case kMipsI8x16ReplaceLane:

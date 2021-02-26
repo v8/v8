@@ -3163,12 +3163,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1));
       break;
     }
-    case kMips64I8x16Mul: {
-      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ mulv_b(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
     case kMips64I8x16MaxS: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ max_s_b(i.OutputSimd128Register(), i.InputSimd128Register(0),

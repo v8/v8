@@ -2095,11 +2095,6 @@ void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
   bailout(kSimd, "emit_i8x16_sub_sat_u");
 }
 
-void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
-                                      LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i8x16_mul");
-}
-
 void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {

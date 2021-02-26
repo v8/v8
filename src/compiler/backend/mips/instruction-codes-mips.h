@@ -290,7 +290,6 @@ namespace compiler {
   V(MipsI8x16AddSatS)              \
   V(MipsI8x16Sub)                  \
   V(MipsI8x16SubSatS)              \
-  V(MipsI8x16Mul)                  \
   V(MipsI8x16MaxS)                 \
   V(MipsI8x16MinS)                 \
   V(MipsI8x16Eq)                   \

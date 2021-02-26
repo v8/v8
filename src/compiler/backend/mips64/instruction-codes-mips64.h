@@ -312,7 +312,6 @@ namespace compiler {
   V(Mips64I8x16AddSatS)                      \
   V(Mips64I8x16Sub)                          \
   V(Mips64I8x16SubSatS)                      \
-  V(Mips64I8x16Mul)                          \
   V(Mips64I8x16MaxS)                         \
   V(Mips64I8x16MinS)                         \
   V(Mips64I8x16Eq)                           \

@@ -2073,11 +2073,6 @@ void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
   subs_u_b(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
 }
 
-void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
-                                      LiftoffRegister rhs) {
-  mulv_b(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
-}
-
 void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
