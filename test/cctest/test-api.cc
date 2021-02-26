@@ -26705,6 +26705,7 @@ TEST(AtomicsWaitCallback) {
   AtomicsWaitCallbackCommon(isolate, CompileRun(init), 4, 4);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -26783,6 +26784,7 @@ TEST(WasmI64AtomicWaitCallback) {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST(BigIntAPI) {
   LocalContext env;

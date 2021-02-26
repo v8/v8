@@ -5171,11 +5171,16 @@ group("v8_fuzzers") {
     ":v8_simple_parser_fuzzer",
     ":v8_simple_regexp_builtins_fuzzer",
     ":v8_simple_regexp_fuzzer",
-    ":v8_simple_wasm_async_fuzzer",
-    ":v8_simple_wasm_code_fuzzer",
-    ":v8_simple_wasm_compile_fuzzer",
-    ":v8_simple_wasm_fuzzer",
   ]
+
+  if (v8_enable_webassembly) {
+    data_deps += [
+      ":v8_simple_wasm_async_fuzzer",
+      ":v8_simple_wasm_code_fuzzer",
+      ":v8_simple_wasm_compile_fuzzer",
+      ":v8_simple_wasm_fuzzer",
+    ]
+  }
 }
 
 if (is_component_build) {
@@ -5523,127 +5528,129 @@ v8_source_set("regexp_fuzzer") {
 v8_fuzzer("regexp_fuzzer") {
 }
 
-v8_source_set("wasm_test_common") {
-  sources = [
-    "test/common/wasm/wasm-interpreter.cc",
-    "test/common/wasm/wasm-interpreter.h",
-    "test/common/wasm/wasm-module-runner.cc",
-    "test/common/wasm/wasm-module-runner.h",
-  ]
+if (v8_enable_webassembly) {
+  v8_source_set("wasm_test_common") {
+    sources = [
+      "test/common/wasm/wasm-interpreter.cc",
+      "test/common/wasm/wasm-interpreter.h",
+      "test/common/wasm/wasm-module-runner.cc",
+      "test/common/wasm/wasm-module-runner.h",
+    ]
 
-  deps = [
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
-    ":v8_libbase",
-    ":v8_shared_internal_headers",
-    ":v8_tracing",
-  ]
+    deps = [
+      ":generate_bytecode_builtins_list",
+      ":run_torque",
+      ":v8_libbase",
+      ":v8_shared_internal_headers",
+      ":v8_tracing",
+    ]
 
-  public_deps = [ ":v8_maybe_icu" ]
+    public_deps = [ ":v8_maybe_icu" ]
 
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
 
-v8_source_set("wasm_fuzzer") {
-  sources = [ "test/fuzzer/wasm.cc" ]
+  v8_source_set("wasm_fuzzer") {
+    sources = [ "test/fuzzer/wasm.cc" ]
 
-  deps = [
-    ":fuzzer_support",
-    ":lib_wasm_fuzzer_common",
-    ":wasm_test_common",
-  ]
+    deps = [
+      ":fuzzer_support",
+      ":lib_wasm_fuzzer_common",
+      ":wasm_test_common",
+    ]
 
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
 
-v8_fuzzer("wasm_fuzzer") {
-}
+  v8_fuzzer("wasm_fuzzer") {
+  }
 
-v8_source_set("wasm_async_fuzzer") {
-  sources = [ "test/fuzzer/wasm-async.cc" ]
+  v8_source_set("wasm_async_fuzzer") {
+    sources = [ "test/fuzzer/wasm-async.cc" ]
 
-  deps = [
-    ":fuzzer_support",
-    ":lib_wasm_fuzzer_common",
-    ":wasm_test_common",
-  ]
+    deps = [
+      ":fuzzer_support",
+      ":lib_wasm_fuzzer_common",
+      ":wasm_test_common",
+    ]
 
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
 
-v8_fuzzer("wasm_async_fuzzer") {
-}
+  v8_fuzzer("wasm_async_fuzzer") {
+  }
 
-v8_source_set("wasm_code_fuzzer") {
-  sources = [
-    "test/common/wasm/test-signatures.h",
-    "test/fuzzer/wasm-code.cc",
-  ]
+  v8_source_set("wasm_code_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-code.cc",
+    ]
 
-  deps = [
-    ":fuzzer_support",
-    ":lib_wasm_fuzzer_common",
-    ":wasm_test_common",
-  ]
+    deps = [
+      ":fuzzer_support",
+      ":lib_wasm_fuzzer_common",
+      ":wasm_test_common",
+    ]
 
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
 
-v8_fuzzer("wasm_code_fuzzer") {
-}
+  v8_fuzzer("wasm_code_fuzzer") {
+  }
 
-v8_source_set("lib_wasm_fuzzer_common") {
-  sources = [
-    "test/fuzzer/wasm-fuzzer-common.cc",
-    "test/fuzzer/wasm-fuzzer-common.h",
-  ]
+  v8_source_set("lib_wasm_fuzzer_common") {
+    sources = [
+      "test/fuzzer/wasm-fuzzer-common.cc",
+      "test/fuzzer/wasm-fuzzer-common.h",
+    ]
 
-  deps = [
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
-    ":v8_tracing",
-    ":wasm_test_common",
-  ]
+    deps = [
+      ":generate_bytecode_builtins_list",
+      ":run_torque",
+      ":v8_tracing",
+      ":wasm_test_common",
+    ]
 
-  public_deps = [ ":v8_maybe_icu" ]
+    public_deps = [ ":v8_maybe_icu" ]
 
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
 
-v8_source_set("wasm_compile_fuzzer") {
-  sources = [
-    "test/common/wasm/test-signatures.h",
-    "test/fuzzer/wasm-compile.cc",
-  ]
+  v8_source_set("wasm_compile_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-compile.cc",
+    ]
 
-  deps = [
-    ":fuzzer_support",
-    ":lib_wasm_fuzzer_common",
-    ":wasm_test_common",
-  ]
+    deps = [
+      ":fuzzer_support",
+      ":lib_wasm_fuzzer_common",
+      ":wasm_test_common",
+    ]
 
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
 
-v8_fuzzer("wasm_compile_fuzzer") {
+  v8_fuzzer("wasm_compile_fuzzer") {
+  }
 }
 
 v8_source_set("inspector_fuzzer") {

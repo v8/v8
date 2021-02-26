@@ -193,7 +193,6 @@ v8_source_set("unittests_sources") {
 
   sources = [
     "../../test/common/assembler-tester.h",
-    "../../test/common/wasm/wasm-macro-gen.h",
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
     "api/access-check-unittest.cc",
@@ -382,21 +381,6 @@ v8_source_set("unittests_sources") {
     "utils/locked-queue-unittest.cc",
     "utils/utils-unittest.cc",
     "utils/vector-unittest.cc",
-    "wasm/control-transfer-unittest.cc",
-    "wasm/decoder-unittest.cc",
-    "wasm/function-body-decoder-unittest.cc",
-    "wasm/leb-helper-unittest.cc",
-    "wasm/loop-assignment-analysis-unittest.cc",
-    "wasm/module-decoder-memory64-unittest.cc",
-    "wasm/module-decoder-unittest.cc",
-    "wasm/simd-shuffle-unittest.cc",
-    "wasm/streaming-decoder-unittest.cc",
-    "wasm/subtyping-unittest.cc",
-    "wasm/wasm-code-manager-unittest.cc",
-    "wasm/wasm-compiler-unittest.cc",
-    "wasm/wasm-macro-gen-unittest.cc",
-    "wasm/wasm-module-builder-unittest.cc",
-    "wasm/wasm-module-sourcemap-unittest.cc",
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
@@ -404,8 +388,24 @@ v8_source_set("unittests_sources") {
 
   if (v8_enable_webassembly) {
     sources += [
+      "../../test/common/wasm/wasm-macro-gen.h",
       "asmjs/asm-scanner-unittest.cc",
       "asmjs/asm-types-unittest.cc",
+      "wasm/control-transfer-unittest.cc",
+      "wasm/decoder-unittest.cc",
+      "wasm/function-body-decoder-unittest.cc",
+      "wasm/leb-helper-unittest.cc",
+      "wasm/loop-assignment-analysis-unittest.cc",
+      "wasm/module-decoder-memory64-unittest.cc",
+      "wasm/module-decoder-unittest.cc",
+      "wasm/simd-shuffle-unittest.cc",
+      "wasm/streaming-decoder-unittest.cc",
+      "wasm/subtyping-unittest.cc",
+      "wasm/wasm-code-manager-unittest.cc",
+      "wasm/wasm-compiler-unittest.cc",
+      "wasm/wasm-macro-gen-unittest.cc",
+      "wasm/wasm-module-builder-unittest.cc",
+      "wasm/wasm-module-sourcemap-unittest.cc",
     ]
   }
 
@@ -451,8 +451,10 @@ v8_source_set("unittests_sources") {
     sources += [
       "assembler/turbo-assembler-x64-unittest.cc",
       "compiler/x64/instruction-selector-x64-unittest.cc",
-      "wasm/trap-handler-x64-unittest.cc",
     ]
+    if (v8_enable_webassembly) {
+      sources += [ "wasm/trap-handler-x64-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [
       "assembler/turbo-assembler-ppc-unittest.cc",
@@ -465,11 +467,11 @@ v8_source_set("unittests_sources") {
     ]
   }
 
-  if (is_posix) {
+  if (is_posix && v8_enable_webassembly) {
     sources += [ "wasm/trap-handler-posix-unittest.cc" ]
   }
 
-  if (is_win) {
+  if (is_win && v8_enable_webassembly) {
     sources += [ "wasm/trap-handler-win-unittest.cc" ]
   }
 
@@ -485,12 +487,15 @@ v8_source_set("unittests_sources") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:v8_shared_internal_headers",
-    "../..:wasm_test_common",
     "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (v8_enable_webassembly) {
+    deps += [ "../..:wasm_test_common" ]
+  }
 
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in
