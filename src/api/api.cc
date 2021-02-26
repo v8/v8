@@ -1095,7 +1095,9 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   auto value_obj = Utils::OpenHandle(*value);
-  CHECK(!value_obj->IsJSReceiver() || value_obj->IsTemplateInfo());
+  Utils::ApiCheck(!value_obj->IsJSReceiver() || value_obj->IsTemplateInfo(),
+                  "v8::Template::Set",
+                  "Invalid value, must be a primitive or a Template");
   if (value_obj->IsObjectTemplateInfo()) {
     templ->set_serial_number(0);
     if (templ->IsFunctionTemplateInfo()) {
@@ -1163,8 +1165,12 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::FunctionTemplateInfo> result =
       Utils::OpenHandle(*prototype_provider);
-  CHECK(self->GetPrototypeTemplate().IsUndefined(i_isolate));
-  CHECK(self->GetParentTemplate().IsUndefined(i_isolate));
+  Utils::ApiCheck(self->GetPrototypeTemplate().IsUndefined(i_isolate),
+                  "v8::FunctionTemplate::SetPrototypeProviderTemplate",
+                  "Protoype must be undefiend");
+  Utils::ApiCheck(self->GetParentTemplate().IsUndefined(i_isolate),
+                  "v8::FunctionTemplate::SetPrototypeProviderTemplate",
+                  "Prototype provider must be empty");
   i::FunctionTemplateInfo::SetPrototypeProviderTemplate(i_isolate, self,
                                                         result);
 }
@@ -1180,7 +1186,9 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
   EnsureNotInstantiated(info, "v8::FunctionTemplate::Inherit");
   i::Isolate* i_isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  CHECK(info->GetPrototypeProviderTemplate().IsUndefined(i_isolate));
+  Utils::ApiCheck(info->GetPrototypeProviderTemplate().IsUndefined(i_isolate),
+                  "v8::FunctionTemplate::Inherit",
+                  "Protoype provider must be empty");
   i::FunctionTemplateInfo::SetParentTemplate(i_isolate, info,
                                              Utils::OpenHandle(*value));
 }
@@ -2050,23 +2058,26 @@ int Module::GetModuleRequestsLength() const {
 }
 
 Local<String> Module::GetModuleRequest(int i) const {
-  CHECK_GE(i, 0);
+  Utils::ApiCheck(i >= 0, "v8::Module::GetModuleRequest",
+                  "index must be positive");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  Utils::ApiCheck(self->IsSourceTextModule(), "Module::GetModuleRequest",
+  Utils::ApiCheck(self->IsSourceTextModule(), "v8::Module::GetModuleRequest",
                   "Expected SourceTextModule");
   i::Isolate* isolate = self->GetIsolate();
   ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::FixedArray> module_requests(
       i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
       isolate);
-  CHECK_LT(i, module_requests->length());
+  Utils::ApiCheck(i < module_requests->length(), "v8::Module::GetModuleRequest",
+                  "index is out of bounds");
   i::Handle<i::ModuleRequest> module_request(
       i::ModuleRequest::cast(module_requests->get(i)), isolate);
   return ToApiHandle<String>(i::handle(module_request->specifier(), isolate));
 }
 
 Location Module::GetModuleRequestLocation(int i) const {
-  CHECK_GE(i, 0);
+  Utils::ApiCheck(i >= 0, "v8::Module::GetModuleRequest",
+                  "index must be positive");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
   ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
@@ -2077,7 +2088,8 @@ Location Module::GetModuleRequestLocation(int i) const {
   i::Handle<i::FixedArray> module_requests(
       i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
       isolate);
-  CHECK_LT(i, module_requests->length());
+  Utils::ApiCheck(i < module_requests->length(), "v8::Module::GetModuleRequest",
+                  "index is out of bounds");
   i::Handle<i::ModuleRequest> module_request(
       i::ModuleRequest::cast(module_requests->get(i)), isolate);
   int position = module_request->position();
@@ -2205,8 +2217,8 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
 
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  // It's an API error to call Evaluate before Instantiate.
-  CHECK_GE(self->status(), i::Module::kInstantiated);
+  Utils::ApiCheck(self->status() >= i::Module::kInstantiated,
+                  "Module::Evaluate", "Expected instantiated module");
 
   Local<Value> result;
   has_pending_exception = !ToLocal(i::Module::Evaluate(isolate, self), &result);
@@ -2360,8 +2372,9 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
 MaybeLocal<Module> ScriptCompiler::CompileModule(
     Isolate* isolate, Source* source, CompileOptions options,
     NoCacheReason no_cache_reason) {
-  CHECK(options == kNoCompileOptions || options == kConsumeCodeCache);
-
+  Utils::ApiCheck(options == kNoCompileOptions || options == kConsumeCodeCache,
+                  "v8::ScriptCompiler::CompileModule",
+                  "Invalid CompileOptions");
   Utils::ApiCheck(source->GetResourceOptions().IsModule(),
                   "v8::ScriptCompiler::CompileModule",
                   "Invalid ScriptOrigin: is_module must be true");
@@ -2592,7 +2605,9 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
   i::Handle<i::SharedFunctionInfo> shared(js_function->shared(),
                                           js_function->GetIsolate());
   ASSERT_NO_SCRIPT_NO_EXCEPTION(shared->GetIsolate());
-  CHECK(shared->is_wrapped());
+  Utils::ApiCheck(shared->is_wrapped(),
+                  "v8::ScriptCompiler::CreateCodeCacheForFunction",
+                  "Expected SharedFunctionInfo with wrapped source code.");
   return i::CodeSerializer::Serialize(shared);
 }
 
@@ -3700,7 +3715,8 @@ std::unique_ptr<v8::BackingStore> v8::BackingStore::Reallocate(
     size_t byte_length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, ArrayBuffer, BackingStore_Reallocate);
-  CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
+  Utils::ApiCheck(byte_length <= i::JSArrayBuffer::kMaxByteLength,
+                  "v8::BackingStore::Reallocate", "byte_lenght is too large");
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::BackingStore* i_backing_store =
       reinterpret_cast<i::BackingStore*>(backing_store.get());
@@ -4705,8 +4721,7 @@ Local<v8::Object> v8::Object::Clone() {
   auto self = i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
   auto isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  auto result = isolate->factory()->CopyJSObject(self);
-  CHECK(!result.is_null());
+  i::Handle<i::JSObject> result = isolate->factory()->CopyJSObject(self);
   return Utils::ToLocal(result);
 }
 
@@ -6065,7 +6080,8 @@ v8::Isolate* Context::GetIsolate() {
 
 v8::MicrotaskQueue* Context::GetMicrotaskQueue() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  CHECK(env->IsNativeContext());
+  Utils::ApiCheck(env->IsNativeContext(), "v8::Context::GetMicrotaskQueue",
+                  "Must be calld on a native context");
   return i::Handle<i::NativeContext>::cast(env)->microtask_queue();
 }
 
@@ -6796,8 +6812,12 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
 MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
     Local<Context> context, Local<String> pattern, Flags flags,
     uint32_t backtrack_limit) {
-  CHECK(i::Smi::IsValid(backtrack_limit));
-  CHECK_NE(backtrack_limit, i::JSRegExp::kNoBacktrackLimit);
+  Utils::ApiCheck(i::Smi::IsValid(backtrack_limit),
+                  "v8::RegExp::NewWithBacktrackLimit",
+                  "backtrack_limit is too large or too small.");
+  Utils::ApiCheck(backtrack_limit != i::JSRegExp::kNoBacktrackLimit,
+                  "v8::RegExp::NewWithBacktrackLimit",
+                  "Must set backtrack_limit");
   PREPARE_FOR_EXECUTION(context, RegExp, New, RegExp);
   Local<v8::RegExp> result;
   has_pending_exception = !ToLocal<RegExp>(
@@ -8297,7 +8317,9 @@ bool Isolate::HasPendingBackgroundTasks() {
 }
 
 void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
-  CHECK(i::FLAG_expose_gc);
+  Utils::ApiCheck(i::FLAG_expose_gc,
+                  "v8::Isolate::RequestGarbageCollectionForTesting",
+                  "Must use --expose-gc");
   if (type == kMinorGarbageCollection) {
     reinterpret_cast<i::Isolate*>(this)->heap()->CollectGarbage(
         i::NEW_SPACE, i::GarbageCollectionReason::kTesting,
@@ -9920,7 +9942,9 @@ void EmbedderHeapTracer::FinalizeTracing() {
 void EmbedderHeapTracer::GarbageCollectionForTesting(
     EmbedderStackState stack_state) {
   CHECK(isolate_);
-  CHECK(i::FLAG_expose_gc);
+  Utils::ApiCheck(i::FLAG_expose_gc,
+                  "v8::EmbedderHeapTracer::GarbageCollectionForTesting",
+                  "Must use --expose-gc");
   i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
   heap->SetEmbedderStackStateForNextFinalization(stack_state);
   heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
