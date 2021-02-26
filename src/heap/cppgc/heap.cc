@@ -116,10 +116,10 @@ void Heap::CollectGarbage(Config config) {
   config_ = config;
 
   if (!IsMarking()) {
-    StartStandAloneGarbageCollection(config);
+    StartGarbageCollection(config);
   }
   DCHECK(IsMarking());
-  FinalizeStandAloneGarbageCollection(config);
+  FinalizeGarbageCollection(config.stack_state);
 }
 
 void Heap::StartIncrementalGarbageCollection(Config config) {
@@ -131,7 +131,7 @@ void Heap::StartIncrementalGarbageCollection(Config config) {
 
   config_ = config;
 
-  StartStandAloneGarbageCollection(config);
+  StartGarbageCollection(config);
 }
 
 void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
@@ -144,7 +144,60 @@ void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
 
   DCHECK_NE(Config::MarkingType::kAtomic, config_.marking_type);
   config_ = config;
-  FinalizeStandAloneGarbageCollection(config_);
+  FinalizeGarbageCollection(config.stack_state);
+}
+
+void Heap::StartGarbageCollection(Config config) {
+  DCHECK(!IsMarking());
+  DCHECK(!in_no_gc_scope());
+
+  // Finish sweeping in case it is still running.
+  sweeper_.FinishIfRunning();
+
+  epoch_++;
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  if (config.collection_type == Config::CollectionType::kMajor)
+    Unmarker unmarker(&raw_heap());
+#endif
+
+  const Marker::MarkingConfig marking_config{
+      config.collection_type, config.stack_state, config.marking_type,
+      config.is_forced_gc};
+  marker_ = MarkerFactory::CreateAndStartMarking<Marker>(
+      AsBase(), platform_.get(), marking_config);
+}
+
+void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
+  DCHECK(IsMarking());
+  DCHECK(!in_no_gc_scope());
+  CHECK(!in_disallow_gc_scope());
+  config_.stack_state = stack_state;
+  if (override_stack_state_) {
+    config_.stack_state = *override_stack_state_;
+  }
+  in_atomic_pause_ = true;
+  {
+    // This guards atomic pause marking, meaning that no internal method or
+    // external callbacks are allowed to allocate new objects.
+    cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
+    marker_->FinishMarking(config_.stack_state);
+  }
+  marker_.reset();
+  ExecutePreFinalizers();
+  // TODO(chromium:1056170): replace build flag with dedicated flag.
+#if DEBUG
+  MarkingVerifier verifier(*this);
+  verifier.Run(config_.stack_state);
+#endif
+
+  subtle::NoGarbageCollectionScope no_gc(*this);
+  const Sweeper::SweepingConfig sweeping_config{
+      config_.sweeping_type,
+      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+  sweeper_.Start(sweeping_config);
+  in_atomic_pause_ = false;
+  sweeper_.NotifyDoneIfNeeded();
 }
 
 void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
@@ -153,10 +206,8 @@ void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
     Config::StackState stack_state) {
   StatsCollector::EnabledScope stats_scope(
       stats_collector(), StatsCollector::kMarkIncrementalFinalize);
-  FinalizeStandAloneGarbageCollection(config_);
+  FinalizeGarbageCollection(stack_state);
 }
-
-size_t Heap::epoch() const { return HeapBase::epoch(); }
 
 }  // namespace internal
 }  // namespace cppgc

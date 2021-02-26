@@ -64,6 +64,15 @@ cppgc::HeapStatistics CppHeap::CollectStatistics(
       detail_level);
 }
 
+void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
+  return internal::CppHeap::From(this)
+      ->EnableDetachedGarbageCollectionsForTesting();
+}
+
+void CppHeap::CollectGarbageForTesting(cppgc::EmbedderStackState stack_state) {
+  return internal::CppHeap::From(this)->CollectGarbageForTesting(stack_state);
+}
+
 void JSHeapConsistency::DijkstraMarkingBarrierSlow(
     cppgc::HeapHandle& heap_handle, const TracedReferenceBase& ref) {
   auto& heap_base = cppgc::internal::HeapBase::From(heap_handle);
@@ -144,7 +153,7 @@ UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
 
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
-  UnifiedHeapMarker(Key, Heap& v8_heap, cppgc::internal::HeapBase& cpp_heap,
+  UnifiedHeapMarker(Key, Heap* v8_heap, cppgc::internal::HeapBase& cpp_heap,
                     cppgc::Platform* platform, MarkingConfig config);
 
   ~UnifiedHeapMarker() final = default;
@@ -166,7 +175,7 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   cppgc::internal::ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
-UnifiedHeapMarker::UnifiedHeapMarker(Key key, Heap& v8_heap,
+UnifiedHeapMarker::UnifiedHeapMarker(Key key, Heap* v8_heap,
                                      cppgc::internal::HeapBase& heap,
                                      cppgc::Platform* platform,
                                      MarkingConfig config)
@@ -221,6 +230,7 @@ void CppHeap::Terminate() {
 }
 
 void CppHeap::AttachIsolate(Isolate* isolate) {
+  CHECK(!in_detached_testing_mode);
   CHECK_NULL(isolate_);
   isolate_ = isolate;
   static_cast<CppgcPlatformAdapter*>(platform())
@@ -287,7 +297,8 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   }
   marker_ =
       cppgc::internal::MarkerFactory::CreateAndStartMarking<UnifiedHeapMarker>(
-          *isolate_->heap(), AsBase(), platform_.get(), marking_config);
+          isolate_ ? isolate_->heap() : nullptr, AsBase(), platform_.get(),
+          marking_config);
   marking_done_ = false;
 }
 
@@ -388,6 +399,33 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
     IncreaseAllocatedSize(static_cast<size_t>(buffered_allocated_bytes_));
   }
   buffered_allocated_bytes_ = 0;
+}
+
+void CppHeap::CollectGarbageForTesting(
+    cppgc::internal::GarbageCollector::Config::StackState stack_state) {
+  if (in_no_gc_scope()) return;
+
+  // Finish sweeping in case it is still running.
+  sweeper().FinishIfRunning();
+
+  if (isolate_) {
+    // Go through EmbedderHeapTracer API and perform a unified heap collection.
+    GarbageCollectionForTesting(stack_state);
+  } else {
+    // Perform an atomic GC, with starting incremental/concurrent marking and
+    // immediately finalizing the garbage collection.
+    TracePrologue(TraceFlags::kForced);
+    EnterFinalPause(stack_state);
+    AdvanceTracing(std::numeric_limits<double>::infinity());
+    TraceEpilogue(nullptr);
+  }
+}
+
+void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
+  CHECK(!in_detached_testing_mode);
+  CHECK_NULL(isolate_);
+  no_gc_scope_--;
+  in_detached_testing_mode = true;
 }
 
 }  // namespace internal

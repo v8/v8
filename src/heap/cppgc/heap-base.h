@@ -163,8 +163,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   HeapStatistics CollectStatistics(HeapStatistics::DetailLevel);
 
-  size_t epoch() const { return epoch_; }
-
   EmbedderStackState stack_state_of_prev_gc() const {
     return stack_state_of_prev_gc_;
   }
@@ -173,10 +171,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   }
 
  protected:
-  // Starts and finalizes stand-alone garbage collections.
-  void StartStandAloneGarbageCollection(GarbageCollector::Config);
-  void FinalizeStandAloneGarbageCollection(GarbageCollector::Config);
-
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
@@ -223,12 +217,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   std::unique_ptr<EmbedderStackState> override_stack_state_;
 
   bool in_atomic_pause_ = false;
-
-  size_t epoch_ = 0;
-
- private:
-  void StandAloneGarbageCollectionForTesting(
-      GarbageCollector::Config::StackState);
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;
