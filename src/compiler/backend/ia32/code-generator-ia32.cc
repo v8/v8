@@ -2235,7 +2235,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I64x2Eq: {
       __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+                 i.InputOperand(1));
       break;
     }
     case kIA32I64x2Ne: {
