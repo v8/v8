@@ -58,6 +58,8 @@ Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
 Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
                       const Matcher<Node*>& control1_matcher,
                       const Matcher<Node*>& control2_matcher);
+Matcher<Node*> IsLoopExitValue(const Matcher<MachineRepresentation> rep_matcher,
+                               const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfSuccess(const Matcher<Node*>& control_matcher);

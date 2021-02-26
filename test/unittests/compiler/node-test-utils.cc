@@ -102,6 +102,36 @@ class IsBranchMatcher final : public TestNodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
+class IsLoopExitValueMatcher final : public TestNodeMatcher {
+ public:
+  IsLoopExitValueMatcher(const Matcher<MachineRepresentation>& rep_matcher,
+                         const Matcher<Node*>& value_matcher)
+      : TestNodeMatcher(IrOpcode::kLoopExitValue),
+        rep_matcher_(rep_matcher),
+        value_matcher_(value_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    TestNodeMatcher::DescribeTo(os);
+    *os << ") whose rep (";
+    rep_matcher_.DescribeTo(os);
+    *os << " and value (";
+    value_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (TestNodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(LoopExitValueRepresentationOf(node->op()),
+                                 "representation", rep_matcher_, listener)) &&
+           PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "value",
+                                value_matcher_, listener);
+  }
+
+ private:
+  const Matcher<MachineRepresentation> rep_matcher_;
+  const Matcher<Node*> value_matcher_;
+};
+
 class IsSwitchMatcher final : public TestNodeMatcher {
  public:
   IsSwitchMatcher(const Matcher<Node*>& value_matcher,
@@ -1556,6 +1586,10 @@ Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
                                            control1_matcher, control2_matcher));
 }
 
+Matcher<Node*> IsLoopExitValue(const Matcher<MachineRepresentation> rep_matcher,
+                               const Matcher<Node*>& value_matcher) {
+  return MakeMatcher(new IsLoopExitValueMatcher(rep_matcher, value_matcher));
+}
 
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsControl1Matcher(IrOpcode::kIfTrue, control_matcher));

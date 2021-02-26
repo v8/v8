@@ -174,13 +174,8 @@ void Int64Lowering::LowerNode(Node* node) {
     }
     case IrOpcode::kLoad:
     case IrOpcode::kUnalignedLoad: {
-      MachineRepresentation rep;
-      if (node->opcode() == IrOpcode::kLoad) {
-        rep = LoadRepresentationOf(node->op()).representation();
-      } else {
-        DCHECK_EQ(IrOpcode::kUnalignedLoad, node->opcode());
-        rep = LoadRepresentationOf(node->op()).representation();
-      }
+      MachineRepresentation rep =
+          LoadRepresentationOf(node->op()).representation();
 
       if (rep == MachineRepresentation::kWord64) {
         LowerMemoryBaseAndIndex(node);
@@ -856,6 +851,21 @@ void Int64Lowering::LowerNode(Node* node) {
           low_node->ReplaceInput(i, GetReplacementLow(node->InputAt(i)));
           high_node->ReplaceInput(i, GetReplacementHigh(node->InputAt(i)));
         }
+      } else {
+        DefaultLowering(node);
+      }
+      break;
+    }
+    case IrOpcode::kLoopExitValue: {
+      MachineRepresentation rep = LoopExitValueRepresentationOf(node->op());
+      if (rep == MachineRepresentation::kWord64) {
+        Node* low_node = graph()->NewNode(
+            common()->LoopExitValue(MachineRepresentation::kWord32),
+            GetReplacementLow(node->InputAt(0)), node->InputAt(1));
+        Node* high_node = graph()->NewNode(
+            common()->LoopExitValue(MachineRepresentation::kWord32),
+            GetReplacementHigh(node->InputAt(0)), node->InputAt(1));
+        ReplaceNode(node, low_node, high_node);
       } else {
         DefaultLowering(node);
       }

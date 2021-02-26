@@ -988,6 +988,22 @@ TEST_F(Int64LoweringTest, LoopCycle) {
   LowerGraph(load, MachineRepresentation::kWord64);
 }
 
+TEST_F(Int64LoweringTest, LoopExitValue) {
+  Node* loop_header = graph()->NewNode(common()->Loop(1), graph()->start());
+  Node* loop_exit =
+      graph()->NewNode(common()->LoopExit(), loop_header, loop_header);
+  Node* exit =
+      graph()->NewNode(common()->LoopExitValue(MachineRepresentation::kWord64),
+                       Int64Constant(value(2)), loop_exit);
+  LowerGraph(exit, MachineRepresentation::kWord64);
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsLoopExitValue(MachineRepresentation::kWord32,
+                                        IsInt32Constant(low_word_value(2))),
+                        IsLoopExitValue(MachineRepresentation::kWord32,
+                                        IsInt32Constant(high_word_value(2))),
+                        start(), start()));
+}
+
 TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
   Node* target = Int32Constant(1);
   Node* context = Int32Constant(2);
