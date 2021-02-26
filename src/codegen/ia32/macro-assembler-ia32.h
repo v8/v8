@@ -301,7 +301,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
   void Psraw(XMMRegister dst, uint8_t shift);
-  void Psrlw(XMMRegister dst, uint8_t shift);
   void Psrlq(XMMRegister dst, uint8_t shift);
 
 // SSE/SSE2 instructions with AVX version.

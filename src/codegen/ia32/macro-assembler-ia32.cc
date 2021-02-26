@@ -2163,15 +2163,6 @@ void TurboAssembler::Psraw(XMMRegister dst, uint8_t shift) {
   }
 }
 
-void TurboAssembler::Psrlw(XMMRegister dst, uint8_t shift) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsrlw(dst, dst, shift);
-  } else {
-    psrlw(dst, shift);
-  }
-}
-
 void TurboAssembler::Psrlq(XMMRegister dst, uint8_t shift) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
