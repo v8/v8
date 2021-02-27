@@ -1223,8 +1223,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ Assert(eq, AbortReason::kExpectedFeedbackVector);
   }
 
-  __ RecordComment("[ Check optimization state");
-
   // Check for an optimization marker.
   Label has_optimized_code_or_marker;
   Register optimization_state = temps.AcquireW();
@@ -1582,19 +1580,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Check for an optimization marker.
     LoadOptimizationStateAndJumpIfNeedsProcessing(
         masm, optimization_state, feedback_vector,
-        &has_optimized_code_or_marker);
-
-    // Read off the optimization state in the feedback vector.
-    // TODO(v8:11429): Is this worth doing here? Baseline code will check it
-    // anyway...
-    __ Ldr(optimization_state,
-           FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-
-    // Check if there is optimized code or a optimization marker that needes to
-    // be processed.
-    __ TestAndBranchIfAnySet(
-        optimization_state,
-        FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask,
         &has_optimized_code_or_marker);
 
     // Load the baseline code into the closure.
