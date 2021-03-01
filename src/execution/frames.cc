@@ -2247,6 +2247,13 @@ UnoptimizedFrameInfo::UnoptimizedFrameInfo(int parameters_count_with_receiver,
   frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_ + fixed_frame_size;
 }
 
+// static
+uint32_t UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
+    int parameters_count) {
+  return (parameters_count + ArgumentPaddingSlots(parameters_count)) *
+         kSystemPointerSize;
+}
+
 ConstructStubFrameInfo::ConstructStubFrameInfo(int translation_height,
                                                bool is_topmost,
                                                FrameInfoKind frame_info_kind) {

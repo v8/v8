@@ -1354,6 +1354,8 @@ class UnoptimizedFrameInfo {
             FrameInfoKind::kConservative};
   }
 
+  static uint32_t GetStackSizeForAdditionalArguments(int parameters_count);
+
   uint32_t register_stack_slot_count() const {
     return register_stack_slot_count_;
   }
