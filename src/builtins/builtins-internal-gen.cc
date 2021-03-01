@@ -312,6 +312,9 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   Label incremental_wb(this);
   Label exit(this);
 
+  // In this method we limit the allocatable registers so we have to use
+  // UncheckedParameter. Parameter does not work because the checked cast needs
+  // more registers.
   auto remembered_set = UncheckedParameter<Smi>(Descriptor::kRememberedSet);
   Branch(ShouldEmitRememberSet(remembered_set), &generational_wb,
          &incremental_wb);
@@ -343,7 +346,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       GotoIfNot(value_is_young, &incremental_wb);
 
       TNode<IntPtrT> object =
-          BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
       TNode<BoolT> object_is_young =
           IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
       Branch(object_is_young, &incremental_wb, &store_buffer_incremental_wb);
@@ -353,7 +356,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     {
       auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
       TNode<IntPtrT> object =
-          BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
       InsertIntoRememberedSetAndGoto(object, slot, fp_mode, &exit);
     }
 
@@ -361,7 +364,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     {
       auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
       TNode<IntPtrT> object =
-          BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
       InsertIntoRememberedSetAndGoto(object, slot, fp_mode, &incremental_wb);
     }
   }
@@ -384,7 +387,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
               &exit);
 
     TNode<IntPtrT> object =
-        BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+        BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
     Branch(
         IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
         &exit, &call_incremental_wb);
@@ -395,7 +398,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
           ExternalReference::write_barrier_marking_from_code_function());
       auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
       TNode<IntPtrT> object =
-          BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
       CallCFunction2WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT>(
           function, object, slot, fp_mode, &exit);
     }
@@ -413,9 +416,12 @@ TF_BUILTIN(EphemeronKeyBarrier, RecordWriteCodeStubAssembler) {
       ExternalReference::ephemeron_key_write_barrier_function());
   TNode<ExternalReference> isolate_constant =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
+  // In this method we limit the allocatable registers so we have to use
+  // UncheckedParameter. Parameter does not work because the checked cast needs
+  // more registers.
   auto address = UncheckedParameter<IntPtrT>(Descriptor::kSlotAddress);
   TNode<IntPtrT> object =
-      BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+      BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
   TNode<Smi> fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
   CallCFunction3WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT,
                                              ExternalReference>(
