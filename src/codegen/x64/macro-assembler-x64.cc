@@ -2838,12 +2838,6 @@ void TurboAssembler::Popcntq(Register dst, Operand src) {
   UNREACHABLE();
 }
 
-// Order general registers are pushed by Pushad:
-// rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
-const int
-    MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
-        0, 1, 2, 3, -1, -1, 4, 5, 6, 7, -1, 8, 9, -1, 10, 11};
-
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);

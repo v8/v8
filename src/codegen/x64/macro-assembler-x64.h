@@ -1140,19 +1140,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // In-place weak references.
   void LoadWeakValue(Register in_out, Label* target_if_cleared);
 
-  // ---------------------------------------------------------------------------
-  // Debugging
-
-  static int SafepointRegisterStackIndex(Register reg) {
-    return SafepointRegisterStackIndex(reg.code());
-  }
-
  private:
-  // Order general registers are pushed by Pushad.
-  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14, r15.
-  static const int kSafepointPushRegisterIndices[Register::kNumRegisters];
-  static const int kNumSafepointSavedRegisters = 12;
-
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
@@ -1165,15 +1153,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void EnterExitFrameEpilogue(int arg_stack_space, bool save_doubles);
 
   void LeaveExitFrameEpilogue();
-
-  // Compute memory operands for safepoint stack slots.
-  static int SafepointRegisterStackIndex(int reg_code) {
-    return kNumSafepointRegisters - kSafepointPushRegisterIndices[reg_code] - 1;
-  }
-
-  // Needs access to SafepointRegisterStackIndex for compiled frame
-  // traversal.
-  friend class CommonFrame;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
