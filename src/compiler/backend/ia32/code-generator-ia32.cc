@@ -1997,15 +1997,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F64x2Pmin: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ Minpd(dst, dst, i.InputSimd128Register(1));
+      __ Minpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
       break;
     }
     case kIA32F64x2Pmax: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ Maxpd(dst, dst, i.InputSimd128Register(1));
+      __ Maxpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
       break;
     }
     case kIA32F64x2Round: {
@@ -2524,15 +2522,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F32x4Pmin: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ Minps(dst, dst, i.InputSimd128Register(1));
+      __ Minps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
       break;
     }
     case kIA32F32x4Pmax: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ Maxps(dst, dst, i.InputSimd128Register(1));
+      __ Maxps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
       break;
     }
     case kIA32F32x4Round: {
