@@ -3262,6 +3262,7 @@ v8_header_set("v8_internal_headers") {
   ]
 
   deps = [
+    ":cppgc_headers",
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_libbase",
@@ -5688,6 +5689,7 @@ if (v8_enable_webassembly) {
     ]
 
     deps = [
+      ":fuzzer_support",
       ":generate_bytecode_builtins_list",
       ":run_torque",
       ":v8_internal_headers",
