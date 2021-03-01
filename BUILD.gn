@@ -2131,7 +2131,10 @@ v8_header_set("v8_headers") {
 
   public_deps = [ ":v8_config_headers" ]
 
-  deps = [ ":v8_version" ]
+  deps = [
+    ":cppgc_headers",
+    ":v8_version",
+  ]
 }
 
 if (v8_generate_external_defines_header) {
@@ -4650,7 +4653,7 @@ v8_component("v8_libplatform") {
   public_deps = []
 
   deps = [
-    ":v8_headers",
+    ":v8_config_headers",
     ":v8_libbase",
     ":v8_tracing",
   ]
