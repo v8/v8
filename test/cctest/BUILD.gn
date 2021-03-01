@@ -57,7 +57,7 @@ v8_header_set("cctest_headers") {
     "../..:internal_config_base",
   ]
 
-  deps = [ "../..:v8_config_headers" ]
+  deps = [ "../..:v8_internal_headers" ]
 
   sources = [ "cctest.h" ]
 }
