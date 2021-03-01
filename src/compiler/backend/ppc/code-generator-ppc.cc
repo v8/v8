@@ -3709,31 +3709,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     i.InputSimd128Register(1), kScratchSimd128Reg);
       break;
     }
-#define SIGN_SELECT(compare_gt)                                        \
-  Simd128Register src0 = i.InputSimd128Register(0);                    \
-  Simd128Register src1 = i.InputSimd128Register(1);                    \
-  Simd128Register src2 = i.InputSimd128Register(2);                    \
-  Simd128Register dst = i.OutputSimd128Register();                     \
-  __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg); \
-  __ compare_gt(kScratchSimd128Reg, kScratchSimd128Reg, src2);         \
-  __ vsel(dst, src1, src0, kScratchSimd128Reg);
-    case kPPC_I8x16SignSelect: {
-      SIGN_SELECT(vcmpgtsb)
-      break;
-    }
-    case kPPC_I16x8SignSelect: {
-      SIGN_SELECT(vcmpgtsh)
-      break;
-    }
-    case kPPC_I32x4SignSelect: {
-      SIGN_SELECT(vcmpgtsw)
-      break;
-    }
-    case kPPC_I64x2SignSelect: {
-      SIGN_SELECT(vcmpgtsd)
-      break;
-    }
-#undef SIGN_SELECT
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;
