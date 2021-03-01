@@ -109,12 +109,15 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/detachable-vector.h"
 #include "src/utils/version.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_OS_LINUX || V8_OS_MACOSX || V8_OS_FREEBSD
 #include <signal.h>
@@ -2837,6 +2840,7 @@ int Message::GetStartColumn() const {
 }
 
 int Message::GetWasmFunctionIndex() const {
+#if V8_ENABLE_WEBASSEMBLY
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
@@ -2854,6 +2858,9 @@ int Message::GetWasmFunctionIndex() const {
   auto debug_script = ToApiHandle<debug::Script>(script);
   return Local<debug::WasmScript>::Cast(debug_script)
       ->GetContainingFunction(start_position);
+#else
+  return Message::kNoWasmFunctionIndexInfo;
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 Maybe<int> Message::GetStartColumn(Local<Context> context) const {
@@ -3355,8 +3362,13 @@ VALUE_IS_SPECIFIC_TYPE(SymbolObject, SymbolWrapper)
 VALUE_IS_SPECIFIC_TYPE(Date, JSDate)
 VALUE_IS_SPECIFIC_TYPE(Map, JSMap)
 VALUE_IS_SPECIFIC_TYPE(Set, JSSet)
+#if V8_ENABLE_WEBASSEMBLY
 VALUE_IS_SPECIFIC_TYPE(WasmMemoryObject, WasmMemoryObject)
 VALUE_IS_SPECIFIC_TYPE(WasmModuleObject, WasmModuleObject)
+#else
+bool Value::IsWasmMemoryObject() const { return false; }
+bool Value::IsWasmModuleObject() const { return false; }
+#endif  // V8_ENABLE_WEBASSEMBLY
 VALUE_IS_SPECIFIC_TYPE(WeakMap, JSWeakMap)
 VALUE_IS_SPECIFIC_TYPE(WeakSet, JSWeakSet)
 
@@ -7327,6 +7339,7 @@ CompiledWasmModule::CompiledWasmModule(
 }
 
 OwnedBuffer CompiledWasmModule::Serialize() {
+#if V8_ENABLE_WEBASSEMBLY
   TRACE_EVENT0("v8.wasm", "wasm.SerializeModule");
   i::wasm::WasmSerializer wasm_serializer(native_module_.get());
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
@@ -7334,20 +7347,32 @@ OwnedBuffer CompiledWasmModule::Serialize() {
   if (!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}))
     return {};
   return {std::move(buffer), buffer_size};
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
+#if V8_ENABLE_WEBASSEMBLY
   i::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
   return {bytes_vec.begin(), bytes_vec.size()};
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 Local<ArrayBuffer> v8::WasmMemoryObject::Buffer() {
+#if V8_ENABLE_WEBASSEMBLY
   i::Handle<i::WasmMemoryObject> obj = Utils::OpenHandle(this);
   i::Handle<i::JSArrayBuffer> buffer(obj->array_buffer(), obj->GetIsolate());
   return Utils::ToLocal(buffer);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
+#if V8_ENABLE_WEBASSEMBLY
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   auto source_url = i::String::cast(obj->script().source_url());
@@ -7357,10 +7382,14 @@ CompiledWasmModule WasmModuleObject::GetCompiledModule() {
   i::Handle<i::String> url(source_url, obj->GetIsolate());
   return CompiledWasmModule(std::move(obj->shared_native_module()),
                             cstring.get(), length);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
     Isolate* isolate, const CompiledWasmModule& compiled_module) {
+#if V8_ENABLE_WEBASSEMBLY
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::WasmModuleObject> module_object =
       i_isolate->wasm_engine()->ImportNativeModule(
@@ -7368,6 +7397,9 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
           i::VectorOf(compiled_module.source_url()));
   return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
@@ -8312,8 +8344,12 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 }
 
 bool Isolate::HasPendingBackgroundTasks() {
+#if V8_ENABLE_WEBASSEMBLY
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->wasm_engine()->HasRunningCompileJob(isolate);
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
@@ -8628,16 +8664,21 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   // now we just add the values, thereby over-approximating the peak slightly.
   heap_statistics->malloced_memory_ =
       isolate->allocator()->GetCurrentMemoryUsage() +
-      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage() +
       isolate->string_table()->GetCurrentMemoryUsage();
   heap_statistics->external_memory_ = isolate->heap()->backing_store_bytes();
   heap_statistics->peak_malloced_memory_ =
-      isolate->allocator()->GetMaxMemoryUsage() +
-      isolate->wasm_engine()->allocator()->GetMaxMemoryUsage();
+      isolate->allocator()->GetMaxMemoryUsage();
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
   heap_statistics->number_of_detached_contexts_ =
       heap->NumberOfDetachedContexts();
   heap_statistics->does_zap_garbage_ = heap->ShouldZapGarbage();
+
+#if V8_ENABLE_WEBASSEMBLY
+  heap_statistics->malloced_memory_ +=
+      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
+  heap_statistics->peak_malloced_memory_ +=
+      isolate->wasm_engine()->allocator()->GetMaxMemoryUsage();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 size_t Isolate::NumberOfHeapSpaces() {
@@ -8942,6 +8983,7 @@ void Isolate::LowMemoryNotification() {
 
 int Isolate::ContextDisposedNotification(bool dependant_context) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+#if V8_ENABLE_WEBASSEMBLY
   if (!dependant_context) {
     if (!isolate->context().is_null()) {
       // We left the current context, we can abort all WebAssembly compilations
@@ -8952,6 +8994,7 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
           isolate->native_context());
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   // TODO(ahaas): move other non-heap activity out of the heap call.
   return isolate->heap()->NotifyContextDisposed(dependant_context);
 }

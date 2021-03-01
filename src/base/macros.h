@@ -417,4 +417,13 @@ bool is_inbounds(float_t v) {
 
 #endif  // V8_OS_WIN
 
+// Defines IF_WASM, to be used in macro lists for elements that should only be
+// there if WebAssembly is enabled.
+#if V8_ENABLE_WEBASSEMBLY
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_WASM(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM(V, ...)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #endif  // V8_BASE_MACROS_H_
