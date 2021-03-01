@@ -10,6 +10,7 @@
 #include "include/cppgc/platform.h"
 #include "include/v8-platform.h"
 #include "include/v8.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
@@ -105,6 +106,10 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
   }
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner() final {
+    // If no Isolate has been set, there's no task runner to leverage for
+    // foreground tasks.
+    if (!isolate_) return nullptr;
+
     return platform_->GetForegroundTaskRunner(isolate_);
   }
 
@@ -285,10 +290,15 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
+      flags & TraceFlags::kForced
+          ? UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic
+          : UnifiedHeapMarker::MarkingConfig::MarkingType::
+                kIncrementalAndConcurrent,
       flags & TraceFlags::kForced
           ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
           : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
+  DCHECK_IMPLIES(!isolate_, cppgc::Heap::MarkingType::kAtomic ==
+                                marking_config.marking_type);
   if ((flags == TraceFlags::kReduceMemory) || (flags == TraceFlags::kForced)) {
     // Only enable compaction when in a memory reduction garbage collection as
     // it may significantly increase the final garbage collection pause.
@@ -368,6 +378,10 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
             : cppgc::internal::Sweeper::SweepingConfig::SweepingType::
                   kIncrementalAndConcurrent,
         compactable_space_handling};
+    DCHECK_IMPLIES(
+        !isolate_,
+        cppgc::internal::Sweeper::SweepingConfig::SweepingType::kAtomic ==
+            sweeping_config.sweeping_type);
     sweeper().Start(sweeping_config);
   }
   in_atomic_pause_ = false;
