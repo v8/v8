@@ -3576,8 +3576,10 @@ void VisitPminOrPmax(InstructionSelector* selector, Node* node,
   // Due to the way minps/minpd work, we want the dst to be same as the second
   // input: b = pmin(a, b) directly maps to minps b a.
   X64OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineSameAsFirst(node),
-                 g.UseRegister(node->InputAt(1)),
+  InstructionOperand dst = selector->IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  selector->Emit(opcode, dst, g.UseRegister(node->InputAt(1)),
                  g.UseRegister(node->InputAt(0)));
 }
 }  // namespace
