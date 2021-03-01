@@ -3829,6 +3829,77 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VEXTRACT
+#define VECTOR_BIN_OP(type, op)                        \
+  int t = instr->RSValue();                            \
+  int a = instr->RAValue();                            \
+  int b = instr->RBValue();                            \
+  FOR_EACH_LANE(i, type) {                             \
+    set_simd_register_by_lane<type>(                   \
+        t, i,                                          \
+        get_simd_register_by_lane<type>(a, i)          \
+            op get_simd_register_by_lane<type>(b, i)); \
+  }
+    case XVADDDP: {
+      VECTOR_BIN_OP(double, +)
+      break;
+    }
+    case XVSUBDP: {
+      VECTOR_BIN_OP(double, -)
+      break;
+    }
+    case XVMULDP: {
+      VECTOR_BIN_OP(double, *)
+      break;
+    }
+    case VADDFP: {
+      VECTOR_BIN_OP(float, +)
+      break;
+    }
+    case VSUBFP: {
+      VECTOR_BIN_OP(float, -)
+      break;
+    }
+    case XVMULSP: {
+      VECTOR_BIN_OP(float, *)
+      break;
+    }
+    case VADDUDM: {
+      VECTOR_BIN_OP(int64_t, +)
+      break;
+    }
+    case VSUBUDM: {
+      VECTOR_BIN_OP(int64_t, -)
+      break;
+    }
+    case VADDUWM: {
+      VECTOR_BIN_OP(int32_t, +)
+      break;
+    }
+    case VSUBUWM: {
+      VECTOR_BIN_OP(int32_t, -)
+      break;
+    }
+    case VMULUWM: {
+      VECTOR_BIN_OP(int32_t, *)
+      break;
+    }
+    case VADDUHM: {
+      VECTOR_BIN_OP(int16_t, +)
+      break;
+    }
+    case VSUBUHM: {
+      VECTOR_BIN_OP(int16_t, -)
+      break;
+    }
+    case VADDUBM: {
+      VECTOR_BIN_OP(int8_t, +)
+      break;
+    }
+    case VSUBUBM: {
+      VECTOR_BIN_OP(int8_t, -)
+      break;
+    }
+#undef VECTOR_BIN_OP
 #undef FOR_EACH_LANE
     default: {
       UNIMPLEMENTED();
