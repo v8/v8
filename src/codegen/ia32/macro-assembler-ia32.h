@@ -125,6 +125,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(Register dst, Smi src) { Move(dst, Immediate(src)); }
   void Move(Register dst, Handle<HeapObject> src);
   void Move(Register dst, Register src);
+  void Move(Register dst, Operand src);
   void Move(Operand dst, const Immediate& src);
 
   // Move an immediate into an XMM register.
@@ -133,7 +134,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
+  Operand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
+
   void Call(Register reg) { call(reg); }
+  void Call(Operand op) { call(op); }
   void Call(Label* target) { call(target); }
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
@@ -189,6 +193,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   void SmiUntag(Register reg) { sar(reg, kSmiTagSize); }
+  void SmiUntag(Register output, Register value) {
+    mov(output, value);
+    SmiUntag(output);
+  }
 
   // Removes current frame and its arguments from the stack preserving the
   // arguments and a return address pushed to the stack for the next call. Both
@@ -242,6 +250,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
+
+  void PushReturnAddressFrom(XMMRegister src, Register scratch) {
+    Push(src, scratch);
+  }
+  void PopReturnAddressTo(XMMRegister dst, Register scratch) {
+    Pop(dst, scratch);
+  }
 
   void Ret();
 
@@ -712,6 +727,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Push(Immediate value);
   void Push(Handle<HeapObject> handle) { push(Immediate(handle)); }
   void Push(Smi smi) { Push(Immediate(smi)); }
+  void Push(XMMRegister src, Register scratch) {
+    movd(scratch, src);
+    push(scratch);
+  }
+
+  void Pop(Register dst) { pop(dst); }
+  void Pop(Operand dst) { pop(dst); }
+  void Pop(XMMRegister dst, Register scratch) {
+    pop(scratch);
+    movd(dst, scratch);
+  }
 
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
@@ -992,9 +1018,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the esp register.
   void Drop(int element_count);
-
-  void Pop(Register dst) { pop(dst); }
-  void Pop(Operand dst) { pop(dst); }
 
   // ---------------------------------------------------------------------------
   // In-place weak references.

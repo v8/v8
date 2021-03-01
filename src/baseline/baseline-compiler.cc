@@ -4,7 +4,7 @@
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 #include "src/baseline/baseline-compiler.h"
 
@@ -34,6 +34,8 @@
 #include "src/baseline/x64/baseline-compiler-x64-inl.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/baseline/arm64/baseline-compiler-arm64-inl.h"
+#elif V8_TARGET_ARCH_IA32
+#include "src/baseline/ia32/baseline-compiler-ia32-inl.h"
 #else
 #error Unsupported target architecture.
 #endif

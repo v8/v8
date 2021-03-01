@@ -334,7 +334,14 @@ void StoreTransitionDescriptor::InitializePlatformSpecific(
 void BaselineOutOfLinePrologueDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // TODO(v8:11421): Implement on other platforms.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_IA32
+  // TODO(v8:11503): Use register names that can be defined in each
+  // architecture indenpendently of the interpreter registers.
+  Register registers[] = {kContextRegister, kJSFunctionRegister,
+                          kJavaScriptCallArgCountRegister, ecx,
+                          kJavaScriptCallNewTargetRegister};
+  data->InitializePlatformSpecific(kParameterCount, registers);
+#elif V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   Register registers[] = {
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       kInterpreterBytecodeArrayRegister, kJavaScriptCallNewTargetRegister};
@@ -347,7 +354,7 @@ void BaselineOutOfLinePrologueDescriptor::InitializePlatformSpecific(
 void BaselineLeaveFrameDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // TODO(v8:11421): Implement on other platforms.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   Register registers[] = {ParamsSizeRegister(), WeightRegister()};
   data->InitializePlatformSpecific(kParameterCount, registers);
 #else

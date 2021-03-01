@@ -1451,11 +1451,13 @@ void TurboAssembler::Prologue() {
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
-  push(Immediate(StackFrame::TypeToMarker(type)));
+  if (!StackFrame::IsJavaScript(type)) {
+    Push(Immediate(StackFrame::TypeToMarker(type)));
+  }
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
-  if (emit_debug_code()) {
+  if (emit_debug_code() && !StackFrame::IsJavaScript(type)) {
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
         Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, AbortReason::kStackFrameTypesMustMatch);
@@ -2070,6 +2072,8 @@ void TurboAssembler::Move(Operand dst, const Immediate& src) {
     mov(dst, src);
   }
 }
+
+void TurboAssembler::Move(Register dst, Operand src) { mov(dst, src); }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> src) {
   if (root_array_available() && options().isolate_independent_code) {
@@ -2773,6 +2777,12 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
   EmbeddedData d = EmbeddedData::FromBlob();
   Address entry = d.InstructionStartOfBuiltin(builtin_index);
   call(entry, RelocInfo::OFF_HEAP_TARGET);
+}
+
+Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(
+    Builtins::Name builtin_index) {
+  return Operand(kRootRegister,
+                 IsolateData::builtin_entry_slot_offset(builtin_index));
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
