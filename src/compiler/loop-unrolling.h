@@ -28,6 +28,10 @@ V8_INLINE uint32_t unrolling_count_heuristic(uint32_t size, uint32_t depth) {
                   kMaximumUnrollingCount);
 }
 
+V8_INLINE uint32_t maximum_unrollable_size(uint32_t depth) {
+  return (depth + 1) * kMaximumUnnestedSize;
+}
+
 void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
                 Graph* graph, CommonOperatorBuilder* common, Zone* tmp_zone,
                 SourcePositionTable* source_positions,
