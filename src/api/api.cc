@@ -1825,10 +1825,6 @@ bool ScriptCompiler::ExternalSourceStream::SetBookmark() { return false; }
 
 void ScriptCompiler::ExternalSourceStream::ResetToBookmark() { UNREACHABLE(); }
 
-ScriptCompiler::StreamedSource::StreamedSource(ExternalSourceStream* stream,
-                                               Encoding encoding)
-    : StreamedSource(std::unique_ptr<ExternalSourceStream>(stream), encoding) {}
-
 ScriptCompiler::StreamedSource::StreamedSource(
     std::unique_ptr<ExternalSourceStream> stream, Encoding encoding)
     : impl_(new i::ScriptStreamingData(std::move(stream), encoding)) {}
@@ -2274,21 +2270,6 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* isolate,
   return Just(true);
 }
 
-void Module::SetSyntheticModuleExport(Local<String> export_name,
-                                      Local<v8::Value> export_value) {
-  i::Handle<i::String> i_export_name = Utils::OpenHandle(*export_name);
-  i::Handle<i::Object> i_export_value = Utils::OpenHandle(*export_value);
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
-  ASSERT_NO_SCRIPT_NO_EXCEPTION(self->GetIsolate());
-  Utils::ApiCheck(self->IsSyntheticModule(),
-                  "v8::Module::SetSyntheticModuleExport",
-                  "v8::Module::SetSyntheticModuleExport must only be called on "
-                  "a SyntheticModule");
-  i::SyntheticModule::SetExportStrict(self->GetIsolate(),
-                                      i::Handle<i::SyntheticModule>::cast(self),
-                                      i_export_name, i_export_value);
-}
-
 namespace {
 
 i::Compiler::ScriptDetails GetScriptDetails(
@@ -2502,14 +2483,6 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
 }
 
 void ScriptCompiler::ScriptStreamingTask::Run() { data_->task->Run(); }
-
-ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
-    Isolate* v8_isolate, StreamedSource* source, CompileOptions options) {
-  // We don't support other compile options on streaming background compiles.
-  // TODO(rmcilroy): remove CompileOptions from the API.
-  CHECK(options == ScriptCompiler::kNoCompileOptions);
-  return StartStreaming(v8_isolate, source);
-}
 
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
     Isolate* v8_isolate, StreamedSource* source, v8::ScriptType type) {
@@ -8808,11 +8781,6 @@ bool Isolate::GetHeapCodeAndMetadataStatistics(
   code_statistics->external_script_source_size_ =
       isolate->external_script_source_size();
   return true;
-}
-
-v8::MaybeLocal<v8::Promise> Isolate::MeasureMemory(
-    v8::Local<v8::Context> context, MeasureMemoryMode mode) {
-  return v8::MaybeLocal<v8::Promise>();
 }
 
 bool Isolate::MeasureMemory(std::unique_ptr<MeasureMemoryDelegate> delegate,
