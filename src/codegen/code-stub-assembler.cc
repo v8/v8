@@ -9981,8 +9981,11 @@ void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
 #endif
   } else {
     if (kind == UINT8_CLAMPED_ELEMENTS) {
+      // TODO(solanes, v8:6949): Remove these UncheckedCast once {value} has
+      // been TNodified.
       CSA_ASSERT(this, Word32Equal(UncheckedCast<Word32T>(value),
-                                   Word32And(Int32Constant(0xFF), value)));
+                                   Word32And(Int32Constant(0xFF),
+                                             UncheckedCast<Word32T>(value))));
     }
     TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
     // TODO(cbruni): Add OOB check once typed.

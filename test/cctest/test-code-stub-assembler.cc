@@ -3135,7 +3135,7 @@ TEST(DirectMemoryTest16BitWord32) {
 
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
-      Node* loaded = m.LoadBufferData<Uint16T>(
+      TNode<Uint16T> loaded = m.LoadBufferData<Uint16T>(
           buffer_node1, static_cast<int>(i * sizeof(int16_t)));
       TNode<Word32T> masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
