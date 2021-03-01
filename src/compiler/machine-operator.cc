@@ -405,7 +405,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                    \
   V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)                \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                             \
-  V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                       \
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Div, Operator::kNoProperties, 2, 0, 1)                            \
@@ -455,7 +454,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x4Shl, Operator::kNoProperties, 2, 0, 1)                            \
   V(I32x4ShrS, Operator::kNoProperties, 2, 0, 1)                           \
   V(I32x4Add, Operator::kCommutative, 2, 0, 1)                             \
-  V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                       \
   V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(I32x4Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(I32x4MinS, Operator::kCommutative, 2, 0, 1)                            \
@@ -492,7 +490,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                  \
   V(I16x8Add, Operator::kCommutative, 2, 0, 1)                             \
   V(I16x8AddSatS, Operator::kCommutative, 2, 0, 1)                         \
-  V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                       \
   V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(I16x8SubSatS, Operator::kNoProperties, 2, 0, 1)                        \
   V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                             \

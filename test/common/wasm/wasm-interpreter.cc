@@ -2752,28 +2752,6 @@ class WasmInterpreterInternals {
         Push(WasmValue(Simd128(res)));
         return true;
       }
-#define ADD_HORIZ_CASE(op, name, stype, count)                              \
-  case kExpr##op: {                                                         \
-    WasmValue v2 = Pop();                                                   \
-    WasmValue v1 = Pop();                                                   \
-    stype s1 = v1.to_s128().to_##name();                                    \
-    stype s2 = v2.to_s128().to_##name();                                    \
-    stype res;                                                              \
-    for (size_t i = 0; i < count / 2; ++i) {                                \
-      auto result1 = s1.val[LANE(i * 2, s1)] + s1.val[LANE(i * 2 + 1, s1)]; \
-      possible_nondeterminism_ |= has_nondeterminism(result1);              \
-      res.val[LANE(i, res)] = result1;                                      \
-      auto result2 = s2.val[LANE(i * 2, s2)] + s2.val[LANE(i * 2 + 1, s2)]; \
-      possible_nondeterminism_ |= has_nondeterminism(result2);              \
-      res.val[LANE(i + count / 2, res)] = result2;                          \
-    }                                                                       \
-    Push(WasmValue(Simd128(res)));                                          \
-    return true;                                                            \
-  }
-        ADD_HORIZ_CASE(I32x4AddHoriz, i32x4, int4, 4)
-        ADD_HORIZ_CASE(F32x4AddHoriz, f32x4, float4, 4)
-        ADD_HORIZ_CASE(I16x8AddHoriz, i16x8, int8, 8)
-#undef ADD_HORIZ_CASE
       case kExprI32x4DotI16x8S: {
         int8 v2 = Pop().to_s128().to_i16x8();
         int8 v1 = Pop().to_s128().to_i16x8();

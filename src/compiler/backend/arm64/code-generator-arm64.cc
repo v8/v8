@@ -2191,7 +2191,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_UNOP_CASE(kArm64F32x4RecipApprox, Frecpe, 4S);
       SIMD_UNOP_CASE(kArm64F32x4RecipSqrtApprox, Frsqrte, 4S);
       SIMD_BINOP_CASE(kArm64F32x4Add, Fadd, 4S);
-      SIMD_BINOP_CASE(kArm64F32x4AddHoriz, Faddp, 4S);
       SIMD_BINOP_CASE(kArm64F32x4Sub, Fsub, 4S);
       SIMD_BINOP_CASE(kArm64F32x4Mul, Fmul, 4S);
       SIMD_BINOP_CASE(kArm64F32x4Div, Fdiv, 4S);
@@ -2384,7 +2383,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
       SIMD_BINOP_CASE(kArm64I32x4Add, Add, 4S);
-      SIMD_BINOP_CASE(kArm64I32x4AddHoriz, Addp, 4S);
       SIMD_BINOP_CASE(kArm64I32x4Sub, Sub, 4S);
       SIMD_BINOP_CASE(kArm64I32x4Mul, Mul, 4S);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I32x4Mla, Mla, 4S);
@@ -2486,7 +2484,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_BINOP_CASE(kArm64I16x8Add, Add, 8H);
       SIMD_BINOP_CASE(kArm64I16x8AddSatS, Sqadd, 8H);
-      SIMD_BINOP_CASE(kArm64I16x8AddHoriz, Addp, 8H);
       SIMD_BINOP_CASE(kArm64I16x8Sub, Sub, 8H);
       SIMD_BINOP_CASE(kArm64I16x8SubSatS, Sqsub, 8H);
       SIMD_BINOP_CASE(kArm64I16x8Mul, Mul, 8H);

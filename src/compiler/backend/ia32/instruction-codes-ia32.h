@@ -172,7 +172,6 @@ namespace compiler {
   V(IA32F32x4RecipApprox)          \
   V(IA32F32x4RecipSqrtApprox)      \
   V(IA32F32x4Add)                  \
-  V(IA32F32x4AddHoriz)             \
   V(IA32F32x4Sub)                  \
   V(IA32F32x4Mul)                  \
   V(IA32F32x4Div)                  \
@@ -202,8 +201,6 @@ namespace compiler {
   V(IA32I32x4ShrS)                 \
   V(SSEI32x4Add)                   \
   V(AVXI32x4Add)                   \
-  V(SSEI32x4AddHoriz)              \
-  V(AVXI32x4AddHoriz)              \
   V(SSEI32x4Sub)                   \
   V(AVXI32x4Sub)                   \
   V(SSEI32x4Mul)                   \
@@ -257,8 +254,6 @@ namespace compiler {
   V(AVXI16x8Add)                   \
   V(SSEI16x8AddSatS)               \
   V(AVXI16x8AddSatS)               \
-  V(SSEI16x8AddHoriz)              \
-  V(AVXI16x8AddHoriz)              \
   V(SSEI16x8Sub)                   \
   V(AVXI16x8Sub)                   \
   V(SSEI16x8SubSatS)               \
