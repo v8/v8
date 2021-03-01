@@ -4784,6 +4784,12 @@ v8_header_set("cppgc_headers") {
     "include/cppgc/visitor.h",
   ]
 
+  if (cppgc_enable_caged_heap) {
+    sources += [ "include/cppgc/internal/caged-heap-local-data.h" ]
+  }
+
+  deps = [ ":v8_libplatform" ]
+
   public_deps = [ ":v8_config_headers" ]
 }
 
@@ -4881,7 +4887,6 @@ v8_source_set("cppgc_base") {
 
   if (cppgc_enable_caged_heap) {
     sources += [
-      "include/cppgc/internal/caged-heap-local-data.h",
       "src/heap/cppgc/caged-heap-local-data.cc",
       "src/heap/cppgc/caged-heap.cc",
       "src/heap/cppgc/caged-heap.h",
