@@ -4,18 +4,13 @@
 #ifndef V8_LIBPLATFORM_TRACING_RECORDER_WIN_H_
 #define V8_LIBPLATFORM_TRACING_RECORDER_WIN_H_
 
-#include <windows.h>
+#include <Windows.h>
 #include <TraceLoggingProvider.h>
 
 #include "src/libplatform/tracing/recorder.h"
 
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wc++98-compat-extra-semi"
-#endif
-
-#ifndef V8_ETW_GUID
-#define V8_ETW_GUID \
-  0x57277741, 0x3638, 0x4A4B, 0xBD, 0xBA, 0x0A, 0xC6, 0xE4, 0x5D, 0xA5, 0x6C
 #endif
 
 namespace v8 {

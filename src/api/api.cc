@@ -128,12 +128,16 @@
 #if V8_OS_WIN
 #include <versionhelpers.h>
 #include <windows.h>
+
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
 #if defined(V8_OS_WIN64)
 #include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#include "src/diagnostics/system-jit-win.h"
+#endif
 #endif  // V8_OS_WIN
 
 // Has to be the last include (doesn't have include guards):
@@ -8412,6 +8416,12 @@ void Isolate::Initialize(Isolate* isolate,
     code_event_handler = i::GDBJITInterface::EventHandler;
   }
 #endif  // ENABLE_GDB_JIT_INTERFACE
+#if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  if (code_event_handler == nullptr) {
+    code_event_handler = i::ETWJITInterface::EventHandler;
+  }
+#endif  // defined(V8_TARGET_OS_WIN)
+
   if (code_event_handler) {
     i_isolate->InitializeLoggingAndCounters();
     i_isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,

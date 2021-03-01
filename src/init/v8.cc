@@ -28,6 +28,10 @@
 #include "src/tracing/tracing-category-observer.h"
 #include "src/wasm/wasm-engine.h"
 
+#if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#include "src/diagnostics/system-jit-win.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -166,10 +170,17 @@ void V8::InitializePlatform(v8::Platform* platform) {
   platform_ = platform;
   v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
   v8::tracing::TracingCategoryObserver::SetUp();
+#if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
+  v8::internal::ETWJITInterface::Register();
+#endif
 }
 
 void V8::ShutdownPlatform() {
   CHECK(platform_);
+#if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  v8::internal::ETWJITInterface::Unregister();
+#endif
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
   platform_ = nullptr;
