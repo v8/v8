@@ -849,7 +849,9 @@ class NativeContextData : public ContextData {
 class NameData : public HeapObjectData {
  public:
   NameData(JSHeapBroker* broker, ObjectData** storage, Handle<Name> object)
-      : HeapObjectData(broker, storage, object) {}
+      : HeapObjectData(broker, storage, object) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 };
 
 class StringData : public NameData {
@@ -895,7 +897,9 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
       to_number_(TryStringToDouble(broker->local_isolate(), object)),
       is_external_string_(object->IsExternalString()),
       is_seq_string_(object->IsSeqString()),
-      chars_as_strings_(broker->zone()) {}
+      chars_as_strings_(broker->zone()) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 class InternalizedStringData : public StringData {
  public:
@@ -4207,15 +4211,11 @@ bool NameRef::IsUniqueName() const {
 void RegExpBoilerplateDescriptionRef::Serialize() {
   if (data_->should_access_heap()) {
     // Even if the regexp boilerplate object itself is no longer serialized,
-    // both `data` and `source` fields still are and thus we need to make sure
-    // to visit them.
-    // TODO(jgruber,v8:7790): Remove once these are no longer serialized types.
+    // the `data` still is and thus we need to make sure to visit it.
+    // TODO(jgruber,v8:7790): Remove once it is no longer a serialized type.
     STATIC_ASSERT(IsSerializedHeapObject<FixedArray>());
     FixedArrayRef data_ref{
         broker(), broker()->CanonicalPersistentHandle(object()->data())};
-    STATIC_ASSERT(IsSerializedHeapObject<String>());
-    StringRef source_ref{
-        broker(), broker()->CanonicalPersistentHandle(object()->source())};
   } else {
     CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
     HeapObjectRef::data()->AsRegExpBoilerplateDescription()->Serialize(

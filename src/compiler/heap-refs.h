@@ -76,6 +76,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of FixedArrayBase */                  \
   V(BytecodeArray)                                  \
   /* Subtypes of Name */                            \
+  V(String)                                         \
   V(Symbol)                                         \
   /* Subtypes of HeapObject */                      \
   V(AccessorInfo)                                   \
@@ -85,6 +86,7 @@ enum class OddballType : uint8_t {
   V(Code)                                           \
   V(FeedbackCell)                                   \
   V(FeedbackVector)                                 \
+  V(Name)                                           \
   V(RegExpBoilerplateDescription)                   \
   V(SharedFunctionInfo)                             \
   V(TemplateObjectDescription)
@@ -128,8 +130,6 @@ enum class OddballType : uint8_t {
   /* Subtypes of FixedArrayBase */            \
   V(FixedArray)                               \
   V(FixedDoubleArray)                         \
-  /* Subtypes of Name */                      \
-  V(String)                                   \
   /* Subtypes of JSReceiver */                \
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
@@ -138,7 +138,6 @@ enum class OddballType : uint8_t {
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
   V(JSReceiver)                               \
-  V(Name)                                     \
   V(SourceTextModule)                         \
   /* Subtypes of Object */                    \
   V(HeapObject)
@@ -910,13 +909,18 @@ class StringRef : public NameRef {
 
   Handle<String> object() const;
 
+  // With concurrent inlining on, we return base::nullopt due to not being able
+  // to use LookupIterator in a thread-safe way.
   base::Optional<ObjectRef> GetCharAsStringOrUndefined(
       uint32_t index, SerializationPolicy policy =
                           SerializationPolicy::kAssumeSerialized) const;
 
+  // When concurrently accessing non-read-only non-internalized strings, we
+  // return base::nullopt for these methods.
   base::Optional<int> length() const;
   base::Optional<uint16_t> GetFirstChar();
   base::Optional<double> ToNumber();
+
   bool IsSeqString() const;
   bool IsExternalString() const;
 };
