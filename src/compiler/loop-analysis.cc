@@ -543,8 +543,9 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
   return loop_tree;
 }
 
+// static
 ZoneUnorderedSet<Node*>* LoopFinder::FindUnnestedLoopFromHeader(
-    Node* loop_header, Zone* zone) {
+    Node* loop_header, Zone* zone, size_t max_size) {
   auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
 
   std::vector<Node*> queue;
@@ -562,6 +563,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindUnnestedLoopFromHeader(
       continue;
     }
     visited->insert(node);
+    if (visited->size() > max_size) return nullptr;
     switch (node->opcode()) {
       case IrOpcode::kLoopExit:
         DCHECK_EQ(node->InputAt(1), loop_header);

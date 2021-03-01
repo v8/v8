@@ -14,22 +14,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// A simple heuristic to decide how many times to unroll a loop. Favors small
-// and deeply nested loops.
-// TODO(manoskouk): Investigate how this can be improved.
-V8_INLINE uint32_t unrolling_count_heuristic(uint32_t size, uint32_t depth) {
-  static constexpr uint32_t kMaximumUnnestedSize = 50;
-  static constexpr uint32_t kMaximumUnrollingCount = 7;
-  return std::min((depth + 1) * kMaximumUnnestedSize / size,
-                  kMaximumUnrollingCount);
-}
-
 void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
                 Graph* graph, CommonOperatorBuilder* common, Zone* tmp_zone,
                 SourcePositionTable* source_positions,
                 NodeOriginTable* node_origins) {
   DCHECK_EQ(loop_node->opcode(), IrOpcode::kLoop);
 
+  if (loop == nullptr) return;
   // No back-jump to the loop header means this is not really a loop.
   if (loop_node->InputCount() < 2) return;
 

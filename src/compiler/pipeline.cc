@@ -1784,8 +1784,12 @@ struct WasmLoopUnrollingPhase {
            std::vector<compiler::WasmLoopInfo>* loop_infos) {
     for (WasmLoopInfo& loop_info : *loop_infos) {
       if (loop_info.is_innermost) {
-        ZoneUnorderedSet<Node*>* loop =
-            LoopFinder::FindUnnestedLoopFromHeader(loop_info.header, temp_zone);
+        ZoneUnorderedSet<Node*>* loop = LoopFinder::FindUnnestedLoopFromHeader(
+            loop_info.header, temp_zone,
+            // Only discover the loop until its size is the maximum unrolled
+            // size for its depth.
+            unrolling_count_heuristic(kMaximumUnnestedSize,
+                                      loop_info.nesting_depth));
         UnrollLoop(loop_info.header, loop, loop_info.nesting_depth,
                    data->graph(), data->common(), temp_zone,
                    data->source_positions(), data->node_origins());
