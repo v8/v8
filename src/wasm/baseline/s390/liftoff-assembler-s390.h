@@ -1183,8 +1183,238 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
-  bailout(kUnsupportedArchitecture, "emit_type_conversion");
-  return true;
+  switch (opcode) {
+    case kExprI32ConvertI64:
+      lgfr(dst.gp(), src.gp());
+      return true;
+    case kExprI32SConvertF32: {
+      ConvertFloat32ToInt32(dst.gp(), src.fp(),
+                            kRoundToZero);  // f32 -> i32 round to zero.
+      b(Condition(1), trap);
+      return true;
+    }
+    case kExprI32UConvertF32: {
+      ConvertFloat32ToUnsignedInt32(dst.gp(), src.fp(), kRoundToZero);
+      b(Condition(1), trap);
+      return true;
+    }
+    case kExprI32SConvertF64: {
+      ConvertDoubleToInt32(dst.gp(), src.fp());
+      b(Condition(1), trap);
+      return true;
+    }
+    case kExprI32UConvertF64: {
+      ConvertDoubleToUnsignedInt32(dst.gp(), src.fp(), kRoundToZero);
+      b(Condition(1), trap);
+      return true;
+    }
+    case kExprI32SConvertSatF32: {
+      Label done, src_is_nan;
+      lzer(kScratchDoubleReg);
+      cebr(src.fp(), kScratchDoubleReg);
+      b(Condition(1), &src_is_nan);
+
+      // source is a finite number
+      ConvertFloat32ToInt32(dst.gp(), src.fp(),
+                            kRoundToZero);  // f32 -> i32 round to zero.
+      b(&done);
+
+      bind(&src_is_nan);
+      lghi(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI32UConvertSatF32: {
+      Label done, src_is_nan;
+      lzer(kScratchDoubleReg);
+      cebr(src.fp(), kScratchDoubleReg);
+      b(Condition(1), &src_is_nan);
+
+      // source is a finite number
+      ConvertFloat32ToUnsignedInt32(dst.gp(), src.fp(), kRoundToZero);
+      b(&done);
+
+      bind(&src_is_nan);
+      lghi(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI32SConvertSatF64: {
+      Label done, src_is_nan;
+      lzdr(kScratchDoubleReg, r0);
+      cdbr(src.fp(), kScratchDoubleReg);
+      b(Condition(1), &src_is_nan);
+
+      ConvertDoubleToInt32(dst.gp(), src.fp());
+      b(&done);
+
+      bind(&src_is_nan);
+      lghi(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI32UConvertSatF64: {
+      Label done, src_is_nan;
+      lzdr(kScratchDoubleReg, r0);
+      cdbr(src.fp(), kScratchDoubleReg);
+      b(Condition(1), &src_is_nan);
+
+      ConvertDoubleToUnsignedInt32(dst.gp(), src.fp());
+      b(&done);
+
+      bind(&src_is_nan);
+      lghi(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI32ReinterpretF32:
+      lgdr(dst.gp(), src.fp());
+      srlg(dst.gp(), dst.gp(), Operand(32));
+      return true;
+    case kExprI64SConvertI32:
+      LoadS32(dst.gp(), src.gp());
+      return true;
+    case kExprI64UConvertI32:
+      llgfr(dst.gp(), src.gp());
+      return true;
+    case kExprI64ReinterpretF64:
+      lgdr(dst.gp(), src.fp());
+      return true;
+    case kExprF32SConvertI32: {
+      ConvertIntToFloat(dst.fp(), src.gp());
+      return true;
+    }
+    case kExprF32UConvertI32: {
+      ConvertUnsignedIntToFloat(dst.fp(), src.gp());
+      return true;
+    }
+    case kExprF32ConvertF64:
+      ledbr(dst.fp(), src.fp());
+      return true;
+    case kExprF32ReinterpretI32: {
+      sllg(r0, src.gp(), Operand(32));
+      ldgr(dst.fp(), r0);
+      return true;
+    }
+    case kExprF64SConvertI32: {
+      ConvertIntToDouble(dst.fp(), src.gp());
+      return true;
+    }
+    case kExprF64UConvertI32: {
+      ConvertUnsignedIntToDouble(dst.fp(), src.gp());
+      return true;
+    }
+    case kExprF64ConvertF32:
+      ldebr(dst.fp(), src.fp());
+      return true;
+    case kExprF64ReinterpretI64:
+      ldgr(dst.fp(), src.gp());
+      return true;
+    case kExprF64SConvertI64:
+      ConvertInt64ToDouble(dst.fp(), src.gp());
+      return true;
+    case kExprF64UConvertI64:
+      ConvertUnsignedInt64ToDouble(dst.fp(), src.gp());
+      return true;
+    case kExprI64SConvertF32: {
+      ConvertFloat32ToInt64(dst.gp(), src.fp());  // f32 -> i64 round to zero.
+      b(Condition(1), trap);
+      return true;
+    }
+    case kExprI64UConvertF32: {
+      ConvertFloat32ToUnsignedInt64(dst.gp(),
+                                    src.fp());  // f32 -> i64 round to zero.
+      b(Condition(1), trap);
+      return true;
+    }
+    case kExprF32SConvertI64:
+      ConvertInt64ToFloat(dst.fp(), src.gp());
+      return true;
+    case kExprF32UConvertI64:
+      ConvertUnsignedInt64ToFloat(dst.fp(), src.gp());
+      return true;
+    case kExprI64SConvertF64: {
+      ConvertDoubleToInt64(dst.gp(), src.fp());  // f64 -> i64 round to zero.
+      b(Condition(1), trap);
+      return true;
+    }
+    case kExprI64UConvertF64: {
+      ConvertDoubleToUnsignedInt64(dst.gp(),
+                                   src.fp());  // f64 -> i64 round to zero.
+      b(Condition(1), trap);
+      return true;
+    }
+    case kExprI64SConvertSatF32: {
+      Label done, src_is_nan;
+      lzer(kScratchDoubleReg);
+      cebr(src.fp(), kScratchDoubleReg);
+      b(Condition(1), &src_is_nan);
+
+      // source is a finite number
+      ConvertFloat32ToInt64(dst.gp(), src.fp());  // f32 -> i64 round to zero.
+      b(&done);
+
+      bind(&src_is_nan);
+      lghi(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI64UConvertSatF32: {
+      Label done, src_is_nan;
+      lzer(kScratchDoubleReg);
+      cebr(src.fp(), kScratchDoubleReg);
+      b(Condition(1), &src_is_nan);
+
+      // source is a finite number
+      ConvertFloat32ToUnsignedInt64(dst.gp(),
+                                    src.fp());  // f32 -> i64 round to zero.
+      b(&done);
+
+      bind(&src_is_nan);
+      lghi(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI64SConvertSatF64: {
+      Label done, src_is_nan;
+      lzdr(kScratchDoubleReg, r0);
+      cdbr(src.fp(), kScratchDoubleReg);
+      b(Condition(1), &src_is_nan);
+
+      ConvertDoubleToInt64(dst.gp(), src.fp());  // f64 -> i64 round to zero.
+      b(&done);
+
+      bind(&src_is_nan);
+      lghi(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI64UConvertSatF64: {
+      Label done, src_is_nan;
+      lzdr(kScratchDoubleReg, r0);
+      cdbr(src.fp(), kScratchDoubleReg);
+      b(Condition(1), &src_is_nan);
+
+      ConvertDoubleToUnsignedInt64(dst.gp(),
+                                   src.fp());  // f64 -> i64 round to zero.
+      b(&done);
+
+      bind(&src_is_nan);
+      lghi(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
