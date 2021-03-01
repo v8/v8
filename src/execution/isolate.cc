@@ -79,7 +79,7 @@
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/embedded/embedded-file-writer.h"
+#include "src/snapshot/embedded/embedded-file-writer-interface.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/strings/string-builder-inl.h"
