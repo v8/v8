@@ -489,11 +489,6 @@ config("cppgc_base_config") {
   }
 }
 
-# This config should be applied to code using the libsampler.
-config("libsampler_config") {
-  include_dirs = [ "include" ]
-}
-
 # This config is only applied to v8_headers and is the basis for external_config
 # but without setting the USING_V8_SHARED define, which means v8_headers can be
 # used inside v8 itself.
@@ -2607,6 +2602,7 @@ v8_header_set("v8_internal_headers") {
     "src/interpreter/interpreter.h",
     "src/json/json-parser.h",
     "src/json/json-stringifier.h",
+    "src/libsampler/sampler.h",
     "src/logging/code-events.h",
     "src/logging/counters-definitions.h",
     "src/logging/counters-inl.h",
@@ -3671,6 +3667,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/interpreter/interpreter.cc",
     "src/json/json-parser.cc",
     "src/json/json-stringifier.cc",
+    "src/libsampler/sampler.cc",
     "src/logging/counters.cc",
     "src/logging/local-logger.cc",
     "src/logging/log-utils.cc",
@@ -4173,7 +4170,6 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_cppgc_shared",
     ":v8_headers",
     ":v8_libbase",
-    ":v8_libsampler",
     ":v8_shared_internal_headers",
     ":v8_tracing",
     ":v8_version",
@@ -4665,19 +4661,6 @@ v8_component("v8_libplatform") {
   }
 }
 
-v8_source_set("v8_libsampler") {
-  sources = [
-    "src/libsampler/sampler.cc",
-    "src/libsampler/sampler.h",
-  ]
-
-  configs = [ ":internal_config" ]
-
-  public_configs = [ ":libsampler_config" ]
-
-  deps = [ ":v8_libbase" ]
-}
-
 v8_source_set("fuzzer_support") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -4934,7 +4917,6 @@ if (v8_monolithic) {
       ":v8",
       ":v8_libbase",
       ":v8_libplatform",
-      ":v8_libsampler",
       "//build/win:default_exe_manifest",
     ]
 
@@ -4947,7 +4929,6 @@ v8_static_library("wee8") {
     ":v8_base",
     ":v8_libbase",
     ":v8_libplatform",
-    ":v8_libsampler",
     ":v8_shared_internal_headers",
     ":v8_snapshot",
     "//build/win:default_exe_manifest",
