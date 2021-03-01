@@ -166,10 +166,13 @@ class V8_EXPORT_PRIVATE Script {
                        LiveEditResult* result) const;
   bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
                      BreakpointId* id) const;
+#if V8_ENABLE_WEBASSEMBLY
   void RemoveWasmBreakpoint(BreakpointId id);
+#endif  // V8_ENABLE_WEBASSEMBLY
   bool SetBreakpointOnScriptEntry(BreakpointId* id) const;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 // Specialization for wasm Scripts.
 class WasmScript : public Script {
  public:
@@ -190,6 +193,7 @@ class WasmScript : public Script {
   int CodeOffset() const;
   int CodeLength() const;
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 V8_EXPORT_PRIVATE void GetLoadedScripts(
     Isolate* isolate,
@@ -228,8 +232,10 @@ class DebugDelegate {
 V8_EXPORT_PRIVATE void SetDebugDelegate(Isolate* isolate,
                                         DebugDelegate* listener);
 
+#if V8_ENABLE_WEBASSEMBLY
 V8_EXPORT_PRIVATE void TierDownAllModulesPerIsolate(Isolate* isolate);
 V8_EXPORT_PRIVATE void TierUpAllModulesPerIsolate(Isolate* isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class AsyncEventDelegate {
  public:
@@ -616,28 +622,28 @@ class PropertyIterator {
   virtual bool is_array_index() = 0;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class V8_EXPORT_PRIVATE WasmValueObject : public v8::Object {
  public:
   WasmValueObject() = delete;
   static bool IsWasmValueObject(v8::Local<v8::Value> obj);
-  V8_INLINE static WasmValueObject* Cast(v8::Value* obj);
+  static WasmValueObject* Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+    CheckCast(value);
+#endif
+    return static_cast<WasmValueObject*>(value);
+  }
 
  private:
   static void CheckCast(v8::Value* obj);
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 AccessorPair* AccessorPair::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
 #endif
   return static_cast<AccessorPair*>(value);
-}
-
-WasmValueObject* WasmValueObject::Cast(v8::Value* value) {
-#ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
-#endif
-  return static_cast<WasmValueObject*>(value);
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);

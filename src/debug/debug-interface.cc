@@ -9,11 +9,15 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
 #include "src/debug/debug-type-profile.h"
-#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/regexp/regexp-stack.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects-inl.h"
+#include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Has to be the last include (doesn't have include guards):
 #include "src/api/api-macros.h"
@@ -374,11 +378,13 @@ bool Script::GetPossibleBreakpoints(
     std::vector<BreakLocation>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+#if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::TYPE_WASM) {
     i::wasm::NativeModule* native_module = script->wasm_native_module();
     return i::WasmScript::GetPossibleBreakpoints(native_module, start, end,
                                                  locations);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   i::Isolate* isolate = script->GetIsolate();
   i::Script::InitLineEnds(isolate, script);
@@ -479,11 +485,13 @@ bool Script::SetBreakpoint(Local<String> condition, Location* location,
 bool Script::SetBreakpointOnScriptEntry(BreakpointId* id) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
+#if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::TYPE_WASM) {
     int position = i::WasmScript::kOnEntryBreakpointPosition;
     return isolate->debug()->SetBreakPointForScript(
         script, isolate->factory()->empty_string(), &position, id);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   i::SharedFunctionInfo::ScriptIterator it(isolate, *script);
   for (i::SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
     if (sfi.is_toplevel()) {
@@ -494,11 +502,13 @@ bool Script::SetBreakpointOnScriptEntry(BreakpointId* id) const {
   return false;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void Script::RemoveWasmBreakpoint(BreakpointId id) {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
   isolate->debug()->RemoveBreakpointForWasmScript(script, id);
 }
+#endif  //  V8_ENABLE_WEBASSEMBLY
 
 void RemoveBreakpoint(Isolate* v8_isolate, BreakpointId id) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -516,6 +526,7 @@ void ForceGarbageCollection(
   isolate->LowMemoryNotification();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 WasmScript* WasmScript::Cast(Script* script) {
   CHECK(script->IsWasm());
   return static_cast<WasmScript*>(script);
@@ -632,6 +643,7 @@ int WasmScript::CodeOffset() const {
                  module->code.offset() != 0);
   return module->code.offset();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Location::Location(int line_number, int column_number)
     : line_number_(line_number),
@@ -698,6 +710,7 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void TierDownAllModulesPerIsolate(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
@@ -707,6 +720,7 @@ void TierUpAllModulesPerIsolate(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   isolate->wasm_engine()->TierUpAllModulesPerIsolate(isolate);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void SetDebugDelegate(Isolate* v8_isolate, DebugDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -746,11 +760,18 @@ void AccessorPair::CheckCast(Value* that) {
                   "Value is not a v8::debug::AccessorPair");
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void WasmValueObject::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsWasmValueObject(), "v8::debug::WasmValueObject::Cast",
                   "Value is not a v8::debug::WasmValueObject");
 }
+
+bool WasmValueObject::IsWasmValueObject(Local<Value> that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(*that);
+  return obj->IsWasmValueObject();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -1112,11 +1133,6 @@ Local<Value> AccessorPair::setter() {
 bool AccessorPair::IsAccessorPair(Local<Value> that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*that);
   return obj->IsAccessorPair();
-}
-
-bool WasmValueObject::IsWasmValueObject(Local<Value> that) {
-  i::Handle<i::Object> obj = Utils::OpenHandle(*that);
-  return obj->IsWasmValueObject();
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {

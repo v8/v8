@@ -36,8 +36,11 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -562,7 +565,6 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   // break location, we also do not trigger one for debugger statements, nor
   // an exception event on exception at this location.
   FrameSummary summary = FrameSummary::GetTop(frame);
-  DCHECK(!summary.IsWasm());
   Handle<JSFunction> function = summary.AsJavaScript().function();
   if (!function->shared().HasBreakInfo()) return false;
   Handle<DebugInfo> debug_info(function->shared().GetDebugInfo(), isolate_);
@@ -644,10 +646,12 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   *id = ++thread_local_.last_breakpoint_id_;
   Handle<BreakPoint> break_point =
       isolate_->factory()->NewBreakPoint(*id, condition);
+#if V8_ENABLE_WEBASSEMBLY
   if (script->type() == Script::TYPE_WASM) {
     RecordWasmScriptWithBreakpoints(script);
     return WasmScript::SetBreakPoint(script, source_position, break_point);
   }
+#endif  //  V8_ENABLE_WEBASSEMBLY
 
   HandleScope scope(isolate_);
 
@@ -750,6 +754,7 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
   Handle<BreakPoint> breakpoint =
       isolate_->factory()->NewBreakPoint(*id, condition);
   int source_position = 0;
+#if V8_ENABLE_WEBASSEMBLY
   // Handle wasm function.
   if (shared->HasWasmExportedFunctionData()) {
     int func_index = shared->wasm_exported_function_data().function_index();
@@ -760,6 +765,7 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
     return WasmScript::SetBreakPointOnFirstBreakableForFunction(
         script, func_index, breakpoint);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return SetBreakpoint(shared, breakpoint, &source_position);
 }
 
@@ -769,6 +775,7 @@ void Debug::RemoveBreakpoint(int id) {
   ClearBreakPoint(breakpoint);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void Debug::RemoveBreakpointForWasmScript(Handle<Script> script, int id) {
   if (script->type() == Script::TYPE_WASM) {
     WasmScript::ClearBreakPointById(script, id);
@@ -802,6 +809,7 @@ void Debug::RecordWasmScriptWithBreakpoints(Handle<Script> script) {
         isolate_->global_handles()->Create(*new_list);
   }
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Clear out all the debug break code.
 void Debug::ClearAllBreakPoints() {
@@ -809,6 +817,7 @@ void Debug::ClearAllBreakPoints() {
     ClearBreakPoints(info);
     info->ClearBreakInfo(isolate_);
   });
+#if V8_ENABLE_WEBASSEMBLY
   // Clear all wasm breakpoints.
   if (!wasm_scripts_with_breakpoints_.is_null()) {
     DisallowGarbageCollection no_gc;
@@ -825,6 +834,7 @@ void Debug::ClearAllBreakPoints() {
     }
     wasm_scripts_with_breakpoints_ = Handle<WeakArrayList>{};
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
@@ -1070,6 +1080,7 @@ void Debug::PrepareStep(StepAction step_action) {
     // No longer perform the current async step.
     clear_suspended_generator();
   } else if (frame->is_wasm() && step_action != StepOut) {
+#if V8_ENABLE_WEBASSEMBLY
     // Handle stepping in wasm.
     WasmFrame* wasm_frame = WasmFrame::cast(frame);
     auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
@@ -1077,6 +1088,7 @@ void Debug::PrepareStep(StepAction step_action) {
       UpdateHookOnFunctionCall();
       return;
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
     // If the wasm code is not debuggable or will return after this step
     // (indicated by {PrepareStep} returning false), then step out of that frame
     // instead.
@@ -1104,6 +1116,7 @@ void Debug::PrepareStep(StepAction step_action) {
       // and deoptimize every frame along the way.
       bool in_current_frame = true;
       for (; !frames_it.done(); frames_it.Advance()) {
+#if V8_ENABLE_WEBASSEMBLY
         if (frames_it.frame()->is_wasm()) {
           if (in_current_frame) {
             in_current_frame = false;
@@ -1115,6 +1128,7 @@ void Debug::PrepareStep(StepAction step_action) {
           debug_info->PrepareStepOutTo(wasm_frame);
           return;
         }
+#endif  // V8_ENABLE_WEBASSEMBLY
         JavaScriptFrame* frame = JavaScriptFrame::cast(frames_it.frame());
         if (last_step_action() == StepIn) {
           // Deoptimize frame to ensure calls are checked for step-in.

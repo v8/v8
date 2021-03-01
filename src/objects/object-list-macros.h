@@ -224,7 +224,7 @@ class ZoneForwardList;
   V(WasmStruct)                                \
   V(WasmTypeInfo)                              \
   V(WasmTableObject)                           \
-  V(WasmValueObject)                           \
+  IF_WASM(V, WasmValueObject)                  \
   V(WeakFixedArray)                            \
   V(WeakArrayList)                             \
   V(WeakCell)                                  \

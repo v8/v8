@@ -7,7 +7,6 @@
 #include "src/api/api-arguments-inl.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
-#include "src/debug/debug-wasm-objects.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
@@ -71,6 +70,10 @@
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -2299,8 +2302,10 @@ int JSObject::GetHeaderSize(InstanceType type,
       return WasmModuleObject::kHeaderSize;
     case WASM_TABLE_OBJECT_TYPE:
       return WasmTableObject::kHeaderSize;
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_VALUE_OBJECT_TYPE:
       return WasmValueObject::kHeaderSize;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case WASM_EXCEPTION_OBJECT_TYPE:
       return WasmExceptionObject::kHeaderSize;
     default:

@@ -5,7 +5,6 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
-#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/combined-heap.h"
@@ -77,6 +76,10 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-verifiers.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -229,9 +232,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectVerify(isolate);
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this).WasmValueObjectVerify(isolate);
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
       JSSetIterator::cast(*this).JSSetIteratorVerify(isolate);
@@ -1614,10 +1619,12 @@ void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsWasmValueObject());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {

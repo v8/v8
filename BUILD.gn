@@ -1360,7 +1360,6 @@ torque_files = [
   "src/builtins/typed-array.tq",
   "src/builtins/wasm.tq",
   "src/builtins/weak-ref.tq",
-  "src/debug/debug-wasm-objects.tq",
   "src/ic/handler-configuration.tq",
   "src/objects/allocation-site.tq",
   "src/objects/api-callbacks.tq",
@@ -1439,6 +1438,10 @@ if (v8_enable_i18n_support) {
     "src/objects/js-segmenter.tq",
     "src/objects/js-segments.tq",
   ]
+}
+
+if (v8_enable_webassembly) {
+  torque_files += [ "src/debug/debug-wasm-objects.tq" ]
 }
 
 # Template for running torque
@@ -2427,8 +2430,6 @@ v8_header_set("v8_internal_headers") {
     "src/debug/debug-scopes.h",
     "src/debug/debug-stack-trace-iterator.h",
     "src/debug/debug-type-profile.h",
-    "src/debug/debug-wasm-objects-inl.h",
-    "src/debug/debug-wasm-objects.h",
     "src/debug/debug.h",
     "src/debug/interface-types.h",
     "src/debug/liveedit.h",
@@ -3015,6 +3016,8 @@ v8_header_set("v8_internal_headers") {
       "src/asmjs/asm-parser.h",
       "src/asmjs/asm-scanner.h",
       "src/asmjs/asm-types.h",
+      "src/debug/debug-wasm-objects-inl.h",
+      "src/debug/debug-wasm-objects.h",
     ]
   }
 
@@ -3557,7 +3560,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/debug/debug-scopes.cc",
     "src/debug/debug-stack-trace-iterator.cc",
     "src/debug/debug-type-profile.cc",
-    "src/debug/debug-wasm-objects.cc",
     "src/debug/debug.cc",
     "src/debug/liveedit.cc",
     "src/deoptimizer/deoptimize-reason.cc",
@@ -3929,6 +3931,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/asmjs/asm-parser.cc",
       "src/asmjs/asm-scanner.cc",
       "src/asmjs/asm-types.cc",
+      "src/debug/debug-wasm-objects.cc",
     ]
   }
 

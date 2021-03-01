@@ -245,9 +245,11 @@ class V8_EXPORT_PRIVATE Debug {
   bool SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
                                 Handle<String> condition, int* id);
   void RemoveBreakpoint(int id);
+#if V8_ENABLE_WEBASSEMBLY
   void RemoveBreakpointForWasmScript(Handle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(Handle<Script> script);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Find breakpoints from the debug info and the break location and check
   // whether they are hit. Return an empty handle if not, or a FixedArray with
@@ -554,8 +556,10 @@ class V8_EXPORT_PRIVATE Debug {
   // Storage location for registers when handling debug break calls
   ThreadLocal thread_local_;
 
+#if V8_ENABLE_WEBASSEMBLY
   // This is a global handle, lazily initialized.
   Handle<WeakArrayList> wasm_scripts_with_breakpoints_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Isolate* isolate_;
 

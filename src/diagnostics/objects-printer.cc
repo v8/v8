@@ -6,7 +6,6 @@
 #include <memory>
 
 #include "src/common/globals.h"
-#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
@@ -21,6 +20,10 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -175,9 +178,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this).WasmValueObjectPrint(os);
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case CODE_TYPE:
       Code::cast(*this).CodePrint(os);
       break;
@@ -1962,11 +1967,13 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmValueObject");
   os << "\n - value: " << Brief(value());
   os << "\n";
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmGlobalObject");
