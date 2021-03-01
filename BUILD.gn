@@ -2170,7 +2170,11 @@ v8_header_set("v8_shared_internal_headers") {
   ]
   configs = [ ":internal_config" ]
 
-  sources = [ "src/common/globals.h" ]
+  sources = [
+    "src/common/globals.h",
+    "src/wasm/wasm-constants.h",
+    "src/wasm/wasm-limits.h",
+  ]
 
   deps = [
     ":v8_headers",
@@ -2962,14 +2966,12 @@ v8_header_set("v8_internal_headers") {
     "src/wasm/value-type.h",
     "src/wasm/wasm-arguments.h",
     "src/wasm/wasm-code-manager.h",
-    "src/wasm/wasm-constants.h",
     "src/wasm/wasm-engine.h",
     "src/wasm/wasm-external-refs.h",
     "src/wasm/wasm-feature-flags.h",
     "src/wasm/wasm-features.h",
     "src/wasm/wasm-import-wrapper-cache.h",
     "src/wasm/wasm-js.h",
-    "src/wasm/wasm-limits.h",
     "src/wasm/wasm-linkage.h",
     "src/wasm/wasm-module-builder.h",
     "src/wasm/wasm-module-sourcemap.h",
