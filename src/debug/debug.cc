@@ -216,29 +216,6 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
 }
 
 int BreakIterator::BreakIndexFromPosition(int source_position) {
-  // TODO(crbug.com/901819): When there's no exact match, we
-  // should always pick the first match (in execution order)
-  // to ensure that when setting a breakpoint on a line, we
-  // really break as early as possible in that line. With
-  // generators that's currently broken because of the way
-  // the implicit yield is handled, this will be fixed in
-  // a follow up CL.
-  if (IsGeneratorFunction(debug_info_->shared().kind()) ||
-      IsModule(debug_info_->shared().kind())) {
-    int distance = kMaxInt;
-    int closest_break = break_index();
-    while (!Done()) {
-      int next_position = position();
-      if (source_position <= next_position &&
-          next_position - source_position < distance) {
-        closest_break = break_index();
-        distance = next_position - source_position;
-        if (distance == 0) break;
-      }
-      Next();
-    }
-    return closest_break;
-  }
   int first_break = break_index();
   bool first = true;
   while (!Done()) {

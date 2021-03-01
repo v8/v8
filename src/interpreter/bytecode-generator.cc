@@ -10,6 +10,7 @@
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
@@ -122,10 +123,10 @@ class V8_NODISCARD BytecodeGenerator::ControlScope {
   void Continue(Statement* stmt) {
     PerformCommand(CMD_CONTINUE, stmt, kNoSourcePosition);
   }
-  void ReturnAccumulator(int source_position = kNoSourcePosition) {
+  void ReturnAccumulator(int source_position) {
     PerformCommand(CMD_RETURN, nullptr, source_position);
   }
-  void AsyncReturnAccumulator(int source_position = kNoSourcePosition) {
+  void AsyncReturnAccumulator(int source_position) {
     PerformCommand(CMD_ASYNC_RETURN, nullptr, source_position);
   }
 
@@ -1458,7 +1459,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // end of the function without an explicit return being present on all paths.
   if (!builder()->RemainderOfBlockIsDead()) {
     builder()->LoadUndefined();
-    BuildReturn();
+    BuildReturn(literal->return_position());
   }
 }
 
@@ -1772,10 +1773,14 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   AllocateBlockCoverageSlotIfEnabled(stmt, SourceRangeKind::kContinuation);
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
+  int return_position = stmt->end_position();
+  if (return_position == kNoSourcePosition) {
+    return_position = info()->literal()->return_position();
+  }
   if (stmt->is_async_return()) {
-    execution_control()->AsyncReturnAccumulator(stmt->end_position());
+    execution_control()->AsyncReturnAccumulator(return_position);
   } else {
-    execution_control()->ReturnAccumulator(stmt->end_position());
+    execution_control()->ReturnAccumulator(return_position);
   }
 }
 
@@ -3307,7 +3312,7 @@ void BytecodeGenerator::BuildReturn(int source_position) {
   if (info()->flags().collect_type_profile()) {
     builder()->CollectTypeProfile(info()->literal()->return_position());
   }
-  builder()->SetReturnPosition(source_position, info()->literal());
+  builder()->SetStatementPosition(source_position);
   builder()->Return();
 }
 
@@ -4394,9 +4399,9 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
     builder()->Bind(jump_table, JSGeneratorObject::kReturn);
     builder()->LoadAccumulatorWithRegister(input);
     if (IsAsyncGeneratorFunction(function_kind())) {
-      execution_control()->AsyncReturnAccumulator();
+      execution_control()->AsyncReturnAccumulator(kNoSourcePosition);
     } else {
-      execution_control()->ReturnAccumulator();
+      execution_control()->ReturnAccumulator(kNoSourcePosition);
     }
   }
 
@@ -4546,9 +4551,9 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           if (iterator_type == IteratorType::kAsync) {
             // Await input.
             BuildAwait(expr->position());
-            execution_control()->AsyncReturnAccumulator();
+            execution_control()->AsyncReturnAccumulator(kNoSourcePosition);
           } else {
-            execution_control()->ReturnAccumulator();
+            execution_control()->ReturnAccumulator(kNoSourcePosition);
           }
         }
 
@@ -4638,9 +4643,9 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &completion_is_output_value)
       .LoadAccumulatorWithRegister(output_value);
   if (iterator_type == IteratorType::kAsync) {
-    execution_control()->AsyncReturnAccumulator();
+    execution_control()->AsyncReturnAccumulator(kNoSourcePosition);
   } else {
-    execution_control()->ReturnAccumulator();
+    execution_control()->ReturnAccumulator(kNoSourcePosition);
   }
 
   builder()->Bind(&completion_is_output_value);
