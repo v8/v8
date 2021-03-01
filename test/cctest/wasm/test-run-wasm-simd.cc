@@ -2927,27 +2927,6 @@ void RunBinaryLaneOpTest(
   }
 }
 
-WASM_SIMD_TEST(I32x4AddHoriz) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-  // Inputs are [0 1 2 3] and [4 5 6 7].
-  RunBinaryLaneOpTest<int32_t>(execution_tier, lower_simd, kExprI32x4AddHoriz,
-                               {{1, 5, 9, 13}});
-}
-
-WASM_SIMD_TEST(I16x8AddHoriz) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-  // Inputs are [0 1 2 3 4 5 6 7] and [8 9 10 11 12 13 14 15].
-  RunBinaryLaneOpTest<int16_t>(execution_tier, lower_simd, kExprI16x8AddHoriz,
-                               {{1, 5, 9, 13, 17, 21, 25, 29}});
-}
-
-WASM_SIMD_TEST(F32x4AddHoriz) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-  // Inputs are [0.0f 1.0f 2.0f 3.0f] and [4.0f 5.0f 6.0f 7.0f].
-  RunBinaryLaneOpTest<float>(execution_tier, lower_simd, kExprF32x4AddHoriz,
-                             {{1.0f, 5.0f, 9.0f, 13.0f}});
-}
-
 // Test shuffle ops.
 void RunShuffleOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode simd_op,

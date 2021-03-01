@@ -2618,7 +2618,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F64x2Lt, kArmF64x2Lt)                             \
   V(F64x2Le, kArmF64x2Le)                             \
   V(F32x4Add, kArmF32x4Add)                           \
-  V(F32x4AddHoriz, kArmF32x4AddHoriz)                 \
   V(F32x4Sub, kArmF32x4Sub)                           \
   V(F32x4Mul, kArmF32x4Mul)                           \
   V(F32x4Min, kArmF32x4Min)                           \
@@ -2630,7 +2629,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I64x2Add, kArmI64x2Add)                           \
   V(I64x2Sub, kArmI64x2Sub)                           \
   V(I32x4Add, kArmI32x4Add)                           \
-  V(I32x4AddHoriz, kArmI32x4AddHoriz)                 \
   V(I32x4Sub, kArmI32x4Sub)                           \
   V(I32x4Mul, kArmI32x4Mul)                           \
   V(I32x4MinS, kArmI32x4MinS)                         \
@@ -2650,7 +2648,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8SConvertI32x4, kArmI16x8SConvertI32x4)       \
   V(I16x8Add, kArmI16x8Add)                           \
   V(I16x8AddSatS, kArmI16x8AddSatS)                   \
-  V(I16x8AddHoriz, kArmI16x8AddHoriz)                 \
   V(I16x8Sub, kArmI16x8Sub)                           \
   V(I16x8SubSatS, kArmI16x8SubSatS)                   \
   V(I16x8Mul, kArmI16x8Mul)                           \

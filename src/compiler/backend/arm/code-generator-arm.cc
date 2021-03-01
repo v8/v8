@@ -479,24 +479,6 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
     }                                                 \
   } while (0)
 
-#define ASSEMBLE_NEON_PAIRWISE_OP(op, size)               \
-  do {                                                    \
-    Simd128Register dst = i.OutputSimd128Register(),      \
-                    src0 = i.InputSimd128Register(0),     \
-                    src1 = i.InputSimd128Register(1);     \
-    if (dst == src0) {                                    \
-      __ op(size, dst.low(), src0.low(), src0.high());    \
-      if (dst == src1) {                                  \
-        __ vmov(dst.high(), dst.low());                   \
-      } else {                                            \
-        __ op(size, dst.high(), src1.low(), src1.high()); \
-      }                                                   \
-    } else {                                              \
-      __ op(size, dst.high(), src1.low(), src1.high());   \
-      __ op(size, dst.low(), src0.low(), src0.high());    \
-    }                                                     \
-  } while (0)
-
 #define ASSEMBLE_F64X2_ARITHMETIC_BINOP(op)                                   \
   do {                                                                        \
     __ op(i.OutputSimd128Register().low(), i.InputSimd128Register(0).low(),   \
@@ -2266,24 +2248,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmF32x4AddHoriz: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Make sure we don't overwrite source data before it's used.
-      if (dst == src0) {
-        __ vpadd(dst.low(), src0.low(), src0.high());
-        if (dst == src1) {
-          __ vmov(dst.high(), dst.low());
-        } else {
-          __ vpadd(dst.high(), src1.low(), src1.high());
-        }
-      } else {
-        __ vpadd(dst.high(), src1.low(), src1.high());
-        __ vpadd(dst.low(), src0.low(), src0.high());
-      }
-      break;
-    }
     case kArmF32x4Sub: {
       __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -2420,9 +2384,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmI32x4AddHoriz:
-      ASSEMBLE_NEON_PAIRWISE_OP(vpadd, Neon32);
-      break;
     case kArmI32x4Sub: {
       __ vsub(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -2628,9 +2589,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1));
       break;
     }
-    case kArmI16x8AddHoriz:
-      ASSEMBLE_NEON_PAIRWISE_OP(vpadd, Neon16);
-      break;
     case kArmI16x8Sub: {
       __ vsub(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -3604,7 +3562,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ASSEMBLE_IEEE754_BINOP
 #undef ASSEMBLE_IEEE754_UNOP
 #undef ASSEMBLE_NEON_NARROWING_OP
-#undef ASSEMBLE_NEON_PAIRWISE_OP
 #undef ASSEMBLE_SIMD_SHIFT_LEFT
 #undef ASSEMBLE_SIMD_SHIFT_RIGHT
   }

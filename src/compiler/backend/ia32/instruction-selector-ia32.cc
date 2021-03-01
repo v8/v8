@@ -2217,7 +2217,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4Lt)               \
   V(F32x4Le)               \
   V(I32x4Add)              \
-  V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
   V(I32x4MinS)             \
@@ -2233,7 +2232,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8SConvertI32x4)    \
   V(I16x8Add)              \
   V(I16x8AddSatS)          \
-  V(I16x8AddHoriz)         \
   V(I16x8Sub)              \
   V(I16x8SubSatS)          \
   V(I16x8Mul)              \
@@ -2260,7 +2258,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 
 #define SIMD_BINOP_UNIFIED_SSE_AVX_LIST(V) \
   V(F32x4Add)                              \
-  V(F32x4AddHoriz)                         \
   V(F32x4Sub)                              \
   V(F32x4Mul)                              \
   V(F32x4Div)                              \

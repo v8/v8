@@ -140,7 +140,6 @@ void SimdScalarLowering::LowerGraph() {
   V(I32x4Shl)                     \
   V(I32x4ShrS)                    \
   V(I32x4Add)                     \
-  V(I32x4AddHoriz)                \
   V(I32x4Sub)                     \
   V(I32x4Mul)                     \
   V(I32x4MinS)                    \
@@ -211,7 +210,6 @@ void SimdScalarLowering::LowerGraph() {
   V(F32x4RecipApprox)               \
   V(F32x4RecipSqrtApprox)           \
   V(F32x4Add)                       \
-  V(F32x4AddHoriz)                  \
   V(F32x4Sub)                       \
   V(F32x4Mul)                       \
   V(F32x4Div)                       \
@@ -251,7 +249,6 @@ void SimdScalarLowering::LowerGraph() {
   V(I16x8SConvertI32x4)           \
   V(I16x8Add)                     \
   V(I16x8AddSatS)                 \
-  V(I16x8AddHoriz)                \
   V(I16x8Sub)                     \
   V(I16x8SubSatS)                 \
   V(I16x8Mul)                     \
@@ -1632,14 +1629,6 @@ void SimdScalarLowering::LowerNode(Node* node) {
       I32X4_BINOP_CASE(kS128Or, Word32Or)
       I32X4_BINOP_CASE(kS128Xor, Word32Xor)
 #undef I32X4_BINOP_CASE
-    case IrOpcode::kI32x4AddHoriz: {
-      LowerBinaryOp(node, rep_type, machine()->Int32Add(), false);
-      break;
-    }
-    case IrOpcode::kI16x8AddHoriz: {
-      LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Add(), false);
-      break;
-    }
     case IrOpcode::kI16x8Add:
     case IrOpcode::kI8x16Add: {
       LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Add());
@@ -1885,10 +1874,6 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kI16x8ShrU:
     case IrOpcode::kI8x16ShrU: {
       LowerShiftOp(node, rep_type);
-      break;
-    }
-    case IrOpcode::kF32x4AddHoriz: {
-      LowerBinaryOp(node, rep_type, machine()->Float32Add(), false);
       break;
     }
 #define F32X4_BINOP_CASE(name)                                 \

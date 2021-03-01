@@ -1968,8 +1968,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4RecipSqrtApprox(node);
     case IrOpcode::kF32x4Add:
       return MarkAsSimd128(node), VisitF32x4Add(node);
-    case IrOpcode::kF32x4AddHoriz:
-      return MarkAsSimd128(node), VisitF32x4AddHoriz(node);
     case IrOpcode::kF32x4Sub:
       return MarkAsSimd128(node), VisitF32x4Sub(node);
     case IrOpcode::kF32x4Mul:
@@ -2078,8 +2076,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4ShrS(node);
     case IrOpcode::kI32x4Add:
       return MarkAsSimd128(node), VisitI32x4Add(node);
-    case IrOpcode::kI32x4AddHoriz:
-      return MarkAsSimd128(node), VisitI32x4AddHoriz(node);
     case IrOpcode::kI32x4Sub:
       return MarkAsSimd128(node), VisitI32x4Sub(node);
     case IrOpcode::kI32x4Mul:
@@ -2158,8 +2154,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8Add(node);
     case IrOpcode::kI16x8AddSatS:
       return MarkAsSimd128(node), VisitI16x8AddSatS(node);
-    case IrOpcode::kI16x8AddHoriz:
-      return MarkAsSimd128(node), VisitI16x8AddHoriz(node);
     case IrOpcode::kI16x8Sub:
       return MarkAsSimd128(node), VisitI16x8Sub(node);
     case IrOpcode::kI16x8SubSatS:

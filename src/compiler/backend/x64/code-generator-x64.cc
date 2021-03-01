@@ -2609,11 +2609,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(addps);
       break;
     }
-    case kX64F32x4AddHoriz: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Haddps(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      break;
-    }
     case kX64F32x4Sub: {
       ASSEMBLE_SIMD_BINOP(subps);
       break;
@@ -2960,10 +2955,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(paddd);
       break;
     }
-    case kX64I32x4AddHoriz: {
-      ASSEMBLE_SIMD_BINOP(phaddd);
-      break;
-    }
     case kX64I32x4Sub: {
       ASSEMBLE_SIMD_BINOP(psubd);
       break;
@@ -3176,10 +3167,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8AddSatS: {
       ASSEMBLE_SIMD_BINOP(paddsw);
-      break;
-    }
-    case kX64I16x8AddHoriz: {
-      ASSEMBLE_SIMD_BINOP(phaddw);
       break;
     }
     case kX64I16x8Sub: {
