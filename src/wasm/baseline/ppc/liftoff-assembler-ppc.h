@@ -72,17 +72,17 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
   return liftoff::kInstanceOffset;
 }
 
-int LiftoffAssembler::SlotSizeForType(ValueType type) {
-  switch (type.kind()) {
+int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
+  switch (kind) {
     case kS128:
-      return type.element_size_bytes();
+      return element_size_bytes(kind);
     default:
       return kStackSlotSize;
   }
 }
 
-bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return (type.kind() == kS128 || type.is_reference_type());
+bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
+  return (kind == kS128 || is_reference_type(kind));
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -203,36 +203,36 @@ void LiftoffAssembler::AtomicFence() { sync(); }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
-                                           ValueType type) {
+                                           ValueKind kind) {
   bailout(kUnsupportedArchitecture, "LoadCallerFrameSlot");
 }
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueType type) {
+                                            ValueKind kind) {
   bailout(kUnsupportedArchitecture, "StoreCallerFrameSlot");
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
-                                           ValueType type) {
+                                           ValueKind kind) {
   bailout(kUnsupportedArchitecture, "LoadReturnStackSlot");
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
-                                      ValueType type) {
+                                      ValueKind kind) {
   bailout(kUnsupportedArchitecture, "MoveStackValue");
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
+void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   bailout(kUnsupportedArchitecture, "Move Register");
 }
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueType type) {
+                            ValueKind kind) {
   bailout(kUnsupportedArchitecture, "Move DoubleRegister");
 }
 
-void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
+void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
   bailout(kUnsupportedArchitecture, "Spill register");
 }
 
@@ -240,7 +240,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   bailout(kUnsupportedArchitecture, "Spill value");
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
   bailout(kUnsupportedArchitecture, "Fill");
 }
 
@@ -528,7 +528,7 @@ void LiftoffAssembler::emit_jump(Register target) {
 }
 
 void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
-                                      Label* label, ValueType type,
+                                      Label* label, ValueKind kind,
                                       Register lhs, Register rhs) {
   bailout(kUnsupportedArchitecture, "emit_cond_jump");
 }
@@ -574,7 +574,7 @@ void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
 bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
                                    LiftoffRegister true_value,
                                    LiftoffRegister false_value,
-                                   ValueType type) {
+                                   ValueKind kind) {
   return false;
 }
 
@@ -1699,6 +1699,11 @@ void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i32x4_abs");
 }
 
+void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kSimd, "i64x2.abs");
+}
+
 void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i8x16sub");
@@ -1758,10 +1763,10 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   bailout(kUnsupportedArchitecture, "DropStackSlotsAndRet");
 }
 
-void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
+void LiftoffAssembler::CallC(const ValueKindSig* sig,
                              const LiftoffRegister* args,
                              const LiftoffRegister* rets,
-                             ValueType out_argument_type, int stack_bytes,
+                             ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   bailout(kUnsupportedArchitecture, "CallC");
 }
@@ -1774,7 +1779,7 @@ void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
   bailout(kUnsupportedArchitecture, "TailCallNativeWasmCode");
 }
 
-void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
+void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   bailout(kUnsupportedArchitecture, "CallIndirect");
