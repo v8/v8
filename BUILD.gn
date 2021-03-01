@@ -2178,6 +2178,19 @@ v8_header_set("v8_shared_internal_headers") {
   ]
 }
 
+v8_header_set("v8_flags") {
+  visibility = [ ":*" ]
+
+  configs = [ ":internal_config" ]
+
+  sources = [
+    "src/flags/flag-definitions.h",
+    "src/flags/flags.h",
+  ]
+
+  deps = [ ":v8_shared_internal_headers" ]
+}
+
 v8_header_set("v8_internal_headers") {
   configs = [ ":internal_config" ]
 
@@ -2465,8 +2478,6 @@ v8_header_set("v8_internal_headers") {
     "src/extensions/ignition-statistics-extension.h",
     "src/extensions/statistics-extension.h",
     "src/extensions/trigger-failure-extension.h",
-    "src/flags/flag-definitions.h",
-    "src/flags/flags.h",
     "src/handles/global-handles.h",
     "src/handles/handles-inl.h",
     "src/handles/handles.h",
@@ -3238,6 +3249,7 @@ v8_header_set("v8_internal_headers") {
 
   public_deps = [
     ":torque_runtime_support",
+    ":v8_flags",
     ":v8_headers",
     ":v8_maybe_icu",
     ":v8_shared_internal_headers",
@@ -4314,7 +4326,10 @@ v8_source_set("torque_base") {
     "src/torque/utils.h",
   ]
 
-  deps = [ ":v8_shared_internal_headers" ]
+  deps = [
+    ":v8_flags",
+    ":v8_shared_internal_headers",
+  ]
 
   public_deps = [ ":v8_libbase" ]
 
