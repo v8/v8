@@ -3005,6 +3005,10 @@ v8_header_set("v8_internal_headers") {
     "src/zone/zone.h",
   ]
 
+  if (v8_use_perfetto) {
+    sources -= [ "//base/trace_event/common/trace_event_common.h" ]
+  }
+
   if (v8_enable_webassembly) {
     sources += [
       "src/asmjs/asm-js.h",
@@ -4266,7 +4270,6 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_use_perfetto) {
-    sources -= [ "//base/trace_event/common/trace_event_common.h" ]
     sources += [
       "src/tracing/trace-categories.cc",
       "src/tracing/trace-categories.h",
