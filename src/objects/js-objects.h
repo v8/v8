@@ -1118,6 +1118,9 @@ class JSMessageObject : public JSObject {
   // EnsureSourcePositionsAvailable must have been called before calling this.
   V8_EXPORT_PRIVATE int GetColumnNumber() const;
 
+  // Returns the source code
+  V8_EXPORT_PRIVATE String GetSource() const;
+
   // Returns the source code line containing the given source
   // position, or the empty string if the position is invalid.
   // EnsureSourcePositionsAvailable must have been called before calling this.

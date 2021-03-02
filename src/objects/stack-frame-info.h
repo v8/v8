@@ -56,6 +56,8 @@ class StackFrameInfo
   int GetScriptId() const;
   Object GetScriptName() const;
   Object GetScriptNameOrSourceURL() const;
+  Object GetScriptSource() const;
+  Object GetScriptSourceMappingURL() const;
 
   static Handle<PrimitiveHeapObject> GetEvalOrigin(Handle<StackFrameInfo> info);
   static Handle<Object> GetFunctionName(Handle<StackFrameInfo> info);

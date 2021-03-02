@@ -145,6 +145,22 @@ Object StackFrameInfo::GetScriptNameOrSourceURL() const {
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
+Object StackFrameInfo::GetScriptSource() const {
+  if (auto script = GetScript()) {
+    if (script->HasValidSource()) {
+      return script->source();
+    }
+  }
+  return ReadOnlyRoots(GetIsolate()).null_value();
+}
+
+Object StackFrameInfo::GetScriptSourceMappingURL() const {
+  if (auto script = GetScript()) {
+    return script->source_mapping_url();
+  }
+  return ReadOnlyRoots(GetIsolate()).null_value();
+}
+
 namespace {
 
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {

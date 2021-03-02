@@ -2167,6 +2167,8 @@ class V8_EXPORT Message {
    */
   Isolate* GetIsolate() const;
 
+  V8_WARN_UNUSED_RESULT MaybeLocal<String> GetSource(
+      Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<String> GetSourceLine(
       Local<Context> context) const;
 
@@ -2340,6 +2342,17 @@ class V8_EXPORT StackFrame {
    * deprecated //@ sourceURL=... string.
    */
   Local<String> GetScriptNameOrSourceURL() const;
+
+  /**
+   * Returns the source of the script for the function for this StackFrame.
+   */
+  Local<String> GetScriptSource() const;
+
+  /**
+   * Returns the source mapping URL (if one is present) of the script for
+   * the function for this StackFrame.
+   */
+  Local<String> GetScriptSourceMappingURL() const;
 
   /**
    * Returns the name of the function associated with this stack frame.

@@ -4732,6 +4732,13 @@ namespace {
 // some particular way by calling the supplied |tester| function. The tests that
 // use this purposely test only a single getter as the getter updates the cached
 // state of the object which could affect the results of other functions.
+const char message_attributes_script[] =
+    R"javascript(
+    (function() {
+      throw new Error();
+    })();
+    )javascript";
+
 void CheckMessageAttributes(std::function<void(v8::Local<v8::Context> context,
                                                v8::Local<v8::Message> message)>
                                 tester) {
@@ -4739,12 +4746,7 @@ void CheckMessageAttributes(std::function<void(v8::Local<v8::Context> context,
   v8::HandleScope scope(context->GetIsolate());
 
   TryCatch try_catch(context->GetIsolate());
-  CompileRun(
-      R"javascript(
-      (function() {
-        throw new Error();
-      })();
-      )javascript");
+  CompileRun(message_attributes_script);
   CHECK(try_catch.HasCaught());
 
   v8::Local<v8::Value> error = try_catch.Exception();
@@ -4767,29 +4769,38 @@ TEST(MessageGetLineNumber) {
 TEST(MessageGetStartColumn) {
   CheckMessageAttributes(
       [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
-        CHECK_EQ(14, message->GetStartColumn(context).FromJust());
+        CHECK_EQ(12, message->GetStartColumn(context).FromJust());
       });
 }
 
 TEST(MessageGetEndColumn) {
   CheckMessageAttributes(
       [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
-        CHECK_EQ(15, message->GetEndColumn(context).FromJust());
+        CHECK_EQ(13, message->GetEndColumn(context).FromJust());
       });
 }
 
 TEST(MessageGetStartPosition) {
   CheckMessageAttributes(
       [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
-        CHECK_EQ(35, message->GetStartPosition());
+        CHECK_EQ(31, message->GetStartPosition());
       });
 }
 
 TEST(MessageGetEndPosition) {
   CheckMessageAttributes(
       [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
-        CHECK_EQ(36, message->GetEndPosition());
+        CHECK_EQ(32, message->GetEndPosition());
       });
+}
+
+TEST(MessageGetSource) {
+  CheckMessageAttributes([](v8::Local<v8::Context> context,
+                            v8::Local<v8::Message> message) {
+    std::string result(*v8::String::Utf8Value(
+        context->GetIsolate(), message->GetSource(context).ToLocalChecked()));
+    CHECK_EQ(message_attributes_script, result);
+  });
 }
 
 TEST(MessageGetSourceLine) {
@@ -4798,7 +4809,7 @@ TEST(MessageGetSourceLine) {
         std::string result(*v8::String::Utf8Value(
             context->GetIsolate(),
             message->GetSourceLine(context).ToLocalChecked()));
-        CHECK_EQ("        throw new Error();", result);
+        CHECK_EQ("      throw new Error();", result);
       });
 }
 

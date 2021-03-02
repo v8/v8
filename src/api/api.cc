@@ -2902,6 +2902,15 @@ bool Message::IsOpaque() const {
   return self->script().origin_options().IsOpaque();
 }
 
+MaybeLocal<String> Message::GetSource(Local<Context> context) const {
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
+  i::Handle<i::String> source(self->GetSource(), isolate);
+  RETURN_ESCAPED(Utils::ToLocal(source));
+}
+
 MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
@@ -2969,6 +2978,23 @@ Local<String> StackFrame::GetScriptNameOrSourceURL() const {
   i::Handle<i::Object> name_or_url(self->GetScriptNameOrSourceURL(), isolate);
   if (!name_or_url->IsString()) return {};
   return Local<String>::Cast(Utils::ToLocal(name_or_url));
+}
+
+Local<String> StackFrame::GetScriptSource() const {
+  auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
+  i::Handle<i::Object> source(self->GetScriptSource(), isolate);
+  if (!source->IsString()) return {};
+  return Local<String>::Cast(Utils::ToLocal(source));
+}
+
+Local<String> StackFrame::GetScriptSourceMappingURL() const {
+  auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
+  i::Handle<i::Object> sourceMappingURL(self->GetScriptSourceMappingURL(),
+                                        isolate);
+  if (!sourceMappingURL->IsString()) return {};
+  return Local<String>::Cast(Utils::ToLocal(sourceMappingURL));
 }
 
 Local<String> StackFrame::GetFunctionName() const {
