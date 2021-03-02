@@ -68,7 +68,7 @@ namespace internal {
 //       contains the number of the bucket representing the i-th entry of the
 //       table in enumeration order. Entries may contain unitialized data if the
 //       corresponding bucket  hasn't been used before.
-class SwissNameDictionary : public HeapObject {
+class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
  public:
   using Group = swiss_table::Group;
 
@@ -111,6 +111,18 @@ class SwissNameDictionary : public HeapObject {
 
   inline int Capacity();
   inline int UsedCapacity();
+
+  // Strict in the sense that it checks that all used/initialized memory in
+  // |this| and |other| is the same. The only exceptions are the meta table
+  // pointer (which must differ  between the two tables) and PropertyDetails of
+  // deleted entries (which reside in initialized memory, but are not compared).
+  bool EqualsForTesting(SwissNameDictionary other);
+
+  // Copy operation for testing purposes. Guarantees that DebugEquals holds for
+  // the old table and its copy. In particular, no kind of tidying up is
+  // performed.
+  static Handle<SwissNameDictionary> CopyForTesting(
+      Isolate* isolate, Handle<SwissNameDictionary> table);
 
   template <typename LocalIsolate>
   void Initialize(LocalIsolate* isolate, ByteArray meta_table, int capacity);
@@ -185,6 +197,10 @@ class SwissNameDictionary : public HeapObject {
 
   // Indicates that IterateEntries() returns entries ordered.
   static constexpr bool kIsOrderedDictionaryType = true;
+
+  // Only used in CSA/Torque, where indices are actual integers. In C++,
+  // InternalIndex::NotFound() is always used instead.
+  static constexpr int kNotFoundSentinel = -1;
 
   static const int kGroupWidth = Group::kWidth;
 

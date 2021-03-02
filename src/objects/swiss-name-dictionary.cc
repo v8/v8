@@ -77,6 +77,100 @@ Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
   return new_table;
 }
 
+bool SwissNameDictionary::EqualsForTesting(SwissNameDictionary other) {
+  if (Capacity() != other.Capacity() ||
+      NumberOfElements() != other.NumberOfElements() ||
+      NumberOfDeletedElements() != other.NumberOfDeletedElements() ||
+      Hash() != other.Hash()) {
+    return false;
+  }
+
+  for (int i = 0; i < Capacity() + kGroupWidth; i++) {
+    if (CtrlTable()[i] != other.CtrlTable()[i]) {
+      return false;
+    }
+  }
+  for (int i = 0; i < Capacity(); i++) {
+    if (KeyAt(i) != other.KeyAt(i) || ValueAtRaw(i) != other.ValueAtRaw(i)) {
+      return false;
+    }
+    if (IsFull(GetCtrl(i))) {
+      if (DetailsAt(i) != other.DetailsAt(i)) return false;
+    }
+  }
+  for (int i = 0; i < UsedCapacity(); i++) {
+    if (EntryForEnumerationIndex(i) != other.EntryForEnumerationIndex(i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// static
+Handle<SwissNameDictionary> SwissNameDictionary::CopyForTesting(
+    Isolate* isolate, Handle<SwissNameDictionary> table) {
+  if (table->Capacity() == 0) {
+    return table;
+  }
+
+  int capacity = table->Capacity();
+  int used_capacity = table->UsedCapacity();
+
+  Handle<SwissNameDictionary> new_table =
+      isolate->factory()->NewSwissNameDictionaryWithCapacity(
+          capacity, Heap::InYoungGeneration(*table) ? AllocationType::kYoung
+                                                    : AllocationType::kOld);
+
+  new_table->SetHash(table->Hash());
+
+  DisallowGarbageCollection no_gc;
+  WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
+
+  if (mode == WriteBarrierMode::SKIP_WRITE_BARRIER) {
+    // Copy data table and ctrl table, which are stored next to each other.
+    void* original_start =
+        reinterpret_cast<void*>(table->field_address(DataTableStartOffset()));
+    void* new_table_start = reinterpret_cast<void*>(
+        new_table->field_address(DataTableStartOffset()));
+    size_t bytes_to_copy = DataTableSize(capacity) + CtrlTableSize(capacity);
+    DCHECK(DataTableEndOffset(capacity) == CtrlTableStartOffset(capacity));
+    MemCopy(new_table_start, original_start, bytes_to_copy);
+  } else {
+    DCHECK_EQ(UPDATE_WRITE_BARRIER, mode);
+
+    // We may have to trigger write barriers when copying the data table.
+    for (int i = 0; i < capacity; ++i) {
+      Object key = table->KeyAt(i);
+      Object value = table->ValueAtRaw(i);
+
+      // Cannot use SetKey/ValueAtPut because they don't accept the hole as data
+      // to store.
+      new_table->StoreToDataTable(i, kDataTableKeyEntryIndex, key);
+      new_table->StoreToDataTable(i, kDataTableValueEntryIndex, value);
+    }
+
+    void* original_ctrl_table = table->CtrlTable();
+    void* new_ctrl_table = new_table->CtrlTable();
+    MemCopy(new_ctrl_table, original_ctrl_table, CtrlTableSize(capacity));
+  }
+
+  // PropertyDetails table may contain uninitialized data for unused slots.
+  for (int i = 0; i < capacity; ++i) {
+    if (IsFull(table->GetCtrl(i))) {
+      new_table->DetailsAtPut(i, table->DetailsAt(i));
+    }
+  }
+
+  // Meta table is only initialized for the first 2 + UsedCapacity() entries,
+  // where size of each entry depends on table capacity.
+  int size_per_meta_table_entry = MetaTableSizePerEntryFor(capacity);
+  int meta_table_used_bytes = (2 + used_capacity) * size_per_meta_table_entry;
+  new_table->meta_table().copy_in(0, table->meta_table().GetDataStartAddress(),
+                                  meta_table_used_bytes);
+
+  return new_table;
+}
+
 // static
 Handle<SwissNameDictionary> SwissNameDictionary::Shrink(
     Isolate* isolate, Handle<SwissNameDictionary> table) {
@@ -164,14 +258,21 @@ STATIC_ASSERT(SwissNameDictionary::MaxUsableCapacity(
                   SwissNameDictionary::kMax2ByteMetaTableCapacity) <=
               std::numeric_limits<uint16_t>::max());
 
-template void SwissNameDictionary::Initialize(Isolate* isolate,
-                                              ByteArray meta_table,
-                                              int capacity);
-template void SwissNameDictionary::Initialize(LocalIsolate* isolate,
-                                              ByteArray meta_table,
-                                              int capacity);
+template V8_EXPORT_PRIVATE void SwissNameDictionary::Initialize(
+    Isolate* isolate, ByteArray meta_table, int capacity);
+template V8_EXPORT_PRIVATE void SwissNameDictionary::Initialize(
+    LocalIsolate* isolate, ByteArray meta_table, int capacity);
+
+template V8_EXPORT_PRIVATE Handle<SwissNameDictionary>
+SwissNameDictionary::Rehash(LocalIsolate* isolate,
+                            Handle<SwissNameDictionary> table,
+                            int new_capacity);
+template V8_EXPORT_PRIVATE Handle<SwissNameDictionary>
+SwissNameDictionary::Rehash(Isolate* isolate, Handle<SwissNameDictionary> table,
+                            int new_capacity);
 
 constexpr int SwissNameDictionary::kInitialCapacity;
+constexpr int SwissNameDictionary::kGroupWidth;
 
 }  // namespace internal
 }  // namespace v8

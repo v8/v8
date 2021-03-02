@@ -18,6 +18,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
@@ -1363,6 +1364,113 @@ RUNTIME_FUNCTION(Runtime_AddPrivateField) {
                                 StoreOrigin::kMaybeKeyed)
             .FromJust());
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableAllocate) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, at_least_space_for, 0);
+
+  return *isolate->factory()->NewSwissNameDictionary(
+      at_least_space_for->value(), AllocationType::kYoung);
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableAdd) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, details_smi, 3);
+
+  DCHECK(key->IsUniqueName());
+
+  return *SwissNameDictionary::Add(isolate, table, key, value,
+                                   PropertyDetails{*details_smi});
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableFindEntry) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+
+  InternalIndex index = table->FindEntry(isolate, *key);
+  return Smi::FromInt(index.is_found()
+                          ? index.as_int()
+                          : SwissNameDictionary::kNotFoundSentinel);
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableUpdate) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, details_smi, 3);
+
+  InternalIndex i(Smi::ToInt(*index));
+
+  table->ValueAtPut(i, *value);
+  table->DetailsAtPut(i, PropertyDetails{*details_smi});
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableDelete) {
+  HandleScope scope(isolate);
+  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
+  Handle<Smi> index = args.at<Smi>(1);
+
+  InternalIndex i(Smi::ToInt(*index));
+
+  return *SwissNameDictionary::DeleteEntry(isolate, table, i);
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableEquals) {
+  HandleScope scope(isolate);
+  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
+  Handle<SwissNameDictionary> other = args.at<SwissNameDictionary>(1);
+
+  return Smi::FromInt(table->EqualsForTesting(*other));
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableElementsCount) {
+  HandleScope scope(isolate);
+  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
+
+  return Smi::FromInt(table->NumberOfElements());
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableValueAt) {
+  HandleScope scope(isolate);
+  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
+  Handle<Smi> index = args.at<Smi>(1);
+
+  return table->ValueAt(InternalIndex(Smi::ToInt(*index)));
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableDetailsAt) {
+  HandleScope scope(isolate);
+  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
+  Handle<Smi> index = args.at<Smi>(1);
+
+  PropertyDetails d = table->DetailsAt(InternalIndex(Smi::ToInt(*index)));
+  return d.AsSmi();
 }
 
 }  // namespace internal
