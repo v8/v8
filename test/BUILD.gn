@@ -146,7 +146,7 @@ v8_header_set("common_test_headers") {
   configs = []
 
   public_deps = [
-    "../:v8_for_testing",
+    "../:v8_internal_headers",
     "../:v8_libbase",
   ]
 
