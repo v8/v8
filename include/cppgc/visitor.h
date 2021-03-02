@@ -165,19 +165,54 @@ class V8_EXPORT Visitor {
    * \param value Member reference weakly retaining a value object.
    */
   template <typename KeyType, typename ValueType>
-  void TraceEphemeron(const WeakMember<KeyType>& key, const ValueType* value) {
+  void TraceEphemeron(const WeakMember<KeyType>& key,
+                      const Member<ValueType>* value) {
     const KeyType* k = key.GetRawAtomic();
     if (!k) return;
+
+    // `value` must always be non-null.
+    CPPGC_DCHECK(value);
     TraceDescriptor value_desc =
-        TraceTrait<ValueType>::GetTraceDescriptor(value);
+        TraceTrait<Member<ValueType>>::GetTraceDescriptor(value);
+    if (!value_desc.base_object_payload) return;
+
     // KeyType might be a GarbageCollectedMixin.
     const void* key_base_object_payload =
         TraceTrait<KeyType>::GetTraceDescriptor(k).base_object_payload;
     CPPGC_DCHECK(key_base_object_payload);
-    // `value` must always be non-null. `value_desc.base_object_payload` may be
-    // null in the case that value is not a garbage-collected object but only
-    // traceable.
+
+    // `value_desc.base_object_payload` must also be non-null because empty
+    // values are filtered above.
+    CPPGC_DCHECK(value_desc.base_object_payload);
+    VisitEphemeron(key_base_object_payload, value, value_desc);
+  }
+
+  /**
+   * Trace method for ephemerons. Used for tracing raw ephemeron in which the
+   * key and value are kept separately.
+   *
+   * \param key WeakMember reference weakly retaining a key object.
+   * \param value Traceable reference weakly retaining a value object.
+   */
+  template <typename KeyType, typename ValueType>
+  void TraceEphemeron(const WeakMember<KeyType>& key, const ValueType* value) {
+    static_assert(!IsGarbageCollectedOrMixinTypeV<ValueType>,
+                  "garbage-collected types must use WeakMember and Member");
+    const KeyType* k = key.GetRawAtomic();
+    if (!k) return;
+
+    // `value` must always be non-null.
     CPPGC_DCHECK(value);
+    TraceDescriptor value_desc =
+        TraceTrait<ValueType>::GetTraceDescriptor(value);
+    // `value_desc.base_object_payload` must be null as this override is only
+    // taken for non-garbage-collected values.
+    CPPGC_DCHECK(!value_desc.base_object_payload);
+
+    // KeyType might be a GarbageCollectedMixin.
+    const void* key_base_object_payload =
+        TraceTrait<KeyType>::GetTraceDescriptor(k).base_object_payload;
+    CPPGC_DCHECK(key_base_object_payload);
     VisitEphemeron(key_base_object_payload, value, value_desc);
   }
 
