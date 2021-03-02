@@ -1478,7 +1478,9 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool with_result) {
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
-  Register scratch = t3;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+
   if (with_result) {
   if (java_script_builtin) {
     __ mov(scratch, v0);
