@@ -790,19 +790,27 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 
 #define LFR_TO_REG(reg) reg.gp()
 
-// V(name, instr, dtype, stype, dcast, scast, rcast)
-#define UNOP_LIST(V)                                                     \
-  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)  \
-  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void) \
-  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,     \
-    LFR_TO_REG, LFR_TO_REG, USE, , void)                                 \
-  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,    \
-    LFR_TO_REG, LFR_TO_REG, USE, , void)                                 \
-  V(f32_abs, lpebr, DoubleRegister, DoubleRegister, , , USE, , void)     \
-  V(f32_neg, lcebr, DoubleRegister, DoubleRegister, , , USE, , void)     \
-  V(f32_sqrt, sqebr, DoubleRegister, DoubleRegister, , , USE, , void)    \
-  V(f64_abs, lpdbr, DoubleRegister, DoubleRegister, , , USE, , void)     \
-  V(f64_neg, lcdbr, DoubleRegister, DoubleRegister, , , USE, , void)     \
+// V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
+#define UNOP_LIST(V)                                                           \
+  V(i32_signextend_i8, lbr, Register, Register, , , USE, , void)               \
+  V(i32_signextend_i16, lhr, Register, Register, , , USE, , void)              \
+  V(i64_signextend_i8, lgbr, LiftoffRegister, LiftoffRegister, LFR_TO_REG,     \
+    LFR_TO_REG, USE, , void)                                                   \
+  V(i64_signextend_i16, lghr, LiftoffRegister, LiftoffRegister, LFR_TO_REG,    \
+    LFR_TO_REG, USE, , void)                                                   \
+  V(i64_signextend_i32, LoadS32, LiftoffRegister, LiftoffRegister, LFR_TO_REG, \
+    LFR_TO_REG, USE, , void)                                                   \
+  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)        \
+  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void)       \
+  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,           \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                       \
+  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,          \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                       \
+  V(f32_abs, lpebr, DoubleRegister, DoubleRegister, , , USE, , void)           \
+  V(f32_neg, lcebr, DoubleRegister, DoubleRegister, , , USE, , void)           \
+  V(f32_sqrt, sqebr, DoubleRegister, DoubleRegister, , , USE, , void)          \
+  V(f64_abs, lpdbr, DoubleRegister, DoubleRegister, , , USE, , void)           \
+  V(f64_neg, lcdbr, DoubleRegister, DoubleRegister, , , USE, , void)           \
   V(f64_sqrt, sqdbr, DoubleRegister, DoubleRegister, , , USE, , void)
 
 #define EMIT_UNOP_FUNCTION(name, instr, dtype, stype, dcast, scast, rcast, \
@@ -819,7 +827,7 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
 #undef UNOP_LIST
 
 // V(name, instr, dtype, stype1, stype2, dcast, scast1, scast2, rcast,
-// return_type, ret)
+// return_val, return_type)
 #define BINOP_LIST(V)                                                          \
   V(f64_add, AddF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
     USE, , void)                                                               \
@@ -1417,32 +1425,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
   }
 }
 
-void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "emit_i32_signextend_i8");
-}
+void LiftoffAssembler::emit_jump(Label* label) { b(al, label); }
 
-void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "emit_i32_signextend_i16");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
-                                              LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i8");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
-                                               LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i16");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
-                                               LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i32");
-}
-
-void LiftoffAssembler::emit_jump(Label* label) {
-  bailout(kUnsupportedArchitecture, "emit_jump");
-}
+void LiftoffAssembler::emit_jump(Register target) { Jump(target); }
 
 void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
                                       Label* label, ValueKind kind,
