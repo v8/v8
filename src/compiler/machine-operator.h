@@ -182,6 +182,7 @@ class S128ImmediateParameter {
   explicit S128ImmediateParameter(const uint8_t immediate[16]) {
     std::copy(immediate, immediate + 16, immediate_.begin());
   }
+  S128ImmediateParameter() = default;
   const std::array<uint8_t, 16>& immediate() const { return immediate_; }
   const uint8_t* data() const { return immediate_.data(); }
   uint8_t operator[](int x) const { return immediate_[x]; }

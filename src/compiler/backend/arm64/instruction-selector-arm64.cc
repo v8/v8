@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -3467,7 +3468,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Add, kArm64F32x4Add)                           \
   V(F32x4AddHoriz, kArm64F32x4AddHoriz)                 \
   V(F32x4Sub, kArm64F32x4Sub)                           \
-  V(F32x4Mul, kArm64F32x4Mul)                           \
   V(F32x4Div, kArm64F32x4Div)                           \
   V(F32x4Min, kArm64F32x4Min)                           \
   V(F32x4Max, kArm64F32x4Max)                           \
@@ -3613,6 +3613,52 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+using ShuffleMatcher =
+    ValueMatcher<S128ImmediateParameter, IrOpcode::kI8x16Shuffle>;
+using BinopWithShuffleMatcher = BinopMatcher<ShuffleMatcher, ShuffleMatcher>;
+
+void InstructionSelector::VisitF32x4Mul(Node* node) {
+  // Pattern match:
+  //   f32x4.mul(x, shuffle(x, y, indices)) => f32x4.mul(x, y, laneidx)
+  //   where shuffle(x, y, indices) = dup(x[laneidx]) or dup(y[laneidx])
+  // f32x4.mul is commutative, so use BinopMatcher.
+  BinopWithShuffleMatcher m = BinopWithShuffleMatcher(node);
+  ShuffleMatcher left = m.left();
+  ShuffleMatcher right = m.right();
+
+  Node* input = nullptr;
+  Node* dup_node = nullptr;
+
+  int index = 0;
+  // TODO(zhin): We can canonicalize first to avoid checking index < 4.
+  // e.g. shuffle(x, y, [16, 17, 18, 19...]) => shuffle(y, y, [0, 1, 2, 3]...).
+  // But doing so can mutate the inputs of the shuffle node without updating the
+  // shuffle immediates themselves. Fix that before we canonicalize here.
+  // We don't want CanCover here because in many use cases, the shuffle is
+  // generated early in the function, but the f32x4.mul happens in a loop, which
+  // won't cover the shuffle since they are different basic blocks.
+  if (left.HasResolvedValue() && wasm::SimdShuffle::TryMatchSplat<4>(
+                                     left.ResolvedValue().data(), &index)) {
+    dup_node = left.node()->InputAt(index < 4 ? 0 : 1);
+    input = right.node();
+  } else if (right.HasResolvedValue() &&
+             wasm::SimdShuffle::TryMatchSplat<4>(right.ResolvedValue().data(),
+                                                 &index)) {
+    dup_node = right.node()->InputAt(index < 4 ? 0 : 1);
+    input = left.node();
+  }
+
+  if (dup_node == nullptr) {
+    return VisitRRR(this, kArm64F32x4Mul, node);
+  }
+
+  // Canonicalization would get rid of this too.
+  index %= 4;
+  Arm64OperandGenerator g(this);
+  Emit(kArm64F32x4MulElement, g.DefineAsRegister(node), g.UseRegister(input),
+       g.UseRegister(dup_node), g.UseImmediate(index));
+}
 
 void InstructionSelector::VisitI64x2Mul(Node* node) {
   Arm64OperandGenerator g(this);

@@ -2175,6 +2175,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64F32x4Min, Fmin, 4S);
       SIMD_BINOP_CASE(kArm64F32x4Max, Fmax, 4S);
       SIMD_BINOP_CASE(kArm64F32x4Eq, Fcmeq, 4S);
+    case kArm64F32x4MulElement: {
+      __ Fmul(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).V4S(),
+              i.InputSimd128Register(1).S(), i.InputInt8(2));
+      break;
+    }
     case kArm64F32x4Ne: {
       VRegister dst = i.OutputSimd128Register().V4S();
       __ Fcmeq(dst, i.InputSimd128Register(0).V4S(),

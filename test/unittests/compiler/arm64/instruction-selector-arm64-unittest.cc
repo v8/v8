@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/common/globals.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
@@ -2216,6 +2217,118 @@ TEST_P(InstructionSelectorSIMDDPWithSIMDMulTest, SubWithMul) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSIMDDPWithSIMDMulTest,
                          ::testing::ValuesIn(kSIMDMulDPInstructions));
+
+struct SIMDMulDupInst {
+  const uint8_t shuffle[16];
+  int32_t lane;
+  int shuffle_input_index;
+};
+
+const SIMDMulDupInst kSIMDF32x4MulDuplInstructions[] = {
+    {
+        {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+        0,
+        0,
+    },
+    {
+        {4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7},
+        1,
+        0,
+    },
+    {
+        {8, 9, 10, 11, 8, 9, 10, 11, 8, 9, 10, 11, 8, 9, 10, 11},
+        2,
+        0,
+    },
+    {
+        {12, 13, 14, 15, 12, 13, 14, 15, 12, 13, 14, 15, 12, 13, 14, 15},
+        3,
+        0,
+    },
+    {
+        {16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19},
+        0,
+        1,
+    },
+    {
+        {20, 21, 22, 23, 20, 21, 22, 23, 20, 21, 22, 23, 20, 21, 22, 23},
+        1,
+        1,
+    },
+    {
+        {24, 25, 26, 27, 24, 25, 26, 27, 24, 25, 26, 27, 24, 25, 26, 27},
+        2,
+        1,
+    },
+    {
+        {28, 29, 30, 31, 28, 29, 30, 31, 28, 29, 30, 31, 28, 29, 30, 31},
+        3,
+        1,
+    },
+};
+
+using InstructionSelectorSimdMulWithDupTest =
+    InstructionSelectorTestWithParam<SIMDMulDupInst>;
+
+TEST_P(InstructionSelectorSimdMulWithDupTest, MulWithDup) {
+  const SIMDMulDupInst param = GetParam();
+  const MachineType type = MachineType::Simd128();
+  {
+    StreamBuilder m(this, type, type, type, type);
+    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
+                              m.Parameter(0), m.Parameter(1));
+    m.Return(m.AddNode(m.machine()->F32x4Mul(), m.Parameter(2), shuffle));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64F32x4MulElement, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(param.lane, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(param.shuffle_input_index)),
+              s.ToVreg(s[0]->InputAt(1)));
+  }
+
+  // Multiplication operator should be commutative, so test shuffle op as lhs.
+  {
+    StreamBuilder m(this, type, type, type, type);
+    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
+                              m.Parameter(0), m.Parameter(1));
+    m.Return(m.AddNode(m.machine()->F32x4Mul(), shuffle, m.Parameter(2)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64F32x4MulElement, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(param.lane, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(param.shuffle_input_index)),
+              s.ToVreg(s[0]->InputAt(1)));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorSimdMulWithDupTest,
+                         ::testing::ValuesIn(kSIMDF32x4MulDuplInstructions));
+
+TEST_F(InstructionSelectorTest, SimdMulWithDupNegativeTest) {
+  const MachineType type = MachineType::Simd128();
+  // Check that optimization does not match when the shuffle is not a f32x4.dup.
+  const uint8_t mask[kSimd128Size] = {0};
+  {
+    StreamBuilder m(this, type, type, type, type);
+    Node* shuffle = m.AddNode((m.machine()->I8x16Shuffle(mask)), m.Parameter(0),
+                              m.Parameter(1));
+    m.Return(m.AddNode(m.machine()->F32x4Mul(), m.Parameter(2), shuffle));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    // The shuffle is a i8x16.dup of lane 0.
+    EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(kArm64F32x4Mul, s[1]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+}
 
 TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
   // x * (2^k + 1) -> x + (x << k)
