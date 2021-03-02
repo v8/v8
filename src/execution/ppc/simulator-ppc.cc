@@ -3974,6 +3974,65 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VECTOR_MIN_MAX_OP
+#define VECTOR_SHIFT_OP(type, op, mask)                        \
+  int t = instr->RSValue();                                    \
+  int a = instr->RAValue();                                    \
+  int b = instr->RBValue();                                    \
+  FOR_EACH_LANE(i, type) {                                     \
+    set_simd_register_by_lane<type>(                           \
+        t, i,                                                  \
+        get_simd_register_by_lane<type>(a, i)                  \
+            op(get_simd_register_by_lane<type>(b, i) & mask)); \
+  }
+    case VSLD: {
+      VECTOR_SHIFT_OP(int64_t, <<, 0x3f)
+      break;
+    }
+    case VSRAD: {
+      VECTOR_SHIFT_OP(int64_t, >>, 0x3f)
+      break;
+    }
+    case VSRD: {
+      VECTOR_SHIFT_OP(uint64_t, >>, 0x3f)
+      break;
+    }
+    case VSLW: {
+      VECTOR_SHIFT_OP(int32_t, <<, 0x1f)
+      break;
+    }
+    case VSRAW: {
+      VECTOR_SHIFT_OP(int32_t, >>, 0x1f)
+      break;
+    }
+    case VSRW: {
+      VECTOR_SHIFT_OP(uint32_t, >>, 0x1f)
+      break;
+    }
+    case VSLH: {
+      VECTOR_SHIFT_OP(int16_t, <<, 0xf)
+      break;
+    }
+    case VSRAH: {
+      VECTOR_SHIFT_OP(int16_t, >>, 0xf)
+      break;
+    }
+    case VSRH: {
+      VECTOR_SHIFT_OP(uint16_t, >>, 0xf)
+      break;
+    }
+    case VSLB: {
+      VECTOR_SHIFT_OP(int8_t, <<, 0x7)
+      break;
+    }
+    case VSRAB: {
+      VECTOR_SHIFT_OP(int8_t, >>, 0x7)
+      break;
+    }
+    case VSRB: {
+      VECTOR_SHIFT_OP(uint8_t, >>, 0x7)
+      break;
+    }
+#undef VECTOR_SHIFT_OP
 #undef FOR_EACH_LANE
     default: {
       UNIMPLEMENTED();
