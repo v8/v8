@@ -447,7 +447,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #ifdef DEBUG
       if (FLAG_debug_code) {
         if (std::is_same<PreviousType, MaybeObject>::value) {
-          code_assembler_->GenerateCheckMaybeObjectIsObject(node_, location_);
+          code_assembler_->GenerateCheckMaybeObjectIsObject(
+              TNode<MaybeObject>::UncheckedCast(node_), location_);
         }
         TNode<ExternalReference> function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
@@ -462,11 +463,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       }
 #endif
       return TNode<A>::UncheckedCast(node_);
-    }
-
-    template <class A>
-    operator SloppyTNode<A>() {
-      return implicit_cast<TNode<A>>(*this);
     }
 
     Node* node() const { return node_; }
@@ -519,7 +515,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
 
 #ifdef DEBUG
-  void GenerateCheckMaybeObjectIsObject(Node* node, const char* location);
+  void GenerateCheckMaybeObjectIsObject(TNode<MaybeObject> node,
+                                        const char* location);
 #endif
 
   // Constants.
@@ -759,7 +756,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Object> LoadFullTagged(
       Node* base, LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   TNode<Object> LoadFullTagged(
-      Node* base, Node* offset,
+      Node* base, TNode<IntPtrT> offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
   Node* LoadFromObject(MachineType type, TNode<Object> object,
@@ -1005,7 +1002,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
-  TNode<ResType> name(SloppyTNode<ArgType> a);
+  TNode<ResType> name(TNode<ArgType> a);
   CODE_ASSEMBLER_UNARY_OP_LIST(DECLARE_CODE_ASSEMBLER_UNARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_UNARY_OP
 

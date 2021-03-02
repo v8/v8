@@ -569,7 +569,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Smi conversions.
   TNode<Float64T> SmiToFloat64(TNode<Smi> value);
   TNode<Smi> SmiFromIntPtr(TNode<IntPtrT> value) { return SmiTag(value); }
-  TNode<Smi> SmiFromInt32(SloppyTNode<Int32T> value);
+  TNode<Smi> SmiFromInt32(TNode<Int32T> value);
   TNode<Smi> SmiFromUint32(TNode<Uint32T> value);
   TNode<IntPtrT> SmiToIntPtr(TNode<Smi> value) { return SmiUntag(value); }
   TNode<Int32T> SmiToInt32(TNode<Smi> value);
@@ -1695,7 +1695,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Allocate a HeapNumber without initializing its value.
   TNode<HeapNumber> AllocateHeapNumber();
   // Allocate a HeapNumber with a specific value.
-  TNode<HeapNumber> AllocateHeapNumberWithValue(SloppyTNode<Float64T> value);
+  TNode<HeapNumber> AllocateHeapNumberWithValue(TNode<Float64T> value);
   TNode<HeapNumber> AllocateHeapNumberWithValue(double value) {
     return AllocateHeapNumberWithValue(Float64Constant(value));
   }
@@ -2242,8 +2242,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        Label* if_smi);
   TNode<Number> ChangeFloat32ToTagged(TNode<Float32T> value);
   TNode<Number> ChangeFloat64ToTagged(TNode<Float64T> value);
-  TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);
-  TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
+  TNode<Number> ChangeInt32ToTagged(TNode<Int32T> value);
+  TNode<Number> ChangeUint32ToTagged(TNode<Uint32T> value);
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
@@ -3179,7 +3179,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.
   void ReportFeedbackUpdate(TNode<FeedbackVector> feedback_vector,
-                            SloppyTNode<UintPtrT> slot_id, const char* reason);
+                            TNode<UintPtrT> slot_id, const char* reason);
 
   // Combine the new feedback with the existing_feedback. Do nothing if
   // existing_feedback is nullptr.

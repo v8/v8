@@ -610,7 +610,7 @@ TNode<Smi> CodeStubAssembler::NormalizeSmiIndex(TNode<Smi> smi_index) {
   return smi_index;
 }
 
-TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
+TNode<Smi> CodeStubAssembler::SmiFromInt32(TNode<Int32T> value) {
   if (COMPRESS_POINTERS_BOOL) {
     static_assert(!COMPRESS_POINTERS_BOOL || (kSmiShiftSize + kSmiTagSize == 1),
                   "Use shifting instead of add");
@@ -3109,7 +3109,7 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber() {
 }
 
 TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
-    SloppyTNode<Float64T> value) {
+    TNode<Float64T> value) {
   TNode<HeapNumber> result = AllocateHeapNumber();
   StoreHeapNumberValue(result, value);
   return result;
@@ -5423,8 +5423,7 @@ TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(TNode<Float64T> value) {
   return var_result.value();
 }
 
-TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
-    SloppyTNode<Int32T> value) {
+TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(TNode<Int32T> value) {
   if (SmiValuesAre32Bits()) {
     return SmiTag(ChangeInt32ToIntPtr(value));
   }
@@ -5454,8 +5453,7 @@ TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
   return var_result.value();
 }
 
-TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
-    SloppyTNode<Uint32T> value) {
+TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(TNode<Uint32T> value) {
   Label if_overflow(this, Label::kDeferred), if_not_overflow(this),
       if_join(this);
   TVARIABLE(Number, var_result);
@@ -9803,7 +9801,7 @@ void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
 }
 
 void CodeStubAssembler::ReportFeedbackUpdate(
-    TNode<FeedbackVector> feedback_vector, SloppyTNode<UintPtrT> slot_id,
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id,
     const char* reason) {
   // Reset profiler ticks.
   StoreObjectFieldNoWriteBarrier(
@@ -13335,8 +13333,7 @@ TNode<RawPtrT> CodeStubArguments::AtIndexPtr(TNode<IntPtrT> index) const {
 
 TNode<Object> CodeStubArguments::AtIndex(TNode<IntPtrT> index) const {
   CSA_ASSERT(assembler_, assembler_->UintPtrOrSmiLessThan(index, GetLength()));
-  return assembler_->UncheckedCast<Object>(
-      assembler_->LoadFullTagged(AtIndexPtr(index)));
+  return assembler_->LoadFullTagged(AtIndexPtr(index));
 }
 
 TNode<Object> CodeStubArguments::AtIndex(int index) const {
@@ -13519,10 +13516,9 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(SmiToBInt(builtin_id), SYSTEM_POINTER_ELEMENTS);
 
-  return CAST(BitcastWordToTagged(
-      Load(MachineType::Pointer(),
-           ExternalConstant(ExternalReference::builtins_address(isolate())),
-           offset)));
+  return CAST(BitcastWordToTagged(Load<RawPtrT>(
+      ExternalConstant(ExternalReference::builtins_address(isolate())),
+      offset)));
 }
 
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(

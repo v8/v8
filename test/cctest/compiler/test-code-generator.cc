@@ -229,12 +229,12 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
         TNode<FixedArray> vector =
             __ Cast(__ LoadFixedArrayElement(result_array, i));
         for (int lane = 0; lane < 4; lane++) {
-          TNode<Smi> lane_value =
-              __ SmiFromInt32(tester.raw_assembler_for_testing()->AddNode(
+          TNode<Smi> lane_value = __ SmiFromInt32(__ UncheckedCast<Int32T>(
+              tester.raw_assembler_for_testing()->AddNode(
                   tester.raw_assembler_for_testing()
                       ->machine()
                       ->I32x4ExtractLane(lane),
-                  param));
+                  param)));
           __ StoreFixedArrayElement(vector, lane, lane_value,
                                     UNSAFE_SKIP_WRITE_BARRIER);
         }

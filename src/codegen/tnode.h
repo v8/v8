@@ -365,21 +365,6 @@ class TNode {
   compiler::Node* node_;
 };
 
-// SloppyTNode<T> is a variant of TNode<T> and allows implicit casts from
-// Node*. It is intended for function arguments as long as some call sites
-// still use untyped Node* arguments.
-// TODO(turbofan): Delete this class once transition is finished.
-template <class T>
-class SloppyTNode : public TNode<T> {
- public:
-  SloppyTNode(compiler::Node* node)  // NOLINT(runtime/explicit)
-      : TNode<T>(node) {}
-  template <class U, typename std::enable_if<is_subtype<U, T>::value,
-                                             int>::type = 0>
-  SloppyTNode(const TNode<U>& other)  // NOLINT(runtime/explicit)
-      : TNode<T>(other) {}
-};
-
 }  // namespace internal
 }  // namespace v8
 

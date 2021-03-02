@@ -226,7 +226,7 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
 }
 
 #ifdef DEBUG
-void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
+void CodeAssembler::GenerateCheckMaybeObjectIsObject(TNode<MaybeObject> node,
                                                      const char* location) {
   Label ok(this);
   GotoIf(WordNotEqual(WordAnd(BitcastMaybeObjectToWord(node),
@@ -650,7 +650,7 @@ TNode<Int32T> CodeAssembler::TruncateFloat32ToInt32(TNode<Float32T> value) {
       value, TruncateKind::kSetOverflowToMin));
 }
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
-  TNode<ResType> CodeAssembler::name(SloppyTNode<ArgType> a) { \
+  TNode<ResType> CodeAssembler::name(TNode<ArgType> a) {       \
     return UncheckedCast<ResType>(raw_assembler()->name(a));   \
   }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
@@ -668,14 +668,12 @@ Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset,
 
 TNode<Object> CodeAssembler::LoadFullTagged(Node* base,
                                             LoadSensitivity needs_poisoning) {
-  return BitcastWordToTagged(
-      Load(MachineType::Pointer(), base, needs_poisoning));
+  return BitcastWordToTagged(Load<RawPtrT>(base, needs_poisoning));
 }
 
-TNode<Object> CodeAssembler::LoadFullTagged(Node* base, Node* offset,
+TNode<Object> CodeAssembler::LoadFullTagged(Node* base, TNode<IntPtrT> offset,
                                             LoadSensitivity needs_poisoning) {
-  return BitcastWordToTagged(
-      Load(MachineType::Pointer(), base, offset, needs_poisoning));
+  return BitcastWordToTagged(Load<RawPtrT>(base, offset, needs_poisoning));
 }
 
 Node* CodeAssembler::AtomicLoad(MachineType type, TNode<RawPtrT> base,

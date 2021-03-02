@@ -336,8 +336,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     BIND(&test_old_to_young_flags);
     {
       // TODO(ishell): do a new-space range check instead.
-      TNode<IntPtrT> value =
-          BitcastTaggedToWord(Load(MachineType::TaggedPointer(), slot));
+      TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
 
       // TODO(albertnetymk): Try to cache the page flag for value and object,
       // instead of calling IsPageFlagSet each time.
@@ -374,8 +373,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     Label call_incremental_wb(this);
 
     auto slot = UncheckedParameter<IntPtrT>(Descriptor::kSlot);
-    TNode<IntPtrT> value =
-        BitcastTaggedToWord(Load(MachineType::TaggedPointer(), slot));
+    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
