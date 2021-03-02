@@ -3212,9 +3212,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(turbofan): For BIGINT64_ELEMENTS and BIGUINT64_ELEMENTS
   // we pass {value} as BigInt object instead of int64_t. We should
   // teach TurboFan to handle int64_t on 32-bit platforms eventually.
-  template <typename TIndex>
+  template <typename TIndex, typename TValue>
   void StoreElement(TNode<RawPtrT> elements, ElementsKind kind,
-                    TNode<TIndex> index, Node* value);
+                    TNode<TIndex> index, TNode<TValue> value);
 
   // Implements the BigInt part of
   // https://tc39.github.io/proposal-bigint/#sec-numbertorawbytes,
@@ -3800,15 +3800,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
 
+  template <typename TIndex>
+  void StoreElementTypedArrayBigInt(TNode<RawPtrT> elements, ElementsKind kind,
+                                    TNode<TIndex> index, TNode<BigInt> value);
+
+  template <typename TIndex>
+  void StoreElementTypedArrayWord32(TNode<RawPtrT> elements, ElementsKind kind,
+                                    TNode<TIndex> index, TNode<Word32T> value);
+
   // Store value to an elements array with given elements kind.
   // TODO(turbofan): For BIGINT64_ELEMENTS and BIGUINT64_ELEMENTS
   // we pass {value} as BigInt object instead of int64_t. We should
   // teach TurboFan to handle int64_t on 32-bit platforms eventually.
   // TODO(solanes): This method can go away and simplify into only one version
   // of StoreElement once we have "if constexpr" available to use.
-  template <typename TArray, typename TIndex>
+  template <typename TArray, typename TIndex, typename TValue>
   void StoreElementTypedArray(TNode<TArray> elements, ElementsKind kind,
-                              TNode<TIndex> index, Node* value);
+                              TNode<TIndex> index, TNode<TValue> value);
 
   template <typename TIndex>
   void StoreElement(TNode<FixedArrayBase> elements, ElementsKind kind,
