@@ -99,7 +99,7 @@ enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
-  inline ReadOnlyRoots read_only_roots();
+  inline ReadOnlyRoots read_only_roots() const;
 
   template <typename T>
   Handle<T> MakeHandle(T obj) {
@@ -915,7 +915,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
 
-  Isolate* isolate() {
+  Isolate* isolate() const {
     // Downcast to the privately inherited sub-class using c-style casts to
     // avoid undefined behavior (as static_cast cannot cast across private
     // bases).
@@ -936,10 +936,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Map> map, Handle<FixedArrayBase> elements,
       Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length);
 
+  Symbol NewSymbolInternal(AllocationType allocation = AllocationType::kOld);
+
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header
   // uninitialized.
-  Handle<Context> NewContext(Handle<Map> map, int size,
+  Context NewContextInternal(Handle<Map> map, int size,
                              int variadic_part_length,
                              AllocationType allocation);
 

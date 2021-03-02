@@ -4303,7 +4303,7 @@ template Handle<DescriptorArray> DescriptorArray::Allocate(
     LocalIsolate* isolate, int nof_descriptors, int slack,
     AllocationType allocation);
 
-void DescriptorArray::Initialize(EnumCache enum_cache,
+void DescriptorArray::Initialize(EnumCache empty_enum_cache,
                                  HeapObject undefined_value,
                                  int nof_descriptors, int slack) {
   DCHECK_GE(nof_descriptors, 0);
@@ -4313,13 +4313,13 @@ void DescriptorArray::Initialize(EnumCache enum_cache,
   set_number_of_descriptors(nof_descriptors);
   set_raw_number_of_marked_descriptors(0);
   set_filler16bits(0);
-  set_enum_cache(enum_cache);
+  set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
 }
 
 void DescriptorArray::ClearEnumCache() {
-  set_enum_cache(GetReadOnlyRoots().empty_enum_cache());
+  set_enum_cache(GetReadOnlyRoots().empty_enum_cache(), SKIP_WRITE_BARRIER);
 }
 
 void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
