@@ -3203,10 +3203,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint8T> Int32ToUint8Clamped(TNode<Int32T> int32_value);
   TNode<Uint8T> Float64ToUint8Clamped(TNode<Float64T> float64_value);
 
-  Node* PrepareValueForWriteToTypedArray(TNode<Object> input,
-                                         ElementsKind elements_kind,
-                                         TNode<Context> context);
-
   template <typename T>
   TNode<T> PrepareValueForWriteToTypedArray(TNode<Object> input,
                                             ElementsKind elements_kind,
@@ -3828,6 +3824,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void TryPlainPrimitiveNonNumberToNumber(TNode<HeapObject> input,
                                           TVariable<Number>* var_result,
                                           Label* if_bailout);
+
+  template <typename TValue>
+  void EmitElementStoreTypedArray(TNode<JSTypedArray> typed_array,
+                                  TNode<IntPtrT> key, TNode<Object> value,
+                                  ElementsKind elements_kind,
+                                  KeyedAccessStoreMode store_mode,
+                                  Label* bailout, TNode<Context> context,
+                                  TVariable<Object>* maybe_converted_value);
+
+  template <typename TValue>
+  void EmitElementStoreTypedArrayUpdateValue(
+      TNode<Object> value, ElementsKind elements_kind,
+      TNode<TValue> converted_value, TVariable<Object>* maybe_converted_value);
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {
