@@ -1936,7 +1936,7 @@ class V8_EXPORT ScriptCompiler {
    */
   class V8_EXPORT StreamedSource {
    public:
-    enum Encoding { ONE_BYTE, TWO_BYTE, UTF8 };
+    enum Encoding { ONE_BYTE, TWO_BYTE, UTF8, WINDOWS_1252 };
 
     V8_DEPRECATED(
         "This class takes ownership of source_stream, so use the constructor "
