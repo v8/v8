@@ -7,10 +7,27 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
 <head>
   <meta charset="utf-8">
-  <title>V8 Runtime Stats Komparator</title>
+  <title>V8 Runtime Call Stats Komparator</title>
+  <link rel="stylesheet" type="text/css" href="system-analyzer/index.css">
   <style>
     body {
       font-family: arial;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .loaded .panel {
+      display: block;
+    }
+
+    .panel.alwaysVisible {
+      display: inherit !important;
+    }
+
+    .error #inputs {
+      background-color: var(--error-color);
     }
 
     table {
@@ -30,12 +47,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     .inline {
       display: inline-block;
-      vertical-align: top;
-    }
-
-    h2,
-    h3 {
-      margin-bottom: 0px;
+      vertical-align: middle;
+      margin-right: 10px;
     }
 
     .hidden {
@@ -44,6 +57,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     .view {
       display: table;
+    }
+
+    .panel-group {
+      display: grid;
+      align-content: center;
+      grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+      grid-auto-flow: row dense;
+      grid-gap: 10px;
+      margin-top: 10px;
     }
 
     .column {
@@ -73,11 +95,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     .list tr:nth-child(even) {
-      background-color: #EFEFEF;
-    }
-
-    .list tr:nth-child(even).selected {
-      background-color: #DDD;
+      background-color: rgba(0.5, 0.5, 0.5, 0.1);
     }
 
     .list tr.child {
@@ -100,16 +118,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       font-weight: bold
     }
 
-    .list tr.parent {
-      background-color: #FFF;
-    }
-
-    .list tr.parent.selected {
-      background-color: #DDD;
-    }
-
+    .list tr.parent.selected,
+    .list tr:nth-child(even).selected,
     tr.selected {
-      background-color: #DDD;
+      background-color: rgba(0.5, 0.5, 0.5, 0.1);
     }
 
     .codeSearch {
@@ -155,10 +167,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       width: auto;
     }
 
-    .compareSelector {
-      padding-bottom: 20px;
-    }
-
     .pageDetailTable tbody {
       cursor: pointer
     }
@@ -173,7 +181,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       box-shadow: -2px 10px 44px -10px #000;
       border-radius: 5px;
       z-index: 1;
-      background-color: #FFF;
+      background-color: var(--surface-color);
       display: none;
       white-space: nowrap;
     }
@@ -190,7 +198,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     .popoverArrow {
-      background-color: #FFF;
+      background-color: var(--surface-color);
       position: absolute;
       width: 30px;
       height: 30px;
@@ -218,11 +226,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     #popover .compare .version {
       padding-left: 10px;
     }
-    .graph,
-    .graph .content {
-      width: 100%;
-    }
-
     .diff .hideDiff {
       display: none;
     }
@@ -256,8 +259,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function initialize() {
       // Initialize the stats table and toggle lists.
       let original = $("column");
-      let view = document.createElement('div');
-      view.id = 'view';
+      let viewBody = $("view").querySelector('.panelBody');
+      removeAllChildren(viewBody);
       let i = 0;
       versions.forEach((version) =>  {
         if (!version.enabled) return;
@@ -292,11 +295,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           });
           select.appendChild(optgroup);
         });
-        view.appendChild(column);
+        viewBody.appendChild(column);
         i++;
       });
-      let oldView = $('view');
-      oldView.parentNode.replaceChild(view, oldView);
 
       let select = $('baseline');
       removeAllChildren(select);
@@ -310,7 +311,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       initializeToggleList(versions.versions, $('versionSelector'));
       initializeToggleList(pages.values(), $('pageSelector'));
       initializeToggleList(Group.groups.values(), $('groupSelector'));
-      initializeToggleContentVisibility();
     }
 
     function initializeToggleList(items, node) {
@@ -328,25 +328,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         li.appendChild(checkbox);
         li.appendChild(document.createTextNode(item.name));
         list.appendChild(li);
-      });
-      $('results').querySelectorAll('#results > .hidden').forEach((node) => {
-        toggleCssClass(node, 'hidden', false);
-      })
-    }
-
-    function initializeToggleContentVisibility() {
-      let nodes = document.querySelectorAll('.toggleContentVisibility');
-      nodes.forEach((node) => {
-        let content = node.querySelector('.content');
-        let header = node.querySelector('h1,h2,h3');
-        if (content === undefined || header === undefined) return;
-        if (header.querySelector('input') != undefined) return;
-        let checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = content.className.indexOf('hidden') == -1;
-        checkbox.contentNode = content;
-        checkbox.addEventListener('click', handleToggleContentVisibility);
-        header.insertBefore(checkbox, header.childNodes[0]);
       });
     }
 
@@ -417,30 +398,36 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       pushHistoryState();
     }
 
+    function diffColorFromRatio(ratio) {
+      if (ratio > 1) {
+        // ratio > 1: #FFFFFF => #00FF00
+        const red = Math.min(Math.round((ratio - 1) * 255 * 10), 255);
+        const other = (255 - red).toString(16);
+        return `#FF${other}${other}`;
+      }
+      // ratio < 1: #FF0000 => #FFFFFF
+      const green = Math.min(Math.round((1 - ratio) * 255 * 10), 255);
+      const other = (255 - green).toString(16);
+      return `#${other}FF${other}`;
+    }
+
     function showPageInColumn(page, columnIndex) {
       page.sort();
-      let showDiff = (baselineVersion === undefined && columnIndex !== 0) ||
-        (baselineVersion !== undefined && page.version !== baselineVersion);
-      let diffStatus = (td, a, b) => {};
+      let showDiff = columnIndex !== 0;
+      if (baselineVersion) showDiff = page.version !== baselineVersion;
+      let diffColor = (td, a, b) => {};
       if (showDiff) {
-        if (baselineVersion !== undefined) {
-          diffStatus = (td, a, b) => {
-            if (a == 0) return;
-            td.style.color = a < 0 ? '#FF0000' : '#00BB00';
+        if (baselineVersion) {
+          diffColor = (td, diff, baseline) => {
+            if (diff == 0) return;
+            const ratio = (baseline + diff) /  baseline;
+            td.style.color = diffColorFromRatio(ratio);
           };
         } else {
-          diffStatus = (td, a, b) => {
-            if (a == b) return;
-            let color;
-            let ratio = a / b;
-            if (ratio > 1) {
-              ratio = Math.min(Math.round((ratio - 1) * 255 * 10), 200);
-              color = '#' + ratio.toString(16) + "0000";
-            } else {
-              ratio = Math.min(Math.round((1 - ratio) * 255 * 10), 200);
-              color = '#00' + ratio.toString(16) + "00";
-            }
-            td.style.color = color;
+          diffColor = (td, value, reference) => {
+            if (value == reference) return;
+            const ratio = value / reference;
+            td.style.color = diffColorFromRatio(ratio);
           }
         }
       }
@@ -478,13 +465,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           addCodeSearchButton(entry,
               td(tr, entry.name, 'name ' + entry.cssClass()));
 
-          diffStatus(
+          diffColor(
             td(tr, ms(entry.time), 'value time'),
             entry.time, referenceEntry.time);
-          diffStatus(
+          diffColor(
             td(tr, percent(entry.timePercent), 'value time'),
             entry.time, referenceEntry.time);
-          diffStatus(
+          diffColor(
             td(tr, count(entry.count), 'value count'),
             entry.count, referenceEntry.count);
         } else if (baselineVersion !== undefined && referenceEntry
@@ -494,13 +481,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           tr.entry.page = page;
           td(tr, '-', 'position');
           td(tr, referenceEntry.name, 'name');
-          diffStatus(
+          diffColor(
             td(tr, ms(referenceEntry.time), 'value time'),
             referenceEntry.time, 0);
-          diffStatus(
+          diffColor(
             td(tr, percent(referenceEntry.timePercent), 'value time'),
             referenceEntry.timePercent, 0);
-          diffStatus(
+          diffColor(
             td(tr, count(referenceEntry.count), 'value count'),
             referenceEntry.count, 0);
         } else {
@@ -588,10 +575,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function showVersionDetails(entry) {
       let table, tbody, entries;
-      table = $('detailView').querySelector('.versionDetailTable');
+      table = $('versionDetails').querySelector('.versionDetailTable');
       tbody = document.createElement('tbody');
       if (entry !== undefined) {
-        $('detailView').querySelector('.versionDetail h3 span').textContent =
+        $('versionDetails').querySelector('h2 span').textContent =
           entry.name + ' in ' + entry.page.name;
         entries = versions.getPageVersions(entry.page).map(
           (page) => {
@@ -618,7 +605,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function showPageDetails(entry) {
       let table, tbody, entries;
-      table = $('detailView').querySelector('.pageDetailTable');
+      table = $('pageDetail').querySelector('.pageDetailTable');
       tbody = document.createElement('tbody');
       if (entry === undefined) {
         table.replaceChild(tbody, table.querySelector('tbody'));
@@ -626,7 +613,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       let version = entry.page.version;
       let showDiff = version !== baselineVersion;
-      $('detailView').querySelector('.pageDetail h3 span').textContent =
+      $('pageDetail').querySelector('h2 span').textContent =
         version.name;
       entries = version.pages.map((page) => {
           if (!page.enabled) return;
@@ -661,15 +648,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function showImpactList(page) {
-      let impactView = $('detailView').querySelector('.impactView');
-      impactView.querySelector('h3 span').textContent = page.version.name;
+      let impactView = $('impactView');
+      impactView.querySelector('h2 span').textContent = page.version.name;
 
       let table = impactView.querySelector('table');
       let tbody = document.createElement('tbody');
       let version = page.version;
       let entries = version.allEntries();
       if (selectedEntry !== undefined && selectedEntry.isGroup) {
-        impactView.querySelector('h3 span').textContent += " " + selectedEntry.name;
+        impactView.querySelector('h2 span').textContent += " " + selectedEntry.name;
         entries = entries.filter((entry) => {
           return entry.name == selectedEntry.name ||
             (entry.parent && entry.parent.name == selectedEntry.name)
@@ -903,7 +890,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       };
       let parentNode = $(id);
       parentNode.querySelector('h2>span, h3>span').textContent = title;
-      let graphNode = parentNode.querySelector('.content');
+      let graphNode = parentNode.querySelector('.panelBody');
 
       let chart = graphNode.chart;
       if (chart === undefined) {
@@ -1053,7 +1040,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return -1;
     }
 
-    function toggleCssClass(node, cssClass, toggleState) {
+    function toggleCssClass(node, cssClass, toggleState=true) {
       let index = -1;
       let classes;
       if (node.className != undefined) {
@@ -1101,19 +1088,37 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
   "use strict"
     // =========================================================================
     // EventHandlers
-    function handleBodyLoad() {
+    async function handleBodyLoad() {
       $('uploadInput').focus();
-      if (defaultData) return handleLoadJSON(defaultData);
-      if (tryLoadFromURLParams()) return;
-      if (window.location.protocol !== 'file:') return tryLoadDefaultResults();
+      if (tryLoadDefaultData() || await tryLoadFromURLParams() ||
+          await tryLoadDefaultResults()) {
+        displayResultsAfterLoading();
+      }
+    }
+
+    function tryLoadDefaultData() {
+      if (!defaultData) return false;
+      handleLoadJSON(defaultData);
+      return true;
+    }
+
+    async function tryLoadFromURLParams() {
+      let params = new URLSearchParams(document.location.search);
+      let hasFile = false;
+      params.forEach(async (value, key) => {
+        if (key !== 'file') return;
+        hasFile ||= await tryLoadFile(value, true);
+      });
+      return hasFile;
     }
 
     async function tryLoadDefaultResults() {
+    if (window.location.protocol === 'file:') return false;
      // Try to load a results.json file adjacent to this day.
      // The markers on the following line can be used to replace the url easily
      // with scripts.
      const url = /*results-url-start*/'results.json'/*results-url-end*/;
-     tryLoadFile(url);
+     return tryLoadFile(url);
     }
 
     async function tryLoadFile(url, append=false) {
@@ -1128,17 +1133,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let filename = url.split('/');
       filename = filename[filename.length-1];
       handleLoadText(await response.text(), append, filename);
-    }
-
-    async function tryLoadFromURLParams() {
-      let params = new URLSearchParams(document.location.search);
-      let hasFile = false;
-      params.forEach((value, key) => {
-        if (key !== 'file') return;
-        hasFile = true;
-        tryLoadFile(value, true);
-      });
-      return hasFile;
+      return true;
     }
 
     function handleAppendFiles() {
@@ -1146,7 +1141,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       loadFiles(files, true);
     }
 
-    function handleLoadFile() {
+    function handleLoadFiles() {
       let files = document.getElementById("uploadInput").files;
       loadFiles(files, false)
     }
@@ -1161,7 +1156,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           reader.readAsText(file);
         });
         handleLoadText(text, append, file.name);
+        // Only the first file might clear existing data, all sequent files
+        // are always append.
+        append = true;
       }
+      displayResultsAfterLoading();
+      toggleCssClass(document.body, "loaded");
     }
 
     function handleLoadText(text, append, fileName) {
@@ -1173,7 +1173,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       } else if (fileName.endsWith('.txt')) {
         handleLoadTXT(text, append, fileName);
       } else {
-        alert(`Error parsing "${fileName}"`);
+        alert(`Unsupport file extension: "${fileName}"`);
         console.error(e);
       }
     }
@@ -1203,7 +1203,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       } else {
         Versions.fromJSON(json).forEach(e => versions.add(e))
       }
-      displayResultsAfterLoading(isFirstLoad)
     }
 
     function handleLoadCSV(csv, append, fileName) {
@@ -1225,7 +1224,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       } else {
         return alert("Unknown CSV format");
       }
-      displayResultsAfterLoading(isFirstLoad)
     }
 
 
@@ -1251,9 +1249,17 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return fields;
     }
 
+    // Ignore the following categories as they are aggregated values and are
+    // created by callstats.html on the fly.
+    const import_skip_categories = new Set([
+        'V8-Only', 'V8-Only-Main-Thread', 'Total-Main-Thread', 'Blink_Total'])
+
     function handleLoadClusterTelemetryCSV(fields, lines, fileName) {
       const rscFields = Array.from(fields.keys())
-        .filter(field => field.endsWith(':duration (ms)'))
+        .filter(field => {
+          return field.endsWith(':duration (ms)') &&
+            !import_skip_categories.has(field.split(':')[0])
+        })
         .map(field => {
           let name = field.split(':')[0];
           return [name, fields.get(field), fields.get(`${name}:count`)];
@@ -1285,10 +1291,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       const page_i = fields.get('stories');
       const category_i = fields.get('name');
       const value_i = fields.get('avg');
-      // Ignore the following categories as they are aggregated values and are
-      // created by callstats.html on the fly.
-      const skip_categories = new Set([
-          'V8-Only', 'V8-Only-Main-Thread', 'Total-Main-Thread', 'Blink_Total'])
       const tempEntriesCache = new Map();
       for (let i=1; i<lines.length; i++) {
         const line = csvSplit(lines[i]);
@@ -1299,7 +1301,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           continue;
         }
         let [category, type] = raw_category.split(':');
-        if (skip_categories.has(category)) continue;
+        if (import_skip_categories.has(category)) continue;
         const version = versions.getOrCreate(line[version_i]);
         const pageVersion = version.getOrCreate(line[page_i]);
         const value = Number.parseFloat(line[value_i]);
@@ -1370,11 +1372,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         versions = new Versions()
       }
       versions.add(Version.fromTXT(fileName, txt));
-      displayResultsAfterLoading(isFirstLoad);
 
     }
 
-    function displayResultsAfterLoading(isFirstLoad=true) {
+    function displayResultsAfterLoading() {
+      const isFirstLoad = pages === undefined;
       let state = getStateFromParams();
       initialize()
       if (isFirstLoad && !popHistoryState(state) && selectedPage) {
@@ -1605,11 +1607,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         page = page.getNextPage();
       }
       showPage(page);
-    }
-
-    function handleToggleContentVisibility(event) {
-      let content = event.target.contentNode;
-      toggleCssClass(content, 'hidden');
     }
 
     function handleCodeSearch(event) {
@@ -2294,199 +2291,232 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 <body id="body" onmousemove="handleUpdatePopover(event)" onload="handleBodyLoad()" class="noDiff">
   <h1>Runtime Stats Komparator</h1>
 
-  <div id="results">
-    <div class="inline">
-      <h2>Data</h2>
-      <form name="fileForm">
-        <p>
-          <label for="uploadInput">Load File:</label>
-          <input id="uploadInput" type="file" name="files" onchange="handleLoadFile();" accept=".json,.txt,.csv,.output">
+  <section id="inputs" class="panel alwaysVisible">
+    <input type="checkbox" id="inputsCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="inputsCheckbox">▼</label>
+    <h2>Input/Output</h2>
+      <div class="panelBody">
+      <form name="fileForm" class="inline">
+        <p class="inline">
+          <label for="uploadInput">Load Files:</label>
+          <input id="uploadInput" type="file" name="files" onchange="handleLoadFiles();" multiple accept=".json,.txt,.csv,.output">
         </p>
-        <p>
+        <p class="inline">
           <label for="appendInput">Append Files:</label>
           <input id="appendInput" type="file" name="files" onchange="handleAppendFiles();" multiple accept=".json,.txt,.csv,.output">
         </p>
       </form>
-      <p>
+      <p class="inline">
         <button onclick="handleCopyToClipboard()">Copy Table to Clipboard</button>
       </p>
     </div>
+  </section>
 
-    <div class="inline hidden">
-      <h2>Result</h2>
-      <div class="compareSelector inline">
-        Compare against:&nbsp;<select id="baseline" onchange="handleSelectBaseline(this, event)"></select><br/>
-        <span style="color: #060">Green</span> the selected version above performs
-        better on this measurement.
-      </div>
+  <section class="panel">
+    <h2>Baseline Selector</h2>
+    <div class="panel-body">
+      Compare against baseline:&nbsp;<select id="baseline" onchange="handleSelectBaseline(this, event)"></select><br/>
+      <span style="color: #060">Green</span> a selected version performs
+      better than the baseline.
     </div>
+  </section>
 
-    <div id="versionSelector" class="inline toggleContentVisibility">
-      <h2>Versions</h2>
-      <div class="content hidden">
+  <section class="panel-group">
+    <div id="versionSelector" class="panel">
+      <input type="checkbox" checked id="versionSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="versionSelectorCheckbox">▼</label>
+      <h2>Selected Versions</h2>
+      <div class="panelBody">
         <ul></ul>
       </div>
     </div>
 
-    <div id="pageSelector" class="inline toggleContentVisibility">
-      <h2>Pages</h2>
-      <div class="content hidden">
+    <div id="pageSelector" class="panel">
+      <input type="checkbox" checked id="pageSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="pageSelectorCheckbox">▼</label>
+      <h2>Selected Pages</h2>
+      <div class="panelBody">
         <ul></ul>
       </div>
     </div>
 
-    <div id="groupSelector" class="inline toggleContentVisibility">
-      <h2>Groups</h2>
-      <div class="content hidden">
+    <div id="groupSelector" class="panel">
+      <input type="checkbox" checked id="groupSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="groupSelectorCheckbox">▼</label>
+      <h2>Selected RCS Groups</h2>
+      <div class="panelBody">
         <ul></ul>
       </div>
     </div>
+  </section>
 
-    <div id="view">
-    </div>
+  <section id="view" class="panel">
+    <input type="checkbox" id="tableViewCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="tableViewCheckbox">▼</label>
+    <h2>RCS Table</h2>
+    <div class="panelBody"></div>
+  </section>
 
-    <div id="detailView" class="hidden">
-      <div class="versionDetail inline toggleContentVisibility">
-        <h3><span></span></h3>
-        <div class="content">
-          <table class="versionDetailTable" onclick="handleSelectDetailRow(this, event);">
-            <thead>
-              <tr>
-                <th class="version">Version&nbsp;</th>
-                <th class="position">Pos.&nbsp;</th>
-                <th class="value time">Time▴&nbsp;</th>
-                <th class="value time">Percent&nbsp;</th>
-                <th class="value count">Count&nbsp;</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="pageDetail inline toggleContentVisibility">
-        <h3>Page Comparison for <span></span></h3>
-        <div class="content">
-          <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
-            <thead>
-              <tr>
-                <th class="page">Page&nbsp;</th>
-                <th class="value time">Time&nbsp;</th>
-                <th class="value time">Percent▾&nbsp;</th>
-                <th class="value time hideNoDiff">%/Entry&nbsp;</th>
-                <th class="value count">Count&nbsp;</th>
-              </tr>
-            </thead>
-            <tfoot>
-              <tr>
-                <td class="page">Total:</td>
-                <td class="value time"></td>
-                <td class="value time"></td>
-                <td class="value time hideNoDiff"></td>
-                <td class="value count"></td>
-              </tr>
-            </tfoot>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="impactView inline toggleContentVisibility">
-        <h3>Impact list for <span></span></h3>
-        <div class="content">
-          <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
-            <thead>
-              <tr>
-                <th class="page">Name&nbsp;</th>
-                <th class="value time">Time&nbsp;</th>
-                <th class="value time">Percent▾&nbsp;</th>
-                <th class="">Top Pages</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+  <section class="panel-group">
+    <div id="versionDetails" class="panel">
+      <input type="checkbox" checked id="versionDetailCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="versionDetailCheckbox">▼</label>
+      <h2><span>Compare Page Versions</span></h2>
+      <div class="conten panelBody">
+        <table class="versionDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="version">Version&nbsp;</th>
+              <th class="position">Pos.&nbsp;</th>
+              <th class="value time">Time▴&nbsp;</th>
+              <th class="value time">Percent&nbsp;</th>
+              <th class="value count">Count&nbsp;</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
-    <div id="pageVersionGraph" class="graph hidden toggleContentVisibility">
-      <h3><span></span></h3>
-      <div class="content"></div>
-    </div>
-    <div id="pageGraph" class="graph hidden toggleContentVisibility">
-      <h3><span></span></h3>
-      <div class="content"></div>
-    </div>
-    <div id="versionGraph" class="graph hidden toggleContentVisibility">
-      <h3><span></span></h3>
-      <div class="content"></div>
-    </div>
 
-    <div id="column" class="column">
-      <div class="header">
-        <select class="version" onchange="handleSelectVersion(this, event);"></select>
-        <select class="pageVersion" onchange="handleSelectPage(this, event);"></select>
+    <div id="pageDetail" class="panel">
+      <input type="checkbox" checked id="pageDetailCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="pageDetailCheckbox">▼</label>
+      <h2>Page Comparison for <span></span></h2>
+      <div class="panelBody">
+        <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="page">Page&nbsp;</th>
+              <th class="value time">Time&nbsp;</th>
+              <th class="value time">Percent▾&nbsp;</th>
+              <th class="value time hideNoDiff">%/Entry&nbsp;</th>
+              <th class="value count">Count&nbsp;</th>
+            </tr>
+          </thead>
+          <tfoot>
+            <tr>
+              <td class="page">Total:</td>
+              <td class="value time"></td>
+              <td class="value time"></td>
+              <td class="value time hideNoDiff"></td>
+              <td class="value count"></td>
+            </tr>
+          </tfoot>
+          <tbody></tbody>
+        </table>
       </div>
-      <table class="list" onclick="handleSelectRow(this, event);">
-        <thead>
-          <tr>
-            <th class="position">Pos.&nbsp;</th>
-            <th class="name">Name&nbsp;</th>
-            <th class="value time">Time&nbsp;</th>
-            <th class="value time">Percent&nbsp;</th>
-            <th class="value count">Count&nbsp;</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
     </div>
-  </div>
 
-  <div class="inline">
-    <h2>Usage</h2>
-    <ol>
-      <li>Build chrome.</li>
-    </ol>
-    <h3>Telemetry benchmark</h3>
-    <ol>
-      <li>Run <code>v8.browsing</code> benchmarks:
-        <pre>$CHROMIUM_DIR/tools/perf/run_benchmark run v8.browsing_desktop \
-          --browser=exact --browser-executable=$CHROMIUM_DIR/out/release/chrome \
-          --story-filter='.*2020 ' \
-          --also-run-disabled-tests
-        </pre>
-      </li>
-      <li>Install <a href="https://stedolan.github.io/jq/">jq</a>.</li>
-      <li>Convert the telemetry JSON files to callstats JSON file:
-        <pre>
-          $V8_DIR/tools/callstats-from-telemetry.sh $CHROMIUM_DIR/tools/perf/artifacts/run_XXXX
-        </pre>
-      </li>
-      <li>Load the generated <code>out.json</code></li>
-    </ol>
-    <h3>Merged CSV from results.html</h3>
-    <ol>
-      <li>Open a results.html page for RCS-enabled benchmarks</li>
-      <li>Select "Export merged CSV" in the toolbar</li>
-      <li>Load the downloading .csv file normally in callstats.html</li>
-    </ol>
-    <h3>Aggregated raw txt output</h3>
-    <ol>
-      <li>Install scipy, e.g. <code>sudo aptitude install python-scipy</code>
-      <li>Check out a known working version of webpagereply:
-        <pre>git -C $CHROME_DIR/third_party/webpagereplay checkout 7dbd94752d1cde5536ffc623a9e10a51721eff1d</pre>
-      </li>
-      <li>Run <code>callstats.py</code> with a web-page-replay archive:
-        <pre>$V8_DIR/tools/callstats.py run \
-        --replay-bin=$CHROME_SRC/third_party/webpagereplay/replay.py \
-        --replay-wpr=$INPUT_DIR/top25.wpr \
-        --js-flags="" \
-        --with-chrome=$CHROME_SRC/out/Release/chrome \
-        --sites-file=$INPUT_DIR/top25.json</pre>
-      </li>
-      <li>Move results file to a subdirectory: <code>mkdir $VERSION_DIR; mv *.txt $VERSION_DIR</code></li>
-      <li>Repeat from step 1 with a different configuration (e.g. <code>--js-flags="--nolazy"</code>).</li>
-      <li>Create the final results file: <code>./callstats.py json $VERSION_DIR1 $VERSION_DIR2 > result.json</code></li>
-      <li>Use <code>results.json</code> on this site.</code>
-    </ol>
-  </div>
+    <div id="impactView" class="panel">
+      <input type="checkbox" checked  id="impactViewCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="impactViewCheckbox">▼</label>
+      <h2>Impact list for <span></span></h2>
+      <div class="panelBody">
+        <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="page">Name&nbsp;</th>
+              <th class="value time">Time&nbsp;</th>
+              <th class="value time">Percent▾&nbsp;</th>
+              <th class="">Top Pages</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="pageVersionGraph" class="panel">
+    <input type="checkbox" id="pageVersionGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="pageVersionGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <section id="pageGraph" class="panel">
+    <input type="checkbox" id="pageGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="pageGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <section id="versionGraph" class="panel">
+    <input type="checkbox" id="versionGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="versionGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <div id="column" class="column">
+    <div class="header">
+      <select class="version" onchange="handleSelectVersion(this, event);"></select>
+      <select class="pageVersion" onchange="handleSelectPage(this, event);"></select>
+    </div>
+    <table class="list" onclick="handleSelectRow(this, event);">
+      <thead>
+        <tr>
+          <th class="position">Pos.&nbsp;</th>
+          <th class="name">Name&nbsp;</th>
+          <th class="value time">Time&nbsp;</th>
+          <th class="value time">Percent&nbsp;</th>
+          <th class="value count">Count&nbsp;</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    </div>
+
+  <section class="panel alwaysVisible">
+    <h2>Instructions</h2>
+    <div class="panelBody">
+      <ol>
+        <li>Build chrome.</li>
+      </ol>
+      <h3>Telemetry benchmark</h3>
+      <ol>
+        <li>Run <code>v8.browsing</code> benchmarks:
+          <pre>$CHROMIUM_DIR/tools/perf/run_benchmark run v8.browsing_desktop \
+            --browser=exact --browser-executable=$CHROMIUM_DIR/out/release/chrome \
+            --story-filter='.*2020 ' \
+            --also-run-disabled-tests
+          </pre>
+        </li>
+        <li>Install <a href="https://stedolan.github.io/jq/">jq</a>.</li>
+        <li>Convert the telemetry JSON files to callstats JSON file:
+          <pre>
+            $V8_DIR/tools/callstats-from-telemetry.sh $CHROMIUM_DIR/tools/perf/artifacts/run_XXXX
+          </pre>
+        </li>
+        <li>Load the generated <code>out.json</code></li>
+      </ol>
+      <h3>Merged CSV from results.html</h3>
+      <ol>
+        <li>Open a results.html page for RCS-enabled benchmarks</li>
+        <li>Select "Export merged CSV" in the toolbar</li>
+        <li>Load the downloading .csv file normally in callstats.html</li>
+      </ol>
+      <h3>Aggregated raw txt output</h3>
+      <ol>
+        <li>Install scipy, e.g. <code>sudo aptitude install python-scipy</code>
+        <li>Check out a known working version of webpagereply:
+          <pre>git -C $CHROME_DIR/third_party/webpagereplay checkout 7dbd94752d1cde5536ffc623a9e10a51721eff1d</pre>
+        </li>
+        <li>Run <code>callstats.py</code> with a web-page-replay archive:
+          <pre>$V8_DIR/tools/callstats.py run \
+          --replay-bin=$CHROME_SRC/third_party/webpagereplay/replay.py \
+          --replay-wpr=$INPUT_DIR/top25.wpr \
+          --js-flags="" \
+          --with-chrome=$CHROME_SRC/out/Release/chrome \
+          --sites-file=$INPUT_DIR/top25.json</pre>
+        </li>
+        <li>Move results file to a subdirectory: <code>mkdir $VERSION_DIR; mv *.txt $VERSION_DIR</code></li>
+        <li>Repeat from step 1 with a different configuration (e.g. <code>--js-flags="--nolazy"</code>).</li>
+        <li>Create the final results file: <code>./callstats.py json $VERSION_DIR1 $VERSION_DIR2 > result.json</code></li>
+        <li>Use <code>results.json</code> on this site.</code>
+      </ol>
+    </div>
+  </section>
 
   <div id="popover">
     <div class="popoverArrow"></div>
