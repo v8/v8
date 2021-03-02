@@ -2689,34 +2689,52 @@ void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  bailout(kUnsupportedArchitecture, "StackCheck");
+  LoadU64(limit_address, MemOperand(limit_address));
+  CmpU64(sp, limit_address);
+  b(le, ool_code);
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
-  bailout(kUnsupportedArchitecture, "CallTrapCallbackForTesting");
+  PrepareCallCFunction(0, 0, no_reg);
+  CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  bailout(kUnsupportedArchitecture, "AssertUnreachable");
+  // Asserts unreachable within the wasm code.
+  TurboAssembler::AssertUnreachable(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
-  bailout(kUnsupportedArchitecture, "PushRegisters");
+  MultiPush(regs.GetGpList());
+  MultiPushDoubles(regs.GetFpList());
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  bailout(kUnsupportedArchitecture, "PopRegisters");
+  MultiPop(regs.GetGpList());
+  MultiPopDoubles(regs.GetFpList());
 }
 
 void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
                                                LiftoffRegList all_spills,
                                                LiftoffRegList ref_spills,
                                                int spill_offset) {
-  bailout(kRefTypes, "RecordSpillsInSafepoint");
+  int spill_space_size = 0;
+  while (!all_spills.is_empty()) {
+    LiftoffRegister reg = all_spills.GetLastRegSet();
+    if (ref_spills.has(reg)) {
+      safepoint.DefinePointerSlot(spill_offset);
+    }
+    all_spills.clear(reg);
+    ++spill_offset;
+    spill_space_size += kSystemPointerSize;
+  }
+  // Record the number of additional spill slots.
+  RecordOolSpillSpaceSize(spill_space_size);
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  bailout(kUnsupportedArchitecture, "DropStackSlotsAndRet");
+  Drop(num_stack_slots);
+  Ret();
 }
 
 void LiftoffAssembler::CallC(const ValueKindSig* sig,
