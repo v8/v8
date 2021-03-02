@@ -93,6 +93,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
     return current_bytecode;
   }
   int current_bytecode_size() const;
+  int current_bytecode_size_without_prefix() const;
   int current_offset() const {
     return static_cast<int>(cursor_ - start_ - prefix_size_);
   }

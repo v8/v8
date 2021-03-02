@@ -485,22 +485,25 @@ INTRINSICS_LIST(DECLARE_VISITOR)
 
 void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
     int weight, Label* label, Label* skip_interrupt_label) {
-  __ RecordComment("[ Update Interrupt Budget");
-  __ AddToInterruptBudget(weight);
+  if (weight != 0) {
+    __ RecordComment("[ Update Interrupt Budget");
+    __ AddToInterruptBudget(weight);
 
-  if (weight < 0) {
-    // Use compare flags set by AddToInterruptBudget
-    __ JumpIf(Condition::kGreaterThanEqual, skip_interrupt_label);
-    SaveAccumulatorScope accumulator_scope(&basm_);
-    CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode,
-                __ FunctionOperand());
+    if (weight < 0) {
+      // Use compare flags set by AddToInterruptBudget
+      __ JumpIf(Condition::kGreaterThanEqual, skip_interrupt_label);
+      SaveAccumulatorScope accumulator_scope(&basm_);
+      CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode,
+                  __ FunctionOperand());
+    }
   }
   if (label) __ Jump(label);
-  __ RecordComment("]");
+  if (weight != 0) __ RecordComment("]");
 }
 
 void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJump() {
-  int weight = iterator().GetRelativeJumpTargetOffset();
+  int weight = iterator().GetRelativeJumpTargetOffset() -
+               iterator().current_bytecode_size_without_prefix();
   UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr);
 }
 
@@ -1763,7 +1766,8 @@ void BaselineCompiler::VisitJumpLoop() {
 
   __ Bind(&osr_not_armed);
   Label* label = &labels_[iterator().GetJumpTargetOffset()]->unlinked;
-  int weight = iterator().GetRelativeJumpTargetOffset();
+  int weight = iterator().GetRelativeJumpTargetOffset() -
+               iterator().current_bytecode_size_without_prefix();
   // We can pass in the same label twice since it's a back edge and thus already
   // bound.
   DCHECK(label->is_bound());
@@ -1960,7 +1964,8 @@ void BaselineCompiler::VisitReThrow() {
 
 void BaselineCompiler::VisitReturn() {
   __ RecordComment("[ Return");
-  int profiling_weight = iterator().current_offset();
+  int profiling_weight = iterator().current_offset() +
+                         iterator().current_bytecode_size_without_prefix();
   int parameter_count = bytecode_->parameter_count();
 
   // We must pop all arguments from the stack (including the receiver). This

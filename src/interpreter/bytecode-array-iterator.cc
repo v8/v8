@@ -54,8 +54,11 @@ void BytecodeArrayIterator::ApplyDebugBreak() {
 }
 
 int BytecodeArrayIterator::current_bytecode_size() const {
-  return prefix_size_ +
-         Bytecodes::Size(current_bytecode(), current_operand_scale());
+  return prefix_size_ + current_bytecode_size_without_prefix();
+}
+
+int BytecodeArrayIterator::current_bytecode_size_without_prefix() const {
+  return Bytecodes::Size(current_bytecode(), current_operand_scale());
 }
 
 uint32_t BytecodeArrayIterator::GetUnsignedOperand(
