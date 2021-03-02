@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-typed-funcref --experimental-wasm-eh
-// Flags: --wasm-loop-unrolling
+// Flags: --wasm-loop-unrolling --experimental-wasm-return-call
 // Needed for exceptions-utils.js.
 // Flags: --allow-natives-syntax
 
@@ -36,6 +36,33 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let module = new WebAssembly.Module(builder.toBuffer());
   let instance = new WebAssembly.Instance(module);
   assertEquals(instance.exports.main(100), 109);
+})();
+
+// Test the interaction between tail calls and loop unrolling.
+(function TailCallTest() {
+  let builder = new WasmModuleBuilder();
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0]);
+
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLoop, kWasmStmt,
+        kExprLocalGet, 0,
+        kExprIf, kWasmStmt,
+          kExprLocalGet, 0,
+          kExprReturnCall, callee.index,
+        kExprElse,
+          kExprBr, 1,
+        kExprEnd,
+      kExprEnd,
+      kExprUnreachable
+    ])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(1), 1);
 })();
 
 // Test the interaction between the eh proposal and loop unrolling.

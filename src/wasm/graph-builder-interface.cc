@@ -82,7 +82,7 @@ class WasmGraphBuildingInterface {
     explicit Value(Args&&... args) V8_NOEXCEPT
         : ValueBase(std::forward<Args>(args)...) {}
   };
-  using StackValueVector = base::SmallVector<Value, 8>;
+  using ValueVector = base::SmallVector<Value, 8>;
   using NodeVector = base::SmallVector<TFNode*, 8>;
 
   struct TryInfo : public ZoneObject {
@@ -400,7 +400,7 @@ class WasmGraphBuildingInterface {
   }
 
   void Unreachable(FullDecoder* decoder) {
-    StackValueVector values;
+    ValueVector values;
     if (FLAG_wasm_loop_unrolling) {
       BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
                            values);
@@ -421,9 +421,9 @@ class WasmGraphBuildingInterface {
     builder_->SetControl(merge);
   }
 
-  StackValueVector CopyStackValues(FullDecoder* decoder, uint32_t count) {
+  ValueVector CopyStackValues(FullDecoder* decoder, uint32_t count) {
     Value* stack_base = count > 0 ? decoder->stack_value(count) : nullptr;
-    StackValueVector stack_values(count);
+    ValueVector stack_values(count);
     for (uint32_t i = 0; i < count; i++) {
       stack_values[i] = stack_base[i];
     }
@@ -590,7 +590,7 @@ class WasmGraphBuildingInterface {
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
     DoReturnCall(decoder, kCallDirect, 0, CheckForNull::kWithoutNullCheck,
-                 nullptr, imm.sig, imm.index, args);
+                 Value{nullptr, kWasmBottom}, imm.sig, imm.index, args);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
@@ -605,8 +605,8 @@ class WasmGraphBuildingInterface {
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
     DoReturnCall(decoder, kCallIndirect, imm.table_index,
-                 CheckForNull::kWithoutNullCheck, index.node, imm.sig,
-                 imm.sig_index, args);
+                 CheckForNull::kWithoutNullCheck, index, imm.sig, imm.sig_index,
+                 args);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
@@ -625,8 +625,8 @@ class WasmGraphBuildingInterface {
     CheckForNull null_check = func_ref.type.is_nullable()
                                   ? CheckForNull::kWithNullCheck
                                   : CheckForNull::kWithoutNullCheck;
-    DoReturnCall(decoder, kCallRef, 0, null_check, func_ref.node, sig,
-                 sig_index, args);
+    DoReturnCall(decoder, kCallRef, 0, null_check, func_ref, sig, sig_index,
+                 args);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
@@ -751,7 +751,7 @@ class WasmGraphBuildingInterface {
       DCHECK(decoder->control_at(depth)->is_try());
       TryInfo* target_try = decoder->control_at(depth)->try_info;
       if (FLAG_wasm_loop_unrolling) {
-        StackValueVector stack_values;
+        ValueVector stack_values;
         BuildNestedLoopExits(decoder, depth, true, stack_values,
                              &block->try_info->exception);
       }
@@ -1169,7 +1169,7 @@ class WasmGraphBuildingInterface {
     SetEnv(exception_env);
     TryInfo* try_info = current_try_info(decoder);
     if (FLAG_wasm_loop_unrolling) {
-      StackValueVector values;
+      ValueVector values;
       BuildNestedLoopExits(decoder, control_depth_of_current_catch(decoder),
                            true, values, &if_exception);
     }
@@ -1402,14 +1402,23 @@ class WasmGraphBuildingInterface {
 
   void DoReturnCall(FullDecoder* decoder, CallMode call_mode,
                     uint32_t table_index, CheckForNull null_check,
-                    TFNode* index_node, const FunctionSig* sig,
+                    Value index_or_caller_value, const FunctionSig* sig,
                     uint32_t sig_index, const Value args[]) {
     size_t arg_count = sig->parameter_count();
-    NodeVector arg_nodes(arg_count + 1);
-    arg_nodes[0] = index_node;
-    for (size_t i = 0; i < arg_count; ++i) {
-      arg_nodes[i + 1] = args[i].node;
+
+    ValueVector arg_values(arg_count + 1);
+    arg_values[0] = index_or_caller_value;
+    for (uint32_t i = 0; i < arg_count; i++) {
+      arg_values[i + 1] = args[i];
     }
+    if (FLAG_wasm_loop_unrolling) {
+      BuildNestedLoopExits(decoder, decoder->control_depth(), false,
+                           arg_values);
+    }
+
+    NodeVector arg_nodes(arg_count + 1);
+    GetNodes(arg_nodes.data(), VectorOf(arg_values));
+
     switch (call_mode) {
       case kCallIndirect:
         CheckForException(decoder,
@@ -1459,8 +1468,7 @@ class WasmGraphBuildingInterface {
   }
 
   void BuildNestedLoopExits(FullDecoder* decoder, uint32_t depth_limit,
-                            bool wrap_exit_values,
-                            StackValueVector& stack_values,
+                            bool wrap_exit_values, ValueVector& stack_values,
                             TFNode** exception_value = nullptr) {
     DCHECK(FLAG_wasm_loop_unrolling);
     Control* control = nullptr;
@@ -1475,8 +1483,10 @@ class WasmGraphBuildingInterface {
     if (control != nullptr) {
       BuildLoopExits(decoder, control);
       for (Value& value : stack_values) {
-        value.node = builder_->LoopExitValue(
-            value.node, value.type.machine_representation());
+        if (value.node != nullptr) {
+          value.node = builder_->LoopExitValue(
+              value.node, value.type.machine_representation());
+        }
       }
       if (exception_value != nullptr) {
         *exception_value = builder_->LoopExitValue(
@@ -1493,7 +1503,7 @@ class WasmGraphBuildingInterface {
       SsaEnv* internal_env = ssa_env_;
       SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
       SetEnv(exit_env);
-      StackValueVector stack_values;
+      ValueVector stack_values;
       BuildNestedLoopExits(decoder, decoder->control_depth(), false,
                            stack_values);
       builder_->TerminateThrow(effect(), control());
