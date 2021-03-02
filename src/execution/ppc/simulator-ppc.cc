@@ -3829,7 +3829,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VEXTRACT
-#define VECTOR_BIN_OP(type, op)                        \
+#define VECTOR_ARITHMETIC_OP(type, op)                 \
   int t = instr->RSValue();                            \
   int a = instr->RAValue();                            \
   int b = instr->RBValue();                            \
@@ -3840,66 +3840,140 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
             op get_simd_register_by_lane<type>(b, i)); \
   }
     case XVADDDP: {
-      VECTOR_BIN_OP(double, +)
+      VECTOR_ARITHMETIC_OP(double, +)
       break;
     }
     case XVSUBDP: {
-      VECTOR_BIN_OP(double, -)
+      VECTOR_ARITHMETIC_OP(double, -)
       break;
     }
     case XVMULDP: {
-      VECTOR_BIN_OP(double, *)
+      VECTOR_ARITHMETIC_OP(double, *)
       break;
     }
     case VADDFP: {
-      VECTOR_BIN_OP(float, +)
+      VECTOR_ARITHMETIC_OP(float, +)
       break;
     }
     case VSUBFP: {
-      VECTOR_BIN_OP(float, -)
+      VECTOR_ARITHMETIC_OP(float, -)
       break;
     }
     case XVMULSP: {
-      VECTOR_BIN_OP(float, *)
+      VECTOR_ARITHMETIC_OP(float, *)
       break;
     }
     case VADDUDM: {
-      VECTOR_BIN_OP(int64_t, +)
+      VECTOR_ARITHMETIC_OP(int64_t, +)
       break;
     }
     case VSUBUDM: {
-      VECTOR_BIN_OP(int64_t, -)
+      VECTOR_ARITHMETIC_OP(int64_t, -)
       break;
     }
     case VADDUWM: {
-      VECTOR_BIN_OP(int32_t, +)
+      VECTOR_ARITHMETIC_OP(int32_t, +)
       break;
     }
     case VSUBUWM: {
-      VECTOR_BIN_OP(int32_t, -)
+      VECTOR_ARITHMETIC_OP(int32_t, -)
       break;
     }
     case VMULUWM: {
-      VECTOR_BIN_OP(int32_t, *)
+      VECTOR_ARITHMETIC_OP(int32_t, *)
       break;
     }
     case VADDUHM: {
-      VECTOR_BIN_OP(int16_t, +)
+      VECTOR_ARITHMETIC_OP(int16_t, +)
       break;
     }
     case VSUBUHM: {
-      VECTOR_BIN_OP(int16_t, -)
+      VECTOR_ARITHMETIC_OP(int16_t, -)
       break;
     }
     case VADDUBM: {
-      VECTOR_BIN_OP(int8_t, +)
+      VECTOR_ARITHMETIC_OP(int8_t, +)
       break;
     }
     case VSUBUBM: {
-      VECTOR_BIN_OP(int8_t, -)
+      VECTOR_ARITHMETIC_OP(int8_t, -)
       break;
     }
-#undef VECTOR_BIN_OP
+#undef VECTOR_ARITHMETIC_OP
+#define VECTOR_MIN_MAX_OP(type, op)                                        \
+  int t = instr->RSValue();                                                \
+  int a = instr->RAValue();                                                \
+  int b = instr->RBValue();                                                \
+  FOR_EACH_LANE(i, type) {                                                 \
+    type a_val = get_simd_register_by_lane<type>(a, i);                    \
+    type b_val = get_simd_register_by_lane<type>(b, i);                    \
+    set_simd_register_by_lane<type>(t, i, a_val op b_val ? a_val : b_val); \
+  }
+    case VMINSD: {
+      VECTOR_MIN_MAX_OP(int64_t, <)
+      break;
+    }
+    case VMINUD: {
+      VECTOR_MIN_MAX_OP(uint64_t, <)
+      break;
+    }
+    case VMINSW: {
+      VECTOR_MIN_MAX_OP(int32_t, <)
+      break;
+    }
+    case VMINUW: {
+      VECTOR_MIN_MAX_OP(uint32_t, <)
+      break;
+    }
+    case VMINSH: {
+      VECTOR_MIN_MAX_OP(int16_t, <)
+      break;
+    }
+    case VMINUH: {
+      VECTOR_MIN_MAX_OP(uint16_t, <)
+      break;
+    }
+    case VMINSB: {
+      VECTOR_MIN_MAX_OP(int8_t, <)
+      break;
+    }
+    case VMINUB: {
+      VECTOR_MIN_MAX_OP(uint8_t, <)
+      break;
+    }
+    case VMAXSD: {
+      VECTOR_MIN_MAX_OP(int64_t, >)
+      break;
+    }
+    case VMAXUD: {
+      VECTOR_MIN_MAX_OP(uint64_t, >)
+      break;
+    }
+    case VMAXSW: {
+      VECTOR_MIN_MAX_OP(int32_t, >)
+      break;
+    }
+    case VMAXUW: {
+      VECTOR_MIN_MAX_OP(uint32_t, >)
+      break;
+    }
+    case VMAXSH: {
+      VECTOR_MIN_MAX_OP(int16_t, >)
+      break;
+    }
+    case VMAXUH: {
+      VECTOR_MIN_MAX_OP(uint16_t, >)
+      break;
+    }
+    case VMAXSB: {
+      VECTOR_MIN_MAX_OP(int8_t, >)
+      break;
+    }
+    case VMAXUB: {
+      VECTOR_MIN_MAX_OP(uint8_t, >)
+      break;
+    }
+#undef VECTOR_MIN_MAX_OP
 #undef FOR_EACH_LANE
     default: {
       UNIMPLEMENTED();
