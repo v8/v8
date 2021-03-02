@@ -514,6 +514,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value(env.local()).FromJust());
     CHECK(source->IsExternalTwoByte());
+    CHECK(source->IsExternal());
     CHECK_EQ(resource,
              static_cast<TestResource*>(source->GetExternalStringResource()));
     String::Encoding encoding = String::UNKNOWN_ENCODING;
@@ -541,6 +542,8 @@ THREADED_TEST(ScriptUsingOneByteStringResource) {
         String::NewExternalOneByte(env->GetIsolate(), resource)
             .ToLocalChecked();
     CHECK(source->IsExternalOneByte());
+    CHECK(source->IsExternal());
+    CHECK(!source->IsExternalTwoByte());
     CHECK_EQ(static_cast<const String::ExternalStringResourceBase*>(resource),
              source->GetExternalOneByteStringResource());
     String::Encoding encoding = String::UNKNOWN_ENCODING;
@@ -574,6 +577,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
     CHECK(!source->IsExternalTwoByte());
     CHECK(!source->IsExternalOneByte());
+    CHECK(!source->IsExternal());
     String::Encoding encoding = String::UNKNOWN_ENCODING;
     CHECK(!source->GetExternalStringResourceBase(&encoding));
     CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
@@ -16803,6 +16807,7 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
   }
   ~VisitorImpl() override = default;
   void VisitExternalString(v8::Local<v8::String> string) override {
+    CHECK(string->IsExternal());
     if (string->IsExternalOneByte()) {
       CHECK(!string->IsExternalTwoByte());
       return;
@@ -16847,6 +16852,7 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
   cons->MakeExternal(resource);
 
   CHECK(cons->IsExternalTwoByte());
+  CHECK(cons->IsExternal());
   CHECK_EQ(resource, cons->GetExternalStringResource());
   String::Encoding encoding;
   CHECK_EQ(resource, cons->GetExternalStringResourceBase(&encoding));
@@ -16884,7 +16890,7 @@ TEST(VisitExternalStrings) {
   v8::HandleScope scope(isolate);
   const char string[] = "Some string";
   uint16_t* two_byte_string = AsciiToTwoByteString(string);
-  TestResource* resource[4];
+  TestResource* resource[5];
   resource[0] = new TestResource(two_byte_string);
   v8::Local<v8::String> string0 =
       v8::String::NewExternalTwoByte(env->GetIsolate(), resource[0])
@@ -16912,11 +16918,29 @@ TEST(VisitExternalStrings) {
       string3_i).is_null());
   CHECK(string3_i->IsInternalizedString());
 
+  // Externalized one-byte string.
+  auto one_byte_resource =
+      new TestOneByteResource(i::StrDup(string), nullptr, 0);
+  v8::Local<v8::String> string4 =
+      String::NewExternalOneByte(env->GetIsolate(), one_byte_resource)
+          .ToLocalChecked();
+
   // We need to add usages for string* to avoid warnings in GCC 4.7
   CHECK(string0->IsExternalTwoByte());
   CHECK(string1->IsExternalTwoByte());
   CHECK(string2->IsExternalTwoByte());
   CHECK(string3->IsExternalTwoByte());
+  CHECK(!string4->IsExternalTwoByte());
+  CHECK(string0->IsExternal());
+  CHECK(string1->IsExternal());
+  CHECK(string2->IsExternal());
+  CHECK(string3->IsExternal());
+  CHECK(string4->IsExternal());
+  CHECK(!string0->IsExternalOneByte());
+  CHECK(!string1->IsExternalOneByte());
+  CHECK(!string2->IsExternalOneByte());
+  CHECK(!string3->IsExternalOneByte());
+  CHECK(string4->IsExternalOneByte());
 
   VisitorImpl visitor(resource);
   isolate->VisitExternalResources(&visitor);

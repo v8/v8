@@ -3248,6 +3248,11 @@ class V8_EXPORT String : public Name {
   V8_INLINE static Local<String> Empty(Isolate* isolate);
 
   /**
+   * Returns true if the string is external.
+   */
+  bool IsExternal() const;
+
+  /**
    * Returns true if the string is both external and two-byte.
    */
   bool IsExternalTwoByte() const;

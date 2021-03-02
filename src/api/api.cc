@@ -5404,6 +5404,11 @@ int String::Write(Isolate* isolate, uint16_t* buffer, int start, int length,
                      start, length, options);
 }
 
+bool v8::String::IsExternal() const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  return i::StringShape(*str).IsExternal();
+}
+
 bool v8::String::IsExternalTwoByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   return i::StringShape(*str).IsExternalTwoByte();
