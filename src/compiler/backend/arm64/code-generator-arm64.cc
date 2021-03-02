@@ -2180,6 +2180,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1).S(), i.InputInt8(2));
       break;
     }
+    case kArm64F64x2MulElement: {
+      __ Fmul(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
+              i.InputSimd128Register(1).D(), i.InputInt8(2));
+      break;
+    }
     case kArm64F32x4Ne: {
       VRegister dst = i.OutputSimd128Register().V4S();
       __ Fcmeq(dst, i.InputSimd128Register(0).V4S(),

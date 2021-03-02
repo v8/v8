@@ -152,6 +152,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2Add:
     case kArm64F64x2Sub:
     case kArm64F64x2Mul:
+    case kArm64F64x2MulElement:
     case kArm64F64x2Div:
     case kArm64F64x2Min:
     case kArm64F64x2Max:

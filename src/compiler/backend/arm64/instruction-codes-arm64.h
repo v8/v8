@@ -187,6 +187,7 @@ namespace compiler {
   V(Arm64F64x2Add)                          \
   V(Arm64F64x2Sub)                          \
   V(Arm64F64x2Mul)                          \
+  V(Arm64F64x2MulElement)                   \
   V(Arm64F64x2Div)                          \
   V(Arm64F64x2Min)                          \
   V(Arm64F64x2Max)                          \
