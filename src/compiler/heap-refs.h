@@ -563,6 +563,7 @@ class DescriptorArrayRef : public HeapObjectRef {
 
   PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
   NameRef GetPropertyKey(InternalIndex descriptor_index) const;
+  ObjectRef GetFieldType(InternalIndex descriptor_index) const;
   base::Optional<ObjectRef> GetStrongValue(
       InternalIndex descriptor_index) const;
 };

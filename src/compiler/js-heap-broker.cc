@@ -3227,16 +3227,7 @@ MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
 
 ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap()) {
-    Handle<FieldType> field_type(object()
-                                     ->instance_descriptors(kRelaxedLoad)
-                                     .GetFieldType(descriptor_index),
-                                 broker()->isolate());
-    return ObjectRef(broker(), field_type);
-  }
-  DescriptorArrayData* descriptors =
-      data()->AsMap()->instance_descriptors()->AsDescriptorArray();
-  return ObjectRef(broker(), descriptors->GetFieldType(descriptor_index));
+  return instance_descriptors().GetFieldType(descriptor_index);
 }
 
 base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
@@ -4152,6 +4143,22 @@ NameRef DescriptorArrayRef::GetPropertyKey(
   }
   return NameRef(broker(),
                  data()->AsDescriptorArray()->GetPropertyKey(descriptor_index));
+}
+
+ObjectRef DescriptorArrayRef::GetFieldType(
+    InternalIndex descriptor_index) const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // This method only gets called for the creation of FieldTypeDependencies.
+    // These calls happen when the broker is either disabled or serializing,
+    // which means that GetOrCreateData would be able to successfully create the
+    // ObjectRef for the cases where we haven't seen the FieldType before.
+    DCHECK(broker()->mode() == JSHeapBroker::kDisabled ||
+           broker()->mode() == JSHeapBroker::kSerializing);
+    return ObjectRef(broker(), broker()->CanonicalPersistentHandle(
+                                   object()->GetFieldType(descriptor_index)));
+  }
+  return ObjectRef(broker(),
+                   data()->AsDescriptorArray()->GetFieldType(descriptor_index));
 }
 
 base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
