@@ -892,7 +892,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
     reloc_info = OwnedVector<byte>::Of(
         Vector<byte>{code->relocation_start(), relocation_size});
   }
-  Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
+  Handle<ByteArray> source_pos_table(code->source_position_table(),
                                      code->GetIsolate());
   OwnedVector<byte> source_pos =
       OwnedVector<byte>::NewForOverwrite(source_pos_table->length());

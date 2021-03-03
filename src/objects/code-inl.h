@@ -17,6 +17,7 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -56,9 +57,18 @@ int AbstractCode::InstructionSize() {
   }
 }
 
-ByteArray AbstractCode::source_position_table() {
+ByteArray AbstractCode::SourcePositionTableInternal() {
   if (IsCode()) {
-    return GetCode().SourcePositionTable();
+    DCHECK_NE(GetCode().kind(), CodeKind::BASELINE);
+    return GetCode().source_position_table();
+  } else {
+    return GetBytecodeArray().SourcePositionTable();
+  }
+}
+
+ByteArray AbstractCode::SourcePositionTable(SharedFunctionInfo sfi) {
+  if (IsCode()) {
+    return GetCode().SourcePositionTable(sfi);
   } else {
     return GetBytecodeArray().SourcePositionTable();
   }
@@ -178,7 +188,14 @@ INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
 
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
-CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
+#define IS_BASELINE() (kind() == CodeKind::BASELINE)
+ACCESSORS_CHECKED2(Code, source_position_table, ByteArray, kPositionTableOffset,
+                   !IS_BASELINE(),
+                   !IS_BASELINE() && !ObjectInYoungGeneration(value))
+ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
+                   IS_BASELINE(),
+                   IS_BASELINE() && !ObjectInYoungGeneration(value))
+#undef IS_BASELINE
 // Concurrent marker needs to access kind specific flags in code data container.
 RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
                                kCodeDataContainerOffset)
@@ -188,7 +205,7 @@ RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
 void Code::WipeOutHeader() {
   WRITE_FIELD(*this, kRelocationInfoOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kDeoptimizationDataOffset, Smi::FromInt(0));
-  WRITE_FIELD(*this, kSourcePositionTableOffset, Smi::FromInt(0));
+  WRITE_FIELD(*this, kPositionTableOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kCodeDataContainerOffset, Smi::FromInt(0));
 }
 
@@ -205,12 +222,12 @@ void Code::clear_padding() {
   memset(reinterpret_cast<void*>(raw_body_end()), 0, trailing_padding_size);
 }
 
-ByteArray Code::SourcePositionTable() const {
-  Object maybe_table = source_position_table();
-  if (maybe_table.IsByteArray()) return ByteArray::cast(maybe_table);
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  DCHECK(maybe_table.IsUndefined(roots) || maybe_table.IsException(roots));
-  return roots.empty_byte_array();
+ByteArray Code::SourcePositionTable(SharedFunctionInfo sfi) const {
+  DisallowGarbageCollection no_gc;
+  if (kind() == CodeKind::BASELINE) {
+    return sfi.GetBytecodeArray(sfi.GetIsolate()).SourcePositionTable();
+  }
+  return source_position_table();
 }
 
 Object Code::next_code_link() const {
@@ -336,7 +353,7 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc) {
   CHECK(!is_baseline_prologue_builtin());
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  ByteArray data = ByteArray::cast(source_position_table());
+  ByteArray data = ByteArray::cast(bytecode_offset_table());
   Address lookup_pc = 0;
   Address pc = baseline_pc - InstructionStart();
   int index = 0;
@@ -355,7 +372,7 @@ uintptr_t Code::GetBaselinePCForBytecodeOffset(int bytecode_offset,
                                                bool precise) {
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  ByteArray data = ByteArray::cast(source_position_table());
+  ByteArray data = ByteArray::cast(bytecode_offset_table());
   intptr_t pc = 0;
   int index = 0;
   int offset = 0;

@@ -619,9 +619,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   STATIC_ASSERT(kRelocationInfoOffset + kTaggedSize ==
                 kDeoptimizationDataOffset);
   STATIC_ASSERT(kDeoptimizationDataOffset + kTaggedSize ==
-                kSourcePositionTableOffset);
-  STATIC_ASSERT(kSourcePositionTableOffset + kTaggedSize ==
-                kCodeDataContainerOffset);
+                kPositionTableOffset);
+  STATIC_ASSERT(kPositionTableOffset + kTaggedSize == kCodeDataContainerOffset);
   STATIC_ASSERT(kCodeDataContainerOffset + kTaggedSize == kDataStart);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {

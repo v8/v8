@@ -340,12 +340,7 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
                                       Handle<SharedFunctionInfo> shared) {
   DisallowGarbageCollection no_gc;
   // TODO(v8:11429,cbruni): add proper baseline source position iterator
-  bool is_baseline = code->kind() == CodeKind::BASELINE;
-  ByteArray source_position_table = code->SourcePositionTable();
-  if (is_baseline) {
-    source_position_table =
-        shared->GetBytecodeArray(shared->GetIsolate()).SourcePositionTable();
-  }
+  ByteArray source_position_table = code->SourcePositionTable(*shared);
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
   for (SourcePositionTableIterator iterator(source_position_table);

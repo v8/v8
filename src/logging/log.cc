@@ -1234,7 +1234,7 @@ void Logger::LogSourceCodeInformation(Handle<AbstractCode> code,
   // iteration.
   bool hasInlined = false;
   if (code->kind() != CodeKind::BASELINE) {
-    SourcePositionTableIterator iterator(code->source_position_table());
+    SourcePositionTableIterator iterator(code->SourcePositionTable(*shared));
     for (; !iterator.done(); iterator.Advance()) {
       SourcePosition pos = iterator.source_position();
       msg << "C" << iterator.code_offset() << "O" << pos.ScriptOffset();

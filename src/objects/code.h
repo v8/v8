@@ -13,6 +13,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -220,12 +221,16 @@ class Code : public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [source_position_table]: ByteArray for the source positions table.
-  DECL_ACCESSORS(source_position_table, Object)
+  // [source_position_table]: ByteArray for the source positions table for
+  // non-baseline code.
+  DECL_ACCESSORS(source_position_table, ByteArray)
+  // [bytecode_offset_table]: ByteArray for the bytecode offset for baseline
+  // code.
+  DECL_ACCESSORS(bytecode_offset_table, ByteArray)
 
   // If source positions have not been collected or an exception has been thrown
   // this will return empty_byte_array.
-  inline ByteArray SourcePositionTable() const;
+  inline ByteArray SourcePositionTable(SharedFunctionInfo sfi) const;
 
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_RELEASE_ACQUIRE_ACCESSORS(code_data_container, CodeDataContainer)
@@ -428,7 +433,7 @@ class Code : public HeapObject {
 #define CODE_FIELDS(V)                                                        \
   V(kRelocationInfoOffset, kTaggedSize)                                       \
   V(kDeoptimizationDataOffset, kTaggedSize)                                   \
-  V(kSourcePositionTableOffset, kTaggedSize)                                  \
+  V(kPositionTableOffset, kTaggedSize)                                        \
   V(kCodeDataContainerOffset, kTaggedSize)                                    \
   /* Data or code not directly visited by GC directly starts here. */         \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
@@ -577,8 +582,8 @@ class AbstractCode : public HeapObject {
   // at instruction_start.
   inline int InstructionSize();
 
-  // Return the source position table.
-  inline ByteArray source_position_table();
+  // Return the source position table for interpreter code.
+  inline ByteArray SourcePositionTable(SharedFunctionInfo sfi);
 
   void DropStackFrameCache();
 
@@ -600,6 +605,9 @@ class AbstractCode : public HeapObject {
   static const int kMaxLoopNestingMarker = 6;
 
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
+
+ private:
+  inline ByteArray SourcePositionTableInternal();
 };
 
 // Dependent code is a singly linked list of weak fixed arrays. Each array

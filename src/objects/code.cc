@@ -10,12 +10,14 @@
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/safepoint-table.h"
+#include "src/codegen/source-position.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-utils.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/code-kind.h"
 #include "src/roots/roots-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
@@ -190,8 +192,10 @@ Address Code::OffHeapMetadataEnd() const {
          d.MetadataSizeOfBuiltin(builtin_index());
 }
 
+// TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourcePosition(int offset) {
-  Object maybe_table = source_position_table();
+  CHECK_NE(kind(), CodeKind::BASELINE);
+  Object maybe_table = SourcePositionTableInternal();
   if (maybe_table.IsException()) return kNoSourcePosition;
 
   ByteArray source_position_table = ByteArray::cast(maybe_table);
@@ -208,13 +212,15 @@ int AbstractCode::SourcePosition(int offset) {
   return position;
 }
 
+// TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourceStatementPosition(int offset) {
+  CHECK_NE(kind(), CodeKind::BASELINE);
   // First find the closest position.
   int position = SourcePosition(offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  for (SourcePositionTableIterator it(source_position_table()); !it.done();
-       it.Advance()) {
+  for (SourcePositionTableIterator it(SourcePositionTableInternal());
+       !it.done(); it.Advance()) {
     if (it.is_statement()) {
       int p = it.source_position().ScriptOffset();
       if (statement_position < p && p <= position) {
@@ -535,10 +541,12 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   os << "\n";
 
+  // TODO(cbruni): add support for baseline code.
   if (kind() != CodeKind::BASELINE) {
     {
       SourcePositionTableIterator it(
-          SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
+          source_position_table(),
+          SourcePositionTableIterator::kJavaScriptOnly);
       if (!it.done()) {
         os << "Source positions:\n pc offset  position\n";
         for (; !it.done(); it.Advance()) {
@@ -552,7 +560,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
     {
       SourcePositionTableIterator it(
-          SourcePositionTable(), SourcePositionTableIterator::kExternalOnly);
+          source_position_table(), SourcePositionTableIterator::kExternalOnly);
       if (!it.done()) {
         os << "External Source positions:\n pc offset  fileid  line\n";
         for (; !it.done(); it.Advance()) {

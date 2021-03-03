@@ -119,11 +119,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
     // TODO(v8:11429,cbruni): improve iteration for baseline code
     bool is_baseline = abstract_code->kind() == CodeKind::BASELINE;
     Handle<ByteArray> source_position_table(
-        abstract_code->source_position_table(), isolate_);
-    if (is_baseline) {
-      source_position_table = handle(
-          shared->GetBytecodeArray(isolate_).SourcePositionTable(), isolate_);
-    }
+        abstract_code->SourcePositionTable(*shared), isolate_);
     // Add each position to the source position table and store inlining stacks
     // for inline positions. We store almost the same information in the
     // profiler as is stored on the code object, except that we transform source

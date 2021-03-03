@@ -74,7 +74,7 @@ Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
     : isolate_(isolate),
       code_desc_(desc),
       kind_(kind),
-      source_position_table_(isolate_->factory()->empty_byte_array()) {}
+      position_table_(isolate_->factory()->empty_byte_array()) {}
 
 MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     bool retry_allocation_or_fail) {
@@ -167,7 +167,11 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->set_inlined_bytecode_size(inlined_bytecode_size_);
     code->set_code_data_container(*data_container, kReleaseStore);
     code->set_deoptimization_data(*deoptimization_data_);
-    code->set_source_position_table(*source_position_table_);
+    if (kind_ == CodeKind::BASELINE) {
+      code->set_bytecode_offset_table(*position_table_);
+    } else {
+      code->set_source_position_table(*position_table_);
+    }
     code->set_handler_table_offset(code_desc_.handler_table_offset_relative());
     code->set_constant_pool_offset(code_desc_.constant_pool_offset_relative());
     code->set_code_comments_offset(code_desc_.code_comments_offset_relative());
