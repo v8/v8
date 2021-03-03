@@ -3727,12 +3727,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       return;
     }
     // Vector instructions.
+#define DECODE_VX_INSTRUCTION(d, a, b, source_or_target) \
+  int d = instr->R##source_or_target##Value();           \
+  int a = instr->RAValue();                              \
+  int b = instr->RBValue();
 #define FOR_EACH_LANE(i, type) \
   for (uint32_t i = 0; i < kSimd128Size / sizeof(type); i++)
     case STVX: {
-      int vrs = instr->RSValue();
-      int ra = instr->RAValue();
-      int rb = instr->RBValue();
+      DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rb_val = get_register(rb);
       __int128 vrs_val =
@@ -3741,9 +3743,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
     case LXVD: {
-      int xt = instr->RTValue();
-      int ra = instr->RAValue();
-      int rb = instr->RBValue();
+      DECODE_VX_INSTRUCTION(xt, ra, rb, T)
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rb_val = get_register(rb);
       set_simd_register_by_lane<int64_t>(xt, 0, ReadDW(ra_val + rb_val));
@@ -3752,9 +3752,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
     case STXVD: {
-      int xs = instr->RSValue();
-      int ra = instr->RAValue();
-      int rb = instr->RBValue();
+      DECODE_VX_INSTRUCTION(xs, ra, rb, S)
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rb_val = get_register(rb);
       WriteDW(ra_val + rb_val, get_simd_register_by_lane<int64_t>(xs, 0));
@@ -3829,10 +3827,32 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VEXTRACT
+#define VECTOR_LOGICAL_OP(expr)                               \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                           \
+  FOR_EACH_LANE(i, int64_t) {                                 \
+    int64_t a_val = get_simd_register_by_lane<int64_t>(a, i); \
+    int64_t b_val = get_simd_register_by_lane<int64_t>(b, i); \
+    set_simd_register_by_lane<int64_t>(t, i, expr);           \
+  }
+    case VAND: {
+      VECTOR_LOGICAL_OP(a_val & b_val)
+      break;
+    }
+    case VOR: {
+      VECTOR_LOGICAL_OP(a_val | b_val)
+      break;
+    }
+    case VNOR: {
+      VECTOR_LOGICAL_OP(~(a_val | b_val))
+      break;
+    }
+    case VXOR: {
+      VECTOR_LOGICAL_OP(a_val ^ b_val)
+      break;
+    }
+#undef VECTOR_LOGICAL_OP
 #define VECTOR_ARITHMETIC_OP(type, op)                 \
-  int t = instr->RSValue();                            \
-  int a = instr->RAValue();                            \
-  int b = instr->RBValue();                            \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                    \
   FOR_EACH_LANE(i, type) {                             \
     set_simd_register_by_lane<type>(                   \
         t, i,                                          \
@@ -3901,9 +3921,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
 #undef VECTOR_ARITHMETIC_OP
 #define VECTOR_MIN_MAX_OP(type, op)                                        \
-  int t = instr->RSValue();                                                \
-  int a = instr->RAValue();                                                \
-  int b = instr->RBValue();                                                \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                                        \
   FOR_EACH_LANE(i, type) {                                                 \
     type a_val = get_simd_register_by_lane<type>(a, i);                    \
     type b_val = get_simd_register_by_lane<type>(b, i);                    \
@@ -3975,9 +3993,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
 #undef VECTOR_MIN_MAX_OP
 #define VECTOR_SHIFT_OP(type, op, mask)                        \
-  int t = instr->RSValue();                                    \
-  int a = instr->RAValue();                                    \
-  int b = instr->RBValue();                                    \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                            \
   FOR_EACH_LANE(i, type) {                                     \
     set_simd_register_by_lane<type>(                           \
         t, i,                                                  \
@@ -4034,6 +4050,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
 #undef VECTOR_SHIFT_OP
 #undef FOR_EACH_LANE
+#undef DECODE_VX_INSTRUCTION
     default: {
       UNIMPLEMENTED();
       break;
