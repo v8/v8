@@ -243,6 +243,18 @@ in_category(
         use_goma = GOMA.DEFAULT,
     ),
     main_multibranch_builder(
+        name = "V8 Linux64 TSAN - no-concurrent-marking - builder",
+        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN - no-concurrent-marking"]},
+        use_goma = GOMA.DEFAULT,
+    ),
+    main_multibranch_builder(
+        name = "V8 Linux64 TSAN - no-concurrent-marking",
+        triggered_by_gitiles = False,
+        dimensions = {"host_class": "multibot"},
+        properties = {"builder_group": "client.v8"},
+    ),
+    main_multibranch_builder(
         name = "V8 Linux64 - verify csa",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
