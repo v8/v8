@@ -216,9 +216,34 @@ class NodeCopier {
   // Helper version of {Insert} for one copy.
   void Insert(Node* original, Node* copy);
 
-  void CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead, NodeRange nodes,
+  template <typename InputIterator>
+  void CopyNodes(Graph* graph, Zone* tmp_zone_, Node* dead,
+                 base::iterator_range<InputIterator> nodes,
                  SourcePositionTable* source_positions,
-                 NodeOriginTable* node_origins);
+                 NodeOriginTable* node_origins) {
+    // Copy all the nodes first.
+    for (Node* original : nodes) {
+      SourcePositionTable::Scope position(
+          source_positions, source_positions->GetSourcePosition(original));
+      NodeOriginTable::Scope origin_scope(node_origins, "copy nodes", original);
+      node_map_.Set(original, copies_->size() + 1);
+      copies_->push_back(original);
+      for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
+        Node* copy = graph->CloneNode(original);
+        copies_->push_back(copy);
+      }
+    }
+
+    // Fix inputs of the copies.
+    for (Node* original : nodes) {
+      for (uint32_t copy_index = 0; copy_index < copy_count_; copy_index++) {
+        Node* copy = map(original, copy_index);
+        for (int i = 0; i < copy->InputCount(); i++) {
+          copy->ReplaceInput(i, map(original->InputAt(i), copy_index));
+        }
+      }
+    }
+  }
 
   bool Marked(Node* node) { return node_map_.Get(node) > 0; }
 
