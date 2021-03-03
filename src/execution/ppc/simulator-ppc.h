@@ -239,7 +239,6 @@ class Simulator : public SimulatorBase {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
- private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
     // without being properly setup.
@@ -341,6 +340,7 @@ class Simulator : public SimulatorBase {
 
   void Trace(Instruction* instr);
   void SetCR0(intptr_t result, bool setSO = false);
+  void SetCR6(bool true_for_all, bool false_for_all);
   void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteGeneric(Instruction* instr);
 

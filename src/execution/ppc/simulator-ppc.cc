@@ -1326,6 +1326,15 @@ void Simulator::SetCR0(intptr_t result, bool setSO) {
   condition_reg_ = (condition_reg_ & ~0xF0000000) | bf;
 }
 
+void Simulator::SetCR6(bool true_for_all, bool false_for_all) {
+  int32_t clear_cr6_mask = 0xFFFFFF0F;
+  if (true_for_all) {
+    condition_reg_ = (condition_reg_ & clear_cr6_mask) | 0x80;
+  } else if (false_for_all) {
+    condition_reg_ = (condition_reg_ & clear_cr6_mask) | 0x20;
+  }
+}
+
 void Simulator::ExecuteBranchConditional(Instruction* instr, BCType type) {
   int bo = instr->Bits(25, 21) << 21;
   int condition_bit = instr->Bits(20, 16);
@@ -1375,6 +1384,36 @@ void Simulator::ExecuteBranchConditional(Instruction* instr, BCType type) {
 
   if (instr->Bit(0) == 1) {  // LK flag set
     special_reg_lr_ = old_pc + 4;
+  }
+}
+
+// Vector instruction helpers.
+#define DECODE_VX_INSTRUCTION(d, a, b, source_or_target) \
+  int d = instr->R##source_or_target##Value();           \
+  int a = instr->RAValue();                              \
+  int b = instr->RBValue();
+#define FOR_EACH_LANE(i, type) \
+  for (uint32_t i = 0; i < kSimd128Size / sizeof(type); i++)
+template <typename A, typename T, typename Operation>
+void VectorCompareOp(Simulator* sim, Instruction* instr, bool is_fp,
+                     Operation op) {
+  DECODE_VX_INSTRUCTION(t, a, b, T)
+  bool true_for_all = true, false_for_all = true;
+  FOR_EACH_LANE(i, A) {
+    A a_val = sim->get_simd_register_by_lane<A>(a, i);
+    A b_val = sim->get_simd_register_by_lane<A>(b, i);
+    T t_val = 0;
+    bool is_not_nan = is_fp ? !isnan(a_val) && !isnan(b_val) : true;
+    if (is_not_nan && op(a_val, b_val)) {
+      false_for_all = false;
+      t_val = -1;  // Set all bits to 1 indicating true.
+    } else {
+      true_for_all = false;
+    }
+    sim->set_simd_register_by_lane<T>(t, i, t_val);
+  }
+  if (instr->Bit(10)) {  // RC bit set.
+    sim->SetCR6(true_for_all, false_for_all);
   }
 }
 
@@ -3727,12 +3766,6 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       return;
     }
     // Vector instructions.
-#define DECODE_VX_INSTRUCTION(d, a, b, source_or_target) \
-  int d = instr->R##source_or_target##Value();           \
-  int a = instr->RAValue();                              \
-  int b = instr->RBValue();
-#define FOR_EACH_LANE(i, type) \
-  for (uint32_t i = 0; i < kSimd128Size / sizeof(type); i++)
     case STVX: {
       DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
@@ -4049,6 +4082,82 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VECTOR_SHIFT_OP
+#define VECTOR_COMPARE_OP(type_in, type_out, is_fp, op) \
+  VectorCompareOp<type_in, type_out>(                   \
+      this, instr, is_fp, [](type_in a, type_in b) { return a op b; });
+    case XVCMPEQDP: {
+      VECTOR_COMPARE_OP(double, int64_t, true, ==)
+      break;
+    }
+    case XVCMPGEDP: {
+      VECTOR_COMPARE_OP(double, int64_t, true, >=)
+      break;
+    }
+    case XVCMPGTDP: {
+      VECTOR_COMPARE_OP(double, int64_t, true, >)
+      break;
+    }
+    case XVCMPEQSP: {
+      VECTOR_COMPARE_OP(float, int32_t, true, ==)
+      break;
+    }
+    case XVCMPGESP: {
+      VECTOR_COMPARE_OP(float, int32_t, true, >=)
+      break;
+    }
+    case XVCMPGTSP: {
+      VECTOR_COMPARE_OP(float, int32_t, true, >)
+      break;
+    }
+    case VCMPEQUD: {
+      VECTOR_COMPARE_OP(uint64_t, int64_t, false, ==)
+      break;
+    }
+    case VCMPGTSD: {
+      VECTOR_COMPARE_OP(int64_t, int64_t, false, >)
+      break;
+    }
+    case VCMPGTUD: {
+      VECTOR_COMPARE_OP(uint64_t, int64_t, false, >)
+      break;
+    }
+    case VCMPEQUW: {
+      VECTOR_COMPARE_OP(uint32_t, int32_t, false, ==)
+      break;
+    }
+    case VCMPGTSW: {
+      VECTOR_COMPARE_OP(int32_t, int32_t, false, >)
+      break;
+    }
+    case VCMPGTUW: {
+      VECTOR_COMPARE_OP(uint32_t, int32_t, false, >)
+      break;
+    }
+    case VCMPEQUH: {
+      VECTOR_COMPARE_OP(uint16_t, int16_t, false, ==)
+      break;
+    }
+    case VCMPGTSH: {
+      VECTOR_COMPARE_OP(int16_t, int16_t, false, >)
+      break;
+    }
+    case VCMPGTUH: {
+      VECTOR_COMPARE_OP(uint16_t, int16_t, false, >)
+      break;
+    }
+    case VCMPEQUB: {
+      VECTOR_COMPARE_OP(uint8_t, int8_t, false, ==)
+      break;
+    }
+    case VCMPGTSB: {
+      VECTOR_COMPARE_OP(int8_t, int8_t, false, >)
+      break;
+    }
+    case VCMPGTUB: {
+      VECTOR_COMPARE_OP(uint8_t, int8_t, false, >)
+      break;
+    }
+#undef VECTOR_COMPARE_OP
 #undef FOR_EACH_LANE
 #undef DECODE_VX_INSTRUCTION
     default: {
