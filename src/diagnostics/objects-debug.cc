@@ -583,20 +583,6 @@ void Context::ContextVerify(Isolate* isolate) {
   }
 }
 
-void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ScopeInfoVerify(*this, isolate);
-
-  // Make sure that the FixedArray-style length matches the length that we would
-  // compute based on the Torque indexed fields.
-  CHECK_EQ(FixedArray::SizeFor(length()), AllocatedSize());
-
-  // Code that treats ScopeInfo like a FixedArray expects all values to be
-  // tagged.
-  for (int i = 0; i < length(); ++i) {
-    Object::VerifyPointer(isolate, get(isolate, i));
-  }
-}
-
 void NativeContext::NativeContextVerify(Isolate* isolate) {
   ContextVerify(isolate);
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);

@@ -38,13 +38,11 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
+class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
  public:
   DEFINE_TORQUE_GENERATED_SCOPE_FLAGS()
 
   DECL_PRINTER(ScopeInfo)
-  DECL_VERIFIER(ScopeInfo)
-
   class BodyDescriptor;
 
   // Return the type of this scope.
@@ -310,10 +308,10 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
   // index (number of tagged-pointer-sized slots starting after the standard
   // HeapObject header).
   static constexpr int OffsetOfElementAt(int index) {
-    return FixedArray::kHeaderSize + index * kTaggedSize;
+    return HeapObject::kHeaderSize + index * kTaggedSize;
   }
   static constexpr int ConvertOffsetToIndex(int offset) {
-    int index = (offset - FixedArray::kHeaderSize) / kTaggedSize;
+    int index = (offset - HeapObject::kHeaderSize) / kTaggedSize;
     CONSTEXPR_DCHECK(OffsetOfElementAt(index) == offset);
     return index;
   }

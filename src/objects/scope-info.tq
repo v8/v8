@@ -99,7 +99,7 @@ struct ModuleVariable {
 
 @generateCppClass
 @generateBodyDescriptor
-extern class ScopeInfo extends FixedArrayBase {
+extern class ScopeInfo extends HeapObject {
   const flags: SmiTagged<ScopeFlags>;
 
   // The number of parameters. For non-function scopes this is 0.

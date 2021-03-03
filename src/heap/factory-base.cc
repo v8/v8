@@ -703,11 +703,13 @@ template <typename Impl>
 Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
                                                   AllocationType type) {
   DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
-  Handle<HeapObject> result =
-      Handle<HeapObject>::cast(NewFixedArray(length, type));
-  result->set_map_after_allocation(*read_only_roots().scope_info_map_handle(),
-                                   SKIP_WRITE_BARRIER);
-  return Handle<ScopeInfo>::cast(result);
+  int size = ScopeInfo::SizeFor(length);
+  HeapObject obj = AllocateRawWithImmortalMap(
+      size, type, read_only_roots().scope_info_map());
+  ScopeInfo scope_info = ScopeInfo::cast(obj);
+  MemsetTagged(scope_info.data_start(), read_only_roots().undefined_value(),
+               length);
+  return handle(scope_info, isolate());
 }
 
 template <typename Impl>
