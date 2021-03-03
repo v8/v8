@@ -142,6 +142,16 @@ experiment_builder(
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
+experiment_builder_pair(
+    name = "V8 Linux64 TSAN - no-concurrent-marking",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.DEFAULT,
+    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+)
+
 experiment_builder(
     name = "V8 Linux64 - no wasm - builder",
     bucket = "ci",
