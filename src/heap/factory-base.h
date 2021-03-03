@@ -234,6 +234,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   HeapObject AllocateRawFixedArray(int length, AllocationType allocation);
   HeapObject AllocateRawWeakArrayList(int length, AllocationType allocation);
 
+  Struct NewStructInternal(InstanceType type,
+                           AllocationType allocation = AllocationType::kYoung);
+
   HeapObject AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Map map,
       AllocationAlignment alignment = kWordAligned);

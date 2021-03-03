@@ -48,6 +48,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
@@ -304,46 +305,42 @@ Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
 }
 
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
-  Handle<PrototypeInfo> result = Handle<PrototypeInfo>::cast(
-      NewStruct(PROTOTYPE_INFO_TYPE, AllocationType::kOld));
+  PrototypeInfo result = PrototypeInfo::cast(
+      NewStructInternal(PROTOTYPE_INFO_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  PrototypeInfo raw = *result;
-  raw.set_prototype_users(Smi::zero());
-  raw.set_registry_slot(PrototypeInfo::UNREGISTERED);
-  raw.set_bit_field(0);
-  raw.set_module_namespace(*undefined_value(), SKIP_WRITE_BARRIER);
-  return result;
+  result.set_prototype_users(Smi::zero());
+  result.set_registry_slot(PrototypeInfo::UNREGISTERED);
+  result.set_bit_field(0);
+  result.set_module_namespace(*undefined_value(), SKIP_WRITE_BARRIER);
+  return handle(result, isolate());
 }
 
 Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
                                         Handle<FixedArray> indices) {
-  Handle<EnumCache> result =
-      Handle<EnumCache>::cast(NewStruct(ENUM_CACHE_TYPE, AllocationType::kOld));
+  EnumCache result =
+      EnumCache::cast(NewStructInternal(ENUM_CACHE_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  EnumCache raw = *result;
-  raw.set_keys(*keys);
-  raw.set_indices(*indices);
-  return result;
+  result.set_keys(*keys);
+  result.set_indices(*indices);
+  return handle(result, isolate());
 }
 
 Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
                                   AllocationType allocation) {
-  Handle<Tuple2> result =
-      Handle<Tuple2>::cast(NewStruct(TUPLE2_TYPE, allocation));
+  Tuple2 result = Tuple2::cast(NewStructInternal(TUPLE2_TYPE, allocation));
   DisallowGarbageCollection no_gc;
-  Tuple2 raw = *result;
-  raw.set_value1(*value1);
-  raw.set_value2(*value2);
-  return result;
+  result.set_value1(*value1);
+  result.set_value2(*value2);
+  return handle(result, isolate());
 }
 
 Handle<BaselineData> Factory::NewBaselineData(
     Handle<Code> code, Handle<HeapObject> function_data) {
-  Handle<BaselineData> baseline_data = Handle<BaselineData>::cast(
-      NewStruct(BASELINE_DATA_TYPE, AllocationType::kOld));
-  baseline_data->set_baseline_code(*code);
-  baseline_data->set_data(*function_data);
-  return baseline_data;
+  BaselineData baseline_data = BaselineData::cast(
+      NewStructInternal(BASELINE_DATA_TYPE, AllocationType::kOld));
+  baseline_data.set_baseline_code(*code);
+  baseline_data.set_data(*function_data);
+  return handle(baseline_data, isolate());
 }
 
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
@@ -550,17 +547,16 @@ Handle<NameDictionary> Factory::NewNameDictionary(int at_least_space_for) {
 }
 
 Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
-  Handle<PropertyDescriptorObject> object =
-      Handle<PropertyDescriptorObject>::cast(
-          NewStruct(PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung));
+  PropertyDescriptorObject object =
+      PropertyDescriptorObject::cast(NewStructInternal(
+          PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;
-  PropertyDescriptorObject raw = *object;
-  raw.set_flags(0);
+  object.set_flags(0);
   Oddball the_hole = read_only_roots().the_hole_value();
-  raw.set_value(the_hole, SKIP_WRITE_BARRIER);
-  raw.set_get(the_hole, SKIP_WRITE_BARRIER);
-  raw.set_set(the_hole, SKIP_WRITE_BARRIER);
-  return object;
+  object.set_value(the_hole, SKIP_WRITE_BARRIER);
+  object.set_get(the_hole, SKIP_WRITE_BARRIER);
+  object.set_set(the_hole, SKIP_WRITE_BARRIER);
+  return handle(object, isolate());
 }
 
 Handle<SwissNameDictionary> Factory::CreateCanonicalEmptySwissNameDictionary() {
@@ -1248,27 +1244,26 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
 
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {
-  Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(
-      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE, AllocationType::kYoung));
-  entry->set_aliased_context_slot(aliased_context_slot);
-  return entry;
+  AliasedArgumentsEntry entry = AliasedArgumentsEntry::cast(
+      NewStructInternal(ALIASED_ARGUMENTS_ENTRY_TYPE, AllocationType::kYoung));
+  entry.set_aliased_context_slot(aliased_context_slot);
+  return handle(entry, isolate());
 }
 
 Handle<AccessorInfo> Factory::NewAccessorInfo() {
-  Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(
-      NewStruct(ACCESSOR_INFO_TYPE, AllocationType::kOld));
+  AccessorInfo info = AccessorInfo::cast(
+      NewStructInternal(ACCESSOR_INFO_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  AccessorInfo raw = *info;
-  raw.set_name(*empty_string(), SKIP_WRITE_BARRIER);
-  raw.set_flags(0);  // Must clear the flags, it was initialized as undefined.
-  raw.set_is_sloppy(true);
-  raw.set_initial_property_attributes(NONE);
+  info.set_name(*empty_string(), SKIP_WRITE_BARRIER);
+  info.set_flags(0);  // Must clear the flags, it was initialized as undefined.
+  info.set_is_sloppy(true);
+  info.set_initial_property_attributes(NONE);
 
   // Clear some other fields that should not be undefined.
-  raw.set_getter(Smi::zero(), SKIP_WRITE_BARRIER);
-  raw.set_setter(Smi::zero(), SKIP_WRITE_BARRIER);
-  raw.set_js_getter(Smi::zero(), SKIP_WRITE_BARRIER);
-  return info;
+  info.set_getter(Smi::zero(), SKIP_WRITE_BARRIER);
+  info.set_setter(Smi::zero(), SKIP_WRITE_BARRIER);
+  info.set_js_getter(Smi::zero(), SKIP_WRITE_BARRIER);
+  return handle(info, isolate());
 }
 
 void Factory::AddToScriptList(Handle<Script> script) {
@@ -1281,62 +1276,66 @@ void Factory::AddToScriptList(Handle<Script> script) {
 Handle<Script> Factory::CloneScript(Handle<Script> script) {
   Heap* heap = isolate()->heap();
   int script_id = isolate()->GetNextScriptId();
-  Handle<Script> new_script =
+  Handle<Script> new_script_handle =
       Handle<Script>::cast(NewStruct(SCRIPT_TYPE, AllocationType::kOld));
-  new_script->set_source(script->source());
-  new_script->set_name(script->name());
-  new_script->set_id(script_id);
-  new_script->set_line_offset(script->line_offset());
-  new_script->set_column_offset(script->column_offset());
-  new_script->set_context_data(script->context_data());
-  new_script->set_type(script->type());
-  new_script->set_line_ends(*undefined_value(), SKIP_WRITE_BARRIER);
-  new_script->set_eval_from_shared_or_wrapped_arguments(
-      script->eval_from_shared_or_wrapped_arguments());
-  new_script->set_shared_function_infos(*empty_weak_fixed_array(),
-                                        SKIP_WRITE_BARRIER);
-  new_script->set_eval_from_position(script->eval_from_position());
-  new_script->set_flags(script->flags());
-  new_script->set_host_defined_options(script->host_defined_options());
+  {
+    DisallowGarbageCollection no_gc;
+    Script new_script = *new_script_handle;
+    const Script old_script = *script;
+    new_script.set_source(old_script.source());
+    new_script.set_name(old_script.name());
+    new_script.set_id(script_id);
+    new_script.set_line_offset(old_script.line_offset());
+    new_script.set_column_offset(old_script.column_offset());
+    new_script.set_context_data(old_script.context_data());
+    new_script.set_type(old_script.type());
+    new_script.set_line_ends(*undefined_value(), SKIP_WRITE_BARRIER);
+    new_script.set_eval_from_shared_or_wrapped_arguments(
+        script->eval_from_shared_or_wrapped_arguments());
+    new_script.set_shared_function_infos(*empty_weak_fixed_array(),
+                                         SKIP_WRITE_BARRIER);
+    new_script.set_eval_from_position(old_script.eval_from_position());
+    new_script.set_flags(old_script.flags());
+    new_script.set_host_defined_options(old_script.host_defined_options());
+  }
   Handle<WeakArrayList> scripts = script_list();
   scripts = WeakArrayList::AddToEnd(isolate(), scripts,
-                                    MaybeObjectHandle::Weak(new_script));
+                                    MaybeObjectHandle::Weak(new_script_handle));
   heap->set_script_list(*scripts);
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
-  return new_script;
+  return new_script_handle;
 }
 
 Handle<CallableTask> Factory::NewCallableTask(Handle<JSReceiver> callable,
                                               Handle<Context> context) {
   DCHECK(callable->IsCallable());
-  Handle<CallableTask> microtask =
-      Handle<CallableTask>::cast(NewStruct(CALLABLE_TASK_TYPE));
-  microtask->set_callable(*callable);
-  microtask->set_context(*context);
-  return microtask;
+  CallableTask microtask =
+      CallableTask::cast(NewStructInternal(CALLABLE_TASK_TYPE));
+  microtask.set_callable(*callable);
+  microtask.set_context(*context);
+  return handle(microtask, isolate());
 }
 
 Handle<CallbackTask> Factory::NewCallbackTask(Handle<Foreign> callback,
                                               Handle<Foreign> data) {
-  Handle<CallbackTask> microtask =
-      Handle<CallbackTask>::cast(NewStruct(CALLBACK_TASK_TYPE));
-  microtask->set_callback(*callback);
-  microtask->set_data(*data);
-  return microtask;
+  CallbackTask microtask =
+      CallbackTask::cast(NewStructInternal(CALLBACK_TASK_TYPE));
+  microtask.set_callback(*callback);
+  microtask.set_data(*data);
+  return handle(microtask, isolate());
 }
 
 Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
     Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> thenable,
     Handle<JSReceiver> then, Handle<Context> context) {
   DCHECK(then->IsCallable());
-  Handle<PromiseResolveThenableJobTask> microtask =
-      Handle<PromiseResolveThenableJobTask>::cast(
-          NewStruct(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE));
-  microtask->set_promise_to_resolve(*promise_to_resolve);
-  microtask->set_thenable(*thenable);
-  microtask->set_then(*then);
-  microtask->set_context(*context);
-  return microtask;
+  PromiseResolveThenableJobTask microtask = PromiseResolveThenableJobTask::cast(
+      NewStructInternal(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE));
+  microtask.set_promise_to_resolve(*promise_to_resolve);
+  microtask.set_thenable(*thenable);
+  microtask.set_then(*then);
+  microtask.set_context(*context);
+  return handle(microtask, isolate());
 }
 
 Handle<Foreign> Factory::NewForeign(Address addr) {
@@ -2103,28 +2102,29 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   // Allocate the global object and initialize it with the backing store.
   Handle<JSGlobalObject> global(
       JSGlobalObject::cast(New(map, AllocationType::kOld)), isolate());
-  InitializeJSObjectFromMap(global, dictionary, map);
+  InitializeJSObjectFromMap(*global, *dictionary, *map);
 
   // Create a new map for the global object.
   Handle<Map> new_map = Map::CopyDropDescriptors(isolate(), map);
-  new_map->set_may_have_interesting_symbols(true);
-  new_map->set_is_dictionary_map(true);
-  LOG(isolate(), MapDetails(*new_map));
+  Map raw_map = *new_map;
+  raw_map.set_may_have_interesting_symbols(true);
+  raw_map.set_is_dictionary_map(true);
+  LOG(isolate(), MapDetails(raw_map));
 
   // Set up the global object as a normalized object.
   global->set_global_dictionary(*dictionary, kReleaseStore);
-  global->synchronized_set_map(*new_map);
+  global->synchronized_set_map(raw_map);
 
   // Make sure result is a global object with properties in dictionary.
   DCHECK(global->IsJSGlobalObject() && !global->HasFastProperties());
   return global;
 }
 
-void Factory::InitializeJSObjectFromMap(Handle<JSObject> obj,
-                                        Handle<Object> properties,
-                                        Handle<Map> map) {
-  obj->set_raw_properties_or_hash(*properties);
-  obj->initialize_elements();
+void Factory::InitializeJSObjectFromMap(JSObject obj, Object properties,
+                                        Map map) {
+  DisallowGarbageCollection no_gc;
+  obj.set_raw_properties_or_hash(properties);
+  obj.initialize_elements();
   // TODO(1240798): Initialize the object's body using valid initial values
   // according to the object's initial map.  For example, if the map's
   // instance type is JS_ARRAY_TYPE, the length field should be initialized
@@ -2135,10 +2135,10 @@ void Factory::InitializeJSObjectFromMap(Handle<JSObject> obj,
   InitializeJSObjectBody(obj, map, JSObject::kHeaderSize);
 }
 
-void Factory::InitializeJSObjectBody(Handle<JSObject> obj, Handle<Map> map,
-                                     int start_offset) {
-  if (start_offset == map->instance_size()) return;
-  DCHECK_LT(start_offset, map->instance_size());
+void Factory::InitializeJSObjectBody(JSObject obj, Map map, int start_offset) {
+  DisallowGarbageCollection no_gc;
+  if (start_offset == map.instance_size()) return;
+  DCHECK_LT(start_offset, map.instance_size());
 
   // We cannot always fill with one_pointer_filler_map because objects
   // created from API functions expect their embedder fields to be initialized
@@ -2149,16 +2149,16 @@ void Factory::InitializeJSObjectBody(Handle<JSObject> obj, Handle<Map> map,
 
   // In case of Array subclassing the |map| could already be transitioned
   // to different elements kind from the initial map on which we track slack.
-  bool in_progress = map->IsInobjectSlackTrackingInProgress();
+  bool in_progress = map.IsInobjectSlackTrackingInProgress();
   Object filler;
   if (in_progress) {
     filler = *one_pointer_filler_map();
   } else {
     filler = *undefined_value();
   }
-  obj->InitializeBody(*map, start_offset, *undefined_value(), filler);
+  obj.InitializeBody(map, start_offset, *undefined_value(), filler);
   if (in_progress) {
-    map->FindRootMap(isolate()).InobjectSlackTrackingStep(isolate());
+    map.FindRootMap(isolate()).InobjectSlackTrackingStep(isolate());
   }
 }
 
@@ -2173,16 +2173,15 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
   // AllocateGlobalObject to be properly initialized.
   DCHECK(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
 
-  HeapObject obj =
-      AllocateRawWithAllocationSite(map, allocation, allocation_site);
-  Handle<JSObject> js_obj(JSObject::cast(obj), isolate());
+  JSObject js_obj = JSObject::cast(
+      AllocateRawWithAllocationSite(map, allocation, allocation_site));
 
-  InitializeJSObjectFromMap(js_obj, empty_fixed_array(), map);
+  InitializeJSObjectFromMap(js_obj, *empty_fixed_array(), *map);
 
-  DCHECK(js_obj->HasFastElements() || js_obj->HasTypedArrayElements() ||
-         js_obj->HasFastStringWrapperElements() ||
-         js_obj->HasFastArgumentsElements() || js_obj->HasDictionaryElements());
-  return js_obj;
+  DCHECK(js_obj.HasFastElements() || js_obj.HasTypedArrayElements() ||
+         js_obj.HasFastStringWrapperElements() ||
+         js_obj.HasFastArgumentsElements() || js_obj.HasDictionaryElements());
+  return handle(js_obj, isolate());
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectFromMap(
@@ -2267,8 +2266,9 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
   Handle<JSArray> array = Handle<JSArray>::cast(
       NewJSObjectFromMap(handle(map, isolate()), allocation));
   DisallowGarbageCollection no_gc;
-  array->set_elements(*elements);
-  array->set_length(Smi::FromInt(length));
+  JSArray raw = *array;
+  raw.set_elements(*elements);
+  raw.set_length(Smi::FromInt(length));
   return array;
 }
 
@@ -2277,8 +2277,9 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,
   DCHECK(capacity >= length);
 
   if (capacity == 0) {
-    array->set_length(Smi::zero());
-    array->set_elements(*empty_fixed_array());
+    JSArray raw = *array;
+    raw.set_length(Smi::zero());
+    raw.set_elements(*empty_fixed_array());
     return;
   }
 
@@ -2286,8 +2287,9 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,
   Handle<FixedArrayBase> elms =
       NewJSArrayStorage(array->GetElementsKind(), capacity, mode);
 
-  array->set_elements(*elms);
-  array->set_length(Smi::FromInt(length));
+  JSArray raw = *array;
+  raw.set_elements(*elms);
+  raw.set_length(Smi::FromInt(length));
 }
 
 Handle<FixedArrayBase> Factory::NewJSArrayStorage(
@@ -2472,9 +2474,9 @@ Handle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
                   isolate());
   Handle<JSAsyncFromSyncIterator> iterator =
       Handle<JSAsyncFromSyncIterator>::cast(NewJSObjectFromMap(map));
-
-  iterator->set_sync_iterator(*sync_iterator);
-  iterator->set_next(*next);
+  JSAsyncFromSyncIterator raw = *iterator;
+  raw.set_sync_iterator(*sync_iterator);
+  raw.set_next(*next);
   return iterator;
 }
 
@@ -2536,12 +2538,14 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
   CHECK_LE(byte_offset + byte_length, buffer->byte_length());
   Handle<JSArrayBufferView> array_buffer_view = Handle<JSArrayBufferView>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
-  array_buffer_view->set_elements(*elements);
-  array_buffer_view->set_buffer(*buffer);
-  array_buffer_view->set_byte_offset(byte_offset);
-  array_buffer_view->set_byte_length(byte_length);
-  ZeroEmbedderFields(*array_buffer_view);
-  DCHECK_EQ(array_buffer_view->GetEmbedderFieldCount(),
+  DisallowGarbageCollection no_gc;
+  JSArrayBufferView raw = *array_buffer_view;
+  raw.set_elements(*elements);
+  raw.set_buffer(*buffer);
+  raw.set_byte_offset(byte_offset);
+  raw.set_byte_length(byte_length);
+  ZeroEmbedderFields(raw);
+  DCHECK_EQ(raw.GetEmbedderFieldCount(),
             v8::ArrayBufferView::kEmbedderFieldCount);
   return array_buffer_view;
 }
@@ -2577,10 +2581,10 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   Handle<JSTypedArray> typed_array =
       Handle<JSTypedArray>::cast(NewJSArrayBufferView(
           map, empty_byte_array(), buffer, byte_offset, byte_length));
-  typed_array->AllocateExternalPointerEntries(isolate());
-  typed_array->set_length(length);
-  typed_array->SetOffHeapDataPtr(isolate(), buffer->backing_store(),
-                                 byte_offset);
+  JSTypedArray raw = *typed_array;
+  raw.AllocateExternalPointerEntries(isolate());
+  raw.set_length(length);
+  raw.SetOffHeapDataPtr(isolate(), buffer->backing_store(), byte_offset);
   return typed_array;
 }
 
@@ -2640,9 +2644,11 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
   // Setup the JSBoundFunction instance.
   Handle<JSBoundFunction> result =
       Handle<JSBoundFunction>::cast(NewJSObjectFromMap(map));
-  result->set_bound_target_function(*target_function);
-  result->set_bound_this(*bound_this);
-  result->set_bound_arguments(*bound_arguments);
+  DisallowGarbageCollection no_gc;
+  JSBoundFunction raw = *result;
+  raw.set_bound_target_function(*target_function);
+  raw.set_bound_this(*bound_this);
+  raw.set_bound_arguments(*bound_arguments);
   return result;
 }
 
@@ -2661,12 +2667,11 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
     map = Handle<Map>(isolate()->proxy_map());
   }
   DCHECK(map->prototype().IsNull(isolate()));
-  Handle<JSProxy> result(JSProxy::cast(New(map, AllocationType::kYoung)),
-                         isolate());
-  result->initialize_properties(isolate());
-  result->set_target(*target);
-  result->set_handler(*handler);
-  return result;
+  JSProxy result = JSProxy::cast(New(map, AllocationType::kYoung));
+  result.initialize_properties(isolate());
+  result.set_target(*target);
+  result.set_handler(*handler);
+  return handle(result, isolate());
 }
 
 Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
@@ -2674,9 +2679,13 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   // via ReinitializeJSGlobalProxy later.
   Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, size);
   // Maintain invariant expected from any JSGlobalProxy.
-  map->set_is_access_check_needed(true);
-  map->set_may_have_interesting_symbols(true);
-  LOG(isolate(), MapDetails(*map));
+  {
+    DisallowGarbageCollection no_gc;
+    Map raw = *map;
+    raw.set_is_access_check_needed(true);
+    raw.set_may_have_interesting_symbols(true);
+    LOG(isolate(), MapDetails(raw));
+  }
   Handle<JSGlobalProxy> proxy = Handle<JSGlobalProxy>::cast(
       NewJSObjectFromMap(map, AllocationType::kOld));
   // Create identity hash early in case there is any JS collection containing
@@ -2712,10 +2721,11 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   DisallowGarbageCollection no_gc;
 
   // Reset the map for the object.
-  object->synchronized_set_map(*map);
+  JSGlobalProxy raw = *object;
+  raw.synchronized_set_map(*map);
 
   // Reinitialize the object from the constructor map.
-  InitializeJSObjectFromMap(object, raw_properties_or_hash, map);
+  InitializeJSObjectFromMap(raw, *raw_properties_or_hash, *map);
 }
 
 Handle<JSMessageObject> Factory::NewJSMessageObject(
@@ -2825,8 +2835,10 @@ void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
       return;
     }
   }
-  number_string_cache()->set(hash * 2, *number);
-  number_string_cache()->set(hash * 2 + 1, *js_string);
+  DisallowGarbageCollection no_gc;
+  FixedArray cache = *number_string_cache();
+  cache.set(hash * 2, *number);
+  cache.set(hash * 2 + 1, *js_string);
 }
 
 Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
@@ -2896,11 +2908,15 @@ inline Handle<String> Factory::SmiToString(Smi number, NumberCacheMode mode) {
   // Compute the hash here (rather than letting the caller take care of it) so
   // that the "cache hit" case above doesn't have to bother with it.
   STATIC_ASSERT(Smi::kMaxValue <= std::numeric_limits<uint32_t>::max());
-  if (result->raw_hash_field() == String::kEmptyHashField &&
-      number.value() >= 0) {
-    uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-        static_cast<uint32_t>(number.value()), result->length());
-    result->set_raw_hash_field(raw_hash_field);
+  {
+    DisallowGarbageCollection no_gc;
+    String raw = *result;
+    if (raw.raw_hash_field() == String::kEmptyHashField &&
+        number.value() >= 0) {
+      uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
+          static_cast<uint32_t>(number.value()), raw.length());
+      raw.set_raw_hash_field(raw_hash_field);
+    }
   }
   return result;
 }
@@ -2932,11 +2948,15 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
     // No way to cache this; we'd need an {Object} to use as key.
     result = NewStringFromAsciiChecked(string);
   }
-  if (value <= JSArray::kMaxArrayIndex &&
-      result->raw_hash_field() == String::kEmptyHashField) {
-    uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-        static_cast<uint32_t>(value), result->length());
-    result->set_raw_hash_field(raw_hash_field);
+  {
+    DisallowGarbageCollection no_gc;
+    String raw = *result;
+    if (value <= JSArray::kMaxArrayIndex &&
+        raw.raw_hash_field() == String::kEmptyHashField) {
+      uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
+          static_cast<uint32_t>(value), raw.length());
+      raw.set_raw_hash_field(raw_hash_field);
+    }
   }
   return result;
 }
@@ -2944,59 +2964,58 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   DCHECK(!shared->HasDebugInfo());
 
-  Handle<DebugInfo> debug_info =
-      Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE, AllocationType::kOld));
+  DebugInfo debug_info =
+      DebugInfo::cast(NewStructInternal(DEBUG_INFO_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  {
-    DebugInfo raw = *debug_info;
-    raw.set_flags(DebugInfo::kNone);
-    raw.set_shared(*shared);
-    raw.set_debugger_hints(0);
-    DCHECK_EQ(DebugInfo::kNoDebuggingId, raw.debugging_id());
-    raw.set_script(shared->script_or_debug_info(kAcquireLoad));
-    HeapObject undefined = *undefined_value();
-    raw.set_original_bytecode_array(undefined, kReleaseStore,
-                                    SKIP_WRITE_BARRIER);
-    raw.set_debug_bytecode_array(undefined, kReleaseStore, SKIP_WRITE_BARRIER);
-    raw.set_break_points(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  SharedFunctionInfo raw_shared = *shared;
+  debug_info.set_flags(DebugInfo::kNone);
+  debug_info.set_shared(raw_shared);
+  debug_info.set_debugger_hints(0);
+  DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info.debugging_id());
+  debug_info.set_script(raw_shared.script_or_debug_info(kAcquireLoad));
+  HeapObject undefined = *undefined_value();
+  debug_info.set_original_bytecode_array(undefined, kReleaseStore,
+                                         SKIP_WRITE_BARRIER);
+  debug_info.set_debug_bytecode_array(undefined, kReleaseStore,
+                                      SKIP_WRITE_BARRIER);
+  debug_info.set_break_points(*empty_fixed_array(), SKIP_WRITE_BARRIER);
 
-    // Link debug info to function.
-    shared->SetDebugInfo(raw);
-  }
+  // Link debug info to function.
+  raw_shared.SetDebugInfo(debug_info);
 
-  return debug_info;
+  return handle(debug_info, isolate());
 }
 
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
-  Handle<BreakPointInfo> new_break_point_info = Handle<BreakPointInfo>::cast(
-      NewStruct(BREAK_POINT_INFO_TYPE, AllocationType::kOld));
-  new_break_point_info->set_source_position(source_position);
-  new_break_point_info->set_break_points(*undefined_value(),
-                                         SKIP_WRITE_BARRIER);
-  return new_break_point_info;
+  BreakPointInfo new_break_point_info = BreakPointInfo::cast(
+      NewStructInternal(BREAK_POINT_INFO_TYPE, AllocationType::kOld));
+  new_break_point_info.set_source_position(source_position);
+  new_break_point_info.set_break_points(*undefined_value(), SKIP_WRITE_BARRIER);
+  return handle(new_break_point_info, isolate());
 }
 
 Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
-  Handle<BreakPoint> new_break_point = Handle<BreakPoint>::cast(
-      NewStruct(BREAK_POINT_TYPE, AllocationType::kOld));
-  new_break_point->set_id(id);
-  new_break_point->set_condition(*condition);
-  return new_break_point;
+  BreakPoint new_break_point = BreakPoint::cast(
+      NewStructInternal(BREAK_POINT_TYPE, AllocationType::kOld));
+  new_break_point.set_id(id);
+  new_break_point.set_condition(*condition);
+  return handle(new_break_point, isolate());
 }
 
 Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     Handle<Object> receiver_or_instance, Handle<Object> function,
     Handle<HeapObject> code_object, int code_offset_or_source_position,
     int flags, Handle<FixedArray> parameters) {
-  Handle<StackFrameInfo> info =
-      Handle<StackFrameInfo>::cast(NewStruct(STACK_FRAME_INFO_TYPE));
-  info->set_receiver_or_instance(*receiver_or_instance);
-  info->set_function(*function);
-  info->set_code_object(*code_object);
-  info->set_code_offset_or_source_position(code_offset_or_source_position);
-  info->set_flags(flags);
-  info->set_parameters(*parameters);
-  return info;
+  StackFrameInfo info =
+      StackFrameInfo::cast(NewStructInternal(STACK_FRAME_INFO_TYPE));
+  DisallowGarbageCollection no_gc;
+  info.set_receiver_or_instance(*receiver_or_instance);
+  info.set_function(*function);
+  info.set_code_object(*code_object);
+  info.set_code_offset_or_source_position(code_offset_or_source_position);
+  info.set_flags(flags);
+  info.set_parameters(*parameters);
+  return handle(info, isolate());
 }
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
@@ -3171,15 +3190,15 @@ Handle<RegExpMatchInfo> Factory::NewRegExpMatchInfo() {
 
   Handle<FixedArray> elems = NewFixedArray(kInitialSize);
   Handle<RegExpMatchInfo> result = Handle<RegExpMatchInfo>::cast(elems);
-  DisallowGarbageCollection no_gc;
-  RegExpMatchInfo raw = *result;
-
-  raw.SetNumberOfCaptureRegisters(RegExpMatchInfo::kInitialCaptureIndices);
-  raw.SetLastSubject(*empty_string());
-  raw.SetLastInput(*undefined_value());
-  raw.SetCapture(0, 0);
-  raw.SetCapture(1, 0);
-
+  {
+    DisallowGarbageCollection no_gc;
+    RegExpMatchInfo raw = *result;
+    raw.SetNumberOfCaptureRegisters(RegExpMatchInfo::kInitialCaptureIndices);
+    raw.SetLastSubject(*empty_string());
+    raw.SetLastInput(*undefined_value());
+    raw.SetCapture(0, 0);
+    raw.SetCapture(1, 0);
+  }
   return result;
 }
 
@@ -3216,9 +3235,13 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   Handle<Map> map = NewMap(
       JS_FUNCTION_TYPE, header_size + inobject_properties_count * kTaggedSize,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
-  map->set_has_prototype_slot(has_prototype);
-  map->set_is_constructor(has_prototype);
-  map->set_is_callable(true);
+  {
+    DisallowGarbageCollection no_gc;
+    Map raw_map = *map;
+    raw_map.set_has_prototype_slot(has_prototype);
+    raw_map.set_is_constructor(has_prototype);
+    raw_map.set_is_callable(true);
+  }
   Handle<JSFunction> empty_function;
   if (maybe_empty_function.ToHandle(&empty_function)) {
     Map::SetPrototype(isolate(), map, empty_function);
@@ -3302,9 +3325,13 @@ Handle<Map> Factory::CreateStrictFunctionMap(
   Handle<Map> map = NewMap(
       JS_FUNCTION_TYPE, header_size + inobject_properties_count * kTaggedSize,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
-  map->set_has_prototype_slot(has_prototype);
-  map->set_is_constructor(has_prototype);
-  map->set_is_callable(true);
+  {
+    DisallowGarbageCollection no_gc;
+    Map raw_map = *map;
+    raw_map.set_has_prototype_slot(has_prototype);
+    raw_map.set_is_constructor(has_prototype);
+    raw_map.set_is_callable(true);
+  }
   Map::SetPrototype(isolate(), map, empty_function);
 
   //
@@ -3360,10 +3387,14 @@ Handle<Map> Factory::CreateStrictFunctionMap(
 
 Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   Handle<Map> map = NewMap(JS_FUNCTION_TYPE, JSFunction::kSizeWithPrototype);
-  map->set_has_prototype_slot(true);
-  map->set_is_constructor(true);
-  map->set_is_prototype_map(true);
-  map->set_is_callable(true);
+  {
+    DisallowGarbageCollection no_gc;
+    Map raw_map = *map;
+    raw_map.set_has_prototype_slot(true);
+    raw_map.set_is_constructor(true);
+    raw_map.set_is_prototype_map(true);
+    raw_map.set_is_callable(true);
+  }
   Map::SetPrototype(isolate(), map, empty_function);
 
   //
@@ -3482,20 +3513,22 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
       JSFunction::cast(factory->New(map, allocation_type_)), isolate);
 
   // Header initialization.
-  function->initialize_properties(isolate);
-  function->initialize_elements();
-  function->set_shared(*sfi_);
-  function->set_context(*context_);
-  function->set_raw_feedback_cell(*feedback_cell);
-  function->set_code(*code, kReleaseStore);
-  if (map->has_prototype_slot()) {
-    function->set_prototype_or_initial_map(
-        ReadOnlyRoots(isolate).the_hole_value(), SKIP_WRITE_BARRIER);
+  DisallowGarbageCollection no_gc;
+  JSFunction raw = *function;
+  raw.initialize_properties(isolate);
+  raw.initialize_elements();
+  raw.set_shared(*sfi_);
+  raw.set_context(*context_);
+  raw.set_raw_feedback_cell(*feedback_cell);
+  raw.set_code(*code, kReleaseStore);
+  if (raw.has_prototype_slot()) {
+    raw.set_prototype_or_initial_map(ReadOnlyRoots(isolate).the_hole_value(),
+                                     SKIP_WRITE_BARRIER);
   }
 
   // Potentially body initialization.
   factory->InitializeJSObjectBody(
-      function, map, JSFunction::GetHeaderSize(map->has_prototype_slot()));
+      raw, *map, JSFunction::GetHeaderSize(map->has_prototype_slot()));
 
   return function;
 }

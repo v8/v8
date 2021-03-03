@@ -632,6 +632,7 @@ void Map::ReplaceDescriptors(Isolate* isolate,
 }
 
 Map Map::FindRootMap(Isolate* isolate) const {
+  DisallowGarbageCollection no_gc;
   Map result = *this;
   while (true) {
     Object back = result.GetBackPointer(isolate);

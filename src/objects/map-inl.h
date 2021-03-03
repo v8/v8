@@ -738,6 +738,7 @@ bool Map::IsInobjectSlackTrackingInProgress() const {
 }
 
 void Map::InobjectSlackTrackingStep(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
   // Slack tracking should only be performed on an initial map.
   DCHECK(GetBackPointer().IsUndefined());
   if (!IsInobjectSlackTrackingInProgress()) return;

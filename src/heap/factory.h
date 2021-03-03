@@ -995,11 +995,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                    AllocationSite allocation_site);
 
   // Initializes a JSObject based on its map.
-  void InitializeJSObjectFromMap(Handle<JSObject> obj,
-                                 Handle<Object> properties, Handle<Map> map);
+  void InitializeJSObjectFromMap(JSObject obj, Object properties, Map map);
   // Initializes JSObject body starting at given offset.
-  void InitializeJSObjectBody(Handle<JSObject> obj, Handle<Map> map,
-                              int start_offset);
+  void InitializeJSObjectBody(JSObject obj, Map map, int start_offset);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);

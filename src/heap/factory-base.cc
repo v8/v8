@@ -53,12 +53,18 @@ FactoryBase<LocalFactory>::NewHeapNumber<AllocationType::kOld>();
 template <typename Impl>
 Handle<Struct> FactoryBase<Impl>::NewStruct(InstanceType type,
                                             AllocationType allocation) {
+  return handle(NewStructInternal(type, allocation), isolate());
+}
+
+template <typename Impl>
+Struct FactoryBase<Impl>::NewStructInternal(InstanceType type,
+                                            AllocationType allocation) {
   Map map = Map::GetInstanceTypeMap(read_only_roots(), type);
   int size = map.instance_size();
   HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
   Struct str = Struct::cast(result);
   str.InitializeBody(size);
-  return handle(str, isolate());
+  return str;
 }
 
 template <typename Impl>
