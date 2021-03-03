@@ -632,6 +632,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // Initialize the root register.
     // C calling convention. The first argument is passed in x0.
     __ Mov(kRootRegister, x0);
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    // Initialize the pointer cage base register.
+    __ Mov(kPointerCageBaseRegister, x0);
+#endif
   }
 
   // Set up fp. It points to the {fp, lr} pair pushed as the last step in
@@ -910,10 +915,13 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Mov(x23, x19);
     __ Mov(x24, x19);
     __ Mov(x25, x19);
+#ifndef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     __ Mov(x28, x19);
+#endif
     // Don't initialize the reserved registers.
     // x26 : root register (kRootRegister).
     // x27 : context pointer (cp).
+    // x28 : pointer cage base register (kPointerCageBaseRegister).
     // x29 : frame pointer (fp).
 
     Handle<Code> builtin = is_construct

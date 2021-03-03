@@ -704,6 +704,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     Move(kRootRegister, isolate_root);
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    Move(kPointerCageBaseRegister, isolate_root);
+#endif
   }
 
   void SaveRegisters(RegList registers);
@@ -1146,7 +1149,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       Register actual_parameter_count, Label* done,
                       InvokeFlag flag);
 
-  void EnterExitFramePrologue(bool save_rax, StackFrame::Type frame_type);
+  void EnterExitFramePrologue(Register saved_rax_reg,
+                              StackFrame::Type frame_type);
 
   // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
   // stack accessible via StackSpaceOperand.
