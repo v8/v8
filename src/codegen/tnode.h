@@ -353,10 +353,8 @@ class TNode {
 
   static TNode UncheckedCast(compiler::Node* node) { return TNode(node); }
 
- protected:
-  explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
-
  private:
+  explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
   // These checks shouldn't be checked before TNode is actually used.
   void LazyTemplateChecks() {
     static_assert(is_valid_type_tag<T>::value, "invalid type tag");

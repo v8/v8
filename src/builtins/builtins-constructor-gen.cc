@@ -175,8 +175,6 @@ void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
   CallOrConstructWithSpread(target, new_target, spread, argc, eager_context);
 }
 
-using Node = compiler::Node;
-
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   auto shared_function_info =
       Parameter<SharedFunctionInfo>(Descriptor::kSharedFunctionInfo);

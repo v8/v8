@@ -747,7 +747,7 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
 void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
                                    Stack<std::string>* stack) {
   out() << "    ca_.Branch(" << stack->Pop() << ", &"
-        << BlockName(instruction.if_true) << ", std::vector<Node*>{";
+        << BlockName(instruction.if_true) << ", std::vector<compiler::Node*>{";
 
   const auto& true_definitions = instruction.if_true->InputDefinitions();
   DCHECK_EQ(stack->Size(), true_definitions.Size());
@@ -760,7 +760,8 @@ void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
     }
   }
 
-  out() << "}, &" << BlockName(instruction.if_false) << ", std::vector<Node*>{";
+  out() << "}, &" << BlockName(instruction.if_false)
+        << ", std::vector<compiler::Node*>{";
 
   const auto& false_definitions = instruction.if_false->InputDefinitions();
   DCHECK_EQ(stack->Size(), false_definitions.Size());

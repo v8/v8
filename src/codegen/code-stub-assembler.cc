@@ -30,8 +30,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state),
       TorqueGeneratedExportedMacrosAssembler(state) {

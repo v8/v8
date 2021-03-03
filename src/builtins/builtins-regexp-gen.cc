@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
 // Tail calls the regular expression interpreter.
 // static
 void Builtins::Generate_RegExpInterpreterTrampoline(MacroAssembler* masm) {

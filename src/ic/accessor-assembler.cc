@@ -24,9 +24,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::CodeAssemblerState;
-using compiler::Node;
-
 //////////////////// Private helpers.
 
 // Loads dataX field from the DataHandler object.

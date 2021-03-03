@@ -20,8 +20,6 @@ class ExitPoint;
 
 class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
  public:
-  using Node = compiler::Node;
-
   explicit AccessorAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 

@@ -305,7 +305,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     : public compiler::CodeAssembler,
       public TorqueGeneratedExportedMacrosAssembler {
  public:
-  using Node = compiler::Node;
   using ScopedExceptionHandler = compiler::ScopedExceptionHandler;
 
   template <typename T>
@@ -3849,8 +3848,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 class V8_EXPORT_PRIVATE CodeStubArguments {
  public:
-  using Node = compiler::Node;
-
   // |argc| specifies the number of arguments passed to the builtin excluding
   // the receiver. The arguments include the receiver.
   CodeStubArguments(CodeStubAssembler* assembler, TNode<IntPtrT> argc)

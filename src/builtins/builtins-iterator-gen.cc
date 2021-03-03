@@ -16,7 +16,6 @@ namespace v8 {
 namespace internal {
 
 using IteratorRecord = TorqueStructIteratorRecord;
-using compiler::Node;
 
 TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(
     TNode<Context> context, TNode<Object> object) {

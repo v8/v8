@@ -19,7 +19,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
 template <class T>
 using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
