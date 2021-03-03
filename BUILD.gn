@@ -1580,6 +1580,7 @@ v8_source_set("torque_generated_initializers") {
   deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_base_without_compiler",
     ":v8_tracing",
   ]
 
@@ -1611,6 +1612,7 @@ v8_source_set("torque_generated_definitions") {
   deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_internal_headers",
     ":v8_tracing",
   ]
 
@@ -1921,6 +1923,8 @@ v8_source_set("v8_initializers") {
     ":*",
     "test/cctest:*",
   ]
+
+  allow_circular_includes_from = [ ":torque_generated_initializers" ]
 
   deps = [
     ":torque_generated_initializers",
