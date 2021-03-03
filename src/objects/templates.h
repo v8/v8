@@ -109,6 +109,12 @@ class FunctionTemplateInfo
 
   // If not set an access may be performed on calling the associated JSFunction.
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
+
+  // This flag is used to check that the FunctionTemplateInfo instance is not
+  // changed after it became visible to TurboFan (either set in a
+  // SharedFunctionInfo or an accessor), because TF relies on immutability to
+  // safely read concurrently.
+  DECL_BOOLEAN_ACCESSORS(published)
   // End flag bits ---------------------
 
   // Dispatched behavior.

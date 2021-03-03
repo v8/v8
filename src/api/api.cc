@@ -1180,15 +1180,16 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
                                                         result);
 }
 
-static void EnsureNotInstantiated(i::Handle<i::FunctionTemplateInfo> info,
-                                  const char* func) {
-  Utils::ApiCheck(!info->instantiated(), func,
+static void EnsureNotPublished(i::Handle<i::FunctionTemplateInfo> info,
+                               const char* func) {
+  DCHECK_IMPLIES(info->instantiated(), info->published());
+  Utils::ApiCheck(!info->published(), func,
                   "FunctionTemplate already instantiated");
 }
 
 void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
   auto info = Utils::OpenHandle(this);
-  EnsureNotInstantiated(info, "v8::FunctionTemplate::Inherit");
+  EnsureNotPublished(info, "v8::FunctionTemplate::Inherit");
   i::Isolate* i_isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   Utils::ApiCheck(info->GetPrototypeProviderTemplate().IsUndefined(i_isolate),
@@ -1288,7 +1289,7 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
                                       SideEffectType side_effect_type,
                                       const CFunction* c_function) {
   auto info = Utils::OpenHandle(this);
-  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetCallHandler");
+  EnsureNotPublished(info, "v8::FunctionTemplate::SetCallHandler");
   i::Isolate* isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
@@ -1378,7 +1379,7 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
 
 void FunctionTemplate::SetLength(int length) {
   auto info = Utils::OpenHandle(this);
-  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetLength");
+  EnsureNotPublished(info, "v8::FunctionTemplate::SetLength");
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   info->set_length(length);
@@ -1386,7 +1387,7 @@ void FunctionTemplate::SetLength(int length) {
 
 void FunctionTemplate::SetClassName(Local<String> name) {
   auto info = Utils::OpenHandle(this);
-  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetClassName");
+  EnsureNotPublished(info, "v8::FunctionTemplate::SetClassName");
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   info->set_class_name(*Utils::OpenHandle(*name));
@@ -1394,7 +1395,7 @@ void FunctionTemplate::SetClassName(Local<String> name) {
 
 void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
   auto info = Utils::OpenHandle(this);
-  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetAcceptAnyReceiver");
+  EnsureNotPublished(info, "v8::FunctionTemplate::SetAcceptAnyReceiver");
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   info->set_accept_any_receiver(value);
@@ -1402,7 +1403,7 @@ void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
 
 void FunctionTemplate::ReadOnlyPrototype() {
   auto info = Utils::OpenHandle(this);
-  EnsureNotInstantiated(info, "v8::FunctionTemplate::ReadOnlyPrototype");
+  EnsureNotPublished(info, "v8::FunctionTemplate::ReadOnlyPrototype");
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   info->set_read_only_prototype(true);
@@ -1410,7 +1411,7 @@ void FunctionTemplate::ReadOnlyPrototype() {
 
 void FunctionTemplate::RemovePrototype() {
   auto info = Utils::OpenHandle(this);
-  EnsureNotInstantiated(info, "v8::FunctionTemplate::RemovePrototype");
+  EnsureNotPublished(info, "v8::FunctionTemplate::RemovePrototype");
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   info->set_remove_prototype(true);
@@ -1638,7 +1639,7 @@ static void ObjectTemplateSetNamedPropertyHandler(
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, templ);
-  EnsureNotInstantiated(cons, "ObjectTemplateSetNamedPropertyHandler");
+  EnsureNotPublished(cons, "ObjectTemplateSetNamedPropertyHandler");
   auto obj =
       CreateNamedInterceptorInfo(isolate, getter, setter, query, descriptor,
                                  remover, enumerator, definer, data, flags);
@@ -1658,7 +1659,7 @@ void ObjectTemplate::MarkAsUndetectable() {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, this);
-  EnsureNotInstantiated(cons, "v8::ObjectTemplate::MarkAsUndetectable");
+  EnsureNotPublished(cons, "v8::ObjectTemplate::MarkAsUndetectable");
   cons->set_undetectable(true);
 }
 
@@ -1668,7 +1669,7 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, this);
-  EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
+  EnsureNotPublished(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
 
   i::Handle<i::Struct> struct_info = isolate->factory()->NewStruct(
       i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
@@ -1697,8 +1698,8 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, this);
-  EnsureNotInstantiated(
-      cons, "v8::ObjectTemplate::SetAccessCheckCallbackWithHandler");
+  EnsureNotPublished(cons,
+                     "v8::ObjectTemplate::SetAccessCheckCallbackWithHandler");
 
   i::Handle<i::Struct> struct_info = isolate->factory()->NewStruct(
       i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
@@ -1733,7 +1734,7 @@ void ObjectTemplate::SetHandler(
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, this);
-  EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetHandler");
+  EnsureNotPublished(cons, "v8::ObjectTemplate::SetHandler");
   auto obj = CreateIndexedInterceptorInfo(
       isolate, config.getter, config.setter, config.query, config.descriptor,
       config.deleter, config.enumerator, config.definer, config.data,
@@ -1747,7 +1748,7 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, this);
-  EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
+  EnsureNotPublished(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::CallHandlerInfo> obj = isolate->factory()->NewCallHandlerInfo();
   SET_FIELD_WRAPPED(isolate, obj, set_callback, callback);
   SET_FIELD_WRAPPED(isolate, obj, set_js_callback, obj->redirected_callback());

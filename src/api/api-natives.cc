@@ -531,6 +531,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
     }
     return MaybeHandle<JSFunction>();
   }
+  data->set_published(true);
   return function;
 }
 
@@ -626,6 +627,8 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
                                      Handle<FunctionTemplateInfo> getter,
                                      Handle<FunctionTemplateInfo> setter,
                                      PropertyAttributes attributes) {
+  if (!getter.is_null()) getter->set_published(true);
+  if (!setter.is_null()) setter->set_published(true);
   PropertyDetails details(kAccessor, attributes, PropertyConstness::kMutable);
   auto details_handle = handle(details.AsSmi(), isolate);
   Handle<Object> data[] = {name, details_handle, getter, setter};

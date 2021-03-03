@@ -37,6 +37,7 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache, DoNotCacheBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, published, PublishedBit::kShift)
 
 RELEASE_ACQUIRE_ACCESSORS(FunctionTemplateInfo, call_code, HeapObject,
                           kCallCodeOffset)
