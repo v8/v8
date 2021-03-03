@@ -108,23 +108,23 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
 }
 
 // static
-PropertyAccessInfo PropertyAccessInfo::DataConstant(
+PropertyAccessInfo PropertyAccessInfo::FastDataConstant(
     Zone* zone, Handle<Map> receiver_map,
     ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
     Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
     MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
-  return PropertyAccessInfo(kDataConstant, holder, transition_map, field_index,
-                            field_representation, field_type, field_owner_map,
-                            field_map, {{receiver_map}, zone},
+  return PropertyAccessInfo(kFastDataConstant, holder, transition_map,
+                            field_index, field_representation, field_type,
+                            field_owner_map, field_map, {{receiver_map}, zone},
                             std::move(dependencies));
 }
 
 // static
-PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
+PropertyAccessInfo PropertyAccessInfo::FastAccessorConstant(
     Zone* zone, Handle<Map> receiver_map, Handle<Object> constant,
     MaybeHandle<JSObject> holder) {
-  return PropertyAccessInfo(zone, kAccessorConstant, holder, constant,
+  return PropertyAccessInfo(zone, kFastAccessorConstant, holder, constant,
                             {{receiver_map}, zone});
 }
 
@@ -141,6 +141,22 @@ PropertyAccessInfo PropertyAccessInfo::StringLength(Zone* zone,
                                                     Handle<Map> receiver_map) {
   return PropertyAccessInfo(zone, kStringLength, MaybeHandle<JSObject>(),
                             {{receiver_map}, zone});
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::DictionaryProtoDataConstant(
+    Zone* zone, Handle<Map> receiver_map, Handle<JSObject> holder,
+    InternalIndex dictionary_index) {
+  return PropertyAccessInfo(zone, kDictionaryProtoDataConstant, holder,
+                            {{receiver_map}, zone}, dictionary_index);
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::DictionaryProtoAccessorConstant(
+    Zone* zone, Handle<Map> receiver_map, MaybeHandle<JSObject> holder,
+    Handle<Object> constant) {
+  return PropertyAccessInfo(zone, kDictionaryProtoAccessorConstant, holder,
+                            constant, {{receiver_map}, zone});
 }
 
 // static
@@ -162,29 +178,31 @@ PropertyAccessInfo::PropertyAccessInfo(Zone* zone)
       lookup_start_object_maps_(zone),
       unrecorded_dependencies_(zone),
       field_representation_(Representation::None()),
-      field_type_(Type::None()) {}
+      field_type_(Type::None()),
+      dictionary_index_(InternalIndex::NotFound()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(
     Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
     ZoneVector<Handle<Map>>&& lookup_start_object_maps)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
-      unrecorded_dependencies_(zone),
       holder_(holder),
+      unrecorded_dependencies_(zone),
       field_representation_(Representation::None()),
-      field_type_(Type::None()) {}
+      field_type_(Type::None()),
+      dictionary_index_(InternalIndex::NotFound()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(
     Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
     Handle<Object> constant, ZoneVector<Handle<Map>>&& lookup_start_object_maps)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
-      unrecorded_dependencies_(zone),
       constant_(constant),
       holder_(holder),
+      unrecorded_dependencies_(zone),
       field_representation_(Representation::None()),
-      field_type_(Type::Any()) {}
-
+      field_type_(Type::Any()),
+      dictionary_index_(InternalIndex::NotFound()) {}
 PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, Representation field_representation,
@@ -193,17 +211,30 @@ PropertyAccessInfo::PropertyAccessInfo(
     ZoneVector<CompilationDependency const*>&& unrecorded_dependencies)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
+      holder_(holder),
       unrecorded_dependencies_(std::move(unrecorded_dependencies)),
       transition_map_(transition_map),
-      holder_(holder),
       field_index_(field_index),
       field_representation_(field_representation),
       field_type_(field_type),
       field_owner_map_(field_owner_map),
-      field_map_(field_map) {
+      field_map_(field_map),
+      dictionary_index_(InternalIndex::NotFound()) {
   DCHECK_IMPLIES(!transition_map.is_null(),
                  field_owner_map.address() == transition_map.address());
 }
+
+PropertyAccessInfo::PropertyAccessInfo(
+    Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
+    ZoneVector<Handle<Map>>&& lookup_start_object_maps,
+    InternalIndex dictionary_index)
+    : kind_(kind),
+      lookup_start_object_maps_(lookup_start_object_maps),
+      holder_(holder),
+      unrecorded_dependencies_(zone),
+      field_representation_(Representation::None()),
+      field_type_(Type::Any()),
+      dictionary_index_(dictionary_index) {}
 
 MinimorphicLoadPropertyAccessInfo::MinimorphicLoadPropertyAccessInfo(
     Kind kind, int offset, bool is_inobject,
@@ -224,7 +255,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return that->kind_ == kInvalid;
 
     case kDataField:
-    case kDataConstant: {
+    case kFastDataConstant: {
       // Check if we actually access the same field (we use the
       // GetFieldAccessStubKey method here just like the ICs do
       // since that way we only compare the relevant bits of the
@@ -278,7 +309,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return false;
     }
 
-    case kAccessorConstant: {
+    case kFastAccessorConstant: {
       // Check if we actually access the same constant.
       if (this->constant_.address() == that->constant_.address()) {
         DCHECK(this->unrecorded_dependencies_.empty());
@@ -304,11 +335,16 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     }
     case kModuleExport:
       return false;
+
+    case kDictionaryProtoDataConstant:
+    case kDictionaryProtoAccessorConstant:
+      // TODO(v8:11248) Dealt with in follow-up CLs.
+      UNREACHABLE();
   }
 }
 
 ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
-  if (IsDataConstant()) {
+  if (IsFastDataConstant()) {
     return ConstFieldInfo(field_owner_map_.ToHandleChecked());
   }
   return ConstFieldInfo::None();
@@ -449,7 +485,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
           details_representation, field_type, field_owner_map, field_map,
           holder);
     case PropertyConstness::kConst:
-      return PropertyAccessInfo::DataConstant(
+      return PropertyAccessInfo::FastDataConstant(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
           details_representation, field_type, field_owner_map, field_map,
           holder);
@@ -482,8 +518,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
   }
   if (access_mode == AccessMode::kHas) {
     // HasProperty checks don't call getter/setters, existence is sufficient.
-    return PropertyAccessInfo::AccessorConstant(zone(), receiver_map,
-                                                Handle<Object>(), holder);
+    return PropertyAccessInfo::FastAccessorConstant(zone(), receiver_map,
+                                                    Handle<Object>(), holder);
   }
   Handle<Object> accessors(descriptors->GetStrongValue(descriptor), isolate());
   if (!accessors->IsAccessorPair()) {
@@ -519,8 +555,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
       if (!access_info.IsInvalid()) return access_info;
     }
   }
-  return PropertyAccessInfo::AccessorConstant(zone(), receiver_map, accessor,
-                                              holder);
+  return PropertyAccessInfo::FastAccessorConstant(zone(), receiver_map,
+                                                  accessor, holder);
 }
 
 MinimorphicLoadPropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
@@ -901,7 +937,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
           details_representation, field_type, transition_map, field_map, holder,
           transition_map);
     case PropertyConstness::kConst:
-      return PropertyAccessInfo::DataConstant(
+      return PropertyAccessInfo::FastDataConstant(
           zone(), map, std::move(unrecorded_dependencies), field_index,
           details_representation, field_type, transition_map, field_map, holder,
           transition_map);

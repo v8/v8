@@ -2670,12 +2670,12 @@ PropertyAccessInfo SerializerForBackgroundCompilation::ProcessMapForRegExpTest(
       SerializationPolicy::kSerializeIfNeeded);
 
   Handle<JSObject> holder;
-  if (ai_exec.IsDataConstant() && ai_exec.holder().ToHandle(&holder)) {
+  if (ai_exec.IsFastDataConstant() && ai_exec.holder().ToHandle(&holder)) {
     // The property is on the prototype chain.
     JSObjectRef holder_ref(broker(), holder);
-    holder_ref.GetOwnDataProperty(ai_exec.field_representation(),
-                                  ai_exec.field_index(),
-                                  SerializationPolicy::kSerializeIfNeeded);
+    holder_ref.GetOwnFastDataProperty(ai_exec.field_representation(),
+                                      ai_exec.field_index(),
+                                      SerializationPolicy::kSerializeIfNeeded);
   }
   return ai_exec;
 }
@@ -2689,12 +2689,12 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
     PropertyAccessInfo ai_exec =
         ProcessMapForRegExpTest(MapRef(broker(), regexp_map));
     Handle<JSObject> holder;
-    if (ai_exec.IsDataConstant() && !ai_exec.holder().ToHandle(&holder)) {
+    if (ai_exec.IsFastDataConstant() && !ai_exec.holder().ToHandle(&holder)) {
       // The property is on the object itself.
       JSObjectRef holder_ref(broker(), regexp);
-      holder_ref.GetOwnDataProperty(ai_exec.field_representation(),
-                                    ai_exec.field_index(),
-                                    SerializationPolicy::kSerializeIfNeeded);
+      holder_ref.GetOwnFastDataProperty(
+          ai_exec.field_representation(), ai_exec.field_index(),
+          SerializationPolicy::kSerializeIfNeeded);
     }
   }
 
@@ -3016,7 +3016,8 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
 
   // For JSNativeContextSpecialization::InlinePropertySetterCall
   // and InlinePropertyGetterCall.
-  if (access_info.IsAccessorConstant() && !access_info.constant().is_null()) {
+  if (access_info.IsFastAccessorConstant() &&
+      !access_info.constant().is_null()) {
     if (access_info.constant()->IsJSFunction()) {
       JSFunctionRef function(broker(), access_info.constant());
 
@@ -3063,7 +3064,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
   switch (access_mode) {
     case AccessMode::kLoad:
       // For PropertyAccessBuilder::TryBuildLoadConstantDataField
-      if (access_info.IsDataConstant()) {
+      if (access_info.IsFastDataConstant()) {
         base::Optional<JSObjectRef> holder;
         Handle<JSObject> prototype;
         if (access_info.holder().ToHandle(&prototype)) {
@@ -3075,7 +3076,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
         }
 
         if (holder.has_value()) {
-          base::Optional<ObjectRef> constant(holder->GetOwnDataProperty(
+          base::Optional<ObjectRef> constant(holder->GetOwnFastDataProperty(
               access_info.field_representation(), access_info.field_index(),
               SerializationPolicy::kSerializeIfNeeded));
           if (constant.has_value()) {
@@ -3087,7 +3088,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     case AccessMode::kStore:
     case AccessMode::kStoreInLiteral:
       // For MapInference (StoreField case).
-      if (access_info.IsDataField() || access_info.IsDataConstant()) {
+      if (access_info.IsDataField() || access_info.IsFastDataConstant()) {
         Handle<Map> transition_map;
         if (access_info.transition_map().ToHandle(&transition_map)) {
           MapRef map_ref(broker(), transition_map);
@@ -3442,12 +3443,12 @@ void SerializerForBackgroundCompilation::ProcessConstantForInstanceOf(
   if (access_info.IsNotFound()) {
     ProcessConstantForOrdinaryHasInstance(constructor_heap_object,
                                           walk_prototypes);
-  } else if (access_info.IsDataConstant()) {
+  } else if (access_info.IsFastDataConstant()) {
     Handle<JSObject> holder;
     bool found_on_proto = access_info.holder().ToHandle(&holder);
     JSObjectRef holder_ref = found_on_proto ? JSObjectRef(broker(), holder)
                                             : constructor.AsJSObject();
-    base::Optional<ObjectRef> constant = holder_ref.GetOwnDataProperty(
+    base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
         access_info.field_representation(), access_info.field_index(),
         SerializationPolicy::kSerializeIfNeeded);
     CHECK(constant.has_value());

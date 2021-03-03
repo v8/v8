@@ -451,12 +451,12 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     return Changed(node).FollowedBy(ReduceJSOrdinaryHasInstance(node));
   }
 
-  if (access_info.IsDataConstant()) {
+  if (access_info.IsFastDataConstant()) {
     Handle<JSObject> holder;
     bool found_on_proto = access_info.holder().ToHandle(&holder);
     JSObjectRef holder_ref =
         found_on_proto ? JSObjectRef(broker(), holder) : receiver_ref;
-    base::Optional<ObjectRef> constant = holder_ref.GetOwnDataProperty(
+    base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
         access_info.field_representation(), access_info.field_index());
     if (!constant.has_value() || !constant->IsHeapObject() ||
         !constant->AsHeapObject().map().is_callable())
@@ -2351,7 +2351,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   Node* value;
   if (access_info.IsNotFound()) {
     value = jsgraph()->UndefinedConstant();
-  } else if (access_info.IsAccessorConstant()) {
+  } else if (access_info.IsFastAccessorConstant()) {
     ConvertReceiverMode receiver_mode =
         receiver == lookup_start_object
             ? ConvertReceiverMode::kNotNullOrUndefined
@@ -2369,7 +2369,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
     DCHECK_EQ(receiver, lookup_start_object);
     value = graph()->NewNode(simplified()->StringLength(), receiver);
   } else {
-    DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
+    DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
     PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
     value = access_builder.BuildLoadDataField(
         name, access_info, lookup_start_object, &effect, &control);
@@ -2436,11 +2436,11 @@ JSNativeContextSpecialization::BuildPropertyStore(
   DCHECK(!access_info.IsNotFound());
 
   // Generate the actual property access.
-  if (access_info.IsAccessorConstant()) {
+  if (access_info.IsFastAccessorConstant()) {
     InlinePropertySetterCall(receiver, value, context, frame_state, &effect,
                              &control, if_exceptions, access_info);
   } else {
-    DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
+    DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
     DCHECK(access_mode == AccessMode::kStore ||
            access_mode == AccessMode::kStoreInLiteral);
     FieldIndex const field_index = access_info.field_index();
@@ -2455,7 +2455,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
               AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
           storage, effect, control);
     }
-    bool store_to_existing_constant_field = access_info.IsDataConstant() &&
+    bool store_to_existing_constant_field = access_info.IsFastDataConstant() &&
                                             access_mode == AccessMode::kStore &&
                                             !access_info.HasTransitionMap();
     FieldAccess field_access = {

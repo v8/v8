@@ -420,7 +420,7 @@ class JSObjectData : public JSReceiverData {
   ObjectData* GetOwnConstantElement(
       JSHeapBroker* broker, uint32_t index,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-  ObjectData* GetOwnDataProperty(
+  ObjectData* GetOwnFastDataProperty(
       JSHeapBroker* broker, Representation representation,
       FieldIndex field_index,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
@@ -494,10 +494,10 @@ base::Optional<ObjectRef> GetOwnElementFromHeap(JSHeapBroker* broker,
   return base::nullopt;
 }
 
-ObjectRef GetOwnDataPropertyFromHeap(JSHeapBroker* broker,
-                                     Handle<JSObject> receiver,
-                                     Representation representation,
-                                     FieldIndex field_index) {
+ObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
+                                         Handle<JSObject> receiver,
+                                         Representation representation,
+                                         FieldIndex field_index) {
   Handle<Object> constant =
       JSObject::FastPropertyAt(receiver, representation, field_index);
   return ObjectRef(broker, constant);
@@ -524,21 +524,21 @@ ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
   return result;
 }
 
-ObjectData* JSObjectData::GetOwnDataProperty(JSHeapBroker* broker,
-                                             Representation representation,
-                                             FieldIndex field_index,
-                                             SerializationPolicy policy) {
+ObjectData* JSObjectData::GetOwnFastDataProperty(JSHeapBroker* broker,
+                                                 Representation representation,
+                                                 FieldIndex field_index,
+                                                 SerializationPolicy policy) {
   auto p = own_properties_.find(field_index.property_index());
   if (p != own_properties_.end()) return p->second;
 
   if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_MISSING(broker, "knowledge about property with index "
+    TRACE_MISSING(broker, "knowledge about fast property with index "
                               << field_index.property_index() << " on "
                               << this);
     return nullptr;
   }
 
-  ObjectRef property = GetOwnDataPropertyFromHeap(
+  ObjectRef property = GetOwnFastDataPropertyFromHeap(
       broker, Handle<JSObject>::cast(object()), representation, field_index);
   ObjectData* result(property.data());
   own_properties_.insert(std::make_pair(field_index.property_index(), result));
@@ -3927,15 +3927,15 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
   return ObjectRef(broker(), element);
 }
 
-base::Optional<ObjectRef> JSObjectRef::GetOwnDataProperty(
+base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
     Representation field_representation, FieldIndex index,
     SerializationPolicy policy) const {
   if (data_->should_access_heap()) {
-    return GetOwnDataPropertyFromHeap(broker(),
-                                      Handle<JSObject>::cast(object()),
-                                      field_representation, index);
+    return GetOwnFastDataPropertyFromHeap(broker(),
+                                          Handle<JSObject>::cast(object()),
+                                          field_representation, index);
   }
-  ObjectData* property = data()->AsJSObject()->GetOwnDataProperty(
+  ObjectData* property = data()->AsJSObject()->GetOwnFastDataProperty(
       broker(), field_representation, index, policy);
   if (property == nullptr) return base::nullopt;
   return ObjectRef(broker(), property);

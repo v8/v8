@@ -342,7 +342,7 @@ class JSObjectRef : public JSReceiverRef {
 
   // Return the value of the property identified by the field {index}
   // if {index} is known to be an own data property of the object.
-  base::Optional<ObjectRef> GetOwnDataProperty(
+  base::Optional<ObjectRef> GetOwnFastDataProperty(
       Representation field_representation, FieldIndex index,
       SerializationPolicy policy =
           SerializationPolicy::kAssumeSerialized) const;

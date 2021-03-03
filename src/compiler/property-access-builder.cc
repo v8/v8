@@ -151,7 +151,7 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
 Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object) {
-  if (!access_info.IsDataConstant()) return nullptr;
+  if (!access_info.IsFastDataConstant()) return nullptr;
 
   // First, determine if we have a constant holder to load from.
   Handle<JSObject> holder;
@@ -177,7 +177,7 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
   }
 
   JSObjectRef holder_ref(broker(), holder);
-  base::Optional<ObjectRef> value = holder_ref.GetOwnDataProperty(
+  base::Optional<ObjectRef> value = holder_ref.GetOwnFastDataProperty(
       access_info.field_representation(), access_info.field_index());
   if (!value.has_value()) {
     return nullptr;
@@ -272,7 +272,8 @@ Node* PropertyAccessBuilder::BuildMinimorphicLoadDataField(
 Node* PropertyAccessBuilder::BuildLoadDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object, Node** effect, Node** control) {
-  DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
+  DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
+
   if (Node* value = TryBuildLoadConstantDataField(name, access_info,
                                                   lookup_start_object)) {
     return value;
