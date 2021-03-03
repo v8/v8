@@ -5,12 +5,12 @@
 #include "src/api/api-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/wasm/wasm-objects.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/manually-externalized-buffer.h"
 
 namespace v8 {
 namespace internal {
+namespace wasm {
 
 using testing::ManuallyExternalizedBuffer;
 
@@ -22,7 +22,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     HandleScope scope(isolate);
     MaybeHandle<JSArrayBuffer> result =
         isolate->factory()->NewJSArrayBufferAndBackingStore(
-            wasm::kWasmPageSize, InitializedFlag::kZeroInitialized);
+            kWasmPageSize, InitializedFlag::kZeroInitialized);
     Handle<JSArrayBuffer> buffer = result.ToHandleChecked();
 
     // Embedder requests contents.
@@ -81,5 +81,6 @@ TEST(BackingStore_Reclaim) {
 }
 #endif
 
+}  // namespace wasm
 }  // namespace internal
 }  // namespace v8
