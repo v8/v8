@@ -1126,10 +1126,6 @@ class MapData : public HeapObjectData {
                               InternalIndex descriptor_index);
   void SerializeOwnDescriptors(JSHeapBroker* broker);
   ObjectData* GetStrongValue(InternalIndex descriptor_index) const;
-  // TODO(neis, solanes): This code needs to be changed to allow for
-  // kNeverSerialized instance descriptors. However, this is likely to require a
-  // non-trivial refactoring of how maps are serialized because actual instance
-  // descriptors don't contain information about owner maps.
   ObjectData* instance_descriptors() const { return instance_descriptors_; }
 
   void SerializeRootMap(JSHeapBroker* broker);
@@ -1414,7 +1410,9 @@ class DescriptorArrayData : public HeapObjectData {
  public:
   DescriptorArrayData(JSHeapBroker* broker, ObjectData** storage,
                       Handle<DescriptorArray> object)
-      : HeapObjectData(broker, storage, object), contents_(broker->zone()) {}
+      : HeapObjectData(broker, storage, object), contents_(broker->zone()) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 
   ObjectData* FindFieldOwner(InternalIndex descriptor_index) const {
     return contents_.at(descriptor_index.as_int()).field_owner;
@@ -2255,7 +2253,23 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
         broker->GetOrCreateData(map->instance_descriptors(kRelaxedLoad));
   }
 
-  if (!instance_descriptors()->should_access_heap()) {
+  if (instance_descriptors()->should_access_heap()) {
+    // When accessing the fields concurrently, we still have to recurse on the
+    // owner map if it is different than the current map. This is because
+    // {instance_descriptors_} gets set on SerializeOwnDescriptor and otherwise
+    // we risk the field owner having a null {instance_descriptors_}.
+    Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+                                        broker->isolate());
+    if (descriptors->GetDetails(descriptor_index).location() == kField) {
+      Handle<Map> owner(
+          map->FindFieldOwner(broker->isolate(), descriptor_index),
+          broker->isolate());
+      if (!owner.equals(map)) {
+        broker->GetOrCreateData(owner)->AsMap()->SerializeOwnDescriptor(
+            broker, descriptor_index);
+      }
+    }
+  } else {
     DescriptorArrayData* descriptors =
         instance_descriptors()->AsDescriptorArray();
     descriptors->SerializeDescriptor(broker, map, descriptor_index);
@@ -4127,7 +4141,7 @@ Float64 FixedDoubleArrayData::Get(int i) const {
 
 PropertyDetails DescriptorArrayRef::GetPropertyDetails(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap()) {
     return object()->GetDetails(descriptor_index);
   }
   return data()->AsDescriptorArray()->GetPropertyDetails(descriptor_index);
@@ -4135,7 +4149,7 @@ PropertyDetails DescriptorArrayRef::GetPropertyDetails(
 
 NameRef DescriptorArrayRef::GetPropertyKey(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap()) {
     NameRef result(broker(), broker()->CanonicalPersistentHandle(
                                  object()->GetKey(descriptor_index)));
     CHECK(result.IsUniqueName());
@@ -4147,7 +4161,7 @@ NameRef DescriptorArrayRef::GetPropertyKey(
 
 ObjectRef DescriptorArrayRef::GetFieldType(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap()) {
     // This method only gets called for the creation of FieldTypeDependencies.
     // These calls happen when the broker is either disabled or serializing,
     // which means that GetOrCreateData would be able to successfully create the
@@ -4163,7 +4177,7 @@ ObjectRef DescriptorArrayRef::GetFieldType(
 
 base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap()) {
     HeapObject heap_object;
     if (object()
             ->GetValue(descriptor_index)

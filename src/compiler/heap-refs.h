@@ -84,6 +84,7 @@ enum class OddballType : uint8_t {
   V(CallHandlerInfo)                                \
   V(Cell)                                           \
   V(Code)                                           \
+  V(DescriptorArray)                                \
   V(FeedbackCell)                                   \
   V(FeedbackVector)                                 \
   V(Name)                                           \
@@ -134,7 +135,6 @@ enum class OddballType : uint8_t {
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
-  V(DescriptorArray)                          \
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
   V(JSReceiver)                               \
