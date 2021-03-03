@@ -773,7 +773,7 @@ template Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
                                                       Handle<String> src,
                                                       bool include_ending_line);
 
-bool String::SlowEquals(String other) {
+bool String::SlowEquals(String other) const {
   DisallowGarbageCollection no_gc;
   // Fast check: negative check with lengths.
   int len = length();
@@ -825,6 +825,7 @@ bool String::SlowEquals(String other) {
   return comparator.Equals(*this, other);
 }
 
+// static
 bool String::SlowEquals(Isolate* isolate, Handle<String> one,
                         Handle<String> two) {
   // Fast check: negative check with lengths.
@@ -1437,7 +1438,7 @@ void SeqTwoByteString::clear_padding() {
          SizeFor(length()) - data_size);
 }
 
-uint16_t ConsString::Get(int index) {
+uint16_t ConsString::Get(int index) const {
   DCHECK(index >= 0 && index < this->length());
 
   // Check for a flattened cons string
@@ -1466,9 +1467,11 @@ uint16_t ConsString::Get(int index) {
   UNREACHABLE();
 }
 
-uint16_t ThinString::Get(int index) { return actual().Get(index); }
+uint16_t ThinString::Get(int index) const { return actual().Get(index); }
 
-uint16_t SlicedString::Get(int index) { return parent().Get(offset() + index); }
+uint16_t SlicedString::Get(int index) const {
+  return parent().Get(offset() + index);
+}
 
 int ExternalString::ExternalPayloadSize() const {
   int length_multiplier = IsTwoByteRepresentation() ? i::kShortSize : kCharSize;
