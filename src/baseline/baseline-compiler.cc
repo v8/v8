@@ -1232,6 +1232,7 @@ void BaselineCompiler::VisitIntrinsicIsJSReceiver(
   SelectBooleanConstant(
       kInterpreterAccumulatorRegister,
       [&](Label* is_true, Label::Distance distance) {
+        BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
         __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);
 
         Label is_smi;
@@ -1240,8 +1241,9 @@ void BaselineCompiler::VisitIntrinsicIsJSReceiver(
         // If we ever added more instance types after LAST_JS_RECEIVER_TYPE,
         // this would have to become a range check.
         STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-        __ CmpInstanceType(kInterpreterAccumulatorRegister,
-                           FIRST_JS_RECEIVER_TYPE);
+        __ CmpObjectType(kInterpreterAccumulatorRegister,
+                         FIRST_JS_RECEIVER_TYPE,
+                         scratch_scope.AcquireScratch());
         __ JumpIf(Condition::kGreaterThanEqual, is_true, distance);
 
         __ Bind(&is_smi);
@@ -1252,12 +1254,14 @@ void BaselineCompiler::VisitIntrinsicIsArray(interpreter::RegisterList args) {
   SelectBooleanConstant(
       kInterpreterAccumulatorRegister,
       [&](Label* is_true, Label::Distance distance) {
+        BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
         __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);
 
         Label is_smi;
         __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
-        __ CmpInstanceType(kInterpreterAccumulatorRegister, JS_ARRAY_TYPE);
+        __ CmpObjectType(kInterpreterAccumulatorRegister, JS_ARRAY_TYPE,
+                         scratch_scope.AcquireScratch());
         __ JumpIf(Condition::kEqual, is_true, distance);
 
         __ Bind(&is_smi);
@@ -1858,10 +1862,13 @@ void BaselineCompiler::VisitJumpIfUndefinedOrNull() {
 }
 
 void BaselineCompiler::VisitJumpIfJSReceiver() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+
   Label is_smi, dont_jump;
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
-  __ CmpInstanceType(kInterpreterAccumulatorRegister, FIRST_JS_RECEIVER_TYPE);
+  __ CmpObjectType(kInterpreterAccumulatorRegister, FIRST_JS_RECEIVER_TYPE,
+                   scratch_scope.AcquireScratch());
   __ JumpIf(Condition::kLessThan, &dont_jump);
   UpdateInterruptBudgetAndDoInterpreterJump();
 
