@@ -384,6 +384,9 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
             sweeping_config.sweeping_type);
     sweeper().Start(sweeping_config);
   }
+  DCHECK_NOT_NULL(trace_summary);
+  trace_summary->allocated_size = stats_collector_->marked_bytes();
+  trace_summary->time = stats_collector_->marking_time().InMillisecondsF();
   in_atomic_pause_ = false;
   sweeper().NotifyDoneIfNeeded();
 }
@@ -431,7 +434,8 @@ void CppHeap::CollectGarbageForTesting(
     TracePrologue(TraceFlags::kForced);
     EnterFinalPause(stack_state);
     AdvanceTracing(std::numeric_limits<double>::infinity());
-    TraceEpilogue(nullptr);
+    TraceSummary trace_summary;
+    TraceEpilogue(&trace_summary);
   }
 }
 

@@ -275,6 +275,13 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // bytes and the bytes allocated since last marking.
   size_t allocated_object_size() const;
 
+  // Returns the most recent marked bytes count. Should not be called during
+  // marking.
+  size_t marked_bytes() const;
+  // Returns the overall duration of the most recent marking phase. Should not
+  // be called during marking.
+  v8::base::TimeDelta marking_time() const;
+
   double GetRecentAllocationSpeedInBytesPerMs() const;
 
   const Event& GetPreviousEventForTesting() const { return previous_; }
