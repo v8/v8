@@ -1354,6 +1354,49 @@ TEST(BreakPointApiAccessor) {
   CheckDebuggerUnloaded();
 }
 
+TEST(Regress1163547) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+
+  i::Handle<i::BreakPoint> bp;
+
+  auto constructor_tmpl = v8::FunctionTemplate::New(env->GetIsolate());
+  auto prototype_tmpl = constructor_tmpl->PrototypeTemplate();
+  auto accessor_tmpl =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+  prototype_tmpl->SetAccessorProperty(v8_str("f"), accessor_tmpl);
+
+  auto constructor =
+      constructor_tmpl->GetFunction(env.local()).ToLocalChecked();
+  env->Global()->Set(env.local(), v8_str("C"), constructor).ToChecked();
+
+  CompileRun("o = new C();");
+  v8::Local<v8::Function> function =
+      CompileRun("Object.getOwnPropertyDescriptor(C.prototype, 'f').get")
+          .As<v8::Function>();
+
+  // === Test API accessor ===
+  break_point_hit_count = 0;
+
+  // At this point, the C.prototype - which holds the "f" accessor - is in
+  // dictionary mode.
+  auto constructor_fun =
+      Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*constructor));
+  CHECK(!i::JSObject::cast(constructor_fun->prototype()).HasFastProperties());
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+
+  CompileRun("o.f");
+  CHECK_EQ(1, break_point_hit_count);
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
 TEST(BreakPointInlineApiFunction) {
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;

@@ -4434,17 +4434,19 @@ Handle<Object> AccessorPair::GetComponent(Isolate* isolate,
                                           Handle<NativeContext> native_context,
                                           Handle<AccessorPair> accessor_pair,
                                           AccessorComponent component) {
-  Object accessor = accessor_pair->get(component);
-  if (accessor.IsFunctionTemplateInfo()) {
-    return ApiNatives::InstantiateFunction(
-               isolate, native_context,
-               handle(FunctionTemplateInfo::cast(accessor), isolate))
-        .ToHandleChecked();
+  Handle<Object> accessor(accessor_pair->get(component), isolate);
+  if (accessor->IsFunctionTemplateInfo()) {
+    auto function = ApiNatives::InstantiateFunction(
+                        isolate, native_context,
+                        Handle<FunctionTemplateInfo>::cast(accessor))
+                        .ToHandleChecked();
+    accessor_pair->set(component, *function);
+    return function;
   }
-  if (accessor.IsNull(isolate)) {
+  if (accessor->IsNull(isolate)) {
     return isolate->factory()->undefined_value();
   }
-  return handle(accessor, isolate);
+  return accessor;
 }
 
 #ifdef DEBUG

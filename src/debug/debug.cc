@@ -1369,12 +1369,7 @@ void Debug::InstallDebugBreakTrampoline() {
 
   Handle<Code> trampoline = BUILTIN_CODE(isolate_, DebugBreakTrampoline);
   std::vector<Handle<JSFunction>> needs_compile;
-  using AccessorPairWithContext =
-      std::pair<Handle<AccessorPair>, Handle<NativeContext>>;
-  std::vector<AccessorPairWithContext> needs_instantiate;
   {
-    // Deduplicate {needs_instantiate} by recording all collected AccessorPairs.
-    std::set<AccessorPair> recorded;
     HeapObjectIterator iterator(isolate_->heap());
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
@@ -1391,55 +1386,7 @@ void Debug::InstallDebugBreakTrampoline() {
         } else {
           fun.set_code(*trampoline);
         }
-      } else if (obj.IsJSObject()) {
-        JSObject object = JSObject::cast(obj);
-        DescriptorArray descriptors =
-            object.map().instance_descriptors(kRelaxedLoad);
-
-        for (InternalIndex i : object.map().IterateOwnDescriptors()) {
-          if (descriptors.GetDetails(i).kind() == PropertyKind::kAccessor) {
-            Object value = descriptors.GetStrongValue(i);
-            if (!value.IsAccessorPair()) continue;
-
-            AccessorPair accessor_pair = AccessorPair::cast(value);
-            if (!accessor_pair.getter().IsFunctionTemplateInfo() &&
-                !accessor_pair.setter().IsFunctionTemplateInfo()) {
-              continue;
-            }
-            if (recorded.find(accessor_pair) != recorded.end()) continue;
-
-            needs_instantiate.emplace_back(
-                handle(accessor_pair, isolate_),
-                object.GetCreationContext().ToHandleChecked());
-            recorded.insert(accessor_pair);
-          }
-        }
       }
-    }
-  }
-
-  // Forcibly instantiate all lazy accessor pairs to make sure that they
-  // properly hit the debug break trampoline.
-  for (AccessorPairWithContext tuple : needs_instantiate) {
-    Handle<AccessorPair> accessor_pair = tuple.first;
-    Handle<NativeContext> native_context = tuple.second;
-    if (accessor_pair->getter().IsFunctionTemplateInfo()) {
-      Handle<JSFunction> fun =
-          ApiNatives::InstantiateFunction(
-              isolate_, native_context,
-              handle(FunctionTemplateInfo::cast(accessor_pair->getter()),
-                     isolate_))
-              .ToHandleChecked();
-      accessor_pair->set_getter(*fun);
-    }
-    if (accessor_pair->setter().IsFunctionTemplateInfo()) {
-      Handle<JSFunction> fun =
-          ApiNatives::InstantiateFunction(
-              isolate_, native_context,
-              handle(FunctionTemplateInfo::cast(accessor_pair->setter()),
-                     isolate_))
-              .ToHandleChecked();
-      accessor_pair->set_setter(*fun);
     }
   }
 
