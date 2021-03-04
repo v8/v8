@@ -266,10 +266,8 @@ void BaselineCompiler::GenerateCode() {
     RuntimeCallTimerScope runtimeTimer(
         stats_, RuntimeCallCounterId::kCompileBaselineVisit);
     Prologue();
-    AddPosition();
     for (; !iterator_.done(); iterator_.Advance()) {
       VisitSingleBytecode();
-      AddPosition();
     }
   }
 }
@@ -375,7 +373,8 @@ void BaselineCompiler::SelectBooleanConstant(
 }
 
 void BaselineCompiler::AddPosition() {
-  bytecode_offset_table_builder_.AddPosition(__ pc_offset());
+  bytecode_offset_table_builder_.AddPosition(__ pc_offset(),
+                                             iterator().current_offset());
 }
 
 void BaselineCompiler::PreVisitSingleBytecode() {
@@ -401,6 +400,7 @@ void BaselineCompiler::VisitSingleBytecode() {
   // Record positions of exception handlers.
   if (handler_offsets_.find(iterator().current_offset()) !=
       handler_offsets_.end()) {
+    AddPosition();
     __ ExceptionHandler();
   }
 
@@ -542,6 +542,7 @@ void BaselineCompiler::CallBuiltin(Builtins::Name builtin, Args... args) {
     __ LoadContext(descriptor.ContextRegister());
   }
   __ CallBuiltin(builtin);
+  AddPosition();
   __ RecordComment("]");
 }
 
@@ -561,6 +562,7 @@ void BaselineCompiler::CallRuntime(Runtime::FunctionId function, Args... args) {
   __ LoadContext(kContextRegister);
   int nargs = __ Push(args...);
   __ CallRuntime(function, nargs);
+  AddPosition();
 }
 
 // Returns into kInterpreterAccumulatorRegister
