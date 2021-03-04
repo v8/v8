@@ -1427,7 +1427,7 @@ class ScriptOriginOptions {
  */
 class ScriptOrigin {
  public:
-  V8_DEPRECATED("Use constructor with primitive C++ types")
+  V8_DEPRECATE_SOON("Use constructor with primitive C++ types")
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, Local<Integer> resource_line_offset,
       Local<Integer> resource_column_offset,
@@ -1438,7 +1438,7 @@ class ScriptOrigin {
       Local<Boolean> is_wasm = Local<Boolean>(),
       Local<Boolean> is_module = Local<Boolean>(),
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
-  V8_DEPRECATED("Use constructor that takes an isolate")
+  V8_DEPRECATE_SOON("Use constructor that takes an isolate")
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, int resource_line_offset = 0,
       int resource_column_offset = 0,
@@ -1457,11 +1457,11 @@ class ScriptOrigin {
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
 
   V8_INLINE Local<Value> ResourceName() const;
-  V8_DEPRECATED("Use getter with primitive C++ types.")
+  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ResourceLineOffset() const;
-  V8_DEPRECATED("Use getter with primitive C++ types.")
+  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
-  V8_DEPRECATED("Use getter with primitive C++ types.")
+  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ScriptID() const;
   V8_INLINE int LineOffset() const;
   V8_INLINE int ColumnOffset() const;
@@ -1613,14 +1613,14 @@ class V8_EXPORT Module : public Data {
   /**
    * Returns the number of modules requested by this module.
    */
-  V8_DEPRECATED("Use Module::GetModuleRequests() and FixedArray::Length().")
+  V8_DEPRECATE_SOON("Use Module::GetModuleRequests() and FixedArray::Length().")
   int GetModuleRequestsLength() const;
 
   /**
    * Returns the ith module specifier in this module.
    * i must be < GetModuleRequestsLength() and >= 0.
    */
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use Module::GetModuleRequests() and ModuleRequest::GetSpecifier().")
   Local<String> GetModuleRequest(int i) const;
 
@@ -1628,7 +1628,7 @@ class V8_EXPORT Module : public Data {
    * Returns the source location (line number and column number) of the ith
    * module specifier's first occurrence in this module.
    */
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use Module::GetModuleRequests(), ModuleRequest::GetSourceOffset(), and "
       "Module::SourceOffsetToLocation().")
   Location GetModuleRequestLocation(int i) const;
@@ -1649,7 +1649,7 @@ class V8_EXPORT Module : public Data {
    */
   int GetIdentityHash() const;
 
-  using ResolveCallback V8_DEPRECATED("Use ResolveModuleCallback") =
+  using ResolveCallback V8_DEPRECATE_SOON("Use ResolveModuleCallback") =
       MaybeLocal<Module> (*)(Local<Context> context, Local<String> specifier,
                              Local<Module> referrer);
   using ResolveModuleCallback = MaybeLocal<Module> (*)(
@@ -1663,7 +1663,7 @@ class V8_EXPORT Module : public Data {
    * instantiation. (In the case where the callback throws an exception, that
    * exception is propagated.)
    */
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use the version of InstantiateModule that takes a ResolveModuleCallback "
       "parameter")
   V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(Local<Context> context,
@@ -1752,6 +1752,13 @@ class V8_EXPORT Module : public Data {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetSyntheticModuleExport(
       Isolate* isolate, Local<String> export_name, Local<Value> export_value);
+  V8_DEPRECATED(
+      "Use the preceding SetSyntheticModuleExport with an Isolate parameter, "
+      "instead of the one that follows.  The former will throw a runtime "
+      "error if called for an export that doesn't exist (as per spec); "
+      "the latter will crash with a failed CHECK().")
+  void SetSyntheticModuleExport(Local<String> export_name,
+                                Local<Value> export_value);
 
   V8_INLINE static Module* Cast(Data* data);
 
@@ -1931,6 +1938,10 @@ class V8_EXPORT ScriptCompiler {
    public:
     enum Encoding { ONE_BYTE, TWO_BYTE, UTF8, WINDOWS_1252 };
 
+    V8_DEPRECATED(
+        "This class takes ownership of source_stream, so use the constructor "
+        "taking a unique_ptr to make these semantics clearer")
+    StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
                    Encoding encoding);
     ~StreamedSource();
@@ -2034,6 +2045,10 @@ class V8_EXPORT ScriptCompiler {
    * This API allows to start the streaming with as little data as possible, and
    * the remaining data (for example, the ScriptOrigin) is passed to Compile.
    */
+  V8_DEPRECATED("Use ScriptCompiler::StartStreaming instead.")
+  static ScriptStreamingTask* StartStreamingScript(
+      Isolate* isolate, StreamedSource* source,
+      CompileOptions options = kNoCompileOptions);
   static ScriptStreamingTask* StartStreaming(
       Isolate* isolate, StreamedSource* source,
       ScriptType type = ScriptType::kClassic);
@@ -3611,6 +3626,9 @@ class V8_EXPORT Symbol : public Name {
    * Returns the description string of the symbol, or undefined if none.
    */
   Local<Value> Description() const;
+
+  V8_DEPRECATED("Use Symbol::Description()")
+  Local<Value> Name() const { return Description(); }
 
   /**
    * Create a symbol. If description is not empty, it will be used as the
@@ -7502,7 +7520,7 @@ using CallCompletedCallback = void (*)(Isolate*);
  * fails (e.g. due to stack overflow), the embedder must propagate
  * that exception by returning an empty MaybeLocal.
  */
-using HostImportModuleDynamicallyCallback V8_DEPRECATED(
+using HostImportModuleDynamicallyCallback V8_DEPRECATE_SOON(
     "Use HostImportModuleDynamicallyWithImportAssertionsCallback instead") =
     MaybeLocal<Promise> (*)(Local<Context> context,
                             Local<ScriptOrModule> referrer,
@@ -8525,6 +8543,11 @@ class V8_EXPORT Isolate {
      */
     int embedder_wrapper_type_index = -1;
     int embedder_wrapper_object_index = -1;
+
+    V8_DEPRECATED(
+        "Setting this has no effect. Embedders should ignore import assertions "
+        "that they do not use.")
+    std::vector<std::string> supported_import_assertions;
   };
 
   /**
@@ -8854,7 +8877,7 @@ class V8_EXPORT Isolate {
    * This specifies the callback called by the upcoming dynamic
    * import() language feature to load modules.
    */
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use the version of SetHostImportModuleDynamicallyCallback that takes a "
       "HostImportModuleDynamicallyWithImportAssertionsCallback instead")
   void SetHostImportModuleDynamicallyCallback(
@@ -9019,6 +9042,10 @@ class V8_EXPORT Isolate {
   bool MeasureMemory(
       std::unique_ptr<MeasureMemoryDelegate> delegate,
       MeasureMemoryExecution execution = MeasureMemoryExecution::kDefault);
+
+  V8_DEPRECATED("Use the version with a delegate")
+  MaybeLocal<Promise> MeasureMemory(Local<Context> context,
+                                    MeasureMemoryMode mode);
 
   /**
    * Get a call stack sample from the isolate.
@@ -9669,6 +9696,13 @@ class V8_EXPORT Isolate {
    * Set the callback to invoke to check if code generation from
    * strings should be allowed.
    */
+  V8_DEPRECATED(
+      "Use Isolate::SetModifyCodeGenerationFromStringsCallback with "
+      "ModifyCodeGenerationFromStringsCallback2 instead. See "
+      "http://crbug.com/1096017 and TC39 Dynamic Code Brand Checks proposal "
+      "at https://github.com/tc39/proposal-dynamic-code-brand-checks.")
+  void SetModifyCodeGenerationFromStringsCallback(
+      ModifyCodeGenerationFromStringsCallback callback);
   void SetModifyCodeGenerationFromStringsCallback(
       ModifyCodeGenerationFromStringsCallback2 callback);
 
