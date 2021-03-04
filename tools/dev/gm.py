@@ -98,15 +98,26 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
 
 OUTDIR = "out"
 
+def _Which(cmd):
+  for path in os.environ["PATH"].split(os.pathsep):
+    if os.path.exists(os.path.join(path, cmd)):
+      return os.path.join(path, cmd)
+  return None
+
 def DetectGoma():
-  home_goma = os.path.expanduser("~/goma")
-  if os.path.exists(home_goma):
-    return home_goma
   if os.environ.get("GOMA_DIR"):
     return os.environ.get("GOMA_DIR")
   if os.environ.get("GOMADIR"):
     return os.environ.get("GOMADIR")
-  return None
+  # There is a copy of goma in depot_tools, but it might not be in use on
+  # this machine.
+  goma = _Which("goma_ctl")
+  if goma is None: return None
+  cipd_bin = os.path.join(os.path.dirname(goma), ".cipd_bin")
+  if not os.path.exists(cipd_bin): return None
+  goma_auth = os.path.expanduser("~/.goma_client_oauth2_config")
+  if not os.path.exists(goma_auth): return None
+  return cipd_bin
 
 GOMADIR = DetectGoma()
 IS_GOMA_MACHINE = GOMADIR is not None
@@ -118,12 +129,11 @@ is_component_build = false
 is_debug = false
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+""".replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -131,12 +141,11 @@ is_debug = true
 symbol_level = 2
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+""".replace("{GOMA}", USE_GOMA)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -144,12 +153,11 @@ is_debug = true
 symbol_level = 1
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+""".replace("{GOMA}", USE_GOMA)
 
 ARGS_TEMPLATES = {
   "release": RELEASE_ARGS_TEMPLATE,
@@ -194,12 +202,6 @@ def _CallWithOutput(cmd):
     os.close(parent)
     p.wait()
   return p.returncode, "".join(output)
-
-def _Which(cmd):
-  for path in os.environ["PATH"].split(os.pathsep):
-    if os.path.exists(os.path.join(path, cmd)):
-      return os.path.join(path, cmd)
-  return None
 
 def _Write(filename, content):
   print("# echo > %s << EOF\n%sEOF" % (filename, content))
@@ -426,7 +428,7 @@ def Main(argv):
   configs = parser.ParseArguments(argv[1:])
   return_code = 0
   # If we have Goma but it is not running, start it.
-  if (GOMADIR is not None and
+  if (IS_GOMA_MACHINE and
       _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
     _Call("%s/goma_ctl.py ensure_start" % GOMADIR)
   for c in configs:
