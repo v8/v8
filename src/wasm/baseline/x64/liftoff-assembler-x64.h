@@ -133,26 +133,24 @@ inline void Store(LiftoffAssembler* assm, Operand dst, LiftoffRegister src,
   }
 }
 
-inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
-                 int padding = 0) {
+inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
   switch (kind) {
     case kI32:
     case kI64:
     case kRef:
     case kOptRef:
-      assm->AllocateStackSpace(padding);
       assm->pushq(reg.gp());
       break;
     case kF32:
-      assm->AllocateStackSpace(kSystemPointerSize + padding);
+      assm->AllocateStackSpace(kSystemPointerSize);
       assm->Movss(Operand(rsp, 0), reg.fp());
       break;
     case kF64:
-      assm->AllocateStackSpace(kSystemPointerSize + padding);
+      assm->AllocateStackSpace(kSystemPointerSize);
       assm->Movsd(Operand(rsp, 0), reg.fp());
       break;
     case kS128:
-      assm->AllocateStackSpace(kSystemPointerSize * 2 + padding);
+      assm->AllocateStackSpace(kSystemPointerSize * 2);
       assm->Movdqu(Operand(rsp, 0), reg.fp());
       break;
     default:
@@ -4415,32 +4413,22 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   addq(rsp, Immediate(size));
 }
 
-void LiftoffStackSlots::Construct(int param_slots) {
-  DCHECK_LT(0, slots_.size());
-  SortInPushOrder();
-  int last_stack_slot = param_slots;
+void LiftoffStackSlots::Construct() {
   for (auto& slot : slots_) {
-    const int stack_slot = slot.dst_slot_;
-    int stack_decrement = (last_stack_slot - stack_slot) * kSystemPointerSize;
-    last_stack_slot = stack_slot;
     const LiftoffAssembler::VarState& src = slot.src_;
-    DCHECK_LT(0, stack_decrement);
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
         if (src.kind() == kI32) {
-          asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
           // Load i32 values to a register first to ensure they are zero
           // extended.
           asm_->movl(kScratchRegister, liftoff::GetStackSlot(slot.src_offset_));
           asm_->pushq(kScratchRegister);
         } else if (src.kind() == kS128) {
-          asm_->AllocateStackSpace(stack_decrement - kSimd128Size);
           // Since offsets are subtracted from sp, we need a smaller offset to
           // push the top of a s128 value.
           asm_->pushq(liftoff::GetStackSlot(slot.src_offset_ - 8));
           asm_->pushq(liftoff::GetStackSlot(slot.src_offset_));
         } else {
-          asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
           // For all other types, just push the whole (8-byte) stack slot.
           // This is also ok for f32 values (even though we copy 4 uninitialized
           // bytes), because f32 and f64 values are clearly distinguished in
@@ -4448,13 +4436,10 @@ void LiftoffStackSlots::Construct(int param_slots) {
           asm_->pushq(liftoff::GetStackSlot(slot.src_offset_));
         }
         break;
-      case LiftoffAssembler::VarState::kRegister: {
-        int pushed = src.kind() == kS128 ? kSimd128Size : kSystemPointerSize;
-        liftoff::push(asm_, src.reg(), src.kind(), stack_decrement - pushed);
+      case LiftoffAssembler::VarState::kRegister:
+        liftoff::push(asm_, src.reg(), src.kind());
         break;
-      }
       case LiftoffAssembler::VarState::kIntConst:
-        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         asm_->pushq(Immediate(src.i32_const()));
         break;
     }

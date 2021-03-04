@@ -799,9 +799,8 @@ void PrepareStackTransfers(const ValueKindSig* sig,
                            LiftoffStackSlots* stack_slots,
                            StackTransferRecipe* stack_transfers,
                            LiftoffRegList* param_regs) {
-  // Process parameters backwards, to reduce the amount of Slot sorting for
-  // the most common case - a normal Wasm Call. Slots will be mostly unsorted
-  // in the Builtin call case.
+  // Process parameters backwards, such that pushes of caller frame slots are
+  // in the correct order.
   uint32_t call_desc_input_idx =
       static_cast<uint32_t>(call_descriptor->InputCount());
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
@@ -835,8 +834,7 @@ void PrepareStackTransfers(const ValueKindSig* sig,
         }
       } else {
         DCHECK(loc.IsCallerFrameSlot());
-        int param_offset = -loc.GetLocation() - 1;
-        stack_slots->Add(slot, stack_offset, half, param_offset);
+        stack_slots->Add(slot, stack_offset, half);
       }
     }
   }
@@ -853,10 +851,10 @@ void LiftoffAssembler::PrepareBuiltinCall(
   PrepareStackTransfers(sig, call_descriptor, params.begin(), &stack_slots,
                         &stack_transfers, &param_regs);
   SpillAllRegisters();
-  int param_slots = static_cast<int>(call_descriptor->StackParameterCount());
-  if (param_slots > 0) {
-    stack_slots.Construct(param_slots);
-  }
+  // Create all the slots.
+  // Builtin stack parameters are pushed in reversed order.
+  stack_slots.Reverse();
+  stack_slots.Construct();
   // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
 
@@ -899,7 +897,6 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
                                  LiftoffRegister(*target_instance), kIntPtr);
   }
 
-  int param_slots = static_cast<int>(call_descriptor->StackParameterCount());
   if (num_params) {
     uint32_t param_base = cache_state_.stack_height() - num_params;
     PrepareStackTransfers(sig, call_descriptor,
@@ -919,16 +916,13 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
       *target = new_target.gp();
     } else {
       stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kIntPtr,
-                                                 LiftoffRegister(*target), 0),
-                      param_slots);
-      param_slots++;
+                                                 LiftoffRegister(*target), 0));
       *target = no_reg;
     }
   }
 
-  if (param_slots > 0) {
-    stack_slots.Construct(param_slots);
-  }
+  // Create all the slots.
+  stack_slots.Construct();
   // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
   // Pop parameters from the value stack.

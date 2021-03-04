@@ -1389,7 +1389,6 @@ void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
 }
 
 void TurboAssembler::AllocateStackSpace(int bytes) {
-  DCHECK_GE(bytes, 0);
   UseScratchRegisterScope temps(this);
   DwVfpRegister scratch = no_dreg;
   while (bytes > kStackPageSize) {
@@ -1400,7 +1399,6 @@ void TurboAssembler::AllocateStackSpace(int bytes) {
     vldr(scratch, MemOperand(sp));
     bytes -= kStackPageSize;
   }
-  if (bytes == 0) return;
   sub(sp, sp, Operand(bytes));
 }
 #endif
