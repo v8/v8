@@ -64,10 +64,7 @@ luci.tree_closer(
 
 luci.notifier(
     name = "api stability notifier",
-    on_occurrence = ["FAILURE"],
-    failed_step_regexp = [
-        "compile",
-    ],
+    on_new_status = ["FAILURE"],
     notify_emails = [
         "machenbach@chromium.org",
         "hablich@chromium.org",
