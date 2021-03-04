@@ -777,20 +777,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class... TArgs>
   TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
                      TNode<JSReceiver> receiver, TArgs... args) {
-    return UncheckedCast<Object>(CallJS(
+    return CallJS(
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-        context, callable, receiver, args...));
+        context, callable, receiver, args...);
   }
   template <class... TArgs>
   TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
                      TNode<Object> receiver, TArgs... args) {
     if (IsUndefinedConstant(receiver) || IsNullConstant(receiver)) {
-      return UncheckedCast<Object>(CallJS(
+      return CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-          context, callable, receiver, args...));
+          context, callable, receiver, args...);
     }
-    return UncheckedCast<Object>(CallJS(CodeFactory::Call(isolate()), context,
-                                        callable, receiver, args...));
+    return CallJS(CodeFactory::Call(isolate()), context, callable, receiver,
+                  args...);
   }
 
   TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
@@ -1271,7 +1271,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                TNode<Int32T> instance_type,
                                                Label* bailout);
   // Load the identity hash of a JSRececiver.
-  TNode<IntPtrT> LoadJSReceiverIdentityHash(TNode<Object> receiver,
+  TNode<IntPtrT> LoadJSReceiverIdentityHash(TNode<JSReceiver> receiver,
                                             Label* if_no_hash = nullptr);
 
   // This is only used on a newly allocated PropertyArray which
@@ -2020,10 +2020,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     GotoIf(TaggedNotEqual(LoadMap(base), FixedDoubleArrayMapConstant()),
            cast_fail);
     return UncheckedCast<FixedDoubleArray>(base);
-  }
-
-  TNode<Int32T> ConvertElementsKindToInt(TNode<Int32T> elements_kind) {
-    return UncheckedCast<Int32T>(elements_kind);
   }
 
   template <typename T>

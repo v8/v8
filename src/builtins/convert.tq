@@ -128,10 +128,6 @@ macro Convert<To: type, From: type>(i: From): To labels Overflow {
 Convert<Boolean, bool>(b: bool): Boolean {
   return b ? True : False;
 }
-extern macro ConvertElementsKindToInt(ElementsKind): int32;
-Convert<int32, ElementsKind>(elementsKind: ElementsKind): int32 {
-  return ConvertElementsKindToInt(elementsKind);
-}
 Convert<Number, int32>(i: int32): Number {
   return ChangeInt32ToTagged(i);
 }

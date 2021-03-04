@@ -320,7 +320,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
             IntPtrConstant(2));
         StoreFixedArrayElement(CAST(elements), 0, next_key, SKIP_WRITE_BARRIER);
         StoreFixedArrayElement(CAST(elements), 1, value, SKIP_WRITE_BARRIER);
-        value = TNode<JSArray>::UncheckedCast(array);
+        value = array;
       }
 
       StoreFixedArrayElement(values_or_entries, var_result_index.value(),
@@ -350,7 +350,7 @@ ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
 
   GotoIf(IntPtrEqual(size, IntPtrConstant(0)), if_empty);
   TNode<JSArray> array = AllocateJSArray(array_map, result, SmiTag(size));
-  return TNode<JSArray>::UncheckedCast(array);
+  return array;
 }
 
 TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {

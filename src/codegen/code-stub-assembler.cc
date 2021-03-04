@@ -350,7 +350,7 @@ TNode<Float64T> CodeStubAssembler::Float64Round(TNode<Float64T> x) {
   Goto(&return_x);
 
   BIND(&return_x);
-  return TNode<Float64T>::UncheckedCast(var_x.value());
+  return var_x.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Ceil(TNode<Float64T> x) {
@@ -402,7 +402,7 @@ TNode<Float64T> CodeStubAssembler::Float64Ceil(TNode<Float64T> x) {
   Goto(&return_x);
 
   BIND(&return_x);
-  return TNode<Float64T>::UncheckedCast(var_x.value());
+  return var_x.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Floor(TNode<Float64T> x) {
@@ -454,7 +454,7 @@ TNode<Float64T> CodeStubAssembler::Float64Floor(TNode<Float64T> x) {
   Goto(&return_x);
 
   BIND(&return_x);
-  return TNode<Float64T>::UncheckedCast(var_x.value());
+  return var_x.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
@@ -485,7 +485,7 @@ TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
   Goto(&done);
 
   BIND(&done);
-  return TNode<Float64T>::UncheckedCast(var_result.value());
+  return var_result.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
@@ -546,7 +546,7 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
   Goto(&return_x);
 
   BIND(&return_x);
-  return TNode<Float64T>::UncheckedCast(var_x.value());
+  return var_x.value();
 }
 
 template <>
@@ -1776,19 +1776,17 @@ TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
-    TNode<Object> receiver, Label* if_no_hash) {
+    TNode<JSReceiver> receiver, Label* if_no_hash) {
   TVARIABLE(IntPtrT, var_hash);
   Label done(this), if_smi(this), if_property_array(this),
       if_ordered_property_dictionary(this), if_property_dictionary(this),
       if_fixed_array(this);
 
   TNode<Object> properties_or_hash =
-      LoadObjectField(TNode<HeapObject>::UncheckedCast(receiver),
-                      JSReceiver::kPropertiesOrHashOffset);
+      LoadObjectField(receiver, JSReceiver::kPropertiesOrHashOffset);
   GotoIf(TaggedIsSmi(properties_or_hash), &if_smi);
 
-  TNode<HeapObject> properties =
-      TNode<HeapObject>::UncheckedCast(properties_or_hash);
+  TNode<HeapObject> properties = CAST(properties_or_hash);
   TNode<Uint16T> properties_instance_type = LoadInstanceType(properties);
 
   GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
@@ -1809,7 +1807,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   BIND(&if_smi);
   {
-    var_hash = SmiUntag(TNode<Smi>::UncheckedCast(properties_or_hash));
+    var_hash = SmiUntag(CAST(properties_or_hash));
     Goto(&done);
   }
 
@@ -1817,8 +1815,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
   {
     TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
         properties, PropertyArray::kLengthAndHashOffset);
-    var_hash = TNode<IntPtrT>::UncheckedCast(
-        DecodeWord<PropertyArray::HashField>(length_and_hash));
+    var_hash = Signed(DecodeWord<PropertyArray::HashField>(length_and_hash));
     Goto(&done);
   }
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
@@ -2695,9 +2692,8 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
 TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototypeSlot(
     TNode<HeapObject> object) {
   // Only JSFunction maps may have HasPrototypeSlotBit set.
-  return TNode<BoolT>::UncheckedCast(
-      IsSetWord32<Map::Bits1::HasPrototypeSlotBit>(
-          LoadMapBitField(LoadMap(object))));
+  return IsSetWord32<Map::Bits1::HasPrototypeSlotBit>(
+      LoadMapBitField(LoadMap(object)));
 }
 
 void CodeStubAssembler::BranchIfHasPrototypeProperty(
@@ -2868,7 +2864,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
               [=] {
                 TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
                     object, PropertyArray::kLengthAndHashOffset);
-                return TNode<IntPtrT>::UncheckedCast(
+                return Signed(
                     DecodeWord<PropertyArray::LengthField>(length_and_hash));
               },
               [=] {

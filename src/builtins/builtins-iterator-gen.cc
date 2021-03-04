@@ -54,8 +54,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
     BIND(&get_next);
     TNode<Object> next =
         GetProperty(context, iterator, factory()->next_string());
-    return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator),
-                          TNode<Object>::UncheckedCast(next)};
+    return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator), next};
   }
 }
 
