@@ -22,7 +22,10 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
@@ -1793,7 +1796,11 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   stfdu(double_input, MemOperand(sp, -kDoubleSize));
 
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
+#if V8_ENABLE_WEBASSEMBLY
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+#else
+    UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }

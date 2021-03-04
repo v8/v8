@@ -13,8 +13,11 @@
 #include "src/compiler/osr.h"
 #include "src/heap/memory-chunk.h"
 #include "src/numbers/double.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -140,10 +143,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+#if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
+#endif  // V8_ENABLE_WEBASSEMBLY
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         unwinding_info_writer_(unwinding_info_writer),
-        zone_(gen->zone()) {}
+        zone_(gen->zone()) {
+  }
 
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
                        Register value, Register scratch0, Register scratch1,
@@ -192,9 +198,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+#if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                              save_fp_mode, wasm::WasmCode::kRecordWrite);
+#endif  // V8_ENABLE_WEBASSEMBLY
     } else {
       __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                              save_fp_mode);
@@ -215,7 +223,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+#if V8_ENABLE_WEBASSEMBLY
   StubCallMode stub_mode_;
+#endif  // V8_ENABLE_WEBASSEMBLY
   bool must_save_lr_;
   UnwindingInfoWriter* const unwinding_info_writer_;
   Zone* zone_;
@@ -871,6 +881,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
+#if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction: {
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
@@ -890,24 +901,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallCodeObject: {
-      if (HasRegisterInput(instr, 0)) {
-        Register reg = i.InputRegister(0);
-        DCHECK_IMPLIES(
-            instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
-            reg == kJavaScriptCallCodeStartRegister);
-        __ JumpCodeObject(reg);
-      } else {
-        // We cannot use the constant pool to load the target since
-        // we've already restored the caller's frame.
-        ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
-        __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
-      }
-      DCHECK_EQ(LeaveRC, i.OutputRCBit());
-      frame_access_state()->ClearSPDelta();
-      frame_access_state()->SetFrameAccessToDefault();
-      break;
-    }
     case kArchTailCallWasm: {
       // We must not share code targets for calls to builtins for wasm code, as
       // they might need to be patched individually.
@@ -921,6 +914,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Jump(wasm_code, constant.rmode());
       } else {
         __ Jump(i.InputRegister(0));
+      }
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
+      break;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    case kArchTailCallCodeObject: {
+      if (HasRegisterInput(instr, 0)) {
+        Register reg = i.InputRegister(0);
+        DCHECK_IMPLIES(
+            instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
+            reg == kJavaScriptCallCodeStartRegister);
+        __ JumpCodeObject(reg);
+      } else {
+        // We cannot use the constant pool to load the target since
+        // we've already restored the caller's frame.
+        ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
+        __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
@@ -1021,6 +1033,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         offset += 2 * kInstrSize;
       }
 #endif
+#if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
         __ mflr(r0);
         __ bind(&start_call);
@@ -1030,6 +1043,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         __ mtlr(r0);
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_parameters, has_function_descriptor);
@@ -1043,10 +1057,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // counted from where we are binding to the label and ends at this spot.
       // If failed, replace it with the correct offset suggested. More info on
       // f5ab7d3.
+#if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
         CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
         RecordSafepoint(instr->reference_map());
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -3784,6 +3800,7 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ b(GetLabel(target));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
   class OutOfLineTrap final : public OutOfLineCode {
@@ -3852,6 +3869,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
   __ b(cond, tlabel, cr);
   __ bind(&end);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
@@ -3969,9 +3987,13 @@ void CodeGenerator::AssembleConstructFrame() {
   if (frame_access_state()->has_frame()) {
     if (call_descriptor->IsCFunctionCall()) {
       if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
+#if V8_ENABLE_WEBASSEMBLY
         __ StubPrologue(StackFrame::C_WASM_ENTRY);
         // Reserve stack space for saving the c_entry_fp later.
         __ addi(sp, sp, Operand(-kSystemPointerSize));
+#else
+        UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
       } else {
         __ mflr(r0);
         if (FLAG_enable_embedded_constant_pool) {
@@ -3990,6 +4012,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // TODO(mbrandy): Detect cases where ip is the entrypoint (for
       // efficient intialization of the constant pool pointer register).
       __ StubPrologue(type);
+#if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
       } else if (call_descriptor->IsWasmImportWrapper() ||
@@ -4010,6 +4033,7 @@ void CodeGenerator::AssembleConstructFrame() {
           __ addi(sp, sp, Operand(-kSystemPointerSize));
         }
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
     unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
   }
@@ -4037,6 +4061,7 @@ void CodeGenerator::AssembleConstructFrame() {
                             : call_descriptor->CalleeSavedRegisters();
 
   if (required_slots > 0) {
+#if V8_ENABLE_WEBASSEMBLY
     if (info()->IsWasm() && required_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
@@ -4069,6 +4094,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
       __ bind(&done);
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     // Skip callee-saved and return slots, which are pushed below.
     required_slots -= base::bits::CountPopulation(saves);
@@ -4233,26 +4259,22 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
       switch (src.type()) {
         case Constant::kInt32:
-#if V8_TARGET_ARCH_PPC64
-          if (false) {
-#else
+#if V8_ENABLE_WEBASSEMBLY && !V8_TARGET_ARCH_PPC64
           if (RelocInfo::IsWasmReference(src.rmode())) {
-#endif
             __ mov(dst, Operand(src.ToInt32(), src.rmode()));
-          } else {
-            __ mov(dst, Operand(src.ToInt32()));
+            break;
           }
+#endif  // V8_ENABLE_WEBASSEMBLY && !V8_TARGET_ARCH_PPC64
+          __ mov(dst, Operand(src.ToInt32()));
           break;
         case Constant::kInt64:
-#if V8_TARGET_ARCH_PPC64
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_PPC64
           if (RelocInfo::IsWasmReference(src.rmode())) {
             __ mov(dst, Operand(src.ToInt64(), src.rmode()));
-          } else {
-#endif
-            __ mov(dst, Operand(src.ToInt64()));
-#if V8_TARGET_ARCH_PPC64
+            break;
           }
-#endif
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_PPC64
+          __ mov(dst, Operand(src.ToInt64()));
           break;
         case Constant::kFloat32:
           __ mov(dst, Operand::EmbeddedNumber(src.ToFloat32()));

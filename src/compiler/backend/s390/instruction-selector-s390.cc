@@ -2709,6 +2709,7 @@ SIMD_VISIT_PMIN_MAX(F32x4Pmax)
 #undef SIMD_VISIT_PMIN_MAX
 #undef SIMD_TYPES
 
+#if V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   uint8_t* shuffle_p = &shuffle[0];
@@ -2735,6 +2736,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p + 8)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p + 12)));
 }
+#else
+void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   S390OperandGenerator g(this);
