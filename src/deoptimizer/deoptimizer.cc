@@ -962,10 +962,6 @@ void Deoptimizer::DoComputeOutputFrames() {
   FrameDescription* topmost = output_[count - 1];
   topmost->GetRegisterValues()->SetRegister(kRootRegister.code(),
                                             isolate()->isolate_root());
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  topmost->GetRegisterValues()->SetRegister(kPointerCageBaseRegister.code(),
-                                            isolate()->isolate_root());
-#endif
 
   // Print some helpful diagnostic information.
   if (verbose_tracing_enabled()) {

@@ -288,7 +288,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Operand field_operand) {
   RecordComment("[ DecompressTaggedPointer");
   movl(destination, field_operand);
-  addq(destination, kPointerCageBaseRegister);
+  addq(destination, kRootRegister);
   RecordComment("]");
 }
 
@@ -296,7 +296,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Register source) {
   RecordComment("[ DecompressTaggedPointer");
   movl(destination, source);
-  addq(destination, kPointerCageBaseRegister);
+  addq(destination, kRootRegister);
   RecordComment("]");
 }
 
@@ -304,7 +304,7 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
                                          Operand field_operand) {
   RecordComment("[ DecompressAnyTagged");
   movl(destination, field_operand);
-  addq(destination, kPointerCageBaseRegister);
+  addq(destination, kRootRegister);
   RecordComment("]");
 }
 
@@ -3379,7 +3379,7 @@ void TurboAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-void MacroAssembler::EnterExitFramePrologue(Register saved_rax_reg,
+void MacroAssembler::EnterExitFramePrologue(bool save_rax,
                                             StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
@@ -3399,8 +3399,8 @@ void MacroAssembler::EnterExitFramePrologue(Register saved_rax_reg,
   Push(Immediate(0));  // Saved entry sp, patched before call.
 
   // Save the frame pointer and the context in top.
-  if (saved_rax_reg != no_reg) {
-    movq(saved_rax_reg, rax);  // Backup rax in callee-save register.
+  if (save_rax) {
+    movq(r14, rax);  // Backup rax in callee-save register.
   }
 
   Store(
@@ -3449,19 +3449,18 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
 
 void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles,
                                     StackFrame::Type frame_type) {
-  Register saved_rax_reg = r12;
-  EnterExitFramePrologue(saved_rax_reg, frame_type);
+  EnterExitFramePrologue(true, frame_type);
 
   // Set up argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kSystemPointerSize;
-  leaq(r15, Operand(rbp, saved_rax_reg, times_system_pointer_size, offset));
+  leaq(r15, Operand(rbp, r14, times_system_pointer_size, offset));
 
   EnterExitFrameEpilogue(arg_stack_space, save_doubles);
 }
 
 void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
-  EnterExitFramePrologue(no_reg, StackFrame::EXIT);
+  EnterExitFramePrologue(false, StackFrame::EXIT);
   EnterExitFrameEpilogue(arg_stack_space, false);
 }
 

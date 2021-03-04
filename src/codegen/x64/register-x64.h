@@ -29,28 +29,19 @@ namespace internal {
   V(r14)                     \
   V(r15)
 
-#define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
-  V(rax)                                        \
-  V(rbx)                                        \
-  V(rdx)                                        \
-  V(rcx)                                        \
-  V(rsi)                                        \
-  V(rdi)                                        \
-  V(r8)                                         \
-  V(r9)                                         \
-  V(r11)                                        \
-  V(r12)                                        \
+#define ALLOCATABLE_GENERAL_REGISTERS(V) \
+  V(rax)                                 \
+  V(rbx)                                 \
+  V(rdx)                                 \
+  V(rcx)                                 \
+  V(rsi)                                 \
+  V(rdi)                                 \
+  V(r8)                                  \
+  V(r9)                                  \
+  V(r11)                                 \
+  V(r12)                                 \
+  V(r14)                                 \
   V(r15)
-
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-#define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
-#else
-#define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V) V(r14)
-#endif
-
-#define ALLOCATABLE_GENERAL_REGISTERS(V)  \
-  ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
-  MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
 
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
@@ -210,7 +201,7 @@ constexpr Register kAllocateSizeRegister = rdx;
 constexpr Register kSpeculationPoisonRegister = r12;
 constexpr Register kInterpreterAccumulatorRegister = rax;
 constexpr Register kInterpreterBytecodeOffsetRegister = r9;
-constexpr Register kInterpreterBytecodeArrayRegister = r12;
+constexpr Register kInterpreterBytecodeArrayRegister = r14;
 constexpr Register kInterpreterDispatchTableRegister = r15;
 
 constexpr Register kJavaScriptCallArgCountRegister = rax;
@@ -230,11 +221,6 @@ constexpr Register kWasmInstanceRegister = rsi;
 constexpr Register kScratchRegister = r10;
 constexpr XMMRegister kScratchDoubleReg = xmm15;
 constexpr Register kRootRegister = r13;  // callee save
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-constexpr Register kPointerCageBaseRegister = r14;  // callee save
-#else
-constexpr Register kPointerCageBaseRegister = kRootRegister;
-#endif
 
 constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 

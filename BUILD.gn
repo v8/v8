@@ -108,7 +108,6 @@ declare_args() {
 
   # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
   v8_enable_pointer_compression = ""
-  v8_enable_pointer_compression_shared_cage = ""
   v8_enable_31bit_smis_on_64bit_arch = false
 
   # Sets -dOBJECT_PRINT.
@@ -325,9 +324,6 @@ if (v8_enable_pointer_compression == "") {
   v8_enable_pointer_compression =
       v8_current_cpu == "arm64" || v8_current_cpu == "x64"
 }
-if (v8_enable_pointer_compression_shared_cage == "") {
-  v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression
-}
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
 }
@@ -391,10 +387,6 @@ assert(!v8_use_multi_snapshots || !v8_control_flow_integrity,
 
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
-
-assert(
-    !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,
-    "Can't share a pointer compression cage if pointers aren't compressed")
 
 assert(!v8_enable_unconditional_write_barriers || !v8_disable_write_barriers,
        "Write barriers can't be both enabled and disabled")
@@ -535,7 +527,6 @@ config("external_startup_data") {
 external_v8_defines = [
   "V8_ENABLE_CHECKS",
   "V8_COMPRESS_POINTERS",
-  "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
   "V8_31BIT_SMIS_ON_64BIT_ARCH",
   "V8_COMPRESS_ZONES",
   "V8_HEAP_SANDBOX",
@@ -552,9 +543,6 @@ if (v8_enable_v8_checks) {
 }
 if (v8_enable_pointer_compression) {
   enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS" ]
-}
-if (v8_enable_pointer_compression_shared_cage) {
-  enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS_IN_SHARED_CAGE" ]
 }
 if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
   enabled_external_v8_defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
