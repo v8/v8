@@ -219,6 +219,20 @@ class DebugInfoImpl {
                                             Vector<const int> offsets,
                                             int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
+
+    // Check the cache first.
+    for (auto begin = cached_debugging_code_.begin(), it = begin,
+              end = cached_debugging_code_.end();
+         it != end; ++it) {
+      if (it->func_index == func_index &&
+          it->breakpoint_offsets.as_vector() == offsets &&
+          it->dead_breakpoint == dead_breakpoint) {
+        // Rotate the cache entry to the front (for LRU).
+        for (; it != begin; --it) std::iter_swap(it, it - 1);
+        return it->code;
+      }
+    }
+
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
@@ -254,6 +268,23 @@ class DebugInfoImpl {
       DCHECK_EQ(0, debug_side_tables_.count(new_code));
       debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
     }
+
+    // Insert new code into the cache. Insert before existing elements for LRU.
+    cached_debugging_code_.insert(
+        cached_debugging_code_.begin(),
+        CachedDebuggingCode{func_index, OwnedVector<int>::Of(offsets),
+                            dead_breakpoint, new_code});
+    // Increase the ref count (for the cache entry).
+    new_code->IncRef();
+    // Remove exceeding element.
+    if (cached_debugging_code_.size() > kMaxCachedDebuggingCode) {
+      // Put the code in the surrounding CodeRefScope to delay deletion until
+      // after the mutex is released.
+      WasmCodeRefScope::AddRef(cached_debugging_code_.back().code);
+      cached_debugging_code_.back().code->DecRefOnLiveCode();
+      cached_debugging_code_.pop_back();
+    }
+    DCHECK_GE(kMaxCachedDebuggingCode, cached_debugging_code_.size());
 
     return new_code;
   }
@@ -648,6 +679,19 @@ class DebugInfoImpl {
 
   // {mutex_} protects all fields below.
   mutable base::Mutex mutex_;
+
+  // Cache a fixed number of WasmCode objects that were generated for debugging.
+  // This is useful especially in stepping, because stepping code is cleared on
+  // every pause and re-installed on the next step.
+  // This is a LRU cache (most recently used entries first).
+  static constexpr size_t kMaxCachedDebuggingCode = 3;
+  struct CachedDebuggingCode {
+    int func_index;
+    OwnedVector<const int> breakpoint_offsets;
+    int dead_breakpoint;
+    WasmCode* code;
+  };
+  std::vector<CachedDebuggingCode> cached_debugging_code_;
 
   // Names of exports, lazily derived from the exports table.
   std::unique_ptr<std::map<ImportExportKey, wasm::WireBytesRef>> export_names_;
