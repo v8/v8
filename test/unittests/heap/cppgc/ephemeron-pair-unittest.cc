@@ -226,5 +226,18 @@ TEST_F(EphemeronPairTest, EphemeronPairWithMixinKey) {
   EXPECT_TRUE(HeapObjectHeader::FromPayload(value).IsMarked());
 }
 
+TEST_F(EphemeronPairTest, EphemeronPairWithEmptyMixinValue) {
+  GCedWithMixin* key =
+      MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
+  Persistent<EphemeronHolderWithMixins> holder =
+      MakeGarbageCollected<EphemeronHolderWithMixins>(GetAllocationHandle(),
+                                                      key, nullptr);
+  EXPECT_NE(static_cast<void*>(key), holder->ephemeron_pair().key.Get());
+  EXPECT_TRUE(HeapObjectHeader::FromPayload(key).TryMarkAtomic());
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get());
+  FinishSteps();
+  FinishMarking();
+}
+
 }  // namespace internal
 }  // namespace cppgc
