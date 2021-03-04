@@ -2163,7 +2163,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Min)              \
   V(F64x2Max)              \
   V(F32x4Add)              \
-  V(F32x4AddHoriz)         \
   V(F32x4Sub)              \
   V(F32x4Mul)              \
   V(F32x4Eq)               \
@@ -2179,7 +2178,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Eq)               \
   V(I64x2Ne)               \
   V(I32x4Add)              \
-  V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
   V(I32x4MinS)             \
@@ -2194,7 +2192,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GeU)              \
   V(I32x4DotI16x8S)        \
   V(I16x8Add)              \
-  V(I16x8AddHoriz)         \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
   V(I16x8MinS)             \

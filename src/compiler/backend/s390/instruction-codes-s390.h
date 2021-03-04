@@ -221,7 +221,6 @@ namespace compiler {
   V(S390_F32x4ExtractLane)                  \
   V(S390_F32x4ReplaceLane)                  \
   V(S390_F32x4Add)                          \
-  V(S390_F32x4AddHoriz)                     \
   V(S390_F32x4Sub)                          \
   V(S390_F32x4Mul)                          \
   V(S390_F32x4Eq)                           \
@@ -275,7 +274,6 @@ namespace compiler {
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
   V(S390_I32x4Add)                          \
-  V(S390_I32x4AddHoriz)                     \
   V(S390_I32x4Sub)                          \
   V(S390_I32x4Mul)                          \
   V(S390_I32x4MinS)                         \
@@ -314,7 +312,6 @@ namespace compiler {
   V(S390_I16x8ExtractLaneS)                 \
   V(S390_I16x8ReplaceLane)                  \
   V(S390_I16x8Add)                          \
-  V(S390_I16x8AddHoriz)                     \
   V(S390_I16x8Sub)                          \
   V(S390_I16x8Mul)                          \
   V(S390_I16x8MinS)                         \

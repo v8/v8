@@ -2409,7 +2409,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F64x2Min)              \
   V(F64x2Max)              \
   V(F32x4Add)              \
-  V(F32x4AddHoriz)         \
   V(F32x4Sub)              \
   V(F32x4Mul)              \
   V(F32x4Eq)               \
@@ -2432,7 +2431,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I64x2GtS)              \
   V(I64x2GeS)              \
   V(I32x4Add)              \
-  V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
   V(I32x4MinS)             \
@@ -2451,7 +2449,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I32x4ExtMulLowI16x8U)  \
   V(I32x4ExtMulHighI16x8U) \
   V(I16x8Add)              \
-  V(I16x8AddHoriz)         \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
   V(I16x8MinS)             \

@@ -220,7 +220,6 @@ namespace compiler {
   V(PPC_F32x4ExtractLane)            \
   V(PPC_F32x4ReplaceLane)            \
   V(PPC_F32x4Add)                    \
-  V(PPC_F32x4AddHoriz)               \
   V(PPC_F32x4Sub)                    \
   V(PPC_F32x4Mul)                    \
   V(PPC_F32x4Eq)                     \
@@ -272,7 +271,6 @@ namespace compiler {
   V(PPC_I32x4ExtractLane)            \
   V(PPC_I32x4ReplaceLane)            \
   V(PPC_I32x4Add)                    \
-  V(PPC_I32x4AddHoriz)               \
   V(PPC_I32x4Sub)                    \
   V(PPC_I32x4Mul)                    \
   V(PPC_I32x4MinS)                   \
@@ -307,7 +305,6 @@ namespace compiler {
   V(PPC_I16x8ExtractLaneS)           \
   V(PPC_I16x8ReplaceLane)            \
   V(PPC_I16x8Add)                    \
-  V(PPC_I16x8AddHoriz)               \
   V(PPC_I16x8Sub)                    \
   V(PPC_I16x8Mul)                    \
   V(PPC_I16x8MinS)                   \

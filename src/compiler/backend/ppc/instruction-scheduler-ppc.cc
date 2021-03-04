@@ -143,7 +143,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F32x4ExtractLane:
     case kPPC_F32x4ReplaceLane:
     case kPPC_F32x4Add:
-    case kPPC_F32x4AddHoriz:
     case kPPC_F32x4Sub:
     case kPPC_F32x4Mul:
     case kPPC_F32x4Eq:
@@ -197,7 +196,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4ExtractLane:
     case kPPC_I32x4ReplaceLane:
     case kPPC_I32x4Add:
-    case kPPC_I32x4AddHoriz:
     case kPPC_I32x4Sub:
     case kPPC_I32x4Mul:
     case kPPC_I32x4MinS:
@@ -230,7 +228,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I16x8ExtractLaneS:
     case kPPC_I16x8ReplaceLane:
     case kPPC_I16x8Add:
-    case kPPC_I16x8AddHoriz:
     case kPPC_I16x8Sub:
     case kPPC_I16x8Mul:
     case kPPC_I16x8MinS:
