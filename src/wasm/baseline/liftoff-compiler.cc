@@ -4391,8 +4391,36 @@ class LiftoffCompiler {
   }
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
-                 const Value& value, const Value& delta, Value* result) {
-    unsupported(decoder, kRefTypes, "table.grow");
+                 const Value&, const Value&, Value* result) {
+    LiftoffRegList pinned;
+
+    LiftoffRegister table_index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(table_index_reg, imm.index);
+    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
+                                           0);
+
+    LiftoffAssembler::VarState delta = __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
+
+    WasmCode::RuntimeStubId target = WasmCode::kWasmTableGrow;
+    compiler::CallDescriptor* call_descriptor =
+        GetBuiltinCallDescriptor<WasmTableGrowDescriptor>(compilation_zone_);
+
+    ValueKind sig_reps[] = {kSmiValueType, kSmiValueType, kI32,
+                            kTaggedValueType};
+    ValueKindSig sig(1, 3, sig_reps);
+
+    __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, delta, value});
+    __ CallRuntimeStub(target);
+    DefineSafepoint();
+
+    // Pop parameters from the value stack.
+    __ cache_state()->stack_state.pop_back(2);
+
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    __ SmiUntag(kReturnRegister0);
+    __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
   }
 
   void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,

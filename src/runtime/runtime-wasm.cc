@@ -498,14 +498,13 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
 RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  auto instance =
-      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
-  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
-  CONVERT_ARG_CHECKED(Object, value_raw, 1);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 1);
+  CONVERT_ARG_CHECKED(Object, value_raw, 2);
   // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> value(value_raw, isolate);
-  CONVERT_UINT32_ARG_CHECKED(delta, 2);
+  CONVERT_UINT32_ARG_CHECKED(delta, 3);
 
   Handle<WasmTableObject> table(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);

@@ -13,6 +13,8 @@ extern runtime WasmTableCopy(
     Context, WasmInstanceObject, Object, Object, Smi, Smi, Smi): JSAny;
 extern runtime WasmTableFill(
     Context, WasmInstanceObject, Smi, Smi, Object, Smi): JSAny;
+extern runtime WasmTableGrow(
+    Context, WasmInstanceObject, Smi, Object, Smi): Smi;
 extern runtime WasmFunctionTableGet(
     Context, WasmInstanceObject, Smi, Smi): JSAny;
 extern runtime WasmFunctionTableSet(
@@ -131,6 +133,18 @@ builtin WasmTableFill(
         count);
   } label TableOutOfBounds deferred {
     tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableGrow(table: Smi, deltaRaw: uint32, value: Object): Smi {
+  try {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const delta: Smi =
+        Convert<PositiveSmi>(deltaRaw) otherwise TableOutOfBounds;
+    tail runtime::WasmTableGrow(
+        LoadContextFromInstance(instance), instance, table, value, delta);
+  } label TableOutOfBounds deferred {
+    return -1;
   }
 }
 

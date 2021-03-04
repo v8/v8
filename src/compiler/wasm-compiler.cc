@@ -5520,12 +5520,10 @@ Node* WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
 
 Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
                                   Node* delta) {
-  Node* args[] = {
-      gasm_->NumberConstant(table_index), value,
-      BuildConvertUint32ToSmiWithSaturation(delta, FLAG_wasm_max_table_size)};
-  Node* result =
-      BuildCallToRuntime(Runtime::kWasmTableGrow, args, arraysize(args));
-  return BuildChangeSmiToInt32(result);
+  return BuildChangeSmiToInt32(gasm_->CallRuntimeStub(
+      wasm::WasmCode::kWasmTableGrow,
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), delta,
+      value));
 }
 
 Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
