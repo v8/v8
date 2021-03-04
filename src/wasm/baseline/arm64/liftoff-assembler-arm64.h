@@ -1845,14 +1845,14 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  Sxtl(dst.fp(), src.fp().V2S());
-  Scvtf(dst.fp(), dst.fp());
+  Sxtl(dst.fp().V2D(), src.fp().V2S());
+  Scvtf(dst.fp().V2D(), dst.fp().V2D());
 }
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  Uxtl(dst.fp(), src.fp().V2S());
-  Ucvtf(dst.fp(), dst.fp());
+  Uxtl(dst.fp().V2D(), src.fp().V2S());
+  Ucvtf(dst.fp().V2D(), dst.fp().V2D());
 }
 
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
@@ -2984,7 +2984,7 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
-  Fcvtzs(dst.fp().V2D(), src.fp().V2D());
+  Fcvtzu(dst.fp().V2D(), src.fp().V2D());
   Uqxtn(dst.fp().V2S(), dst.fp().V2D());
 }
 

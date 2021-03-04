@@ -2067,24 +2067,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmF64x2ConvertLowI32x4S: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(0);
-      __ vcvt_f64_s32(dst.low(), SwVfpRegister::from_code(src.code() * 4));
-      __ vcvt_f64_s32(dst.high(), SwVfpRegister::from_code(src.code() * 4 + 1));
+      __ F64x2ConvertLowI32x4S(i.OutputSimd128Register(),
+                               i.InputSimd128Register(0));
       break;
     }
     case kArmF64x2ConvertLowI32x4U: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(0);
-      __ vcvt_f64_u32(dst.low(), SwVfpRegister::from_code(src.code() * 4));
-      __ vcvt_f64_u32(dst.high(), SwVfpRegister::from_code(src.code() * 4 + 1));
+      __ F64x2ConvertLowI32x4U(i.OutputSimd128Register(),
+                               i.InputSimd128Register(0));
       break;
     }
     case kArmF64x2PromoteLowF32x4: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(0);
-      __ vcvt_f64_f32(dst.low(), SwVfpRegister::from_code(src.code() * 4));
-      __ vcvt_f64_f32(dst.high(), SwVfpRegister::from_code(src.code() * 4 + 1));
+      __ F64x2PromoteLowF32x4(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0));
       break;
     }
     case kArmI64x2SplatI32Pair: {

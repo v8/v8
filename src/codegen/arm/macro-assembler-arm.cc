@@ -2711,6 +2711,41 @@ void TurboAssembler::I64x2Abs(QwNeonRegister dst, QwNeonRegister src) {
   vsub(Neon64, dst, dst, tmp);
 }
 
+namespace {
+using AssemblerFunc = void (Assembler::*)(DwVfpRegister, SwVfpRegister,
+                                          VFPConversionMode, const Condition);
+// Helper function for f64x2 convert low instructions.
+// This ensures that we do not overwrite src, if dst == src.
+void F64x2ConvertLowHelper(Assembler* assm, QwNeonRegister dst,
+                           QwNeonRegister src, AssemblerFunc convert_fn) {
+  LowDwVfpRegister src_d = LowDwVfpRegister::from_code(src.low().code());
+  UseScratchRegisterScope temps(assm);
+  if (dst == src) {
+    LowDwVfpRegister tmp = temps.AcquireLowD();
+    assm->vmov(tmp, src_d);
+    src_d = tmp;
+  }
+  // Default arguments are not part of the function type
+  (assm->*convert_fn)(dst.low(), src_d.low(), kDefaultRoundToZero, al);
+  (assm->*convert_fn)(dst.high(), src_d.high(), kDefaultRoundToZero, al);
+}
+}  // namespace
+
+void TurboAssembler::F64x2ConvertLowI32x4S(QwNeonRegister dst,
+                                           QwNeonRegister src) {
+  F64x2ConvertLowHelper(this, dst, src, &Assembler::vcvt_f64_s32);
+}
+
+void TurboAssembler::F64x2ConvertLowI32x4U(QwNeonRegister dst,
+                                           QwNeonRegister src) {
+  F64x2ConvertLowHelper(this, dst, src, &Assembler::vcvt_f64_u32);
+}
+
+void TurboAssembler::F64x2PromoteLowF32x4(QwNeonRegister dst,
+                                          QwNeonRegister src) {
+  F64x2ConvertLowHelper(this, dst, src, &Assembler::vcvt_f64_f32);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -2599,23 +2599,20 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  LowDwVfpRegister src_d = LowDwVfpRegister::from_code(src.low_fp().code());
-  vcvt_f64_s32(dst.low_fp(), src_d.low());
-  vcvt_f64_s32(dst.high_fp(), src_d.high());
+  F64x2ConvertLowI32x4S(liftoff::GetSimd128Register(dst),
+                        liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  LowDwVfpRegister src_d = LowDwVfpRegister::from_code(src.low_fp().code());
-  vcvt_f64_u32(dst.low_fp(), src_d.low());
-  vcvt_f64_u32(dst.high_fp(), src_d.high());
+  F64x2ConvertLowI32x4U(liftoff::GetSimd128Register(dst),
+                        liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  LowDwVfpRegister src_d = LowDwVfpRegister::from_code(src.low_fp().code());
-  vcvt_f64_f32(dst.low_fp(), src_d.low());
-  vcvt_f64_f32(dst.high_fp(), src_d.high());
+  F64x2PromoteLowF32x4(liftoff::GetSimd128Register(dst),
+                       liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
