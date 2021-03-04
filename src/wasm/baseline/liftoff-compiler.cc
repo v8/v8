@@ -3444,24 +3444,6 @@ class LiftoffCompiler {
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_abs);
       case wasm::kExprI64x2Abs:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_abs);
-      case wasm::kExprF64x2ConvertLowI32x4S:
-        return EmitUnOp<kS128, kS128>(
-            &LiftoffAssembler::emit_f64x2_convert_low_i32x4_s);
-      case wasm::kExprF64x2ConvertLowI32x4U:
-        return EmitUnOp<kS128, kS128>(
-            &LiftoffAssembler::emit_f64x2_convert_low_i32x4_u);
-      case wasm::kExprF64x2PromoteLowF32x4:
-        return EmitUnOp<kS128, kS128>(
-            &LiftoffAssembler::emit_f64x2_promote_low_f32x4);
-      case wasm::kExprF32x4DemoteF64x2Zero:
-        return EmitUnOp<kS128, kS128>(
-            &LiftoffAssembler::emit_f32x4_demote_f64x2_zero);
-      case wasm::kExprI32x4TruncSatF64x2SZero:
-        return EmitUnOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero);
-      case wasm::kExprI32x4TruncSatF64x2UZero:
-        return EmitUnOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero);
       default:
         unsupported(decoder, kSimd, "simd");
     }
