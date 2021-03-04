@@ -500,12 +500,6 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
                        PropertyConstness::kConst, representation, flag);
 }
 
-bool Map::TransitionRequiresSynchronizationWithGC(Map target) const {
-  int inobject = NumberOfFields();
-  int target_inobject = target.NumberOfFields();
-  return target_inobject < inobject;
-}
-
 bool Map::InstancesNeedRewriting(Map target) const {
   int target_number_of_fields = target.NumberOfFields();
   int target_inobject = target.GetInObjectProperties();

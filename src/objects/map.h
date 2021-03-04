@@ -481,10 +481,6 @@ class Map : public HeapObject {
 
   bool HasOutOfObjectProperties() const;
 
-  // Returns true if transition to the given map requires special
-  // synchronization with the concurrent marker.
-  bool TransitionRequiresSynchronizationWithGC(Map target) const;
-
   // TODO(ishell): candidate with JSObject::MigrateToMap().
   bool InstancesNeedRewriting(Map target) const;
   bool InstancesNeedRewriting(Map target, int target_number_of_fields,

@@ -2918,10 +2918,6 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   Heap* heap = isolate->heap();
 
-  // Invalidate slots manually later in case of tagged to untagged translation.
-  // In all other cases the recorded slot remains dereferenceable.
-  heap->NotifyObjectLayoutChange(*object, no_gc, InvalidateRecordedSlots::kNo);
-
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
   int limit = std::min(inobject, number_of_fields);
@@ -3034,11 +3030,6 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   DisallowGarbageCollection no_gc;
 
   Heap* heap = isolate->heap();
-
-  // Invalidate slots manually later in case the new map has in-object
-  // properties. If not, it is not possible to store an untagged value
-  // in a recorded slot.
-  heap->NotifyObjectLayoutChange(*object, no_gc, InvalidateRecordedSlots::kNo);
 
   // Resize the object in the heap if necessary.
   int old_instance_size = map->instance_size();

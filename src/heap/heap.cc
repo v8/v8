@@ -3575,28 +3575,30 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
   // use object->set_map_after_allocation() to initialize its map.
   if (pending_layout_change_object_.is_null()) {
     if (object.IsJSObject()) {
-      DCHECK(!object.map().TransitionRequiresSynchronizationWithGC(new_map));
-    } else if (object.IsString() &&
-               (new_map == ReadOnlyRoots(this).thin_string_map() ||
-                new_map == ReadOnlyRoots(this).thin_one_byte_string_map())) {
+      // Without double unboxing all in-object fields of a JSObject are tagged.
+      return;
+    }
+    if (object.IsString() &&
+        (new_map == ReadOnlyRoots(this).thin_string_map() ||
+         new_map == ReadOnlyRoots(this).thin_one_byte_string_map())) {
       // When transitioning a string to ThinString,
       // Heap::NotifyObjectLayoutChange doesn't need to be invoked because only
       // tagged fields are introduced.
-    } else {
-      // Check that the set of slots before and after the transition match.
-      SlotCollectingVisitor old_visitor;
-      object.IterateFast(&old_visitor);
-      MapWord old_map_word = object.map_word();
-      // Temporarily set the new map to iterate new slots.
-      object.set_map_word(MapWord::FromMap(new_map));
-      SlotCollectingVisitor new_visitor;
-      object.IterateFast(&new_visitor);
-      // Restore the old map.
-      object.set_map_word(old_map_word);
-      DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
-      for (int i = 0; i < new_visitor.number_of_slots(); i++) {
-        DCHECK(new_visitor.slot(i) == old_visitor.slot(i));
-      }
+      return;
+    }
+    // Check that the set of slots before and after the transition match.
+    SlotCollectingVisitor old_visitor;
+    object.IterateFast(&old_visitor);
+    MapWord old_map_word = object.map_word();
+    // Temporarily set the new map to iterate new slots.
+    object.set_map_word(MapWord::FromMap(new_map));
+    SlotCollectingVisitor new_visitor;
+    object.IterateFast(&new_visitor);
+    // Restore the old map.
+    object.set_map_word(old_map_word);
+    DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
+    for (int i = 0; i < new_visitor.number_of_slots(); i++) {
+      DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
     }
   } else {
     DCHECK_EQ(pending_layout_change_object_, object);
