@@ -1589,6 +1589,10 @@ class LiftoffStackSlots {
   LiftoffAssembler* const asm_;
 };
 
+#if DEBUG
+bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b);
+#endif
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

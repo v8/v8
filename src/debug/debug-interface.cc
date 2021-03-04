@@ -771,6 +771,14 @@ bool WasmValueObject::IsWasmValueObject(Local<Value> that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*that);
   return obj->IsWasmValueObject();
 }
+
+Local<String> WasmValueObject::type() const {
+  i::Handle<i::WasmValueObject> object =
+      i::Handle<i::WasmValueObject>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = object->GetIsolate();
+  i::Handle<i::String> type(object->type(), isolate);
+  return Utils::ToLocal(type);
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin builtin) {

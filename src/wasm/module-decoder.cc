@@ -2416,11 +2416,12 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
   }
 }
 
-LocalNames DecodeLocalNames(Vector<const uint8_t> module_bytes) {
+NameMap DecodeNameMap(Vector<const uint8_t> module_bytes,
+                      uint8_t name_section_kind) {
   Decoder decoder(module_bytes);
-  if (!FindNameSection(&decoder)) return LocalNames{{}};
+  if (!FindNameSection(&decoder)) return NameMap{{}};
 
-  std::vector<LocalNamesPerFunction> functions;
+  std::vector<NameAssoc> names;
   while (decoder.ok() && decoder.more()) {
     uint8_t name_type = decoder.consume_u8("name type");
     if (name_type & 0x80) break;  // no varuint7
@@ -2428,35 +2429,67 @@ LocalNames DecodeLocalNames(Vector<const uint8_t> module_bytes) {
     uint32_t name_payload_len = decoder.consume_u32v("name payload length");
     if (!decoder.checkAvailable(name_payload_len)) break;
 
-    if (name_type != NameSectionKindCode::kLocal) {
+    if (name_type != name_section_kind) {
       decoder.consume_bytes(name_payload_len, "name subsection payload");
       continue;
     }
 
-    uint32_t local_names_count = decoder.consume_u32v("local names count");
-    for (uint32_t i = 0; i < local_names_count; ++i) {
-      uint32_t func_index = decoder.consume_u32v("function index");
-      if (func_index > kMaxInt) continue;
-      std::vector<LocalName> names;
-      uint32_t num_names = decoder.consume_u32v("namings count");
-      for (uint32_t k = 0; k < num_names; ++k) {
-        uint32_t local_index = decoder.consume_u32v("local index");
-        WireBytesRef name = consume_string(&decoder, false, "local name");
+    uint32_t count = decoder.consume_u32v("names count");
+    for (uint32_t i = 0; i < count; i++) {
+      uint32_t index = decoder.consume_u32v("index");
+      WireBytesRef name = consume_string(&decoder, false, "name");
+      if (!decoder.ok()) break;
+      if (index > kMaxInt) continue;
+      if (!validate_utf8(&decoder, name)) continue;
+      names.emplace_back(static_cast<int>(index), name);
+    }
+  }
+  std::stable_sort(names.begin(), names.end(), NameAssoc::IndexLess{});
+  return NameMap{std::move(names)};
+}
+
+IndirectNameMap DecodeIndirectNameMap(Vector<const uint8_t> module_bytes,
+                                      uint8_t name_section_kind) {
+  Decoder decoder(module_bytes);
+  if (!FindNameSection(&decoder)) return IndirectNameMap{{}};
+
+  std::vector<IndirectNameMapEntry> entries;
+  while (decoder.ok() && decoder.more()) {
+    uint8_t name_type = decoder.consume_u8("name type");
+    if (name_type & 0x80) break;  // no varuint7
+
+    uint32_t name_payload_len = decoder.consume_u32v("name payload length");
+    if (!decoder.checkAvailable(name_payload_len)) break;
+
+    if (name_type != name_section_kind) {
+      decoder.consume_bytes(name_payload_len, "name subsection payload");
+      continue;
+    }
+
+    uint32_t outer_count = decoder.consume_u32v("outer count");
+    for (uint32_t i = 0; i < outer_count; ++i) {
+      uint32_t outer_index = decoder.consume_u32v("outer index");
+      if (outer_index > kMaxInt) continue;
+      std::vector<NameAssoc> names;
+      uint32_t inner_count = decoder.consume_u32v("inner count");
+      for (uint32_t k = 0; k < inner_count; ++k) {
+        uint32_t inner_index = decoder.consume_u32v("inner index");
+        WireBytesRef name = consume_string(&decoder, false, "name");
         if (!decoder.ok()) break;
-        if (local_index > kMaxInt) continue;
+        if (inner_index > kMaxInt) continue;
         // Ignore non-utf8 names.
         if (!validate_utf8(&decoder, name)) continue;
-        names.emplace_back(static_cast<int>(local_index), name);
+        names.emplace_back(static_cast<int>(inner_index), name);
       }
       // Use stable sort to get deterministic names (the first one declared)
       // even in the presence of duplicates.
-      std::stable_sort(names.begin(), names.end(), LocalName::IndexLess{});
-      functions.emplace_back(static_cast<int>(func_index), std::move(names));
+      std::stable_sort(names.begin(), names.end(), NameAssoc::IndexLess{});
+      entries.emplace_back(static_cast<int>(outer_index), std::move(names));
     }
   }
-  std::stable_sort(functions.begin(), functions.end(),
-                   LocalNamesPerFunction::FunctionIndexLess{});
-  return LocalNames{std::move(functions)};
+  std::stable_sort(entries.begin(), entries.end(),
+                   IndirectNameMapEntry::IndexLess{});
+  return IndirectNameMap{std::move(entries)};
 }
 
 #undef TRACE

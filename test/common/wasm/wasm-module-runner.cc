@@ -66,7 +66,8 @@ OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
         break;
       case kOptRef:
         arguments[i] =
-            WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
+            WasmValue(Handle<Object>::cast(isolate->factory()->null_value()),
+                      sig->GetParam(i));
         break;
       case kRef:
       case kRtt:

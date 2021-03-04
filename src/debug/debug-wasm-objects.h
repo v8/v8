@@ -36,6 +36,7 @@ class WasmValueObject : public JSObject {
  public:
   DECL_CAST(WasmValueObject)
 
+  DECL_ACCESSORS(type, String)
   DECL_ACCESSORS(value, Object)
 
   // Dispatched behavior.
@@ -44,20 +45,21 @@ class WasmValueObject : public JSObject {
 
 // Layout description.
 #define WASM_VALUE_FIELDS(V)   \
+  V(kTypeOffset, kTaggedSize)  \
   V(kValueOffset, kTaggedSize) \
   V(kSize, 0)
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, WASM_VALUE_FIELDS)
 #undef WASM_VALUE_FIELDS
 
   // Indices of in-object properties.
-  static constexpr int kValueIndex = 0;
+  static constexpr int kTypeIndex = 0;
+  static constexpr int kValueIndex = 1;
 
-  enum Type { kExternRef, kF32, kF64, kI32, kI64, kV128, kNumTypes };
-
-  static Handle<WasmValueObject> New(Isolate* isolate, Type type,
+  static Handle<WasmValueObject> New(Isolate* isolate, Handle<String> type,
                                      Handle<Object> value);
   static Handle<WasmValueObject> New(Isolate* isolate,
-                                     const wasm::WasmValue& value);
+                                     const wasm::WasmValue& value,
+                                     Handle<WasmModuleObject> module);
 
   OBJECT_CONSTRUCTORS(WasmValueObject, JSObject);
 };

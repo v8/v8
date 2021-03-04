@@ -91,21 +91,6 @@ class StackTransferRecipe {
     DCHECK(load_dst_regs_.is_empty());
   }
 
-#if DEBUG
-  bool CheckCompatibleStackSlotTypes(ValueKind dst, ValueKind src) {
-    if (is_object_reference(dst)) {
-      // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
-      // edges), we only care that pointer types stay amongst pointer types.
-      // It's fine if ref/optref overwrite each other.
-      DCHECK(is_object_reference(src));
-    } else {
-      // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
-      DCHECK_EQ(dst, src);
-    }
-    return true;  // Dummy so this can be called via DCHECK.
-  }
-#endif
-
   V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
     DCHECK(CheckCompatibleStackSlotTypes(dst.kind(), src.kind()));
     if (dst.is_reg()) {
@@ -1222,6 +1207,21 @@ std::ostream& operator<<(std::ostream& os, VarState slot) {
   }
   UNREACHABLE();
 }
+
+#if DEBUG
+bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
+  if (is_object_reference(a)) {
+    // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
+    // edges), we only care that pointer types stay amongst pointer types.
+    // It's fine if ref/optref overwrite each other.
+    DCHECK(is_object_reference(b));
+  } else {
+    // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
+    DCHECK_EQ(a, b);
+  }
+  return true;  // Dummy so this can be called via DCHECK.
+}
+#endif
 
 }  // namespace wasm
 }  // namespace internal

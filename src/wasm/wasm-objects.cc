@@ -1602,7 +1602,8 @@ wasm::WasmValue WasmInstanceObject::GetGlobalValue(
     uint32_t global_index = 0;         // The index into the buffer.
     std::tie(global_buffer, global_index) =
         GetGlobalBufferAndIndex(instance, global);
-    return wasm::WasmValue(handle(global_buffer->get(global_index), isolate));
+    return wasm::WasmValue(handle(global_buffer->get(global_index), isolate),
+                           global.type);
   }
   Address ptr = reinterpret_cast<Address>(GetGlobalStorage(instance, global));
   using wasm::Simd128;
@@ -1613,6 +1614,65 @@ wasm::WasmValue WasmInstanceObject::GetGlobalValue(
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
     default:
+      UNREACHABLE();
+  }
+}
+
+wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
+  wasm::ValueType field_type = type()->field(index);
+  int field_offset = WasmStruct::kHeaderSize + type()->field_offset(index);
+  Address field_address = GetFieldAddress(field_offset);
+  using wasm::Simd128;
+  switch (field_type.kind()) {
+#define CASE_TYPE(valuetype, ctype) \
+  case wasm::valuetype:             \
+    return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(field_address));
+    CASE_TYPE(kI8, int8_t)
+    CASE_TYPE(kI16, int16_t)
+    FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+    case wasm::kRef:
+    case wasm::kOptRef: {
+      Handle<Object> ref(TaggedField<Object>::load(*this, field_offset),
+                         GetIsolateFromWritableObject(*this));
+      return wasm::WasmValue(ref, field_type);
+    }
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+      // TODO(7748): Expose RTTs to DevTools.
+      UNIMPLEMENTED();
+    case wasm::kStmt:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+}
+
+wasm::WasmValue WasmArray::GetElement(uint32_t index) {
+  wasm::ValueType element_type = type()->element_type();
+  int element_offset =
+      WasmArray::kHeaderSize + index * element_type.element_size_bytes();
+  Address element_address = GetFieldAddress(element_offset);
+  using wasm::Simd128;
+  switch (element_type.kind()) {
+#define CASE_TYPE(value_type, ctype) \
+  case wasm::value_type:             \
+    return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(element_address));
+    CASE_TYPE(kI8, int8_t)
+    CASE_TYPE(kI16, int16_t)
+    FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+    case wasm::kRef:
+    case wasm::kOptRef: {
+      Handle<Object> ref(TaggedField<Object>::load(*this, element_offset),
+                         GetIsolateFromWritableObject(*this));
+      return wasm::WasmValue(ref, element_type);
+    }
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+      // TODO(7748): Expose RTTs to DevTools.
+      UNIMPLEMENTED();
+    case wasm::kStmt:
+    case wasm::kBottom:
       UNREACHABLE();
   }
 }

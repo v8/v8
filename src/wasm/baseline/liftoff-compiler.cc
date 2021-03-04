@@ -2846,7 +2846,7 @@ class LiftoffCompiler {
       ValueType type = index < static_cast<int>(__ num_locals())
                            ? decoder->local_type(index)
                            : decoder->stack_value(decoder_stack_index--)->type;
-      DCHECK_EQ(slot.kind(), type.kind());
+      DCHECK(CheckCompatibleStackSlotTypes(slot.kind(), type.kind()));
       value.type = type;
       switch (slot.loc()) {
         case kIntConst:

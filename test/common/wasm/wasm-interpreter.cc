@@ -1345,25 +1345,23 @@ class WasmInterpreterInternals {
     StackValue(WasmValue v, WasmInterpreterInternals* impl, sp_t index)
         : value_(v) {
       if (IsReferenceValue()) {
-        value_ = WasmValue(Handle<Object>::null());
+        value_ = WasmValue(Handle<Object>::null(), value_.type());
         int ref_index = static_cast<int>(index);
-        impl->reference_stack_->set(ref_index, *v.to_externref());
+        impl->reference_stack_->set(ref_index, *v.to_ref());
       }
     }
 
     WasmValue ExtractValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return value_;
-      DCHECK(value_.to_externref().is_null());
+      DCHECK(value_.to_ref().is_null());
       int ref_index = static_cast<int>(index);
       Isolate* isolate = impl->isolate_;
       Handle<Object> ref(impl->reference_stack_->get(ref_index), isolate);
       DCHECK(!ref->IsTheHole(isolate));
-      return WasmValue(ref);
+      return WasmValue(ref, value_.type());
     }
 
-    bool IsReferenceValue() const {
-      return value_.type().is_reference_to(HeapType::kExtern);
-    }
+    bool IsReferenceValue() const { return value_.type().is_reference(); }
 
     void ClearValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return;
@@ -1433,7 +1431,7 @@ class WasmInterpreterInternals {
         FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
         case kOptRef: {
-          val = WasmValue(isolate_->factory()->null_value());
+          val = WasmValue(isolate_->factory()->null_value(), p);
           break;
         }
         case kRef:  // TODO(7748): Implement.
@@ -1933,7 +1931,7 @@ class WasmInterpreterInternals {
             WasmTableObject::cast(instance_object_->tables().get(imm.index)),
             isolate_);
         auto delta = Pop().to<uint32_t>();
-        auto value = Pop().to_externref();
+        auto value = Pop().to_ref();
         int32_t result = WasmTableObject::Grow(isolate_, table, delta, value);
         Push(WasmValue(result));
         *len += imm.length;
@@ -1956,7 +1954,7 @@ class WasmInterpreterInternals {
                                                         code->at(pc + 2));
         HandleScope handle_scope(isolate_);
         auto count = Pop().to<uint32_t>();
-        auto value = Pop().to_externref();
+        auto value = Pop().to_ref();
         auto start = Pop().to<uint32_t>();
 
         auto table = handle(
@@ -3036,7 +3034,8 @@ class WasmInterpreterInternals {
     SimdLaneImmediate<Decoder::kNoValidation> lane_imm(
         decoder, code->at(pc + *len + imm.length));
 
-    Push(WasmValue(value.val[LANE(lane_imm.lane, value)]));
+    Push(WasmValue(
+        static_cast<result_type>(value.val[LANE(lane_imm.lane, value)])));
 
     // ExecuteStore will update the len, so pass it unchanged here.
     if (!ExecuteStore<result_type, load_type>(decoder, code, pc, len, rep,
@@ -3184,8 +3183,8 @@ class WasmInterpreterInternals {
             case HeapType::kExtern:
             case HeapType::kFunc:
             case HeapType::kAny: {
-              Handle<Object> externref = value.to_externref();
-              encoded_values->set(encoded_index++, *externref);
+              Handle<Object> ref = value.to_ref();
+              encoded_values->set(encoded_index++, *ref);
               break;
             }
             case HeapType::kBottom:
@@ -3306,9 +3305,9 @@ class WasmInterpreterInternals {
             case HeapType::kExtern:
             case HeapType::kFunc:
             case HeapType::kAny: {
-              Handle<Object> externref(encoded_values->get(encoded_index++),
-                                       isolate_);
-              value = WasmValue(externref);
+              Handle<Object> ref(encoded_values->get(encoded_index++),
+                                 isolate_);
+              value = WasmValue(ref, sig->GetParam(i));
               break;
             }
             default:
@@ -3555,7 +3554,8 @@ class WasmInterpreterInternals {
           HeapTypeImmediate<Decoder::kNoValidation> imm(
               WasmFeatures::All(), &decoder, code->at(pc + 1), module());
           len = 1 + imm.length;
-          Push(WasmValue(isolate_->factory()->null_value()));
+          Push(WasmValue(isolate_->factory()->null_value(),
+                         ValueType::Ref(imm.type, kNullable)));
           break;
         }
         case kExprRefFunc: {
@@ -3566,7 +3566,7 @@ class WasmInterpreterInternals {
           Handle<WasmExternalFunction> function =
               WasmInstanceObject::GetOrCreateWasmExternalFunction(
                   isolate_, instance_object_, imm.index);
-          Push(WasmValue(function));
+          Push(WasmValue(function, kWasmFuncRef));
           len = 1 + imm.length;
           break;
         }
@@ -3712,7 +3712,7 @@ class WasmInterpreterInternals {
               std::tie(global_buffer, global_index) =
                   WasmInstanceObject::GetGlobalBufferAndIndex(instance_object_,
                                                               global);
-              Handle<Object> ref = Pop().to_externref();
+              Handle<Object> ref = Pop().to_ref();
               global_buffer->set(global_index, *ref);
               break;
             }
@@ -3741,7 +3741,7 @@ class WasmInterpreterInternals {
           }
           Handle<Object> value =
               WasmTableObject::Get(isolate_, table, entry_index);
-          Push(WasmValue(value));
+          Push(WasmValue(value, table->type()));
           len = 1 + imm.length;
           break;
         }
@@ -3753,7 +3753,7 @@ class WasmInterpreterInternals {
               WasmTableObject::cast(instance_object_->tables().get(imm.index)),
               isolate_);
           uint32_t table_size = table->current_length();
-          Handle<Object> value = Pop().to_externref();
+          Handle<Object> value = Pop().to_ref();
           uint32_t entry_index = Pop().to<uint32_t>();
           if (entry_index >= table_size) {
             return DoTrap(kTrapTableOutOfBounds, pc);
@@ -3903,7 +3903,7 @@ class WasmInterpreterInternals {
         case kExprRefIsNull: {
           len = 1;
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-          uint32_t result = Pop().to_externref()->IsNull() ? 1 : 0;
+          uint32_t result = Pop().to_ref()->IsNull() ? 1 : 0;
           Push(WasmValue(result));
           break;
         }
@@ -4022,6 +4022,8 @@ class WasmInterpreterInternals {
 
   void Push(WasmValue val) {
     DCHECK_NE(kWasmStmt, val.type());
+    DCHECK_NE(kWasmI8, val.type());
+    DCHECK_NE(kWasmI16, val.type());
     DCHECK_LE(1, stack_limit_ - sp_);
     DCHECK(StackValue::IsClearedValue(this, StackHeight()));
     StackValue stack_value(val, this, StackHeight());
@@ -4116,7 +4118,7 @@ class WasmInterpreterInternals {
         case kRef:
         case kOptRef: {
           if (val.type().is_reference_to(HeapType::kExtern)) {
-            Handle<Object> ref = val.to_externref();
+            Handle<Object> ref = val.to_ref();
             if (ref->IsNull()) {
               PrintF("ref:null");
             } else {

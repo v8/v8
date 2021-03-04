@@ -914,6 +914,8 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
 
   inline ObjectSlot RawField(int raw_offset);
 
+  wasm::WasmValue GetFieldValue(uint32_t field_index);
+
   DECL_CAST(WasmStruct)
   DECL_PRINTER(WasmStruct)
 
@@ -927,6 +929,8 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
   static inline wasm::ArrayType* type(Map map);
   inline wasm::ArrayType* type() const;
   static inline wasm::ArrayType* GcSafeType(Map map);
+
+  wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Map map, int length);
   static inline int GcSafeSizeFor(Map map, int length);

@@ -26,7 +26,7 @@ class WasmFrame;
 namespace wasm {
 
 class DebugInfoImpl;
-class LocalNames;
+class IndirectNameMap;
 class NativeModule;
 class WasmCode;
 class WireBytesRef;
@@ -171,13 +171,13 @@ class V8_EXPORT_PRIVATE DebugInfo {
   // the {WasmDebugBreak} frame (if any).
   int GetNumLocals(Address pc);
   WasmValue GetLocalValue(int local, Address pc, Address fp,
-                          Address debug_break_fp);
+                          Address debug_break_fp, Isolate* isolate);
   int GetStackDepth(Address pc);
 
   const wasm::WasmFunction& GetFunctionAtAddress(Address pc);
 
   WasmValue GetStackValue(int index, Address pc, Address fp,
-                          Address debug_break_fp);
+                          Address debug_break_fp, Isolate* isolate);
 
   // Returns the name of the entity (with the given |index| and |kind|) derived
   // from the exports table. If the entity is not exported, an empty reference
@@ -190,7 +190,9 @@ class V8_EXPORT_PRIVATE DebugInfo {
   std::pair<WireBytesRef, WireBytesRef> GetImportName(ImportExportKindCode kind,
                                                       uint32_t index);
 
+  WireBytesRef GetTypeName(int type_index);
   WireBytesRef GetLocalName(int func_index, int local_index);
+  WireBytesRef GetFieldName(int struct_index, int field_index);
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 

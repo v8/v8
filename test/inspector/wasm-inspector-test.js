@@ -51,12 +51,13 @@ WasmInspectorTest.dumpScopeProperties = async function(message) {
 };
 
 WasmInspectorTest.getWasmValue = async function(value) {
-  let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
+  let msg = await Protocol.Runtime.getProperties({ objectId: value.objectId });
   printIfFailure(msg);
   const value_type = msg.result.result.find(({name}) => name === 'type');
   const value_value = msg.result.result.find(({name}) => name === 'value');
   return `${
       value_value.value.unserializableValue ??
+      value_value.value.description ??
       value_value.value.value} (${value_type.value.value})`;
 };
 

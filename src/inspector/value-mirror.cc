@@ -305,6 +305,13 @@ String16 descriptionForCollection(v8::Isolate* isolate,
   return String16::concat(className, '(', String16::fromInteger(length), ')');
 }
 
+String16 descriptionForWasmValueObject(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::debug::WasmValueObject> object) {
+  v8::Isolate* isolate = context->GetIsolate();
+  return toProtocolString(isolate, object->type());
+}
+
 String16 descriptionForEntry(v8::Local<v8::Context> context,
                              v8::Local<v8::Object> object) {
   v8::Isolate* isolate = context->GetIsolate();
@@ -1701,7 +1708,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         value.As<v8::debug::WasmValueObject>();
     return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Wasmvalue,
-        descriptionForObject(isolate, object));
+        descriptionForWasmValueObject(context, object));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   V8InternalValueType internalType =
