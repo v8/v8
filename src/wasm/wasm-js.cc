@@ -2238,19 +2238,26 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                         v8_str(isolate, "WebAssembly.Global"), ro_attributes);
 
   // Setup Exception
+  Handle<String> exception_name = v8_str(isolate, "Exception");
+  Handle<JSFunction> exception_constructor =
+      CreateFunc(isolate, exception_name, WebAssemblyException, true,
+                 SideEffectType::kHasSideEffect);
+  exception_constructor->shared().set_length(1);
   if (enabled_features.has_eh()) {
-    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
-        isolate, webassembly, "Exception", WebAssemblyException);
-    context->set_wasm_exception_constructor(*exception_constructor);
-    SetDummyInstanceTemplate(isolate, exception_constructor);
-    JSFunction::EnsureHasInitialMap(exception_constructor);
-    Handle<JSObject> exception_proto(
-        JSObject::cast(exception_constructor->instance_prototype()), isolate);
-    Handle<Map> exception_map = isolate->factory()->NewMap(
-        i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
-    JSFunction::SetInitialMap(exception_constructor, exception_map,
-                              exception_proto);
+    JSObject::AddProperty(isolate, webassembly, exception_name,
+                          exception_constructor, DONT_ENUM);
   }
+  // Install the constructor on the context unconditionally so that it is also
+  // available when the feature is enabled via the origin trial.
+  context->set_wasm_exception_constructor(*exception_constructor);
+  SetDummyInstanceTemplate(isolate, exception_constructor);
+  JSFunction::EnsureHasInitialMap(exception_constructor);
+  Handle<JSObject> exception_proto(
+      JSObject::cast(exception_constructor->instance_prototype()), isolate);
+  Handle<Map> exception_map = isolate->factory()->NewMap(
+      i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
+  JSFunction::SetInitialMap(exception_constructor, exception_map,
+                            exception_proto);
 
   // Setup Function
   if (enabled_features.has_type_reflection()) {
