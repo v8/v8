@@ -4396,8 +4396,30 @@ class LiftoffCompiler {
   }
 
   void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
-                 Value* result) {
-    unsupported(decoder, kRefTypes, "table.size");
+                 Value*) {
+    // We have to look up instance->tables[table_index].length.
+
+    LiftoffRegList pinned;
+    // Get the number of calls array address.
+    Register tables = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(tables, Tables, pinned);
+
+    Register table = tables;
+    __ LoadTaggedPointer(
+        table, tables, no_reg,
+        ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), pinned);
+
+    int length_field_size = WasmTableObject::kCurrentLengthOffsetEnd -
+                            WasmTableObject::kCurrentLengthOffset + 1;
+
+    Register result = table;
+    __ Load(LiftoffRegister(result), table, no_reg,
+            wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset),
+            length_field_size == 4 ? LoadType::kI32Load : LoadType::kI64Load,
+            pinned);
+
+    __ SmiUntag(result);
+    __ PushRegister(kI32, LiftoffRegister(result));
   }
 
   void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
