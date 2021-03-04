@@ -580,29 +580,29 @@ namespace internal {
   F(TypedArraySet, 2, 1)                    \
   F(TypedArraySortFast, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F, I)   \
-  F(ThrowWasmError, 1, 1)               \
-  F(ThrowWasmStackOverflow, 0, 1)       \
-  F(WasmI32AtomicWait, 4, 1)            \
-  F(WasmI64AtomicWait, 5, 1)            \
-  F(WasmAtomicNotify, 3, 1)             \
-  F(WasmMemoryGrow, 2, 1)               \
-  F(WasmStackGuard, 0, 1)               \
-  F(WasmThrow, 2, 1)                    \
-  F(WasmReThrow, 1, 1)                  \
-  F(WasmThrowJSTypeError, 0, 1)         \
-  F(WasmRefFunc, 1, 1)                  \
-  F(WasmFunctionTableGet, 3, 1)         \
-  F(WasmFunctionTableSet, 4, 1)         \
-  F(WasmTableInit, 6, 1)                \
-  F(WasmTableCopy, 6, 1)                \
-  F(WasmTableGrow, 3, 1)                \
-  F(WasmTableFill, 4, 1)                \
-  F(WasmIsValidRefValue, 3, 1)          \
-  F(WasmCompileLazy, 2, 1)              \
-  F(WasmCompileWrapper, 2, 1)           \
-  F(WasmTriggerTierUp, 1, 1)            \
-  F(WasmDebugBreak, 0, 1)               \
+#define FOR_EACH_INTRINSIC_WASM(F, I) \
+  F(ThrowWasmError, 1, 1)             \
+  F(ThrowWasmStackOverflow, 0, 1)     \
+  F(WasmI32AtomicWait, 4, 1)          \
+  F(WasmI64AtomicWait, 5, 1)          \
+  F(WasmAtomicNotify, 3, 1)           \
+  F(WasmMemoryGrow, 2, 1)             \
+  F(WasmStackGuard, 0, 1)             \
+  F(WasmThrow, 2, 1)                  \
+  F(WasmReThrow, 1, 1)                \
+  F(WasmThrowJSTypeError, 0, 1)       \
+  F(WasmRefFunc, 1, 1)                \
+  F(WasmFunctionTableGet, 3, 1)       \
+  F(WasmFunctionTableSet, 4, 1)       \
+  F(WasmTableInit, 6, 1)              \
+  F(WasmTableCopy, 6, 1)              \
+  F(WasmTableGrow, 3, 1)              \
+  F(WasmTableFill, 5, 1)              \
+  F(WasmIsValidRefValue, 3, 1)        \
+  F(WasmCompileLazy, 2, 1)            \
+  F(WasmCompileWrapper, 2, 1)         \
+  F(WasmTriggerTierUp, 1, 1)          \
+  F(WasmDebugBreak, 0, 1)             \
   F(WasmAllocateRtt, 2, 1)
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I)                             \

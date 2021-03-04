@@ -67,6 +67,7 @@ struct WasmModule;
   V(WasmMemoryGrow)                      \
   V(WasmTableInit)                       \
   V(WasmTableCopy)                       \
+  V(WasmTableFill)                       \
   V(WasmTableGet)                        \
   V(WasmTableSet)                        \
   V(WasmStackGuard)                      \

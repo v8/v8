@@ -5536,13 +5536,10 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
 
 Node* WasmGraphBuilder::TableFill(uint32_t table_index, Node* start,
                                   Node* value, Node* count) {
-  Node* args[] = {
-      gasm_->NumberConstant(table_index),
-      BuildConvertUint32ToSmiWithSaturation(start, FLAG_wasm_max_table_size),
-      value,
-      BuildConvertUint32ToSmiWithSaturation(count, FLAG_wasm_max_table_size)};
-
-  return BuildCallToRuntime(Runtime::kWasmTableFill, args, arraysize(args));
+  return gasm_->CallRuntimeStub(
+      wasm::WasmCode::kWasmTableFill,
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), start,
+      count, value);
 }
 
 Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
