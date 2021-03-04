@@ -188,6 +188,7 @@ namespace compiler {
   V(X64F32x4RecipApprox)                  \
   V(X64F32x4RecipSqrtApprox)              \
   V(X64F32x4Add)                          \
+  V(X64F32x4AddHoriz)                     \
   V(X64F32x4Sub)                          \
   V(X64F32x4Mul)                          \
   V(X64F32x4Div)                          \
@@ -235,6 +236,7 @@ namespace compiler {
   V(X64I32x4Shl)                          \
   V(X64I32x4ShrS)                         \
   V(X64I32x4Add)                          \
+  V(X64I32x4AddHoriz)                     \
   V(X64I32x4Sub)                          \
   V(X64I32x4Mul)                          \
   V(X64I32x4MinS)                         \
@@ -272,6 +274,7 @@ namespace compiler {
   V(X64I16x8SConvertI32x4)                \
   V(X64I16x8Add)                          \
   V(X64I16x8AddSatS)                      \
+  V(X64I16x8AddHoriz)                     \
   V(X64I16x8Sub)                          \
   V(X64I16x8SubSatS)                      \
   V(X64I16x8Mul)                          \

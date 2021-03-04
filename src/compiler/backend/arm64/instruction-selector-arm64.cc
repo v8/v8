@@ -3465,6 +3465,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Lt, kArm64F64x2Lt)                             \
   V(F64x2Le, kArm64F64x2Le)                             \
   V(F32x4Add, kArm64F32x4Add)                           \
+  V(F32x4AddHoriz, kArm64F32x4AddHoriz)                 \
   V(F32x4Sub, kArm64F32x4Sub)                           \
   V(F32x4Div, kArm64F32x4Div)                           \
   V(F32x4Min, kArm64F32x4Min)                           \
@@ -3479,6 +3480,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Ne, kArm64I64x2Ne)                             \
   V(I64x2GtS, kArm64I64x2GtS)                           \
   V(I64x2GeS, kArm64I64x2GeS)                           \
+  V(I32x4AddHoriz, kArm64I32x4AddHoriz)                 \
   V(I32x4Mul, kArm64I32x4Mul)                           \
   V(I32x4MinS, kArm64I32x4MinS)                         \
   V(I32x4MaxS, kArm64I32x4MaxS)                         \
@@ -3493,6 +3495,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)               \
   V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)       \
   V(I16x8AddSatS, kArm64I16x8AddSatS)                   \
+  V(I16x8AddHoriz, kArm64I16x8AddHoriz)                 \
   V(I16x8SubSatS, kArm64I16x8SubSatS)                   \
   V(I16x8Mul, kArm64I16x8Mul)                           \
   V(I16x8MinS, kArm64I16x8MinS)                         \

@@ -178,6 +178,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F32x4RecipApprox:
     case kArm64F32x4RecipSqrtApprox:
     case kArm64F32x4Add:
+    case kArm64F32x4AddHoriz:
     case kArm64F32x4Sub:
     case kArm64F32x4Mul:
     case kArm64F32x4MulElement:
@@ -221,6 +222,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I32x4Shl:
     case kArm64I32x4ShrS:
     case kArm64I32x4Add:
+    case kArm64I32x4AddHoriz:
     case kArm64I32x4Sub:
     case kArm64I32x4Mul:
     case kArm64I32x4Mla:
@@ -252,6 +254,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I16x8SConvertI32x4:
     case kArm64I16x8Add:
     case kArm64I16x8AddSatS:
+    case kArm64I16x8AddHoriz:
     case kArm64I16x8Sub:
     case kArm64I16x8SubSatS:
     case kArm64I16x8Mul:

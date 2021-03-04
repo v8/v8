@@ -797,6 +797,7 @@
   V(F32x4RecipApprox)           \
   V(F32x4RecipSqrtApprox)       \
   V(F32x4Add)                   \
+  V(F32x4AddHoriz)              \
   V(F32x4Sub)                   \
   V(F32x4Mul)                   \
   V(F32x4Div)                   \
@@ -853,6 +854,7 @@
   V(I32x4Shl)                   \
   V(I32x4ShrS)                  \
   V(I32x4Add)                   \
+  V(I32x4AddHoriz)              \
   V(I32x4Sub)                   \
   V(I32x4Mul)                   \
   V(I32x4MinS)                  \
@@ -896,6 +898,7 @@
   V(I16x8SConvertI32x4)         \
   V(I16x8Add)                   \
   V(I16x8AddSatS)               \
+  V(I16x8AddHoriz)              \
   V(I16x8Sub)                   \
   V(I16x8SubSatS)               \
   V(I16x8Mul)                   \

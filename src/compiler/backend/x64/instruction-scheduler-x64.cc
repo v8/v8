@@ -164,6 +164,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4Neg:
     case kX64F32x4Sqrt:
     case kX64F32x4Add:
+    case kX64F32x4AddHoriz:
     case kX64F32x4Sub:
     case kX64F32x4Mul:
     case kX64F32x4Div:
@@ -211,6 +212,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I32x4Shl:
     case kX64I32x4ShrS:
     case kX64I32x4Add:
+    case kX64I32x4AddHoriz:
     case kX64I32x4Sub:
     case kX64I32x4Mul:
     case kX64I32x4MinS:
@@ -248,6 +250,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I16x8SConvertI32x4:
     case kX64I16x8Add:
     case kX64I16x8AddSatS:
+    case kX64I16x8AddHoriz:
     case kX64I16x8Sub:
     case kX64I16x8SubSatS:
     case kX64I16x8Mul:
