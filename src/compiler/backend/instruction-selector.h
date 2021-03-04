@@ -652,6 +652,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
 
+#if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
   void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
@@ -659,6 +660,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
   void SwapShuffleInputs(Node* node);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================
 

@@ -170,6 +170,7 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
     case CodeKind::BYTECODE_HANDLER:
     case CodeKind::BUILTIN:
       return StackFrame::STUB;
+#if V8_ENABLE_WEBASSEMBLY
     case CodeKind::WASM_FUNCTION:
       return StackFrame::WASM;
     case CodeKind::WASM_TO_CAPI_FUNCTION:
@@ -180,6 +181,7 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
       return StackFrame::WASM_TO_JS;
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       UNIMPLEMENTED();
       return StackFrame::NONE;

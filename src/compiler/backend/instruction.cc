@@ -17,7 +17,10 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -1022,7 +1025,9 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
       return info.frame_size_in_bytes();
     }
     case FrameStateType::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
       const RegisterConfiguration* config = RegisterConfiguration::Default();
@@ -1077,7 +1082,9 @@ size_t FrameStateDescriptor::GetHeight() const {
     case FrameStateType::kUnoptimizedFunction:
       return locals_count();  // The accumulator is *not* included.
     case FrameStateType::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+#endif
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).
       return parameters_count();
@@ -1129,6 +1136,7 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
   return count;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
@@ -1139,6 +1147,7 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
                            parameters_count, locals_count, stack_count,
                            shared_info, outer_state),
       return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
   return os << rpo.ToSize();

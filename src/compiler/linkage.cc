@@ -585,10 +585,12 @@ bool Linkage::ParameterHasSecondaryLocation(int index) const {
     return IsTaggedReg(loc, kJSFunctionRegister) ||
            IsTaggedReg(loc, kContextRegister);
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (incoming_->IsWasmFunctionCall()) {
     LinkageLocation loc = GetParameterLocation(index);
     return IsTaggedReg(loc, kWasmInstanceRegister);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return false;
 }
 
@@ -596,7 +598,6 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
   // TODO(titzer): these constants are necessary due to offset/slot# mismatch
   static const int kJSContextSlot = 2 + StandardFrameConstants::kCPSlotCount;
   static const int kJSFunctionSlot = 3 + StandardFrameConstants::kCPSlotCount;
-  static const int kWasmInstanceSlot = 3 + StandardFrameConstants::kCPSlotCount;
 
   DCHECK(ParameterHasSecondaryLocation(index));
   LinkageLocation loc = GetParameterLocation(index);
@@ -612,11 +613,14 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
                                                  MachineType::AnyTagged());
     }
   }
+#if V8_ENABLE_WEBASSEMBLY
+  static const int kWasmInstanceSlot = 3 + StandardFrameConstants::kCPSlotCount;
   if (incoming_->IsWasmFunctionCall()) {
     DCHECK(IsTaggedReg(loc, kWasmInstanceRegister));
     return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceSlot,
                                                MachineType::AnyTagged());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   UNREACHABLE();
   return LinkageLocation::ForCalleeFrameSlot(0, MachineType::AnyTagged());
 }

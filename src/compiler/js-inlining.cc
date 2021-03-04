@@ -81,6 +81,7 @@ class JSCallAccessor {
   Node* call_;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 Reduction JSInliner::InlineJSWasmCall(Node* call, Node* new_target,
                                       Node* context, Node* frame_state,
                                       StartNode start, Node* end,
@@ -92,6 +93,7 @@ Reduction JSInliner::InlineJSWasmCall(Node* call, Node* new_target,
       uncaught_subcalls,
       static_cast<int>(n.Parameters().signature()->parameter_count()));
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
                                 Node* frame_state, StartNode start, Node* end,
@@ -384,6 +386,7 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   // Create the subgraph for the inlinee.
   Node* start_node;
@@ -455,6 +458,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   return InlineJSWasmCall(node, new_target, context, frame_state, start, end,
                           exception_target, uncaught_subcalls);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Reduction JSInliner::ReduceJSCall(Node* node) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));

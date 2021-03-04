@@ -71,12 +71,12 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   /* IsCallWithDescriptorFlags fast */                                     \
   V(ArchTailCallCodeObject)                                                \
   V(ArchTailCallAddress)                                                   \
-  V(ArchTailCallWasm)                                                      \
+  IF_WASM(V, ArchTailCallWasm)                                             \
   /* Update IsTailCall if further TailCall opcodes are added */            \
                                                                            \
   V(ArchCallCodeObject)                                                    \
   V(ArchCallJSFunction)                                                    \
-  V(ArchCallWasmFunction)                                                  \
+  IF_WASM(V, ArchCallWasmFunction)                                         \
   V(ArchCallBuiltinPointer)                                                \
   /* Update IsCallWithDescriptorFlags if further Call opcodes are added */ \
                                                                            \

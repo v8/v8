@@ -22,7 +22,10 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
@@ -2425,7 +2428,11 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
   // DoubleToI preserves any registers it needs to clobber.
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
+#if V8_ENABLE_WEBASSEMBLY
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+#else
+    UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else if (options().inline_offheap_trampolines) {
     CallBuiltin(Builtins::kDoubleToI);
   } else {
@@ -2457,7 +2464,11 @@ void TurboAssembler::Prologue() {
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   UseScratchRegisterScope temps(this);
 
-  if (type == StackFrame::INTERNAL || type == StackFrame::WASM_DEBUG_BREAK) {
+  if (type == StackFrame::INTERNAL
+#if V8_ENABLE_WEBASSEMBLY
+      || type == StackFrame::WASM_DEBUG_BREAK
+#endif  // V8_ENABLE_WEBASSEMBLY
+  ) {
     Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push<TurboAssembler::kSignLR>(lr, fp, type_reg, padreg);
@@ -2468,6 +2479,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // sp[2] : fp
     // sp[1] : type
     // sp[0] : for alignment
+#if V8_ENABLE_WEBASSEMBLY
   } else if (type == StackFrame::WASM ||
              type == StackFrame::WASM_COMPILE_LAZY ||
              type == StackFrame::WASM_EXIT) {
@@ -2480,6 +2492,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // sp[2] : fp
     // sp[1] : type
     // sp[0] : for alignment
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else if (type == StackFrame::CONSTRUCT) {
     Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
@@ -3430,6 +3443,7 @@ void TurboAssembler::RestoreFPAndLR() {
 #endif
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void TurboAssembler::StoreReturnAddressInWasmExitFrame(Label* return_location) {
   UseScratchRegisterScope temps(this);
   temps.Exclude(x16, x17);
@@ -3440,6 +3454,7 @@ void TurboAssembler::StoreReturnAddressInWasmExitFrame(Label* return_location) {
 #endif
   Str(x17, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void TurboAssembler::I64x2BitMask(Register dst, VRegister src) {
   UseScratchRegisterScope scope(this);

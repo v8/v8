@@ -3429,8 +3429,9 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-namespace {
+#if V8_ENABLE_WEBASSEMBLY
 
+namespace {
 bool CanInlineJSToWasmCall(const wasm::FunctionSig* wasm_signature) {
   DCHECK(FLAG_turbo_inline_js_wasm_calls);
   if (wasm_signature->return_count() > 1) {
@@ -3449,7 +3450,6 @@ bool CanInlineJSToWasmCall(const wasm::FunctionSig* wasm_signature) {
 
   return true;
 }
-
 }  // namespace
 
 Reduction JSCallReducer::ReduceCallWasmFunction(
@@ -3500,6 +3500,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
   NodeProperties::ChangeOp(node, op);
   return Changed(node);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 namespace {
@@ -4625,9 +4626,11 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     return ReduceCallApiFunction(node, shared);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if ((flags() & kInlineJSToWasmCalls) && shared.wasm_function_signature()) {
     return ReduceCallWasmFunction(node, shared);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   return NoChange();
 }

@@ -66,8 +66,10 @@ enum class FrameStateType {
   kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
   kConstructStub,                  // Represents a ConstructStubFrame.
   kBuiltinContinuation,            // Represents a continuation to a stub.
+#if V8_ENABLE_WEBASSEMBLY          // ↓ WebAssembly only
   kJSToWasmBuiltinContinuation,    // Represents a lazy deopt continuation for a
                                    // JS to Wasm call.
+#endif                             // ↑ WebAssembly only
   kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
                                    // builtin.
   kJavaScriptBuiltinContinuationWithCatch  // Represents a continuation to a
@@ -170,9 +172,11 @@ FrameState CreateStubBuiltinContinuationFrameState(
     ContinuationFrameStateMode mode,
     const wasm::FunctionSig* signature = nullptr);
 
+#if V8_ENABLE_WEBASSEMBLY
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
     const wasm::FunctionSig* signature);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,

@@ -19,7 +19,10 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/deoptimizer/deoptimizer.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -2919,10 +2922,15 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     case CallDescriptor::kCallJSFunction:
       opcode = EncodeCallDescriptorFlags(kArchCallJSFunction, flags);
       break;
+    // TODO(clemensb): Remove these call descriptor kinds.
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
+#if V8_ENABLE_WEBASSEMBLY
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunction, flags);
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
       break;
     case CallDescriptor::kCallBuiltinPointer:
       opcode = EncodeCallDescriptorFlags(kArchCallBuiltinPointer, flags);
@@ -2982,10 +2990,12 @@ void InstructionSelector::VisitTailCall(Node* node) {
       DCHECK(!caller->IsJSFunctionCall());
       opcode = kArchTailCallAddress;
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmFunction:
       DCHECK(!caller->IsJSFunctionCall());
       opcode = kArchTailCallWasm;
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       UNREACHABLE();
   }
@@ -3255,6 +3265,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
         GetFrameStateDescriptorInternal(zone, state.outer_frame_state());
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if (state_info.type() == FrameStateType::kJSToWasmBuiltinContinuation) {
     auto function_info = static_cast<const JSToWasmFrameStateFunctionInfo*>(
         state_info.function_info());
@@ -3263,6 +3274,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
         state_info.state_combine(), parameters, locals, stack,
         state_info.shared_info(), outer_state, function_info->signature());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
@@ -3281,6 +3293,7 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
   return desc;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
                                               bool* is_swizzle) {
   // Get raw shuffle indices.
@@ -3308,6 +3321,7 @@ void InstructionSelector::SwapShuffleInputs(Node* node) {
   node->ReplaceInput(0, input1);
   node->ReplaceInput(1, input0);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // static
 bool InstructionSelector::NeedsPoisoning(IsSafetyCheck safety_check) const {

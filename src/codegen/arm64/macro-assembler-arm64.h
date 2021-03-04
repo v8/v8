@@ -1374,7 +1374,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // authenticate the LR when pointer authentication is enabled.
   void RestoreFPAndLR();
 
+#if V8_ENABLE_WEBASSEMBLY
   void StoreReturnAddressInWasmExitFrame(Label* return_location);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Wasm SIMD helpers. These instructions don't have direct lowering to native
   // instructions. These helpers allow us to define the optimal code sequence,

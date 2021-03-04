@@ -319,12 +319,15 @@ namespace {
 
 void RecordUnoptimizedCompilationStats(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared_info) {
-  int code_size;
-  if (shared_info->HasBytecodeArray()) {
-    code_size = shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata();
-  } else {
-    code_size = shared_info->asm_wasm_data().Size();
-  }
+#if V8_ENABLE_WEBASSEMBLY
+  int code_size =
+      shared_info->HasBytecodeArray()
+          ? shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata()
+          : shared_info->asm_wasm_data().Size();
+#else
+  int code_size =
+      shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Counters* counters = isolate->counters();
   // TODO(4280): Rename counters from "baseline" to "unoptimized" eventually.
@@ -574,12 +577,16 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
         isolate, compilation_info->feedback_vector_spec());
     shared_info->set_feedback_metadata(*feedback_metadata);
   } else {
+#if V8_ENABLE_WEBASSEMBLY
     DCHECK(compilation_info->has_asm_wasm_data());
     // We should only have asm/wasm data when finalizing on the main thread.
     DCHECK((std::is_same<LocalIsolate, Isolate>::value));
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
     shared_info->set_feedback_metadata(
         ReadOnlyRoots(isolate).empty_feedback_metadata());
+#else
+    UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
 

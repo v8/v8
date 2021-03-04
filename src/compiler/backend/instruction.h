@@ -924,7 +924,11 @@ class V8_EXPORT_PRIVATE Instruction final {
   bool IsJump() const { return arch_opcode() == ArchOpcode::kArchJmp; }
   bool IsRet() const { return arch_opcode() == ArchOpcode::kArchRet; }
   bool IsTailCall() const {
+#if V8_ENABLE_WEBASSEMBLY
     return arch_opcode() <= ArchOpcode::kArchTailCallWasm;
+#else
+    return arch_opcode() <= ArchOpcode::kArchTailCallAddress;
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
   bool IsThrow() const {
     return arch_opcode() == ArchOpcode::kArchThrowTerminator;
@@ -1319,7 +1323,9 @@ class FrameStateDescriptor : public ZoneObject {
   bool HasContext() const {
     return FrameStateFunctionInfo::IsJSFunctionType(type_) ||
            type_ == FrameStateType::kBuiltinContinuation ||
+#if V8_ENABLE_WEBASSEMBLY
            type_ == FrameStateType::kJSToWasmBuiltinContinuation ||
+#endif  // V8_ENABLE_WEBASSEMBLY
            type_ == FrameStateType::kConstructStub;
   }
 
@@ -1359,6 +1365,7 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateDescriptor* const outer_state_;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
  public:
   JSToWasmFrameStateDescriptor(Zone* zone, FrameStateType type,
@@ -1375,6 +1382,7 @@ class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
  private:
   base::Optional<wasm::ValueKind> return_kind_;
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // A deoptimization entry is a pair of the reason why we deoptimize and the
 // frame state descriptor that we have to go back to.

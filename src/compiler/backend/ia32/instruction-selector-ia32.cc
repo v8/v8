@@ -2734,6 +2734,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 // Returns true if shuffle can be decomposed into two 16x4 half shuffles
@@ -3023,6 +3024,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   }
   Emit(opcode, 1, &dst, input_count, inputs, temp_count, temps);
 }
+#else
+void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   IA32OperandGenerator g(this);

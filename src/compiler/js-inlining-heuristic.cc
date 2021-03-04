@@ -138,11 +138,15 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 }
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
+#if V8_ENABLE_WEBASSEMBLY
   if (mode() == kWasmOnly) {
-    return (node->opcode() == IrOpcode::kJSWasmCall)
-               ? inliner_.ReduceJSWasmCall(node)
-               : NoChange();
+    if (node->opcode() == IrOpcode::kJSWasmCall) {
+      return inliner_.ReduceJSWasmCall(node);
+    }
+    return NoChange();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   DCHECK_EQ(mode(), kJSOnly);
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
