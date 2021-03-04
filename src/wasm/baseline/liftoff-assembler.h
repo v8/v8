@@ -1563,27 +1563,49 @@ class LiftoffStackSlots {
   LiftoffStackSlots& operator=(const LiftoffStackSlots&) = delete;
 
   void Add(const LiftoffAssembler::VarState& src, uint32_t src_offset,
-           RegPairHalf half) {
-    slots_.emplace_back(src, src_offset, half);
+           RegPairHalf half, int dst_slot) {
+    DCHECK_LE(0, dst_slot);
+    slots_.emplace_back(src, src_offset, half, dst_slot);
   }
-  void Add(const LiftoffAssembler::VarState& src) { slots_.emplace_back(src); }
 
-  void Reverse() { std::reverse(slots_.begin(), slots_.end()); }
+  void Add(const LiftoffAssembler::VarState& src, int dst_slot) {
+    DCHECK_LE(0, dst_slot);
+    slots_.emplace_back(src, dst_slot);
+  }
 
-  inline void Construct();
+  void SortInPushOrder() {
+    std::sort(slots_.begin(), slots_.end(), [](const Slot& a, const Slot& b) {
+      return a.dst_slot_ > b.dst_slot_;
+    });
+  }
+
+  inline void Construct(int param_slots);
 
  private:
+  // A logical slot, which may occupy multiple stack slots.
   struct Slot {
     Slot(const LiftoffAssembler::VarState& src, uint32_t src_offset,
-         RegPairHalf half)
-        : src_(src), src_offset_(src_offset), half_(half) {}
-    explicit Slot(const LiftoffAssembler::VarState& src)
-        : src_(src), half_(kLowWord) {}
+         RegPairHalf half, int dst_slot)
+        : src_(src),
+          src_offset_(src_offset),
+          half_(half),
+          dst_slot_(dst_slot) {}
+    Slot(const LiftoffAssembler::VarState& src, int dst_slot)
+        : src_(src), half_(kLowWord), dst_slot_(dst_slot) {}
 
     LiftoffAssembler::VarState src_;
     uint32_t src_offset_ = 0;
     RegPairHalf half_;
+    int dst_slot_ = 0;
   };
+
+  // Returns the size in bytes of the given logical slot.
+  static int SlotSizeInBytes(const Slot& slot) {
+    const ValueKind kind = slot.src_.kind();
+    if (kind == kS128) return kSimd128Size;
+    if (kind == kF64) return kDoubleSize;
+    return kSystemPointerSize;
+  }
 
   base::SmallVector<Slot, 8> slots_;
   LiftoffAssembler* const asm_;

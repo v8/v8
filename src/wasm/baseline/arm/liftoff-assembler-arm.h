@@ -4229,8 +4229,15 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(sp, sp, Operand(size));
 }
 
-void LiftoffStackSlots::Construct() {
+void LiftoffStackSlots::Construct(int param_slots) {
+  DCHECK_LT(0, slots_.size());
+  SortInPushOrder();
+  int last_stack_slot = param_slots;
   for (auto& slot : slots_) {
+    const int stack_slot = slot.dst_slot_;
+    int stack_decrement = (last_stack_slot - stack_slot) * kSystemPointerSize;
+    DCHECK_LT(0, stack_decrement);
+    last_stack_slot = stack_slot;
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack: {
@@ -4242,6 +4249,7 @@ void LiftoffStackSlots::Construct() {
           case kF32:
           case kRef:
           case kOptRef: {
+            asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
             asm_->ldr(scratch,
@@ -4249,12 +4257,14 @@ void LiftoffStackSlots::Construct() {
             asm_->Push(scratch);
           } break;
           case kF64: {
+            asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
             UseScratchRegisterScope temps(asm_);
             DwVfpRegister scratch = temps.AcquireD();
             asm_->vldr(scratch, liftoff::GetStackSlot(slot.src_offset_));
             asm_->vpush(scratch);
           } break;
           case kS128: {
+            asm_->AllocateStackSpace(stack_decrement - kSimd128Size);
             MemOperand mem_op = liftoff::GetStackSlot(slot.src_offset_);
             UseScratchRegisterScope temps(asm_);
             Register addr = liftoff::CalculateActualAddress(
@@ -4269,7 +4279,9 @@ void LiftoffStackSlots::Construct() {
         }
         break;
       }
-      case LiftoffAssembler::VarState::kRegister:
+      case LiftoffAssembler::VarState::kRegister: {
+        int pushed_bytes = SlotSizeInBytes(slot);
+        asm_->AllocateStackSpace(stack_decrement - pushed_bytes);
         switch (src.kind()) {
           case kI64: {
             LiftoffRegister reg =
@@ -4294,7 +4306,9 @@ void LiftoffStackSlots::Construct() {
             UNREACHABLE();
         }
         break;
+      }
       case LiftoffAssembler::VarState::kIntConst: {
+        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         DCHECK(src.kind() == kI32 || src.kind() == kI64);
         UseScratchRegisterScope temps(asm_);
         Register scratch = temps.Acquire();
