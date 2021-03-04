@@ -2856,7 +2856,98 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 }
 
 void LiftoffStackSlots::Construct() {
-  asm_->bailout(kUnsupportedArchitecture, "LiftoffStackSlots::Construct");
+  for (auto& slot : slots_) {
+    const LiftoffAssembler::VarState& src = slot.src_;
+    switch (src.loc()) {
+      case LiftoffAssembler::VarState::kStack: {
+        switch (src.kind()) {
+          case kI32:
+          case kRef:
+          case kOptRef:
+          case kRtt:
+          case kRttWithDepth:
+          case kI64: {
+            UseScratchRegisterScope temps(asm_);
+            Register scratch = temps.Acquire();
+            asm_->LoadU64(scratch, liftoff::GetStackSlot(slot.src_offset_));
+            asm_->Push(scratch);
+            break;
+          }
+          case kF32: {
+            asm_->LoadF32(kScratchDoubleReg,
+                          liftoff::GetStackSlot(slot.src_offset_));
+            asm_->lay(sp, MemOperand(sp, -kSystemPointerSize));
+            asm_->StoreF32(kScratchDoubleReg, MemOperand(sp));
+            break;
+          }
+          case kF64: {
+            asm_->LoadF64(kScratchDoubleReg,
+                          liftoff::GetStackSlot(slot.src_offset_));
+            asm_->push(kScratchDoubleReg);
+            break;
+          }
+          case kS128: {
+            UseScratchRegisterScope temps(asm_);
+            Register scratch = temps.Acquire();
+            asm_->LoadV128(kScratchDoubleReg,
+                           liftoff::GetStackSlot(slot.src_offset_), scratch);
+            asm_->lay(sp, MemOperand(sp, -kSimd128Size));
+            asm_->StoreV128(kScratchDoubleReg, MemOperand(sp), scratch);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+        break;
+      }
+      case LiftoffAssembler::VarState::kRegister:
+        switch (src.kind()) {
+          case kI64:
+          case kI32:
+          case kRef:
+          case kOptRef:
+          case kRtt:
+          case kRttWithDepth:
+            asm_->push(src.reg().gp());
+            break;
+          case kF32:
+            asm_->lay(sp, MemOperand(sp, -kSystemPointerSize));
+            asm_->StoreF32(src.reg().fp(), MemOperand(sp));
+            break;
+          case kF64:
+            asm_->push(src.reg().fp());
+            break;
+          case kS128: {
+            UseScratchRegisterScope temps(asm_);
+            Register scratch = temps.Acquire();
+            asm_->lay(sp, MemOperand(sp, -kSimd128Size));
+            asm_->StoreV128(src.reg().fp(), MemOperand(sp), scratch);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case LiftoffAssembler::VarState::kIntConst: {
+        DCHECK(src.kind() == kI32 || src.kind() == kI64);
+        UseScratchRegisterScope temps(asm_);
+        Register scratch = temps.Acquire();
+
+        switch (src.kind()) {
+          case kI32:
+            asm_->mov(scratch, Operand(src.i32_const()));
+            break;
+          case kI64:
+            asm_->mov(scratch, Operand(int64_t{slot.src_.i32_const()}));
+            break;
+          default:
+            UNREACHABLE();
+        }
+        asm_->push(scratch);
+        break;
+      }
+    }
+  }
 }
 
 }  // namespace wasm
