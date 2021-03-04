@@ -70,6 +70,7 @@ class StructType : public ZoneObject {
     uint32_t offset = field(0).element_size_bytes();
     for (uint32_t i = 1; i < field_count(); i++) {
       uint32_t field_size = field(i).element_size_bytes();
+      // TODO(jkummerow): Don't round up to more than kTaggedSize-alignment.
       offset = RoundUp(offset, field_size);
       field_offsets_[i - 1] = offset;
       offset += field_size;

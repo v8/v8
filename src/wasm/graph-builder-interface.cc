@@ -421,8 +421,10 @@ class WasmGraphBuildingInterface {
     builder_->SetControl(merge);
   }
 
-  ValueVector CopyStackValues(FullDecoder* decoder, uint32_t count) {
-    Value* stack_base = count > 0 ? decoder->stack_value(count) : nullptr;
+  ValueVector CopyStackValues(FullDecoder* decoder, uint32_t count,
+                              uint32_t drop_values) {
+    Value* stack_base =
+        count > 0 ? decoder->stack_value(count + drop_values) : nullptr;
     ValueVector stack_values(count);
     for (uint32_t i = 0; i < count; i++) {
       stack_values[i] = stack_base[i];
@@ -430,20 +432,21 @@ class WasmGraphBuildingInterface {
     return stack_values;
   }
 
-  void DoReturn(FullDecoder* decoder) {
+  void DoReturn(FullDecoder* decoder, uint32_t drop_values) {
     uint32_t ret_count = static_cast<uint32_t>(decoder->sig_->return_count());
     NodeVector values(ret_count);
     SsaEnv* internal_env = ssa_env_;
     if (FLAG_wasm_loop_unrolling) {
       SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
       SetEnv(exit_env);
-      auto stack_values = CopyStackValues(decoder, ret_count);
+      auto stack_values = CopyStackValues(decoder, ret_count, drop_values);
       BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
                            stack_values);
       GetNodes(values.begin(), VectorOf(stack_values));
     } else {
-      Value* stack_base =
-          ret_count == 0 ? nullptr : decoder->stack_value(ret_count);
+      Value* stack_base = ret_count == 0
+                              ? nullptr
+                              : decoder->stack_value(ret_count + drop_values);
       GetNodes(values.begin(), stack_base, ret_count);
     }
     if (FLAG_trace_wasm) {
@@ -453,9 +456,9 @@ class WasmGraphBuildingInterface {
     SetEnv(internal_env);
   }
 
-  void BrOrRet(FullDecoder* decoder, uint32_t depth) {
+  void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values) {
     if (depth == decoder->control_depth() - 1) {
-      DoReturn(decoder);
+      DoReturn(decoder, drop_values);
     } else {
       Control* target = decoder->control_at(depth);
       if (FLAG_wasm_loop_unrolling) {
@@ -463,13 +466,13 @@ class WasmGraphBuildingInterface {
         SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
         SetEnv(exit_env);
         uint32_t value_count = target->br_merge()->arity;
-        auto stack_values = CopyStackValues(decoder, value_count);
+        auto stack_values = CopyStackValues(decoder, value_count, drop_values);
         BuildNestedLoopExits(decoder, depth, true, stack_values);
         MergeValuesInto(decoder, target, target->br_merge(),
                         stack_values.data());
         SetEnv(internal_env);
       } else {
-        MergeValuesInto(decoder, target, target->br_merge());
+        MergeValuesInto(decoder, target, target->br_merge(), drop_values);
       }
     }
   }
@@ -481,7 +484,7 @@ class WasmGraphBuildingInterface {
     builder_->BranchNoHint(cond.node, &tenv->control, &fenv->control);
     builder_->SetControl(fenv->control);
     SetEnv(tenv);
-    BrOrRet(decoder, depth);
+    BrOrRet(decoder, depth, 1);
     SetEnv(fenv);
   }
 
@@ -490,7 +493,7 @@ class WasmGraphBuildingInterface {
     if (imm.table_count == 0) {
       // Only a default target. Do the equivalent of br.
       uint32_t target = BranchTableIterator<validate>(decoder, imm).next();
-      BrOrRet(decoder, target);
+      BrOrRet(decoder, target, 1);
       return;
     }
 
@@ -507,7 +510,7 @@ class WasmGraphBuildingInterface {
       SetEnv(Split(decoder->zone(), copy));
       builder_->SetControl(i == imm.table_count ? builder_->IfDefault(sw)
                                                 : builder_->IfValue(i, sw));
-      BrOrRet(decoder, target);
+      BrOrRet(decoder, target, 1);
     }
     DCHECK(decoder->ok());
     SetEnv(branch_env);
@@ -637,7 +640,7 @@ class WasmGraphBuildingInterface {
                        &non_null_env->control);
     builder_->SetControl(non_null_env->control);
     SetEnv(null_env);
-    BrOrRet(decoder, depth);
+    BrOrRet(decoder, depth, 1);
     SetEnv(non_null_env);
   }
 
@@ -1014,7 +1017,9 @@ class WasmGraphBuildingInterface {
     builder_->SetControl(no_match_env->control);
     SetEnv(match_env);
     value_on_branch->node = object.node;
-    BrOrRet(decoder, br_depth);
+    // Currently, br_on_* instructions modify the value stack before calling
+    // the interface function, so we don't need to drop any values here.
+    BrOrRet(decoder, br_depth, 0);
     SetEnv(no_match_env);
   }
 
@@ -1237,14 +1242,16 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge) {
+  void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge,
+                       uint32_t drop_values = 0) {
 #ifdef DEBUG
-    uint32_t avail =
-        decoder->stack_size() - decoder->control_at(0)->stack_depth;
+    uint32_t avail = decoder->stack_size() -
+                     decoder->control_at(0)->stack_depth - drop_values;
     DCHECK_GE(avail, merge->arity);
 #endif
-    Value* stack_values =
-        merge->arity > 0 ? decoder->stack_value(merge->arity) : nullptr;
+    Value* stack_values = merge->arity > 0
+                              ? decoder->stack_value(merge->arity + drop_values)
+                              : nullptr;
     MergeValuesInto(decoder, c, merge, stack_values);
   }
 
