@@ -381,8 +381,13 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
         // that's only for the case that the existing map is a fast mode map.
         // Therefore, we need to perform the necessary updates to the property
         // details and the prototype validity cell directly.
-        NameDictionary dict = holder->property_dictionary();
-        dict.DetailsAtPut(dictionary_entry(), property_details_);
+        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+          SwissNameDictionary dict = holder->property_dictionary_swiss();
+          dict.DetailsAtPut(dictionary_entry(), property_details_);
+        } else {
+          NameDictionary dict = holder->property_dictionary();
+          dict.DetailsAtPut(dictionary_entry(), property_details_);
+        }
 
         Map old_map = holder->map(isolate_);
         if (old_map.is_prototype_map()) {
@@ -429,8 +434,13 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     property_details_ =
         property_details_.CopyWithConstness(PropertyConstness::kMutable);
 
-    NameDictionary dict = holder_obj->property_dictionary();
-    dict.DetailsAtPut(dictionary_entry(), property_details_);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      SwissNameDictionary dict = holder_obj->property_dictionary_swiss();
+      dict.DetailsAtPut(dictionary_entry(), property_details_);
+    } else {
+      NameDictionary dict = holder_obj->property_dictionary();
+      dict.DetailsAtPut(dictionary_entry(), property_details_);
+    }
 
     DCHECK_IMPLIES(new_map->is_prototype_map(),
                    !new_map->IsPrototypeValidityCellValid());
@@ -499,9 +509,10 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     } else {
       PropertyDetails details(kData, attributes, PropertyConstness::kMutable);
       if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        Handle<OrderedNameDictionary> dictionary(
-            holder_obj->property_dictionary_ordered(isolate_), isolate());
-        dictionary->SetEntry(dictionary_entry(), *name(), *value, details);
+        Handle<SwissNameDictionary> dictionary(
+            holder_obj->property_dictionary_swiss(isolate_), isolate());
+        dictionary->ValueAtPut(dictionary_entry(), *value);
+        dictionary->DetailsAtPut(dictionary_entry(), details);
         DCHECK_EQ(details.AsSmi(),
                   dictionary->DetailsAt(dictionary_entry()).AsSmi());
         property_details_ = details;
@@ -641,17 +652,13 @@ void LookupIterator::ApplyTransitionToDataProperty(
       JSObject::InvalidatePrototypeChains(receiver->map(isolate_));
     }
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      Handle<OrderedNameDictionary> dictionary(
-          receiver->property_dictionary_ordered(isolate_), isolate_);
+      Handle<SwissNameDictionary> dictionary(
+          receiver->property_dictionary_swiss(isolate_), isolate_);
 
       dictionary =
-          OrderedNameDictionary::Add(isolate(), dictionary, name(),
-                                     isolate_->factory()->uninitialized_value(),
-                                     property_details_)
-              .ToHandleChecked();
-
-      // set to last used entry
-      number_ = InternalIndex(dictionary->UsedCapacity() - 1);
+          SwissNameDictionary::Add(isolate(), dictionary, name(),
+                                   isolate_->factory()->uninitialized_value(),
+                                   property_details_, &number_);
       receiver->SetProperties(*dictionary);
     } else {
       Handle<NameDictionary> dictionary(receiver->property_dictionary(isolate_),
@@ -850,7 +857,7 @@ Handle<Object> LookupIterator::FetchValue(
                  .ValueAt(isolate_, dictionary_entry());
   } else if (!holder_->HasFastProperties(isolate_)) {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      result = holder_->property_dictionary_ordered(isolate_).ValueAt(
+      result = holder_->property_dictionary_swiss(isolate_).ValueAt(
           dictionary_entry());
     } else {
       result = holder_->property_dictionary(isolate_).ValueAt(
@@ -931,9 +938,14 @@ bool LookupIterator::IsConstDictValueEqualTo(Object value) const {
     return true;
   }
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
-  NameDictionary dict = holder->property_dictionary();
-
-  Object current_value = dict.ValueAt(dictionary_entry());
+  Object current_value;
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    SwissNameDictionary dict = holder->property_dictionary_swiss();
+    current_value = dict.ValueAt(dictionary_entry());
+  } else {
+    NameDictionary dict = holder->property_dictionary();
+    current_value = dict.ValueAt(dictionary_entry());
+  }
 
   if (current_value.IsUninitialized(isolate()) || current_value == value) {
     return true;
@@ -1046,8 +1058,8 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
         holder->IsJSProxy(isolate_) || IsConstDictValueEqualTo(*value));
 
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      OrderedNameDictionary dictionary =
-          holder->property_dictionary_ordered(isolate_);
+      SwissNameDictionary dictionary =
+          holder->property_dictionary_swiss(isolate_);
       dictionary.ValueAtPut(dictionary_entry(), *value);
     } else {
       NameDictionary dictionary = holder->property_dictionary(isolate_);
@@ -1198,7 +1210,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   } else {
     DCHECK_IMPLIES(holder.IsJSProxy(isolate_), name()->IsPrivate(isolate_));
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      OrderedNameDictionary dict = holder.property_dictionary_ordered(isolate_);
+      SwissNameDictionary dict = holder.property_dictionary_swiss(isolate_);
       number_ = dict.FindEntry(isolate(), *name_);
       if (number_.is_not_found()) return NotFound(holder);
       property_details_ = dict.DetailsAt(number_);

@@ -6676,9 +6676,8 @@ Local<v8::Object> v8::Object::New(Isolate* isolate,
   // large enough to hold all of them, while we start with no elements
   // (see http://bit.ly/v8-fast-object-create-cpp for the motivation).
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    i::Handle<i::OrderedNameDictionary> properties =
-        i::OrderedNameDictionary::Allocate(i_isolate, static_cast<int>(length))
-            .ToHandleChecked();
+    i::Handle<i::SwissNameDictionary> properties =
+        i_isolate->factory()->NewSwissNameDictionary(static_cast<int>(length));
     AddPropertiesAndElementsToObject(i_isolate, properties, elements, names,
                                      values, length);
     i::Handle<i::JSObject> obj =

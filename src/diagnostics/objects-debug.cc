@@ -1762,7 +1762,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     info->number_of_slow_unused_properties_ +=
         dict.Capacity() - dict.NumberOfElements();
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    OrderedNameDictionary dict = property_dictionary_ordered();
+    SwissNameDictionary dict = property_dictionary_swiss();
     info->number_of_slow_used_properties_ += dict.NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict.Capacity() - dict.NumberOfElements();

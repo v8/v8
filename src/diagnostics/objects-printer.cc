@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/init/bootstrapper.h"
@@ -73,6 +74,13 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots = dict.GetReadOnlyRoots();
 
+  if (dict.Capacity() == 0) {
+    return;
+  }
+
+  Isolate* isolate = GetIsolateFromWritableObject(dict);
+  // IterateEntries for SwissNameDictionary needs to create a handle.
+  HandleScope scope(isolate);
   for (InternalIndex i : dict.IterateEntries()) {
     Object k;
     if (!dict.ToKey(roots, i, &k)) continue;
@@ -308,7 +316,7 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
     PrintDictionaryContents(
         os, JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad));
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    PrintDictionaryContents(os, property_dictionary_ordered());
+    PrintDictionaryContents(os, property_dictionary_swiss());
   } else {
     PrintDictionaryContents(os, property_dictionary());
   }

@@ -116,7 +116,7 @@ Handle<Object> LoadHandler::LoadFromPrototype(
     Isolate* isolate, Handle<Map> lookup_start_object_map,
     Handle<JSReceiver> holder, Handle<Smi> smi_handler,
     MaybeObjectHandle maybe_data1, MaybeObjectHandle maybe_data2) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
+  // TODO(v8:11167) remove DCHECK once SwissNameDictionary supported.
   DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
                  GetHandlerKind(*smi_handler) != Kind::kNormal);
   MaybeObjectHandle data1;
@@ -274,7 +274,7 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
     Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
     Handle<Smi> smi_handler, MaybeObjectHandle maybe_data1,
     MaybeObjectHandle maybe_data2) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
+  // TODO(v8:11167) remove DCHECK once SwissNameDictionary supported.
   DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
                  KindBits::decode(smi_handler->value()) != Kind::kNormal);
 

@@ -927,7 +927,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
               MaybeObjectHandle::Weak(lookup->GetPropertyCell()));
         } else {
           if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-            // TODO(v8:11167) remove once OrderedNameDictionary supported.
+            // TODO(v8:11167) remove once SwissNameDictionary supported.
             smi_handler = LoadHandler::LoadSlow(isolate());
           } else {
             smi_handler = LoadHandler::LoadNormal(isolate());
@@ -1814,7 +1814,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         DCHECK(holder.is_identical_to(receiver));
         DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                        lookup->constness() == PropertyConstness::kMutable);
-        // TODO(v8:11167) don't create slow hanlder once OrderedNameDictionary
+
+        // TODO(v8:11167) don't create slow hanlder once SwissNameDictionary
         // supported.
         Handle<Smi> handler = V8_DICT_MODE_PROTOTYPES_BOOL
                                   ? StoreHandler::StoreSlow(isolate())
