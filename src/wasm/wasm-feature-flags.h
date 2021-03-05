@@ -57,12 +57,6 @@
   /* Staged in v8.7 * */                                                       \
   V(return_call, "return call opcodes", false)                                 \
                                                                                \
-  /* Fixed-width SIMD operations. */                                           \
-  /* https://github.com/webassembly/simd */                                    \
-  /* V8 side owner: gdeepti, zhin */                                           \
-  /* Staged in v8.7 * */                                                       \
-  V(simd, "SIMD opcodes", false)                                               \
-                                                                               \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \
   /* NOTE: This is enabled via chromium flag on desktop systems since v7.4  */ \
@@ -86,7 +80,14 @@
   /* V8 side owner: thibaudm */                                                \
   /* Shipped in v8.6. */                                                       \
   /* ITS: https://groups.google.com/g/v8-users/c/pv2E4yFWeF0 */                \
-  V(mv, "multi-value support", true)
+  V(mv, "multi-value support", true)                                           \
+                                                                               \
+  /* Fixed-width SIMD operations. */                                           \
+  /* https://github.com/webassembly/simd */                                    \
+  /* V8 side owner: gdeepti, zhin */                                           \
+  /* Staged in v8.7 * */                                                       \
+  /* Shipped in v9.1 * */                                                      \
+  V(simd, "SIMD opcodes", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \

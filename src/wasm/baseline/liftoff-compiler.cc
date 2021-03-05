@@ -334,13 +334,6 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   // https://v8.dev/docs/wasm-shipping-checklist. Some are not though. They are
   // listed here explicitly, with a bug assigned to each of them.
 
-  // TODO(6020): Fully implement SIMD in Liftoff.
-  STATIC_ASSERT(kStagedFeatures.has_simd());
-  if (reason == kSimd) {
-    DCHECK(env->enabled_features.has_simd());
-    return;
-  }
-
   // TODO(7581): Fully implement reftypes in Liftoff.
   STATIC_ASSERT(kStagedFeatures.has_reftypes());
   if (reason == kRefTypes) {
