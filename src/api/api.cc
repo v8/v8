@@ -10119,6 +10119,42 @@ RegisterState& RegisterState::operator=(const RegisterState& other) {
   return *this;
 }
 
+#if !V8_ENABLE_WEBASSEMBLY
+// If WebAssembly is disabled, we still need to provide an implementation of the
+// WasmStreaming API. Since {WasmStreaming::Unpack} will always fail, all
+// methods are unreachable.
+
+class WasmStreaming::WasmStreamingImpl {};
+
+WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl>) {
+  UNREACHABLE();
+}
+
+WasmStreaming::~WasmStreaming() = default;
+
+void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
+  UNREACHABLE();
+}
+
+void WasmStreaming::Finish() { UNREACHABLE(); }
+
+void WasmStreaming::Abort(MaybeLocal<Value> exception) { UNREACHABLE(); }
+
+bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
+  UNREACHABLE();
+}
+
+void WasmStreaming::SetClient(std::shared_ptr<Client> client) { UNREACHABLE(); }
+
+void WasmStreaming::SetUrl(const char* url, size_t length) { UNREACHABLE(); }
+
+// static
+std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
+                                                     Local<Value> value) {
+  FATAL("WebAssembly is disabled");
+}
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 namespace internal {
 
 const size_t HandleScopeImplementer::kEnteredContextsOffset =

@@ -2993,7 +2993,6 @@ v8_header_set("v8_internal_headers") {
     "src/wasm/wasm-feature-flags.h",
     "src/wasm/wasm-features.h",
     "src/wasm/wasm-import-wrapper-cache.h",
-    "src/wasm/wasm-js.h",
     "src/wasm/wasm-linkage.h",
     "src/wasm/wasm-module-builder.h",
     "src/wasm/wasm-module-sourcemap.h",
@@ -3035,6 +3034,7 @@ v8_header_set("v8_internal_headers") {
       "src/asmjs/asm-types.h",
       "src/debug/debug-wasm-objects-inl.h",
       "src/debug/debug-wasm-objects.h",
+      "src/wasm/wasm-js.h",
     ]
   }
 
@@ -3927,7 +3927,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-features.cc",
     "src/wasm/wasm-import-wrapper-cache.cc",
-    "src/wasm/wasm-js.cc",
     "src/wasm/wasm-module-builder.cc",
     "src/wasm/wasm-module-sourcemap.cc",
     "src/wasm/wasm-module.cc",
@@ -3949,6 +3948,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/asmjs/asm-scanner.cc",
       "src/asmjs/asm-types.cc",
       "src/debug/debug-wasm-objects.cc",
+      "src/wasm/wasm-js.cc",
     ]
   }
 

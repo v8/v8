@@ -26,7 +26,10 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
 #include "src/diagnostics/system-jit-win.h"
@@ -50,7 +53,9 @@ bool V8::Initialize() {
 }
 
 void V8::TearDown() {
+#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::GlobalTearDown();
+#endif  // V8_ENABLE_WEBASSEMBLY
 #if defined(USE_SIMULATOR)
   Simulator::GlobalTearDown();
 #endif
@@ -157,7 +162,9 @@ void V8::InitializeOncePerProcessImpl() {
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
+#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void V8::InitializeOncePerProcess() {
