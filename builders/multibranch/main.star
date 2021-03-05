@@ -10,6 +10,22 @@ def main_multibranch_builder(**kwargs):
     kwargs["properties"] = props
     return multibranch_builder(**kwargs)
 
+def main_multibranch_builder_pair(name, dimensions, builder_group = "client.v8", use_goma = GOMA.DEFAULT):
+    return (
+        main_multibranch_builder(
+            name = name + " - builder",
+            dimensions = dimensions,
+            properties = {"builder_group": builder_group, "triggers": [name]},
+            use_goma = use_goma,
+        ) +
+        main_multibranch_builder(
+            name = name,
+            triggered_by_gitiles = False,
+            dimensions = {"host_class": "multibot"},
+            properties = {"builder_group": builder_group},
+        )
+    )
+
 def exceptions(*args):
     # foldable wrapper
     pass
@@ -242,17 +258,9 @@ in_category(
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.DEFAULT,
     ),
-    main_multibranch_builder(
-        name = "V8 Linux64 TSAN - no-concurrent-marking - builder",
-        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN - no-concurrent-marking"]},
-        use_goma = GOMA.DEFAULT,
-    ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 TSAN - no-concurrent-marking",
-        triggered_by_gitiles = False,
-        dimensions = {"host_class": "multibot"},
-        properties = {"builder_group": "client.v8"},
+        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - verify csa",
