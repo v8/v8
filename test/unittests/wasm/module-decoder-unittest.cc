@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/unittests/test-utils.h"
+#include "src/wasm/module-decoder.h"
 
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
-#include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gmock-support.h"
 
 using testing::HasSubstr;

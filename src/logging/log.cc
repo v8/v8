@@ -44,6 +44,7 @@
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {

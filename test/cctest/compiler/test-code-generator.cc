@@ -15,6 +15,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/wasm/wasm-engine.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/codegen-tester.h"

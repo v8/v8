@@ -12,6 +12,7 @@
 #include "src/base/build_config.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/objects-inl.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 #include "test/unittests/test-utils.h"
