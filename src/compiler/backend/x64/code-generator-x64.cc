@@ -350,7 +350,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       __ LeaveFrame(StackFrame::WASM);
       auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
       size_t pop_size =
-          call_descriptor->StackParameterCount() * kSystemPointerSize;
+          call_descriptor->ParameterSlotCount() * kSystemPointerSize;
       // Use rcx as a scratch register, we return anyways immediately.
       __ Ret(static_cast<int>(pop_size), rcx);
     } else {
@@ -783,14 +783,14 @@ void SetupSimdImmediateInRegister(TurboAssembler* assembler, uint32_t* imms,
 }  // namespace
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
-                                              int first_unused_stack_slot) {
+                                              int first_unused_slot_offset) {
   CodeGenerator::PushTypeFlags flags(kImmediatePush | kScalarPush);
   ZoneVector<MoveOperands*> pushes(zone());
   GetPushCompatibleMoves(instr, flags, &pushes);
 
   if (!pushes.empty() &&
       (LocationOperand::cast(pushes.back()->destination()).index() + 1 ==
-       first_unused_stack_slot)) {
+       first_unused_slot_offset)) {
     DCHECK(!instr->HasCallDescriptorFlag(CallDescriptor::kIsTailCallForTierUp));
     X64OperandConverter g(this, instr);
     for (auto move : pushes) {
@@ -817,14 +817,14 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
     }
   }
   AdjustStackPointerForTailCall(instr, tasm(), linkage(), info(),
-                                frame_access_state(), first_unused_stack_slot,
+                                frame_access_state(), first_unused_slot_offset,
                                 false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
-                                             int first_unused_stack_slot) {
+                                             int first_unused_slot_offset) {
   AdjustStackPointerForTailCall(instr, tasm(), linkage(), info(),
-                                frame_access_state(), first_unused_stack_slot);
+                                frame_access_state(), first_unused_slot_offset);
 }
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
@@ -4639,12 +4639,11 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rcx.bit());
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & r10.bit());
   X64OperandConverter g(this, nullptr);
-  int parameter_count =
-      static_cast<int>(call_descriptor->StackParameterCount());
+  int parameter_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
 
-  // {aditional_pop_count} is only greater than zero if {parameter_count = 0}.
+  // {aditional_pop_count} is only greater than zero if {parameter_slots = 0}.
   // Check RawMachineAssembler::PopAndReturn.
-  if (parameter_count != 0) {
+  if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
     } else if (__ emit_debug_code()) {
@@ -4655,12 +4654,12 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   Register argc_reg = rcx;
   // Functions with JS linkage have at least one parameter (the receiver).
-  // If {parameter_count} == 0, it means it is a builtin with
+  // If {parameter_slots} == 0, it means it is a builtin with
   // kDontAdaptArgumentsSentinel, which takes care of JS arguments popping
   // itself.
   const bool drop_jsargs = frame_access_state()->has_frame() &&
                            call_descriptor->IsJSFunctionCall() &&
-                           parameter_count != 0;
+                           parameter_slots != 0;
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
@@ -4683,16 +4682,16 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
-    // number of arguments is given by max(1 + argc_reg, parameter_count).
-    int parameter_count_without_receiver =
-        parameter_count - 1;  // Exclude the receiver to simplify the
+    // number of arguments is given by max(1 + argc_reg, parameter_slots).
+    int parameter_slots_without_receiver =
+        parameter_slots - 1;  // Exclude the receiver to simplify the
                               // computation. We'll account for it at the end.
     Label mismatch_return;
     Register scratch_reg = r10;
     DCHECK_NE(argc_reg, scratch_reg);
-    __ cmpq(argc_reg, Immediate(parameter_count_without_receiver));
+    __ cmpq(argc_reg, Immediate(parameter_slots_without_receiver));
     __ j(greater, &mismatch_return, Label::kNear);
-    __ Ret(parameter_count * kSystemPointerSize, scratch_reg);
+    __ Ret(parameter_slots * kSystemPointerSize, scratch_reg);
     __ bind(&mismatch_return);
     __ PopReturnAddressTo(scratch_reg);
     __ leaq(rsp, Operand(rsp, argc_reg, times_system_pointer_size,
@@ -4703,13 +4702,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   } else if (additional_pop_count->IsImmediate()) {
     Register scratch_reg = r10;
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
-    size_t pop_size = (parameter_count + additional_count) * kSystemPointerSize;
+    size_t pop_size = (parameter_slots + additional_count) * kSystemPointerSize;
     CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
     __ Ret(static_cast<int>(pop_size), scratch_reg);
   } else {
     Register pop_reg = g.ToRegister(additional_pop_count);
     Register scratch_reg = pop_reg == r10 ? rcx : r10;
-    int pop_size = static_cast<int>(parameter_count * kSystemPointerSize);
+    int pop_size = static_cast<int>(parameter_slots * kSystemPointerSize);
     __ PopReturnAddressTo(scratch_reg);
     __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
                          static_cast<int>(pop_size)));

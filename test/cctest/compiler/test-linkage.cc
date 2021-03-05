@@ -114,7 +114,7 @@ TEST(TestLinkageStubCall) {
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
-  CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));
+  CHECK_EQ(0, static_cast<int>(call_descriptor->ParameterSlotCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, call_descriptor->properties());
   CHECK_EQ(false, call_descriptor->IsJSFunctionCall());
@@ -135,7 +135,7 @@ TEST(TestFPLinkageStubCall) {
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
-  CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));
+  CHECK_EQ(0, static_cast<int>(call_descriptor->ParameterSlotCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ParameterCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, call_descriptor->properties());

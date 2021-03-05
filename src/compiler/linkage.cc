@@ -17,6 +17,10 @@ namespace compiler {
 
 namespace {
 
+// Offsets from callee to caller frame, in slots.
+constexpr int kFirstCallerSlotOffset = 1;
+constexpr int kNoCallerSlotOffset = 0;
+
 inline LinkageLocation regloc(Register reg, MachineType type) {
   return LinkageLocation::ForRegister(reg.code(), type);
 }
@@ -59,7 +63,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
 std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
   // TODO(svenpanne) Output properties etc. and be less cryptic.
   return os << d.kind() << ":" << d.debug_name() << ":r" << d.ReturnCount()
-            << "s" << d.StackParameterCount() << "i" << d.InputCount() << "f"
+            << "s" << d.ParameterSlotCount() << "i" << d.InputCount() << "f"
             << d.FrameStateCount();
 }
 
@@ -94,43 +98,42 @@ int CallDescriptor::GetStackParameterDelta(
   return stack_param_delta;
 }
 
-int CallDescriptor::GetFirstUnusedStackSlot() const {
-  int start_of_args = 0;
+int CallDescriptor::GetOffsetToFirstUnusedStackSlot() const {
+  int offset = kFirstCallerSlotOffset;
   for (size_t i = 0; i < InputCount(); ++i) {
     LinkageLocation operand = GetInputLocation(i);
     if (!operand.IsRegister()) {
-      // Reverse, since arguments have negative offsets in the frame.
-      int reverse_location =
-          -operand.GetLocation() + operand.GetSizeInPointers() - 1;
-      DCHECK_GE(reverse_location, 0);
-      start_of_args = std::max(start_of_args, reverse_location);
+      DCHECK(operand.IsCallerFrameSlot());
+      int slot_offset = -operand.GetLocation();
+      offset = std::max(offset, slot_offset + operand.GetSizeInPointers());
     }
   }
-  return start_of_args;
+  return offset;
 }
 
 int CallDescriptor::GetOffsetToReturns() const {
-  // If there are return stack slots, return the first slot of the last one.
-  constexpr int kNoReturnSlot = std::numeric_limits<int>::max();
-  int end_of_returns = kNoReturnSlot;
+  // Find the return slot with the least offset relative to the callee.
+  int offset = kNoCallerSlotOffset;
   for (size_t i = 0; i < ReturnCount(); ++i) {
     LinkageLocation operand = GetReturnLocation(i);
     if (!operand.IsRegister()) {
-      // Reverse, since returns have negative offsets in the frame.
-      int reverse_location = -operand.GetLocation() - 1;
-      DCHECK_GE(reverse_location, 0);
-      end_of_returns = std::min(end_of_returns, reverse_location);
+      DCHECK(operand.IsCallerFrameSlot());
+      int slot_offset = -operand.GetLocation();
+      offset = std::min(offset, slot_offset);
     }
   }
-  if (end_of_returns != kNoReturnSlot) return end_of_returns;
+  // If there was a return slot, return the offset minus 1 slot.
+  if (offset != kNoCallerSlotOffset) {
+    return offset - 1;
+  }
 
-  // Otherwise, return the first unused slot before the parameters, with any
-  // additional padding slot if it exists.
-  end_of_returns = GetFirstUnusedStackSlot();
-  end_of_returns += ArgumentPaddingSlots(end_of_returns);
+  // Otherwise, return the first slot after the parameters area, including
+  // optional padding slots.
+  int last_argument_slot = GetOffsetToFirstUnusedStackSlot() - 1;
+  offset = AddArgumentPaddingSlots(last_argument_slot);
 
-  DCHECK_EQ(end_of_returns == 0, StackParameterCount() == 0);
-  return end_of_returns;
+  DCHECK_IMPLIES(offset == 0, ParameterSlotCount() == 0);
+  return offset;
 }
 
 int CallDescriptor::GetTaggedParameterSlots() const {

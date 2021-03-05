@@ -839,7 +839,7 @@ class LiftoffCompiler {
       DEBUG_CODE_COMMENT("leave frame");
       __ LeaveFrame(StackFrame::WASM);
       __ DropStackSlotsAndRet(
-          static_cast<uint32_t>(descriptor_->StackParameterCount()));
+          static_cast<uint32_t>(descriptor_->ParameterSlotCount()));
       return;
     }
 
@@ -1911,7 +1911,7 @@ class LiftoffCompiler {
     DEBUG_CODE_COMMENT("leave frame");
     __ LeaveFrame(StackFrame::WASM);
     __ DropStackSlotsAndRet(
-        static_cast<uint32_t>(descriptor_->StackParameterCount()));
+        static_cast<uint32_t>(descriptor_->ParameterSlotCount()));
   }
 
   void LocalGet(FullDecoder* decoder, Value* result,
@@ -5129,7 +5129,7 @@ class LiftoffCompiler {
       __ PrepareCall(sig, call_descriptor, &target, explicit_instance);
       if (call_kind == kReturnCall) {
         __ PrepareTailCall(
-            static_cast<int>(call_descriptor->StackParameterCount()),
+            static_cast<int>(call_descriptor->ParameterSlotCount()),
             static_cast<int>(
                 call_descriptor->GetStackParameterDelta(descriptor_)));
         __ TailCallIndirect(target);
@@ -5147,7 +5147,7 @@ class LiftoffCompiler {
       if (call_kind == kReturnCall) {
         DCHECK(descriptor_->CanTailCall(call_descriptor));
         __ PrepareTailCall(
-            static_cast<int>(call_descriptor->StackParameterCount()),
+            static_cast<int>(call_descriptor->ParameterSlotCount()),
             static_cast<int>(
                 call_descriptor->GetStackParameterDelta(descriptor_)));
         __ TailCallNativeWasmCode(addr);
@@ -5319,7 +5319,7 @@ class LiftoffCompiler {
     __ PrepareCall(sig, call_descriptor, &target, explicit_instance);
     if (call_kind == kReturnCall) {
       __ PrepareTailCall(
-          static_cast<int>(call_descriptor->StackParameterCount()),
+          static_cast<int>(call_descriptor->ParameterSlotCount()),
           static_cast<int>(
               call_descriptor->GetStackParameterDelta(descriptor_)));
       __ TailCallIndirect(target);
@@ -5530,7 +5530,7 @@ class LiftoffCompiler {
     __ PrepareCall(sig, call_descriptor, &target_reg, &instance_reg);
     if (call_kind == kReturnCall) {
       __ PrepareTailCall(
-          static_cast<int>(call_descriptor->StackParameterCount()),
+          static_cast<int>(call_descriptor->ParameterSlotCount()),
           static_cast<int>(
               call_descriptor->GetStackParameterDelta(descriptor_)));
       __ TailCallIndirect(target_reg);

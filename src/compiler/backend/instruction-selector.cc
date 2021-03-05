@@ -917,7 +917,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       }
 
       frame_->EnsureReturnSlots(
-          static_cast<int>(buffer->descriptor->StackReturnCount()));
+          static_cast<int>(buffer->descriptor->ReturnSlotCount()));
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
@@ -2997,17 +2997,17 @@ void InstructionSelector::VisitTailCall(Node* node) {
 
   Emit(kArchPrepareTailCall, g.NoOutput());
 
-  // Add an immediate operand that represents the first slot that is unused
-  // with respect to the stack pointer that has been updated for the tail call
-  // instruction. This is used by backends that need to pad arguments for stack
-  // alignment, in order to store an optional slot of padding above the
-  // arguments.
-  const int optional_padding_slot = callee->GetFirstUnusedStackSlot();
-  buffer.instruction_args.push_back(g.TempImmediate(optional_padding_slot));
+  // Add an immediate operand that represents the offset to the first slot that
+  // is unused with respect to the stack pointer that has been updated for the
+  // tail call instruction. Backends that pad arguments can write the padding
+  // value at this offset from the stack.
+  const int optional_padding_offset =
+      callee->GetOffsetToFirstUnusedStackSlot() - 1;
+  buffer.instruction_args.push_back(g.TempImmediate(optional_padding_offset));
 
-  const int first_unused_stack_slot =
+  const int first_unused_slot_offset =
       kReturnAddressStackSlotCount + stack_param_delta;
-  buffer.instruction_args.push_back(g.TempImmediate(first_unused_stack_slot));
+  buffer.instruction_args.push_back(g.TempImmediate(first_unused_slot_offset));
 
   // Emit the tailcall instruction.
   Emit(opcode, 0, nullptr, buffer.instruction_args.size(),

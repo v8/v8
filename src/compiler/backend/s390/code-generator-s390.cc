@@ -1073,13 +1073,13 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
 }  // namespace
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
-                                              int first_unused_stack_slot) {
+                                              int first_unused_slot_offset) {
   ZoneVector<MoveOperands*> pushes(zone());
   GetPushCompatibleMoves(instr, kRegisterPush, &pushes);
 
   if (!pushes.empty() &&
       (LocationOperand::cast(pushes.back()->destination()).index() + 1 ==
-       first_unused_stack_slot)) {
+       first_unused_slot_offset)) {
     S390OperandConverter g(this, instr);
     ZoneVector<Register> pending_pushes(zone());
     for (auto move : pushes) {
@@ -1105,13 +1105,13 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
     FlushPendingPushRegisters(tasm(), frame_access_state(), &pending_pushes);
   }
   AdjustStackPointerForTailCall(tasm(), frame_access_state(),
-                                first_unused_stack_slot, nullptr, false);
+                                first_unused_slot_offset, nullptr, false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
-                                             int first_unused_stack_slot) {
+                                             int first_unused_slot_offset) {
   AdjustStackPointerForTailCall(tasm(), frame_access_state(),
-                                first_unused_stack_slot);
+                                first_unused_slot_offset);
 }
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
@@ -4148,8 +4148,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
             ExternalReference::wasm_call_trap_callback_for_testing(), 0);
         __ LeaveFrame(StackFrame::WASM);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
-        int pop_count =
-            static_cast<int>(call_descriptor->StackParameterCount());
+        int pop_count = static_cast<int>(call_descriptor->ParameterSlotCount());
         __ Drop(pop_count);
         __ Ret();
       } else {
@@ -4430,12 +4429,12 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // We might need r3 for scratch.
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & r5.bit());
   S390OperandConverter g(this, nullptr);
-  const int parameter_count =
-      static_cast<int>(call_descriptor->StackParameterCount());
+  const int parameter_slots =
+      static_cast<int>(call_descriptor->ParameterSlotCount());
 
-  // {aditional_pop_count} is only greater than zero if {parameter_count = 0}.
+  // {aditional_pop_count} is only greater than zero if {parameter_slots = 0}.
   // Check RawMachineAssembler::PopAndReturn.
-  if (parameter_count != 0) {
+  if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
     } else if (__ emit_debug_code()) {
@@ -4446,12 +4445,12 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   Register argc_reg = r5;
   // Functions with JS linkage have at least one parameter (the receiver).
-  // If {parameter_count} == 0, it means it is a builtin with
+  // If {parameter_slots} == 0, it means it is a builtin with
   // kDontAdaptArgumentsSentinel, which takes care of JS arguments popping
   // itself.
   const bool drop_jsargs = frame_access_state()->has_frame() &&
                            call_descriptor->IsJSFunctionCall() &&
-                           parameter_count != 0;
+                           parameter_slots != 0;
 
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
@@ -4476,25 +4475,25 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
-    // number of arguments is given by max(1 + argc_reg, parameter_count).
+    // number of arguments is given by max(1 + argc_reg, parameter_slots).
     __ AddS64(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
-    if (parameter_count > 1) {
+    if (parameter_slots > 1) {
       Label skip;
-      __ CmpS64(argc_reg, Operand(parameter_count));
+      __ CmpS64(argc_reg, Operand(parameter_slots));
       __ bgt(&skip);
-      __ mov(argc_reg, Operand(parameter_count));
+      __ mov(argc_reg, Operand(parameter_slots));
       __ bind(&skip);
     }
     __ Drop(argc_reg);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
-    __ Drop(parameter_count + additional_count);
-  } else if (parameter_count == 0) {
+    __ Drop(parameter_slots + additional_count);
+  } else if (parameter_slots == 0) {
     __ Drop(g.ToRegister(additional_pop_count));
   } else {
-    // {additional_pop_count} is guaranteed to be zero if {parameter_count !=
+    // {additional_pop_count} is guaranteed to be zero if {parameter_slots !=
     // 0}. Check RawMachineAssembler::PopAndReturn.
-    __ Drop(parameter_count);
+    __ Drop(parameter_slots);
   }
   __ Ret();
 }

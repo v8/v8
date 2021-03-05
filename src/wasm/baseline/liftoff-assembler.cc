@@ -838,7 +838,7 @@ void LiftoffAssembler::PrepareBuiltinCall(
   PrepareStackTransfers(sig, call_descriptor, params.begin(), &stack_slots,
                         &stack_transfers, &param_regs);
   SpillAllRegisters();
-  int param_slots = static_cast<int>(call_descriptor->StackParameterCount());
+  int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
   if (param_slots > 0) {
     stack_slots.Construct(param_slots);
   }
@@ -884,7 +884,7 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
                                  LiftoffRegister(*target_instance), kIntPtr);
   }
 
-  int param_slots = static_cast<int>(call_descriptor->StackParameterCount());
+  int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
   if (num_params) {
     uint32_t param_base = cache_state_.stack_height() - num_params;
     PrepareStackTransfers(sig, call_descriptor,
@@ -968,7 +968,7 @@ void LiftoffAssembler::FinishCall(const ValueKindSig* sig,
                                                          reg_pair[1].gp()));
     }
   }
-  int return_slots = static_cast<int>(call_descriptor->StackReturnCount());
+  int return_slots = static_cast<int>(call_descriptor->ReturnSlotCount());
   RecordUsedSpillOffset(TopSpillOffset() + return_slots * kSystemPointerSize);
 }
 
