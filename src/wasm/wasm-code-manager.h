@@ -511,6 +511,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* PublishCode(std::unique_ptr<WasmCode>);
   std::vector<WasmCode*> PublishCode(Vector<std::unique_ptr<WasmCode>>);
 
+  // ReinstallDebugCode does a subset of PublishCode: It installs the code in
+  // the code table and patches the jump table. The given code must be debug
+  // code (with breakpoints) and must be owned by this {NativeModule} already.
+  // This method is used to re-instantiate code that was removed from the code
+  // table and jump table via another {PublishCode}.
+  void ReinstallDebugCode(WasmCode*);
+
   Vector<uint8_t> AllocateForDeserializedCode(size_t total_code_size);
 
   std::unique_ptr<WasmCode> AddDeserializedCode(

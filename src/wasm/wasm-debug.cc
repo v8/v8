@@ -238,6 +238,10 @@ class DebugInfoImpl {
                                             int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
 
+    ForDebugging for_debugging = offsets.size() == 1 && offsets[0] == 0
+                                     ? kForStepping
+                                     : kWithBreakpoints;
+
     // Check the cache first.
     for (auto begin = cached_debugging_code_.begin(), it = begin,
               end = cached_debugging_code_.end();
@@ -247,6 +251,10 @@ class DebugInfoImpl {
           it->dead_breakpoint == dead_breakpoint) {
         // Rotate the cache entry to the front (for LRU).
         for (; it != begin; --it) std::iter_swap(it, it - 1);
+        if (for_debugging == kWithBreakpoints) {
+          // Re-install the code, in case it was replaced in the meantime.
+          native_module_->ReinstallDebugCode(it->code);
+        }
         return it->code;
       }
     }
@@ -261,9 +269,6 @@ class DebugInfoImpl {
                       wire_bytes.begin() + function->code.end_offset()};
     std::unique_ptr<DebugSideTable> debug_sidetable;
 
-    ForDebugging for_debugging = offsets.size() == 1 && offsets[0] == 0
-                                     ? kForStepping
-                                     : kWithBreakpoints;
     // Debug side tables for stepping are generated lazily.
     bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
     Counters* counters = nullptr;

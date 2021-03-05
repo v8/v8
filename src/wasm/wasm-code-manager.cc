@@ -1191,6 +1191,29 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   return result;
 }
 
+void NativeModule::ReinstallDebugCode(WasmCode* code) {
+  base::MutexGuard lock(&allocation_mutex_);
+
+  DCHECK_EQ(this, code->native_module());
+  DCHECK_EQ(kWithBreakpoints, code->for_debugging());
+  DCHECK(!code->IsAnonymous());
+  DCHECK_LE(module_->num_imported_functions, code->index());
+  DCHECK_LT(code->index(), num_functions());
+  DCHECK_EQ(kTieredDown, tiering_state_);
+
+  uint32_t slot_idx = declared_function_index(module(), code->index());
+  if (WasmCode* prior_code = code_table_[slot_idx]) {
+    WasmCodeRefScope::AddRef(prior_code);
+    // The code is added to the current {WasmCodeRefScope}, hence the ref
+    // count cannot drop to zero here.
+    prior_code->DecRefOnLiveCode();
+  }
+  code_table_[slot_idx] = code;
+  code->IncRef();
+
+  PatchJumpTablesLocked(slot_idx, code->instruction_start());
+}
+
 Vector<uint8_t> NativeModule::AllocateForDeserializedCode(
     size_t total_code_size) {
   return code_allocator_.AllocateForCode(this, total_code_size);
