@@ -3050,9 +3050,9 @@ void CodeGenerator::AssembleConstructFrame() {
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
                                    call_descriptor->CalleeSavedFPRegisters());
   DCHECK_EQ(saves_fp.Count() % 2, 0);
-  // The number of slots for returns has to be even to ensure the correct stack
-  // alignment.
-  const int returns = RoundUp(frame()->GetReturnSlotCount(), 2);
+  // The number of return slots should be even after aligning the Frame.
+  const int returns = frame()->GetReturnSlotCount();
+  DCHECK_EQ(returns % 2, 0);
 
   if (frame_access_state()->has_frame()) {
     // Link the frame
