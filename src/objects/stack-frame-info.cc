@@ -328,7 +328,7 @@ PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
           fun, name);
     } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       name = InferMethodNameFromDictionary(
-          isolate, object.property_dictionary_ordered(), fun, name);
+          isolate, object.property_dictionary_swiss(), fun, name);
     } else {
       name = InferMethodNameFromDictionary(
           isolate, object.property_dictionary(), fun, name);

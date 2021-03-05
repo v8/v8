@@ -328,8 +328,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   BIND(&allocate_properties);
   {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      properties = AllocateOrderedNameDictionary(
-          OrderedNameDictionary::kInitialCapacity);
+      properties =
+          AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
     } else {
       properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
     }
@@ -548,7 +548,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     BIND(&if_dictionary);
     {
       if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        // TODO(v8:11167) remove once OrderedNameDictionary supported.
+        // TODO(v8:11167) remove once SwissNameDictionary supported.
         GotoIf(Int32TrueConstant(), call_runtime);
       }
 

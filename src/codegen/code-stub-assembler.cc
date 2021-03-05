@@ -1592,7 +1592,7 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   NodeGenerator<HeapObject> make_empty = [=]() -> TNode<HeapObject> {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      return EmptyOrderedPropertyDictionaryConstant();
+      return EmptySwissPropertyDictionaryConstant();
     } else {
       return EmptyPropertyDictionaryConstant();
     }
@@ -1600,7 +1600,7 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
   NodeGenerator<HeapObject> cast_properties = [=] {
     TNode<HeapObject> dict = CAST(properties);
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      CSA_ASSERT(this, Word32Or(IsOrderedNameDictionary(dict),
+      CSA_ASSERT(this, Word32Or(IsSwissNameDictionary(dict),
                                 IsGlobalDictionary(dict)));
     } else {
       CSA_ASSERT(this,
@@ -1779,7 +1779,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
     TNode<JSReceiver> receiver, Label* if_no_hash) {
   TVARIABLE(IntPtrT, var_hash);
   Label done(this), if_smi(this), if_property_array(this),
-      if_ordered_property_dictionary(this), if_property_dictionary(this),
+      if_swiss_property_dictionary(this), if_property_dictionary(this),
       if_fixed_array(this);
 
   TNode<Object> properties_or_hash =
@@ -1792,9 +1792,9 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
   GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
          &if_property_array);
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    GotoIf(InstanceTypeEqual(properties_instance_type,
-                             ORDERED_NAME_DICTIONARY_TYPE),
-           &if_ordered_property_dictionary);
+    GotoIf(
+        InstanceTypeEqual(properties_instance_type, SWISS_NAME_DICTIONARY_TYPE),
+        &if_swiss_property_dictionary);
   }
   Branch(InstanceTypeEqual(properties_instance_type, NAME_DICTIONARY_TYPE),
          &if_property_dictionary, &if_fixed_array);
@@ -1819,10 +1819,10 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
     Goto(&done);
   }
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    BIND(&if_ordered_property_dictionary);
+    BIND(&if_swiss_property_dictionary);
     {
-      var_hash = SmiUntag(CAST(LoadFixedArrayElement(
-          CAST(properties), OrderedNameDictionary::HashIndex())));
+      var_hash = Signed(
+          ChangeUint32ToWord(LoadSwissNameDictionaryHash(CAST(properties))));
       Goto(&done);
     }
   }
@@ -3581,7 +3581,7 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
   } else {
     CSA_ASSERT(this, Word32Or(Word32Or(Word32Or(IsPropertyArray(*properties),
                                                 IsNameDictionary(*properties)),
-                                       IsOrderedNameDictionary(*properties)),
+                                       IsSwissNameDictionary(*properties)),
                               IsEmptyFixedArray(*properties)));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOrHashOffset,
                                    *properties);
@@ -6397,6 +6397,11 @@ TNode<BoolT> CodeStubAssembler::IsOrderedNameDictionary(
   return HasInstanceType(object, ORDERED_NAME_DICTIONARY_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsSwissNameDictionary(
+    TNode<HeapObject> object) {
+  return HasInstanceType(object, SWISS_NAME_DICTIONARY_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsGlobalDictionary(TNode<HeapObject> object) {
   return HasInstanceType(object, GLOBAL_DICTIONARY_TYPE);
 }
@@ -8005,6 +8010,25 @@ TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
       std::make_pair(type_int32, TruncateIntPtrToInt32(key))));
 }
 
+template <>
+void CodeStubAssembler::NameDictionaryLookup(
+    TNode<SwissNameDictionary> dictionary, TNode<Name> unique_name,
+    Label* if_found, TVariable<IntPtrT>* var_name_index, Label* if_not_found,
+    LookupMode mode) {
+  Label store_found_index(this);
+
+  // TOOD(v8:11330) Dummy implementation until real version exists.
+  TNode<Smi> index =
+      CallRuntime<Smi>(Runtime::kSwissTableFindEntry, NoContextConstant(),
+                       dictionary, unique_name);
+  BranchIfSmiEqual(index, SmiConstant(SwissNameDictionary::kNotFoundSentinel),
+                   if_not_found, &store_found_index);
+
+  BIND(&store_found_index);
+  *var_name_index = SmiToIntPtr(index);
+  Goto(if_found);
+}
+
 void CodeStubAssembler::NumberDictionaryLookup(
     TNode<NumberDictionary> dictionary, TNode<IntPtrT> intptr_index,
     Label* if_found, TVariable<IntPtrT>* var_entry, Label* if_not_found) {
@@ -8204,9 +8228,10 @@ TNode<Smi> CodeStubAssembler::GetNumberOfElements(
 
 template <>
 TNode<Smi> CodeStubAssembler::GetNumberOfElements(
-    TNode<OrderedNameDictionary> dictionary) {
-  return CAST(LoadFixedArrayElement(
-      dictionary, OrderedNameDictionary::NumberOfElementsIndex()));
+    TNode<SwissNameDictionary> dictionary) {
+  // TOOD(v8:11330) Dummy implementation until real version exists.
+  return CallRuntime<Smi>(Runtime::kSwissTableElementsCount,
+                          NoContextConstant(), dictionary);
 }
 
 template TNode<Smi> CodeStubAssembler::GetNumberOfElements(
@@ -8729,15 +8754,18 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
   BIND(&if_isslowmap);
   {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      // TODO(v8:11167, v8:11177) Only here due to SetDataProperties workaround.
-      GotoIf(Int32TrueConstant(), bailout);
+      TNode<SwissNameDictionary> dictionary = CAST(LoadSlowProperties(object));
+      *var_meta_storage = dictionary;
+
+      NameDictionaryLookup<SwissNameDictionary>(
+          dictionary, unique_name, if_found_dict, var_name_index, if_not_found);
+    } else {
+      TNode<NameDictionary> dictionary = CAST(LoadSlowProperties(object));
+      *var_meta_storage = dictionary;
+
+      NameDictionaryLookup<NameDictionary>(
+          dictionary, unique_name, if_found_dict, var_name_index, if_not_found);
     }
-
-    TNode<NameDictionary> dictionary = CAST(LoadSlowProperties(object));
-    *var_meta_storage = dictionary;
-
-    NameDictionaryLookup<NameDictionary>(dictionary, unique_name, if_found_dict,
-                                         var_name_index, if_not_found);
   }
 }
 
@@ -8971,6 +8999,23 @@ void CodeStubAssembler::LoadPropertyFromNameDictionary(
   Comment("] LoadPropertyFromNameDictionary");
 }
 
+void CodeStubAssembler::LoadPropertyFromSwissNameDictionary(
+    TNode<SwissNameDictionary> dictionary, TNode<IntPtrT> name_index,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_value) {
+  Comment("[ LoadPropertyFromSwissNameDictionary");
+
+  // TOOD(v8:11330) Dummy implementation until real version exists.
+  TNode<Smi> details =
+      CallRuntime<Smi>(Runtime::kSwissTableDetailsAt, NoContextConstant(),
+                       dictionary, SmiFromIntPtr(name_index));
+  *var_details = Unsigned(SmiToInt32(details));
+  *var_value =
+      CallRuntime<Object>(Runtime::kSwissTableValueAt, NoContextConstant(),
+                          dictionary, SmiFromIntPtr(name_index));
+
+  Comment("] LoadPropertyFromSwissNameDictionary");
+}
+
 void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
     TNode<GlobalDictionary> dictionary, TNode<IntPtrT> name_index,
     TVariable<Uint32T>* var_details, TVariable<Object>* var_value,
@@ -9154,9 +9199,17 @@ void CodeStubAssembler::TryGetOwnProperty(
   }
   BIND(&if_found_dict);
   {
-    TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
-    TNode<IntPtrT> entry = var_entry.value();
-    LoadPropertyFromNameDictionary(dictionary, entry, var_details, var_value);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      TNode<SwissNameDictionary> dictionary = CAST(var_meta_storage.value());
+      TNode<IntPtrT> entry = var_entry.value();
+      LoadPropertyFromSwissNameDictionary(dictionary, entry, var_details,
+                                          var_value);
+    } else {
+      TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
+      TNode<IntPtrT> entry = var_entry.value();
+      LoadPropertyFromNameDictionary(dictionary, entry, var_details, var_value);
+    }
+
     Goto(&if_found);
   }
   BIND(&if_found_global);
@@ -12646,7 +12699,7 @@ TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
       return_false(this), end(this), if_proxy(this, Label::kDeferred);
 
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    // TODO(v8:11167) remove once SwissNameDictionary supported.
     GotoIf(Int32TrueConstant(), &call_runtime);
   }
 
@@ -13742,14 +13795,14 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
     TNode<HeapObject> properties = LoadSlowProperties(receiver);
 
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      CSA_ASSERT(this, Word32Or(IsOrderedNameDictionary(properties),
+      CSA_ASSERT(this, Word32Or(IsSwissNameDictionary(properties),
                                 IsGlobalDictionary(properties)));
 
       length = Select<Smi>(
-          IsOrderedNameDictionary(properties),
+          IsSwissNameDictionary(properties),
           [=] {
             return GetNumberOfElements(
-                UncheckedCast<OrderedNameDictionary>(properties));
+                UncheckedCast<SwissNameDictionary>(properties));
           },
           [=] {
             return GetNumberOfElements(
@@ -14117,6 +14170,19 @@ void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
 
     Goto(if_unmodified);
   }
+}
+
+TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
+    TNode<IntPtrT> at_least_space_for) {
+  // TOOD(v8:11330) Dummy implementation until real version exists.
+  return CallRuntime<SwissNameDictionary>(Runtime::kSwissTableAllocate,
+                                          NoContextConstant(),
+                                          SmiFromIntPtr(at_least_space_for));
+}
+
+TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
+    int at_least_space_for) {
+  return AllocateSwissNameDictionary(IntPtrConstant(at_least_space_for));
 }
 
 }  // namespace internal

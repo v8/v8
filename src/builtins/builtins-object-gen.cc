@@ -1034,7 +1034,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       no_properties(this);
 
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    // TODO(v8:11167) remove once SwissNameDictionary supported.
     GotoIf(Int32TrueConstant(), &call_runtime);
   }
 
@@ -1078,8 +1078,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
       if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        properties = AllocateOrderedNameDictionary(
-            OrderedNameDictionary::kInitialCapacity);
+        properties =
+            AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
       } else {
         properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
       }
@@ -1284,9 +1284,8 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   Label if_keyisindex(this), if_iskeyunique(this),
       call_runtime(this, Label::kDeferred),
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
-
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    // TODO(v8:11167) remove once SwissNameDictionary supported.
     GotoIf(Int32TrueConstant(), &call_runtime);
   }
 
@@ -1373,7 +1372,7 @@ void ObjectBuiltinsAssembler::AddToDictionaryIf(
   GotoIfNot(condition, &done);
 
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    // TODO(v8:11167) remove once SwissNameDictionary supported.
     CallRuntime(Runtime::kAddDictionaryProperty, context, object,
                 HeapConstant(name), value);
   } else {
@@ -1437,7 +1436,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     // enumerable and configurable - a total of 6
     TNode<HeapObject> properties =
         V8_DICT_MODE_PROTOTYPES_BOOL
-            ? TNode<HeapObject>(AllocateOrderedNameDictionary(6))
+            ? TNode<HeapObject>(AllocateSwissNameDictionary(6))
             : AllocateNameDictionary(6);
     TNode<JSObject> js_desc = AllocateJSObjectFromMap(map, properties);
 
@@ -1481,7 +1480,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     Goto(&return_desc);
 
     if (!V8_DICT_MODE_PROTOTYPES_BOOL) {
-      // TODO(v8:11167) make unconditional once OrderedNameDictionary supported.
+      // TODO(v8:11167) make unconditional once SwissNameDictionary supported.
       BIND(&bailout);
       CSA_ASSERT(this, Int32Constant(0));
       Unreachable();

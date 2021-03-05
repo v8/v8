@@ -492,7 +492,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
       if_notfound(this), slow(this), if_proxy(this);
 
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    // TODO(v8:11167) remove once SwissNameDictionary supported.
     GotoIf(Int32TrueConstant(), &slow);
   }
 
@@ -961,7 +961,7 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
       if_slow(this, Label::kDeferred);
 
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    // TODO(v8:11167) remove once SwissNameDictionary supported.
     GotoIf(Int32TrueConstant(), &if_slow);
   }
 
@@ -1021,7 +1021,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
       if_slow(this, Label::kDeferred);
 
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    // TODO(v8:11167) remove once SwissNameDictionary supported.
     GotoIf(Int32TrueConstant(), &if_slow);
   }
 

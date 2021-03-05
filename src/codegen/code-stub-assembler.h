@@ -135,6 +135,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     EmptyPropertyDictionary)                                                 \
   V(EmptyOrderedPropertyDictionary, empty_ordered_property_dictionary,       \
     EmptyOrderedPropertyDictionary)                                          \
+  V(EmptySwissPropertyDictionary, empty_swiss_property_dictionary,           \
+    EmptySwissPropertyDictionary)                                            \
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
     EmptySlowElementDictionary)                                              \
   V(empty_string, empty_string, EmptyString)                                 \
@@ -2425,6 +2427,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsString(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
+  TNode<BoolT> IsSwissNameDictionary(TNode<HeapObject> object);
 
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
@@ -3039,6 +3042,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       TNode<IntPtrT> name_index,
                                       TVariable<Uint32T>* var_details,
                                       TVariable<Object>* var_value);
+  void LoadPropertyFromSwissNameDictionary(
+      TNode<SwissNameDictionary> dictionary, TNode<IntPtrT> name_index,
+      TVariable<Uint32T>* var_details, TVariable<Object>* var_value);
   void LoadPropertyFromGlobalDictionary(TNode<GlobalDictionary> dictionary,
                                         TNode<IntPtrT> name_index,
                                         TVariable<Uint32T>* var_details,
@@ -3696,6 +3702,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> FeedbackIteratorHandlerOffset() {
     return IntPtrConstant(FeedbackIterator::kHandlerOffset);
   }
+
+  TNode<SwissNameDictionary> AllocateSwissNameDictionary(
+      TNode<IntPtrT> at_least_space_for);
+  TNode<SwissNameDictionary> AllocateSwissNameDictionary(
+      int at_least_space_for);
 
  private:
   friend class CodeStubArguments;

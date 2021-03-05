@@ -860,7 +860,7 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
       BIND(&if_lookup_on_lookup_start_object);
       {
         if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-          // TODO(v8:11167) remove once OrderedNameDictionary supported.
+          // TODO(v8:11167) remove once SwissNameDictionary supported.
           GotoIf(Int32TrueConstant(), miss);
         }
 
@@ -2440,7 +2440,7 @@ void AccessorAssembler::GenericPropertyLoad(
   BIND(&if_property_dictionary);
   {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      // TODO(v8:11167) remove once OrderedNameDictionary supported.
+      // TODO(v8:11167) remove once SwissNameDictionary supported.
       GotoIf(Int32TrueConstant(), slow);
     }
 

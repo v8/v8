@@ -1890,13 +1890,21 @@ TEST(AllocateJSObjectFromMap) {
                                           "object")));
     JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "Normalize");
+    Handle<HeapObject> properties =
+        V8_DICT_MODE_PROTOTYPES_BOOL
+            ? Handle<HeapObject>(object->property_dictionary_swiss(), isolate)
+            : handle(object->property_dictionary(), isolate);
     Handle<JSObject> result = Handle<JSObject>::cast(
-        ft.Call(handle(object->map(), isolate),
-                handle(object->property_dictionary(), isolate),
+        ft.Call(handle(object->map(), isolate), properties,
                 handle(object->elements(), isolate))
             .ToHandleChecked());
     CHECK_EQ(result->map(), object->map());
-    CHECK_EQ(result->property_dictionary(), object->property_dictionary());
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      CHECK_EQ(result->property_dictionary_swiss(),
+               object->property_dictionary_swiss());
+    } else {
+      CHECK_EQ(result->property_dictionary(), object->property_dictionary());
+    }
     CHECK(!result->HasFastProperties());
 #ifdef VERIFY_HEAP
     isolate->heap()->Verify();
