@@ -305,12 +305,14 @@ String16 descriptionForCollection(v8::Isolate* isolate,
   return String16::concat(className, '(', String16::fromInteger(length), ')');
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 String16 descriptionForWasmValueObject(
     v8::Local<v8::Context> context,
     v8::Local<v8::debug::WasmValueObject> object) {
   v8::Isolate* isolate = context->GetIsolate();
   return toProtocolString(isolate, object->type());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 String16 descriptionForEntry(v8::Local<v8::Context> context,
                              v8::Local<v8::Object> object) {
