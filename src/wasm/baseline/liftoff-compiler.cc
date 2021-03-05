@@ -373,7 +373,7 @@ class LiftoffCompiler {
   struct TryInfo {
     TryInfo() = default;
     LiftoffAssembler::CacheState catch_state;
-    MovableLabel catch_label;
+    Label catch_label;
     bool catch_reached = false;
     int32_t previous_catch = -1;
   };
@@ -1084,7 +1084,7 @@ class LiftoffCompiler {
       return;
     }
 
-    __ bind(block->try_info->catch_label.get());
+    __ bind(&block->try_info->catch_label);
     __ cache_state()->Steal(block->try_info->catch_state);
   }
 
@@ -3698,7 +3698,7 @@ class LiftoffCompiler {
       current_try->try_info->catch_reached = true;
     }
     __ MergeStackWith(current_try->try_info->catch_state, 0);
-    __ emit_jump(current_try->try_info->catch_label.get());
+    __ emit_jump(&current_try->try_info->catch_label);
 
     __ bind(&skip_handler);
   }
