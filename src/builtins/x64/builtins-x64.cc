@@ -377,6 +377,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // Initialize the root register.
     // C calling convention. The first argument is passed in arg_reg_1.
     __ movq(kRootRegister, arg_reg_1);
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    // Initialize the pointer cage base register.
+    // TODO(syg): Actually make a cage.
+    __ movq(kPointerCageBaseRegister, arg_reg_1);
+#endif
   }
 
   // Save copies of the top frame descriptor on the stack.
@@ -1633,7 +1639,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ incl(
       FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
-  Register return_address = r12;
+  Register return_address = r15;
 
   __ RecordComment("[ Frame Setup");
   // Save the return address, so that we can push it to the end of the newly
@@ -2810,8 +2816,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     DCHECK(save_doubles == kDontSaveFPRegs);
     DCHECK(!builtin_exit_frame);
     __ EnterApiExitFrame(arg_stack_space);
-    // Move argc into r14 (argv is already in r15).
-    __ movq(r14, rax);
+    // Move argc into r12 (argv is already in r15).
+    __ movq(r12, rax);
   } else {
     __ EnterExitFrame(
         arg_stack_space, save_doubles == kSaveFPRegs,
@@ -2821,7 +2827,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // rbx: pointer to builtin function  (C callee-saved).
   // rbp: frame pointer of exit frame  (restored after C call).
   // rsp: stack pointer (restored after C call).
-  // r14: number of arguments including receiver (C callee-saved).
+  // r12: number of arguments including receiver (C callee-saved).
   // r15: argv pointer (C callee-saved).
 
   // Check stack alignment.
@@ -2834,7 +2840,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   if (result_size <= kMaxRegisterResultSize) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax), or a register pair (rax, rdx).
-    __ movq(kCCallArg0, r14);  // argc.
+    __ movq(kCCallArg0, r12);  // argc.
     __ movq(kCCallArg1, r15);  // argv.
     __ Move(kCCallArg2, ExternalReference::isolate_address(masm->isolate()));
   } else {
@@ -2842,7 +2848,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     // Pass a pointer to the result location as the first argument.
     __ leaq(kCCallArg0, StackSpaceOperand(kArgExtraStackSpace));
     // Pass a pointer to the Arguments object as the second argument.
-    __ movq(kCCallArg1, r14);  // argc.
+    __ movq(kCCallArg1, r12);  // argc.
     __ movq(kCCallArg2, r15);  // argv.
     __ Move(kCCallArg3, ExternalReference::isolate_address(masm->isolate()));
   }
@@ -2866,12 +2872,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // should have returned the exception sentinel.
   if (FLAG_debug_code) {
     Label okay;
-    __ LoadRoot(r14, RootIndex::kTheHoleValue);
+    __ LoadRoot(kScratchRegister, RootIndex::kTheHoleValue);
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
     Operand pending_exception_operand =
         masm->ExternalReferenceAsOperand(pending_exception_address);
-    __ cmp_tagged(r14, pending_exception_operand);
+    __ cmp_tagged(kScratchRegister, pending_exception_operand);
     __ j(equal, &okay, Label::kNear);
     __ int3();
     __ bind(&okay);
@@ -3212,7 +3218,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       kLastSpillOffset - kSystemPointerSize;
   // For Integer section.
   // Set the current_int_param_slot to point to the start of the section.
-  Register current_int_param_slot = r14;
+  Register current_int_param_slot = r10;
   __ leaq(current_int_param_slot, MemOperand(rsp, -kSystemPointerSize));
   Register params_size = param_count;
   param_count = no_reg;
@@ -3326,7 +3332,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r8  : start_int_section
   //  -- rdi : start_float_section
-  //  -- r14 : current_int_param_slot
+  //  -- r10 : current_int_param_slot
   //  -- r15 : current_float_param_slot
   //  -- r11 : valuetypes_array_ptr
   //  -- r12 : valuetype
@@ -3758,7 +3764,7 @@ int Offset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 // Calls an API function.  Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Clobbers r14, r15, rbx and
+// from handle and propagates exceptions.  Clobbers r12, r15, rbx and
 // caller-save registers.  Restores context.  On return removes
 // stack_space * kSystemPointerSize (GCed).
 void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
@@ -3785,7 +3791,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(rdx == function_address || r8 == function_address);
   // Allocate HandleScope in callee-save registers.
-  Register prev_next_address_reg = r14;
+  Register prev_next_address_reg = r12;
   Register prev_limit_reg = rbx;
   Register base_reg = r15;
   __ Move(base_reg, next_address);
