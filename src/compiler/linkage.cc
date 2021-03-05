@@ -85,22 +85,12 @@ int CallDescriptor::GetStackParameterDelta(
   // inputs to the TailCall node, since they already exist on the stack.
   if (IsTailCallForTierUp()) return 0;
 
-  int callee_slots_above_sp = GetOffsetToReturns();
-  int tail_caller_slots_above_sp = tail_caller->GetOffsetToReturns();
+  // Add padding if necessary before computing the stack parameter delta.
+  int callee_slots_above_sp = AddArgumentPaddingSlots(GetOffsetToReturns());
+  int tail_caller_slots_above_sp =
+      AddArgumentPaddingSlots(tail_caller->GetOffsetToReturns());
   int stack_param_delta = callee_slots_above_sp - tail_caller_slots_above_sp;
-  if (ShouldPadArguments(stack_param_delta)) {
-    if (callee_slots_above_sp % 2 != 0) {
-      // The delta is odd due to the callee - we will need to add one slot
-      // of padding.
-      ++stack_param_delta;
-    } else {
-      DCHECK_NE(tail_caller_slots_above_sp % 2, 0);
-      // The delta is odd because of the caller. We already have one slot of
-      // padding that we can reuse for arguments, so we will need one fewer
-      // slot.
-      --stack_param_delta;
-    }
-  }
+  DCHECK(!ShouldPadArguments(stack_param_delta));
   return stack_param_delta;
 }
 
@@ -137,7 +127,7 @@ int CallDescriptor::GetOffsetToReturns() const {
   // Otherwise, return the first unused slot before the parameters, with any
   // additional padding slot if it exists.
   end_of_returns = GetFirstUnusedStackSlot();
-  if (ShouldPadArguments(end_of_returns)) end_of_returns++;
+  end_of_returns += ArgumentPaddingSlots(end_of_returns);
 
   DCHECK_EQ(end_of_returns == 0, StackParameterCount() == 0);
   return end_of_returns;

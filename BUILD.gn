@@ -3555,7 +3555,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/optimized-compilation-info.cc",
     "src/codegen/pending-optimization-table.cc",
     "src/codegen/register-configuration.cc",
-    "src/codegen/register.cc",
     "src/codegen/reloc-info.cc",
     "src/codegen/safepoint-table.cc",
     "src/codegen/source-position-table.cc",
