@@ -5176,9 +5176,6 @@ class LiftoffCompiler {
                     const CallIndirectImmediate<validate>& imm,
                     CallKind call_kind) {
     ValueKindSig* sig = MakeKindSig(compilation_zone_, imm.sig);
-    if (imm.table_index != 0) {
-      return unsupported(decoder, kRefTypes, "table index != 0");
-    }
     for (ValueKind ret : sig->returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
@@ -5191,6 +5188,19 @@ class LiftoffCompiler {
     Register table = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register tmp_const = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register indirect_function_table = no_reg;
+    if (imm.table_index != 0) {
+      Register indirect_function_tables =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(indirect_function_tables,
+                                     IndirectFunctionTables, pinned);
+
+      indirect_function_table = indirect_function_tables;
+      __ LoadTaggedPointer(
+          indirect_function_table, indirect_function_tables, no_reg,
+          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.table_index),
+          pinned);
+    }
 
     // Bounds check against the table size.
     Label* invalid_func_label =
@@ -5203,8 +5213,15 @@ class LiftoffCompiler {
 
     // Compare against table size stored in
     // {instance->indirect_function_table_size}.
-    LOAD_INSTANCE_FIELD(tmp_const, IndirectFunctionTableSize, kUInt32Size,
-                        pinned);
+    if (imm.table_index == 0) {
+      LOAD_INSTANCE_FIELD(tmp_const, IndirectFunctionTableSize, kUInt32Size,
+                          pinned);
+    } else {
+      __ Load(
+          LiftoffRegister(tmp_const), indirect_function_table, no_reg,
+          wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSizeOffset),
+          LoadType::kI32Load, pinned);
+    }
     __ emit_cond_jump(kUnsignedGreaterEqual, invalid_func_label, kI32, index,
                       tmp_const);
 
@@ -5232,8 +5249,15 @@ class LiftoffCompiler {
 
     DEBUG_CODE_COMMENT("Check indirect call signature");
     // Load the signature from {instance->ift_sig_ids[key]}
-    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize,
-                        pinned);
+    if (imm.table_index == 0) {
+      LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds,
+                          kSystemPointerSize, pinned);
+    } else {
+      __ Load(LiftoffRegister(table), indirect_function_table, no_reg,
+              wasm::ObjectAccess::ToTagged(
+                  WasmIndirectFunctionTable::kSigIdsOffset),
+              kPointerLoadType, pinned);
+    }
     // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
     STATIC_ASSERT((1 << 2) == kInt32Size);
     __ emit_i32_shli(index, index, 2);
@@ -5259,7 +5283,14 @@ class LiftoffCompiler {
     // At this point {index} has already been multiplied by kTaggedSize.
 
     // Load the instance from {instance->ift_instances[key]}
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(table, IndirectFunctionTableRefs, pinned);
+    if (imm.table_index == 0) {
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(table, IndirectFunctionTableRefs, pinned);
+    } else {
+      __ LoadTaggedPointer(
+          table, indirect_function_table, no_reg,
+          wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset),
+          pinned);
+    }
     __ LoadTaggedPointer(tmp_const, table, index,
                          ObjectAccess::ElementOffsetInTaggedFixedArray(0),
                          pinned);
@@ -5274,8 +5305,15 @@ class LiftoffCompiler {
     Register* explicit_instance = &tmp_const;
 
     // Load the target from {instance->ift_targets[key]}
-    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableTargets, kSystemPointerSize,
-                        pinned);
+    if (imm.table_index == 0) {
+      LOAD_INSTANCE_FIELD(table, IndirectFunctionTableTargets,
+                          kSystemPointerSize, pinned);
+    } else {
+      __ Load(LiftoffRegister(table), indirect_function_table, no_reg,
+              wasm::ObjectAccess::ToTagged(
+                  WasmIndirectFunctionTable::kTargetsOffset),
+              kPointerLoadType, pinned);
+    }
     __ Load(LiftoffRegister(scratch), table, index, 0, kPointerLoadType,
             pinned);
 
