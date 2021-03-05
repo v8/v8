@@ -13,7 +13,10 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/boxed-float.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -175,7 +178,9 @@ class TranslatedFrame {
     kArgumentsAdaptor,
     kConstructStub,
     kBuiltinContinuation,
+#if V8_ENABLE_WEBASSEMBLY
     kJSToWasmBuiltinContinuation,
+#endif  // V8_ENABLE_WEBASSEMBLY
     kJavaScriptBuiltinContinuation,
     kJavaScriptBuiltinContinuationWithCatch,
     kInvalid
@@ -250,11 +255,13 @@ class TranslatedFrame {
   reference front() { return values_.front(); }
   const_reference front() const { return values_.front(); }
 
+#if V8_ENABLE_WEBASSEMBLY
   // Only for Kind == kJSToWasmBuiltinContinuation
   base::Optional<wasm::ValueKind> wasm_call_return_kind() const {
     DCHECK_EQ(kind(), kJSToWasmBuiltinContinuation);
     return return_kind_;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
   friend class TranslatedState;
@@ -274,9 +281,11 @@ class TranslatedFrame {
                                             int height);
   static TranslatedFrame BuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
+#if V8_ENABLE_WEBASSEMBLY
   static TranslatedFrame JSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height,
       base::Optional<wasm::ValueKind> return_type);
+#endif  // V8_ENABLE_WEBASSEMBLY
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
@@ -314,8 +323,10 @@ class TranslatedFrame {
 
   ValuesContainer values_;
 
+#if V8_ENABLE_WEBASSEMBLY
   // Only for Kind == kJSToWasmBuiltinContinuation
   base::Optional<wasm::ValueKind> return_kind_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 // Auxiliary class for translating deoptimization values.

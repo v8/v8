@@ -22,13 +22,6 @@ constexpr int kCompressedDataOffset =
     kUncompressedSizeOffset + kUncompressedSizeSize;
 constexpr int kTranslationArrayElementSize = kInt32Size;
 
-// Encodes the return type of a Wasm function as the integer value of
-// wasm::ValueKind, or kNoWasmReturnKind if the function returns void.
-int EncodeWasmReturnKind(base::Optional<wasm::ValueKind> return_kind) {
-  return return_kind ? static_cast<int>(return_kind.value())
-                     : kNoWasmReturnKind;
-}
-
 }  // namespace
 
 TranslationArrayIterator::TranslationArrayIterator(TranslationArray buffer,
@@ -123,17 +116,19 @@ void TranslationArrayBuilder::BeginBuiltinContinuationFrame(
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
-    base::Optional<wasm::ValueKind> return_type) {
+    base::Optional<wasm::ValueKind> return_kind) {
   auto opcode = TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME;
   Add(opcode);
   Add(bytecode_offset.ToInt());
   Add(literal_id);
   Add(height);
-  Add(EncodeWasmReturnKind(return_type));
+  Add(return_kind ? static_cast<int>(return_kind.value()) : kNoWasmReturnKind);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {

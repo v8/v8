@@ -98,6 +98,7 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
         break;
       }
 
+#if V8_ENABLE_WEBASSEMBLY
       case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
         int bailout_id = iterator.Next();
@@ -111,6 +112,7 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
            << "}";
         break;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
       case TranslationOpcode::ARGUMENTS_ADAPTOR_FRAME: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
@@ -264,19 +266,6 @@ void TranslationArrayPrintSingleFrame(std::ostream& os,
     os << "\n";
   }
 }
-
-namespace {
-
-// Decodes the return type of a Wasm function as the integer value of
-// wasm::ValueKind, or kNoWasmReturnKind if the function returns void.
-base::Optional<wasm::ValueKind> DecodeWasmReturnKind(int code) {
-  if (code != kNoWasmReturnKind) {
-    return {static_cast<wasm::ValueKind>(code)};
-  }
-  return {};
-}
-
-}  // namespace
 
 // static
 TranslatedValue TranslatedValue::NewDeferredObject(TranslatedState* container,
@@ -656,6 +645,7 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
   return frame;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
     base::Optional<wasm::ValueKind> return_kind) {
@@ -664,6 +654,7 @@ TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
   frame.return_kind_ = return_kind;
   return frame;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
@@ -711,7 +702,9 @@ int TranslatedFrame::GetValueCount() {
 
     case kConstructStub:
     case kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
     case kJSToWasmBuiltinContinuation:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kJavaScriptBuiltinContinuation:
     case kJavaScriptBuiltinContinuationWithCatch: {
       static constexpr int kTheContext = 1;
@@ -805,13 +798,17 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
                                                        shared_info, height);
     }
 
+#if V8_ENABLE_WEBASSEMBLY
     case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
       BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
-      base::Optional<wasm::ValueKind> return_kind =
-          DecodeWasmReturnKind(iterator->Next());
+      int return_kind_code = iterator->Next();
+      base::Optional<wasm::ValueKind> return_kind;
+      if (return_kind_code != kNoWasmReturnKind) {
+        return_kind = static_cast<wasm::ValueKind>(return_kind_code);
+      }
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading JS to Wasm builtin continuation frame %s",
@@ -824,6 +821,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       return TranslatedFrame::JSToWasmBuiltinContinuationFrame(
           bailout_id, shared_info, height, return_kind);
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
@@ -980,7 +978,9 @@ int TranslatedState::CreateNextTranslatedValue(
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
     case TranslationOpcode::BUILTIN_CONTINUATION_FRAME:
+#if V8_ENABLE_WEBASSEMBLY
     case TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case TranslationOpcode::UPDATE_FEEDBACK:
       // Peeled off before getting here.
       break;

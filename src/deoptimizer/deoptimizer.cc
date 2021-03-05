@@ -20,7 +20,10 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/oddball.h"
 #include "src/snapshot/embedded/embedded-data.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 
@@ -937,7 +940,9 @@ void Deoptimizer::DoComputeOutputFrames() {
         DoComputeConstructStubFrame(translated_frame, frame_index);
         break;
       case TranslatedFrame::kBuiltinContinuation:
+#if V8_ENABLE_WEBASSEMBLY
       case TranslatedFrame::kJSToWasmBuiltinContinuation:
+#endif  // V8_ENABLE_WEBASSEMBLY
         DoComputeBuiltinContinuation(translated_frame, frame_index,
                                      BuiltinContinuationMode::STUB);
         break;
@@ -1562,6 +1567,7 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TranslatedValue Deoptimizer::TranslatedValueForWasmReturnKind(
     base::Optional<wasm::ValueKind> wasm_call_return_kind) {
   if (wasm_call_return_kind) {
@@ -1591,6 +1597,7 @@ TranslatedValue Deoptimizer::TranslatedValueForWasmReturnKind(
   return TranslatedValue::NewTagged(&translated_state_,
                                     ReadOnlyRoots(isolate()).undefined_value());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // BuiltinContinuationFrames capture the machine state that is expected as input
 // to a builtin, including both input register values and stack parameters. When
@@ -1655,7 +1662,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     BuiltinContinuationMode mode) {
   TranslatedFrame::iterator result_iterator = translated_frame->end();
 
-  bool is_js_to_wasm_builtin_continuation =
+  bool is_js_to_wasm_builtin_continuation = false;
+#if V8_ENABLE_WEBASSEMBLY
+  is_js_to_wasm_builtin_continuation =
       translated_frame->kind() == TranslatedFrame::kJSToWasmBuiltinContinuation;
   if (is_js_to_wasm_builtin_continuation) {
     // For JSToWasmBuiltinContinuations, add a TranslatedValue with the result
@@ -1667,6 +1676,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
         translated_frame->wasm_call_return_kind());
     translated_frame->Add(result);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
 
