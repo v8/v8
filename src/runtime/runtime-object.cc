@@ -402,11 +402,10 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   PropertyDetails property_details(
       kData, NONE, PropertyDetails::kConstIfDictConstnessTracking);
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    Handle<OrderedNameDictionary> dictionary(
-        receiver->property_dictionary_ordered(), isolate);
-    dictionary = OrderedNameDictionary::Add(isolate, dictionary, name, value,
-                                            property_details)
-                     .ToHandleChecked();
+    Handle<SwissNameDictionary> dictionary(
+        receiver->property_dictionary_swiss(), isolate);
+    dictionary = SwissNameDictionary::Add(isolate, dictionary, name, value,
+                                          property_details);
     receiver->SetProperties(*dictionary);
   } else {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
@@ -682,8 +681,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       } else if (!holder->HasFastProperties()) {
         // Attempt dictionary lookup.
         if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-          OrderedNameDictionary dictionary =
-              holder->property_dictionary_ordered();
+          SwissNameDictionary dictionary = holder->property_dictionary_swiss();
           InternalIndex entry = dictionary.FindEntry(isolate, *key);
           if (entry.is_found() &&
               (dictionary.DetailsAt(entry).kind() == kData)) {
@@ -816,10 +814,10 @@ RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    Handle<OrderedNameDictionary> dictionary(
-        receiver->property_dictionary_ordered(), isolate);
-    Handle<OrderedNameDictionary> new_properties =
-        OrderedNameDictionary::Shrink(isolate, dictionary);
+    Handle<SwissNameDictionary> dictionary(
+        receiver->property_dictionary_swiss(), isolate);
+    Handle<SwissNameDictionary> new_properties =
+        SwissNameDictionary::Shrink(isolate, dictionary);
     receiver->SetProperties(*new_properties);
   } else {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);

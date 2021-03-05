@@ -60,6 +60,7 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/templates.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-js.h"
@@ -5202,10 +5203,10 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
 
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
     // Copy all keys and values in enumeration order.
-    Handle<OrderedNameDictionary> properties = Handle<OrderedNameDictionary>(
-        from->property_dictionary_ordered(), isolate());
+    Handle<SwissNameDictionary> properties = Handle<SwissNameDictionary>(
+        from->property_dictionary_swiss(), isolate());
     ReadOnlyRoots roots(isolate());
-    for (InternalIndex entry : properties->IterateEntries()) {
+    for (InternalIndex entry : properties->IterateEntriesOrdered()) {
       Object raw_key;
       if (!properties->ToKey(roots, entry, &raw_key)) continue;
 

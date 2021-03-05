@@ -134,8 +134,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       }
     } else {
       if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        Handle<OrderedNameDictionary> dict(
-            copy->property_dictionary_ordered(isolate), isolate);
+        Handle<SwissNameDictionary> dict(
+            copy->property_dictionary_swiss(isolate), isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Object raw = dict->ValueAt(i);
           if (!raw.IsJSObject(isolate)) continue;

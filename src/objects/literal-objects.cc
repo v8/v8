@@ -572,6 +572,13 @@ template void ClassBoilerplate::AddToPropertiesTemplate(
     Isolate* isolate, Handle<OrderedNameDictionary> dictionary,
     Handle<Name> name, int key_index, ClassBoilerplate::ValueKind value_kind,
     Smi value);
+template <>
+void ClassBoilerplate::AddToPropertiesTemplate(
+    Isolate* isolate, Handle<SwissNameDictionary> dictionary, Handle<Name> name,
+    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value) {
+  // TODO(v8:11388) Temporary dummy to make MSVC happy, removed in next CL.
+  UNREACHABLE();
+}
 
 template <typename LocalIsolate>
 void ClassBoilerplate::AddToElementsTemplate(

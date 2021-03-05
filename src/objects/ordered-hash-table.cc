@@ -438,38 +438,6 @@ InternalIndex OrderedNameDictionary::FindEntry(LocalIsolate* isolate,
   return InternalIndex::NotFound();
 }
 
-// TODO(emrich): This is almost an identical copy of
-// Dictionary<..>::SlowReverseLookup.
-// Consolidate both versions elsewhere (e.g., hash-table-utils)?
-Object OrderedNameDictionary::SlowReverseLookup(Isolate* isolate,
-                                                Object value) {
-  ReadOnlyRoots roots(isolate);
-  for (InternalIndex i : IterateEntries()) {
-    Object k;
-    if (!ToKey(roots, i, &k)) continue;
-    Object e = this->ValueAt(i);
-    if (e == value) return k;
-  }
-  return roots.undefined_value();
-}
-
-// TODO(emrich): This is almost an identical copy of
-// HashTable<..>::NumberOfEnumerableProperties.
-// Consolidate both versions elsewhere (e.g., hash-table-utils)?
-int OrderedNameDictionary::NumberOfEnumerableProperties() {
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
-  int result = 0;
-  for (InternalIndex i : this->IterateEntries()) {
-    Object k;
-    if (!this->ToKey(roots, i, &k)) continue;
-    if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
-    PropertyDetails details = this->DetailsAt(i);
-    PropertyAttributes attr = details.attributes();
-    if ((attr & ONLY_ENUMERABLE) == 0) result++;
-  }
-  return result;
-}
-
 template <typename LocalIsolate>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
     LocalIsolate* isolate, Handle<OrderedNameDictionary> table,

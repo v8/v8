@@ -830,7 +830,7 @@ void CommonCopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
       continue;
     } else {
       if (Dictionary::kIsOrderedDictionaryType) {
-        storage->set(properties, dictionary->NameAt(i));
+        storage->set(properties, Name::cast(key));
       } else {
         // If the dictionary does not store elements in enumeration order,
         // we need to sort it afterwards in CopyEnumKeysTo. To enable this we
@@ -875,11 +875,11 @@ void CopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
 }
 
 template <>
-void CopyEnumKeysTo(Isolate* isolate, Handle<OrderedNameDictionary> dictionary,
+void CopyEnumKeysTo(Isolate* isolate, Handle<SwissNameDictionary> dictionary,
                     Handle<FixedArray> storage, KeyCollectionMode mode,
                     KeyAccumulator* accumulator) {
-  CommonCopyEnumKeysTo<OrderedNameDictionary>(isolate, dictionary, storage,
-                                              mode, accumulator);
+  CommonCopyEnumKeysTo<SwissNameDictionary>(isolate, dictionary, storage, mode,
+                                            accumulator);
 
   // No need to sort, as CommonCopyEnumKeysTo on OrderedNameDictionary
   // adds entries to |storage| in the dict's insertion order
@@ -1006,7 +1006,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
           JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad));
     } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
-          isolate_, mode_, this, object, object->property_dictionary_ordered());
+          isolate_, mode_, this, object, object->property_dictionary_swiss());
     } else {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
           isolate_, mode_, this, object, object->property_dictionary());
@@ -1045,7 +1045,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
           this));
     } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
-          handle(object->property_dictionary_ordered(), isolate_), this));
+          handle(object->property_dictionary_swiss(), isolate_), this));
     } else {
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
           handle(object->property_dictionary(), isolate_), this));
@@ -1070,7 +1070,7 @@ ExceptionStatus KeyAccumulator::CollectPrivateNames(Handle<JSReceiver> receiver,
         this));
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
     RETURN_FAILURE_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
-        handle(object->property_dictionary_ordered(), isolate_), this));
+        handle(object->property_dictionary_swiss(), isolate_), this));
   } else {
     RETURN_FAILURE_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
         handle(object->property_dictionary(), isolate_), this));
@@ -1156,7 +1156,7 @@ Handle<FixedArray> KeyAccumulator::GetOwnEnumPropertyKeys(
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
-        object->property_dictionary_ordered());
+        object->property_dictionary_swiss());
   } else {
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
@@ -1189,7 +1189,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   if (filter_ == PRIVATE_NAMES_ONLY) {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
-          handle(proxy->property_dictionary_ordered(), isolate_), this));
+          handle(proxy->property_dictionary_swiss(), isolate_), this));
     } else {
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
           handle(proxy->property_dictionary(), isolate_), this));

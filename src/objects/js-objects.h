@@ -50,7 +50,11 @@ class JSReceiver : public HeapObject {
 
   // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
   // set).
+  // TODO(v8:11388) Keeping both versions around while transition to
+  // SwissNameDictionary is in progress, will then delete
+  // property_dictionary_ordered.
   DECL_GETTER(property_dictionary_ordered, OrderedNameDictionary)
+  DECL_GETTER(property_dictionary_swiss, SwissNameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the

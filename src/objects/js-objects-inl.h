@@ -21,6 +21,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi-inl.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -605,7 +606,7 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
   if (map(isolate).is_dictionary_map()) {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       WRITE_FIELD(*this, kPropertiesOrHashOffset,
-                  roots.empty_ordered_property_dictionary());
+                  roots.empty_swiss_property_dictionary());
     } else {
       WRITE_FIELD(*this, kPropertiesOrHashOffset,
                   roots.empty_property_dictionary());
@@ -619,7 +620,7 @@ DEF_GETTER(JSReceiver, HasFastProperties, bool) {
   DCHECK(raw_properties_or_hash(isolate).IsSmi() ||
          ((raw_properties_or_hash(isolate).IsGlobalDictionary(isolate) ||
            raw_properties_or_hash(isolate).IsNameDictionary(isolate) ||
-           raw_properties_or_hash(isolate).IsOrderedNameDictionary(isolate)) ==
+           raw_properties_or_hash(isolate).IsSwissNameDictionary(isolate)) ==
           map(isolate).is_dictionary_map()));
   return !map(isolate).is_dictionary_map();
 }
@@ -650,6 +651,20 @@ DEF_GETTER(JSReceiver, property_dictionary_ordered, OrderedNameDictionary) {
     return GetReadOnlyRoots(isolate).empty_ordered_property_dictionary();
   }
   return OrderedNameDictionary::cast(prop);
+}
+
+DEF_GETTER(JSReceiver, property_dictionary_swiss, SwissNameDictionary) {
+  DCHECK(!IsJSGlobalObject(isolate));
+  DCHECK(!HasFastProperties(isolate));
+  DCHECK(V8_DICT_MODE_PROTOTYPES_BOOL);
+
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  Object prop = raw_properties_or_hash(isolate);
+  if (prop.IsSmi()) {
+    return GetReadOnlyRoots(isolate).empty_swiss_property_dictionary();
+  }
+  return SwissNameDictionary::cast(prop);
 }
 
 // TODO(gsathya): Pass isolate directly to this function and access

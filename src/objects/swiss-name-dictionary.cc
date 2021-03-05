@@ -107,8 +107,13 @@ bool SwissNameDictionary::EqualsForTesting(SwissNameDictionary other) {
 }
 
 // static
-Handle<SwissNameDictionary> SwissNameDictionary::CopyForTesting(
+Handle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
     Isolate* isolate, Handle<SwissNameDictionary> table) {
+  // TODO(v8:11388) Consider doing some cleanup during copying: For example, we
+  // could turn kDeleted into kEmpty in certain situations. But this would
+  // require tidying up the enumeration table in a similar fashion as would be
+  // required when trying to re-use deleted entries.
+
   if (table->Capacity() == 0) {
     return table;
   }
@@ -240,6 +245,37 @@ void SwissNameDictionary::Rehash(Isolate* isolate) {
     SetEntryForEnumerationIndex(new_enum_index, new_entry);
     ++new_enum_index;
   }
+}
+
+// TODO(emrich,v8:11388): This is almost an identical copy of
+// HashTable<..>::NumberOfEnumerableProperties. Consolidate both versions
+// elsewhere (e.g., hash-table-utils)?
+int SwissNameDictionary::NumberOfEnumerableProperties() {
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  int result = 0;
+  for (InternalIndex i : this->IterateEntries()) {
+    Object k;
+    if (!this->ToKey(roots, i, &k)) continue;
+    if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
+    PropertyDetails details = this->DetailsAt(i);
+    PropertyAttributes attr = details.attributes();
+    if ((attr & ONLY_ENUMERABLE) == 0) result++;
+  }
+  return result;
+}
+
+// TODO(emrich, v8:11388): This is almost an identical copy of
+// Dictionary<..>::SlowReverseLookup. Consolidate both versions elsewhere (e.g.,
+// hash-table-utils)?
+Object SwissNameDictionary::SlowReverseLookup(Isolate* isolate, Object value) {
+  ReadOnlyRoots roots(isolate);
+  for (InternalIndex i : IterateEntries()) {
+    Object k;
+    if (!ToKey(roots, i, &k)) continue;
+    Object e = this->ValueAt(i);
+    if (e == value) return k;
+  }
+  return roots.undefined_value();
 }
 
 // The largest value we ever have to store in the enumeration table is

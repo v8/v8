@@ -1371,7 +1371,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
     }
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    OrderedNameDictionary dictionary = js_obj.property_dictionary_ordered();
+    SwissNameDictionary dictionary = js_obj.property_dictionary_swiss();
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary.IterateEntries()) {
       Object k = dictionary.KeyAt(i);

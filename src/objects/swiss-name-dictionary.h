@@ -112,17 +112,16 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline int Capacity();
   inline int UsedCapacity();
 
+  int NumberOfEnumerableProperties();
+
+  static Handle<SwissNameDictionary> ShallowCopy(
+      Isolate* isolate, Handle<SwissNameDictionary> table);
+
   // Strict in the sense that it checks that all used/initialized memory in
   // |this| and |other| is the same. The only exceptions are the meta table
   // pointer (which must differ  between the two tables) and PropertyDetails of
   // deleted entries (which reside in initialized memory, but are not compared).
   bool EqualsForTesting(SwissNameDictionary other);
-
-  // Copy operation for testing purposes. Guarantees that DebugEquals holds for
-  // the old table and its copy. In particular, no kind of tidying up is
-  // performed.
-  static Handle<SwissNameDictionary> CopyForTesting(
-      Isolate* isolate, Handle<SwissNameDictionary> table);
 
   template <typename LocalIsolate>
   void Initialize(LocalIsolate* isolate, ByteArray meta_table, int capacity);
@@ -135,6 +134,8 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 
   inline void SetHash(int hash);
   inline int Hash();
+
+  Object SlowReverseLookup(Isolate* isolate, Object value);
 
   class IndexIterator {
    public:

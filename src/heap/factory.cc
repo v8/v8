@@ -1602,13 +1602,15 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       clone->set_raw_properties_or_hash(*prop);
     }
   } else {
-    Handle<FixedArray> properties =
-        handle(V8_DICT_MODE_PROTOTYPES_BOOL
-                   ? FixedArray::cast(source->property_dictionary_ordered())
-                   : FixedArray::cast(source->property_dictionary()),
-               isolate());
-    Handle<FixedArray> prop = CopyFixedArray(properties);
-    clone->set_raw_properties_or_hash(*prop);
+    Handle<Object> copied_properties;
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      copied_properties = SwissNameDictionary::ShallowCopy(
+          isolate(), handle(source->property_dictionary_swiss(), isolate()));
+    } else {
+      copied_properties =
+          CopyFixedArray(handle(source->property_dictionary(), isolate()));
+    }
+    clone->set_raw_properties_or_hash(*copied_properties);
   }
   return clone;
 }
@@ -2190,8 +2192,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
   DCHECK(map->is_dictionary_map());
   Handle<HeapObject> object_properties;
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    object_properties =
-        OrderedNameDictionary::Allocate(isolate(), capacity).ToHandleChecked();
+    object_properties = NewSwissNameDictionary(capacity, allocation);
   } else {
     object_properties = NameDictionary::New(isolate(), capacity);
   }
@@ -2205,7 +2206,7 @@ Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
     Handle<HeapObject> prototype, Handle<HeapObject> properties,
     Handle<FixedArrayBase> elements) {
   DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
-                 properties->IsOrderedNameDictionary());
+                 properties->IsSwissNameDictionary());
   DCHECK_IMPLIES(!V8_DICT_MODE_PROTOTYPES_BOOL, properties->IsNameDictionary());
 
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();

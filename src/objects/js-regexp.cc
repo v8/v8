@@ -66,7 +66,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   int num_names = names->length() >> 1;
   Handle<HeapObject> group_names;
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    group_names = isolate->factory()->NewOrderedNameDictionary(num_names);
+    group_names = isolate->factory()->NewSwissNameDictionary(num_names);
   } else {
     group_names = isolate->factory()->NewNameDictionary(num_names);
   }
@@ -82,11 +82,9 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
       capture_indices = Handle<JSArray>::cast(capture_indices);
     }
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      group_names =
-          OrderedNameDictionary::Add(
-              isolate, Handle<OrderedNameDictionary>::cast(group_names), name,
-              capture_indices, PropertyDetails::Empty())
-              .ToHandleChecked();
+      group_names = SwissNameDictionary::Add(
+          isolate, Handle<SwissNameDictionary>::cast(group_names), name,
+          capture_indices, PropertyDetails::Empty());
     } else {
       group_names = NameDictionary::Add(
           isolate, Handle<NameDictionary>::cast(group_names), name,

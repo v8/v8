@@ -75,6 +75,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
+  static Handle<Derived> ShallowCopy(Isolate* isolate,
+                                     Handle<Derived> dictionary);
+
  protected:
   // Generic at put operation.
   V8_WARN_UNUSED_RESULT static Handle<Derived> AtPut(Isolate* isolate,

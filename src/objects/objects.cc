@@ -3561,11 +3561,10 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
 
   PropertyDetails details(kData, DONT_ENUM, PropertyConstness::kMutable);
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    Handle<OrderedNameDictionary> dict(proxy->property_dictionary_ordered(),
-                                       isolate);
-    Handle<OrderedNameDictionary> result =
-        OrderedNameDictionary::Add(isolate, dict, private_name, value, details)
-            .ToHandleChecked();
+    Handle<SwissNameDictionary> dict(proxy->property_dictionary_swiss(),
+                                     isolate);
+    Handle<SwissNameDictionary> result =
+        SwissNameDictionary::Add(isolate, dict, private_name, value, details);
     if (!dict.is_identical_to(result)) proxy->SetProperties(*result);
   } else {
     Handle<NameDictionary> dict(proxy->property_dictionary(), isolate);
@@ -5920,6 +5919,13 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(LocalIsolate* isolate,
   dictionary->ElementAdded();
   if (entry_out) *entry_out = entry;
   return dictionary;
+}
+
+template <typename Derived, typename Shape>
+Handle<Derived> Dictionary<Derived, Shape>::ShallowCopy(
+    Isolate* isolate, Handle<Derived> dictionary) {
+  return Handle<Derived>::cast(isolate->factory()->CopyFixedArrayWithMap(
+      dictionary, Derived::GetMap(ReadOnlyRoots(isolate))));
 }
 
 // static
