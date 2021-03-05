@@ -3651,7 +3651,7 @@ base::Optional<ObjectRef> MapRef::GetStrongValue(
 }
 
 DescriptorArrayRef MapRef::instance_descriptors() const {
-  if (data_->should_access_heap()) {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
     return DescriptorArrayRef(
         broker(),
         broker()->CanonicalPersistentHandle(
