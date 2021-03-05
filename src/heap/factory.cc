@@ -2090,7 +2090,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
-  Handle<DescriptorArray> descs(map->instance_descriptors(kRelaxedLoad),
+  Handle<DescriptorArray> descs(map->instance_descriptors(isolate()),
                                 isolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
@@ -3306,8 +3306,8 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
     map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(
-      0, map->instance_descriptors(kRelaxedLoad).number_of_slack_descriptors());
+  DCHECK_EQ(0,
+            map->instance_descriptors(isolate()).number_of_slack_descriptors());
   LOG(isolate(), MapDetails(*map));
   return map;
 }
@@ -3384,8 +3384,8 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(
-      0, map->instance_descriptors(kRelaxedLoad).number_of_slack_descriptors());
+  DCHECK_EQ(0,
+            map->instance_descriptors(isolate()).number_of_slack_descriptors());
   LOG(isolate(), MapDetails(*map));
   return map;
 }

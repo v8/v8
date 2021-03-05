@@ -256,7 +256,7 @@ PrimitiveHeapObject InferMethodNameFromFastObject(Isolate* isolate,
                                                   PrimitiveHeapObject name) {
   ReadOnlyRoots roots(isolate);
   Map map = receiver.map();
-  DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
+  DescriptorArray descriptors = map.instance_descriptors(isolate);
   for (auto i : map.IterateOwnDescriptors()) {
     PrimitiveHeapObject key = descriptors.GetKey(i);
     if (key.IsSymbol()) continue;

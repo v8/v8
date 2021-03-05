@@ -33,6 +33,8 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR(Map)
 
+ACCESSORS(Map, instance_descriptors, DescriptorArray,
+          kInstanceDescriptorsOffset)
 RELAXED_ACCESSORS(Map, instance_descriptors, DescriptorArray,
                   kInstanceDescriptorsOffset)
 RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, DescriptorArray,
@@ -172,7 +174,7 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
 }
 
 PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
-  return instance_descriptors(isolate, kRelaxedLoad).GetDetails(LastAdded());
+  return instance_descriptors(isolate).GetDetails(LastAdded());
 }
 
 InternalIndex Map::LastAdded() const {
@@ -186,7 +188,7 @@ int Map::NumberOfOwnDescriptors() const {
 }
 
 void Map::SetNumberOfOwnDescriptors(int number) {
-  DCHECK_LE(number, instance_descriptors(kRelaxedLoad).number_of_descriptors());
+  DCHECK_LE(number, instance_descriptors().number_of_descriptors());
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
   set_bit_field3(
@@ -612,7 +614,7 @@ void Map::clear_padding() {
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
-  DescriptorArray descriptors = instance_descriptors(kRelaxedLoad);
+  DescriptorArray descriptors = instance_descriptors(isolate);
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
   {

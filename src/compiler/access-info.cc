@@ -403,7 +403,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     Handle<Map> receiver_map, Handle<Map> map, MaybeHandle<JSObject> holder,
     InternalIndex descriptor, AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate()),
                                       isolate());
   PropertyDetails const details = descriptors->GetDetails(descriptor);
   int index = descriptors->GetFieldIndex(descriptor);
@@ -498,7 +498,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     MaybeHandle<JSObject> holder, InternalIndex descriptor,
     AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate()),
                                       isolate());
   SLOW_DCHECK(descriptor == descriptors->Search(*name, *map));
   if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {

@@ -411,9 +411,8 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     if (old_map.is_identical_to(new_map)) {
       // Update the property details if the representation was None.
       if (constness() != new_constness || representation().IsNone()) {
-        property_details_ =
-            new_map->instance_descriptors(isolate_, kRelaxedLoad)
-                .GetDetails(descriptor_number());
+        property_details_ = new_map->instance_descriptors(isolate_).GetDetails(
+            descriptor_number());
       }
       return;
     }
@@ -875,9 +874,9 @@ Handle<Object> LookupIterator::FetchValue(
     return JSObject::FastPropertyAt(holder, property_details_.representation(),
                                     field_index);
   } else {
-    result = holder_->map(isolate_)
-                 .instance_descriptors(isolate_, kRelaxedLoad)
-                 .GetStrongValue(isolate_, descriptor_number());
+    result =
+        holder_->map(isolate_).instance_descriptors(isolate_).GetStrongValue(
+            isolate_, descriptor_number());
   }
   return handle(result, isolate_);
 }
@@ -993,10 +992,10 @@ Handle<FieldType> LookupIterator::GetFieldType() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(kField, property_details_.location());
-  return handle(holder_->map(isolate_)
-                    .instance_descriptors(isolate_, kRelaxedLoad)
-                    .GetFieldType(isolate_, descriptor_number()),
-                isolate_);
+  return handle(
+      holder_->map(isolate_).instance_descriptors(isolate_).GetFieldType(
+          isolate_, descriptor_number()),
+      isolate_);
 }
 
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
@@ -1202,8 +1201,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
       property_details_ = property_details_.CopyAddAttributes(SEALED);
     }
   } else if (!map.is_dictionary_map()) {
-    DescriptorArray descriptors =
-        map.instance_descriptors(isolate_, kRelaxedLoad);
+    DescriptorArray descriptors = map.instance_descriptors(isolate_);
     number_ = descriptors.SearchWithCache(isolate_, *name_, map);
     if (number_.is_not_found()) return NotFound(holder);
     property_details_ = descriptors.GetDetails(number_);

@@ -5123,11 +5123,9 @@ bool JSArray::MayHaveReadOnlyLength(Map js_array_map) {
   // dictionary properties. Since it's not configurable, it's guaranteed to be
   // the first in the descriptor array.
   InternalIndex first(0);
-  DCHECK(js_array_map.instance_descriptors(kRelaxedLoad).GetKey(first) ==
+  DCHECK(js_array_map.instance_descriptors().GetKey(first) ==
          js_array_map.GetReadOnlyRoots().length_string());
-  return js_array_map.instance_descriptors(kRelaxedLoad)
-      .GetDetails(first)
-      .IsReadOnly();
+  return js_array_map.instance_descriptors().GetDetails(first).IsReadOnly();
 }
 
 bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {

@@ -529,8 +529,8 @@ void TransitionsAccessor::CheckNewTransitionsAreConsistent(
   TransitionArray new_transitions = TransitionArray::cast(transitions);
   for (int i = 0; i < old_transitions.number_of_transitions(); i++) {
     Map target = old_transitions.GetTarget(i);
-    if (target.instance_descriptors(kRelaxedLoad) ==
-        map_.instance_descriptors(kRelaxedLoad)) {
+    if (target.instance_descriptors(isolate_) ==
+        map_.instance_descriptors(isolate_)) {
       Name key = old_transitions.GetKey(i);
       int new_target_index;
       if (IsSpecialTransition(ReadOnlyRoots(isolate_), key)) {

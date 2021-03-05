@@ -464,8 +464,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     InternalIndex descriptor_index(descriptor);
     if (descriptor < feedback_descriptors) {
       expected =
-          handle(String::cast(feedback->instance_descriptors(kRelaxedLoad)
-                                  .GetKey(descriptor_index)),
+          handle(String::cast(feedback->instance_descriptors(isolate_).GetKey(
+                     descriptor_index)),
                  isolate_);
     } else {
       DisallowGarbageCollection no_gc;
@@ -497,7 +497,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Handle<Object> value = property.value;
 
     PropertyDetails details =
-        target->instance_descriptors(kRelaxedLoad).GetDetails(descriptor_index);
+        target->instance_descriptors(isolate_).GetDetails(descriptor_index);
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
@@ -512,7 +512,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       Map::GeneralizeField(isolate(), target, descriptor_index,
                            details.constness(), representation, value_type);
     } else if (expected_representation.IsHeapObject() &&
-               !target->instance_descriptors(kRelaxedLoad)
+               !target->instance_descriptors(isolate())
                     .GetFieldType(descriptor_index)
                     .NowContains(value)) {
       Handle<FieldType> value_type =
@@ -524,7 +524,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       new_mutable_double++;
     }
 
-    DCHECK(target->instance_descriptors(kRelaxedLoad)
+    DCHECK(target->instance_descriptors(isolate())
                .GetFieldType(descriptor_index)
                .NowContains(value));
     map = target;
@@ -574,7 +574,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       if (property.string.is_index()) continue;
       InternalIndex descriptor_index(descriptor);
       PropertyDetails details =
-          map->instance_descriptors(kRelaxedLoad).GetDetails(descriptor_index);
+          map->instance_descriptors(isolate()).GetDetails(descriptor_index);
       Object value = *property.value;
       FieldIndex index = FieldIndex::ForDescriptor(*map, descriptor_index);
       descriptor++;

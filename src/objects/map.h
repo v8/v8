@@ -576,6 +576,7 @@ class Map : public HeapObject {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
+  DECL_ACCESSORS(instance_descriptors, DescriptorArray)
   DECL_RELAXED_ACCESSORS(instance_descriptors, DescriptorArray)
   DECL_ACQUIRE_GETTER(instance_descriptors, DescriptorArray)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,

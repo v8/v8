@@ -392,7 +392,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       int delta = actual_unused_property_fields - map().UnusedPropertyFields();
       CHECK_EQ(0, delta % JSObject::kFieldsAdded);
     }
-    DescriptorArray descriptors = map().instance_descriptors(kRelaxedLoad);
+    DescriptorArray descriptors = map().instance_descriptors(isolate);
     bool is_transitionable_fast_elements_kind =
         IsTransitionableFastElementsKind(map().elements_kind());
 
@@ -462,13 +462,13 @@ void Map::MapVerify(Isolate* isolate) {
       // Root maps must not have descriptors in the descriptor array that do not
       // belong to the map.
       CHECK_EQ(NumberOfOwnDescriptors(),
-               instance_descriptors(kRelaxedLoad).number_of_descriptors());
+               instance_descriptors(isolate).number_of_descriptors());
     } else {
       // If there is a parent map it must be non-stable.
       Map parent = Map::cast(GetBackPointer());
       CHECK(!parent.is_stable());
-      DescriptorArray descriptors = instance_descriptors(kRelaxedLoad);
-      if (descriptors == parent.instance_descriptors(kRelaxedLoad)) {
+      DescriptorArray descriptors = instance_descriptors(isolate);
+      if (descriptors == parent.instance_descriptors(isolate)) {
         if (NumberOfOwnDescriptors() == parent.NumberOfOwnDescriptors() + 1) {
           // Descriptors sharing through property transitions takes over
           // ownership from the parent map.
@@ -486,7 +486,7 @@ void Map::MapVerify(Isolate* isolate) {
       }
     }
   }
-  SLOW_DCHECK(instance_descriptors(kRelaxedLoad).IsSortedNoDuplicates());
+  SLOW_DCHECK(instance_descriptors(isolate).IsSortedNoDuplicates());
   DisallowGarbageCollection no_gc;
   SLOW_DCHECK(
       TransitionsAccessor(isolate, *this, &no_gc).IsSortedNoDuplicates());
@@ -500,7 +500,7 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
     CHECK(!is_access_check_needed());
-    DescriptorArray const descriptors = instance_descriptors(kRelaxedLoad);
+    DescriptorArray const descriptors = instance_descriptors(isolate);
     for (InternalIndex i : IterateOwnDescriptors()) {
       CHECK(!descriptors.GetKey(i).IsInterestingSymbol());
     }
@@ -524,7 +524,7 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   CHECK(is_dictionary_map());
   CHECK_EQ(kInvalidEnumCacheSentinel, EnumLength());
   CHECK_EQ(ReadOnlyRoots(isolate).empty_descriptor_array(),
-           instance_descriptors(kRelaxedLoad));
+           instance_descriptors(isolate));
   CHECK_EQ(0, UnusedPropertyFields());
   CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
 }

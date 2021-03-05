@@ -280,7 +280,7 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
 
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
-    DescriptorArray descs = map().instance_descriptors(kRelaxedLoad);
+    DescriptorArray descs = map().instance_descriptors(GetIsolate());
     int nof_inobject_properties = map().GetInObjectProperties();
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       os << "\n    ";
@@ -2470,7 +2470,7 @@ int Name::NameShortPrint(Vector<char> str) {
 void Map::PrintMapDetails(std::ostream& os) {
   DisallowGarbageCollection no_gc;
   this->MapPrint(os);
-  instance_descriptors(kRelaxedLoad).PrintDescriptors(os);
+  instance_descriptors().PrintDescriptors(os);
 }
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
@@ -2524,7 +2524,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - prototype_validity cell: " << Brief(prototype_validity_cell());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors(kRelaxedLoad));
+     << Brief(instance_descriptors());
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
@@ -2636,7 +2636,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
     InternalIndex descriptor = target.LastAdded();
-    DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
+    DescriptorArray descriptors = target.instance_descriptors();
     descriptors.PrintDescriptorDetails(os, descriptor,
                                        PropertyDetails::kForTransitions);
     os << ")";
@@ -2714,7 +2714,7 @@ void TransitionsAccessor::PrintTransitionTree(
       DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
       os << "to ";
       InternalIndex descriptor = target.LastAdded();
-      DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
+      DescriptorArray descriptors = target.instance_descriptors(isolate_);
       descriptors.PrintDescriptorDetails(os, descriptor,
                                          PropertyDetails::kForTransitions);
     }

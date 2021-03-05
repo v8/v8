@@ -821,7 +821,7 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
   DCHECK(!map.is_dictionary_map());
   HeapObject value;
   ReadOnlyRoots roots(isolate);
-  auto descriptors = map.instance_descriptors(kRelaxedLoad);
+  auto descriptors = map.instance_descriptors(isolate);
   InternalIndex kNameIndex{JSFunction::kNameDescriptorIndex};
   if (descriptors.GetKey(kNameIndex) != roots.name_string() ||
       !descriptors.GetValue(kNameIndex)

@@ -979,7 +979,7 @@ bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
 
   // Check the in-object properties.
   Handle<DescriptorArray> descriptors(
-      boilerplate->map().instance_descriptors(kRelaxedLoad), isolate);
+      boilerplate->map().instance_descriptors(isolate, kRelaxedLoad), isolate);
   for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != kField) continue;
@@ -1264,7 +1264,8 @@ namespace {
 bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   Handle<Name> length_string = isolate->factory()->length_string();
-  DescriptorArray descriptors = jsarray_map->instance_descriptors(kRelaxedLoad);
+  DescriptorArray descriptors =
+      jsarray_map->instance_descriptors(isolate, kRelaxedLoad);
   // TODO(jkummerow): We could skip the search and hardcode number == 0.
   InternalIndex number = descriptors.Search(*length_string, *jsarray_map);
   DCHECK(number.is_found());
@@ -1457,7 +1458,7 @@ void DescriptorArrayData::SerializeDescriptor(JSHeapBroker* broker,
 
   Isolate* const isolate = broker->isolate();
   auto descriptors = Handle<DescriptorArray>::cast(object());
-  CHECK_EQ(*descriptors, map->instance_descriptors(kRelaxedLoad));
+  CHECK_EQ(*descriptors, map->instance_descriptors(isolate));
 
   PropertyDescriptor d;
   d.key = broker->GetOrCreateData(descriptors->GetKey(descriptor_index));
@@ -2247,10 +2248,11 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
                                      InternalIndex descriptor_index) {
   TraceScope tracer(broker, this, "MapData::SerializeOwnDescriptor");
   Handle<Map> map = Handle<Map>::cast(object());
+  Isolate* isolate = broker->isolate();
 
   if (instance_descriptors_ == nullptr) {
     instance_descriptors_ =
-        broker->GetOrCreateData(map->instance_descriptors(kRelaxedLoad));
+        broker->GetOrCreateData(map->instance_descriptors(isolate));
   }
 
   if (instance_descriptors()->should_access_heap()) {
@@ -2258,12 +2260,11 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
     // owner map if it is different than the current map. This is because
     // {instance_descriptors_} gets set on SerializeOwnDescriptor and otherwise
     // we risk the field owner having a null {instance_descriptors_}.
-    Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
-                                        broker->isolate());
+    Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                        isolate);
     if (descriptors->GetDetails(descriptor_index).location() == kField) {
-      Handle<Map> owner(
-          map->FindFieldOwner(broker->isolate(), descriptor_index),
-          broker->isolate());
+      Handle<Map> owner(map->FindFieldOwner(isolate, descriptor_index),
+                        isolate);
       if (!owner.equals(map)) {
         broker->GetOrCreateData(owner)->AsMap()->SerializeOwnDescriptor(
             broker, descriptor_index);
@@ -2363,7 +2364,7 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
 
   // Check the in-object properties.
   Handle<DescriptorArray> descriptors(
-      boilerplate->map().instance_descriptors(kRelaxedLoad), isolate);
+      boilerplate->map().instance_descriptors(isolate), isolate);
   for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != kField) continue;
@@ -3652,8 +3653,9 @@ base::Optional<ObjectRef> MapRef::GetStrongValue(
 DescriptorArrayRef MapRef::instance_descriptors() const {
   if (data_->should_access_heap()) {
     return DescriptorArrayRef(
-        broker(), broker()->CanonicalPersistentHandle(
-                      object()->instance_descriptors(kRelaxedLoad)));
+        broker(),
+        broker()->CanonicalPersistentHandle(
+            object()->instance_descriptors(broker()->isolate(), kRelaxedLoad)));
   }
 
   return DescriptorArrayRef(broker(), data()->AsMap()->instance_descriptors());
