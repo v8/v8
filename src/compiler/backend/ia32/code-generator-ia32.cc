@@ -4058,16 +4058,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
-    case kIA32V64x2AllTrue:
+    case kIA32I64x2AllTrue:
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqq);
       break;
-    case kIA32V32x4AllTrue:
+    case kIA32I32x4AllTrue:
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;
-    case kIA32V16x8AllTrue:
+    case kIA32I16x8AllTrue:
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqw);
       break;
-    case kIA32V8x16AllTrue: {
+    case kIA32I8x16AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }

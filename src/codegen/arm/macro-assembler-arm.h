@@ -578,7 +578,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I64x2Ne(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void I64x2GtS(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void I64x2GeS(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void V64x2AllTrue(Register dst, QwNeonRegister src);
+  void I64x2AllTrue(Register dst, QwNeonRegister src);
   void I64x2Abs(QwNeonRegister dst, QwNeonRegister src);
   void F64x2ConvertLowI32x4S(QwNeonRegister dst, QwNeonRegister src);
   void F64x2ConvertLowI32x4U(QwNeonRegister dst, QwNeonRegister src);

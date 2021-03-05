@@ -2819,10 +2819,10 @@ class WasmInterpreterInternals {
     Push(WasmValue(res));                                 \
     return true;                                          \
   }
-        REDUCTION_CASE(V64x2AllTrue, i64x2, int2, 2, &)
-        REDUCTION_CASE(V32x4AllTrue, i32x4, int4, 4, &)
-        REDUCTION_CASE(V16x8AllTrue, i16x8, int8, 8, &)
-        REDUCTION_CASE(V8x16AllTrue, i8x16, int16, 16, &)
+        REDUCTION_CASE(I64x2AllTrue, i64x2, int2, 2, &)
+        REDUCTION_CASE(I32x4AllTrue, i32x4, int4, 4, &)
+        REDUCTION_CASE(I16x8AllTrue, i16x8, int8, 8, &)
+        REDUCTION_CASE(I8x16AllTrue, i8x16, int16, 16, &)
 #undef REDUCTION_CASE
 #define QFM_CASE(op, name, stype, count, operation)                           \
   case kExpr##op: {                                                           \

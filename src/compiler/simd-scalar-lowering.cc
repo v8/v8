@@ -169,11 +169,11 @@ void SimdScalarLowering::LowerGraph() {
   V(S128Not)                      \
   V(S128AndNot)                   \
   V(S128Select)                   \
-  V(V64x2AllTrue)                 \
-  V(V32x4AllTrue)                 \
-  V(V16x8AllTrue)                 \
+  V(I64x2AllTrue)                 \
+  V(I32x4AllTrue)                 \
+  V(I16x8AllTrue)                 \
   V(V128AnyTrue)                  \
-  V(V8x16AllTrue)                 \
+  V(I8x16AllTrue)                 \
   V(I32x4BitMask)                 \
   V(I32x4ExtMulLowI16x8S)         \
   V(I32x4ExtMulLowI16x8U)         \
@@ -2266,19 +2266,19 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node, 1);
       break;
     }
-    case IrOpcode::kV64x2AllTrue: {
+    case IrOpcode::kI64x2AllTrue: {
       LowerAllTrueOp(node, SimdType::kInt64x2);
       break;
     }
-    case IrOpcode::kV32x4AllTrue: {
+    case IrOpcode::kI32x4AllTrue: {
       LowerAllTrueOp(node, SimdType::kInt32x4);
       break;
     }
-    case IrOpcode::kV16x8AllTrue: {
+    case IrOpcode::kI16x8AllTrue: {
       LowerAllTrueOp(node, SimdType::kInt16x8);
       break;
     }
-    case IrOpcode::kV8x16AllTrue: {
+    case IrOpcode::kI8x16AllTrue: {
       LowerAllTrueOp(node, SimdType::kInt8x16);
       break;
     }

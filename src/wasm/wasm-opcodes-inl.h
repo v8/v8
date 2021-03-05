@@ -54,9 +54,6 @@ namespace wasm {
       CASE_I8x16_OP(name, str)
 #define CASE_SIMDI_NO64X2_OP(name, str) \
   CASE_I32x4_OP(name, str) CASE_I16x8_OP(name, str) CASE_I8x16_OP(name, str)
-#define CASE_SIMDV_OP(name, str)                                             \
-  CASE_V64x2_OP(name, str) CASE_V32x4_OP(name, str) CASE_V16x8_OP(name, str) \
-      CASE_V8x16_OP(name, str)
 #define CASE_SIGN_OP(TYPE, name, str) \
   CASE_##TYPE##_OP(name##S, str "_s") CASE_##TYPE##_OP(name##U, str "_u")
 #define CASE_UNSIGNED_OP(TYPE, name, str) CASE_##TYPE##_OP(name##U, str "_u")
@@ -302,7 +299,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I8x16_OP(Swizzle, "swizzle")
     CASE_I8x16_OP(Shuffle, "shuffle")
     CASE_V128_OP(AnyTrue, "any_true")
-    CASE_SIMDV_OP(AllTrue, "all_true")
+    CASE_SIMDI_OP(AllTrue, "all_true")
     CASE_SIMDF_OP(Qfma, "qfma")
     CASE_SIMDF_OP(Qfms, "qfms")
 

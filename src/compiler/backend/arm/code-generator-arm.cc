@@ -3224,11 +3224,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
-    case kArmV64x2AllTrue: {
-      __ V64x2AllTrue(i.OutputRegister(), i.InputSimd128Register(0));
+    case kArmI64x2AllTrue: {
+      __ I64x2AllTrue(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
-    case kArmV32x4AllTrue: {
+    case kArmI32x4AllTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       UseScratchRegisterScope temps(tasm());
       DwVfpRegister scratch = temps.AcquireD();
@@ -3239,7 +3239,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
-    case kArmV16x8AllTrue: {
+    case kArmI16x8AllTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       UseScratchRegisterScope temps(tasm());
       DwVfpRegister scratch = temps.AcquireD();
@@ -3251,7 +3251,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
-    case kArmV8x16AllTrue: {
+    case kArmI8x16AllTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       UseScratchRegisterScope temps(tasm());
       DwVfpRegister scratch = temps.AcquireD();

@@ -2834,9 +2834,9 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
        liftoff::GetSimd128Register(src));
 }
 
-void LiftoffAssembler::emit_v64x2_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  V64x2AllTrue(dst.gp(), liftoff::GetSimd128Register(src));
+  I64x2AllTrue(dst.gp(), liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3012,7 +3012,7 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
        liftoff::GetSimd128Register(src));
 }
 
-void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   UseScratchRegisterScope temps(this);
   DwVfpRegister scratch = temps.AcquireD();
@@ -3196,7 +3196,7 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
        liftoff::GetSimd128Register(src));
 }
 
-void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   UseScratchRegisterScope temps(this);
   DwVfpRegister scratch = temps.AcquireD();
@@ -3505,7 +3505,7 @@ void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
   liftoff::EmitAnyTrue(this, dst, src);
 }
 
-void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   UseScratchRegisterScope temps(this);
   DwVfpRegister scratch = temps.AcquireD();

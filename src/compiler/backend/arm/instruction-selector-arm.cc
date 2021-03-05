@@ -2588,11 +2588,11 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16Abs, kArmI8x16Abs)                             \
   V(I8x16Popcnt, kArmVcnt)                              \
   V(S128Not, kArmS128Not)                               \
-  V(V64x2AllTrue, kArmV64x2AllTrue)                     \
-  V(V32x4AllTrue, kArmV32x4AllTrue)                     \
-  V(V16x8AllTrue, kArmV16x8AllTrue)                     \
+  V(I64x2AllTrue, kArmI64x2AllTrue)                     \
+  V(I32x4AllTrue, kArmI32x4AllTrue)                     \
+  V(I16x8AllTrue, kArmI16x8AllTrue)                     \
   V(V128AnyTrue, kArmV128AnyTrue)                       \
-  V(V8x16AllTrue, kArmV8x16AllTrue)
+  V(I8x16AllTrue, kArmI8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl, 64)             \

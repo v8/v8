@@ -3177,7 +3177,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&all_false);
       break;
     }
-    case kMipsV64x2AllTrue: {
+    case kMipsI64x2AllTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
@@ -3188,7 +3188,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&all_true);
       break;
     }
-    case kMipsV32x4AllTrue: {
+    case kMipsI32x4AllTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
@@ -3199,7 +3199,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&all_true);
       break;
     }
-    case kMipsV16x8AllTrue: {
+    case kMipsI16x8AllTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
@@ -3210,7 +3210,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&all_true);
       break;
     }
-    case kMipsV8x16AllTrue: {
+    case kMipsI8x16AllTrue: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;

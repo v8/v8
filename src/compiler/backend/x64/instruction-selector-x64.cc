@@ -2959,10 +2959,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16Neg)               \
   V(I8x16Abs)               \
   V(I8x16BitMask)           \
-  V(V64x2AllTrue)           \
-  V(V32x4AllTrue)           \
-  V(V16x8AllTrue)           \
-  V(V8x16AllTrue)           \
+  V(I64x2AllTrue)           \
+  V(I32x4AllTrue)           \
+  V(I16x8AllTrue)           \
+  V(I8x16AllTrue)           \
   V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \

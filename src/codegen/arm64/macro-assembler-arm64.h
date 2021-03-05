@@ -1382,7 +1382,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // instructions. These helpers allow us to define the optimal code sequence,
   // and be used in both TurboFan and Liftoff.
   void I64x2BitMask(Register dst, VRegister src);
-  void V64x2AllTrue(Register dst, VRegister src);
+  void I64x2AllTrue(Register dst, VRegister src);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code

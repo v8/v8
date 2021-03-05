@@ -2299,10 +2299,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 #define SIMD_BOOL_LIST(V) \
   V(V128AnyTrue)          \
-  V(V64x2AllTrue)         \
-  V(V32x4AllTrue)         \
-  V(V16x8AllTrue)         \
-  V(V8x16AllTrue)
+  V(I64x2AllTrue)         \
+  V(I32x4AllTrue)         \
+  V(I16x8AllTrue)         \
+  V(I8x16AllTrue)
 
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \

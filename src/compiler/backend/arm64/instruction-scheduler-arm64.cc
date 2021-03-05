@@ -344,10 +344,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S8x4Reverse:
     case kArm64S8x2Reverse:
     case kArm64V128AnyTrue:
-    case kArm64V64x2AllTrue:
-    case kArm64V32x4AllTrue:
-    case kArm64V16x8AllTrue:
-    case kArm64V8x16AllTrue:
+    case kArm64I64x2AllTrue:
+    case kArm64I32x4AllTrue:
+    case kArm64I16x8AllTrue:
+    case kArm64I8x16AllTrue:
     case kArm64TestAndBranch32:
     case kArm64TestAndBranch:
     case kArm64CompareAndBranch32:

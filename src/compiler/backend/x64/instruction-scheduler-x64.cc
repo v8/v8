@@ -313,9 +313,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S128Zero:
     case kX64S128AllOnes:
     case kX64S128AndNot:
-    case kX64V64x2AllTrue:
-    case kX64V32x4AllTrue:
-    case kX64V16x8AllTrue:
+    case kX64I64x2AllTrue:
+    case kX64I32x4AllTrue:
+    case kX64I16x8AllTrue:
     case kX64I8x16Swizzle:
     case kX64I8x16Shuffle:
     case kX64I8x16Popcnt:
@@ -347,7 +347,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S8x4Reverse:
     case kX64S8x2Reverse:
     case kX64V128AnyTrue:
-    case kX64V8x16AllTrue:
+    case kX64I8x16AllTrue:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;

@@ -3321,14 +3321,14 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
           WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AllTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprI##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AllTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprI##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
@@ -3352,14 +3352,14 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AllTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprI##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_LOCAL_SET(                                                      \
-              reduced, WASM_SIMD_UNOP(kExprV##format##AllTrue,                 \
+              reduced, WASM_SIMD_UNOP(kExprI##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
@@ -4251,14 +4251,14 @@ WASM_SIMD_TEST(V128AnytrueWithNegativeZero) {
 }
 
 #define WASM_SIMD_ALLTRUE_TEST(format, lanes, max, param_type)                \
-  WASM_SIMD_TEST(V##format##AllTrue) {                                        \
+  WASM_SIMD_TEST(I##format##AllTrue) {                                        \
     WasmRunner<int32_t, param_type> r(execution_tier, lower_simd);            \
     if (lanes == 2 && lower_simd == kLowerSimd) return;                       \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
         r,                                                                    \
         WASM_LOCAL_SET(simd, WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(0))), \
-        WASM_SIMD_UNOP(kExprV##format##AllTrue, WASM_LOCAL_GET(simd)));       \
+        WASM_SIMD_UNOP(kExprI##format##AllTrue, WASM_LOCAL_GET(simd)));       \
     CHECK_EQ(1, r.Call(max));                                                 \
     CHECK_EQ(1, r.Call(0x1));                                                 \
     CHECK_EQ(0, r.Call(0));                                                   \

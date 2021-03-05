@@ -332,11 +332,11 @@ namespace compiler {
   V(ArmS8x8Reverse)                \
   V(ArmS8x4Reverse)                \
   V(ArmS8x2Reverse)                \
-  V(ArmV64x2AllTrue)               \
-  V(ArmV32x4AllTrue)               \
-  V(ArmV16x8AllTrue)               \
+  V(ArmI64x2AllTrue)               \
+  V(ArmI32x4AllTrue)               \
+  V(ArmI16x8AllTrue)               \
   V(ArmV128AnyTrue)                \
-  V(ArmV8x16AllTrue)               \
+  V(ArmI8x16AllTrue)               \
   V(ArmS128Load8Splat)             \
   V(ArmS128Load16Splat)            \
   V(ArmS128Load32Splat)            \

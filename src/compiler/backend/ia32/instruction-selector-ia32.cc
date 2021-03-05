@@ -2332,10 +2332,10 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(S128Not)
 
 #define SIMD_ALLTRUE_LIST(V) \
-  V(V64x2AllTrue)            \
-  V(V32x4AllTrue)            \
-  V(V16x8AllTrue)            \
-  V(V8x16AllTrue)
+  V(I64x2AllTrue)            \
+  V(I32x4AllTrue)            \
+  V(I16x8AllTrue)            \
+  V(I8x16AllTrue)
 
 #define SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(V) \
   V(I64x2Shl)                                \

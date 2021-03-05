@@ -328,10 +328,10 @@ namespace compiler {
   V(RiscvS128Not)                           \
   V(RiscvS128Select)                        \
   V(RiscvS128AndNot)                        \
-  V(RiscvV32x4AllTrue)                      \
-  V(RiscvV16x8AllTrue)                      \
+  V(RiscvI32x4AllTrue)                      \
+  V(RiscvI16x8AllTrue)                      \
   V(RiscvV128AnyTrue)                       \
-  V(RiscvV8x16AllTrue)                      \
+  V(RiscvI8x16AllTrue)                      \
   V(RiscvS32x4InterleaveRight)              \
   V(RiscvS32x4InterleaveLeft)               \
   V(RiscvS32x4PackEven)                     \

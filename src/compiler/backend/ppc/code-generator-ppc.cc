@@ -3001,19 +3001,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ mtcrf(0xFF, r0); /* Clear cr.*/                                   \
   __ opcode(kScratchSimd128Reg, src, kScratchSimd128Reg, SetRC);       \
   __ isel(dst, ip, r0, bit_number);
-    case kPPC_V64x2AllTrue: {
+    case kPPC_I64x2AllTrue: {
       SIMD_ALL_TRUE(vcmpgtud)
       break;
     }
-    case kPPC_V32x4AllTrue: {
+    case kPPC_I32x4AllTrue: {
       SIMD_ALL_TRUE(vcmpgtuw)
       break;
     }
-    case kPPC_V16x8AllTrue: {
+    case kPPC_I16x8AllTrue: {
       SIMD_ALL_TRUE(vcmpgtuh)
       break;
     }
-    case kPPC_V8x16AllTrue: {
+    case kPPC_I8x16AllTrue: {
       SIMD_ALL_TRUE(vcmpgtub)
       break;
     }

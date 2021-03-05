@@ -375,10 +375,10 @@ namespace compiler {
   V(Arm64S8x4Reverse)                       \
   V(Arm64S8x2Reverse)                       \
   V(Arm64V128AnyTrue)                       \
-  V(Arm64V64x2AllTrue)                      \
-  V(Arm64V32x4AllTrue)                      \
-  V(Arm64V16x8AllTrue)                      \
-  V(Arm64V8x16AllTrue)                      \
+  V(Arm64I64x2AllTrue)                      \
+  V(Arm64I32x4AllTrue)                      \
+  V(Arm64I16x8AllTrue)                      \
+  V(Arm64I8x16AllTrue)                      \
   V(Arm64LoadSplat)                         \
   V(Arm64LoadLane)                          \
   V(Arm64StoreLane)                         \

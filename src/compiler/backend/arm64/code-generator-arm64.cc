@@ -2836,8 +2836,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;
     }
-    case kArm64V64x2AllTrue: {
-      __ V64x2AllTrue(i.OutputRegister32(), i.InputSimd128Register(0));
+    case kArm64I64x2AllTrue: {
+      __ I64x2AllTrue(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
@@ -2852,9 +2852,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   }
       // For AnyTrue, the format does not matter.
       SIMD_REDUCE_OP_CASE(kArm64V128AnyTrue, Umaxv, kFormatS, 4S);
-      SIMD_REDUCE_OP_CASE(kArm64V32x4AllTrue, Uminv, kFormatS, 4S);
-      SIMD_REDUCE_OP_CASE(kArm64V16x8AllTrue, Uminv, kFormatH, 8H);
-      SIMD_REDUCE_OP_CASE(kArm64V8x16AllTrue, Uminv, kFormatB, 16B);
+      SIMD_REDUCE_OP_CASE(kArm64I32x4AllTrue, Uminv, kFormatS, 4S);
+      SIMD_REDUCE_OP_CASE(kArm64I16x8AllTrue, Uminv, kFormatH, 8H);
+      SIMD_REDUCE_OP_CASE(kArm64I8x16AllTrue, Uminv, kFormatB, 16B);
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)

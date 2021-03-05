@@ -3223,8 +3223,8 @@ class LiftoffCompiler {
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_neg);
       case wasm::kExprV128AnyTrue:
         return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v128_anytrue);
-      case wasm::kExprV8x16AllTrue:
-        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v8x16_alltrue);
+      case wasm::kExprI8x16AllTrue:
+        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_i8x16_alltrue);
       case wasm::kExprI8x16BitMask:
         return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_i8x16_bitmask);
       case wasm::kExprI8x16Shl:
@@ -3258,8 +3258,8 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_max_u);
       case wasm::kExprI16x8Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_neg);
-      case wasm::kExprV16x8AllTrue:
-        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v16x8_alltrue);
+      case wasm::kExprI16x8AllTrue:
+        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_i16x8_alltrue);
       case wasm::kExprI16x8BitMask:
         return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_i16x8_bitmask);
       case wasm::kExprI16x8Shl:
@@ -3316,8 +3316,8 @@ class LiftoffCompiler {
             &LiftoffAssembler::emit_i16x8_q15mulr_sat_s);
       case wasm::kExprI32x4Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_neg);
-      case wasm::kExprV32x4AllTrue:
-        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v32x4_alltrue);
+      case wasm::kExprI32x4AllTrue:
+        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_i32x4_alltrue);
       case wasm::kExprI32x4BitMask:
         return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_i32x4_bitmask);
       case wasm::kExprI32x4Shl:
@@ -3366,8 +3366,8 @@ class LiftoffCompiler {
             &LiftoffAssembler::emit_i32x4_extmul_high_i16x8_u);
       case wasm::kExprI64x2Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_neg);
-      case wasm::kExprV64x2AllTrue:
-        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_v64x2_alltrue);
+      case wasm::kExprI64x2AllTrue:
+        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_i64x2_alltrue);
       case wasm::kExprI64x2Shl:
         return EmitSimdShiftOp(&LiftoffAssembler::emit_i64x2_shl,
                                &LiftoffAssembler::emit_i64x2_shli);

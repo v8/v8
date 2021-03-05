@@ -1983,7 +1983,7 @@ void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
   liftoff::EmitAnyTrue(this, dst, src);
 }
 
-void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_B);
 }
@@ -2108,7 +2108,7 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
   subv_h(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
-void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_H);
 }
@@ -2232,7 +2232,7 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
   subv_w(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
-void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_W);
 }
@@ -2336,7 +2336,7 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
   subv_d(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
-void LiftoffAssembler::emit_v64x2_alltrue(LiftoffRegister dst,
+void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_D);
 }

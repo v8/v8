@@ -5112,16 +5112,16 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprS128AndNot:
       return graph()->NewNode(mcgraph()->machine()->S128AndNot(), inputs[0],
                               inputs[1]);
-    case wasm::kExprV64x2AllTrue:
-      return graph()->NewNode(mcgraph()->machine()->V64x2AllTrue(), inputs[0]);
-    case wasm::kExprV32x4AllTrue:
-      return graph()->NewNode(mcgraph()->machine()->V32x4AllTrue(), inputs[0]);
-    case wasm::kExprV16x8AllTrue:
-      return graph()->NewNode(mcgraph()->machine()->V16x8AllTrue(), inputs[0]);
+    case wasm::kExprI64x2AllTrue:
+      return graph()->NewNode(mcgraph()->machine()->I64x2AllTrue(), inputs[0]);
+    case wasm::kExprI32x4AllTrue:
+      return graph()->NewNode(mcgraph()->machine()->I32x4AllTrue(), inputs[0]);
+    case wasm::kExprI16x8AllTrue:
+      return graph()->NewNode(mcgraph()->machine()->I16x8AllTrue(), inputs[0]);
     case wasm::kExprV128AnyTrue:
       return graph()->NewNode(mcgraph()->machine()->V128AnyTrue(), inputs[0]);
-    case wasm::kExprV8x16AllTrue:
-      return graph()->NewNode(mcgraph()->machine()->V8x16AllTrue(), inputs[0]);
+    case wasm::kExprI8x16AllTrue:
+      return graph()->NewNode(mcgraph()->machine()->I8x16AllTrue(), inputs[0]);
     case wasm::kExprI8x16Swizzle:
       return graph()->NewNode(mcgraph()->machine()->I8x16Swizzle(), inputs[0],
                               inputs[1]);

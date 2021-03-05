@@ -3418,19 +3418,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ vtm(kScratchDoubleReg, kScratchDoubleReg, Condition(0), Condition(0),     \
          Condition(0));                                                        \
   __ locgr(Condition(8), dst, temp);
-    case kS390_V64x2AllTrue: {
+    case kS390_I64x2AllTrue: {
       SIMD_ALL_TRUE(3)
       break;
     }
-    case kS390_V32x4AllTrue: {
+    case kS390_I32x4AllTrue: {
       SIMD_ALL_TRUE(2)
       break;
     }
-    case kS390_V16x8AllTrue: {
+    case kS390_I16x8AllTrue: {
       SIMD_ALL_TRUE(1)
       break;
     }
-    case kS390_V8x16AllTrue: {
+    case kS390_I8x16AllTrue: {
       SIMD_ALL_TRUE(0)
       break;
     }

@@ -374,10 +374,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSES8x2Reverse:
     case kAVXS8x2Reverse:
     case kIA32S128AnyTrue:
-    case kIA32V64x2AllTrue:
-    case kIA32V32x4AllTrue:
-    case kIA32V16x8AllTrue:
-    case kIA32V8x16AllTrue:
+    case kIA32I64x2AllTrue:
+    case kIA32I32x4AllTrue:
+    case kIA32I16x8AllTrue:
+    case kIA32I8x16AllTrue:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;

@@ -291,10 +291,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16Shuffle:
     case kPPC_I8x16Swizzle:
     case kPPC_I8x16BitMask:
-    case kPPC_V64x2AllTrue:
-    case kPPC_V32x4AllTrue:
-    case kPPC_V16x8AllTrue:
-    case kPPC_V8x16AllTrue:
+    case kPPC_I64x2AllTrue:
+    case kPPC_I32x4AllTrue:
+    case kPPC_I16x8AllTrue:
+    case kPPC_I8x16AllTrue:
     case kPPC_V128AnyTrue:
     case kPPC_S128And:
     case kPPC_S128Or:

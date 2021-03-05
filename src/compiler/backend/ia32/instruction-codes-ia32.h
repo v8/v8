@@ -399,10 +399,10 @@ namespace compiler {
   V(SSES8x2Reverse)                \
   V(AVXS8x2Reverse)                \
   V(IA32S128AnyTrue)               \
-  V(IA32V64x2AllTrue)              \
-  V(IA32V32x4AllTrue)              \
-  V(IA32V16x8AllTrue)              \
-  V(IA32V8x16AllTrue)              \
+  V(IA32I64x2AllTrue)              \
+  V(IA32I32x4AllTrue)              \
+  V(IA32I16x8AllTrue)              \
+  V(IA32I8x16AllTrue)              \
   V(IA32Prefetch)                  \
   V(IA32PrefetchNta)               \
   V(IA32Word32AtomicPairLoad)      \

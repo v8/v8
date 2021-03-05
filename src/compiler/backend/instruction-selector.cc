@@ -2297,14 +2297,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Shuffle(node);
     case IrOpcode::kV128AnyTrue:
       return MarkAsWord32(node), VisitV128AnyTrue(node);
-    case IrOpcode::kV64x2AllTrue:
-      return MarkAsWord32(node), VisitV64x2AllTrue(node);
-    case IrOpcode::kV32x4AllTrue:
-      return MarkAsWord32(node), VisitV32x4AllTrue(node);
-    case IrOpcode::kV16x8AllTrue:
-      return MarkAsWord32(node), VisitV16x8AllTrue(node);
-    case IrOpcode::kV8x16AllTrue:
-      return MarkAsWord32(node), VisitV8x16AllTrue(node);
+    case IrOpcode::kI64x2AllTrue:
+      return MarkAsWord32(node), VisitI64x2AllTrue(node);
+    case IrOpcode::kI32x4AllTrue:
+      return MarkAsWord32(node), VisitI32x4AllTrue(node);
+    case IrOpcode::kI16x8AllTrue:
+      return MarkAsWord32(node), VisitI16x8AllTrue(node);
+    case IrOpcode::kI8x16AllTrue:
+      return MarkAsWord32(node), VisitI8x16AllTrue(node);
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());

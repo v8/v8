@@ -2682,7 +2682,7 @@ void TurboAssembler::I64x2GeS(QwNeonRegister dst, QwNeonRegister src1,
   vmvn(dst, dst);
 }
 
-void TurboAssembler::V64x2AllTrue(Register dst, QwNeonRegister src) {
+void TurboAssembler::I64x2AllTrue(Register dst, QwNeonRegister src) {
   UseScratchRegisterScope temps(this);
   QwNeonRegister tmp = temps.AcquireQ();
   // src = | a | b | c | d |
