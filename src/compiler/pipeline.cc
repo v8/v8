@@ -2564,6 +2564,8 @@ CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
     json_of << "{\"function\":\"" << info_.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
+  pipeline_.RunPrintAndVerify("V8.WasmMachineCode", true);
+  pipeline_.Run<MemoryOptimizationPhase>();
   pipeline_.ComputeScheduledGraph();
   if (pipeline_.SelectInstructionsAndAssemble(call_descriptor_)) {
     return CompilationJob::SUCCEEDED;
@@ -3127,6 +3129,10 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   }
 
   pipeline.RunPrintAndVerify("V8.WasmNativeStubMachineCode", true);
+
+  pipeline.Run<MemoryOptimizationPhase>();
+  pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
+
   pipeline.ComputeScheduledGraph();
 
   Linkage linkage(call_descriptor);
@@ -3214,32 +3220,26 @@ void Pipeline::GenerateCodeForWasmFunction(
     pipeline.Run<WasmLoopUnrollingPhase>(loop_info);
     pipeline.RunPrintAndVerify("V8.WasmLoopUnrolling", true);
   }
+  const bool is_asm_js = is_asmjs_module(module);
+
+  if (FLAG_wasm_opt || is_asm_js) {
+    pipeline.Run<CsaEarlyOptimizationPhase>(is_asm_js);
+    pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
+  }
+
+  pipeline.Run<MemoryOptimizationPhase>();
+  pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
   data.BeginPhaseKind("V8.WasmOptimization");
-  const bool is_asm_js = is_asmjs_module(module);
   if (FLAG_turbo_splitting && !is_asm_js) {
     data.info()->set_splitting();
   }
   if (FLAG_wasm_opt || is_asm_js) {
-    PipelineRunScope scope(&data, "V8.WasmFullOptimization",
-                           RuntimeCallCounterId::kOptimizeWasmFullOptimization);
-    GraphReducer graph_reducer(
-        scope.zone(), data.graph(), &data.info()->tick_counter(), data.broker(),
-        data.mcgraph()->Dead(), data.observe_node_manager());
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data.graph(),
-                                              data.common(), scope.zone());
-    ValueNumberingReducer value_numbering(scope.zone(), data.graph()->zone());
-    const bool allow_signalling_nan = is_asm_js;
-    MachineOperatorReducer machine_reducer(&graph_reducer, data.mcgraph(),
-                                           allow_signalling_nan);
-    CommonOperatorReducer common_reducer(&graph_reducer, data.graph(),
-                                         data.broker(), data.common(),
-                                         data.machine(), scope.zone());
-    AddReducer(&data, &graph_reducer, &dead_code_elimination);
-    AddReducer(&data, &graph_reducer, &machine_reducer);
-    AddReducer(&data, &graph_reducer, &common_reducer);
-    AddReducer(&data, &graph_reducer, &value_numbering);
-    graph_reducer.ReduceGraph();
+    pipeline.Run<CsaOptimizationPhase>(is_asm_js);
+    pipeline.RunPrintAndVerify(CsaOptimizationPhase::phase_name(), true);
+    pipeline.Run<DecompressionOptimizationPhase>();
+    pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
+                               true);
   } else {
     pipeline.Run<WasmBaseOptimizationPhase>();
     pipeline.RunPrintAndVerify(WasmBaseOptimizationPhase::phase_name(), true);

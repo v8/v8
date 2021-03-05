@@ -726,9 +726,6 @@ class WasmGraphBuilder {
   WasmInstanceCacheNodes* instance_cache_ = nullptr;
 
   SetOncePointer<Node> instance_node_;
-  SetOncePointer<Node> ref_null_node_;
-  SetOncePointer<Node> globals_start_;
-  SetOncePointer<Node> imported_mutable_globals_;
   SetOncePointer<Node> stack_check_code_node_;
   SetOncePointer<Node> isolate_root_node_;
   SetOncePointer<const Operator> stack_check_call_operator_;

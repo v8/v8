@@ -1153,10 +1153,10 @@ LOAD_MATCHER(UnalignedLoad)
 LOAD_MATCHER(PoisonedLoad)
 LOAD_MATCHER(LoadFromObject)
 
-#define STORE_MATCHER(kStore)                                                 \
+#define STORE_MATCHER(kStore, representation)                                 \
   class Is##kStore##Matcher final : public TestNodeMatcher {                  \
    public:                                                                    \
-    Is##kStore##Matcher(const Matcher<kStore##Representation>& rep_matcher,   \
+    Is##kStore##Matcher(const Matcher<representation>& rep_matcher,           \
                         const Matcher<Node*>& base_matcher,                   \
                         const Matcher<Node*>& index_matcher,                  \
                         const Matcher<Node*>& value_matcher,                  \
@@ -1198,9 +1198,8 @@ LOAD_MATCHER(LoadFromObject)
         control_node = NodeProperties::GetControlInput(node);                 \
       }                                                                       \
       return (TestNodeMatcher::MatchAndExplain(node, listener) &&             \
-              PrintMatchAndExplain(                                           \
-                  OpParameter<kStore##Representation>(node->op()), "rep",     \
-                  rep_matcher_, listener) &&                                  \
+              PrintMatchAndExplain(OpParameter<representation>(node->op()),   \
+                                   "rep", rep_matcher_, listener) &&          \
               PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),    \
                                    "base", base_matcher_, listener) &&        \
               PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),    \
@@ -1214,7 +1213,7 @@ LOAD_MATCHER(LoadFromObject)
     }                                                                         \
                                                                               \
    private:                                                                   \
-    const Matcher<kStore##Representation> rep_matcher_;                       \
+    const Matcher<representation> rep_matcher_;                               \
     const Matcher<Node*> base_matcher_;                                       \
     const Matcher<Node*> index_matcher_;                                      \
     const Matcher<Node*> value_matcher_;                                      \
@@ -1222,8 +1221,9 @@ LOAD_MATCHER(LoadFromObject)
     const Matcher<Node*> control_matcher_;                                    \
   };
 
-STORE_MATCHER(Store)
-STORE_MATCHER(UnalignedStore)
+STORE_MATCHER(Store, StoreRepresentation)
+STORE_MATCHER(UnalignedStore, UnalignedStoreRepresentation)
+STORE_MATCHER(StoreToObject, ObjectAccess)
 
 class IsStackSlotMatcher final : public TestNodeMatcher {
  public:
@@ -2113,6 +2113,17 @@ Matcher<Node*> IsUnalignedStore(
     const Matcher<Node*>& value_matcher, const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsUnalignedStoreMatcher(
+      rep_matcher, base_matcher, index_matcher, value_matcher, effect_matcher,
+      control_matcher));
+}
+
+Matcher<Node*> IsStoreToObject(const Matcher<ObjectAccess>& rep_matcher,
+                               const Matcher<Node*>& base_matcher,
+                               const Matcher<Node*>& index_matcher,
+                               const Matcher<Node*>& value_matcher,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsStoreToObjectMatcher(
       rep_matcher, base_matcher, index_matcher, value_matcher, effect_matcher,
       control_matcher));
 }

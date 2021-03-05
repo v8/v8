@@ -60,8 +60,10 @@ int GetMaskForShift(Node* node) {
 }  // anonymous namespace
 
 SimdScalarLowering::SimdScalarLowering(
-    MachineGraph* mcgraph, Signature<MachineRepresentation>* signature)
+    MachineGraph* mcgraph, SimplifiedOperatorBuilder* simplified,
+    Signature<MachineRepresentation>* signature)
     : mcgraph_(mcgraph),
+      simplified_(simplified),
       state_(mcgraph->graph(), 3),
       stack_(mcgraph_->zone()),
       replacements_(nullptr),
@@ -541,11 +543,18 @@ void SimdScalarLowering::GetIndexNodes(Node* index, Node** new_indices,
 }
 
 void SimdScalarLowering::LowerLoadOp(Node* node, SimdType type) {
-  MachineRepresentation rep = LoadRepresentationOf(node->op()).representation();
+  MachineRepresentation rep =
+      node->opcode() == IrOpcode::kLoadFromObject
+          ? ObjectAccessOf(node->op()).machine_type.representation()
+          : LoadRepresentationOf(node->op()).representation();
   const Operator* load_op;
   switch (node->opcode()) {
     case IrOpcode::kLoad:
       load_op = machine()->Load(MachineTypeFrom(type));
+      break;
+    case IrOpcode::kLoadFromObject:
+      load_op = simplified()->LoadFromObject(
+          ObjectAccess(MachineTypeFrom(type), kNoWriteBarrier));
       break;
     case IrOpcode::kUnalignedLoad:
       load_op = machine()->UnalignedLoad(MachineTypeFrom(type));
@@ -730,6 +739,14 @@ void SimdScalarLowering::LowerStoreOp(Node* node) {
           StoreRepresentationOf(node->op()).write_barrier_kind();
       store_op = machine()->Store(StoreRepresentation(
           MachineTypeFrom(rep_type).representation(), write_barrier_kind));
+      break;
+    }
+    case IrOpcode::kStoreToObject: {
+      rep = ObjectAccessOf(node->op()).machine_type.representation();
+      WriteBarrierKind write_barrier_kind =
+          ObjectAccessOf(node->op()).write_barrier_kind;
+      store_op = simplified()->StoreToObject(
+          ObjectAccess(MachineTypeFrom(rep_type), write_barrier_kind));
       break;
     }
     case IrOpcode::kUnalignedStore: {
@@ -1452,6 +1469,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadFromObject:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kProtectedLoad: {
       LowerLoadOp(node, rep_type);
@@ -1462,6 +1480,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kStore:
+    case IrOpcode::kStoreToObject:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kProtectedStore: {
       LowerStoreOp(node);

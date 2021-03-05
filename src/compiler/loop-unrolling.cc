@@ -80,9 +80,10 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
             // {use} (stack check effect that we need to replace)
             DCHECK_EQ(use->InputAt(1)->opcode(), IrOpcode::kCall);
             DCHECK_EQ(use->InputAt(1)->InputAt(1), stack_check);
-            DCHECK_EQ(stack_check->InputAt(1)->opcode(), IrOpcode::kLoad);
+            DCHECK_EQ(stack_check->InputAt(1)->opcode(),
+                      IrOpcode::kLoadFromObject);
             DCHECK_EQ(stack_check->InputAt(1)->InputAt(2)->opcode(),
-                      IrOpcode::kLoad);
+                      IrOpcode::kLoadFromObject);
             Node* replacing_effect =
                 stack_check->InputAt(1)->InputAt(2)->InputAt(2);
             FOREACH_COPY_INDEX(i) {

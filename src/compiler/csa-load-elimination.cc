@@ -66,6 +66,12 @@ Reduction CsaLoadElimination::Reduce(Node* node) {
 namespace CsaLoadEliminationHelpers {
 
 bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
+  // TODO(manoskouk): Temporary patch-up to get wasm i8 and i16 working until we
+  // properly fix the compatibility logic.
+  if (ElementSizeInBytes(r1) <
+      ElementSizeInBytes(MachineRepresentation::kWord32)) {
+    return false;
+  }
   if (r1 == r2) return true;
   return IsAnyTagged(r1) && IsAnyTagged(r2);
 }

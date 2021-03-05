@@ -484,8 +484,8 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
       for (size_t i = 0; i < num_params + 1; i++) {
         rep_builder.AddParam(MachineRepresentation::kWord32);
       }
-      compiler::Int64Lowering r(graph(), machine(), common(), zone(),
-                                rep_builder.Build());
+      compiler::Int64Lowering r(graph(), machine(), common(), simplified(),
+                                zone(), rep_builder.Build());
       r.LowerGraph();
     }
 

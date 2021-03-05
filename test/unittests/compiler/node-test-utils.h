@@ -354,6 +354,12 @@ Matcher<Node*> IsUnalignedStore(
     const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
     const Matcher<Node*>& value_matcher, const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsStoreToObject(const Matcher<ObjectAccess>& rep_matcher,
+                               const Matcher<Node*>& base_matcher,
+                               const Matcher<Node*>& index_matcher,
+                               const Matcher<Node*>& value_matcher,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsStackSlot(const Matcher<StackSlotRepresentation>& rep_matcher);
 Matcher<Node*> IsWord32Popcnt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsWord32And(const Matcher<Node*>& lhs_matcher,
