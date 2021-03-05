@@ -1631,8 +1631,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     elements_deletion_counter_ = value;
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
   void SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine);
+#else
+  // TODO(clemensb): Remove this method.
+  wasm::WasmEngine* wasm_engine() const { return nullptr; }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {
     return top_backup_incumbent_scope_;
@@ -2037,7 +2042,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   size_t elements_deletion_counter_ = 0;
 
+#if V8_ENABLE_WEBASSEMBLY
   std::shared_ptr<wasm::WasmEngine> wasm_engine_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;
 

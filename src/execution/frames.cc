@@ -561,12 +561,13 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       }
     }
   } else {
+#if V8_ENABLE_WEBASSEMBLY
     // If the {pc} does not point into WebAssembly code we can rely on the
     // returned {wasm_code} to be null and fall back to {GetContainingCode}.
     wasm::WasmCodeRefScope code_ref_scope;
-    wasm::WasmCode* wasm_code =
-        iterator->isolate()->wasm_engine()->code_manager()->LookupCode(pc);
-    if (wasm_code != nullptr) {
+    if (wasm::WasmCode* wasm_code =
+            iterator->isolate()->wasm_engine()->code_manager()->LookupCode(
+                pc)) {
       switch (wasm_code->kind()) {
         case wasm::WasmCode::kFunction:
           return WASM;
@@ -577,52 +578,53 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         default:
           UNREACHABLE();
       }
-    } else {
-      // Look up the code object to figure out the type of the stack frame.
-      Code code_obj = GetContainingCode(iterator->isolate(), pc);
-      if (!code_obj.is_null()) {
-        switch (code_obj.kind()) {
-          case CodeKind::BUILTIN:
-            if (StackFrame::IsTypeMarker(marker)) break;
-            if (code_obj.is_interpreter_trampoline_builtin()) {
-              return INTERPRETED;
-            }
-            if (code_obj.is_baseline_leave_frame_builtin()) {
-              return BASELINE;
-            }
-            if (code_obj.is_turbofanned()) {
-              // TODO(bmeurer): We treat frames for BUILTIN Code objects as
-              // OptimizedFrame for now (all the builtins with JavaScript
-              // linkage are actually generated with TurboFan currently, so
-              // this is sound).
-              return OPTIMIZED;
-            }
-            return BUILTIN;
-          case CodeKind::TURBOFAN:
-          case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
-          case CodeKind::TURBOPROP:
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+    // Look up the code object to figure out the type of the stack frame.
+    Code code_obj = GetContainingCode(iterator->isolate(), pc);
+    if (!code_obj.is_null()) {
+      switch (code_obj.kind()) {
+        case CodeKind::BUILTIN:
+          if (StackFrame::IsTypeMarker(marker)) break;
+          if (code_obj.is_interpreter_trampoline_builtin()) {
+            return INTERPRETED;
+          }
+          if (code_obj.is_baseline_leave_frame_builtin()) {
+            return BASELINE;
+          }
+          if (code_obj.is_turbofanned()) {
+            // TODO(bmeurer): We treat frames for BUILTIN Code objects as
+            // OptimizedFrame for now (all the builtins with JavaScript
+            // linkage are actually generated with TurboFan currently, so
+            // this is sound).
             return OPTIMIZED;
-          case CodeKind::BASELINE:
-            return Type::BASELINE;
-          case CodeKind::JS_TO_WASM_FUNCTION:
-            return JS_TO_WASM;
-          case CodeKind::JS_TO_JS_FUNCTION:
-            return STUB;
-          case CodeKind::C_WASM_ENTRY:
-            return C_WASM_ENTRY;
-          case CodeKind::WASM_TO_JS_FUNCTION:
-            return WASM_TO_JS;
-          case CodeKind::WASM_FUNCTION:
-          case CodeKind::WASM_TO_CAPI_FUNCTION:
-            // Never appear as on-heap {Code} objects.
-            UNREACHABLE();
-          default:
-            // All other types should have an explicit marker
-            break;
-        }
-      } else {
-        return NATIVE;
+          }
+          return BUILTIN;
+        case CodeKind::TURBOFAN:
+        case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
+        case CodeKind::TURBOPROP:
+          return OPTIMIZED;
+        case CodeKind::BASELINE:
+          return Type::BASELINE;
+        case CodeKind::JS_TO_WASM_FUNCTION:
+          return JS_TO_WASM;
+        case CodeKind::JS_TO_JS_FUNCTION:
+          return STUB;
+        case CodeKind::C_WASM_ENTRY:
+          return C_WASM_ENTRY;
+        case CodeKind::WASM_TO_JS_FUNCTION:
+          return WASM_TO_JS;
+        case CodeKind::WASM_FUNCTION:
+        case CodeKind::WASM_TO_CAPI_FUNCTION:
+          // Never appear as on-heap {Code} objects.
+          UNREACHABLE();
+        default:
+          // All other types should have an explicit marker
+          break;
       }
+    } else {
+      return NATIVE;
     }
   }
   DCHECK(StackFrame::IsTypeMarker(marker));
@@ -911,14 +913,17 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
-  const wasm::WasmCode* wasm_code =
-      isolate()->wasm_engine()->code_manager()->LookupCode(inner_pointer);
   SafepointEntry safepoint_entry;
-  uint32_t stack_slots;
+  uint32_t stack_slots = 0;
   Code code;
   bool has_tagged_outgoing_params = false;
   uint32_t tagged_parameter_slots = 0;
-  if (wasm_code != nullptr) {
+  bool is_wasm = false;
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (auto* wasm_code =
+          isolate()->wasm_engine()->code_manager()->LookupCode(inner_pointer)) {
+    is_wasm = true;
     SafepointTable table(wasm_code);
     safepoint_entry = table.FindEntry(inner_pointer);
     stack_slots = wasm_code->stack_slots();
@@ -926,7 +931,10 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         wasm_code->kind() != wasm::WasmCode::kFunction &&
         wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
     tagged_parameter_slots = wasm_code->tagged_parameter_slots();
-  } else {
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (!is_wasm) {
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
         isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
     if (!entry->safepoint_entry.is_valid()) {
@@ -941,15 +949,17 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     safepoint_entry = entry->safepoint_entry;
     stack_slots = code.stack_slots();
 
+    has_tagged_outgoing_params = code.has_tagged_outgoing_params();
+
+#if V8_ENABLE_WEBASSEMBLY
     // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
     // directly call a Wasm function from JavaScript. In this case the
     // parameters we pass to the callee are not tagged.
     wasm::WasmCode* wasm_callee =
         isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc());
     bool is_wasm_call = (wasm_callee != nullptr);
-
-    has_tagged_outgoing_params =
-        !is_wasm_call && code.has_tagged_outgoing_params();
+    if (is_wasm_call) has_tagged_outgoing_params = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
   uint32_t slot_space = stack_slots * kSystemPointerSize;
 
@@ -1808,6 +1818,7 @@ int BuiltinFrame::ComputeParametersCount() const {
 
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                       int index) const {
+  wasm::WasmCodeRefScope code_ref_scope;
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WASM [");
   accumulator->PrintName(script().name());

@@ -20,7 +20,10 @@
 #include "src/profiler/profiler-stats.h"
 #include "src/profiler/symbolizer.h"
 #include "src/utils/locked-queue-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -72,7 +75,9 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   profiler_count++;
   isolate_->set_num_cpu_profilers(profiler_count);
   isolate_->set_is_profiling(true);
+#if V8_ENABLE_WEBASSEMBLY
   isolate_->wasm_engine()->EnableCodeLogging(isolate_);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Logger* logger = isolate_->logger();
   logger->AddCodeEventListener(listener_);

@@ -23,8 +23,11 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/vector.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -94,6 +97,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
       return v8_buffer_.begin();
     }
 
+#if V8_ENABLE_WEBASSEMBLY
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code =
         isolate_ ? isolate_->wasm_engine()->code_manager()->LookupCode(
@@ -104,6 +108,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
                wasm::GetWasmCodeKindAsString(wasm_code->kind()));
       return v8_buffer_.begin();
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   return disasm::NameConverter::NameOfAddress(pc);
@@ -247,12 +252,14 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     } else {
       out->AddFormatted(" %s", CodeKindToString(kind));
     }
+#if V8_ENABLE_WEBASSEMBLY
   } else if (RelocInfo::IsWasmStubCall(rmode) && host.is_wasm_code()) {
     // Host is isolate-independent, try wasm native module instead.
     const char* runtime_stub_name = GetRuntimeStubName(
         host.as_wasm_code()->native_module()->GetRuntimeStubId(
             relocinfo->wasm_stub_call_address()));
     out->AddFormatted("    ;; wasm stub: %s", runtime_stub_name);
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate != nullptr) {
     // A runtime entry relocinfo might be a deoptimization bailout.
     Address addr = relocinfo->target_address();

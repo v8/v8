@@ -90,15 +90,18 @@
 #include "src/utils/address-map.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/version.h"
-#include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/type-stats.h"
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
@@ -527,7 +530,9 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
 #endif
 
   // Iterate over pointers on native execution stack.
+#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
+#endif  // V8_ENABLE_WEBASSEMBLY
   for (StackFrameIterator it(this, thread); !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
@@ -694,6 +699,7 @@ class StackTraceBuilder {
                 summary.code_offset(), flags, summary.parameters());
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   void AppendWasmFrame(FrameSummary::WasmFrameSummary const& summary) {
     if (summary.code()->kind() != wasm::WasmCode::kFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
@@ -713,6 +719,7 @@ class StackTraceBuilder {
                 summary.code_offset(), flags,
                 isolate_->factory()->empty_fixed_array());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void AppendBuiltinExitFrame(BuiltinExitFrame* exit_frame) {
     Handle<JSFunction> function(exit_frame->function(), isolate_);
@@ -1000,7 +1007,10 @@ Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
                      "CaptureStackTrace", "maxFrameCount", options.limit);
 
+#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope code_ref_scope;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   StackTraceBuilder builder(isolate, options.skip_mode, options.limit, caller,
                             options.filter_mode);
 
@@ -1017,7 +1027,10 @@ Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
-      case StackFrame::WASM: {
+#if V8_ENABLE_WEBASSEMBLY
+      case StackFrame::WASM:
+#endif  // V8_ENABLE_WEBASSEMBLY
+      {
         // A standard frame may include many summarized frames (due to
         // inlining).
         std::vector<FrameSummary> frames;
@@ -1035,12 +1048,14 @@ Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
             //=========================================================
             auto const& java_script = summary.AsJavaScript();
             builder.AppendJavaScriptFrame(java_script);
+#if V8_ENABLE_WEBASSEMBLY
           } else if (summary.IsWasm()) {
             //=========================================================
             // Handle a Wasm frame.
             //=========================================================
             auto const& wasm = summary.AsWasm();
             builder.AppendWasmFrame(wasm);
+#endif  // V8_ENABLE_WEBASSEMBLY
           }
         }
         break;
@@ -1275,7 +1290,6 @@ static void PrintFrames(Isolate* isolate, StringStream* accumulator,
 
 void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   HandleScope scope(this);
-  wasm::WasmCodeRefScope wasm_code_ref_scope;
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
@@ -1688,7 +1702,6 @@ Object Isolate::UnwindAndFindHandler() {
   // Special handling of termination exceptions, uncatchable by JavaScript and
   // Wasm code, we unwind the handlers until the top ENTRY handler is found.
   bool catchable_by_js = is_catchable_by_javascript(exception);
-  bool catchable_by_wasm = is_catchable_by_wasm(exception);
 
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
@@ -1716,6 +1729,7 @@ Object Isolate::UnwindAndFindHandler() {
                             0);
       }
 
+#if V8_ENABLE_WEBASSEMBLY
       case StackFrame::C_WASM_ENTRY: {
         StackHandler* handler = frame->top_handler();
         thread_local_top()->handler_ = handler->next_address();
@@ -1735,7 +1749,7 @@ Object Isolate::UnwindAndFindHandler() {
       }
 
       case StackFrame::WASM: {
-        if (!catchable_by_wasm) break;
+        if (!is_catchable_by_wasm(exception)) break;
 
         // For WebAssembly frames we perform a lookup in the handler table.
         // This code ref scope is here to avoid a check failure when looking up
@@ -1767,6 +1781,7 @@ Object Isolate::UnwindAndFindHandler() {
         DCHECK(FLAG_wasm_lazy_validation);
         break;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
       case StackFrame::OPTIMIZED: {
         // For optimized frames we perform a lookup in the handler table.
@@ -1800,10 +1815,10 @@ Object Isolate::UnwindAndFindHandler() {
         // Some stubs are able to handle exceptions.
         if (!catchable_by_js) break;
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
-#ifdef DEBUG
+#if defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
         wasm::WasmCodeRefScope code_ref_scope;
         DCHECK_NULL(wasm_engine()->code_manager()->LookupCode(frame->pc()));
-#endif  // DEBUG
+#endif  // defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
         Code code = stub_frame->LookupCode();
         if (!code.IsCode() || code.kind() != CodeKind::BUILTIN ||
             !code.has_handler_table() || !code.is_turbofanned()) {
@@ -2112,7 +2127,9 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
   std::vector<FrameSummary> frames;
+#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope code_ref_scope;
+#endif  // V8_ENABLE_WEBASSEMBLY
   frame->Summarize(&frames);
   FrameSummary& summary = frames.back();
   Handle<SharedFunctionInfo> shared;
@@ -2635,11 +2652,13 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   destructor->next_ = nullptr;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void Isolate::SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine) {
   DCHECK_NULL(wasm_engine_);  // Only call once before {Init}.
   wasm_engine_ = std::move(engine);
   wasm_engine_->AddIsolate(this);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // NOLINTNEXTLINE
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
@@ -2988,7 +3007,9 @@ void Isolate::Deinit() {
 
   debug()->Unload();
 
+#if V8_ENABLE_WEBASSEMBLY
   wasm_engine()->DeleteCompileJobsOnIsolate(this);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (concurrent_recompilation_enabled()) {
     optimizing_compile_dispatcher_->Stop();
@@ -3051,10 +3072,12 @@ void Isolate::Deinit() {
   FILE* logfile = logger_->TearDownAndGetLogFile();
   if (logfile != nullptr) base::Fclose(logfile);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (wasm_engine_) {
     wasm_engine_->RemoveIsolate(this);
     wasm_engine_.reset();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   TearDownEmbeddedBlob();
 
@@ -3484,11 +3507,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   isolate_data_.external_reference_table()->Init(this);
 
+#if V8_ENABLE_WEBASSEMBLY
   // Setup the wasm engine.
   if (wasm_engine_ == nullptr) {
     SetWasmEngine(wasm::WasmEngine::GetWasmEngine());
   }
   DCHECK_NOT_NULL(wasm_engine_);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (setup_delegate_ == nullptr) {
     setup_delegate_ = new SetupIsolateDelegate(create_heap_objects);
@@ -3761,11 +3786,13 @@ void Isolate::DumpAndResetStats() {
     delete turbo_statistics_;
     turbo_statistics_ = nullptr;
   }
+#if V8_ENABLE_WEBASSEMBLY
   // TODO(7424): There is no public API for the {WasmEngine} yet. So for now we
   // just dump and reset the engines statistics together with the Isolate.
   if (FLAG_turbo_stats_wasm) {
     wasm_engine()->DumpAndResetTurboStatistics();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     counters()->worker_thread_runtime_call_stats()->AddToMainTable(
