@@ -5190,6 +5190,7 @@ class LiftoffCompiler {
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
             pinned);
 
+    // TODO(9495): Do not always compare signatures, same as wasm-compiler.cc.
     // Compare against expected signature.
     __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(canonical_sig_num));
 

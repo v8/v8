@@ -530,6 +530,8 @@ class ValueType {
 
 static_assert(sizeof(ValueType) <= kUInt32Size,
               "ValueType is small and can be passed by value");
+static_assert(ValueType::kLastUsedBit < 8 * sizeof(ValueType) - kSmiTagSize,
+              "ValueType has space to be encoded in a Smi");
 
 inline size_t hash_value(ValueType type) {
   return static_cast<size_t>(type.kind());
@@ -559,6 +561,10 @@ constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31, kNonNullable);
 constexpr ValueType kWasmDataRef =
     ValueType::Ref(HeapType::kData, kNonNullable);
 constexpr ValueType kWasmAnyRef = ValueType::Ref(HeapType::kAny, kNullable);
+
+// This is used in wasm.tq.
+constexpr ValueType kWasmExternNonNullableRef =
+    ValueType::Ref(HeapType::kExtern, kNonNullable);
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \

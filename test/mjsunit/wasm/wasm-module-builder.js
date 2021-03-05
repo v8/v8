@@ -961,12 +961,14 @@ class WasmGlobalBuilder {
 }
 
 class WasmTableBuilder {
-  constructor(module, type, initial_size, max_size) {
+  constructor(module, type, initial_size, max_size, init_func_index) {
     this.module = module;
     this.type = type;
     this.initial_size = initial_size;
     this.has_max = max_size != undefined;
     this.max_size = max_size;
+    this.init_func_index = init_func_index;
+    this.has_init = init_func_index != undefined;
   }
 
   exportAs(name) {
@@ -1094,12 +1096,14 @@ class WasmModuleBuilder {
     return glob;
   }
 
-  addTable(type, initial_size, max_size = undefined) {
+  addTable(type, initial_size, max_size = undefined,
+           init_func_index = undefined) {
     if (type == kWasmI32 || type == kWasmI64 || type == kWasmF32 ||
         type == kWasmF64 || type == kWasmS128 || type == kWasmStmt) {
       throw new Error('Tables must be of a reference type');
     }
-    let table = new WasmTableBuilder(this, type, initial_size, max_size);
+    let table = new WasmTableBuilder(this, type, initial_size, max_size,
+                                     init_func_index);
     table.index = this.tables.length + this.num_imported_tables;
     this.tables.push(table);
     return table;
@@ -1367,6 +1371,11 @@ class WasmModuleBuilder {
           section.emit_u8(table.has_max);
           section.emit_u32v(table.initial_size);
           if (table.has_max) section.emit_u32v(table.max_size);
+          if (table.has_init) {
+            section.emit_u8(kExprRefFunc);
+            section.emit_u32v(table.init_func_index);
+            section.emit_u8(kExprEnd);
+          }
         }
       });
     }

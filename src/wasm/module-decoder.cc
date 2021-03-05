@@ -728,6 +728,9 @@ class ModuleDecoderImpl : public Decoder {
           "table elements", "elements", std::numeric_limits<uint32_t>::max(),
           &table->initial_size, &table->has_maximum_size,
           std::numeric_limits<uint32_t>::max(), &table->maximum_size, flags);
+      if (!table_type.is_defaultable()) {
+        table->initial_value = consume_init_expr(module_.get(), table_type, 0);
+      }
     }
   }
 
@@ -1713,7 +1716,7 @@ class ModuleDecoderImpl : public Decoder {
           if (V8_UNLIKELY(!enabled_features_.has_reftypes() &&
                           !enabled_features_.has_eh())) {
             errorf(pc(),
-                   "invalid opcode 0x%x in global initializer, enable with "
+                   "invalid opcode 0x%x in initializer expression, enable with "
                    "--experimental-wasm-reftypes or --experimental-wasm-eh",
                    kExprRefNull);
             return {};
@@ -1729,7 +1732,7 @@ class ModuleDecoderImpl : public Decoder {
         case kExprRefFunc: {
           if (V8_UNLIKELY(!enabled_features_.has_reftypes())) {
             errorf(pc(),
-                   "invalid opcode 0x%x in global initializer, enable with "
+                   "invalid opcode 0x%x in initializer expression, enable with "
                    "--experimental-wasm-reftypes",
                    kExprRefFunc);
             return {};
@@ -1752,7 +1755,7 @@ class ModuleDecoderImpl : public Decoder {
           // the type check or stack height check at the end.
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           if (V8_UNLIKELY(opcode != kExprS128Const)) {
-            errorf(pc(), "invalid SIMD opcode 0x%x in global initializer",
+            errorf(pc(), "invalid SIMD opcode 0x%x in initializer expression",
                    opcode);
             return {};
           }
@@ -1804,7 +1807,8 @@ class ModuleDecoderImpl : public Decoder {
               break;
             }
             default: {
-              errorf(pc(), "invalid opcode 0x%x in global initializer", opcode);
+              errorf(pc(), "invalid opcode 0x%x in initializer expression",
+                     opcode);
               return {};
             }
           }
@@ -1813,7 +1817,7 @@ class ModuleDecoderImpl : public Decoder {
         case kExprEnd:
           break;
         default: {
-          errorf(pc(), "invalid opcode 0x%x in global initializer", opcode);
+          errorf(pc(), "invalid opcode 0x%x in initializer expression", opcode);
           return {};
         }
       }
@@ -1821,16 +1825,16 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     if (V8_UNLIKELY(pc() > end())) {
-      error(end(), "Global initializer extending beyond code end");
+      error(end(), "Initializer expression extending beyond code end");
       return {};
     }
     if (V8_UNLIKELY(opcode != kExprEnd)) {
-      error(pc(), "Global initializer is missing 'end'");
+      error(pc(), "Initializer expression is missing 'end'");
       return {};
     }
     if (V8_UNLIKELY(stack.size() != 1)) {
       errorf(pc(),
-             "Found 'end' in global initalizer, but %s expressions were "
+             "Found 'end' in initializer expression, but %s expressions were "
              "found on the stack",
              stack.size() > 1 ? "more than one" : "no");
       return {};

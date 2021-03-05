@@ -393,8 +393,7 @@ ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 #undef PRIMITIVE_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
-  // TODO(7748): Support other table types? Wait for spec to clear up.
-  return wasm::ValueType::Ref(raw_type(), wasm::kNullable);
+  return wasm::ValueType::FromRawBitField(raw_type());
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }

@@ -354,7 +354,7 @@ struct WasmTable {
   // TODO(9495): Update this function as more table types are supported, or
   // remove it completely when all reference types are allowed.
   static bool IsValidTableType(ValueType type, const WasmModule* module) {
-    if (!type.is_nullable()) return false;
+    if (!type.is_object_reference()) return false;
     HeapType heap_type = type.heap_type();
     return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
            (module != nullptr && heap_type.is_index() &&
@@ -367,6 +367,7 @@ struct WasmTable {
   bool has_maximum_size = false;  // true if there is a maximum size.
   bool imported = false;          // true if imported.
   bool exported = false;          // true if exported.
+  WasmInitExpr initial_value;
 };
 
 inline bool is_asmjs_module(const WasmModule* module) {

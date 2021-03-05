@@ -41,7 +41,10 @@ extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
 namespace wasm {
-const kFuncTableType: constexpr int31 generates 'wasm::HeapType::kFunc';
+const kExternTableType: constexpr int31
+    generates 'wasm::kWasmExternRef.raw_bit_field()';
+const kExternNonNullTableType: constexpr int31
+    generates 'wasm::kWasmExternNonNullableRef.raw_bit_field()';
 
 extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
 
@@ -177,8 +180,12 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
 
     // Fall back to the runtime to set funcrefs, since we have to update
     // function dispatch tables.
+    // TODO(7748): Update this if further table types are supported.
     const tableType: Smi = table.raw_type;
-    if (tableType == SmiConstant(kFuncTableType)) goto CallRuntime;
+    if (tableType != SmiConstant(kExternTableType) &&
+        tableType != SmiConstant(kExternNonNullTableType)) {
+      goto CallRuntime;
+    }
 
     const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
     if (entryIndex >= entriesCount) goto IndexOutOfRange;

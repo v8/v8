@@ -3007,28 +3007,35 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
     key = gasm_->Word32And(key, mask);
   }
 
-  Node* int32_scaled_key =
-      Uint32ToUintptr(gasm_->Word32Shl(key, Int32Constant(2)));
+  const wasm::ValueType table_type = env_->module->tables[table_index].type;
+  // Check that the table entry is not null and that the type of the function is
+  // a subtype of the function type declared at the call site. In the absence of
+  // function subtyping, the latter can only happen if the table type is (ref
+  // null? func). Also, subtyping reduces to normalized signature equality
+  // checking.
+  // TODO(7748): Expand this with function subtyping once we have that.
+  const bool needs_signature_check =
+      table_type.is_reference_to(wasm::HeapType::kFunc) ||
+      table_type.is_nullable();
+  if (needs_signature_check) {
+    Node* int32_scaled_key =
+        Uint32ToUintptr(gasm_->Word32Shl(key, Int32Constant(2)));
 
-  Node* loaded_sig =
-      gasm_->Load(MachineType::Int32(), ift_sig_ids, int32_scaled_key);
-  // Check that the dynamic type of the function is a subtype of its static
-  // (table) type. Currently, the only subtyping between function types is
-  // $t <: funcref for all $t: function_type.
-  // TODO(7748): Expand this with function subtyping.
-  const bool needs_typechecking =
-      env_->module->tables[table_index].type == wasm::kWasmFuncRef;
-  if (needs_typechecking) {
-    int32_t expected_sig_id = env_->module->canonicalized_type_ids[sig_index];
-    Node* sig_match =
-        gasm_->Word32Equal(loaded_sig, Int32Constant(expected_sig_id));
-    TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
-  } else {
-    // We still have to check that the entry is initialized.
-    // TODO(9495): Skip this check for non-nullable tables when they are
-    // allowed.
-    Node* function_is_null = gasm_->Word32Equal(loaded_sig, Int32Constant(-1));
-    TrapIfTrue(wasm::kTrapNullDereference, function_is_null, position);
+    Node* loaded_sig =
+        gasm_->Load(MachineType::Int32(), ift_sig_ids, int32_scaled_key);
+
+    if (table_type.is_reference_to(wasm::HeapType::kFunc)) {
+      int32_t expected_sig_id = env_->module->canonicalized_type_ids[sig_index];
+      Node* sig_match =
+          gasm_->Word32Equal(loaded_sig, Int32Constant(expected_sig_id));
+      TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
+    } else {
+      // If the table entries are nullable, we still have to check that the
+      // entry is initialized.
+      Node* function_is_null =
+          gasm_->Word32Equal(loaded_sig, Int32Constant(-1));
+      TrapIfTrue(wasm::kTrapNullDereference, function_is_null, position);
+    }
   }
 
   Node* key_intptr = Uint32ToUintptr(key);

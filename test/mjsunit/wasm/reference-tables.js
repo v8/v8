@@ -6,7 +6,7 @@
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function Test1() {
+(function TestTables() {
   var exporting_instance = (function () {
     var builder = new WasmModuleBuilder();
     var binary_type = builder.addType(kSig_i_ii);
@@ -15,8 +15,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
       .exportFunc();
 
-    builder.addFunction("id", kSig_i_i)
-      .addBody([kExprLocalGet, 0])
+    builder.addFunction("succ", kSig_i_i)
+      .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add])
       .exportFunc();
 
     builder.addTable(wasmOptRefType(binary_type), 1, 100).exportAs("table");
@@ -57,7 +57,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     builder.addImportedTable("imports", "table", 1, 100,
                              wasmOptRefType(binary_type));
 
-    var table = builder.addTable(wasmOptRefType(unary_type), 1)
+    var table = builder.addTable(wasmOptRefType(unary_type), 10)
                   .exportAs("table");
     builder.addTable(kWasmFuncRef, 1).exportAs("generic_table");
 
@@ -67,6 +67,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprI32Const, 0, kExprLocalGet, 0, kExprTableSet, table.index,
                 kExprI32Const, 42, kExprI32Const, 0, kExprTableGet, table.index,
                 kExprCallRef])
+      .exportFunc();
+
+    // Same, but with table[1] and call_indirect
+    builder.addFunction("table_indirect_test",
+                        makeSig([wasmRefType(unary_type)], [kWasmI32]))
+      .addBody([kExprI32Const, 1, kExprLocalGet, 0, kExprTableSet, table.index,
+        kExprI32Const, 42, kExprI32Const, 0,
+        kExprCallIndirect, unary_type, table.index])
       .exportFunc();
 
     // Instantiate with a table of the correct type.
@@ -79,13 +87,50 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   // The correct function reference is preserved when setting it to and getting
   // it back from a table.
-  assertEquals(42, instance.exports.table_test(exporting_instance.exports.id));
+  assertEquals(43,
+               instance.exports.table_test(exporting_instance.exports.succ));
+  // Same for call indirect (the indirect call tables are also set correctly).
+  assertEquals(43, instance.exports.table_indirect_test(
+                       exporting_instance.exports.succ));
 
   // Setting from JS API respects types.
-  instance.exports.generic_table.set(0, exporting_instance.exports.id);
-  instance.exports.table.set(0, exporting_instance.exports.id);
+  instance.exports.generic_table.set(0, exporting_instance.exports.succ);
+  instance.exports.table.set(0, exporting_instance.exports.succ);
   assertThrows(
     () => instance.exports.table.set(0, exporting_instance.exports.addition),
     TypeError,
-    /Argument 1 must be null or a WebAssembly function of type compatible to 'this'/);
+    /Argument 1 must be null or a WebAssembly function of type compatible to/);
+})();
+
+(function TestNonNullableTables() {
+  var builder = new WasmModuleBuilder();
+
+  var binary_type = builder.addType(kSig_i_ii);
+
+  var addition = builder.addFunction("addition", kSig_i_ii)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add]);
+  var subtraction = builder.addFunction("subtraction", kSig_i_ii)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Sub])
+      .exportFunc();
+
+  var table = builder.addTable(wasmRefType(binary_type), 3, 3, addition.index);
+
+  builder.addFunction("init", kSig_v_v)
+         .addBody([kExprI32Const, 1, kExprRefFunc, subtraction.index,
+                   kExprTableSet, table.index])
+         .exportFunc();
+
+  // (index, arg1, arg2) -> table[index](arg1, arg2)
+  builder.addFunction("table_test", kSig_i_iii)
+    .addBody([kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 0,
+              kExprCallIndirect, binary_type, table.index])
+    .exportFunc();
+
+  var instance = builder.instantiate({});
+
+  assertTrue(!!instance);
+
+  instance.exports.init();
+  assertEquals(44, instance.exports.table_test(0, 33, 11));
+  assertEquals(22, instance.exports.table_test(1, 33, 11));
 })();

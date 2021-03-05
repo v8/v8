@@ -1841,12 +1841,50 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
 
 void InstanceBuilder::InitializeIndirectFunctionTables(
     Handle<WasmInstanceObject> instance) {
-  for (int i = 0; i < static_cast<int>(module_->tables.size()); ++i) {
-    const WasmTable& table = module_->tables[i];
+  for (int table_index = 0;
+       table_index < static_cast<int>(module_->tables.size()); ++table_index) {
+    const WasmTable& table = module_->tables[table_index];
 
     if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
       WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-          instance, i, table.initial_size);
+          instance, table_index, table.initial_size);
+    }
+
+    if (!table.type.is_defaultable()) {
+      // Function constant is currently the only viable initializer.
+      DCHECK(table.initial_value.kind() == WasmInitExpr::kRefFuncConst);
+      uint32_t func_index = table.initial_value.immediate().index;
+
+      uint32_t sig_id =
+          module_->canonicalized_type_ids[module_->functions[func_index]
+                                              .sig_index];
+      MaybeHandle<WasmExternalFunction> wasm_external_function =
+          WasmInstanceObject::GetWasmExternalFunction(isolate_, instance,
+                                                      func_index);
+      auto table_object = handle(
+          WasmTableObject::cast(instance->tables().get(table_index)), isolate_);
+      for (uint32_t entry_index = 0; entry_index < table.initial_size;
+           entry_index++) {
+        // Update the local dispatch table first.
+        IndirectFunctionTableEntry(instance, table_index, entry_index)
+            .Set(sig_id, instance, func_index);
+
+        // Update the table object's other dispatch tables.
+        if (wasm_external_function.is_null()) {
+          // No JSFunction entry yet exists for this function. Create a {Tuple2}
+          // holding the information to lazily allocate one.
+          WasmTableObject::SetFunctionTablePlaceholder(
+              isolate_, table_object, entry_index, instance, func_index);
+        } else {
+          table_object->entries().set(
+              entry_index, *wasm_external_function.ToHandleChecked());
+        }
+        // UpdateDispatchTables() updates all other dispatch tables, since
+        // we have not yet added the dispatch table we are currently building.
+        WasmTableObject::UpdateDispatchTables(
+            isolate_, table_object, entry_index,
+            module_->functions[func_index].sig, instance, func_index);
+      }
     }
   }
 }
