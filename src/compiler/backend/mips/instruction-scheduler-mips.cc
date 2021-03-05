@@ -89,7 +89,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI64x2ExtMulHighI32x4U:
     case kMipsF32x4Abs:
     case kMipsF32x4Add:
-    case kMipsF32x4AddHoriz:
     case kMipsF32x4Eq:
     case kMipsF32x4ExtractLane:
     case kMipsF32x4Le:
@@ -135,7 +134,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsFloorWD:
     case kMipsFloorWS:
     case kMipsI16x8Add:
-    case kMipsI16x8AddHoriz:
     case kMipsI16x8AddSatS:
     case kMipsI16x8AddSatU:
     case kMipsI16x8Eq:
@@ -179,7 +177,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI32x4ExtAddPairwiseI16x8S:
     case kMipsI32x4ExtAddPairwiseI16x8U:
     case kMipsI32x4Add:
-    case kMipsI32x4AddHoriz:
     case kMipsI32x4Eq:
     case kMipsI32x4ExtractLane:
     case kMipsI32x4GeS:
