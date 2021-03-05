@@ -149,8 +149,8 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSDateTimeFormat::FormatToParts(isolate, dtf, date_value));
+  RETURN_RESULT_OR_FAILURE(isolate, JSDateTimeFormat::FormatToParts(
+                                        isolate, dtf, date_value, false));
 }
 
 // Common code for DateTimeFormatPrototypeFormtRange(|ToParts)

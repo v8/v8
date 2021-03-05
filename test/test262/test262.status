@@ -583,10 +583,6 @@
   # Temporarily disabled until upstream tests are changed to use /d
   'built-ins/RegExp/match-indices/*': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11411
-  'intl402/DateTimeFormat/prototype/formatRange/date-same-returns-single-date': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/date-same-returns-single-date': [FAIL],
-
   # http://crbug/v8/11466
   # https://github.com/tc39/test262/issues/2950
   'intl402/Segmenter/constructor/constructor/options-toobject': [FAIL],
