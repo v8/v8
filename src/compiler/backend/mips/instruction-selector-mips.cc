@@ -1349,7 +1349,7 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Possibly align stack here for functions.
-    int push_count = static_cast<int>(call_descriptor->StackParameterCount());
+    int push_count = static_cast<int>(call_descriptor->ParameterSlotCount());
     if (push_count > 0) {
       // Calculate needed space
       int stack_size = 0;

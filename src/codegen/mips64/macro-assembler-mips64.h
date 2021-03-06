@@ -103,6 +103,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void LeaveFrame(StackFrame::Type type);
 
+  void AllocateStackSpace(Register bytes) { Dsubu(sp, sp, bytes); }
+
+  void AllocateStackSpace(int bytes) {
+    DCHECK_GE(bytes, 0);
+    if (bytes == 0) return;
+    Dsubu(sp, sp, Operand(bytes));
+  }
+
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
   void Prologue();
