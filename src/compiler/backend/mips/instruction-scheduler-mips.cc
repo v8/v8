@@ -1387,10 +1387,14 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
   // in an empirical way.
   switch (instr->arch_opcode()) {
     case kArchCallCodeObject:
+#if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return CallLatency();
     case kArchTailCallCodeObject:
+#if V8_ENABLE_WEBASSEMBLY
     case kArchTailCallWasm:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallAddress:
       return JumpLatency();
     case kArchCallJSFunction: {
