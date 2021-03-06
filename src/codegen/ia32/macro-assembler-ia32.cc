@@ -2157,33 +2157,6 @@ void TurboAssembler::Cmpeqps(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::Pshufhw(XMMRegister dst, Operand src, uint8_t shuffle) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpshufhw(dst, src, shuffle);
-  } else {
-    pshufhw(dst, src, shuffle);
-  }
-}
-
-void TurboAssembler::Pshuflw(XMMRegister dst, Operand src, uint8_t shuffle) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpshuflw(dst, src, shuffle);
-  } else {
-    pshuflw(dst, src, shuffle);
-  }
-}
-
-void TurboAssembler::Pshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpshufd(dst, src, shuffle);
-  } else {
-    pshufd(dst, src, shuffle);
-  }
-}
-
 void TurboAssembler::Psraw(XMMRegister dst, uint8_t shift) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -2199,87 +2172,6 @@ void TurboAssembler::Psrlq(XMMRegister dst, uint8_t shift) {
     vpsrlq(dst, dst, shift);
   } else {
     psrlq(dst, shift);
-  }
-}
-
-void TurboAssembler::Psignb(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsignb(dst, dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSSE3)) {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    psignb(dst, src);
-    return;
-  }
-  FATAL("no AVX or SSE3 support");
-}
-
-void TurboAssembler::Psignw(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsignw(dst, dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSSE3)) {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    psignw(dst, src);
-    return;
-  }
-  FATAL("no AVX or SSE3 support");
-}
-
-void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsignd(dst, dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSSE3)) {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    psignd(dst, src);
-    return;
-  }
-  FATAL("no AVX or SSE3 support");
-}
-
-void TurboAssembler::Haddps(XMMRegister dst, XMMRegister src1, Operand src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vhaddps(dst, src1, src2);
-  } else {
-    CpuFeatureScope scope(this, SSE3);
-    DCHECK_EQ(dst, src1);
-    haddps(dst, src2);
-  }
-}
-
-void TurboAssembler::Pcmpeqq(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpcmpeqq(dst, dst, src);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    pcmpeqq(dst, src);
-  }
-}
-
-void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1,
-                             XMMRegister src2) {
-  Pcmpeqq(dst, src1, Operand(src2));
-}
-
-void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1, Operand src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpcmpeqq(dst, src1, src2);
-  } else {
-    // pcmpeqq is only used by Wasm SIMD, which requires SSE4_1.
-    DCHECK(CpuFeatures::IsSupported(SSE4_1));
-    CpuFeatureScope scope(this, SSE4_1);
-    DCHECK_EQ(dst, src1);
-    pcmpeqq(dst, src2);
   }
 }
 
@@ -2325,58 +2217,6 @@ void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
     return;
   }
   FATAL("no AVX or SSE3 support");
-}
-
-void TurboAssembler::Pextrb(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrb(dst, src, imm8);
-    return;
-  }
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope sse_scope(this, SSE4_1);
-  pextrb(dst, src, imm8);
-  return;
-}
-
-void TurboAssembler::Pextrb(Register dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrb(dst, src, imm8);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pextrb(dst, src, imm8);
-    return;
-  }
-  FATAL("no AVX or SSE4.1 support");
-}
-
-void TurboAssembler::Pextrw(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrw(dst, src, imm8);
-    return;
-  }
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope sse_scope(this, SSE4_1);
-  pextrw(dst, src, imm8);
-  return;
-}
-
-void TurboAssembler::Pextrw(Register dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrw(dst, src, imm8);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pextrw(dst, src, imm8);
-    return;
-  }
-  FATAL("no AVX or SSE4.1 support");
 }
 
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
@@ -2491,17 +2331,6 @@ void TurboAssembler::Vbroadcastss(XMMRegister dst, Operand src) {
   }
   movss(dst, src);
   shufps(dst, dst, static_cast<byte>(0));
-}
-
-void TurboAssembler::Extractps(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vextractps(dst, src, imm8);
-  }
-
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope avx_scope(this, SSE4_1);
-  extractps(dst, src, imm8);
 }
 
 void TurboAssembler::Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
