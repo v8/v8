@@ -2146,35 +2146,6 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   }
 }
 
-void TurboAssembler::Cmpeqps(XMMRegister dst, XMMRegister src1,
-                             XMMRegister src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vcmpeqps(dst, src1, src2);
-  } else {
-    movaps(dst, src1);
-    cmpeqps(dst, src2);
-  }
-}
-
-void TurboAssembler::Psraw(XMMRegister dst, uint8_t shift) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsraw(dst, dst, shift);
-  } else {
-    psraw(dst, shift);
-  }
-}
-
-void TurboAssembler::Psrlq(XMMRegister dst, uint8_t shift) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsrlq(dst, dst, shift);
-  } else {
-    psrlq(dst, shift);
-  }
-}
-
 void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src, Operand mask) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

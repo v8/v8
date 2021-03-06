@@ -300,11 +300,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-  // Three-operand cmpeqps that moves src1 to dst if AVX is not supported.
-  void Cmpeqps(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-  void Psraw(XMMRegister dst, uint8_t shift);
-  void Psrlq(XMMRegister dst, uint8_t shift);
-
 // Instructions whose SSE and AVX take the same number and type of operands.
 #define AVX_OP3_WITH_TYPE(macro_name, name, dst_type, src1_type, src2_type) \
   void macro_name(dst_type dst, src1_type src1, src2_type src2) {           \
@@ -436,6 +431,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Andnpd, andnpd)
   AVX_OP3_XO(Pmullw, pmullw)
   AVX_OP3_WITH_TYPE(Movhlps, movhlps, XMMRegister, XMMRegister)
+  AVX_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
+  AVX_OP3_WITH_TYPE(Psrlq, psrlq, XMMRegister, uint8_t)
 
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE
@@ -552,6 +549,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       name(dst, src2);                                          \
     }                                                           \
   }
+  AVX_OP3_WITH_MOVE(Cmpeqps, cmpeqps, XMMRegister, XMMRegister)
   AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Pmaddwd, pmaddwd, XMMRegister, Operand)
