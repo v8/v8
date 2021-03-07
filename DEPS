@@ -88,15 +88,15 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '426f691c77bd2efc3c091f62c2934bbc29b183ec',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6950b7c9deafd5b2bd5a125b682b11504026d424',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4ec3fd3659ccd4fc7e1f977ee9361caf38635e91',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'e05b663d1c50b4e9ecc3ff9325f5158f1d071471',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'e6379c8802a00952a90c4bc547171fd4827f974b',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '0964a78c832d1d0f2669b020b073c38f67509cf2',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '523462a3ce39b4e4d4510f481eab93b1be83c5af',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '27d20f0e2f7b592cb4b3f1242ca4d37bc41488e4',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '99803d74e35962f63a775f29477882afd4d57d94',
   'buildtools/linux64': {
@@ -122,7 +122,7 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '8fa87946779682841e21e2da977eccfb6cb3bded',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '47a09307d99bde12472d854ec81c000a6af65ced',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'c93be42a4007e6fc16ea085f5b47ea50aa9134a8',
   'buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8869f42e7fc234f038cd78097e19e304773cc8f0',
   'buildtools/win': {
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'bA9tqm_KjeEA4nnfJ882IxW2o2pJSsODi2wo4fvcXz4C'
+              'version': 'UNqI4KV2QmdCbFaMAYUJ340CZT7YjUKiV11WNfMPFF8C'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
