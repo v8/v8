@@ -6277,8 +6277,6 @@ MaybeHandle<JSFinalizationRegistry> Heap::DequeueDirtyJSFinalizationRegistry() {
 }
 
 void Heap::RemoveDirtyFinalizationRegistriesOnContext(NativeContext context) {
-  if (!FLAG_harmony_weak_refs) return;
-
   DisallowGarbageCollection no_gc;
 
   Isolate* isolate = this->isolate();
@@ -6308,7 +6306,6 @@ void Heap::RemoveDirtyFinalizationRegistriesOnContext(NativeContext context) {
 }
 
 void Heap::KeepDuringJob(Handle<JSReceiver> target) {
-  DCHECK(FLAG_harmony_weak_refs);
   DCHECK(weak_refs_keep_during_job().IsUndefined() ||
          weak_refs_keep_during_job().IsOrderedHashSet());
   Handle<OrderedHashSet> table;
