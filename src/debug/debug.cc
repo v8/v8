@@ -1596,7 +1596,8 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     IsCompiledScope is_compiled_scope;
     {
       shared = FindSharedFunctionInfoCandidate(position, script, isolate_);
-      if (shared.is_null() && iteration == 0) {
+      if (shared.is_null()) {
+        if (iteration > 0) break;
         // It might be that the shared function info is not available as the
         // top level functions are removed due to the GC. Try to recompile
         // the top level functions.
