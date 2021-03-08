@@ -970,32 +970,12 @@ int LookupIterator::GetAccessorIndex() const {
   return descriptor_number().as_int();
 }
 
-Handle<Map> LookupIterator::GetFieldOwnerMap() const {
-  DCHECK(has_property_);
-  DCHECK(holder_->HasFastProperties(isolate_));
-  DCHECK_EQ(kField, property_details_.location());
-  DCHECK(!IsElement(*holder_));
-  Map holder_map = holder_->map(isolate_);
-  return handle(holder_map.FindFieldOwner(isolate(), descriptor_number()),
-                isolate_);
-}
-
 FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(kField, property_details_.location());
   DCHECK(!IsElement(*holder_));
   return FieldIndex::ForDescriptor(holder_->map(isolate_), descriptor_number());
-}
-
-Handle<FieldType> LookupIterator::GetFieldType() const {
-  DCHECK(has_property_);
-  DCHECK(holder_->HasFastProperties(isolate_));
-  DCHECK_EQ(kField, property_details_.location());
-  return handle(
-      holder_->map(isolate_).instance_descriptors(isolate_).GetFieldType(
-          isolate_, descriptor_number()),
-      isolate_);
 }
 
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
