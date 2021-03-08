@@ -4,7 +4,7 @@
 
 load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "defaults_triggered", "defaults_try", "v8_builder")
 
-def try_ng_pair(name, **kwargs):
+def try_ng_pair(name, use_cas=False, **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
     kwargs.setdefault("properties", {})["triggers"] = [name + "_ng_triggered"]
     cq_tg = kwargs.pop("cq_properties_trigger", None)
@@ -15,6 +15,7 @@ def try_ng_pair(name, **kwargs):
         bucket = "try",
         cq_properties = cq_tg,
         in_list = "tryserver",
+        use_cas = use_cas,
         **kwargs
     )
     v8_builder(
@@ -23,6 +24,7 @@ def try_ng_pair(name, **kwargs):
         bucket = "try.triggered",
         execution_timeout = triggered_timeout,
         cq_properties = cq_td,
+        use_cas = use_cas,
         in_list = "tryserver",
     )
 
@@ -339,6 +341,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
+    use_cas = True,
 )
 
 try_ng_pair(
@@ -467,6 +470,7 @@ try_ng_pair(
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.ATS,
+    use_cas = True,
 )
 
 try_ng_pair(
