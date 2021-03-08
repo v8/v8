@@ -57,6 +57,10 @@ void StatsCollector::NotifySafePointForConservativeCollection() {
   }
 }
 
+void StatsCollector::NotifySafePointForTesting() {
+  AllocatedObjectSizeSafepointImpl();
+}
+
 void StatsCollector::AllocatedObjectSizeSafepointImpl() {
   allocated_bytes_since_end_of_marking_ +=
       static_cast<int64_t>(allocated_bytes_since_safepoint_) -

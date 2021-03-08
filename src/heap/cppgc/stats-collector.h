@@ -261,6 +261,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // their actual allocation/reclamation as possible.
   void NotifySafePointForConservativeCollection();
 
+  void NotifySafePointForTesting();
+
   // Indicates a new garbage collection cycle.
   void NotifyMarkingStarted(CollectionType, IsForcedGC);
   // Indicates that marking of the current garbage collection cycle is
