@@ -18,6 +18,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"triggers": ["V8 Arm"], "builder_group": "client.v8.ports", "target_arch": "arm", "binary_size_tracking": {"category": "linux_arm32", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
+        use_cas = True,
     ),
     multibranch_builder(
         name = "V8 Arm - debug builder",
@@ -74,6 +75,7 @@ in_category(
         execution_timeout = 28800,
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
+        use_cas = True,
     ),
     multibranch_builder(
         name = "V8 Arm - debug",
