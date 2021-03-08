@@ -702,4 +702,10 @@
   'test-run-wasm-simd-scalar-lowering/*': [SKIP],
 }],  # no_simd_sse == True
 
+################################################################################
+['variant == stress_concurrent_inlining', {
+  # BUG(11524): Crashing flakily.
+  'test-cpu-profiler/TracingCpuProfiler': [PASS, FAIL],
+}], # variant == stress_concurrent_inlining
+
 ]
