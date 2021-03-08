@@ -5029,7 +5029,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
         StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
         fast_api_call_stack_slot_,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        jsgraph()->ZeroConstant());
+        __ ZeroConstant());
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              fast_api_call_stack_slot_,

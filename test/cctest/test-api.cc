@@ -28004,7 +28004,6 @@ void CheckDynamicTypeInfo() {
 TEST(FastApiStackSlot) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
-  if (i::FLAG_turboprop) return;
 
   FLAG_SCOPE_EXTERNAL(opt);
   FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
@@ -28056,7 +28055,6 @@ TEST(FastApiStackSlot) {
 TEST(FastApiCalls) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
-  if (i::FLAG_turboprop) return;
 
   FLAG_SCOPE_EXTERNAL(opt);
   FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
