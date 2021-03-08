@@ -3084,6 +3084,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   DECODE(Drop) {
+    Peek(0, 0);
     CALL_INTERFACE_IF_REACHABLE(Drop);
     Drop(1);
     return 1;
@@ -4802,14 +4803,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   V8_INLINE void Drop(int count = 1) {
     DCHECK(!control_.empty());
     uint32_t limit = control_.back().stack_depth;
+    // TODO(wasm): This check is often redundant.
     if (V8_UNLIKELY(stack_size() < limit + count)) {
       // Popping past the current control start in reachable code.
       if (!VALIDATE(!control_.back().reachable())) {
         NotEnoughArgumentsError(0);
       }
       // Pop what we can.
-      stack_end_ -= std::min(count, static_cast<int>(stack_size() - limit));
-      return;
+      count = std::min(count, static_cast<int>(stack_size() - limit));
     }
     DCHECK_LE(stack_, stack_end_ - count);
     stack_end_ -= count;

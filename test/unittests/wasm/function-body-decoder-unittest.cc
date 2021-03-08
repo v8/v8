@@ -4365,6 +4365,16 @@ TEST_F(FunctionBodyDecoderTest, Regress_1154439) {
   ExpectFailure(sigs.v_v(), {}, kAppendEnd, "local count too large");
 }
 
+TEST_F(FunctionBodyDecoderTest, DropOnEmptyStack) {
+  // Valid code:
+  ExpectValidates(sigs.v_v(), {kExprI32Const, 1, kExprDrop}, kAppendEnd);
+  // Invalid code (dropping from empty stack):
+  ExpectFailure(sigs.v_v(), {kExprDrop}, kAppendEnd,
+                "not enough arguments on the stack for drop");
+  // Valid code (dropping from empty stack in unreachable code):
+  ExpectValidates(sigs.v_v(), {kExprUnreachable, kExprDrop}, kAppendEnd);
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
