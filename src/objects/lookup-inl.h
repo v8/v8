@@ -85,6 +85,7 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     }
     Start<true>();
   } else {
+    DCHECK(!name_.is_null());
     name_ = isolate->factory()->InternalizeName(name_);
 #ifdef DEBUG
     // Assert that the name is not an index.

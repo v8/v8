@@ -662,7 +662,10 @@ class ArrayConcatVisitor {
   V8_WARN_UNUSED_RESULT bool visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = index_offset_ + i;
 
-    if (i > JSArray::kMaxArrayIndex - index_offset_) {
+    // Note we use >=kMaxArrayLength instead of the more appropriate
+    // >kMaxArrayIndex here due to overflowing arithmetic and
+    // increase_index_offset.
+    if (i >= JSArray::kMaxArrayLength - index_offset_) {
       set_exceeds_array_limit(true);
       // Exception hasn't been thrown at this point. Return true to
       // break out, and caller will throw. !visit would imply that
