@@ -37,16 +37,16 @@ namespace internal {
 // | unused          |    1 |                                          |
 // | in construction |    1 | In construction encoded as |false|.      |
 // +-----------------+------+------------------------------------------+
-// | size            |   14 | 17 bits because allocations are aligned. |
-// | unused          |    1 |                                          |
+// | size            |   15 | 17 bits because allocations are aligned. |
 // | mark bit        |    1 |                                          |
 // +-----------------+------+------------------------------------------+
 //
 // Notes:
 // - See |GCInfoTable| for constraints on GCInfoIndex.
-// - |size| for regular objects is encoded with 14 bits but can actually
+// - |size| for regular objects is encoded with 15 bits but can actually
 //   represent sizes up to |kBlinkPageSize| (2^17) because allocations are
-//   always 8 byte aligned (see kAllocationGranularity).
+//   always 4 byte aligned (see kAllocationGranularity) on 32bit. 64bit uses
+//   8 byte aligned allocations which leaves 1 bit unused.
 // - |size| for large objects is encoded as 0. The size of a large object is
 //   stored in |LargeObjectPage::PayloadSize()|.
 // - |mark bit| and |in construction| bits are located in separate 16-bit halves
@@ -113,18 +113,17 @@ class HeapObjectHeader {
   using GCInfoIndexField = UnusedField1::Next<GCInfoIndex, 14>;
   // Used in |encoded_low_|.
   using MarkBitField = v8::base::BitField16<bool, 0, 1>;
-  using UnusedField2 = MarkBitField::Next<bool, 1>;
   using SizeField = void;  // Use EncodeSize/DecodeSize instead.
 
   static constexpr size_t DecodeSize(uint16_t encoded) {
     // Essentially, gets optimized to << 1.
-    using SizeField = UnusedField2::Next<size_t, 14>;
+    using SizeField = MarkBitField::Next<size_t, 15>;
     return SizeField::decode(encoded) * kAllocationGranularity;
   }
 
   static constexpr uint16_t EncodeSize(size_t size) {
     // Essentially, gets optimized to >> 1.
-    using SizeField = UnusedField2::Next<size_t, 14>;
+    using SizeField = MarkBitField::Next<size_t, 15>;
     return SizeField::encode(size / kAllocationGranularity);
   }
 
@@ -143,6 +142,10 @@ class HeapObjectHeader {
   uint16_t encoded_high_;
   uint16_t encoded_low_;
 };
+
+static_assert(kAllocationGranularity == sizeof(HeapObjectHeader),
+              "sizeof(HeapObjectHeader) must match allocation granularity to "
+              "guarantee alignment");
 
 // static
 HeapObjectHeader& HeapObjectHeader::FromPayload(void* payload) {
