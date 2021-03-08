@@ -4990,27 +4990,29 @@ if (v8_monolithic) {
   }
 }
 
-v8_static_library("wee8") {
-  deps = [
-    ":v8_base",
-    ":v8_libbase",
-    ":v8_libplatform",
-    ":v8_shared_internal_headers",
-    ":v8_snapshot",
-    "//build/win:default_exe_manifest",
-  ]
+if (v8_enable_webassembly) {
+  v8_static_library("wee8") {
+    deps = [
+      ":v8_base",
+      ":v8_libbase",
+      ":v8_libplatform",
+      ":v8_shared_internal_headers",
+      ":v8_snapshot",
+      "//build/win:default_exe_manifest",
+    ]
 
-  # TODO: v8dll-main.cc equivalent for shared library builds
+    # TODO: v8dll-main.cc equivalent for shared library builds
 
-  configs = [ ":internal_config" ]
+    configs = [ ":internal_config" ]
 
-  sources = [
-    ### gcmole(all) ###
-    "src/wasm/c-api.cc",
-    "src/wasm/c-api.h",
-    "third_party/wasm-api/wasm.h",
-    "third_party/wasm-api/wasm.hh",
-  ]
+    sources = [
+      ### gcmole(all) ###
+      "src/wasm/c-api.cc",
+      "src/wasm/c-api.h",
+      "third_party/wasm-api/wasm.h",
+      "third_party/wasm-api/wasm.hh",
+    ]
+  }
 }
 
 ###############################################################################
@@ -5278,7 +5280,6 @@ group("v8_fuzzers") {
   data_deps = [
     ":v8_simple_inspector_fuzzer",
     ":v8_simple_json_fuzzer",
-    ":v8_simple_multi_return_fuzzer",
     ":v8_simple_parser_fuzzer",
     ":v8_simple_regexp_builtins_fuzzer",
     ":v8_simple_regexp_fuzzer",
@@ -5286,6 +5287,7 @@ group("v8_fuzzers") {
 
   if (v8_enable_webassembly) {
     data_deps += [
+      ":v8_simple_multi_return_fuzzer",
       ":v8_simple_wasm_async_fuzzer",
       ":v8_simple_wasm_code_fuzzer",
       ":v8_simple_wasm_compile_fuzzer",
@@ -5580,20 +5582,6 @@ v8_source_set("json_fuzzer") {
 v8_fuzzer("json_fuzzer") {
 }
 
-v8_source_set("multi_return_fuzzer") {
-  sources = [ "test/fuzzer/multi-return.cc" ]
-
-  deps = [ ":fuzzer_support" ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
-
-v8_fuzzer("multi_return_fuzzer") {
-}
-
 v8_source_set("parser_fuzzer") {
   sources = [ "test/fuzzer/parser.cc" ]
 
@@ -5640,6 +5628,20 @@ v8_fuzzer("regexp_fuzzer") {
 }
 
 if (v8_enable_webassembly) {
+  v8_source_set("multi_return_fuzzer") {
+    sources = [ "test/fuzzer/multi-return.cc" ]
+
+    deps = [ ":fuzzer_support" ]
+
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
+
+  v8_fuzzer("multi_return_fuzzer") {
+  }
+
   v8_source_set("wasm_test_common") {
     sources = [
       "test/common/flag-utils.h",
