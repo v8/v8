@@ -88,7 +88,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6950b7c9deafd5b2bd5a125b682b11504026d424',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'baef8bb51164d338efceab03ae4750d6d0902edf',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4ec3fd3659ccd4fc7e1f977ee9361caf38635e91',
   'third_party/icu':
@@ -124,7 +124,7 @@ deps = {
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'c93be42a4007e6fc16ea085f5b47ea50aa9134a8',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8869f42e7fc234f038cd78097e19e304773cc8f0',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'cc80b4ac985d1c05a3d24dc96e4ffa7e98dbc535',
   'buildtools/win': {
     'packages': [
       {
