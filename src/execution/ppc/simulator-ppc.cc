@@ -1417,6 +1417,44 @@ void VectorCompareOp(Simulator* sim, Instruction* instr, bool is_fp,
   }
 }
 
+template <typename T>
+T VSXFPMin(T x, T y) {
+  // Handle +0 and -0.
+  if (std::signbit(x) < std::signbit(y)) return y;
+  if (std::signbit(y) < std::signbit(x)) return x;
+  // fmin will handle NaN correctly.
+  return std::fmin(x, y);
+}
+
+template <typename T>
+T VSXFPMax(T x, T y) {
+  // Handle +0 and -0.
+  if (std::signbit(x) < std::signbit(y)) return x;
+  if (std::signbit(y) < std::signbit(x)) return y;
+  // fmax will handle NaN correctly.
+  return std::fmax(x, y);
+}
+
+float VMXFPMin(float x, float y) {
+  // Handle NaN.
+  if (std::isnan(x)) return x;
+  if (std::isnan(y)) return y;
+  // Handle +0 and -0.
+  if (std::signbit(x) < std::signbit(y)) return y;
+  if (std::signbit(y) < std::signbit(x)) return x;
+  return x < y ? x : y;
+}
+
+float VMXFPMax(float x, float y) {
+  // Handle NaN.
+  if (std::isnan(x)) return x;
+  if (std::isnan(y)) return y;
+  // Handle +0 and -0.
+  if (std::signbit(x) < std::signbit(y)) return x;
+  if (std::signbit(y) < std::signbit(x)) return y;
+  return x > y ? x : y;
+}
+
 void Simulator::ExecuteGeneric(Instruction* instr) {
   uint32_t opcode = instr->OpcodeBase();
   switch (opcode) {
@@ -3960,6 +3998,42 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     type b_val = get_simd_register_by_lane<type>(b, i);                    \
     set_simd_register_by_lane<type>(t, i, a_val op b_val ? a_val : b_val); \
   }
+    case XVMINDP: {
+      DECODE_VX_INSTRUCTION(t, a, b, T)
+      FOR_EACH_LANE(i, double) {
+        double a_val = get_simd_register_by_lane<double>(a, i);
+        double b_val = get_simd_register_by_lane<double>(b, i);
+        set_simd_register_by_lane<double>(t, i, VSXFPMin<double>(a_val, b_val));
+      }
+      break;
+    }
+    case XVMAXDP: {
+      DECODE_VX_INSTRUCTION(t, a, b, T)
+      FOR_EACH_LANE(i, double) {
+        double a_val = get_simd_register_by_lane<double>(a, i);
+        double b_val = get_simd_register_by_lane<double>(b, i);
+        set_simd_register_by_lane<double>(t, i, VSXFPMax<double>(a_val, b_val));
+      }
+      break;
+    }
+    case VMINFP: {
+      DECODE_VX_INSTRUCTION(t, a, b, T)
+      FOR_EACH_LANE(i, float) {
+        float a_val = get_simd_register_by_lane<float>(a, i);
+        float b_val = get_simd_register_by_lane<float>(b, i);
+        set_simd_register_by_lane<float>(t, i, VMXFPMin(a_val, b_val));
+      }
+      break;
+    }
+    case VMAXFP: {
+      DECODE_VX_INSTRUCTION(t, a, b, T)
+      FOR_EACH_LANE(i, float) {
+        float a_val = get_simd_register_by_lane<float>(a, i);
+        float b_val = get_simd_register_by_lane<float>(b, i);
+        set_simd_register_by_lane<float>(t, i, VMXFPMax(a_val, b_val));
+      }
+      break;
+    }
     case VMINSD: {
       VECTOR_MIN_MAX_OP(int64_t, <)
       break;
@@ -4158,6 +4232,21 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VECTOR_COMPARE_OP
+    case VSEL: {
+      int vrt = instr->RTValue();
+      int vra = instr->RAValue();
+      int vrb = instr->RBValue();
+      int vrc = instr->RCValue();
+      for (int i = 0; i < 2; i++) {
+        int64_t vra_val = get_simd_register_by_lane<int64_t>(vra, i);
+        int64_t vrb_val = get_simd_register_by_lane<int64_t>(vrb, i);
+        int64_t mask = get_simd_register_by_lane<int64_t>(vrc, i);
+        int64_t temp = vra_val ^ vrb_val;
+        temp = temp & mask;
+        set_simd_register_by_lane<int64_t>(vrt, i, temp ^ vra_val);
+      }
+      break;
+    }
 #undef FOR_EACH_LANE
 #undef DECODE_VX_INSTRUCTION
     default: {
