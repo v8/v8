@@ -177,6 +177,8 @@ def v8_basic_builder(defaults, **kwargs):
         kwargs.pop("goma_jobs", None),
     ))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
+    if kwargs.pop("use_cas", False):
+      properties["$build/v8"] = {"use_cas": True}
     kwargs["properties"] = properties
 
     properties["$recipe_engine/isolated"] = {
