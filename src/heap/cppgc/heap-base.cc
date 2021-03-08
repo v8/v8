@@ -111,11 +111,12 @@ void HeapBase::Terminate() {
 
     // Clear root sets.
     strong_persistent_region_.ClearAllUsedNodes();
-    strong_cross_thread_persistent_region_.ClearAllUsedNodes();
-    // Clear weak root sets, as the GC below does not execute weakness
-    // callbacks.
     weak_persistent_region_.ClearAllUsedNodes();
-    weak_cross_thread_persistent_region_.ClearAllUsedNodes();
+    {
+      PersistentRegionLock guard;
+      strong_cross_thread_persistent_region_.ClearAllUsedNodes();
+      weak_cross_thread_persistent_region_.ClearAllUsedNodes();
+    }
 
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
@@ -131,6 +132,11 @@ void HeapBase::Terminate() {
 
   object_allocator().Terminate();
   disallow_gc_scope_++;
+
+  CHECK_EQ(0u, strong_persistent_region_.NodesInUse());
+  CHECK_EQ(0u, weak_persistent_region_.NodesInUse());
+  CHECK_EQ(0u, strong_cross_thread_persistent_region_.NodesInUse());
+  CHECK_EQ(0u, weak_cross_thread_persistent_region_.NodesInUse());
 }
 
 HeapStatistics HeapBase::CollectStatistics(

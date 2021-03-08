@@ -45,7 +45,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
       : PersistentBase(raw), LocationPolicy(loc) {
     if (!IsValid(raw)) return;
     PersistentRegionLock guard;
-    PersistentRegion& region = this->GetPersistentRegion(raw);
+    CrossThreadPersistentRegion& region = this->GetPersistentRegion(raw);
     SetNode(region.AllocateNode(this, &Trace));
     this->CheckPointer(raw);
   }
@@ -63,7 +63,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
       const SourceLocation& loc = SourceLocation::Current())
       : PersistentBase(raw), LocationPolicy(loc) {
     if (!IsValid(raw)) return;
-    PersistentRegion& region = this->GetPersistentRegion(raw);
+    CrossThreadPersistentRegion& region = this->GetPersistentRegion(raw);
     SetNode(region.AllocateNode(this, &Trace));
     this->CheckPointer(raw);
   }
@@ -192,7 +192,8 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     const void* old_value = GetValue();
     if (IsValid(old_value)) {
       PersistentRegionLock guard;
-      PersistentRegion& region = this->GetPersistentRegion(old_value);
+      CrossThreadPersistentRegion& region =
+          this->GetPersistentRegion(old_value);
       region.FreeNode(GetNode());
       SetNode(nullptr);
     }
@@ -276,7 +277,8 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     const void* old_value = GetValue();
     if (IsValid(old_value)) {
       PersistentRegionLock guard;
-      PersistentRegion& region = this->GetPersistentRegion(old_value);
+      CrossThreadPersistentRegion& region =
+          this->GetPersistentRegion(old_value);
       if (IsValid(ptr) && (&region == &this->GetPersistentRegion(ptr))) {
         SetValue(ptr);
         this->CheckPointer(ptr);
@@ -296,7 +298,8 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     PersistentRegionLock::AssertLocked();
     const void* old_value = GetValue();
     if (IsValid(old_value)) {
-      PersistentRegion& region = this->GetPersistentRegion(old_value);
+      CrossThreadPersistentRegion& region =
+          this->GetPersistentRegion(old_value);
       if (IsValid(ptr) && (&region == &this->GetPersistentRegion(ptr))) {
         SetValue(ptr);
         this->CheckPointer(ptr);

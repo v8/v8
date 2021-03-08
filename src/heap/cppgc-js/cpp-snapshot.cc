@@ -704,6 +704,7 @@ void CppGraphBuilderImpl::Run() {
     ParentScope parent_scope(
         states_.CreateRootState(AddRootNode("C++ cross-thread roots")));
     GraphBuildingVisitor object_visitor(*this, parent_scope);
+    cppgc::internal::PersistentRegionLock guard;
     cpp_heap_.GetStrongCrossThreadPersistentRegion().Trace(&object_visitor);
   }
 }
