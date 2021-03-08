@@ -145,8 +145,12 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
                          PropertyConstness::kMutable,
                          old_details.representation(), field_type);
     // The old_map_'s property must become mutable.
-    DCHECK_EQ(PropertyConstness::kMutable,
-              old_descriptors_->GetDetails(modified_descriptor_).constness());
+    // Note, that the {old_map_} and {old_descriptors_} are not expected to be
+    // updated by the generalization if the map is already deprecated.
+    DCHECK_IMPLIES(
+        !old_map_->is_deprecated(),
+        PropertyConstness::kMutable ==
+            old_descriptors_->GetDetails(modified_descriptor_).constness());
     // Although the property in the old map is marked as mutable we still
     // treat it as constant when merging with the new path in transition tree.
     // This is fine because up until this reconfiguration the field was
