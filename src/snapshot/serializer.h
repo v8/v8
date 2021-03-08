@@ -151,8 +151,6 @@ class ObjectCacheIndexMap {
   }
 
  private:
-  DISALLOW_GARBAGE_COLLECTION(no_gc_)
-
   IdentityMap<int, base::DefaultAllocationPolicy> map_;
   int next_index_;
 };
