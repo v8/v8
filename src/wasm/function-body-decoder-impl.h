@@ -3548,6 +3548,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // be caused by finding non-unreachable values in the wrong slot, so we
     // replace the entire current scope's values.
     Drop(static_cast<int>(stack_size() - limit));
+    EnsureStackSpace(count + limit - stack_size());
     while (stack_size() < count + limit) {
       Push(UnreachableValue(this->pc_));
     }
@@ -3612,6 +3613,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // In unreachable code, we may run out of stack.
     uint32_t stack_depth =
         stack_size() >= drop_values ? stack_size() - drop_values : 0;
+    stack_depth = std::max(stack_depth, control_.back().stack_depth);
     control_.emplace_back(kind, locals_count, stack_depth, this->pc_,
                           reachability);
     current_code_reachable_ = this->ok() && reachability == kReachable;
