@@ -8,8 +8,8 @@
 
 #include "src/baseline/baseline-compiler.h"
 
+#include <algorithm>
 #include <type_traits>
-#include <unordered_map>
 
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/builtins/builtins-constructor.h"
@@ -221,7 +221,6 @@ void MoveArgumentsForDescriptor(BaselineAssembler* masm,
 
 }  // namespace detail
 
-
 BaselineCompiler::BaselineCompiler(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_function_info,
     Handle<BytecodeArray> bytecode)
@@ -234,7 +233,7 @@ BaselineCompiler::BaselineCompiler(
       iterator_(bytecode_),
       zone_(isolate->allocator(), ZONE_NAME),
       labels_(zone_.NewArray<BaselineLabels*>(bytecode_->length())),
-      handler_offsets_(&zone_) {
+      next_handler_offset_(nullptr) {
   MemsetPointer(labels_, nullptr, bytecode_->length());
 }
 
@@ -243,12 +242,20 @@ BaselineCompiler::BaselineCompiler(
 void BaselineCompiler::GenerateCode() {
   HandlerTable table(*bytecode_);
   {
+    // Handler offsets are stored in a sorted array, terminated with kMaxInt.
+    // This allows the bytecode visitor to keep a cursor into this array, moving
+    // the cursor forward each time the handler offset matches the current
+    // cursor's value.
+    int num_handlers = table.NumberOfRangeEntries();
+    next_handler_offset_ = zone_.NewArray<int>(num_handlers + 1);
     RuntimeCallTimerScope runtimeTimer(
         stats_, RuntimeCallCounterId::kCompileBaselinePrepareHandlerOffsets);
-    for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
+    for (int i = 0; i < num_handlers; ++i) {
       int handler_offset = table.GetRangeHandler(i);
-      handler_offsets_.insert(handler_offset);
+      next_handler_offset_[i] = handler_offset;
     }
+    std::sort(next_handler_offset_, &next_handler_offset_[num_handlers]);
+    next_handler_offset_[num_handlers] = kMaxInt;
   }
 
   {
@@ -400,11 +407,12 @@ void BaselineCompiler::VisitSingleBytecode() {
   }
 
   // Record positions of exception handlers.
-  if (handler_offsets_.find(iterator().current_offset()) !=
-      handler_offsets_.end()) {
+  if (iterator().current_offset() == *next_handler_offset_) {
     AddPosition();
     __ ExceptionHandler();
+    next_handler_offset_++;
   }
+  DCHECK_LT(iterator().current_offset(), *next_handler_offset_);
 
   if (FLAG_code_comments) {
     std::ostringstream str;

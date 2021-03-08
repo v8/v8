@@ -9,8 +9,6 @@
 // architectures.
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
-#include <unordered_map>
-
 #include "src/base/logging.h"
 #include "src/base/threaded-list.h"
 #include "src/base/vlq.h"
@@ -22,7 +20,6 @@
 #include "src/logging/counters.h"
 #include "src/objects/map.h"
 #include "src/objects/tagged-index.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -197,7 +194,7 @@ class BaselineCompiler {
   }
 
   BaselineLabels** labels_;
-  ZoneSet<int> handler_offsets_;
+  int* next_handler_offset_;
 };
 
 }  // namespace baseline
