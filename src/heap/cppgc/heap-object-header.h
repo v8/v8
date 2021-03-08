@@ -212,7 +212,7 @@ size_t HeapObjectHeader::GetSize() const {
 
 void HeapObjectHeader::SetSize(size_t size) {
   DCHECK(!IsMarked());
-  encoded_low_ |= EncodeSize(size);
+  encoded_low_ = EncodeSize(size);
 }
 
 template <AccessMode mode>

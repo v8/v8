@@ -9,13 +9,14 @@
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {
 
 namespace {
 
-std::pair<bool, BasePage*> CanExplicitlyFree(void* object) {
+std::pair<bool, BasePage*> CanModifyObject(void* object) {
   // object is guaranteed to be of type GarbageCollected, so getting the
   // BasePage is okay for regular and large objects.
   auto* base_page = BasePage::FromPayload(object);
@@ -32,7 +33,7 @@ std::pair<bool, BasePage*> CanExplicitlyFree(void* object) {
 void FreeUnreferencedObject(void* object) {
   bool can_free;
   BasePage* base_page;
-  std::tie(can_free, base_page) = CanExplicitlyFree(object);
+  std::tie(can_free, base_page) = CanModifyObject(object);
   if (!can_free) {
     return;
   }
@@ -60,6 +61,90 @@ void FreeUnreferencedObject(void* object) {
       normal_space.free_list().Add({&header, header_size});
     }
   }
+}
+
+namespace {
+
+bool Grow(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
+          size_t size_delta) {
+  DCHECK_GE(new_size, header.GetSize() + kAllocationGranularity);
+  DCHECK_GE(size_delta, kAllocationGranularity);
+  DCHECK(!base_page.is_large());
+
+  auto& normal_space = *static_cast<NormalPageSpace*>(base_page.space());
+  auto& lab = normal_space.linear_allocation_buffer();
+  if (lab.start() == header.PayloadEnd() && lab.size() >= size_delta) {
+    // LABs are considered used memory which means that no allocated size
+    // adjustments are needed.
+    Address delta_start = lab.Allocate(size_delta);
+    SET_MEMORY_ACCESSIBLE(delta_start, size_delta);
+    header.SetSize(new_size);
+    return true;
+  }
+  return false;
+}
+
+bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
+            size_t size_delta) {
+  DCHECK_GE(header.GetSize(), new_size + kAllocationGranularity);
+  DCHECK_GE(size_delta, kAllocationGranularity);
+  DCHECK(!base_page.is_large());
+
+  auto& normal_space = *static_cast<NormalPageSpace*>(base_page.space());
+  auto& lab = normal_space.linear_allocation_buffer();
+  Address free_start = header.PayloadEnd() - size_delta;
+  if (lab.start() == header.PayloadEnd()) {
+    DCHECK_EQ(free_start, lab.start() - size_delta);
+    // LABs are considered used memory which means that no allocated size
+    // adjustments are needed.
+    lab.Set(free_start, lab.size() + size_delta);
+    SET_MEMORY_INACCESSIBLE(lab.start(), size_delta);
+
+    header.SetSize(new_size);
+    return true;
+  }
+  // Heuristic: Only return memory to the free list if the block is larger than
+  // the smallest size class.
+  if (size_delta >= ObjectAllocator::kSmallestSpaceSize) {
+    SET_MEMORY_INACCESSIBLE(free_start, size_delta);
+    base_page.heap()->stats_collector()->NotifyExplicitFree(size_delta);
+    normal_space.free_list().Add({free_start, size_delta});
+
+    header.SetSize(new_size);
+  }
+  // Return success in any case, as we want to avoid that embedders start
+  // copying memory because of small deltas.
+  return true;
+}
+
+}  // namespace
+
+bool Resize(void* object, size_t new_object_size) {
+  bool can_resize;
+  BasePage* base_page;
+  std::tie(can_resize, base_page) = CanModifyObject(object);
+  if (!can_resize) {
+    return false;
+  }
+
+  // TODO(chromium:1056170): Consider supporting large objects within certain
+  // restrictions.
+  if (base_page->is_large()) {
+    return false;
+  }
+
+  const size_t new_size = RoundUp<kAllocationGranularity>(
+      sizeof(HeapObjectHeader) + new_object_size);
+  auto& header = HeapObjectHeader::FromPayload(object);
+  const size_t old_size = header.GetSize();
+
+  if (new_size > old_size) {
+    return Grow(header, *base_page, new_size, new_size - old_size);
+  } else if (old_size > new_size) {
+    return Shrink(header, *base_page, new_size, old_size - new_size);
+  }
+  // Same size considering internal restrictions, e.g. alignment.
+  return true;
 }
 
 }  // namespace internal
