@@ -107,6 +107,8 @@ inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
                                  ValueKind kind) {
   switch (kind) {
     case kI32:
+    case kRef:
+    case kOptRef:
       return temps->AcquireW();
     case kI64:
       return temps->AcquireX();
@@ -114,6 +116,8 @@ inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
       return temps->AcquireS();
     case kF64:
       return temps->AcquireD();
+    case kS128:
+      return temps->AcquireQ();
     default:
       UNREACHABLE();
   }
