@@ -1796,7 +1796,7 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   bailout(kUnsupportedArchitecture, "DeallocateStackSlot");
 }
 
-void LiftoffStackSlots::Construct() {
+void LiftoffStackSlots::Construct(int param_slots) {
   asm_->bailout(kUnsupportedArchitecture, "LiftoffStackSlots::Construct");
 }
 

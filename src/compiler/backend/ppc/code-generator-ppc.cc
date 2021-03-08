@@ -1735,10 +1735,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Slot-sized arguments are never padded but there may be a gap if
       // the slot allocator reclaimed other padding slots. Adjust the stack
       // here to skip any gap.
-      if (slots > pushed_slots) {
-        __ addi(sp, sp,
-                Operand(-((slots - pushed_slots) * kSystemPointerSize)));
-      }
+      __ AllocateStackSpace((slots - pushed_slots) * kSystemPointerSize);
       switch (rep) {
         case MachineRepresentation::kFloat32:
           __ StoreSingleU(i.InputDoubleRegister(1),
@@ -4076,10 +4073,8 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   const int returns = frame()->GetReturnSlotCount();
-  if (returns != 0) {
-    // Create space for returns.
-    __ Add(sp, sp, -returns * kSystemPointerSize, r0);
-  }
+  // Create space for returns.
+  __ AllocateStackSpace(returns * kSystemPointerSize);
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
