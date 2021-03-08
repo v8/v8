@@ -157,6 +157,16 @@ void StackGuard::ClearInterrupt(InterruptFlag flag) {
   if (!has_pending_interrupts(access)) reset_limits(access);
 }
 
+bool StackGuard::HasTerminationRequest() {
+  ExecutionAccess access(isolate_);
+  if ((thread_local_.interrupt_flags_ & TERMINATE_EXECUTION) != 0) {
+    thread_local_.interrupt_flags_ &= ~TERMINATE_EXECUTION;
+    if (!has_pending_interrupts(access)) reset_limits(access);
+    return true;
+  }
+  return false;
+}
+
 int StackGuard::FetchAndClearInterrupts() {
   ExecutionAccess access(isolate_);
 
