@@ -2855,8 +2855,15 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   bailout(kUnsupportedArchitecture, "DeallocateStackSlot");
 }
 
-void LiftoffStackSlots::Construct() {
+void LiftoffStackSlots::Construct(int param_slots) {
+  DCHECK_LT(0, slots_.size());
+  SortInPushOrder();
+  int last_stack_slot = param_slots;
   for (auto& slot : slots_) {
+    const int stack_slot = slot.dst_slot_;
+    int stack_decrement = (last_stack_slot - stack_slot) * kSystemPointerSize;
+    DCHECK_LT(0, stack_decrement);
+    last_stack_slot = stack_slot;
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack: {
@@ -2867,6 +2874,7 @@ void LiftoffStackSlots::Construct() {
           case kRtt:
           case kRttWithDepth:
           case kI64: {
+            asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
             asm_->LoadU64(scratch, liftoff::GetStackSlot(slot.src_offset_));
@@ -2874,6 +2882,7 @@ void LiftoffStackSlots::Construct() {
             break;
           }
           case kF32: {
+            asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
             asm_->LoadF32(kScratchDoubleReg,
                           liftoff::GetStackSlot(slot.src_offset_));
             asm_->lay(sp, MemOperand(sp, -kSystemPointerSize));
@@ -2881,12 +2890,14 @@ void LiftoffStackSlots::Construct() {
             break;
           }
           case kF64: {
+            asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
             asm_->LoadF64(kScratchDoubleReg,
                           liftoff::GetStackSlot(slot.src_offset_));
             asm_->push(kScratchDoubleReg);
             break;
           }
           case kS128: {
+            asm_->AllocateStackSpace(stack_decrement - kSimd128Size);
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
             asm_->LoadV128(kScratchDoubleReg,
@@ -2900,7 +2911,9 @@ void LiftoffStackSlots::Construct() {
         }
         break;
       }
-      case LiftoffAssembler::VarState::kRegister:
+      case LiftoffAssembler::VarState::kRegister: {
+        int pushed_bytes = SlotSizeInBytes(slot);
+        asm_->AllocateStackSpace(stack_decrement - pushed_bytes);
         switch (src.kind()) {
           case kI64:
           case kI32:
@@ -2928,7 +2941,9 @@ void LiftoffStackSlots::Construct() {
             UNREACHABLE();
         }
         break;
+      }
       case LiftoffAssembler::VarState::kIntConst: {
+        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         DCHECK(src.kind() == kI32 || src.kind() == kI64);
         UseScratchRegisterScope temps(asm_);
         Register scratch = temps.Acquire();
