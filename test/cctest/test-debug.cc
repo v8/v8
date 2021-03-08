@@ -5541,39 +5541,44 @@ TEST(TerminateOnResumeFromMicrotask) {
 
 class FutexInterruptionThread : public v8::base::Thread {
  public:
-  FutexInterruptionThread(v8::Isolate* isolate, v8::base::Semaphore* sem)
+  FutexInterruptionThread(v8::Isolate* isolate, v8::base::Semaphore* enter,
+                          v8::base::Semaphore* exit)
       : Thread(Options("FutexInterruptionThread")),
         isolate_(isolate),
-        sem_(sem) {}
+        enter_(enter),
+        exit_(exit) {}
 
   void Run() override {
-    // Wait a bit before terminating.
-    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
-    sem_->Wait();
+    enter_->Wait();
     v8::debug::SetTerminateOnResume(isolate_);
+    exit_->Signal();
   }
 
  private:
   v8::Isolate* isolate_;
-  v8::base::Semaphore* sem_;
+  v8::base::Semaphore* enter_;
+  v8::base::Semaphore* exit_;
 };
 
 namespace {
 class SemaphoreTriggerOnBreak : public v8::debug::DebugDelegate {
  public:
-  SemaphoreTriggerOnBreak() : sem_(0) {}
+  SemaphoreTriggerOnBreak() : enter_(0), exit_(0) {}
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              const std::vector<v8::debug::BreakpointId>&
                                  inspector_break_points_hit) override {
     break_count_++;
-    sem_.Signal();
+    enter_.Signal();
+    exit_.Wait();
   }
 
-  v8::base::Semaphore* semaphore() { return &sem_; }
+  v8::base::Semaphore* enter() { return &enter_; }
+  v8::base::Semaphore* exit() { return &exit_; }
   int break_count() const { return break_count_; }
 
  private:
-  v8::base::Semaphore sem_;
+  v8::base::Semaphore enter_;
+  v8::base::Semaphore exit_;
   int break_count_ = 0;
 };
 }  // anonymous namespace
@@ -5586,8 +5591,8 @@ TEST(TerminateOnResumeFromOtherThread) {
   SemaphoreTriggerOnBreak delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  FutexInterruptionThread timeout_thread(env->GetIsolate(),
-                                         delegate.semaphore());
+  FutexInterruptionThread timeout_thread(env->GetIsolate(), delegate.enter(),
+                                         delegate.exit());
   CHECK(timeout_thread.Start());
 
   v8::Local<v8::Context> context = env.local();
@@ -5618,7 +5623,7 @@ namespace {
 class InterruptionBreakRightNow : public v8::base::Thread {
  public:
   explicit InterruptionBreakRightNow(v8::Isolate* isolate)
-      : Thread(Options("FutexInterruptionThread")), isolate_(isolate) {}
+      : Thread(Options("InterruptionBreakRightNow")), isolate_(isolate) {}
 
   void Run() override {
     // Wait a bit before terminating.

@@ -2188,13 +2188,21 @@ class StackLimitCheck {
   Isolate* isolate_;
 };
 
-#define STACK_CHECK(isolate, result_value) \
-  do {                                     \
-    StackLimitCheck stack_check(isolate);  \
-    if (stack_check.HasOverflowed()) {     \
-      isolate->StackOverflow();            \
-      return result_value;                 \
-    }                                      \
+// This macro may be used in context that disallows JS execution.
+// That is why it checks only for a stack overflow and termination.
+#define STACK_CHECK(isolate, result_value)                   \
+  do {                                                       \
+    StackLimitCheck stack_check(isolate);                    \
+    if (stack_check.InterruptRequested()) {                  \
+      if (stack_check.HasOverflowed()) {                     \
+        isolate->StackOverflow();                            \
+        return result_value;                                 \
+      }                                                      \
+      if (isolate->stack_guard()->HasTerminationRequest()) { \
+        isolate->TerminateExecution();                       \
+        return result_value;                                 \
+      }                                                      \
+    }                                                        \
   } while (false)
 
 class StackTraceFailureMessage {

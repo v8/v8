@@ -21832,7 +21832,6 @@ class RequestInterruptTestWithMathAbs
   }
 };
 
-
 TEST(RequestInterruptTestWithFunctionCall) {
   RequestInterruptTestWithFunctionCall().RunTest();
 }
@@ -21861,7 +21860,6 @@ TEST(RequestInterruptTestWithMethodCallAndInterceptor) {
 TEST(RequestInterruptTestWithMathAbs) {
   RequestInterruptTestWithMathAbs().RunTest();
 }
-
 
 class RequestMultipleInterrupts : public RequestInterruptTestBase {
  public:
@@ -25159,10 +25157,10 @@ THREADED_TEST(ReceiverConversionForAccessors) {
   CHECK(CompileRun("acc.call(undefined) == 42")->BooleanValue(isolate));
 }
 
-class FutexInterruptionThread : public v8::base::Thread {
+class TerminateExecutionThread : public v8::base::Thread {
  public:
-  explicit FutexInterruptionThread(v8::Isolate* isolate)
-      : Thread(Options("FutexInterruptionThread")), isolate_(isolate) {}
+  explicit TerminateExecutionThread(v8::Isolate* isolate)
+      : Thread(Options("TerminateExecutionThread")), isolate_(isolate) {}
 
   void Run() override {
     // Wait a bit before terminating.
@@ -25174,14 +25172,13 @@ class FutexInterruptionThread : public v8::base::Thread {
   v8::Isolate* isolate_;
 };
 
-
 TEST(FutexInterruption) {
   i::FLAG_harmony_sharedarraybuffer = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
 
-  FutexInterruptionThread timeout_thread(isolate);
+  TerminateExecutionThread timeout_thread(isolate);
 
   v8::TryCatch try_catch(CcTest::isolate());
   CHECK(timeout_thread.Start());
@@ -25190,6 +25187,28 @@ TEST(FutexInterruption) {
       "var ab = new SharedArrayBuffer(4);"
       "var i32a = new Int32Array(ab);"
       "Atomics.wait(i32a, 0, 0);");
+  CHECK(try_catch.HasTerminated());
+  timeout_thread.Join();
+}
+
+TEST(StackCheckTermination) {
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  TerminateExecutionThread timeout_thread(isolate);
+
+  v8::TryCatch try_catch(isolate);
+  CHECK(timeout_thread.Start());
+  auto should_continue = [i_isolate]() {
+    using StackLimitCheck = i::StackLimitCheck;
+    STACK_CHECK(i_isolate, false);
+    return true;
+  };
+  while (should_continue()) {
+  }
+  if (i_isolate->has_pending_exception()) i_isolate->ReportPendingMessages();
   CHECK(try_catch.HasTerminated());
   timeout_thread.Join();
 }
