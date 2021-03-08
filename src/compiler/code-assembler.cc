@@ -1088,7 +1088,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
 Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                                     TNode<Object> target, TNode<Object> context,
                                     TNode<Object> function,
-                                    TNode<Object> new_target,
+                                    base::Optional<TNode<Object>> new_target,
                                     TNode<Int32T> arity,
                                     std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 10;
@@ -1096,8 +1096,8 @@ Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
   NodeArray<kMaxNumArgs + 5> inputs;
   inputs.Add(target);
   inputs.Add(function);
-  if (!new_target.is_null()) {
-    inputs.Add(new_target);
+  if (new_target) {
+    inputs.Add(*new_target);
   }
   inputs.Add(arity);
   for (auto arg : args) inputs.Add(arg);

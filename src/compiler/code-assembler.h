@@ -14,6 +14,7 @@
 // Do not include anything from src/compiler here!
 #include "include/cppgc/source-location.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/type-traits.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
@@ -1136,8 +1137,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Code> target = HeapConstant(callable.code());
     return CAST(CallJSStubImpl(callable.descriptor(), target, CAST(context),
-                               CAST(function), TNode<Object>(), arity,
-                               {receiver, args...}));
+                               CAST(function), {}, arity, {receiver, args...}));
   }
 
   template <class... TArgs>
@@ -1267,7 +1267,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   Node* CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                        TNode<Object> target, TNode<Object> context,
-                       TNode<Object> function, TNode<Object> new_target,
+                       TNode<Object> function,
+                       base::Optional<TNode<Object>> new_target,
                        TNode<Int32T> arity, std::initializer_list<Node*> args);
 
   Node* CallStubN(StubCallMode call_mode,
