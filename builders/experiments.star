@@ -16,6 +16,7 @@ def experiment_builder(**kwargs):
 
     v8_builder(
         in_console = "experiments/V8",
+        use_cas = True,
         **kwargs
     )
 
