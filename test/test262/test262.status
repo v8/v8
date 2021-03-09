@@ -580,15 +580,20 @@
   'built-ins/String/prototype/at/*': [FAIL],
   'built-ins/TypedArray/prototype/at/*': [FAIL],
 
-  # Temporarily disabled until upstream tests are changed to use /d
-  'built-ins/RegExp/match-indices/*': [FAIL],
+  # http://crbug/v8/11529
+  'built-ins/Array/prototype/sort/call-with-primitive': [FAIL],
 
-  # http://crbug/v8/11466
-  # https://github.com/tc39/test262/issues/2950
-  'intl402/Segmenter/constructor/constructor/options-toobject': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-toobject-prototype': [FAIL],
-  'intl402/ListFormat/constructor/constructor/options-toobject': [FAIL],
-  'intl402/ListFormat/constructor/constructor/options-toobject-prototype': [FAIL],
+  # http://crbug/v8/11530
+  'built-ins/Function/internals/Call/class-ctor-realm': [FAIL],
+
+  # http://crbug/v8/11531
+  'built-ins/RegExp/prototype/flags/get-order': [FAIL],
+
+  # http://crbug/v8/11532
+  'language/expressions/object/dstr/object-rest-proxy-gopd-not-called-on-excluded-keys': [FAIL],
+
+  # http://crbug/v8/11533
+  'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
