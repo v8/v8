@@ -4968,14 +4968,10 @@ void ImplementationVisitor::GenerateClassVerifiers(
     IfDefScope verify_heap_h(h_contents, "VERIFY_HEAP");
     IfDefScope verify_heap_cc(cc_contents, "VERIFY_HEAP");
 
-    cc_contents << "\n#include \"src/objects/objects.h\"\n";
+    h_contents << "#include \"src/base/macros.h\"\n\n";
 
-    for (const std::string& include_path : GlobalContext::CppIncludes()) {
-      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
-    }
-    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
-    cc_contents << "#include "
-                   "\"src/objects/all-objects-inl.h\"\n";
+    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n\n";
+    cc_contents << "#include \"src/objects/all-objects-inl.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 
