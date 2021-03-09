@@ -3849,8 +3849,8 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), true);
     __ CallRuntimeStub(WasmCode::kWasmThrow);
-    EmitLandingPad(decoder);
     DefineSafepoint();
+    EmitLandingPad(decoder);
   }
 
   void AtomicStoreMem(FullDecoder* decoder, StoreType type,
@@ -5211,7 +5211,6 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallIndirect(sig, call_descriptor, target);
-        EmitLandingPad(decoder);
       }
     } else {
       // A direct call within this module just gets the current instance.
@@ -5229,12 +5228,12 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallNativeWasmCode(addr);
-        EmitLandingPad(decoder);
       }
     }
 
     DefineSafepoint();
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    EmitLandingPad(decoder);
 
     __ FinishCall(sig, call_descriptor);
   }
@@ -5401,11 +5400,11 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(sig, call_descriptor, target);
-      EmitLandingPad(decoder);
     }
 
     DefineSafepoint();
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    EmitLandingPad(decoder);
 
     __ FinishCall(sig, call_descriptor);
   }
@@ -5612,10 +5611,10 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(sig, call_descriptor, target_reg);
-      EmitLandingPad(decoder);
     }
     DefineSafepoint();
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    EmitLandingPad(decoder);
     __ FinishCall(sig, call_descriptor);
   }
 
