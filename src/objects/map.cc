@@ -1116,16 +1116,21 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   WriteBarrier::Marking(*descriptors, descriptors->number_of_descriptors());
 #endif
 
-  Map current = *map;
+  // Update the descriptors from {map} (inclusive) until the initial map
+  // (exclusive). In the case that {map} is the initial map, update it.
+  map->UpdateDescriptors(isolate, *new_descriptors,
+                         map->NumberOfOwnDescriptors());
+  Object next = map->GetBackPointer();
+  if (next.IsUndefined(isolate)) return;
+
+  Map current = Map::cast(next);
   while (current.instance_descriptors(isolate) == *descriptors) {
-    Object next = current.GetBackPointer();
-    if (next.IsUndefined(isolate)) break;  // Stop overwriting at initial map.
+    next = current.GetBackPointer();
+    if (next.IsUndefined(isolate)) break;
     current.UpdateDescriptors(isolate, *new_descriptors,
                               current.NumberOfOwnDescriptors());
     current = Map::cast(next);
   }
-  map->UpdateDescriptors(isolate, *new_descriptors,
-                         map->NumberOfOwnDescriptors());
 }
 
 // static
