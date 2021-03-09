@@ -1042,8 +1042,6 @@ class LiftoffCompiler {
     // TODO(clemensb): Come up with a better strategy here, involving
     // pre-analysis of the function.
     __ SpillLocals();
-    // Same for the cached instance register.
-    __ cache_state()->ClearCachedInstanceRegister();
 
     __ PrepareLoopArgs(loop->start_merge.arity);
 
@@ -1186,7 +1184,8 @@ class LiftoffCompiler {
       if (!c->end_merge.reached) {
         __ DropValue(c->stack_depth + c->num_exceptions);
       } else {
-        __ MergeStackWith(c->label_state, c->br_merge()->arity);
+        __ MergeStackWith(c->label_state, c->br_merge()->arity,
+                          LiftoffAssembler::kForwardJump);
         __ cache_state()->Steal(c->label_state);
       }
     }
@@ -2287,7 +2286,9 @@ class LiftoffCompiler {
           *__ cache_state(), __ num_locals(), target->br_merge()->arity,
           target->stack_depth + target->num_exceptions);
     }
-    __ MergeStackWith(target->label_state, target->br_merge()->arity);
+    __ MergeStackWith(target->label_state, target->br_merge()->arity,
+                      target->is_loop() ? LiftoffAssembler::kBackwardJump
+                                        : LiftoffAssembler::kForwardJump);
     __ jmp(target->label.get());
   }
 
@@ -3758,7 +3759,8 @@ class LiftoffCompiler {
           current_try->stack_depth + current_try->num_exceptions);
       current_try->try_info->catch_reached = true;
     }
-    __ MergeStackWith(current_try->try_info->catch_state, 1);
+    __ MergeStackWith(current_try->try_info->catch_state, 1,
+                      LiftoffAssembler::kForwardJump);
     __ emit_jump(&current_try->try_info->catch_label);
 
     __ bind(&skip_handler);

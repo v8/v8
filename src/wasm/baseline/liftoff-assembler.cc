@@ -696,15 +696,15 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target,
     transfers.TransferStackSlot(target.stack_state[i], source.stack_state[i]);
   }
 
+  // Full stack merging is only done for forward jumps, so we can just clear the
+  // instance cache register at the target in case of mismatch.
   if (source.cached_instance != target.cached_instance) {
-    // Backward jumps (to loop headers) do not have a cached instance anyway, so
-    // ignore this. On forward jumps, jump reset the cached instance in the
-    // target state.
     target.ClearCachedInstanceRegister();
   }
 }
 
-void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity) {
+void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
+                                      JumpDirection jump_direction) {
   // Before: ----------------|----- (discarded) ----|--- arity ---|
   //                         ^target_stack_height   ^stack_base   ^stack_height
   // After:  ----|-- arity --|
@@ -726,11 +726,21 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity) {
                                 cache_state_.stack_state[stack_base + i]);
   }
 
-  if (cache_state_.cached_instance != target.cached_instance) {
-    // Backward jumps (to loop headers) do not have a cached instance anyway, so
-    // ignore this. On forward jumps, jump reset the cached instance in the
-    // target state.
-    target.ClearCachedInstanceRegister();
+  if (cache_state_.cached_instance != target.cached_instance &&
+      target.cached_instance != no_reg) {
+    if (jump_direction == kForwardJump) {
+      // On forward jumps, just reset the cached instance in the target state.
+      target.ClearCachedInstanceRegister();
+    } else {
+      // On backward jumps, we already generated code assuming that the instance
+      // is available in that register. Thus move it there.
+      if (cache_state_.cached_instance == no_reg) {
+        LoadInstanceFromFrame(target.cached_instance);
+      } else {
+        Move(target.cached_instance, cache_state_.cached_instance,
+             kPointerKind);
+      }
+    }
   }
 }
 
