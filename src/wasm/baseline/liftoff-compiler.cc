@@ -415,6 +415,7 @@ class LiftoffCompiler {
     WasmCode::RuntimeStubId stub;
     WasmCodePosition position;
     LiftoffRegList regs_to_save;
+    Register cached_instance;
     OutOfLineSafepointInfo* safepoint_info;
     uint32_t pc;  // for trap handler.
     // These two pointers will only be used for debug code:
@@ -434,6 +435,7 @@ class LiftoffCompiler {
           s,                             // stub
           pos,                           // position
           {},                            // regs_to_save
+          no_reg,                        // cached_instance
           safepoint_info,                // safepoint_info
           pc,                            // pc
           spilled_registers,             // spilled_registers
@@ -442,7 +444,7 @@ class LiftoffCompiler {
     }
     static OutOfLineCode StackCheck(
         WasmCodePosition pos, LiftoffRegList regs_to_save,
-        SpilledRegistersForInspection* spilled_regs,
+        Register cached_instance, SpilledRegistersForInspection* spilled_regs,
         OutOfLineSafepointInfo* safepoint_info,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       return {
@@ -451,6 +453,7 @@ class LiftoffCompiler {
           WasmCode::kWasmStackGuard,     // stub
           pos,                           // position
           regs_to_save,                  // regs_to_save
+          cached_instance,               // cached_instance
           safepoint_info,                // safepoint_info
           0,                             // pc
           spilled_regs,                  // spilled_registers
@@ -623,9 +626,20 @@ class LiftoffCompiler {
   void StackCheck(FullDecoder* decoder, WasmCodePosition position) {
     DEBUG_CODE_COMMENT("stack check");
     if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) return;
-    LiftoffRegList regs_to_save = __ cache_state()->used_registers;
-    SpilledRegistersForInspection* spilled_regs = nullptr;
+
+    // Loading the limit address can change the stack state, hence do this
+    // before storing information about registers.
     Register limit_address = __ GetUnusedRegister(kGpReg, {}).gp();
+    LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize,
+                        {});
+
+    LiftoffRegList regs_to_save = __ cache_state()->used_registers;
+    // The cached instance will be reloaded separately.
+    if (__ cache_state()->cached_instance != no_reg) {
+      DCHECK(regs_to_save.has(__ cache_state()->cached_instance));
+      regs_to_save.clear(__ cache_state()->cached_instance);
+    }
+    SpilledRegistersForInspection* spilled_regs = nullptr;
 
     OutOfLineSafepointInfo* safepoint_info =
         compilation_zone_->New<OutOfLineSafepointInfo>(compilation_zone_);
@@ -639,17 +653,11 @@ class LiftoffCompiler {
       spilled_regs = GetSpilledRegistersForInspection();
     }
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
-        position, regs_to_save, spilled_regs, safepoint_info,
-        RegisterOOLDebugSideTableEntry(decoder)));
+        position, regs_to_save, __ cache_state()->cached_instance, spilled_regs,
+        safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
     OutOfLineCode& ool = out_of_line_code_.back();
-    LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize,
-                        {});
     __ StackCheck(ool.label.get(), limit_address);
     __ bind(ool.continuation.get());
-    // If the stack check triggers, we lose the cached instance register.
-    // TODO(clemensb): Restore that register in the OOL code so it's always
-    // available at the beginning of the actual function code.
-    __ cache_state()->ClearCachedInstanceRegister();
   }
 
   bool SpillLocalsInitially(FullDecoder* decoder, uint32_t num_params) {
@@ -891,6 +899,9 @@ class LiftoffCompiler {
         for (auto& entry : ool->spilled_registers->entries) {
           __ Fill(entry.reg, entry.offset, entry.kind);
         }
+      }
+      if (ool->cached_instance != no_reg) {
+        __ LoadInstanceFromFrame(ool->cached_instance);
       }
       __ emit_jump(ool->continuation.get());
     } else {
