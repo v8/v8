@@ -902,3 +902,36 @@ TEST(ObjectSetLazyDataPropertyForIndex) {
     CHECK_EQ(1, getter_call_count);
   }
 }
+
+TEST(ObjectTemplateSetLazyPropertySurvivesIC) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  static int getter_call_count = 0;
+  templ->SetLazyDataProperty(
+      v8_str("foo"), [](v8::Local<v8::Name> name,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
+        getter_call_count++;
+        info.GetReturnValue().Set(getter_call_count);
+      });
+
+  v8::Local<v8::Function> f = CompileRun(
+                                  "function f(obj) {"
+                                  "  obj.foo;"
+                                  "  obj.foo;"
+                                  "};"
+                                  "%PrepareFunctionForOptimization(f);"
+                                  "f")
+                                  .As<v8::Function>();
+  v8::Local<v8::Value> obj = templ->NewInstance(context).ToLocalChecked();
+  f->Call(context, context->Global(), 1, &obj).ToLocalChecked();
+  CHECK_EQ(getter_call_count, 1);
+
+  obj = templ->NewInstance(context).ToLocalChecked();
+  f->Call(context, context->Global(), 1, &obj).ToLocalChecked();
+  CHECK_EQ(getter_call_count, 2);
+}
