@@ -376,6 +376,8 @@ class LiftoffCompiler {
     LiftoffAssembler::CacheState label_state;
     MovableLabel label;
     TryInfo* try_info = nullptr;
+    // Number of exceptions on the stack below this control.
+    int num_exceptions = 0;
 
     MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Control);
 
@@ -920,6 +922,7 @@ class LiftoffCompiler {
     __ MaybeEmitOutOfLineConstantPool();
     // The previous calls may have also generated a bailout.
     DidAssemblerBailout(decoder);
+    DCHECK_EQ(num_exceptions_, 0);
   }
 
   void OnFirstError(FullDecoder* decoder) {
@@ -1018,7 +1021,13 @@ class LiftoffCompiler {
                                 DebugSideTableBuilder::kAllowRegisters);
   }
 
-  void Block(FullDecoder* decoder, Control* block) {}
+  void PushControl(Control* block) {
+    // The Liftoff stack includes implicit exception refs stored for catch
+    // blocks, so that they can be rethrown.
+    block->num_exceptions = num_exceptions_;
+  }
+
+  void Block(FullDecoder* decoder, Control* block) { PushControl(block); }
 
   void Loop(FullDecoder* decoder, Control* loop) {
     // Before entering a loop, spill all locals to the stack, in order to free
@@ -1040,12 +1049,15 @@ class LiftoffCompiler {
 
     // Execute a stack check in the loop header.
     StackCheck(decoder, decoder->position());
+
+    PushControl(loop);
   }
 
   void Try(FullDecoder* decoder, Control* block) {
     block->try_info = compilation_zone_->New<TryInfo>();
     block->try_info->previous_catch = current_catch_;
     current_catch_ = static_cast<int32_t>(decoder->control_depth() - 1);
+    PushControl(block);
   }
 
   void CatchException(FullDecoder* decoder,
@@ -1058,8 +1070,23 @@ class LiftoffCompiler {
     unsupported(decoder, kExceptionHandling, "delegate");
   }
 
-  void Rethrow(FullDecoder* decoder, Control* block) {
-    unsupported(decoder, kExceptionHandling, "rethrow");
+  void Rethrow(FullDecoder* decoder, Control* try_block) {
+    int index = try_block->try_info->catch_state.stack_height() - 1;
+    auto& exception = __ cache_state()->stack_state[index];
+    DCHECK_EQ(exception.kind(), kRef);
+    DEBUG_CODE_COMMENT("call WasmRethrow builtin");
+    compiler::CallDescriptor* rethrow_descriptor =
+        GetBuiltinCallDescriptor<WasmRethrowDescriptor>(compilation_zone_);
+
+    ValueKind throw_sig_reps[] = {kPointerValueType};
+    ValueKindSig rethrow_sig(0, 1, throw_sig_reps);
+
+    __ PrepareBuiltinCall(&rethrow_sig, rethrow_descriptor, {exception});
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), true);
+    __ CallRuntimeStub(WasmCode::kWasmRethrow);
+    DefineSafepoint();
+    EmitLandingPad(decoder);
   }
 
   void CatchAll(FullDecoder* decoder, Control* block) {
@@ -1068,6 +1095,9 @@ class LiftoffCompiler {
     DCHECK_EQ(decoder->control_at(0), block);
 
     current_catch_ = block->try_info->previous_catch;  // Pop try scope.
+    if (!block->is_try_unwind()) {
+      num_exceptions_++;
+    }
 
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
@@ -1094,12 +1124,15 @@ class LiftoffCompiler {
 
     // Store the state (after popping the value) for executing the else branch.
     if_block->else_state->state.Split(*__ cache_state());
+
+    PushControl(if_block);
   }
 
   void FallThruTo(FullDecoder* decoder, Control* c) {
     if (!c->end_merge.reached) {
       c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                               c->end_merge.arity, c->stack_depth);
+                               c->end_merge.arity,
+                               c->stack_depth + c->num_exceptions);
     }
     __ MergeFullStackWith(c->label_state, *__ cache_state());
     __ emit_jump(c->label.get());
@@ -1125,7 +1158,8 @@ class LiftoffCompiler {
       // state, then merge the if state into that.
       DCHECK_EQ(c->start_merge.arity, c->end_merge.arity);
       c->label_state.InitMerge(c->else_state->state, __ num_locals(),
-                               c->start_merge.arity, c->stack_depth);
+                               c->start_merge.arity,
+                               c->stack_depth + c->num_exceptions);
       __ MergeFullStackWith(c->label_state, *__ cache_state());
       __ emit_jump(c->label.get());
       // Merge the else state into the end state.
@@ -1139,11 +1173,27 @@ class LiftoffCompiler {
     }
   }
 
+  void FinishTryCatch(FullDecoder* decoder, Control* c) {
+    DCHECK(c->is_try_catch() || c->is_try_catchall());
+    if (c->reachable()) {
+      // Drop the implicit exception ref.
+      if (!c->end_merge.reached) {
+        __ DropValue(c->stack_depth + c->num_exceptions);
+      } else {
+        __ MergeStackWith(c->label_state, c->br_merge()->arity);
+        __ cache_state()->Steal(c->label_state);
+      }
+    }
+    num_exceptions_--;
+  }
+
   void PopControl(FullDecoder* decoder, Control* c) {
     if (c->is_loop()) return;  // A loop just falls through.
     if (c->is_onearmed_if()) {
       // Special handling for one-armed ifs.
       FinishOneArmedIf(decoder, c);
+    } else if (c->is_try_catch() || c->is_try_catchall()) {
+      FinishTryCatch(decoder, c);
     } else if (c->end_merge.reached) {
       // There is a merge already. Merge our state into that, then continue with
       // that state.
@@ -2229,9 +2279,9 @@ class LiftoffCompiler {
 
   void BrImpl(Control* target) {
     if (!target->br_merge()->reached) {
-      target->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                                    target->br_merge()->arity,
-                                    target->stack_depth);
+      target->label_state.InitMerge(
+          *__ cache_state(), __ num_locals(), target->br_merge()->arity,
+          target->stack_depth + target->num_exceptions);
     }
     __ MergeStackWith(target->label_state, target->br_merge()->arity);
     __ jmp(target->label.get());
@@ -2352,7 +2402,8 @@ class LiftoffCompiler {
     if (c->reachable()) {
       if (!c->end_merge.reached) {
         c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                                 c->end_merge.arity, c->stack_depth);
+                                 c->end_merge.arity,
+                                 c->stack_depth + c->num_exceptions);
       }
       __ MergeFullStackWith(c->label_state, *__ cache_state());
       __ emit_jump(c->label.get());
@@ -2826,42 +2877,54 @@ class LiftoffCompiler {
     auto values = OwnedVector<DebugSideTable::Entry::Value>::NewForOverwrite(
         stack_state.size());
 
-    // The decoder already has the results on the stack, but Liftoff has not.
-    // Hence {decoder->stack_size()} can be bigger than expected. Just ignore
-    // that, and use the lower part only.
-    DCHECK_LE(stack_state.size(),
+    // For function calls, the decoder still has the arguments on the stack, but
+    // Liftoff already popped them. Hence {decoder->stack_size()} can be bigger
+    // than expected. Just ignore that and use the lower part only.
+    DCHECK_LE(stack_state.size() - num_exceptions_,
               decoder->num_locals() + decoder->stack_size());
-
     int index = 0;
     int decoder_stack_index = decoder->stack_size();
-    for (const auto& slot : stack_state) {
-      auto& value = values[index];
-      value.index = index;
-      ValueType type = index < static_cast<int>(__ num_locals())
-                           ? decoder->local_type(index)
-                           : decoder->stack_value(decoder_stack_index--)->type;
-      DCHECK(CheckCompatibleStackSlotTypes(slot.kind(), type.kind()));
-      value.type = type;
-      switch (slot.loc()) {
-        case kIntConst:
-          value.storage = DebugSideTable::Entry::kConstant;
-          value.i32_const = slot.i32_const();
-          break;
-        case kRegister:
-          DCHECK_NE(DebugSideTableBuilder::kDidSpill, assume_spilling);
-          if (assume_spilling == DebugSideTableBuilder::kAllowRegisters) {
-            value.storage = DebugSideTable::Entry::kRegister;
-            value.reg_code = slot.reg().liftoff_code();
+    // Iterate the operand stack control block by control block, so that we can
+    // handle the implicit exception value for try blocks.
+    for (int j = decoder->control_depth() - 1; j >= 0; j--) {
+      Control* control = decoder->control_at(j);
+      Control* next_control = j > 0 ? decoder->control_at(j - 1) : nullptr;
+      int end_index = next_control ? next_control->stack_depth +
+                                         next_control->num_exceptions
+                                   : __ cache_state()->stack_height();
+      bool exception = control->is_try_catch() || control->is_try_catchall();
+      for (; index < end_index; ++index) {
+        auto& slot = stack_state[index];
+        auto& value = values[index];
+        value.index = index;
+        ValueType type =
+            index < static_cast<int>(__ num_locals())
+                ? decoder->local_type(index)
+                : exception ? ValueType::Ref(HeapType::kExtern, kNonNullable)
+                            : decoder->stack_value(decoder_stack_index--)->type;
+        DCHECK(CheckCompatibleStackSlotTypes(slot.kind(), type.kind()));
+        value.type = type;
+        switch (slot.loc()) {
+          case kIntConst:
+            value.storage = DebugSideTable::Entry::kConstant;
+            value.i32_const = slot.i32_const();
             break;
-          }
-          DCHECK_EQ(DebugSideTableBuilder::kAssumeSpilling, assume_spilling);
-          V8_FALLTHROUGH;
-        case kStack:
-          value.storage = DebugSideTable::Entry::kStack;
-          value.stack_offset = slot.offset();
-          break;
+          case kRegister:
+            DCHECK_NE(DebugSideTableBuilder::kDidSpill, assume_spilling);
+            if (assume_spilling == DebugSideTableBuilder::kAllowRegisters) {
+              value.storage = DebugSideTable::Entry::kRegister;
+              value.reg_code = slot.reg().liftoff_code();
+              break;
+            }
+            DCHECK_EQ(DebugSideTableBuilder::kAssumeSpilling, assume_spilling);
+            V8_FALLTHROUGH;
+          case kStack:
+            value.storage = DebugSideTable::Entry::kStack;
+            value.stack_offset = slot.offset();
+            break;
+        }
+        exception = false;
       }
-      ++index;
     }
     DCHECK_EQ(values.size(), index);
     return values;
@@ -3680,20 +3743,23 @@ class LiftoffCompiler {
     // Handler: merge into the catch state, and jump to the catch body.
     __ bind(handler.get());
     __ ExceptionHandler();
+    __ PushException();
     handlers_.push_back({std::move(handler), handler_offset});
     Control* current_try =
         decoder->control_at(decoder->control_depth() - 1 - current_catch_);
     DCHECK_NOT_NULL(current_try->try_info);
     if (!current_try->try_info->catch_reached) {
       current_try->try_info->catch_state.InitMerge(
-          *__ cache_state(), __ num_locals(), 0,
-          current_try->try_info->catch_state.stack_height());
+          *__ cache_state(), __ num_locals(), 1,
+          current_try->stack_depth + current_try->num_exceptions);
       current_try->try_info->catch_reached = true;
     }
-    __ MergeStackWith(current_try->try_info->catch_state, 0);
+    __ MergeStackWith(current_try->try_info->catch_state, 1);
     __ emit_jump(&current_try->try_info->catch_label);
 
     __ bind(&skip_handler);
+    // Drop the exception.
+    __ DropValues(1);
   }
 
   void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,
@@ -3776,9 +3842,6 @@ class LiftoffCompiler {
     DefineSafepoint();
   }
 
-  void Rethrow(FullDecoder* decoder, const Value& exception) {
-    unsupported(decoder, kExceptionHandling, "rethrow");
-  }
   void AtomicStoreMem(FullDecoder* decoder, StoreType type,
                       const MemoryAccessImmediate<validate>& imm) {
     LiftoffRegList pinned;
@@ -5710,6 +5773,9 @@ class LiftoffCompiler {
 
   ZoneVector<HandlerInfo> handlers_;
   int handler_table_offset_ = Assembler::kNoHandlerTable;
+
+  // Current number of exception refs on the stack.
+  int num_exceptions_ = 0;
 
   bool has_outstanding_op() const {
     return outstanding_op_ != kNoOutstandingOp;

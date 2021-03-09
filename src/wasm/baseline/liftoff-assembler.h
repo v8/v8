@@ -410,6 +410,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   void DropValues(int count);
 
+  void DropValue(int depth);
+
   // Ensure that the loop inputs are either in a register or spilled to the
   // stack, so that we can merge different values on the back-edge.
   void PrepareLoopArgs(int num);
@@ -432,6 +434,16 @@ class LiftoffAssembler : public TurboAssembler {
     DCHECK_EQ(reg_class_for(kind), reg.reg_class());
     cache_state_.inc_used(reg);
     cache_state_.stack_state.emplace_back(kind, reg, NextSpillOffset(kind));
+  }
+
+  // Assumes that the exception is in {kReturnRegister0}. This is where the
+  // exception is stored by the unwinder after a throwing call.
+  void PushException() {
+    LiftoffRegister reg{kReturnRegister0};
+    // This is used after a call, so {kReturnRegister0} is not used yet.
+    DCHECK(cache_state_.is_free(reg));
+    cache_state_.inc_used(reg);
+    cache_state_.stack_state.emplace_back(kRef, reg, NextSpillOffset(kRef));
   }
 
   void PushConstant(ValueKind kind, int32_t i32_const) {

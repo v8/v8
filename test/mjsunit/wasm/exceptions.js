@@ -1032,3 +1032,38 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   assertTraps(WebAssembly.RuntimeError, () => instance.exports.test());
   assertTraps(WebAssembly.RuntimeError, () => instance.exports.test_unwind());
 })();
+
+(function TestThrowBeforeUnreachable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  builder.addFunction('throw_before_unreachable', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprThrow, except,
+          kExprUnreachable,
+        kExprCatchAll,
+          kExprI32Const, 42,
+        kExprEnd,
+      ]).exportFunc();
+
+  let instance = builder.instantiate();
+  assertEquals(42, instance.exports.throw_before_unreachable());
+})();
+
+(function TestUnreachableInCatchAll() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  builder.addFunction('throw_before_unreachable', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprThrow, except,
+        kExprCatchAll,
+          kExprUnreachable,
+          kExprI32Const, 42,
+        kExprEnd,
+      ]).exportFunc();
+
+  let instance = builder.instantiate();
+})();

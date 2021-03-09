@@ -627,6 +627,15 @@ void LiftoffAssembler::DropValues(int count) {
   }
 }
 
+void LiftoffAssembler::DropValue(int depth) {
+  auto* dropped = cache_state_.stack_state.begin() + depth;
+  if (dropped->is_reg()) {
+    cache_state_.dec_used(dropped->reg());
+  }
+  std::copy(dropped + 1, cache_state_.stack_state.end(), dropped);
+  cache_state_.stack_state.pop_back();
+}
+
 void LiftoffAssembler::PrepareLoopArgs(int num) {
   for (int i = 0; i < num; ++i) {
     VarState& slot = cache_state_.stack_state.end()[-1 - i];
