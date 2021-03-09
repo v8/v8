@@ -268,9 +268,13 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
                  "wasm-function[%d]", index()));
     name = VectorOf(name_buffer);
   }
+  // TODO(clemensb): Remove this #if once this compilation unit is excluded in
+  // no-wasm builds.
+#if V8_ENABLE_WEBASSEMBLY
   int code_offset = module->functions[index_].code.offset();
   PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name,
                                    source_url, code_offset, script_id));
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (!source_positions().empty()) {
     LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),

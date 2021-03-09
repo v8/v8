@@ -43,9 +43,12 @@
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -98,6 +101,7 @@ static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
   return CodeKindToMarker(kind);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 static const char* ComputeMarker(const wasm::WasmCode* code) {
   switch (code->kind()) {
     case wasm::WasmCode::kFunction:
@@ -106,6 +110,7 @@ static const char* ComputeMarker(const wasm::WasmCode* code) {
       return "";
   }
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class CodeEventLogger::NameBuffer {
  public:
@@ -247,6 +252,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       const wasm::WasmCode* code,
                                       wasm::WasmName name,
@@ -265,6 +271,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   name_buffer_->AppendBytes(ExecutionTierToString(code->tier()));
   LogRecordedBuffer(code, name_buffer_->get(), name_buffer_->size());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeEventLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                             Handle<String> source) {
@@ -289,8 +296,10 @@ class PerfBasicLogger : public CodeEventLogger {
   void LogRecordedBuffer(Handle<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
+#if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
+#endif  // V8_ENABLE_WEBASSEMBLY
   void WriteLogRecordedBuffer(uintptr_t address, int size, const char* name,
                               int name_length);
 
@@ -349,11 +358,13 @@ void PerfBasicLogger::LogRecordedBuffer(Handle<AbstractCode> code,
                          code->InstructionSize(), name, length);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void PerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
                                         const char* name, int length) {
   WriteLogRecordedBuffer(static_cast<uintptr_t>(code->instruction_start()),
                          code->instructions().length(), name, length);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 #endif  // V8_OS_LINUX
 
 // External CodeEventListener
@@ -475,11 +486,13 @@ void ExternalCodeEventListener::CodeCreateEvent(
   code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void ExternalCodeEventListener::CodeCreateEvent(
     LogEventsAndTags tag, const wasm::WasmCode* code, wasm::WasmName name,
     const char* source_url, int code_offset, int script_id) {
   // TODO(mmarchini): handle later
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void ExternalCodeEventListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                                       Handle<String> source) {
@@ -530,8 +543,10 @@ class LowLevelLogger : public CodeEventLogger {
   void LogRecordedBuffer(Handle<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
+#if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Low-level profiling event structures.
   struct CodeCreateStruct {
@@ -626,6 +641,7 @@ void LowLevelLogger::LogRecordedBuffer(Handle<AbstractCode> code,
                 code->InstructionSize());
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
                                        const char* name, int length) {
   CodeCreateStruct event;
@@ -637,6 +653,7 @@ void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
   LogWriteBytes(reinterpret_cast<const char*>(code->instruction_start()),
                 code->instructions().length());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void LowLevelLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   CodeMoveStruct event;
@@ -675,8 +692,10 @@ class JitLogger : public CodeEventLogger {
   void LogRecordedBuffer(Handle<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
+#if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   JitCodeEventHandler code_event_handler_;
   base::Mutex logger_mutex_;
@@ -707,6 +726,7 @@ void JitLogger::LogRecordedBuffer(Handle<AbstractCode> code,
   code_event_handler_(&event);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                   int length) {
   JitCodeEvent event;
@@ -756,6 +776,7 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
   }
   code_event_handler_(&event);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void JitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   base::MutexGuard guard(&logger_mutex_);
@@ -1374,6 +1395,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
   LogCodeDisassemble(code);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                              wasm::WasmName name, const char* /*source_url*/,
                              int /*code_offset*/, int /*script_id*/) {
@@ -1396,6 +1418,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
   msg << kNext << tag_ptr << kNext << ComputeMarker(code);
   msg.WriteToLogFile();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Logger::CallbackEventInternal(const char* prefix, Handle<Name> name,
                                    Address entry_point) {
@@ -1870,22 +1893,6 @@ EnumerateCompiledFunctions(Heap* heap) {
   return compiled_funcs;
 }
 
-static std::vector<Handle<WasmModuleObject>> EnumerateWasmModuleObjects(
-    Heap* heap) {
-  HeapObjectIterator iterator(heap);
-  DisallowGarbageCollection no_gc;
-  std::vector<Handle<WasmModuleObject>> module_objects;
-
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    if (obj.IsWasmModuleObject()) {
-      WasmModuleObject module = WasmModuleObject::cast(obj);
-      module_objects.emplace_back(module, Isolate::FromHeap(heap));
-    }
-  }
-  return module_objects;
-}
-
 void Logger::LogCodeObjects() { existing_code_logger_.LogCodeObjects(); }
 
 void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
@@ -2041,9 +2048,11 @@ void Logger::SetCodeEventHandler(uint32_t options,
   }
 
   if (event_handler) {
+#if V8_ENABLE_WEBASSEMBLY
     if (isolate_->wasm_engine() != nullptr) {
       isolate_->wasm_engine()->EnableCodeLogging(isolate_);
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
     jit_logger_ = std::make_unique<JitLogger>(isolate_, event_handler);
     AddCodeEventListener(jit_logger_.get());
     if (options & kJitCodeEventEnumExisting) {
@@ -2207,12 +2216,18 @@ void ExistingCodeLogger::LogCompiledFunctions() {
     LogExistingFunction(pair.first, pair.second);
   }
 
-  const std::vector<Handle<WasmModuleObject>> wasm_module_objects =
-      EnumerateWasmModuleObjects(heap);
-  for (auto& module_object : wasm_module_objects) {
-    module_object->native_module()->LogWasmCodes(isolate_,
-                                                 module_object->script());
+#if V8_ENABLE_WEBASSEMBLY
+  HeapObjectIterator iterator(heap);
+  DisallowGarbageCollection no_gc;
+
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    if (!obj.IsWasmModuleObject()) continue;
+    auto module_object = WasmModuleObject::cast(obj);
+    module_object.native_module()->LogWasmCodes(isolate_,
+                                                module_object.script());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void ExistingCodeLogger::LogExistingFunction(

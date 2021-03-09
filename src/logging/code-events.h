@@ -85,9 +85,11 @@ class CodeEventListener {
                                Handle<SharedFunctionInfo> shared,
                                Handle<Name> script_name, int line,
                                int column) = 0;
+#if V8_ENABLE_WEBASSEMBLY
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                                wasm::WasmName name, const char* source_url,
                                int code_offset, int script_id) = 0;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   virtual void CallbackEvent(Handle<Name> name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
@@ -174,6 +176,7 @@ class CodeEventDispatcher : public CodeEventListener {
       listener->CodeCreateEvent(tag, code, shared, source, line, column);
     });
   }
+#if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) override {
@@ -182,6 +185,7 @@ class CodeEventDispatcher : public CodeEventListener {
                                 script_id);
     });
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   void CallbackEvent(Handle<Name> name, Address entry_point) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
       listener->CallbackEvent(name, entry_point);

@@ -46,7 +46,10 @@
 #include "src/objects/shared-function-info.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -247,6 +250,7 @@ void PerfJitLogger::LogRecordedBuffer(
                         length);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void PerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
                                       const char* name, int length) {
   base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
@@ -260,6 +264,7 @@ void PerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
   WriteJitCodeLoadEntry(code->instructions().begin(),
                         code->instructions().length(), name, length);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void PerfJitLogger::WriteJitCodeLoadEntry(const uint8_t* code_pointer,
                                           uint32_t code_size, const char* name,
@@ -401,6 +406,7 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
   LogWriteBytes(padding_bytes, padding);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void PerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
   wasm::WasmModuleSourceMap* source_map =
       code->native_module()->GetWasmSourceMap();
@@ -467,6 +473,7 @@ void PerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
   char padding_bytes[8] = {0};
   LogWriteBytes(padding_bytes, padding);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void PerfJitLogger::LogWriteUnwindingInfo(Code code) {
   PerfJitCodeUnwindingInfo unwinding_info_header;

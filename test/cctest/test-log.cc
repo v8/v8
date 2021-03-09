@@ -457,8 +457,10 @@ UNINITIALIZED_TEST(Issue539892) {
     void LogRecordedBuffer(i::Handle<i::AbstractCode> code,
                            i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
                            const char* name, int length) override {}
+#if V8_ENABLE_WEBASSEMBLY
     void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
+#endif  // V8_ENABLE_WEBASSEMBLY
   };
 
   SETUP_FLAGS();
@@ -1236,8 +1238,10 @@ TEST(BytecodeFlushEvents) {
     void LogRecordedBuffer(i::Handle<i::AbstractCode> code,
                            i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
                            const char* name, int length) override {}
+#if V8_ENABLE_WEBASSEMBLY
     void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     i::Address flushed_compiled_data_start = i::kNullAddress;
   };

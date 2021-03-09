@@ -19,7 +19,10 @@
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/utils/vector.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -220,6 +223,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   DispatchCodeEvent(evt_rec);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        const wasm::WasmCode* code,
                                        wasm::WasmName name,
@@ -240,6 +244,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   rec->instruction_size = code->instructions().length();
   DispatchCodeEvent(evt_rec);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);

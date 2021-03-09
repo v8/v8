@@ -124,10 +124,12 @@ class CodeAddressMap : public CodeEventLogger {
     address_to_name_map_.Insert(code->address(), name, length);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override {
     UNREACHABLE();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   NameMap address_to_name_map_;
 };

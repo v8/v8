@@ -1240,9 +1240,11 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                          Handle<SharedFunctionInfo> shared,
                          Handle<Name> script_name, int line, int column) final {
     }
+#if V8_ENABLE_WEBASSEMBLY
     void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                          wasm::WasmName name, const char* source_url,
                          int code_offset, int script_id) final {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     void CallbackEvent(Handle<Name> name, Address entry_point) final {}
     void GetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
