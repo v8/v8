@@ -1626,6 +1626,7 @@ v8_source_set("torque_generated_definitions") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_internal_headers",
+    ":v8_libbase",
     ":v8_tracing",
   ]
 

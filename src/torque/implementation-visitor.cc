@@ -154,6 +154,8 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   std::ostream& header = debug_macros_h_;
 
   source << "#include \"torque-generated/debug-macros.h\"\n\n";
+  source << "#include \"src/objects/swiss-name-dictionary.h\"\n";
+  source << "#include \"src/objects/ordered-hash-table.h\"\n";
   source << "#include \"tools/debug_helper/debug-macro-shims.h\"\n";
   source << "#include \"include/v8-internal.h\"\n";
   source << "\n";
@@ -166,13 +168,12 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   const char* kHeaderDefine = "V8_GEN_TORQUE_GENERATED_DEBUG_MACROS_H_";
   header << "#ifndef " << kHeaderDefine << "\n";
   header << "#define " << kHeaderDefine << "\n\n";
-  header << "#include \"src/builtins/torque-csa-header-includes.h\"\n";
   header << "#include \"tools/debug_helper/debug-helper-internal.h\"\n";
   header << "\n";
 
   header << "namespace v8 {\n"
          << "namespace internal {\n"
-         << "namespace debug_helper_internal{\n"
+         << "namespace debug_helper_internal {\n"
          << "\n";
 }
 
