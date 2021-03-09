@@ -44,6 +44,7 @@ exceptions(
         properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64", "V8 Linux64 - fyi"], "track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
         in_console = "main/Linux64",
+        use_cas = True,
     ),
     v8_builder(
         name = "V8 Linux64 - debug builder",
