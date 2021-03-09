@@ -1350,10 +1350,6 @@ void FinalizeUnoptimizedCompilation(
     if (FLAG_interpreted_frames_native_stack) {
       InstallInterpreterTrampolineCopy(isolate, shared_info, log_tag);
     }
-    if (FLAG_always_sparkplug) {
-      CompileSharedWithBaseline(isolate, shared_info, Compiler::KEEP_EXCEPTION,
-                                &is_compiled_scope);
-    }
     Handle<CoverageInfo> coverage_info;
     if (finalize_data.coverage_info().ToHandle(&coverage_info)) {
       isolate->debug()->InstallCoverageInfo(shared_info, coverage_info);
@@ -1398,6 +1394,22 @@ void FinalizeUnoptimizedScriptCompilation(
   if (isolate->NeedsSourcePositionsForProfiling()) {
     Script::InitLineEnds(isolate, script);
   }
+}
+
+bool CompileAllWithBaseline(Isolate* isolate,
+                            const FinalizeUnoptimizedCompilationDataList&
+                                finalize_unoptimized_compilation_data_list,
+                            Compiler::ClearExceptionFlag flag) {
+  for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
+    Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
+    IsCompiledScope is_compiled_scope(*shared_info, isolate);
+    if (!is_compiled_scope.is_compiled()) continue;
+    if (!CompileSharedWithBaseline(isolate, shared_info, flag,
+                                   &is_compiled_scope)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Create shared function info for top level and shared function infos array for
@@ -1468,6 +1480,16 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   FinalizeUnoptimizedScriptCompilation(
       isolate, script, parse_info->flags(), parse_info->state(),
       finalize_unoptimized_compilation_data_list);
+
+  if (FLAG_always_sparkplug &&
+      !CompileAllWithBaseline(isolate,
+                              finalize_unoptimized_compilation_data_list,
+                              Compiler::ClearExceptionFlag::KEEP_EXCEPTION)) {
+    FailWithPendingException(isolate, script, parse_info,
+                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
+    return MaybeHandle<SharedFunctionInfo>();
+  }
+
   return shared_info;
 }
 
@@ -1925,6 +1947,12 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   FinalizeUnoptimizedCompilation(isolate, script, flags, &compile_state,
                                  finalize_unoptimized_compilation_data_list);
 
+  if (FLAG_always_sparkplug &&
+      !CompileAllWithBaseline(
+          isolate, finalize_unoptimized_compilation_data_list, flag)) {
+    return FailWithPendingException(isolate, script, &parse_info, flag);
+  }
+
   DCHECK(!isolate->has_pending_exception());
   DCHECK(is_compiled_scope->is_compiled());
   return true;
@@ -1963,11 +1991,6 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // TODO(verwaest/mythria): Investigate if allocating feedback vector
   // immediately after a flush would be better.
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
-
-  // If --always-sparkplug is enabled, make sure we have baseline code.
-  if (FLAG_always_sparkplug && CanCompileWithBaseline(isolate, shared_info)) {
-    DCHECK(shared_info->HasBaselineData());
-  }
 
   // Optimize now if --always-opt is enabled.
   if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
