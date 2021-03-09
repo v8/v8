@@ -217,6 +217,9 @@ def multibranch_builder(**kwargs):
             args["notifies"] = ["beta/stable notifier"]
             if _builder_is_not_supported(bucket_name, first_branch_version):
                 continue
+        # TODO(machenbach): Remove when all builders have switched to CAS.
+        if not args.get("executable"):
+          args["use_cas"] = True
         v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
         added_builders.append(bucket_name + "/" + kwargs["name"])
     return added_builders
