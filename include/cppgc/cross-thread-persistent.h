@@ -192,10 +192,17 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     const void* old_value = GetValue();
     if (IsValid(old_value)) {
       PersistentRegionLock guard;
-      CrossThreadPersistentRegion& region =
-          this->GetPersistentRegion(old_value);
-      region.FreeNode(GetNode());
-      SetNode(nullptr);
+      old_value = GetValue();
+      // The fast path check (IsValid()) does not acquire the lock. Reload
+      // the value to ensure the reference has not been cleared.
+      if (IsValid(old_value)) {
+        CrossThreadPersistentRegion& region =
+            this->GetPersistentRegion(old_value);
+        region.FreeNode(GetNode());
+        SetNode(nullptr);
+      } else {
+        CPPGC_DCHECK(!GetNode());
+      }
     }
     SetValue(nullptr);
   }
@@ -277,15 +284,22 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     const void* old_value = GetValue();
     if (IsValid(old_value)) {
       PersistentRegionLock guard;
-      CrossThreadPersistentRegion& region =
-          this->GetPersistentRegion(old_value);
-      if (IsValid(ptr) && (&region == &this->GetPersistentRegion(ptr))) {
-        SetValue(ptr);
-        this->CheckPointer(ptr);
-        return;
+      old_value = GetValue();
+      // The fast path check (IsValid()) does not acquire the lock. Reload
+      // the value to ensure the reference has not been cleared.
+      if (IsValid(old_value)) {
+        CrossThreadPersistentRegion& region =
+            this->GetPersistentRegion(old_value);
+        if (IsValid(ptr) && (&region == &this->GetPersistentRegion(ptr))) {
+          SetValue(ptr);
+          this->CheckPointer(ptr);
+          return;
+        }
+        region.FreeNode(GetNode());
+        SetNode(nullptr);
+      } else {
+        CPPGC_DCHECK(!GetNode());
       }
-      region.FreeNode(GetNode());
-      SetNode(nullptr);
     }
     SetValue(ptr);
     if (!IsValid(ptr)) return;

@@ -99,6 +99,7 @@ class V8_EXPORT PersistentRegion final {
   }
 
   void FreeNode(PersistentNode* node) {
+    CPPGC_DCHECK(node);
     CPPGC_DCHECK(node->IsUsed());
     node->InitializeAsFreeNode(free_list_head_);
     free_list_head_ = node;
