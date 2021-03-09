@@ -116,10 +116,19 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 
     is_shared_cross_origin = script->origin_options().IsSharedCrossOrigin();
 
-    // TODO(v8:11429,cbruni): improve iteration for baseline code
     bool is_baseline = abstract_code->kind() == CodeKind::BASELINE;
     Handle<ByteArray> source_position_table(
         abstract_code->SourcePositionTable(*shared), isolate_);
+    std::unique_ptr<baseline::BytecodeOffsetIterator> baseline_iterator =
+        nullptr;
+    if (is_baseline) {
+      Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
+                                      isolate_);
+      Handle<ByteArray> bytecode_offsets(
+          abstract_code->GetCode().bytecode_offset_table(), isolate_);
+      baseline_iterator = std::make_unique<baseline::BytecodeOffsetIterator>(
+          bytecode_offsets, bytecodes);
+    }
     // Add each position to the source position table and store inlining stacks
     // for inline positions. We store almost the same information in the
     // profiler as is stored on the code object, except that we transform source
@@ -132,10 +141,9 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
       int code_offset = it.code_offset();
       if (is_baseline) {
         // Use the bytecode offset to calculate pc offset for baseline code.
-        // TODO(v8:11429,cbruni): Speed this up.
-        code_offset = static_cast<int>(
-            abstract_code->GetCode().GetBaselinePCForBytecodeOffset(code_offset,
-                                                                    false));
+        baseline_iterator->AdvanceToBytecodeOffset(code_offset);
+        code_offset =
+            static_cast<int>(baseline_iterator->current_pc_start_offset());
       }
 
       if (inlining_id == SourcePosition::kNotInlined) {

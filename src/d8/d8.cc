@@ -1763,6 +1763,71 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void Shell::TestVerifySourcePositions(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() != 1 || !args[0]->IsFunction()) {
+    Throw(isolate, "Expected function as single argument.");
+    return;
+  }
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope handle_scope(isolate);
+  i::Handle<i::JSFunction> function =
+      i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*args[0]));
+  if (!function->shared().HasBytecodeArray()) {
+    Throw(isolate, "Function has no BytecodeArray attached.");
+    return;
+  }
+  i::Handle<i::BytecodeArray> bytecodes =
+      handle(function->shared().GetBytecodeArray(i_isolate), i_isolate);
+  i::interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes);
+  bool has_baseline = function->shared().HasBaselineData();
+  i::Handle<i::ByteArray> bytecode_offsets;
+  std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
+  if (has_baseline) {
+    bytecode_offsets =
+        handle(i::ByteArray::cast(
+                   function->shared().GetCode().bytecode_offset_table()),
+               i_isolate);
+    offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(
+        bytecode_offsets, bytecodes);
+  }
+  while (!bytecode_iterator.done()) {
+    if (has_baseline) {
+      if (offset_iterator->current_bytecode_offset() !=
+          bytecode_iterator.current_offset()) {
+        Throw(isolate, "Baseline bytecode offset mismatch.");
+        return;
+      }
+      // Check that we map every address to this bytecode correctly.
+      // The start address is exclusive and the end address inclusive.
+      for (i::Address pc = offset_iterator->current_pc_start_offset() + 1;
+           pc <= offset_iterator->current_pc_end_offset(); ++pc) {
+        i::baseline::BytecodeOffsetIterator pc_lookup(bytecode_offsets,
+                                                      bytecodes);
+        pc_lookup.AdvanceToPCOffset(pc);
+        if (pc_lookup.current_bytecode_offset() !=
+            bytecode_iterator.current_offset()) {
+          Throw(isolate, "Baseline bytecode offset mismatch for PC lookup.");
+          return;
+        }
+      }
+    }
+    bytecode_iterator.Advance();
+    if (has_baseline && !bytecode_iterator.done()) {
+      if (offset_iterator->done()) {
+        Throw(isolate, "Missing bytecode(s) in baseline offset mapping.");
+        return;
+      }
+      offset_iterator->Advance();
+    }
+  }
+  if (has_baseline && !offset_iterator->done()) {
+    Throw(isolate, "Excess offsets in baseline offset mapping.");
+    return;
+  }
+}
+
 // async_hooks.createHook() registers functions to be called for different
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
@@ -2581,6 +2646,13 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                       FunctionTemplate::New(isolate, LogGetAndStop));
 
     d8_template->Set(isolate, "log", log_template);
+  }
+  {
+    Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
+    test_template->Set(
+        isolate, "verifySourcePositions",
+        FunctionTemplate::New(isolate, TestVerifySourcePositions));
+    d8_template->Set(isolate, "test", test_template);
   }
   return d8_template;
 }

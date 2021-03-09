@@ -30,17 +30,12 @@ namespace baseline {
 
 class BytecodeOffsetTableBuilder {
  public:
-  void AddPosition(size_t pc_offset, size_t bytecode_offset) {
+  void AddPosition(size_t pc_offset) {
     size_t pc_diff = pc_offset - previous_pc_;
-    size_t bytecode_diff = bytecode_offset - previous_bytecode_;
     DCHECK_GE(pc_diff, 0);
     DCHECK_LE(pc_diff, std::numeric_limits<uint32_t>::max());
-    DCHECK_GE(bytecode_diff, 0);
-    DCHECK_LE(bytecode_diff, std::numeric_limits<uint32_t>::max());
     base::VLQEncodeUnsigned(&bytes_, static_cast<uint32_t>(pc_diff));
-    base::VLQEncodeUnsigned(&bytes_, static_cast<uint32_t>(bytecode_diff));
     previous_pc_ = pc_offset;
-    previous_bytecode_ = bytecode_offset;
   }
 
   template <typename LocalIsolate>
@@ -48,7 +43,6 @@ class BytecodeOffsetTableBuilder {
 
  private:
   size_t previous_pc_ = 0;
-  size_t previous_bytecode_ = 0;
   std::vector<byte> bytes_;
 };
 

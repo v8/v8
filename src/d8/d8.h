@@ -470,6 +470,8 @@ class Shell : public i::AllStatic {
                              const PropertyCallbackInfo<void>& info);
 
   static void LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void TestVerifySourcePositions(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void AsyncHooksCreateHook(
       const v8::FunctionCallbackInfo<v8::Value>& args);

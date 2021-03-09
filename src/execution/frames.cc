@@ -1794,11 +1794,13 @@ void InterpretedFrame::PatchBytecodeArray(BytecodeArray bytecode_array) {
 }
 
 int BaselineFrame::GetBytecodeOffset() const {
-  return LookupCode().GetBytecodeOffsetForBaselinePC(this->pc());
+  return LookupCode().GetBytecodeOffsetForBaselinePC(this->pc(),
+                                                     GetBytecodeArray());
 }
 
 intptr_t BaselineFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
-  return LookupCode().GetBaselinePCForBytecodeOffset(bytecode_offset);
+  return LookupCode().GetBaselinePCForBytecodeOffset(bytecode_offset,
+                                                     GetBytecodeArray());
 }
 
 void BaselineFrame::PatchContext(Context value) {

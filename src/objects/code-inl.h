@@ -6,7 +6,7 @@
 #define V8_OBJECTS_CODE_INL_H_
 
 #include "src/base/memory.h"
-#include "src/base/vlq.h"
+#include "src/baseline/bytecode-offset-iterator.h"
 #include "src/codegen/code-desc.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
@@ -348,51 +348,37 @@ CodeKind Code::kind() const {
   return KindField::decode(flags);
 }
 
-int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc) {
+int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
+                                         BytecodeArray bytecodes) {
   DisallowGarbageCollection no_gc;
   CHECK(!is_baseline_prologue_builtin());
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  ByteArray data = ByteArray::cast(bytecode_offset_table());
-  Address lookup_pc = 0;
+  // TODO(pthier): We should have an un-handlefied version of
+  // BytecodeOffsetIterator for uses like here, where no GC can happen.
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  baseline::BytecodeOffsetIterator offset_iterator(
+      handle(ByteArray::cast(bytecode_offset_table()), isolate),
+      handle(bytecodes, isolate));
   Address pc = baseline_pc - InstructionStart();
-  int index = 0;
-  int offset = 0;
-  byte* data_start = data.GetDataStartAddress();
-  while (pc > lookup_pc) {
-    lookup_pc += base::VLQDecodeUnsigned(data_start, &index);
-    offset += base::VLQDecodeUnsigned(data_start, &index);
-  }
-  DCHECK_LE(index, data.Size());
-  CHECK_EQ(pc, lookup_pc);
-  return offset;
+  offset_iterator.AdvanceToPCOffset(pc);
+  return offset_iterator.current_bytecode_offset();
 }
 
 uintptr_t Code::GetBaselinePCForBytecodeOffset(int bytecode_offset,
-                                               bool precise) {
+                                               BytecodeArray bytecodes) {
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  ByteArray data = ByteArray::cast(bytecode_offset_table());
-  intptr_t pc = 0;
-  int index = 0;
-  int offset = 0;
-  // TODO(v8:11429,cbruni): clean up
-  // Return the offset for the last bytecode that matches
-  byte* data_start = data.GetDataStartAddress();
-  while (offset < bytecode_offset && index < data.length()) {
-    int delta_pc = base::VLQDecodeUnsigned(data_start, &index);
-    int delta_offset = base::VLQDecodeUnsigned(data_start, &index);
-    if (!precise && (bytecode_offset < offset + delta_offset)) break;
-    pc += delta_pc;
-    offset += delta_offset;
-  }
-  DCHECK_LE(index, data.length());
-  if (precise) {
-    CHECK_EQ(offset, bytecode_offset);
-  } else {
-    CHECK_LE(offset, bytecode_offset);
-  }
-  return pc;
+  // TODO(pthier): We should have an un-handlefied version of
+  // BytecodeOffsetIterator for uses like here, where no GC can happen.
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  baseline::BytecodeOffsetIterator offset_iterator(
+      handle(ByteArray::cast(bytecode_offset_table()), isolate),
+      handle(bytecodes, isolate));
+  offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
+  return offset_iterator.current_pc_start_offset();
 }
 
 void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,

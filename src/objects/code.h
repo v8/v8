@@ -385,8 +385,9 @@ class Code : public HeapObject {
                                               const CodeDesc& desc);
 
   inline uintptr_t GetBaselinePCForBytecodeOffset(int bytecode_offset,
-                                                  bool precise = true);
-  inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc);
+                                                  BytecodeArray bytecodes);
+  inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc,
+                                            BytecodeArray bytecodes);
 
   // Flushes the instruction cache for the executable instructions of this code
   // object. Make sure to call this while the code is still writable.
