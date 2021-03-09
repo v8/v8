@@ -412,14 +412,6 @@ using Instr = uint32_t;
   V(xsrsqrtesp, XSRSQRTESP, 0xF0000028)                                      \
   /* VSX Scalar Square Root Single-Precision */                              \
   V(xssqrtsp, XSSQRTSP, 0xF000002C)                                          \
-  /* Move To VSR Doubleword */                                               \
-  V(mtvsrd, MTVSRD, 0x7C000166)                                              \
-  /* Move To VSR Double Doubleword */                                        \
-  V(mtvsrdd, MTVSRDD, 0x7C000366)                                            \
-  /* Move To VSR Word Algebraic */                                           \
-  V(mtvsrwa, MTVSRWA, 0x7C0001A6)                                            \
-  /* Move To VSR Word and Zero */                                            \
-  V(mtvsrwz, MTVSRWZ, 0x7C0001E6)                                            \
   /* VSX Scalar Absolute Value Double-Precision */                           \
   V(xsabsdp, XSABSDP, 0xF0000564)                                            \
   /* VSX Scalar Convert Double-Precision to Single-Precision */              \
@@ -1993,6 +1985,14 @@ using Instr = uint32_t;
   V(lxvdsx, LXVDSX, 0x7C000298)                            \
   /* Load VSR Vector Word*4 Indexed */                     \
   V(lxvw, LXVW, 0x7C000618)                                \
+  /* Move To VSR Doubleword */                             \
+  V(mtvsrd, MTVSRD, 0x7C000166)                            \
+  /* Move To VSR Double Doubleword */                      \
+  V(mtvsrdd, MTVSRDD, 0x7C000366)                          \
+  /* Move To VSR Word Algebraic */                         \
+  V(mtvsrwa, MTVSRWA, 0x7C0001A6)                          \
+  /* Move To VSR Word and Zero */                          \
+  V(mtvsrwz, MTVSRWZ, 0x7C0001E6)                          \
   /* Move From VSR Doubleword */                           \
   V(mfvsrd, MFVSRD, 0x7C000066)                            \
   /* Move From VSR Word and Zero */                        \
@@ -2935,8 +2935,12 @@ class Instruction {
       PPC_XL_OPCODE_LIST(OPCODE_CASES)
       PPC_XFL_OPCODE_LIST(OPCODE_CASES)
       PPC_XX1_OPCODE_LIST(OPCODE_CASES)
-      PPC_XX2_OPCODE_LIST(OPCODE_CASES)
       PPC_EVX_OPCODE_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 2);
+    switch (opcode) {
+      PPC_XX2_OPCODE_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
     opcode = extcode | BitField(9, 1);
