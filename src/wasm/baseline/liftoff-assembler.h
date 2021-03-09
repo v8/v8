@@ -73,7 +73,11 @@ class LiftoffAssembler : public TurboAssembler {
   // Each slot in our stack frame currently has exactly 8 bytes.
   static constexpr int kStackSlotSize = 8;
 
-  static constexpr ValueKind kIntPtr = kSystemPointerSize == 8 ? kI64 : kI32;
+  static constexpr ValueKind kPointerKind =
+      kSystemPointerSize == kInt32Size ? kI32 : kI64;
+  static constexpr ValueKind kTaggedKind =
+      kTaggedSize == kInt32Size ? kI32 : kI64;
+  static constexpr ValueKind kSmiKind = kTaggedKind;
 
   using ValueKindSig = Signature<ValueKind>;
 

@@ -86,14 +86,9 @@ struct assert_field_size {
 constexpr LoadType::LoadTypeValue kPointerLoadType =
     kSystemPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
 
-constexpr ValueKind kPointerValueType = kSystemPointerSize == 8 ? kI64 : kI32;
-
-#if V8_TARGET_ARCH_32_BIT || defined(V8_COMPRESS_POINTERS)
-constexpr ValueKind kTaggedValueType = kI32;
-#else
-constexpr ValueKind kTaggedValueType = kI64;
-#endif
-constexpr ValueKind kSmiValueType = kTaggedValueType;
+constexpr ValueKind kPointerKind = LiftoffAssembler::kPointerKind;
+constexpr ValueKind kSmiKind = LiftoffAssembler::kSmiKind;
+constexpr ValueKind kTaggedKind = LiftoffAssembler::kTaggedKind;
 
 #if V8_TARGET_ARCH_ARM64
 // On ARM64, the Assembler keeps track of pointers to Labels to resolve
@@ -1089,7 +1084,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* rethrow_descriptor =
         GetBuiltinCallDescriptor<WasmRethrowDescriptor>(compilation_zone_);
 
-    ValueKind throw_sig_reps[] = {kPointerValueType};
+    ValueKind throw_sig_reps[] = {kPointerKind};
     ValueKindSig rethrow_sig(0, 1, throw_sig_reps);
 
     __ PrepareBuiltinCall(&rethrow_sig, rethrow_descriptor, {exception});
@@ -1954,7 +1949,7 @@ class LiftoffCompiler {
     DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
     Register param_reg = descriptor.GetRegisterParameter(0);
     if (info.gp() != param_reg) {
-      __ Move(param_reg, info.gp(), LiftoffAssembler::kIntPtr);
+      __ Move(param_reg, info.gp(), kPointerKind);
     }
 
     source_position_table_builder_.AddPosition(
@@ -2196,8 +2191,7 @@ class LiftoffCompiler {
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(table_index_reg, WasmValue(imm.index));
-    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
-                                           0);
+    LiftoffAssembler::VarState table_index(kPointerKind, table_index_reg, 0);
 
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.back();
 
@@ -2228,8 +2222,7 @@ class LiftoffCompiler {
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(table_index_reg, WasmValue(imm.index));
-    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
-                                           0);
+    LiftoffAssembler::VarState table_index(kPointerKind, table_index_reg, 0);
 
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
@@ -2530,7 +2523,7 @@ class LiftoffCompiler {
     // the end offset against the actual memory size, which is not known at
     // compile time. Otherwise, only one check is required (see below).
     if (end_offset > env_->min_memory_size) {
-      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kPointerValueType,
+      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kPointerKind,
                         end_offset_reg.gp(), mem_size.gp());
     }
 
@@ -2540,7 +2533,7 @@ class LiftoffCompiler {
     __ emit_ptrsize_sub(effective_size_reg.gp(), mem_size.gp(),
                         end_offset_reg.gp());
 
-    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kPointerValueType,
+    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kPointerKind,
                       index_ptrsize, effective_size_reg.gp());
     return index_ptrsize;
   }
@@ -2616,7 +2609,7 @@ class LiftoffCompiler {
     DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
     Register param_reg = descriptor.GetRegisterParameter(0);
     if (info.gp() != param_reg) {
-      __ Move(param_reg, info.gp(), LiftoffAssembler::kIntPtr);
+      __ Move(param_reg, info.gp(), kPointerKind);
     }
 
     source_position_table_builder_.AddPosition(__ pc_offset(),
@@ -2639,7 +2632,7 @@ class LiftoffCompiler {
       pinned->clear(LiftoffRegister{old_index});
       index = pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
       if (index != old_index) {
-        __ Move(index, old_index, kPointerValueType);
+        __ Move(index, old_index, kPointerKind);
       }
     }
     Register tmp = __ GetUnusedRegister(kGpReg, *pinned).gp();
@@ -3789,14 +3782,12 @@ class LiftoffCompiler {
         GetBuiltinCallDescriptor<WasmAllocateFixedArrayDescriptor>(
             compilation_zone_);
 
-    ValueKind create_values_sig_reps[] = {kPointerValueType,
-                                          LiftoffAssembler::kIntPtr};
+    ValueKind create_values_sig_reps[] = {kPointerKind, kPointerKind};
     ValueKindSig create_values_sig(1, 1, create_values_sig_reps);
 
-    __ PrepareBuiltinCall(
-        &create_values_sig, create_values_descriptor,
-        {LiftoffAssembler::VarState{kSmiValueType,
-                                    LiftoffRegister{encoded_size_reg}, 0}});
+    __ PrepareBuiltinCall(&create_values_sig, create_values_descriptor,
+                          {LiftoffAssembler::VarState{
+                              kSmiKind, LiftoffRegister{encoded_size_reg}, 0}});
     __ CallRuntimeStub(WasmCode::kWasmAllocateFixedArray);
     DefineSafepoint();
 
@@ -3838,14 +3829,14 @@ class LiftoffCompiler {
     compiler::CallDescriptor* throw_descriptor =
         GetBuiltinCallDescriptor<WasmThrowDescriptor>(compilation_zone_);
 
-    ValueKind throw_sig_reps[] = {kPointerValueType, kPointerValueType};
+    ValueKind throw_sig_reps[] = {kPointerKind, kPointerKind};
     ValueKindSig throw_sig(0, 2, throw_sig_reps);
 
     __ PrepareBuiltinCall(
         &throw_sig, throw_descriptor,
-        {LiftoffAssembler::VarState{kPointerValueType,
+        {LiftoffAssembler::VarState{kPointerKind,
                                     LiftoffRegister{exception_tag}, 0},
-         LiftoffAssembler::VarState{kPointerValueType, values_array, 0}});
+         LiftoffAssembler::VarState{kPointerKind, values_array, 0}});
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), true);
     __ CallRuntimeStub(WasmCode::kWasmThrow);
@@ -4079,7 +4070,7 @@ class LiftoffCompiler {
       }
     }
 
-    ValueKind sig_kinds[] = {kPointerValueType, kind, kI64};
+    ValueKind sig_kinds[] = {kPointerKind, kind, kI64};
     ValueKindSig sig(0, 3, sig_kinds);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
@@ -4115,7 +4106,7 @@ class LiftoffCompiler {
       __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
     }
 
-    ValueKind sig_kinds[] = {kI32, kPointerValueType, kI32};
+    ValueKind sig_kinds[] = {kI32, kPointerKind, kI32};
     ValueKindSig sig(1, 2, sig_kinds);
     auto call_descriptor =
         GetBuiltinCallDescriptor<WasmAtomicNotifyDescriptor>(compilation_zone_);
@@ -4278,7 +4269,7 @@ class LiftoffCompiler {
     __ LoadConstant(segment_index, WasmValue(imm.data_segment_index));
 
     ExternalReference ext_ref = ExternalReference::wasm_memory_init();
-    ValueKind sig_kinds[] = {kI32, kPointerValueType, kI32, kI32, kI32, kI32};
+    ValueKind sig_kinds[] = {kI32, kPointerKind, kI32, kI32, kI32, kI32};
     ValueKindSig sig(1, 5, sig_kinds);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, src,
                               segment_index, size};
@@ -4321,7 +4312,7 @@ class LiftoffCompiler {
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_copy();
-    ValueKind sig_kinds[] = {kI32, kPointerValueType, kI32, kI32, kI32};
+    ValueKind sig_kinds[] = {kI32, kPointerKind, kI32, kI32, kI32};
     ValueKindSig sig(1, 4, sig_kinds);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, src, size};
     // We don't need the instance anymore after the call. We can use the
@@ -4343,7 +4334,7 @@ class LiftoffCompiler {
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_fill();
-    ValueKind sig_kinds[] = {kI32, kPointerValueType, kI32, kI32, kI32};
+    ValueKind sig_kinds[] = {kI32, kPointerKind, kI32, kI32, kI32};
     ValueKindSig sig(1, 4, sig_kinds);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, value, size};
     // We don't need the instance anymore after the call. We can use the
@@ -4357,8 +4348,7 @@ class LiftoffCompiler {
 
   void LoadSmi(LiftoffRegister reg, int value) {
     Address smi_value = Smi::FromInt(value).ptr();
-    using smi_type =
-        std::conditional_t<kSmiValueType == kI32, int32_t, int64_t>;
+    using smi_type = std::conditional_t<kSmiKind == kI32, int32_t, int64_t>;
     __ LoadConstant(reg, WasmValue{static_cast<smi_type>(smi_value)});
   }
 
@@ -4369,14 +4359,13 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
     LoadSmi(table_index_reg, imm.table.index);
-    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
-                                           0);
+    LiftoffAssembler::VarState table_index(kPointerKind, table_index_reg, 0);
 
     LiftoffRegister segment_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(segment_index_reg, imm.elem_segment_index);
-    LiftoffAssembler::VarState segment_index(kPointerValueType,
-                                             segment_index_reg, 0);
+    LiftoffAssembler::VarState segment_index(kPointerKind, segment_index_reg,
+                                             0);
 
     LiftoffAssembler::VarState size = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
@@ -4386,7 +4375,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableInitDescriptor>(compilation_zone_);
 
-    ValueKind sig_kinds[] = {kI32, kI32, kI32, kSmiValueType, kSmiValueType};
+    ValueKind sig_kinds[] = {kI32, kI32, kI32, kSmiKind, kSmiKind};
     ValueKindSig sig(0, 5, sig_kinds);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
@@ -4426,13 +4415,13 @@ class LiftoffCompiler {
     LiftoffRegister table_dst_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_dst_index_reg, imm.table_dst.index);
-    LiftoffAssembler::VarState table_dst_index(kPointerValueType,
+    LiftoffAssembler::VarState table_dst_index(kPointerKind,
                                                table_dst_index_reg, 0);
 
     LiftoffRegister table_src_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_src_index_reg, imm.table_src.index);
-    LiftoffAssembler::VarState table_src_index(kPointerValueType,
+    LiftoffAssembler::VarState table_src_index(kPointerKind,
                                                table_src_index_reg, 0);
 
     LiftoffAssembler::VarState size = __ cache_state()->stack_state.end()[-1];
@@ -4443,7 +4432,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableCopyDescriptor>(compilation_zone_);
 
-    ValueKind sig_kinds[] = {kI32, kI32, kI32, kSmiValueType, kSmiValueType};
+    ValueKind sig_kinds[] = {kI32, kI32, kI32, kSmiKind, kSmiKind};
     ValueKindSig sig(0, 5, sig_kinds);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
@@ -4464,8 +4453,7 @@ class LiftoffCompiler {
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_index_reg, imm.index);
-    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
-                                           0);
+    LiftoffAssembler::VarState table_index(kPointerKind, table_index_reg, 0);
 
     LiftoffAssembler::VarState delta = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
@@ -4474,8 +4462,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableGrowDescriptor>(compilation_zone_);
 
-    ValueKind sig_reps[] = {kSmiValueType, kSmiValueType, kI32,
-                            kTaggedValueType};
+    ValueKind sig_reps[] = {kSmiKind, kSmiKind, kI32, kTaggedKind};
     ValueKindSig sig(1, 3, sig_reps);
 
     __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, delta, value});
@@ -4524,8 +4511,7 @@ class LiftoffCompiler {
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_index_reg, imm.index);
-    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
-                                           0);
+    LiftoffAssembler::VarState table_index(kPointerKind, table_index_reg, 0);
 
     LiftoffAssembler::VarState count = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
@@ -4535,7 +4521,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableFillDescriptor>(compilation_zone_);
 
-    ValueKind sig_reps[] = {kSmiValueType, kI32, kI32, kTaggedValueType};
+    ValueKind sig_reps[] = {kSmiKind, kI32, kI32, kTaggedKind};
     ValueKindSig sig(0, 4, sig_reps);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
@@ -4915,8 +4901,8 @@ class LiftoffCompiler {
               compilation_zone_);
       ValueKind sig_kinds[] = {kI32, kOptRef, rtt.type.kind()};
       ValueKindSig sig(1, 2, sig_kinds);
-      LiftoffAssembler::VarState rtt_state(kPointerValueType, rtt_reg, 0);
-      LiftoffAssembler::VarState tmp1_state(kPointerValueType, tmp1, 0);
+      LiftoffAssembler::VarState rtt_state(kPointerKind, rtt_reg, 0);
+      LiftoffAssembler::VarState tmp1_state(kPointerKind, tmp1, 0);
       __ PrepareBuiltinCall(&sig, call_descriptor, {tmp1_state, rtt_state});
       __ CallRuntimeStub(target);
       DefineSafepoint();
@@ -5336,8 +5322,8 @@ class LiftoffCompiler {
 
     Label* sig_mismatch_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
-    __ emit_cond_jump(kUnequal, sig_mismatch_label, LiftoffAssembler::kIntPtr,
-                      scratch, tmp_const);
+    __ emit_cond_jump(kUnequal, sig_mismatch_label, kPointerKind, scratch,
+                      tmp_const);
 
     // At this point {index} has already been multiplied by 4.
     DEBUG_CODE_COMMENT("Execute indirect call");
@@ -5579,7 +5565,7 @@ class LiftoffCompiler {
       __ CallRuntimeStub(builtin);
       DefineSafepoint();
       if (instance.gp() != kReturnRegister0) {
-        __ Move(instance.gp(), kReturnRegister0, LiftoffAssembler::kIntPtr);
+        __ Move(instance.gp(), kReturnRegister0, kPointerKind);
       }
 
       // Restore {func_data}, which we saved across the call.

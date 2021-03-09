@@ -25,7 +25,9 @@ namespace wasm {
 using VarState = LiftoffAssembler::VarState;
 using ValueKindSig = LiftoffAssembler::ValueKindSig;
 
-constexpr ValueKind LiftoffAssembler::kIntPtr;
+constexpr ValueKind LiftoffAssembler::kPointerKind;
+constexpr ValueKind LiftoffAssembler::kTaggedKind;
+constexpr ValueKind LiftoffAssembler::kSmiKind;
 
 namespace {
 
@@ -779,7 +781,7 @@ void LiftoffAssembler::ClearRegister(
     if (reg != *use) continue;
     if (replacement == no_reg) {
       replacement = GetUnusedRegister(kGpReg, pinned).gp();
-      Move(replacement, reg, LiftoffAssembler::kIntPtr);
+      Move(replacement, reg, kPointerKind);
     }
     // We cannot leave this loop early. There may be multiple uses of {reg}.
     *use = replacement;
@@ -890,7 +892,8 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   param_regs.set(instance_reg);
   if (target_instance && *target_instance != instance_reg) {
     stack_transfers.MoveRegister(LiftoffRegister(instance_reg),
-                                 LiftoffRegister(*target_instance), kIntPtr);
+                                 LiftoffRegister(*target_instance),
+                                 kPointerKind);
   }
 
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -909,11 +912,10 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
     if (!free_regs.is_empty()) {
       LiftoffRegister new_target = free_regs.GetFirstRegSet();
       stack_transfers.MoveRegister(new_target, LiftoffRegister(*target),
-                                   kIntPtr);
+                                   kPointerKind);
       *target = new_target.gp();
     } else {
-      stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kIntPtr,
-                                                 LiftoffRegister(*target), 0),
+      stack_slots.Add(VarState(kPointerKind, LiftoffRegister(*target), 0),
                       param_slots);
       param_slots++;
       *target = no_reg;
