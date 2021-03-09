@@ -225,13 +225,16 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        wasm::WasmName name,
                                        const char* source_url, int code_offset,
                                        int script_id) {
-  DCHECK_NOT_NULL(source_url);
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  rec->entry =
-      new CodeEntry(tag, GetName(name), GetName(source_url), 1, code_offset + 1,
-                    nullptr, true, CodeEntry::CodeType::WASM);
+  // Wasm modules always have a source URL. Asm.js modules never have one.
+  DCHECK_EQ(code->native_module()->module()->origin == wasm::kWasmOrigin,
+            source_url != nullptr);
+  rec->entry = new CodeEntry(
+      tag, GetName(name),
+      source_url ? GetName(source_url) : CodeEntry::kEmptyResourceName, 1,
+      code_offset + 1, nullptr, true, CodeEntry::CodeType::WASM);
   rec->entry->set_script_id(script_id);
   rec->entry->set_position(code_offset);
   rec->instruction_size = code->instructions().length();
