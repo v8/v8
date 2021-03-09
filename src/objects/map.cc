@@ -2372,20 +2372,17 @@ Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
 }
 
 int Map::Hash() {
-  // For performance reasons we only hash the 3 most variable fields of a map:
-  // constructor, prototype and bit_field2. For predictability reasons we
-  // use objects' offsets in respective pages for hashing instead of raw
-  // addresses.
+  // For performance reasons we only hash the 2 most variable fields of a map:
+  // prototype map and bit_field2. For predictability reasons  we use objects'
+  // offsets in respective pages for hashing instead of raw addresses. We use
+  // the map of  the prototype because the prototype itself could be compacted,
+  // whereas the map will not be moved.
+  // NOTE: If we want to compact maps, this hash function won't work as intended
+  // anymore.
 
   // Shift away the tag.
-  int hash = ObjectAddressForHashing(GetConstructor().ptr()) >> 2;
-
-  // XOR-ing the prototype and constructor directly yields too many zero bits
-  // when the two pointers are close (which is fairly common).
-  // To avoid this we shift the prototype bits relatively to the constructor.
-  hash ^= ObjectAddressForHashing(prototype().ptr()) << (32 - kPageSizeBits);
-
-  return hash ^ (hash >> 16) ^ bit_field2();
+  int hash = ObjectAddressForHashing(prototype().map().ptr()) >> 2;
+  return hash ^ bit_field2();
 }
 
 namespace {
