@@ -16,7 +16,6 @@ def experiment_builder(**kwargs):
 
     v8_builder(
         in_console = "experiments/V8",
-        use_cas = True,
         **kwargs
     )
 
@@ -45,7 +44,6 @@ def experiment_builder_pair(name, **kwargs):
         dimensions = dimensions,
         triggered_by = triggered_by,
         use_goma = use_goma,
-        use_cas = True,
         **kwargs
     )
 
@@ -57,7 +55,6 @@ def experiment_builder_pair(name, **kwargs):
         triggered_by = [name + " - builder"],
         dimensions = {"host_class": "multibot"},
         properties = properties,
-        use_cas = True,
         **kwargs
     )
 

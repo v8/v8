@@ -177,7 +177,9 @@ def v8_basic_builder(defaults, **kwargs):
         kwargs.pop("goma_jobs", None),
     ))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
-    if kwargs.pop("use_cas", False):
+
+    # TODO(machenbach): Remove when all builders have switched to CAS.
+    if kwargs.get("executable", defaults.get("executable")) == "recipe:v8":
       properties["$build/v8"] = {"use_cas": True}
     kwargs["properties"] = properties
 
@@ -217,9 +219,6 @@ def multibranch_builder(**kwargs):
             args["notifies"] = ["beta/stable notifier"]
             if _builder_is_not_supported(bucket_name, first_branch_version):
                 continue
-        # TODO(machenbach): Remove when all builders have switched to CAS.
-        if not args.get("executable"):
-          args["use_cas"] = True
         v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
         added_builders.append(bucket_name + "/" + kwargs["name"])
     return added_builders

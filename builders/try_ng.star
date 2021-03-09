@@ -15,7 +15,6 @@ def try_ng_pair(name, **kwargs):
         bucket = "try",
         cq_properties = cq_tg,
         in_list = "tryserver",
-        use_cas = True,
         **kwargs
     )
     v8_builder(
@@ -24,7 +23,6 @@ def try_ng_pair(name, **kwargs):
         bucket = "try.triggered",
         execution_timeout = triggered_timeout,
         cq_properties = cq_td,
-        use_cas = True,
         in_list = "tryserver",
     )
 
