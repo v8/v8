@@ -1821,7 +1821,7 @@ class WasmInterpreterInternals {
         return true;
       case kExprMemoryInit: {
         MemoryInitImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         // The data segment index must be in bounds since it is required by
         // validation.
         DCHECK_LT(imm.data_segment_index, module()->num_declared_data_segments);
@@ -1846,7 +1846,7 @@ class WasmInterpreterInternals {
       }
       case kExprDataDrop: {
         DataDropImmediate<Decoder::kNoValidation> imm(decoder,
-                                                      code->at(pc + 2));
+                                                      code->at(pc + *len));
         // The data segment index must be in bounds since it is required by
         // validation.
         DCHECK_LT(imm.index, module()->num_declared_data_segments);
@@ -1856,7 +1856,7 @@ class WasmInterpreterInternals {
       }
       case kExprMemoryCopy: {
         MemoryCopyImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         *len += imm.length;
         uint64_t size = ToMemType(Pop());
         uint64_t src = ToMemType(Pop());
@@ -1875,7 +1875,7 @@ class WasmInterpreterInternals {
       }
       case kExprMemoryFill: {
         MemoryIndexImmediate<Decoder::kNoValidation> imm(decoder,
-                                                         code->at(pc + 2));
+                                                         code->at(pc + *len));
         *len += imm.length;
         uint64_t size = ToMemType(Pop());
         uint32_t value = Pop().to<uint32_t>();
@@ -1890,7 +1890,7 @@ class WasmInterpreterInternals {
       }
       case kExprTableInit: {
         TableInitImmediate<Decoder::kNoValidation> imm(decoder,
-                                                       code->at(pc + 2));
+                                                       code->at(pc + *len));
         *len += imm.length;
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
@@ -1904,14 +1904,14 @@ class WasmInterpreterInternals {
       }
       case kExprElemDrop: {
         ElemDropImmediate<Decoder::kNoValidation> imm(decoder,
-                                                      code->at(pc + 2));
+                                                      code->at(pc + *len));
         *len += imm.length;
         instance_object_->dropped_elem_segments()[imm.index] = 1;
         return true;
       }
       case kExprTableCopy: {
         TableCopyImmediate<Decoder::kNoValidation> imm(decoder,
-                                                       code->at(pc + 2));
+                                                       code->at(pc + *len));
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
@@ -1925,7 +1925,7 @@ class WasmInterpreterInternals {
       }
       case kExprTableGrow: {
         TableIndexImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         HandleScope handle_scope(isolate_);
         auto table = handle(
             WasmTableObject::cast(instance_object_->tables().get(imm.index)),
@@ -1939,7 +1939,7 @@ class WasmInterpreterInternals {
       }
       case kExprTableSize: {
         TableIndexImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         HandleScope handle_scope(isolate_);
         auto table = handle(
             WasmTableObject::cast(instance_object_->tables().get(imm.index)),
@@ -1951,7 +1951,7 @@ class WasmInterpreterInternals {
       }
       case kExprTableFill: {
         TableIndexImmediate<Decoder::kNoValidation> imm(decoder,
-                                                        code->at(pc + 2));
+                                                        code->at(pc + *len));
         HandleScope handle_scope(isolate_);
         auto count = Pop().to<uint32_t>();
         auto value = Pop().to_ref();

@@ -3821,6 +3821,18 @@ TEST(Regression_1085507) {
         WASM_BLOCK_X(sig_v_i, kExprDrop), kExprElse, kExprEnd, WASM_I32V_1(0));
 }
 
+TEST(Regression_1185323_1185492) {
+  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
+  r.builder().AddIndirectFunctionTable(nullptr, 1);
+  BUILD(r, WASM_I32V_1(0),
+        // Use a long leb128 encoding of kExprTableSize instruction.
+        // This exercises a bug in the interpreter which tries to read the
+        // immediate at pc+2 (it should be pc+4).
+        kNumericPrefix, 0x90, 0x80, 0x00, 0x00,  // table.size 0.
+        WASM_UNREACHABLE, kExprTableSet, 0x00);  // Hits a DCHECK if reached.
+  r.Call();
+}
+
 #undef B1
 #undef B2
 #undef RET
