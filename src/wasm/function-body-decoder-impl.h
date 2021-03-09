@@ -3487,8 +3487,19 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       uint8_t first_byte = *this->pc_;
       WasmOpcode opcode = static_cast<WasmOpcode>(first_byte);
       CALL_INTERFACE_IF_REACHABLE(NextInstruction, opcode);
-      OpcodeHandler handler = GetOpcodeHandler(first_byte);
-      int len = (*handler)(this, opcode);
+      int len;
+      // Allowing two of the most common decoding functions to get inlined
+      // appears to be the sweet spot.
+      // Handling _all_ opcodes via a giant switch-statement has been tried
+      // and found to be slower than calling through the handler table.
+      if (opcode == kExprLocalGet) {
+        len = WasmFullDecoder::DecodeLocalGet(this, opcode);
+      } else if (opcode == kExprI32Const) {
+        len = WasmFullDecoder::DecodeI32Const(this, opcode);
+      } else {
+        OpcodeHandler handler = GetOpcodeHandler(first_byte);
+        len = (*handler)(this, opcode);
+      }
       this->pc_ += len;
     }
 
@@ -3561,9 +3572,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (count == 0) return {};
     EnsureStackArguments(depth + count);
     ArgVector args(stack_value(depth + count), count);
-    // Validate types.
-    for (int i = count - 1; i >= 0; --i, ++depth) {
-      Peek(depth, i, sig->GetParam(i));
+    for (int i = 0; i < count; i++) {
+      ValidateArgType(args, i, sig->GetParam(i));
     }
     return args;
   }
@@ -3577,9 +3587,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (count == 0) return {};
     EnsureStackArguments(depth + count);
     ArgVector args(stack_value(depth + count), count);
-    // Validate types.
-    for (int i = count - 1; i >= 0; i--, depth++) {
-      Peek(depth, i, type->field(i).Unpacked());
+    for (int i = 0; i < count; i++) {
+      ValidateArgType(args, i, type->field(i).Unpacked());
     }
     return args;
   }
@@ -3592,9 +3601,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     int size = static_cast<int>(arg_types.size());
     EnsureStackArguments(size);
     ArgVector args(stack_value(size), arg_types.size());
-    // Validate types.
-    for (int i = size - 1, depth = 0; i >= 0; i--, depth++) {
-      Peek(depth, base_index + i, arg_types[i]);
+    for (int i = 0; i < size; i++) {
+      ValidateArgType(args, i, arg_types[i]);
     }
     return args;
   }
@@ -4798,6 +4806,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
     DCHECK_LE(stack_, stack_end_ - depth - 1);
     return *(stack_end_ - depth - 1);
+  }
+
+  V8_INLINE void ValidateArgType(ArgVector args, int index,
+                                 ValueType expected) {
+    Value val = args[index];
+    if (!VALIDATE(IsSubtypeOf(val.type, expected, this->module_) ||
+                  val.type == kWasmBottom || expected == kWasmBottom)) {
+      PopTypeError(index, val, expected);
+    }
   }
 
   V8_INLINE void Drop(int count = 1) {
