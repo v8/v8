@@ -1099,9 +1099,6 @@ class LiftoffCompiler {
     DCHECK_EQ(decoder->control_at(0), block);
 
     current_catch_ = block->try_info->previous_catch;  // Pop try scope.
-    if (!block->is_try_unwind()) {
-      num_exceptions_++;
-    }
 
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
@@ -1113,6 +1110,9 @@ class LiftoffCompiler {
 
     __ bind(&block->try_info->catch_label);
     __ cache_state()->Steal(block->try_info->catch_state);
+    if (!block->is_try_unwind()) {
+      num_exceptions_++;
+    }
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
@@ -1179,17 +1179,22 @@ class LiftoffCompiler {
 
   void FinishTryCatch(FullDecoder* decoder, Control* c) {
     DCHECK(c->is_try_catch() || c->is_try_catchall());
-    if (c->reachable()) {
-      // Drop the implicit exception ref.
-      if (!c->end_merge.reached) {
+    if (!c->end_merge.reached) {
+      if (c->try_info->catch_reached) {
+        // Drop the implicit exception ref.
         __ DropValue(c->stack_depth + c->num_exceptions);
-      } else {
+      }
+      // Else we did not enter the catch state, continue with the current state.
+    } else {
+      if (c->reachable()) {
         __ MergeStackWith(c->label_state, c->br_merge()->arity,
                           LiftoffAssembler::kForwardJump);
-        __ cache_state()->Steal(c->label_state);
       }
+      __ cache_state()->Steal(c->label_state);
     }
-    num_exceptions_--;
+    if (c->try_info->catch_reached) {
+      num_exceptions_--;
+    }
   }
 
   void PopControl(FullDecoder* decoder, Control* c) {
