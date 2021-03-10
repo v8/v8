@@ -637,9 +637,18 @@ class JSBoundFunctionData : public JSObjectData {
   bool Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
 
-  ObjectData* bound_target_function() const { return bound_target_function_; }
-  ObjectData* bound_this() const { return bound_this_; }
-  ObjectData* bound_arguments() const { return bound_arguments_; }
+  ObjectData* bound_target_function() const {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+    return bound_target_function_;
+  }
+  ObjectData* bound_this() const {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+    return bound_this_;
+  }
+  ObjectData* bound_arguments() const {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+    return bound_arguments_;
+  }
 
  private:
   bool serialized_ = false;
@@ -3431,9 +3440,13 @@ BIMODAL_ACCESSOR(HeapObject, Map, map)
 
 BIMODAL_ACCESSOR_C(HeapNumber, double, value)
 
-BIMODAL_ACCESSOR(JSBoundFunction, JSReceiver, bound_target_function)
-BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_this)
-BIMODAL_ACCESSOR(JSBoundFunction, FixedArray, bound_arguments)
+// These JSBoundFunction fields are immutable after initialization. Moreover,
+// as long as JSObjects are still serialized on the main thread, all
+// JSBoundFunctionRefs are created at a time when the underlying objects are
+// guaranteed to be fully initialized.
+BIMODAL_ACCESSOR_WITH_FLAG(JSBoundFunction, JSReceiver, bound_target_function)
+BIMODAL_ACCESSOR_WITH_FLAG(JSBoundFunction, Object, bound_this)
+BIMODAL_ACCESSOR_WITH_FLAG(JSBoundFunction, FixedArray, bound_arguments)
 
 BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
 
