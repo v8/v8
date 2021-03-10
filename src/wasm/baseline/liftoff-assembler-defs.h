@@ -58,14 +58,15 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs = LowDwVfpRegister::ListOf(
 
 #elif V8_TARGET_ARCH_ARM64
 
-// x16: ip0, x17: ip1, x18: platform register, x26: root, x27: cp, x8: base,
-// x29: fp, x30: lr, x31: xzr.
+// x16: ip0, x17: ip1, x18: platform register, x26: root, x28: base, x29: fp,
+// x30: lr, x31: xzr.
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
     CPURegister::ListOf(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12,
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-                        x13, x14, x15, x19, x20, x21, x22, x23, x24, x25);
+                        x13, x14, x15, x19, x20, x21, x22, x23, x24, x25, x27);
 #else
-                        x13, x14, x15, x19, x20, x21, x22, x23, x24, x25, x28);
+                        x13, x14, x15, x19, x20, x21, x22, x23, x24, x25, x27,
+                        x28);
 #endif
 
 // d15: fp_zero, d30-d31: macro-assembler scratch V Registers.
