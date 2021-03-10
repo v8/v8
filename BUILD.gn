@@ -252,6 +252,9 @@ declare_args() {
   # file generation
   v8_verify_torque_generation_invariance = false
 
+  # Generate comments describing the Torque intermediate representation.
+  v8_annotate_torque_ir = false
+
   # Disable all snapshot compression.
   v8_enable_snapshot_compression = true
 
@@ -1537,6 +1540,9 @@ template("run_torque") {
       "-v8-root",
       rebase_path(".", root_build_dir),
     ]
+    if (v8_annotate_torque_ir) {
+      args += [ "-annotate-ir" ]
+    }
     if (defined(invoker.args)) {
       args += invoker.args
     }
