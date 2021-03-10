@@ -177,10 +177,6 @@ def v8_basic_builder(defaults, **kwargs):
         kwargs.pop("goma_jobs", None),
     ))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
-
-    # TODO(machenbach): Remove when all builders have switched to CAS.
-    if kwargs.get("executable", defaults.get("executable")) == "recipe:v8":
-      properties["$build/v8"] = {"use_cas": True}
     kwargs["properties"] = properties
 
     properties["$recipe_engine/isolated"] = {
