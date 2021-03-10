@@ -360,6 +360,13 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
     marker_->LeaveAtomicPause();
   }
   marker_.reset();
+  if (isolate_) {
+    auto* tracer = isolate_->heap()->local_embedder_heap_tracer();
+    DCHECK_NOT_NULL(tracer);
+    tracer->UpdateRemoteStats(
+        stats_collector_->marked_bytes(),
+        stats_collector_->marking_time().InMillisecondsF());
+  }
   ExecutePreFinalizers();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
@@ -385,8 +392,8 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
     sweeper().Start(sweeping_config);
   }
   DCHECK_NOT_NULL(trace_summary);
-  trace_summary->allocated_size = stats_collector_->marked_bytes();
-  trace_summary->time = stats_collector_->marking_time().InMillisecondsF();
+  trace_summary->allocated_size = SIZE_MAX;
+  trace_summary->time = 0;
   in_atomic_pause_ = false;
   sweeper().NotifyDoneIfNeeded();
 }
@@ -436,6 +443,7 @@ void CppHeap::CollectGarbageForTesting(
     AdvanceTracing(std::numeric_limits<double>::infinity());
     TraceSummary trace_summary;
     TraceEpilogue(&trace_summary);
+    DCHECK_EQ(SIZE_MAX, trace_summary.allocated_size);
   }
 }
 
