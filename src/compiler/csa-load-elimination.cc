@@ -54,42 +54,59 @@ Reduction CsaLoadElimination::Reduce(Node* node) {
     case IrOpcode::kEffectPhi:
       return ReduceEffectPhi(node);
     case IrOpcode::kDead:
-      break;
+      return NoChange();
     case IrOpcode::kStart:
       return ReduceStart(node);
     default:
       return ReduceOtherNode(node);
   }
-  return NoChange();
+  UNREACHABLE();
 }
 
 namespace CsaLoadEliminationHelpers {
 
-bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
-  // TODO(manoskouk): Temporary patch-up to get wasm i8 and i16 working until we
-  // properly fix the compatibility logic.
-  if (ElementSizeInBytes(r1) <
-      ElementSizeInBytes(MachineRepresentation::kWord32)) {
-    return false;
+bool Subsumes(MachineRepresentation from, MachineRepresentation to) {
+  if (from == to) return true;
+  if (IsAnyTagged(from)) return IsAnyTagged(to);
+  if (IsIntegral(from)) {
+    return IsIntegral(to) && ElementSizeInBytes(from) >= ElementSizeInBytes(to);
   }
-  if (r1 == r2) return true;
-  return IsAnyTagged(r1) && IsAnyTagged(r2);
+  return false;
+}
+
+inline bool IsFreshObject(Node* node) {
+  if (node->opcode() == IrOpcode::kAllocate) return true;
+  if (node->opcode() == IrOpcode::kCall) {
+    NumberMatcher matcher(node->InputAt(0));
+    if (matcher.HasResolvedValue()) {
+      Builtins::Name callee =
+          static_cast<Builtins::Name>(matcher.ResolvedValue());
+      return callee == Builtins::kWasmAllocateArrayWithRtt ||
+             callee == Builtins::kWasmAllocatePair ||
+             callee == Builtins::kWasmAllocateFixedArray ||
+             callee == Builtins::kWasmAllocateJSArray ||
+             callee == Builtins::kWasmAllocateObjectWrapper ||
+             callee == Builtins::kWasmAllocateStructWithRtt;
+    }
+  }
+  return false;
+}
+
+inline bool IsPointerConstant(Node* node) {
+  switch (node->opcode()) {
+    case IrOpcode::kHeapConstant:
+    case IrOpcode::kParameter:
+      return true;
+    default:
+      return false;
+  }
 }
 
 bool ObjectMayAlias(Node* a, Node* b) {
   if (a != b) {
-    if (b->opcode() == IrOpcode::kAllocate) {
-      std::swap(a, b);
-    }
-    if (a->opcode() == IrOpcode::kAllocate) {
-      switch (b->opcode()) {
-        case IrOpcode::kAllocate:
-        case IrOpcode::kHeapConstant:
-        case IrOpcode::kParameter:
-          return false;
-        default:
-          break;
-      }
+    if (IsFreshObject(b)) std::swap(a, b);
+    if (IsFreshObject(a) && (IsFreshObject(b) || IsPointerConstant(b))) {
+      return false;
     }
   }
   return true;
@@ -187,9 +204,11 @@ Reduction CsaLoadElimination::ReduceLoadFromObject(Node* node,
   if (!lookup_result.IsEmpty()) {
     // Make sure we don't reuse values that were recorded with a different
     // representation or resurrect dead {replacement} nodes.
-    Node* replacement = lookup_result.value;
-    if (Helpers::IsCompatible(representation, lookup_result.representation) &&
-        !replacement->IsDead()) {
+    MachineRepresentation from = lookup_result.representation;
+    if (Helpers::Subsumes(from, representation) &&
+        !lookup_result.value->IsDead()) {
+      Node* replacement =
+          TruncateAndExtend(lookup_result.value, from, access.machine_type);
       ReplaceWithValue(node, replacement, effect);
       return Replace(replacement);
     }
@@ -261,24 +280,20 @@ Reduction CsaLoadElimination::ReduceCall(Node* node) {
 }
 
 Reduction CsaLoadElimination::ReduceOtherNode(Node* node) {
-  if (node->op()->EffectInputCount() == 1) {
-    if (node->op()->EffectOutputCount() == 1) {
-      Node* const effect = NodeProperties::GetEffectInput(node);
-      AbstractState const* state = node_states_.Get(effect);
-      // If we do not know anything about the predecessor, do not propagate
-      // just yet because we will have to recompute anyway once we compute
-      // the predecessor.
-      if (state == nullptr) return NoChange();
-      // Check if this {node} has some uncontrolled side effects.
-      if (!node->op()->HasProperty(Operator::kNoWrite)) {
-        state = empty_state();
-      }
-      return UpdateState(node, state);
-    } else {
-      return NoChange();
-    }
+  if (node->op()->EffectInputCount() == 1 &&
+      node->op()->EffectOutputCount() == 1) {
+    Node* const effect = NodeProperties::GetEffectInput(node);
+    AbstractState const* state = node_states_.Get(effect);
+    // If we do not know anything about the predecessor, do not propagate just
+    // yet because we will have to recompute anyway once we compute the
+    // predecessor.
+    if (state == nullptr) return NoChange();
+    // If this {node} has some uncontrolled side effects, set its state to
+    // {empty_state()}, otherwise to its input state.
+    return UpdateState(node, node->op()->HasProperty(Operator::kNoWrite)
+                                 ? state
+                                 : empty_state());
   }
-  DCHECK_EQ(0, node->op()->EffectInputCount());
   DCHECK_EQ(0, node->op()->EffectOutputCount());
   return NoChange();
 }
@@ -329,8 +344,56 @@ CsaLoadElimination::AbstractState const* CsaLoadElimination::ComputeLoopState(
   return state;
 }
 
+Node* CsaLoadElimination::TruncateAndExtend(Node* node,
+                                            MachineRepresentation from,
+                                            MachineType to) {
+  DCHECK(Helpers::Subsumes(from, to.representation()));
+  DCHECK_GE(ElementSizeInBytes(from), ElementSizeInBytes(to.representation()));
+
+  if (to == MachineType::Int8() || to == MachineType::Int16()) {
+    // 1st case: We want to eliminate a signed 8/16-bit load using the value
+    // from a previous subsuming load or store. Since that value might be
+    // outside 8/16-bit range, we first truncate it accordingly. Then we
+    // sign-extend the result to 32-bit.
+    DCHECK_EQ(to.semantic(), MachineSemantic::kInt32);
+    if (from == MachineRepresentation::kWord64) {
+      node = graph()->NewNode(machine()->TruncateInt64ToInt32(), node);
+    }
+    int shift = 32 - 8 * ElementSizeInBytes(to.representation());
+    return graph()->NewNode(machine()->Word32Sar(),
+                            graph()->NewNode(machine()->Word32Shl(), node,
+                                             jsgraph()->Int32Constant(shift)),
+                            jsgraph()->Int32Constant(shift));
+  } else if (to == MachineType::Uint8() || to == MachineType::Uint16()) {
+    // 2nd case: We want to eliminate an unsigned 8/16-bit load using the value
+    // from a previous subsuming load or store. Since that value might be
+    // outside 8/16-bit range, we first truncate it accordingly.
+    if (from == MachineRepresentation::kWord64) {
+      node = graph()->NewNode(machine()->TruncateInt64ToInt32(), node);
+    }
+    int mask = (1 << 8 * ElementSizeInBytes(to.representation())) - 1;
+    return graph()->NewNode(machine()->Word32And(), node,
+                            jsgraph()->Int32Constant(mask));
+  } else if (from == MachineRepresentation::kWord64 &&
+             to.representation() == MachineRepresentation::kWord32) {
+    // 3rd case: Truncate 64-bits into 32-bits.
+    return graph()->NewNode(machine()->TruncateInt64ToInt32(), node);
+  } else {
+    // 4th case: No need for truncation.
+    DCHECK((from == to.representation() &&
+            (from == MachineRepresentation::kWord32 ||
+             from == MachineRepresentation::kWord64 || !IsIntegral(from))) ||
+           (IsAnyTagged(from) && IsAnyTagged(to.representation())));
+    return node;
+  }
+}
+
 CommonOperatorBuilder* CsaLoadElimination::common() const {
   return jsgraph()->common();
+}
+
+MachineOperatorBuilder* CsaLoadElimination::machine() const {
+  return jsgraph()->machine();
 }
 
 Graph* CsaLoadElimination::graph() const { return jsgraph()->graph(); }
