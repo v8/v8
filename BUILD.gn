@@ -4261,6 +4261,7 @@ v8_source_set("v8_base_without_compiler") {
 
   deps = [
     ":torque_generated_definitions",
+    ":v8_bigint",
     ":v8_cppgc_shared",
     ":v8_headers",
     ":v8_libbase",
@@ -4775,6 +4776,15 @@ v8_source_set("fuzzer_support") {
     ":v8_libplatform",
     ":v8_maybe_icu",
   ]
+}
+
+v8_source_set("v8_bigint") {
+  sources = [
+    "src/bigint/bigint.h",
+    "src/bigint/vector-arithmetic.cc",
+  ]
+
+  configs = [ ":internal_config" ]
 }
 
 v8_source_set("v8_cppgc_shared") {
