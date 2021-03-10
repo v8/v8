@@ -106,8 +106,8 @@ void Builtins::TearDown() { initialized_ = false; }
 
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
-  Code maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
-  if (!maybe_builtin.is_null()) return name(maybe_builtin.builtin_index());
+  Builtins::Name builtin = InstructionStream::TryLookupCode(isolate_, pc);
+  if (Builtins::IsBuiltinId(builtin)) return name(builtin);
 
   // May be called during initialization (disassembler).
   if (initialized_) {

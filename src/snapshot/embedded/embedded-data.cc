@@ -21,11 +21,12 @@ bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
 }
 
 // static
-Code InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
-  if (!PcIsOffHeap(isolate, address)) return Code();
+Builtins::Name InstructionStream::TryLookupCode(Isolate* isolate,
+                                                Address address) {
+  if (!PcIsOffHeap(isolate, address)) return Builtins::kNoBuiltinId;
 
   EmbeddedData d = EmbeddedData::FromBlob();
-  if (address < d.InstructionStartOfBuiltin(0)) return Code();
+  if (address < d.InstructionStartOfBuiltin(0)) return Builtins::kNoBuiltinId;
 
   // Note: Addresses within the padding section between builtins (i.e. within
   // start + size <= address < start + padded_size) are interpreted as belonging
@@ -42,7 +43,7 @@ Code InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
     } else if (address >= end) {
       l = mid + 1;
     } else {
-      return isolate->builtins()->builtin(mid);
+      return static_cast<Builtins::Name>(mid);
     }
   }
 

@@ -23,8 +23,9 @@ class InstructionStream final : public AllStatic {
   // Returns true, iff the given pc points into an off-heap instruction stream.
   static bool PcIsOffHeap(Isolate* isolate, Address pc);
 
-  // Returns the corresponding Code object if it exists, and nullptr otherwise.
-  static Code TryLookupCode(Isolate* isolate, Address address);
+  // Returns the corresponding builtin ID if lookup succeeds, and kNoBuiltinId
+  // otherwise.
+  static Builtins::Name TryLookupCode(Isolate* isolate, Address address);
 
   // During snapshot creation, we first create an executable off-heap area
   // containing all off-heap code. The area is guaranteed to be contiguous.

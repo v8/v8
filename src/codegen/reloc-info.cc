@@ -526,7 +526,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();
       CHECK_NE(addr, kNullAddress);
-      CHECK(!InstructionStream::TryLookupCode(isolate, addr).is_null());
+      CHECK(Builtins::IsBuiltinId(
+          InstructionStream::TryLookupCode(isolate, addr)));
       break;
     }
     case RUNTIME_ENTRY:

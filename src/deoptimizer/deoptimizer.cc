@@ -662,11 +662,10 @@ Builtins::Name Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
 
 bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
                                         DeoptimizeKind* type_out) {
-  Code maybe_code = InstructionStream::TryLookupCode(isolate, addr);
-  if (maybe_code.is_null()) return false;
+  Builtins::Name builtin = InstructionStream::TryLookupCode(isolate, addr);
+  if (!Builtins::IsBuiltinId(builtin)) return false;
 
-  Code code = maybe_code;
-  switch (code.builtin_index()) {
+  switch (builtin) {
     case Builtins::kDeoptimizationEntry_Eager:
       *type_out = DeoptimizeKind::kEager;
       return true;
