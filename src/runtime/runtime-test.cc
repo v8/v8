@@ -311,8 +311,12 @@ bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
 
 RUNTIME_FUNCTION(Runtime_CompileBaseline) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  if (args.length() != 1) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
   IsCompiledScope is_compiled_scope =
       function->shared(isolate).is_compiled_scope(isolate);

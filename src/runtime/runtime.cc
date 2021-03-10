@@ -215,6 +215,8 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
       return !FLAG_allow_natives_for_differential_fuzzing;
+    case Runtime::kCompileBaseline:
+      return FLAG_sparkplug;
     default:
       return false;
   }
