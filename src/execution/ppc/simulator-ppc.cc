@@ -4366,6 +4366,55 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VectorPackSaturate<int16_t, uint8_t>(this, instr, 0, kMaxUInt8);
       break;
     }
+#define VECTOR_ADD_SUB_SATURATE(intermediate_type, result_type, op, min_val, \
+                                max_val)                                     \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                                          \
+  FOR_EACH_LANE(i, result_type) {                                            \
+    intermediate_type a_val = static_cast<intermediate_type>(                \
+        get_simd_register_by_lane<result_type>(a, i));                       \
+    intermediate_type b_val = static_cast<intermediate_type>(                \
+        get_simd_register_by_lane<result_type>(b, i));                       \
+    intermediate_type t_val = a_val op b_val;                                \
+    if (t_val > max_val)                                                     \
+      t_val = max_val;                                                       \
+    else if (t_val < min_val)                                                \
+      t_val = min_val;                                                       \
+    set_simd_register_by_lane<result_type>(t, i,                             \
+                                           static_cast<result_type>(t_val)); \
+  }
+    case VADDSHS: {
+      VECTOR_ADD_SUB_SATURATE(int32_t, int16_t, +, kMinInt16, kMaxInt16)
+      break;
+    }
+    case VSUBSHS: {
+      VECTOR_ADD_SUB_SATURATE(int32_t, int16_t, -, kMinInt16, kMaxInt16)
+      break;
+    }
+    case VADDUHS: {
+      VECTOR_ADD_SUB_SATURATE(int32_t, uint16_t, +, 0, kMaxUInt16)
+      break;
+    }
+    case VSUBUHS: {
+      VECTOR_ADD_SUB_SATURATE(int32_t, uint16_t, -, 0, kMaxUInt16)
+      break;
+    }
+    case VADDSBS: {
+      VECTOR_ADD_SUB_SATURATE(int16_t, int8_t, +, kMinInt8, kMaxInt8)
+      break;
+    }
+    case VSUBSBS: {
+      VECTOR_ADD_SUB_SATURATE(int16_t, int8_t, -, kMinInt8, kMaxInt8)
+      break;
+    }
+    case VADDUBS: {
+      VECTOR_ADD_SUB_SATURATE(int16_t, uint8_t, +, 0, kMaxUInt8)
+      break;
+    }
+    case VSUBUBS: {
+      VECTOR_ADD_SUB_SATURATE(int16_t, uint8_t, -, 0, kMaxUInt8)
+      break;
+    }
+#undef VECTOR_ADD_SUB_SATURATE
     case VSEL: {
       int vrt = instr->RTValue();
       int vra = instr->RAValue();
