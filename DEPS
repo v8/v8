@@ -88,15 +88,15 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '077f859f06f31289c2d51f1fc68727353cd61ad1',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '389d3f34d2349378226de17cbeb8c7d7af1f6d38',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '75c9832409cf3cc46fc1ed6783f9c294f77d2bb4',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '57af8c37898282bf099e43d3a19855bddcc42d24',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'e6379c8802a00952a90c4bc547171fd4827f974b',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'd879aac9717d15679125cfe8c26b482006f107f3',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '0964a78c832d1d0f2669b020b073c38f67509cf2',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a5cc8439a4e3050cf760cc8ad2603c7fd88f601c',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '368c7dd2c90cd27cadfa8e653ab6953405f153cc',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '99803d74e35962f63a775f29477882afd4d57d94',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'dBlHF6-1NU-vr6DU068Y8_WQHCWdk_yovRmg225wIr0C'
+              'version': 'oXIWsntGxFugYHN4Qb0Ve-IRPq4Rq1FxFYNiuEKnP0kC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -256,7 +256,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '630ab8a35c3ee7c8ba1ca53daf13e105f0f10857',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'fc54e6b87c72f4affd4faa8e62ba849e4f5e5cc2',
   'tools/luci-go': {
       'packages': [
         {
