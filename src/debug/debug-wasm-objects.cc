@@ -732,7 +732,10 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
         return Utils::ToLocal(LocalsProxy::Create(frame_));
       }
       case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
-        return Utils::ToLocal(StackProxy::Create(frame_));
+        auto object = isolate->factory()->NewJSObjectWithNullProto();
+        auto stack = StackProxy::Create(frame_);
+        JSObject::AddProperty(isolate, object, "stack", stack, FROZEN);
+        return Utils::ToLocal(object);
       }
       default:
         UNREACHABLE();

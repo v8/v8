@@ -165,8 +165,15 @@ Protocol.Debugger.onPaused(async msg => {
     }
     for (var scope of frame.scopeChain) {
       InspectorTest.logObject(' - scope (' + scope.type + '):');
-      var properties = await Protocol.Runtime.getProperties(
-          {'objectId': scope.object.objectId});
+      var { objectId } = scope.object;
+      if (scope.type == 'wasm-expression-stack') {
+        objectId = (await Protocol.Runtime.callFunctionOn({
+          functionDeclaration: 'function() { return this.stack }',
+          objectId
+        })).result.result.objectId;
+      }
+      var properties =
+          await Protocol.Runtime.getProperties({objectId});
       await WasmInspectorTest.dumpScopeProperties(properties);
       if (scope.type === 'wasm-expression-stack' || scope.type === 'local') {
         for (var value of properties.result.result) {
