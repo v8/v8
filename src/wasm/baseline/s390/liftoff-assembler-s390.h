@@ -2851,11 +2851,12 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  bailout(kUnsupportedArchitecture, "AllocateStackSlot");
+  lay(sp, MemOperand(sp, -size));
+  TurboAssembler::Move(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  bailout(kUnsupportedArchitecture, "DeallocateStackSlot");
+  lay(sp, MemOperand(sp, size));
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {
