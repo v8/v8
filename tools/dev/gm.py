@@ -241,33 +241,51 @@ class Config(object):
     self.tests.update(tests)
 
   def GetTargetCpu(self):
-    if self.arch == "android_arm": return "target_cpu = \"arm\""
-    if self.arch == "android_arm64": return "target_cpu = \"arm64\""
     cpu = "x86"
-    if "64" in self.arch or self.arch == "s390x":
+    if self.arch == "android_arm":
+      cpu = "arm"
+    elif self.arch == "android_arm64":
+      cpu = "arm64"
+    elif self.arch == "arm64" and os.uname().machine == "aarch64":
+      # arm64 build host:
+      cpu = "arm64"
+    elif self.arch == "arm" and os.uname().machine == "aarch64":
+      cpu = "arm"
+    elif "64" in self.arch or self.arch == "s390x":
+      # Native x64 or simulator build.
       cpu = "x64"
-    return "target_cpu = \"%s\"" % cpu
+    return ["target_cpu = \"%s\"" % cpu]
 
   def GetV8TargetCpu(self):
-    if self.arch == "android_arm": return "\nv8_target_cpu = \"arm\""
-    if self.arch == "android_arm64": return "\nv8_target_cpu = \"arm64\""
-    if self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-                     "riscv64", "s390", "s390x"):
-      return "\nv8_target_cpu = \"%s\"" % self.arch
-    return ""
+    if self.arch == "android_arm":
+      v8_cpu = "arm"
+    elif self.arch == "android_arm64":
+      v8_cpu = "arm64"
+    elif self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
+                       "riscv64", "s390", "s390x"):
+      v8_cpu = self.arch
+    else:
+      return []
+    return ["v8_target_cpu = \"%s\"" % v8_cpu]
 
   def GetTargetOS(self):
     if self.arch in ("android_arm", "android_arm64"):
-      return "\ntarget_os = \"android\""
-    return ""
+      return ["target_os = \"android\""]
+    return []
+
+  def GetSpecialCompiler(self):
+    if os.uname().machine == "aarch64":
+      # We have no prebuilt Clang for arm64. Use the system Clang instead.
+      return ["clang_base_path = \"/usr\"", "clang_use_chrome_plugins = false"]
+    return []
 
   def GetGnArgs(self):
     # Use only substring before first '-' as the actual mode
     mode = re.match("([^-]+)", self.mode).group(1)
     template = ARGS_TEMPLATES[mode]
     arch_specific = (self.GetTargetCpu() + self.GetV8TargetCpu() +
-                     self.GetTargetOS())
-    return template % arch_specific
+                     self.GetTargetOS() + self.GetSpecialCompiler())
+    return template % "\n".join(arch_specific)
 
   def Build(self):
     path = GetPath(self.arch, self.mode)
