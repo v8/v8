@@ -3680,10 +3680,21 @@ void MapRef::SerializeRootMap() {
   data()->AsMap()->SerializeRootMap(broker());
 }
 
+// TODO(solanes, v8:7790): Remove base::Optional from the return type when
+// deleting serialization.
 base::Optional<MapRef> MapRef::FindRootMap() const {
-  if (data_->should_access_heap()) {
-    return MapRef(broker(), broker()->CanonicalPersistentHandle(
-                                object()->FindRootMap(broker()->isolate())));
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // TODO(solanes): Remove the TryGetOrCreateData part when Map is moved to
+    // kNeverSerialized.
+    ObjectData* root_map =
+        broker()->TryGetOrCreateData(broker()->CanonicalPersistentHandle(
+            object()->FindRootMap(broker()->isolate())));
+    if (root_map) {
+      // TODO(solanes, v8:7790): Consider caching the result of the root map.
+      return MapRef(broker(), root_map);
+    }
+    TRACE_BROKER_MISSING(broker(), "root map for object " << *this);
+    return base::nullopt;
   }
   ObjectData* map_data = data()->AsMap()->FindRootMap();
   if (map_data != nullptr) {
