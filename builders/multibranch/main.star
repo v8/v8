@@ -311,6 +311,7 @@ in_category(
         triggered_by_gitiles = False,
         dimensions = {"host_class": "multibot"},
         properties = {"builder_group": "client.v8"},
+        close_tree = False,
     ),
     main_multibranch_builder(
         name = "V8 Win64",
