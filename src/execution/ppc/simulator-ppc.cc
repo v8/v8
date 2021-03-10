@@ -1445,6 +1445,31 @@ void VectorConverFromFPSaturate(Simulator* sim, Instruction* instr, B min_val,
   }
 }
 
+template <typename S, typename T>
+void VectorPackSaturate(Simulator* sim, Instruction* instr, S min_val,
+                        S max_val) {
+  DECODE_VX_INSTRUCTION(t, a, b, T)
+  int src = a;
+  int count = 0;
+  S value = 0;
+  // Setup a temp array to avoid overwriting dst mid loop.
+  T temps[kSimd128Size / sizeof(T)] = {0};
+  for (size_t i = 0; i < kSimd128Size / sizeof(T); i++, count++) {
+    if (count == kSimd128Size / sizeof(S)) {
+      src = b;
+      count = 0;
+    }
+    value = sim->get_simd_register_by_lane<S>(src, count);
+    if (value > max_val) {
+      value = max_val;
+    } else if (value < min_val) {
+      value = min_val;
+    }
+    temps[i] = static_cast<T>(value);
+  }
+  FOR_EACH_LANE(i, T) { sim->set_simd_register_by_lane<T>(t, i, temps[i]); }
+}
+
 template <typename T>
 T VSXFPMin(T x, T y) {
   // Handle +0 and -0.
@@ -4286,6 +4311,59 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         uint32_t b_val = get_simd_register_by_lane<uint32_t>(b, i);
         set_simd_register_by_lane<float>(t, i, static_cast<float>(b_val));
       }
+      break;
+    }
+#define VECTOR_UNPACK(S, D, if_high_side)                           \
+  int t = instr->RTValue();                                         \
+  int b = instr->RBValue();                                         \
+  constexpr size_t kItemCount = kSimd128Size / sizeof(D);           \
+  D temps[kItemCount] = {0};                                        \
+  /* Avoid overwriting src if src and dst are the same register. */ \
+  FOR_EACH_LANE(i, D) {                                             \
+    temps[i] = get_simd_register_by_lane<S>(b, i, if_high_side);    \
+  }                                                                 \
+  FOR_EACH_LANE(i, D) {                                             \
+    set_simd_register_by_lane<D>(t, i, temps[i], if_high_side);     \
+  }
+    case VUPKHSB: {
+      VECTOR_UNPACK(int8_t, int16_t, true)
+      break;
+    }
+    case VUPKHSH: {
+      VECTOR_UNPACK(int16_t, int32_t, true)
+      break;
+    }
+    case VUPKHSW: {
+      VECTOR_UNPACK(int32_t, int64_t, true)
+      break;
+    }
+    case VUPKLSB: {
+      VECTOR_UNPACK(int8_t, int16_t, false)
+      break;
+    }
+    case VUPKLSH: {
+      VECTOR_UNPACK(int16_t, int32_t, false)
+      break;
+    }
+    case VUPKLSW: {
+      VECTOR_UNPACK(int32_t, int64_t, false)
+      break;
+    }
+#undef VECTOR_UNPACK
+    case VPKSWSS: {
+      VectorPackSaturate<int32_t, int16_t>(this, instr, kMinInt16, kMaxInt16);
+      break;
+    }
+    case VPKSWUS: {
+      VectorPackSaturate<int32_t, uint16_t>(this, instr, 0, kMaxUInt16);
+      break;
+    }
+    case VPKSHSS: {
+      VectorPackSaturate<int16_t, int8_t>(this, instr, kMinInt8, kMaxInt8);
+      break;
+    }
+    case VPKSHUS: {
+      VectorPackSaturate<int16_t, uint8_t>(this, instr, 0, kMaxUInt8);
       break;
     }
     case VSEL: {
