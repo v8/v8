@@ -1769,10 +1769,13 @@ void Shell::TestVerifySourcePositions(
     Throw(isolate, "Expected function as single argument.");
     return;
   }
+  Local<Value> arg_fun = args[0];
+  while (arg_fun->IsProxy()) arg_fun = arg_fun.As<Proxy>()->GetTarget();
+
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
   i::Handle<i::JSFunction> function =
-      i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*args[0]));
+      i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*arg_fun));
   if (!function->shared().HasBytecodeArray()) {
     Throw(isolate, "Function has no BytecodeArray attached.");
     return;
