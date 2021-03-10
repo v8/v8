@@ -1378,6 +1378,10 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
     }
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    // SwissNameDictionary::IterateEntries creates a Handle, which should not
+    // leak out of here.
+    HandleScope scope(isolate);
+
     SwissNameDictionary dictionary = js_obj.property_dictionary_swiss();
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary.IterateEntries()) {
