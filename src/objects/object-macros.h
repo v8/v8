@@ -219,14 +219,14 @@
     return holder::name(isolate, tag);                                        \
   }                                                                           \
   type holder::name(IsolateRoot isolate, RelaxedLoadTag) const {              \
-    type value = TaggedField<type, offset>::load(isolate, *this);             \
+    type value = TaggedField<type, offset>::Relaxed_Load(isolate, *this);     \
     DCHECK(get_condition);                                                    \
     return value;                                                             \
   }                                                                           \
   void holder::set_##name(type value, RelaxedStoreTag,                        \
                           WriteBarrierMode mode) {                            \
     DCHECK(set_condition);                                                    \
-    TaggedField<type, offset>::store(*this, value);                           \
+    TaggedField<type, offset>::Relaxed_Store(*this, value);                   \
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                    \
   }
 
