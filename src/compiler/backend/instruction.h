@@ -1229,6 +1229,8 @@ class StateValueList {
 
   size_t size() { return fields_.size(); }
 
+  size_t nested_count() { return nested_.size(); }
+
   struct Value {
     StateValueDescriptor* desc;
     StateValueList* nested;
@@ -1270,6 +1272,14 @@ class StateValueList {
     ZoneVector<StateValueList*>::iterator nested_iterator;
   };
 
+  struct Slice {
+    Slice(ZoneVector<StateValueDescriptor>::iterator start, size_t fields)
+        : start_position(start), fields_count(fields) {}
+
+    ZoneVector<StateValueDescriptor>::iterator start_position;
+    size_t fields_count;
+  };
+
   void ReserveSize(size_t size) { fields_.reserve(size); }
 
   StateValueList* PushRecursiveField(Zone* zone, size_t id) {
@@ -1293,11 +1303,31 @@ class StateValueList {
   void PushOptimizedOut(size_t num = 1) {
     fields_.insert(fields_.end(), num, StateValueDescriptor::OptimizedOut());
   }
+  void PushCachedSlice(const Slice& cached) {
+    fields_.insert(fields_.end(), cached.start_position,
+                   cached.start_position + cached.fields_count);
+  }
+
+  // Returns a Slice representing the (non-nested) fields in StateValueList from
+  // values_start to  the current end position.
+  Slice MakeSlice(size_t values_start) {
+    DCHECK(!HasNestedFieldsAfter(values_start));
+    size_t fields_count = fields_.size() - values_start;
+    return Slice(fields_.begin() + values_start, fields_count);
+  }
 
   iterator begin() { return iterator(fields_.begin(), nested_.begin()); }
   iterator end() { return iterator(fields_.end(), nested_.end()); }
 
  private:
+  bool HasNestedFieldsAfter(size_t values_start) {
+    auto it = fields_.begin() + values_start;
+    for (; it != fields_.end(); it++) {
+      if (it->IsNested()) return true;
+    }
+    return false;
+  }
+
   ZoneVector<StateValueDescriptor> fields_;
   ZoneVector<StateValueList*> nested_;
 };
