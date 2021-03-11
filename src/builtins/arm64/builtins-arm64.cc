@@ -409,6 +409,7 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   __ PushArgument(x1);
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
+  __ Unreachable();
 }
 
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
@@ -2456,6 +2457,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ EnterFrame(StackFrame::INTERNAL);
       __ PushArgument(x3);
       __ CallRuntime(Runtime::kThrowNotConstructor);
+      __ Unreachable();
     }
     __ Bind(&new_target_constructor);
   }
@@ -2594,6 +2596,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     FrameScope frame(masm, StackFrame::INTERNAL);
     __ PushArgument(x1);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
+    __ Unreachable();
   }
 }
 
@@ -2793,6 +2796,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ PushArgument(x1);
     __ CallRuntime(Runtime::kThrowCalledNonCallable);
+    __ Unreachable();
   }
 }
 
