@@ -20,9 +20,11 @@ namespace baseline {
 
 class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
  public:
-  // TODO(pthier): Create un-handlified version.
-  BytecodeOffsetIterator(Handle<ByteArray> mapping_table,
-                         Handle<BytecodeArray> bytecodes);
+  explicit BytecodeOffsetIterator(Handle<ByteArray> mapping_table,
+                                  Handle<BytecodeArray> bytecodes);
+  // Non-handlified version for use when no GC can happen.
+  explicit BytecodeOffsetIterator(ByteArray mapping_table,
+                                  BytecodeArray bytecodes);
   ~BytecodeOffsetIterator();
 
   inline void Advance() {
@@ -53,7 +55,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
     DCHECK_LE(pc_offset, current_pc_end_offset());
   }
 
-  // For this iterator, done() means that it is not safe to advance().
+  // For this iterator, done() means that it is not safe to Advance().
   // Values are cached, so reads are always allowed.
   inline bool done() const { return current_index_ >= data_length_; }
 
@@ -76,6 +78,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   void UpdatePointers();
 
  private:
+  void Initialize();
   inline int ReadPosition() {
     return base::VLQDecodeUnsigned(data_start_address_, &current_index_);
   }
@@ -86,8 +89,10 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   int current_index_;
   Address current_pc_start_offset_;
   Address current_pc_end_offset_;
+  BytecodeArray bytecode_handle_storage_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
   LocalHeap* local_heap_;
+  base::Optional<DisallowGarbageCollection> no_gc;
 };
 
 }  // namespace baseline

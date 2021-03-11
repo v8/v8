@@ -354,13 +354,8 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
   CHECK(!is_baseline_prologue_builtin());
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  // TODO(pthier): We should have an un-handlefied version of
-  // BytecodeOffsetIterator for uses like here, where no GC can happen.
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
   baseline::BytecodeOffsetIterator offset_iterator(
-      handle(ByteArray::cast(bytecode_offset_table()), isolate),
-      handle(bytecodes, isolate));
+      ByteArray::cast(bytecode_offset_table()), bytecodes);
   Address pc = baseline_pc - InstructionStart();
   offset_iterator.AdvanceToPCOffset(pc);
   return offset_iterator.current_bytecode_offset();
@@ -370,13 +365,8 @@ uintptr_t Code::GetBaselinePCForBytecodeOffset(int bytecode_offset,
                                                BytecodeArray bytecodes) {
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
-  // TODO(pthier): We should have an un-handlefied version of
-  // BytecodeOffsetIterator for uses like here, where no GC can happen.
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
   baseline::BytecodeOffsetIterator offset_iterator(
-      handle(ByteArray::cast(bytecode_offset_table()), isolate),
-      handle(bytecodes, isolate));
+      ByteArray::cast(bytecode_offset_table()), bytecodes);
   offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
   return offset_iterator.current_pc_start_offset();
 }
