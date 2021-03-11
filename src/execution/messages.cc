@@ -23,6 +23,8 @@
 #include "src/parsing/parsing.h"
 #include "src/roots/roots.h"
 #include "src/strings/string-builder-inl.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -365,6 +367,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),
                       Object);
+
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
 
   for (int i = 0; i < elems->length(); ++i) {
     builder.AppendCString("\n    at ");

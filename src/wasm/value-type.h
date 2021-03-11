@@ -9,7 +9,6 @@
 #include "src/base/optional.h"
 #include "src/codegen/machine-type.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {

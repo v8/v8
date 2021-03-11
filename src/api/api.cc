@@ -66,7 +66,6 @@
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -3003,13 +3002,7 @@ bool StackFrame::IsConstructor() const {
   return Utils::OpenHandle(this)->IsConstructor();
 }
 
-bool StackFrame::IsWasm() const {
-#if V8_ENABLE_WEBASSEMBLY
-  return Utils::OpenHandle(this)->IsWasm();
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
+bool StackFrame::IsWasm() const { return Utils::OpenHandle(this)->IsWasm(); }
 
 bool StackFrame::IsUserJavaScript() const {
   return Utils::OpenHandle(this)->IsUserJavaScript();

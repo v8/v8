@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
-#include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-spaces.h"

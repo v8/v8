@@ -13,10 +13,7 @@
 #include "src/objects/backing-store.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
-
-#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -288,22 +285,10 @@ Object StackGuard::HandleInterrupts() {
     isolate_->heap()->HandleGCRequest();
   }
 
-#if V8_ENABLE_WEBASSEMBLY
   if (TestAndClear(&interrupt_flags, GROW_SHARED_MEMORY)) {
     TRACE_EVENT0("v8.wasm", "V8.WasmGrowSharedMemory");
     BackingStore::UpdateSharedWasmMemoryObjects(isolate_);
   }
-
-  if (TestAndClear(&interrupt_flags, LOG_WASM_CODE)) {
-    TRACE_EVENT0("v8.wasm", "V8.LogCode");
-    isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
-  }
-
-  if (TestAndClear(&interrupt_flags, WASM_CODE_GC)) {
-    TRACE_EVENT0("v8.wasm", "V8.WasmCodeGC");
-    isolate_->wasm_engine()->ReportLiveCodeFromStackForGC(isolate_);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (TestAndClear(&interrupt_flags, DEOPT_MARKED_ALLOCATION_SITES)) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -322,6 +307,16 @@ Object StackGuard::HandleInterrupts() {
     TRACE_EVENT0("v8.execute", "V8.InvokeApiInterruptCallbacks");
     // Callbacks must be invoked outside of ExecutionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
+  }
+
+  if (TestAndClear(&interrupt_flags, LOG_WASM_CODE)) {
+    TRACE_EVENT0("v8.wasm", "V8.LogCode");
+    isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
+  }
+
+  if (TestAndClear(&interrupt_flags, WASM_CODE_GC)) {
+    TRACE_EVENT0("v8.wasm", "V8.WasmCodeGC");
+    isolate_->wasm_engine()->ReportLiveCodeFromStackForGC(isolate_);
   }
 
   isolate_->counters()->stack_interrupts()->Increment();

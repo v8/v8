@@ -222,7 +222,6 @@ inline BaselineFrame::BaselineFrame(StackFrameIteratorBase* iterator)
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
     : TypedFrameWithJSLinkage(iterator) {}
 
-#if V8_ENABLE_WEBASSEMBLY
 inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
 
@@ -245,7 +244,6 @@ inline CWasmEntryFrame::CWasmEntryFrame(StackFrameIteratorBase* iterator)
 inline WasmCompileLazyFrame::WasmCompileLazyFrame(
     StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
@@ -289,11 +287,7 @@ inline JavaScriptFrame* JavaScriptFrameIterator::Reframe() {
 
 inline CommonFrame* StackTraceFrameIterator::frame() const {
   StackFrame* frame = iterator_.frame();
-#if V8_ENABLE_WEBASSEMBLY
   DCHECK(frame->is_java_script() || frame->is_wasm());
-#else
-  DCHECK(frame->is_java_script());
-#endif  // V8_ENABLE_WEBASSEMBLY
   return static_cast<CommonFrame*>(frame);
 }
 
@@ -306,9 +300,7 @@ bool StackTraceFrameIterator::is_javascript() const {
   return frame()->is_java_script();
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 bool StackTraceFrameIterator::is_wasm() const { return frame()->is_wasm(); }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 JavaScriptFrame* StackTraceFrameIterator::javascript_frame() const {
   return JavaScriptFrame::cast(frame());
@@ -316,14 +308,9 @@ JavaScriptFrame* StackTraceFrameIterator::javascript_frame() const {
 
 inline StackFrame* SafeStackFrameIterator::frame() const {
   DCHECK(!done());
-#if V8_ENABLE_WEBASSEMBLY
   DCHECK(frame_->is_java_script() || frame_->is_exit() ||
          frame_->is_builtin_exit() || frame_->is_wasm() ||
          frame_->is_wasm_to_js() || frame_->is_js_to_wasm());
-#else
-  DCHECK(frame_->is_java_script() || frame_->is_exit() ||
-         frame_->is_builtin_exit());
-#endif  // V8_ENABLE_WEBASSEMBLY
   return frame_;
 }
 

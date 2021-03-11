@@ -45,7 +45,6 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -1355,7 +1354,6 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
   return foreign;
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
                                               Handle<Map> opt_parent) {
   Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
@@ -1377,24 +1375,6 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
   info->set_subtypes(*subtypes);
   return info;
 }
-
-Handle<SharedFunctionInfo>
-Factory::NewSharedFunctionInfoForWasmExportedFunction(
-    Handle<String> name, Handle<WasmExportedFunctionData> data) {
-  return NewSharedFunctionInfo(name, data, Builtins::kNoBuiltinId);
-}
-
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmJSFunction(
-    Handle<String> name, Handle<WasmJSFunctionData> data) {
-  return NewSharedFunctionInfo(name, data, Builtins::kNoBuiltinId);
-}
-
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmCapiFunction(
-    Handle<WasmCapiFunctionData> data) {
-  return NewSharedFunctionInfo(MaybeHandle<String>(), data,
-                               Builtins::kNoBuiltinId, kConciseMethod);
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
   STATIC_ASSERT(Cell::kSize <= kMaxRegularHeapObjectSize);
@@ -1563,22 +1543,17 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
   // We can only clone regexps, normal objects, api objects, errors or arrays.
   // Copying anything else will break invariants.
-  bool is_clonable_js_type = map->instance_type() == JS_REG_EXP_TYPE ||
-                             map->instance_type() == JS_OBJECT_TYPE ||
-                             map->instance_type() == JS_ERROR_TYPE ||
-                             map->instance_type() == JS_ARRAY_TYPE ||
-                             map->instance_type() == JS_API_OBJECT_TYPE ||
-                             map->instance_type() == JS_SPECIAL_API_OBJECT_TYPE;
-  bool is_clonable_wasm_type = false;
-#if V8_ENABLE_WEBASSEMBLY
-  is_clonable_wasm_type = map->instance_type() == WASM_GLOBAL_OBJECT_TYPE ||
-                          map->instance_type() == WASM_INSTANCE_OBJECT_TYPE ||
-                          map->instance_type() == WASM_MEMORY_OBJECT_TYPE ||
-                          map->instance_type() == WASM_MODULE_OBJECT_TYPE ||
-                          map->instance_type() == WASM_TABLE_OBJECT_TYPE;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  CHECK(is_clonable_js_type || is_clonable_wasm_type);
-
+  CHECK(map->instance_type() == JS_REG_EXP_TYPE ||
+        map->instance_type() == JS_OBJECT_TYPE ||
+        map->instance_type() == JS_ERROR_TYPE ||
+        map->instance_type() == JS_ARRAY_TYPE ||
+        map->instance_type() == JS_API_OBJECT_TYPE ||
+        map->instance_type() == WASM_GLOBAL_OBJECT_TYPE ||
+        map->instance_type() == WASM_INSTANCE_OBJECT_TYPE ||
+        map->instance_type() == WASM_MEMORY_OBJECT_TYPE ||
+        map->instance_type() == WASM_MODULE_OBJECT_TYPE ||
+        map->instance_type() == WASM_TABLE_OBJECT_TYPE ||
+        map->instance_type() == JS_SPECIAL_API_OBJECT_TYPE);
   DCHECK(site.is_null() || AllocationSite::CanTrack(map->instance_type()));
 
   int object_size = map->instance_size();
@@ -2803,6 +2778,23 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
       maybe_name, function_template_info, Builtins::kNoBuiltinId, kind);
   return shared;
+}
+
+Handle<SharedFunctionInfo>
+Factory::NewSharedFunctionInfoForWasmExportedFunction(
+    Handle<String> name, Handle<WasmExportedFunctionData> data) {
+  return NewSharedFunctionInfo(name, data, Builtins::kNoBuiltinId);
+}
+
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmJSFunction(
+    Handle<String> name, Handle<WasmJSFunctionData> data) {
+  return NewSharedFunctionInfo(name, data, Builtins::kNoBuiltinId);
+}
+
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmCapiFunction(
+    Handle<WasmCapiFunctionData> data) {
+  return NewSharedFunctionInfo(MaybeHandle<String>(), data,
+                               Builtins::kNoBuiltinId, kConciseMethod);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(

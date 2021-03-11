@@ -13,10 +13,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
-
-#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/function-compiler.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -196,7 +193,6 @@ void OptimizedCompilationInfo::SetCode(Handle<Code> code) {
   code_ = code;
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 void OptimizedCompilationInfo::SetWasmCompilationResult(
     std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result) {
   wasm_compilation_result_ = std::move(wasm_compilation_result);
@@ -206,7 +202,6 @@ std::unique_ptr<wasm::WasmCompilationResult>
 OptimizedCompilationInfo::ReleaseWasmCompilationResult() {
   return std::move(wasm_compilation_result_);
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool OptimizedCompilationInfo::has_context() const {
   return !closure().is_null();

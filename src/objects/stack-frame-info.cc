@@ -38,17 +38,11 @@ bool StackFrameInfo::IsEval() const {
 }
 
 bool StackFrameInfo::IsUserJavaScript() const {
-#if V8_ENABLE_WEBASSEMBLY
-  if (IsWasm()) return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return GetSharedFunctionInfo().IsUserJavaScript();
+  return !IsWasm() && GetSharedFunctionInfo().IsUserJavaScript();
 }
 
 bool StackFrameInfo::IsMethodCall() const {
-#if V8_ENABLE_WEBASSEMBLY
-  if (IsWasm()) return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return !IsToplevel() && !IsConstructor();
+  return !IsWasm() && !IsToplevel() && !IsConstructor();
 }
 
 bool StackFrameInfo::IsToplevel() const {
@@ -59,11 +53,9 @@ bool StackFrameInfo::IsToplevel() const {
 // static
 int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
   Isolate* isolate = info->GetIsolate();
-#if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
     return 1;
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
   Handle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
     int position = GetSourcePosition(info);
@@ -76,11 +68,9 @@ int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
 int StackFrameInfo::GetColumnNumber(Handle<StackFrameInfo> info) {
   Isolate* isolate = info->GetIsolate();
   int position = GetSourcePosition(info);
-#if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
     return position + 1;
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
   Handle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
     return Script::GetColumnNumber(script, position) + 1;
@@ -91,53 +81,47 @@ int StackFrameInfo::GetColumnNumber(Handle<StackFrameInfo> info) {
 // static
 int StackFrameInfo::GetEnclosingLineNumber(Handle<StackFrameInfo> info) {
   Isolate* isolate = info->GetIsolate();
-#if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
     return 1;
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
   Handle<Script> script;
-  if (!GetScript(isolate, info).ToHandle(&script)) {
-    return Message::kNoLineNumberInfo;
-  }
-#if V8_ENABLE_WEBASSEMBLY
-  if (info->IsAsmJsWasm()) {
-    auto module = info->GetWasmInstance().module();
-    auto func_index = info->GetWasmFunctionIndex();
-    int position = wasm::GetSourcePosition(module, func_index, 0,
-                                           info->IsAsmJsAtNumberConversion());
+  if (GetScript(isolate, info).ToHandle(&script)) {
+    int position;
+    if (info->IsAsmJsWasm()) {
+      auto module = info->GetWasmInstance().module();
+      auto func_index = info->GetWasmFunctionIndex();
+      position = wasm::GetSourcePosition(module, func_index, 0,
+                                         info->IsAsmJsAtNumberConversion());
+    } else {
+      position = info->GetSharedFunctionInfo().function_token_position();
+    }
     return Script::GetLineNumber(script, position) + 1;
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  int position = info->GetSharedFunctionInfo().function_token_position();
-  return Script::GetLineNumber(script, position) + 1;
+  return Message::kNoLineNumberInfo;
 }
 
 // static
 int StackFrameInfo::GetEnclosingColumnNumber(Handle<StackFrameInfo> info) {
   Isolate* isolate = info->GetIsolate();
-#if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
     auto module = info->GetWasmInstance().module();
     auto func_index = info->GetWasmFunctionIndex();
     return GetWasmFunctionOffset(module, func_index);
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
   Handle<Script> script;
-  if (!GetScript(isolate, info).ToHandle(&script)) {
-    return Message::kNoColumnInfo;
-  }
-#if V8_ENABLE_WEBASSEMBLY
-  if (info->IsAsmJsWasm()) {
-    auto module = info->GetWasmInstance().module();
-    auto func_index = info->GetWasmFunctionIndex();
-    int position = wasm::GetSourcePosition(module, func_index, 0,
-                                           info->IsAsmJsAtNumberConversion());
+  if (GetScript(isolate, info).ToHandle(&script)) {
+    int position;
+    if (info->IsAsmJsWasm()) {
+      auto module = info->GetWasmInstance().module();
+      auto func_index = info->GetWasmFunctionIndex();
+      position = wasm::GetSourcePosition(module, func_index, 0,
+                                         info->IsAsmJsAtNumberConversion());
+    } else {
+      position = info->GetSharedFunctionInfo().function_token_position();
+    }
     return Script::GetColumnNumber(script, position) + 1;
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  int position = info->GetSharedFunctionInfo().function_token_position();
-  return Script::GetColumnNumber(script, position) + 1;
+  return Message::kNoColumnInfo;
 }
 
 int StackFrameInfo::GetScriptId() const {
@@ -245,7 +229,6 @@ Handle<PrimitiveHeapObject> StackFrameInfo::GetEvalOrigin(
 // static
 Handle<Object> StackFrameInfo::GetFunctionName(Handle<StackFrameInfo> info) {
   Isolate* isolate = info->GetIsolate();
-#if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
     Handle<WasmModuleObject> module_object(
         info->GetWasmInstance().module_object(), isolate);
@@ -256,13 +239,12 @@ Handle<Object> StackFrameInfo::GetFunctionName(Handle<StackFrameInfo> info) {
             .ToHandle(&name)) {
       return name;
     }
-    return isolate->factory()->null_value();
+  } else {
+    Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
+    Handle<String> name = JSFunction::GetDebugName(function);
+    if (name->length() != 0) return name;
+    if (info->IsEval()) return isolate->factory()->eval_string();
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
-  Handle<String> name = JSFunction::GetDebugName(function);
-  if (name->length() != 0) return name;
-  if (info->IsEval()) return isolate->factory()->eval_string();
   return isolate->factory()->null_value();
 }
 
@@ -362,10 +344,7 @@ PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
 Handle<Object> StackFrameInfo::GetMethodName(Handle<StackFrameInfo> info) {
   Isolate* isolate = info->GetIsolate();
   Handle<Object> receiver_or_instance(info->receiver_or_instance(), isolate);
-#if V8_ENABLE_WEBASSEMBLY
-  if (info->IsWasm()) return isolate->factory()->null_value();
-#endif  // V8_ENABLE_WEBASSEMBLY
-  if (receiver_or_instance->IsNullOrUndefined(isolate)) {
+  if (info->IsWasm() || receiver_or_instance->IsNullOrUndefined(isolate)) {
     return isolate->factory()->null_value();
   }
 
@@ -440,7 +419,6 @@ Handle<Object> StackFrameInfo::GetTypeName(Handle<StackFrameInfo> info) {
   return JSReceiver::GetConstructorName(receiver);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 uint32_t StackFrameInfo::GetWasmFunctionIndex() const {
   DCHECK(IsWasm());
   return Smi::ToInt(Smi::cast(function()));
@@ -450,22 +428,6 @@ WasmInstanceObject StackFrameInfo::GetWasmInstance() const {
   DCHECK(IsWasm());
   return WasmInstanceObject::cast(receiver_or_instance());
 }
-
-// static
-Handle<Object> StackFrameInfo::GetWasmModuleName(Handle<StackFrameInfo> info) {
-  Isolate* isolate = info->GetIsolate();
-  if (info->IsWasm()) {
-    Handle<String> name;
-    auto module_object =
-        handle(info->GetWasmInstance().module_object(), isolate);
-    if (WasmModuleObject::GetModuleNameOrNull(isolate, module_object)
-            .ToHandle(&name)) {
-      return name;
-    }
-  }
-  return isolate->factory()->null_value();
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 // static
 int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
@@ -485,7 +447,6 @@ int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
 bool StackFrameInfo::ComputeLocation(Handle<StackFrameInfo> info,
                                      MessageLocation* location) {
   Isolate* isolate = info->GetIsolate();
-#if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
     int pos = GetSourcePosition(info);
     Handle<Script> script(info->GetWasmInstance().module_object().script(),
@@ -493,7 +454,6 @@ bool StackFrameInfo::ComputeLocation(Handle<StackFrameInfo> info,
     *location = MessageLocation(script, pos, pos + 1);
     return true;
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
   if (!shared->IsSubjectToDebugging()) return false;
@@ -515,7 +475,6 @@ bool StackFrameInfo::ComputeLocation(Handle<StackFrameInfo> info,
 int StackFrameInfo::ComputeSourcePosition(Handle<StackFrameInfo> info,
                                           int offset) {
   Isolate* isolate = info->GetIsolate();
-#if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
     auto code_ref = Managed<wasm::GlobalWasmCodeRef>::cast(info->code_object());
     int byte_offset = code_ref.get()->code()->GetSourcePositionBefore(offset);
@@ -524,27 +483,37 @@ int StackFrameInfo::ComputeSourcePosition(Handle<StackFrameInfo> info,
     return wasm::GetSourcePosition(module, func_index, byte_offset,
                                    info->IsAsmJsAtNumberConversion());
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
   Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
   return AbstractCode::cast(info->code_object()).SourcePosition(offset);
 }
 
+// static
+Handle<Object> StackFrameInfo::GetWasmModuleName(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm()) {
+    Handle<String> name;
+    auto module_object =
+        handle(info->GetWasmInstance().module_object(), isolate);
+    if (WasmModuleObject::GetModuleNameOrNull(isolate, module_object)
+            .ToHandle(&name)) {
+      return name;
+    }
+  }
+  return isolate->factory()->null_value();
+}
+
 base::Optional<Script> StackFrameInfo::GetScript() const {
-#if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
     return GetWasmInstance().module_object().script();
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
   Object script = GetSharedFunctionInfo().script();
   if (script.IsScript()) return Script::cast(script);
   return base::nullopt;
 }
 
 SharedFunctionInfo StackFrameInfo::GetSharedFunctionInfo() const {
-#if V8_ENABLE_WEBASSEMBLY
   DCHECK(!IsWasm());
-#endif  // V8_ENABLE_WEBASSEMBLY
   return JSFunction::cast(function()).shared();
 }
 
@@ -706,7 +675,6 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
   builder->AppendCString(")");
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 bool IsAnonymousWasmScript(Isolate* isolate, Handle<Object> url) {
   Handle<String> prefix =
       isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
@@ -751,19 +719,19 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
 
   if (has_name) builder->AppendCString(")");
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace
 
 void SerializeStackFrameInfo(Isolate* isolate, Handle<StackFrameInfo> frame,
                              IncrementalStringBuilder* builder) {
-#if V8_ENABLE_WEBASSEMBLY
-  if (frame->IsWasm() && !frame->IsAsmJsWasm()) {
+  // Ordering here is important, as AsmJs frames are also marked as Wasm.
+  if (frame->IsAsmJsWasm()) {
+    SerializeJSStackFrame(isolate, frame, builder);
+  } else if (frame->IsWasm()) {
     SerializeWasmStackFrame(isolate, frame, builder);
-    return;
+  } else {
+    SerializeJSStackFrame(isolate, frame, builder);
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  SerializeJSStackFrame(isolate, frame, builder);
 }
 
 MaybeHandle<String> SerializeStackFrameInfo(Isolate* isolate,

@@ -676,7 +676,6 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
   return OpParameter<ForInParameters>(op);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSWasmCall, op->opcode());
   return OpParameter<JSWasmCallParameters>(op);
@@ -720,7 +719,6 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
       UNREACHABLE();
   }
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define CACHED_OP_LIST(V)                                                \
   V(ToLength, Operator::kNoProperties, 1, 1)                             \
@@ -920,7 +918,6 @@ const Operator* JSOperatorBuilder::CallRuntime(const Runtime::Function* f,
       parameters);                                        // parameter
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 const Operator* JSOperatorBuilder::CallWasm(
     const wasm::WasmModule* wasm_module,
     const wasm::FunctionSig* wasm_signature, FeedbackSource const& feedback) {
@@ -931,7 +928,6 @@ const Operator* JSOperatorBuilder::CallWasm(
       parameters.input_count(), 1, 1, 1, 1, 2,         // inputs/outputs
       parameters);                                     // parameter
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* JSOperatorBuilder::ConstructForwardVarargs(
     size_t arity, uint32_t start_index) {

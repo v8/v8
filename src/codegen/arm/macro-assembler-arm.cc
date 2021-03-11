@@ -1918,12 +1918,11 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   AllocateStackSpace(kDoubleSize);  // Put input on stack.
   vstr(double_input, MemOperand(sp, 0));
 
-#if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
+#if V8_ENABLE_WEBASSEMBLY
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
 #else
-  // For balance.
-  if (false) {
+    UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else if (options().inline_offheap_trampolines) {
     CallBuiltin(Builtins::kDoubleToI);

@@ -15,11 +15,8 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
-
-#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -248,10 +245,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, has_duplicate_parameters,
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, native,
                     SharedFunctionInfo::IsNativeBit)
-#if V8_ENABLE_WEBASSEMBLY
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
-#endif  // V8_ENABLE_WEBASSEMBLY
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     requires_instance_members_initializer,
                     SharedFunctionInfo::RequiresInstanceMembersInitializerBit)
@@ -360,10 +355,8 @@ void SharedFunctionInfo::UpdateFunctionMapIndex() {
 }
 
 void SharedFunctionInfo::DontAdaptArguments() {
-#if V8_ENABLE_WEBASSEMBLY
   // TODO(leszeks): Revise this DCHECK now that the code field is gone.
   DCHECK(!HasWasmExportedFunctionData());
-#endif  // V8_ENABLE_WEBASSEMBLY
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
@@ -625,21 +618,8 @@ void SharedFunctionInfo::flush_baseline_data() {
   set_function_data(baseline_data().data(), kReleaseStore);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 bool SharedFunctionInfo::HasAsmWasmData() const {
   return function_data(kAcquireLoad).IsAsmWasmData();
-}
-
-bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
-  return function_data(kAcquireLoad).IsWasmExportedFunctionData();
-}
-
-bool SharedFunctionInfo::HasWasmJSFunctionData() const {
-  return function_data(kAcquireLoad).IsWasmJSFunctionData();
-}
-
-bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
-  return function_data(kAcquireLoad).IsWasmCapiFunctionData();
 }
 
 AsmWasmData SharedFunctionInfo::asm_wasm_data() const {
@@ -652,23 +632,6 @@ void SharedFunctionInfo::set_asm_wasm_data(AsmWasmData data) {
          HasUncompiledData() || HasAsmWasmData());
   set_function_data(data, kReleaseStore);
 }
-
-const wasm::WasmModule* SharedFunctionInfo::wasm_module() const {
-  if (!HasWasmExportedFunctionData()) return nullptr;
-  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
-  const WasmInstanceObject& wasm_instance = function_data.instance();
-  const WasmModuleObject& wasm_module_object = wasm_instance.module_object();
-  return wasm_module_object.module();
-}
-
-const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {
-  const wasm::WasmModule* module = wasm_module();
-  if (!module) return nullptr;
-  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
-  DCHECK_LT(function_data.function_index(), module->functions.size());
-  return module->functions[function_data.function_index()].sig;
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool SharedFunctionInfo::HasBuiltinId() const {
   return function_data(kAcquireLoad).IsSmi();
@@ -764,6 +727,34 @@ void UncompiledData::InitAfterBytecodeFlush(
   set_end_position(end_position);
 }
 
+bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
+  return function_data(kAcquireLoad).IsWasmExportedFunctionData();
+}
+
+bool SharedFunctionInfo::HasWasmJSFunctionData() const {
+  return function_data(kAcquireLoad).IsWasmJSFunctionData();
+}
+
+const wasm::WasmModule* SharedFunctionInfo::wasm_module() const {
+  if (!HasWasmExportedFunctionData()) return nullptr;
+  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
+  const WasmInstanceObject& wasm_instance = function_data.instance();
+  const WasmModuleObject& wasm_module_object = wasm_instance.module_object();
+  return wasm_module_object.module();
+}
+
+const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {
+  const wasm::WasmModule* module = wasm_module();
+  if (!module) return nullptr;
+  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
+  DCHECK_LT(function_data.function_index(), module->functions.size());
+  return module->functions[function_data.function_index()].sig;
+}
+
+bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
+  return function_data(kAcquireLoad).IsWasmCapiFunctionData();
+}
+
 HeapObject SharedFunctionInfo::script() const {
   HeapObject maybe_script = script_or_debug_info(kAcquireLoad);
   if (maybe_script.IsDebugInfo()) {
@@ -831,18 +822,14 @@ bool SharedFunctionInfo::IsUserJavaScript() const {
 }
 
 bool SharedFunctionInfo::IsSubjectToDebugging() const {
-#if V8_ENABLE_WEBASSEMBLY
-  if (HasAsmWasmData()) return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return IsUserJavaScript();
+  return IsUserJavaScript() && !HasAsmWasmData();
 }
 
 bool SharedFunctionInfo::CanDiscardCompiled() const {
-#if V8_ENABLE_WEBASSEMBLY
-  if (HasAsmWasmData()) return true;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return HasBytecodeArray() || HasUncompiledDataWithPreparseData() ||
-         HasBaselineData();
+  bool can_decompile =
+      (HasBytecodeArray() || HasAsmWasmData() ||
+       HasUncompiledDataWithPreparseData() || HasBaselineData());
+  return can_decompile;
 }
 
 bool SharedFunctionInfo::is_class_constructor() const {

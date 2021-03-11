@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
 #include "test/cctest/test-api.h"
 
 using ::v8::Array;

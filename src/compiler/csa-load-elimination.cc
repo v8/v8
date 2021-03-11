@@ -76,7 +76,6 @@ bool Subsumes(MachineRepresentation from, MachineRepresentation to) {
 
 inline bool IsFreshObject(Node* node) {
   if (node->opcode() == IrOpcode::kAllocate) return true;
-#if V8_ENABLE_WEBASSEMBLY
   if (node->opcode() == IrOpcode::kCall) {
     NumberMatcher matcher(node->InputAt(0));
     if (matcher.HasResolvedValue()) {
@@ -90,7 +89,6 @@ inline bool IsFreshObject(Node* node) {
              callee == Builtins::kWasmAllocateStructWithRtt;
     }
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
   return false;
 }
 

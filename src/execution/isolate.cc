@@ -65,7 +65,6 @@
 #include "src/objects/elements.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
@@ -2659,15 +2658,6 @@ void Isolate::SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine) {
   wasm_engine_ = std::move(engine);
   wasm_engine_->AddIsolate(this);
 }
-
-void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
-  HandleScope scope(this);
-  Handle<WeakArrayList> shared_wasm_memories =
-      factory()->shared_wasm_memories();
-  shared_wasm_memories = WeakArrayList::AddToEnd(
-      this, shared_wasm_memories, MaybeObjectHandle::Weak(memory_object));
-  heap()->set_shared_wasm_memories(*shared_wasm_memories);
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // NOLINTNEXTLINE
@@ -3019,8 +3009,6 @@ void Isolate::Deinit() {
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm_engine()->DeleteCompileJobsOnIsolate(this);
-
-  BackingStore::RemoveSharedWasmMemoryObjects(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   if (concurrent_recompilation_enabled()) {
@@ -3028,6 +3016,8 @@ void Isolate::Deinit() {
     delete optimizing_compile_dispatcher_;
     optimizing_compile_dispatcher_ = nullptr;
   }
+
+  BackingStore::RemoveSharedWasmMemoryObjects(this);
 
   // Help sweeper threads complete sweeping to stop faster.
   heap_.mark_compact_collector()->DrainSweepingWorklists();
@@ -4530,6 +4520,15 @@ void Isolate::AddDetachedContext(Handle<Context> context) {
       this, detached_contexts, MaybeObjectHandle(Smi::zero(), this),
       MaybeObjectHandle::Weak(context));
   heap()->set_detached_contexts(*detached_contexts);
+}
+
+void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
+  HandleScope scope(this);
+  Handle<WeakArrayList> shared_wasm_memories =
+      factory()->shared_wasm_memories();
+  shared_wasm_memories = WeakArrayList::AddToEnd(
+      this, shared_wasm_memories, MaybeObjectHandle::Weak(memory_object));
+  heap()->set_shared_wasm_memories(*shared_wasm_memories);
 }
 
 void Isolate::CheckDetachedContextsAfterGC() {

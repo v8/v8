@@ -158,12 +158,9 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 
   if (obj->IsSharedFunctionInfo()) {
     Handle<SharedFunctionInfo> sfi = Handle<SharedFunctionInfo>::cast(obj);
-    DCHECK(!sfi->IsApiFunction());
-#if V8_ENABLE_WEBASSEMBLY
     // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
     // is context independent.
-    DCHECK(!sfi->HasAsmWasmData());
-#endif  // V8_ENABLE_WEBASSEMBLY
+    DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
 
     DebugInfo debug_info;
     BytecodeArray debug_bytecode_array;

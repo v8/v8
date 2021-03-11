@@ -11,10 +11,7 @@
 #include "src/compiler/node.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
-
-#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -131,7 +128,6 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
                 : common->CreateFrameStateFunctionInfo(
                       frame_type, parameter_count, 0, shared);
 #else
-  DCHECK_NULL(signature);
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
                                            shared);

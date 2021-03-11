@@ -3888,7 +3888,6 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   FLAG_turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 TEST(WasmInt32ToHeapNumber) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
@@ -4115,7 +4114,6 @@ TEST(WasmTaggedToFloat64) {
     }
   }
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST(SmiUntagLeftShiftOptimization) {
   Isolate* isolate(CcTest::InitIsolateOnce());

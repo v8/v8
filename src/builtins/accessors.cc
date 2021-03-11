@@ -5,7 +5,6 @@
 #include "src/builtins/accessors.h"
 
 #include "src/api/api-inl.h"
-#include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"

@@ -5,15 +5,11 @@
 #include "src/execution/execution.h"
 
 #include "src/api/api-inl.h"
-#include "src/debug/debug.h"
+#include "src/compiler/wasm-compiler.h"  // Only for static asserts.
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/logging/counters.h"
-
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/compiler/wasm-compiler.h"  // Only for static asserts.
-#endif                                   // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -521,7 +517,6 @@ STATIC_ASSERT(offsetof(StackHandlerMarker, padding) ==
               StackHandlerConstants::kPaddingOffset);
 STATIC_ASSERT(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
-#if V8_ENABLE_WEBASSEMBLY
 void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
                          Address wasm_call_target, Handle<Object> object_ref,
                          Address packed_args) {
@@ -575,7 +570,6 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
   }
   *isolate->c_entry_fp_address() = saved_c_entry_fp;
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace internal
 }  // namespace v8

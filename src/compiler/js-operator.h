@@ -821,7 +821,6 @@ size_t hash_value(ForInParameters const&);
 std::ostream& operator<<(std::ostream&, ForInParameters const&);
 const ForInParameters& ForInParametersOf(const Operator* op);
 
-#if V8_ENABLE_WEBASSEMBLY
 class JSWasmCallParameters {
  public:
   explicit JSWasmCallParameters(const wasm::WasmModule* module,
@@ -850,7 +849,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            JSWasmCallParameters const&);
 size_t hash_value(JSWasmCallParameters const&);
 bool operator==(JSWasmCallParameters const&, JSWasmCallParameters const&);
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 int RegisterCountOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
@@ -961,11 +959,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
 
-#if V8_ENABLE_WEBASSEMBLY
   const Operator* CallWasm(const wasm::WasmModule* wasm_module,
                            const wasm::FunctionSig* wasm_signature,
                            FeedbackSource const& feedback);
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   const Operator* ConstructForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Construct(uint32_t arity,
@@ -1289,11 +1285,8 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
                      node->opcode() == IrOpcode::kJSCallWithSpread ||
                      node->opcode() == IrOpcode::kJSConstruct ||
                      node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-                     node->opcode() == IrOpcode::kJSConstructWithSpread
-#if V8_ENABLE_WEBASSEMBLY
-                     || node->opcode() == IrOpcode::kJSWasmCall
-#endif  // V8_ENABLE_WEBASSEMBLY
-    );  // NOLINT(whitespace/parens)
+                     node->opcode() == IrOpcode::kJSConstructWithSpread ||
+                     node->opcode() == IrOpcode::kJSWasmCall);
   }
 
 #define INPUTS(V)              \
@@ -1401,7 +1394,6 @@ using JSCallNode = JSCallNodeBase<IrOpcode::kJSCall>;
 using JSCallWithSpreadNode = JSCallNodeBase<IrOpcode::kJSCallWithSpread>;
 using JSCallWithArrayLikeNode = JSCallNodeBase<IrOpcode::kJSCallWithArrayLike>;
 
-#if V8_ENABLE_WEBASSEMBLY
 class JSWasmCallNode final : public JSCallOrConstructNode {
  public:
   explicit constexpr JSWasmCallNode(Node* node) : JSCallOrConstructNode(node) {
@@ -1430,7 +1422,6 @@ class JSWasmCallNode final : public JSCallOrConstructNode {
 
   static Type TypeForWasmReturnType(const wasm::ValueType& type);
 };
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 template <int kOpcode>
 class JSConstructNodeBase final : public JSCallOrConstructNode {
