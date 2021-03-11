@@ -121,11 +121,11 @@ TEST_F(ExplicitManagementTest, GrowAtLAB) {
   auto& header = HeapObjectHeader::FromPayload(o);
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   constexpr size_t kFirstDelta = 8;
-  EXPECT_TRUE(subtle::Resize(o, AdditionalBytes(kFirstDelta)));
+  EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kFirstDelta)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o + kFirstDelta),
             header.ObjectSize());
   constexpr size_t kSecondDelta = 9;
-  EXPECT_TRUE(subtle::Resize(o, AdditionalBytes(kSecondDelta)));
+  EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kSecondDelta)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o + kSecondDelta),
             header.ObjectSize());
   // Second round didn't actually grow object because alignment restrictions
@@ -133,7 +133,7 @@ TEST_F(ExplicitManagementTest, GrowAtLAB) {
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o + kFirstDelta),
             RoundUp<kAllocationGranularity>(size_of_o + kSecondDelta));
   constexpr size_t kThirdDelta = 16;
-  EXPECT_TRUE(subtle::Resize(o, AdditionalBytes(kThirdDelta)));
+  EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kThirdDelta)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o + kThirdDelta),
             header.ObjectSize());
 }
@@ -144,10 +144,10 @@ TEST_F(ExplicitManagementTest, GrowShrinkAtLAB) {
   auto& header = HeapObjectHeader::FromPayload(o);
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   constexpr size_t kDelta = 27;
-  EXPECT_TRUE(subtle::Resize(o, AdditionalBytes(kDelta)));
+  EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kDelta)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o + kDelta),
             header.ObjectSize());
-  EXPECT_TRUE(subtle::Resize(o, AdditionalBytes(0)));
+  EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o), header.ObjectSize());
 }
 
@@ -160,7 +160,7 @@ TEST_F(ExplicitManagementTest, ShrinkFreeList) {
   ResetLinearAllocationBuffers();
   auto& header = HeapObjectHeader::FromPayload(o);
   constexpr size_t size_of_o = sizeof(DynamicallySized);
-  EXPECT_TRUE(subtle::Resize(o, AdditionalBytes(0)));
+  EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o), header.ObjectSize());
   EXPECT_TRUE(space->free_list().ContainsForTesting(
       {header.PayloadEnd(), ObjectAllocator::kSmallestSpaceSize}));
@@ -175,7 +175,7 @@ TEST_F(ExplicitManagementTest, ShrinkFreeListBailoutAvoidFragmentation) {
   ResetLinearAllocationBuffers();
   auto& header = HeapObjectHeader::FromPayload(o);
   constexpr size_t size_of_o = sizeof(DynamicallySized);
-  EXPECT_TRUE(subtle::Resize(o, AdditionalBytes(0)));
+  EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(
                 size_of_o + ObjectAllocator::kSmallestSpaceSize - 1),
             header.ObjectSize());

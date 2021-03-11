@@ -61,11 +61,10 @@ void FreeUnreferencedObject(T* object) {
  *   on, and false otherwise.
  */
 template <typename T>
-bool Resize(T* object, AdditionalBytes additional_bytes) {
+bool Resize(T& object, AdditionalBytes additional_bytes) {
   static_assert(IsGarbageCollectedTypeV<T>,
                 "Object must be of type GarbageCollected.");
-  if (!object) return true;
-  return internal::Resize(object, sizeof(T) + additional_bytes.value);
+  return internal::Resize(&object, sizeof(T) + additional_bytes.value);
 }
 
 }  // namespace subtle
