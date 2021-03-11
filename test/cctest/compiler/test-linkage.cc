@@ -124,6 +124,7 @@ TEST(TestLinkageStubCall) {
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST(TestFPLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -148,6 +149,7 @@ TEST(TestFPLinkageStubCall) {
   CHECK_EQ(call_descriptor->GetReturnLocation(0).GetLocation(),
            kReturnRegister0.code());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

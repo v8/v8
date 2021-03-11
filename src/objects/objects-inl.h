@@ -30,7 +30,7 @@
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/objects.h"
-#include "src/objects/oddball.h"
+#include "src/objects/oddball-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
 #include "src/objects/regexp-match-info.h"
@@ -358,11 +358,13 @@ DEF_GETTER(HeapObject, IsObjectHashTable, bool) { return IsHashTable(isolate); }
 
 DEF_GETTER(HeapObject, IsHashTableBase, bool) { return IsHashTable(isolate); }
 
+#if V8_ENABLE_WEBASSEMBLY
 DEF_GETTER(HeapObject, IsWasmExceptionPackage, bool) {
   // It is not possible to check for the existence of certain properties on the
   // underlying {JSReceiver} here because that requires calling handlified code.
   return IsJSReceiver(isolate);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Object::IsPrimitive() const {
   if (IsSmi()) return true;

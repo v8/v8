@@ -1079,8 +1079,8 @@ void Debug::PrepareStep(StepAction step_action) {
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
-  } else if (frame->is_wasm() && step_action != StepOut) {
 #if V8_ENABLE_WEBASSEMBLY
+  } else if (frame->is_wasm() && step_action != StepOut) {
     // Handle stepping in wasm.
     WasmFrame* wasm_frame = WasmFrame::cast(frame);
     auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
@@ -1088,12 +1088,12 @@ void Debug::PrepareStep(StepAction step_action) {
       UpdateHookOnFunctionCall();
       return;
     }
-#endif  // V8_ENABLE_WEBASSEMBLY
     // If the wasm code is not debuggable or will return after this step
     // (indicated by {PrepareStep} returning false), then step out of that frame
     // instead.
     step_action = StepOut;
     UpdateHookOnFunctionCall();
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   switch (step_action) {
@@ -1866,7 +1866,9 @@ bool Debug::IsExceptionBlackboxed(bool uncaught) {
   // Uncaught exception is blackboxed if all current frames are blackboxed,
   // caught exception if top frame is blackboxed.
   StackTraceFrameIterator it(isolate_);
+#if V8_ENABLE_WEBASSEMBLY
   while (!it.done() && it.is_wasm()) it.Advance();
+#endif  // V8_ENABLE_WEBASSEMBLY
   bool is_top_frame_blackboxed =
       !it.done() ? IsFrameBlackboxed(it.javascript_frame()) : true;
   if (!uncaught || !is_top_frame_blackboxed) return is_top_frame_blackboxed;

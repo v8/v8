@@ -1251,8 +1251,10 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 // Will be lowered in SimplifiedLowering.
 void JSGenericLowering::LowerJSWasmCall(Node* node) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   JSForInPrepareNode n(node);

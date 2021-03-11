@@ -194,6 +194,7 @@ TF_BUILTIN(IterableToFixedArray, IteratorBuiltinsAssembler) {
   Return(IterableToFixedArray(context, iterable, iterator_fn));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<Object>(Descriptor::kIterable);
@@ -215,6 +216,7 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
   BIND(&done);
   Return(values.var_array()->value());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
     TNode<Context> context, TNode<Object> iterable) {

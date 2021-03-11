@@ -5,13 +5,17 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_INL_H_
 #define V8_OBJECTS_JS_FUNCTION_INL_H_
 
+#include "src/objects/js-function.h"
+
+// Include other inline headers *after* including js-function.h, such that e.g.
+// the definition of JSFunction is available (and this comment prevents
+// clang-format from merging that include into the following ones).
 #include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/feedback-cell-inl.h"
-#include "src/objects/js-function.h"
 #include "src/strings/string-builder-inl.h"
 
 // Has to be the last include (doesn't have include guards):

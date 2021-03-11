@@ -18,6 +18,7 @@
 #include "src/heap/factory.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -30,10 +31,10 @@
 #include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/wasm/wasm-engine.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects-inl.h"
-#include "src/wasm/wasm-result.h"
-#include "src/wasm/wasm-serialization.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -571,6 +572,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
     case WASM_MEMORY_OBJECT_TYPE: {
@@ -580,6 +582,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       }
       break;
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       break;
   }
@@ -983,6 +986,7 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
   return ThrowIfOutOfMemory();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
   if (delegate_ == nullptr) {
     ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
@@ -1017,6 +1021,7 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
   WriteZigZag<int32_t>(object->maximum_pages());
   return WriteJSReceiver(Handle<JSReceiver>(object->array_buffer(), isolate_));
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
   WriteTag(SerializationTag::kHostObject);
@@ -1341,10 +1346,12 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     }
     case SerializationTag::kError:
       return ReadJSError();
+#if V8_ENABLE_WEBASSEMBLY
     case SerializationTag::kWasmModuleTransfer:
       return ReadWasmModuleTransfer();
     case SerializationTag::kWasmMemoryTransfer:
       return ReadWasmMemory();
+#endif  // V8_ENABLE_WEBASSEMBLY
     case SerializationTag::kHostObject:
       return ReadHostObject();
     default:
@@ -1927,6 +1934,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   return error;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
   uint32_t transfer_id = 0;
   Local<Value> module_value;
@@ -1975,6 +1983,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   AddObjectWithID(id, result);
   return result;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
   if (!delegate_) return MaybeHandle<JSObject>();

@@ -2427,11 +2427,12 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   }
 
   // DoubleToI preserves any registers it needs to clobber.
-  if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
 #if V8_ENABLE_WEBASSEMBLY
+  if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
 #else
-    UNREACHABLE();
+  // For balance.
+  if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else if (options().inline_offheap_trampolines) {
     CallBuiltin(Builtins::kDoubleToI);

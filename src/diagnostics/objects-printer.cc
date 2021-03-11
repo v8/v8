@@ -18,12 +18,12 @@
 #include "src/regexp/regexp.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
-#include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-objects-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects-inl.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -183,10 +183,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       JSObject::cast(*this).JSObjectPrint(os);
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
       break;
-#if V8_ENABLE_WEBASSEMBLY
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this).WasmValueObjectPrint(os);
       break;
@@ -1487,6 +1487,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
       os << "\n - bytecode: " << shared().GetBytecodeArray(isolate);
     }
   }
+#if V8_ENABLE_WEBASSEMBLY
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {
     WasmExportedFunction function = WasmExportedFunction::cast(*this);
     os << "\n - Wasm instance: " << Brief(function.instance());
@@ -1496,6 +1497,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     WasmJSFunction function = WasmJSFunction::cast(*this);
     os << "\n - Wasm wrapper around: " << Brief(function.GetCallable());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   shared().PrintSourceCode(os);
   JSObjectPrintBody(os, *this);
   os << " - feedback vector: ";
@@ -1795,6 +1797,7 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
   os << "\n";
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
@@ -1975,14 +1978,6 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmValueObject");
-  os << "\n - value: " << Brief(value());
-  os << "\n";
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmGlobalObject");
   if (type().is_reference()) {
@@ -2013,6 +2008,27 @@ void WasmExceptionObject::WasmExceptionObjectPrint(
   os << "\n - exception_tag: " << Brief(exception_tag());
   os << "\n";
 }
+
+void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
+    std::ostream& os) {
+  PrintHeader(os, "WasmIndirectFunctionTable");
+  os << "\n - size: " << size();
+  os << "\n - sig_ids: " << static_cast<void*>(sig_ids());
+  os << "\n - targets: " << static_cast<void*>(targets());
+  if (has_managed_native_allocations()) {
+    os << "\n - managed_native_allocations: "
+       << Brief(managed_native_allocations());
+  }
+  os << "\n - refs: " << Brief(refs());
+  os << "\n";
+}
+
+void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmValueObject");
+  os << "\n - value: " << Brief(value());
+  os << "\n";
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "LoadHandler");
@@ -2082,20 +2098,6 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
   os << "\n - instantiated: " << (instantiated() ? "true" : "false");
   os << "\n - rare_data: " << Brief(rare_data());
-  os << "\n";
-}
-
-void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
-    std::ostream& os) {
-  PrintHeader(os, "WasmIndirectFunctionTable");
-  os << "\n - size: " << size();
-  os << "\n - sig_ids: " << static_cast<void*>(sig_ids());
-  os << "\n - targets: " << static_cast<void*>(targets());
-  if (has_managed_native_allocations()) {
-    os << "\n - managed_native_allocations: "
-       << Brief(managed_native_allocations());
-  }
-  os << "\n - refs: " << Brief(refs());
   os << "\n";
 }
 
@@ -2768,6 +2770,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::Address address = reinterpret_cast<i::Address>(object);
   i::Isolate* isolate = i::Isolate::Current();
 
+#if V8_ENABLE_WEBASSEMBLY
   {
     i::wasm::WasmCodeRefScope scope;
     i::wasm::WasmCode* wasm_code =
@@ -2778,6 +2781,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
       return;
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
       !isolate->heap()->InSpaceSlow(address, i::CODE_LO_SPACE) &&

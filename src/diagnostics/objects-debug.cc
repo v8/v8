@@ -29,6 +29,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -74,11 +75,11 @@
 #include "src/objects/transitions-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/utils/ostreams.h"
-#include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-verifiers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects-inl.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -229,10 +230,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       JSObject::cast(*this).JSObjectVerify(isolate);
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectVerify(isolate);
       break;
-#if V8_ENABLE_WEBASSEMBLY
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this).WasmValueObjectVerify(isolate);
       break;
@@ -842,11 +843,15 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
     CHECK_NE(value, roots.empty_scope_info());
   }
 
-  CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
-        HasBytecodeArray() || HasAsmWasmData() || HasBuiltinId() ||
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm = HasWasmExportedFunctionData() || HasAsmWasmData() ||
+                 HasWasmJSFunctionData() || HasWasmCapiFunctionData();
+#else
+  bool is_wasm = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  CHECK(is_wasm || IsApiFunction() || HasBytecodeArray() || HasBuiltinId() ||
         HasUncompiledDataWithPreparseData() ||
-        HasUncompiledDataWithoutPreparseData() || HasWasmJSFunctionData() ||
-        HasWasmCapiFunctionData());
+        HasUncompiledDataWithoutPreparseData());
 
   {
     auto script = script_or_debug_info(kAcquireLoad);
@@ -1590,6 +1595,7 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 USE_TORQUE_VERIFIER(AsmWasmData)
 
 void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
@@ -1605,12 +1611,10 @@ void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   }
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsWasmValueObject());
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
@@ -1630,6 +1634,11 @@ USE_TORQUE_VERIFIER(WasmMemoryObject)
 USE_TORQUE_VERIFIER(WasmGlobalObject)
 
 USE_TORQUE_VERIFIER(WasmExceptionObject)
+
+USE_TORQUE_VERIFIER(WasmJSFunctionData)
+
+USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::DataHandlerVerify(*this, isolate);
@@ -1665,10 +1674,6 @@ void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
         map() == ReadOnlyRoots(isolate)
                      .next_call_side_effect_free_call_handler_info_map());
 }
-
-USE_TORQUE_VERIFIER(WasmJSFunctionData)
-
-USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(IsAllocationSite());
@@ -1721,12 +1726,14 @@ USE_TORQUE_VERIFIER(InterpreterData)
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
+#if V8_ENABLE_WEBASSEMBLY
   CHECK_IMPLIES(IsAsmJsWasm(), IsWasm());
   CHECK_IMPLIES(IsWasm(), receiver_or_instance().IsWasmInstanceObject());
   CHECK_IMPLIES(IsWasm(), function().IsSmi());
   CHECK_IMPLIES(!IsWasm(), function().IsJSFunction());
   CHECK_IMPLIES(IsAsync(), !IsWasm());
   CHECK_IMPLIES(IsConstructor(), !IsWasm());
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 #endif  // VERIFY_HEAP

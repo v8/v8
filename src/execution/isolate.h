@@ -1454,8 +1454,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
-  void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
-
   std::vector<Object>* startup_object_cache() { return &startup_object_cache_; }
 
   bool IsGeneratingEmbeddedBuiltins() const {
@@ -1634,9 +1632,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
   void SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine);
-#else
-  // TODO(clemensb): Remove this method.
-  wasm::WasmEngine* wasm_engine() const { return nullptr; }
+
+  void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {

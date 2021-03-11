@@ -14,6 +14,11 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+class ValueType;
+using FunctionSig = Signature<ValueType>;
+}  // namespace wasm
+
 namespace compiler {
 
 class JSGraph;
@@ -105,6 +110,7 @@ class FrameStateFunctionInfo {
   Handle<SharedFunctionInfo> const shared_info_;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
  public:
   JSToWasmFrameStateFunctionInfo(FrameStateType type, int parameter_count,
@@ -121,6 +127,7 @@ class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
  private:
   const wasm::FunctionSig* const signature_;
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class FrameStateInfo final {
  public:

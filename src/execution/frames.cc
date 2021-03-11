@@ -24,10 +24,13 @@
 #include "src/objects/visitors.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
+#include "src/zone/zone-containers.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "src/zone/zone-containers.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -60,12 +63,12 @@ class StackHandlerIterator {
       : limit_(frame->fp()), handler_(handler) {
     // Make sure the handler has already been unwound to this frame.
     DCHECK(frame->sp() <= AddressOf(handler));
+#if V8_ENABLE_WEBASSEMBLY
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
     // beyond the limit, we know we always want to unwind one handler.
-    if (frame->type() == StackFrame::C_WASM_ENTRY) {
-      handler_ = handler_->next();
-    }
+    if (frame->is_c_wasm_entry()) handler_ = handler_->next();
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   StackHandler* handler() const { return handler_; }
@@ -210,7 +213,10 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
     return js_frame->function().shared().IsSubjectToDebugging();
   }
   // Apart from JavaScript frames, only Wasm frames are valid.
-  return frame->is_wasm();
+#if V8_ENABLE_WEBASSEMBLY
+  if (frame->is_wasm()) return true;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return false;
 }
 
 // -------------------------------------------------------------------------
@@ -471,10 +477,13 @@ void SafeStackFrameIterator::Advance() {
       last_callback_scope = external_callback_scope_;
       external_callback_scope_ = external_callback_scope_->previous();
     }
-    if (frame_->is_java_script() || frame_->is_wasm() ||
-        frame_->is_wasm_to_js() || frame_->is_js_to_wasm()) {
+    if (frame_->is_java_script()) break;
+#if V8_ENABLE_WEBASSEMBLY
+    if (frame_->is_wasm() || frame_->is_wasm_to_js() ||
+        frame_->is_js_to_wasm()) {
       break;
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
     if (frame_->is_exit() || frame_->is_builtin_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
@@ -607,6 +616,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           return OPTIMIZED;
         case CodeKind::BASELINE:
           return Type::BASELINE;
+#if V8_ENABLE_WEBASSEMBLY
         case CodeKind::JS_TO_WASM_FUNCTION:
           return JS_TO_WASM;
         case CodeKind::JS_TO_JS_FUNCTION:
@@ -619,6 +629,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         case CodeKind::WASM_TO_CAPI_FUNCTION:
           // Never appear as on-heap {Code} objects.
           UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
         default:
           // All other types should have an explicit marker
           break;
@@ -640,12 +651,14 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case STUB:
     case INTERNAL:
     case CONSTRUCT:
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_TO_JS:
     case WASM:
     case WASM_COMPILE_LAZY:
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
     case JS_TO_WASM:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return candidate;
     case OPTIMIZED:
     case INTERPRETED:
@@ -696,11 +709,13 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
   return ExitFrame::GetStateForFramePointer(fp, state);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
   const int offset = CWasmEntryFrameConstants::kCEntryFPOffset;
   Address fp = Memory<Address>(this->fp() + offset);
   return ExitFrame::GetStateForFramePointer(fp, state);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Code ConstructEntryFrame::unchecked_code() const {
   return isolate()->heap()->builtin(Builtins::kJSConstructEntry);
@@ -728,8 +743,12 @@ void ExitFrame::Iterate(RootVisitor* v) const {
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NONE;
   StackFrame::Type type = ComputeFrameType(fp);
-  Address sp = (type == WASM_EXIT) ? WasmExitFrame::ComputeStackPointer(fp)
-                                   : ExitFrame::ComputeStackPointer(fp);
+#if V8_ENABLE_WEBASSEMBLY
+  Address sp = type == WASM_EXIT ? WasmExitFrame::ComputeStackPointer(fp)
+                                 : ExitFrame::ComputeStackPointer(fp);
+#else
+  Address sp = ExitFrame::ComputeStackPointer(fp);
+#endif  // V8_ENABLE_WEBASSEMBLY
   FillState(fp, sp, state);
   DCHECK_NE(*state->pc_address, kNullAddress);
   return type;
@@ -748,12 +767,16 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   intptr_t marker_int = bit_cast<intptr_t>(marker);
 
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
-  if (frame_type == EXIT || frame_type == BUILTIN_EXIT ||
-      frame_type == WASM_EXIT) {
-    return frame_type;
+  switch (frame_type) {
+    case BUILTIN_EXIT:
+      return BUILTIN_EXIT;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_EXIT:
+      return WASM_EXIT;
+#endif  // V8_ENABLE_WEBASSEMBLY
+    default:
+      return EXIT;
   }
-
-  return EXIT;
 }
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
@@ -762,6 +785,7 @@ Address ExitFrame::ComputeStackPointer(Address fp) {
   return Memory<Address>(fp + ExitFrameConstants::kSPOffset);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 Address WasmExitFrame::ComputeStackPointer(Address fp) {
   // For WASM_EXIT frames, {sp} is only needed for finding the PC slot,
   // everything else is handled via safepoint information.
@@ -770,6 +794,7 @@ Address WasmExitFrame::ComputeStackPointer(Address fp) {
             fp + WasmExitFrameConstants::kCallingPCOffset);
   return sp;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->sp = sp;
@@ -981,11 +1006,14 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
       case STUB:
       case INTERNAL:
       case CONSTRUCT:
+#if V8_ENABLE_WEBASSEMBLY
       case JS_TO_WASM:
       case C_WASM_ENTRY:
       case WASM_DEBUG_BREAK:
+#endif  // V8_ENABLE_WEBASSEMBLY
         frame_header_size = TypedFrameConstants::kFixedFrameSizeFromFp;
         break;
+#if V8_ENABLE_WEBASSEMBLY
       case WASM_TO_JS:
       case WASM:
       case WASM_COMPILE_LAZY:
@@ -999,6 +1027,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
                       "WasmExitFrame has one slot more than WasmFrame");
         frame_header_size = WasmFrameConstants::kFixedFrameSizeFromFp;
         break;
+#endif  // V8_ENABLE_WEBASSEMBLY
       case OPTIMIZED:
       case INTERPRETED:
       case BASELINE:
@@ -1423,6 +1452,7 @@ Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
   return handle(function_->context().native_context(), isolate());
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 FrameSummary::WasmFrameSummary::WasmFrameSummary(
     Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::WasmCode* code,
     int code_offset, bool at_to_number_conversion)
@@ -1465,6 +1495,7 @@ Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
   return handle(wasm_instance()->native_context(), isolate());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameSummary::~FrameSummary() {
 #define FRAME_SUMMARY_DESTR(kind, type, field, desc) \
@@ -1505,6 +1536,7 @@ FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
   return frames[index];
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 #define FRAME_SUMMARY_DISPATCH(ret, name)   \
   ret FrameSummary::name() const {          \
     switch (base_.kind()) {                 \
@@ -1516,6 +1548,13 @@ FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
         UNREACHABLE();                      \
     }                                       \
   }
+#else
+#define FRAME_SUMMARY_DISPATCH(ret, name) \
+  ret FrameSummary::name() const {        \
+    DCHECK_EQ(JAVA_SCRIPT, base_.kind()); \
+    return java_script_summary_.name();   \
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 FRAME_SUMMARY_DISPATCH(Handle<Object>, receiver)
 FRAME_SUMMARY_DISPATCH(int, code_offset)
@@ -1818,6 +1857,7 @@ int BuiltinFrame::ComputeParametersCount() const {
   return Smi::ToInt(Object(base::Memory<Address>(fp() + offset)));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                       int index) const {
   wasm::WasmCodeRefScope code_ref_scope;
@@ -1994,6 +2034,7 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   v->VisitRootPointers(Root::kTop, nullptr, base, limit);
   v->VisitRootPointer(Root::kTop, nullptr, wasm_instance_slot());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 

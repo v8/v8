@@ -347,9 +347,13 @@ void RecordUnoptimizedFunctionCompilation(
     abstract_code =
         handle(AbstractCode::cast(shared->GetBytecodeArray(isolate)), isolate);
   } else {
+#if V8_ENABLE_WEBASSEMBLY
     DCHECK(shared->HasAsmWasmData());
     abstract_code =
         Handle<AbstractCode>::cast(BUILTIN_CODE(isolate, InstantiateAsmJs));
+#else
+    UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   double time_taken_ms = time_taken_to_execute.InMillisecondsF() +
@@ -565,11 +569,13 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     DCHECK(!compilation_info->has_asm_wasm_data());
     DCHECK(!shared_info->HasFeedbackMetadata());
 
+#if V8_ENABLE_WEBASSEMBLY
     // If the function failed asm-wasm compilation, mark asm_wasm as broken
     // to ensure we don't try to compile as asm-wasm.
     if (compilation_info->literal()->scope()->IsAsmModule()) {
       shared_info->set_is_asm_wasm_broken(true);
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     shared_info->set_bytecode_array(*compilation_info->bytecode_array());
 
@@ -1993,7 +1999,11 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
 
   // Optimize now if --always-opt is enabled.
+#if V8_ENABLE_WEBASSEMBLY
   if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
+#else
+  if (FLAG_always_opt) {
+#endif  // V8_ENABLE_WEBASSEMBLY
     CompilerTracer::TraceOptimizeForAlwaysOpt(isolate, function,
                                               CodeKindForTopTier());
 

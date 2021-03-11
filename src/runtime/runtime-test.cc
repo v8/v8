@@ -231,7 +231,9 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
     return CrashUnlessFuzzing(isolate);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if (function->shared().HasAsmWasmData()) return CrashUnlessFuzzing(isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (FLAG_testing_d8_test_runner) {
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
@@ -389,7 +391,9 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
     return CrashUnlessFuzzing(isolate);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   if (function->shared().HasAsmWasmData()) return CrashUnlessFuzzing(isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.

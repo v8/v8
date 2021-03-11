@@ -3631,14 +3631,15 @@ MulWithDupResult TryMatchMulWithDup(Node* node) {
   //   f64x2.mul(x, shuffle(x, y, indices)) => f64x2.mul(x, y, laneidx)
   //   where shuffle(x, y, indices) = dup(x[laneidx]) or dup(y[laneidx])
   // f32x4.mul and f64x2.mul are commutative, so use BinopMatcher.
-  BinopWithShuffleMatcher m = BinopWithShuffleMatcher(node);
-  ShuffleMatcher left = m.left();
-  ShuffleMatcher right = m.right();
-
   Node* input = nullptr;
   Node* dup_node = nullptr;
 
   int index = 0;
+#if V8_ENABLE_WEBASSEMBLY
+  BinopWithShuffleMatcher m = BinopWithShuffleMatcher(node);
+  ShuffleMatcher left = m.left();
+  ShuffleMatcher right = m.right();
+
   // TODO(zhin): We can canonicalize first to avoid checking index < LANES.
   // e.g. shuffle(x, y, [16, 17, 18, 19...]) => shuffle(y, y, [0, 1, 2,
   // 3]...). But doing so can mutate the inputs of the shuffle node without
@@ -3657,6 +3658,7 @@ MulWithDupResult TryMatchMulWithDup(Node* node) {
     dup_node = right.node()->InputAt(index < LANES ? 0 : 1);
     input = left.node();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Canonicalization would get rid of this too.
   index %= LANES;

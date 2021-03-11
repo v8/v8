@@ -32,47 +32,47 @@ enum InstanceType : uint16_t;
   V(FeedbackMetadata)                \
   V(FixedDoubleArray)
 
-#define POINTER_VISITOR_ID_LIST(V) \
-  V(AllocationSite)                \
-  V(BytecodeArray)                 \
-  V(Cell)                          \
-  V(Code)                          \
-  V(CodeDataContainer)             \
-  V(DataHandler)                   \
-  V(EmbedderDataArray)             \
-  V(EphemeronHashTable)            \
-  V(FeedbackCell)                  \
-  V(FreeSpace)                     \
-  V(JSApiObject)                   \
-  V(JSArrayBuffer)                 \
-  V(JSDataView)                    \
-  V(JSFunction)                    \
-  V(JSObject)                      \
-  V(JSObjectFast)                  \
-  V(JSTypedArray)                  \
-  V(JSWeakRef)                     \
-  V(JSWeakCollection)              \
-  V(Map)                           \
-  V(NativeContext)                 \
-  V(PreparseData)                  \
-  V(PropertyArray)                 \
-  V(PropertyCell)                  \
-  V(PrototypeInfo)                 \
-  V(ShortcutCandidate)             \
-  V(SmallOrderedHashMap)           \
-  V(SmallOrderedHashSet)           \
-  V(SmallOrderedNameDictionary)    \
-  V(SourceTextModule)              \
-  V(Struct)                        \
-  V(SwissNameDictionary)           \
-  V(Symbol)                        \
-  V(SyntheticModule)               \
-  V(TransitionArray)               \
-  V(WasmIndirectFunctionTable)     \
-  V(WasmInstanceObject)            \
-  V(WasmArray)                     \
-  V(WasmStruct)                    \
-  V(WasmTypeInfo)                  \
+#define POINTER_VISITOR_ID_LIST(V)      \
+  V(AllocationSite)                     \
+  V(BytecodeArray)                      \
+  V(Cell)                               \
+  V(Code)                               \
+  V(CodeDataContainer)                  \
+  V(DataHandler)                        \
+  V(EmbedderDataArray)                  \
+  V(EphemeronHashTable)                 \
+  V(FeedbackCell)                       \
+  V(FreeSpace)                          \
+  V(JSApiObject)                        \
+  V(JSArrayBuffer)                      \
+  V(JSDataView)                         \
+  V(JSFunction)                         \
+  V(JSObject)                           \
+  V(JSObjectFast)                       \
+  V(JSTypedArray)                       \
+  V(JSWeakRef)                          \
+  V(JSWeakCollection)                   \
+  V(Map)                                \
+  V(NativeContext)                      \
+  V(PreparseData)                       \
+  V(PropertyArray)                      \
+  V(PropertyCell)                       \
+  V(PrototypeInfo)                      \
+  V(ShortcutCandidate)                  \
+  V(SmallOrderedHashMap)                \
+  V(SmallOrderedHashSet)                \
+  V(SmallOrderedNameDictionary)         \
+  V(SourceTextModule)                   \
+  V(Struct)                             \
+  V(SwissNameDictionary)                \
+  V(Symbol)                             \
+  V(SyntheticModule)                    \
+  V(TransitionArray)                    \
+  IF_WASM(V, WasmIndirectFunctionTable) \
+  IF_WASM(V, WasmInstanceObject)        \
+  IF_WASM(V, WasmArray)                 \
+  IF_WASM(V, WasmStruct)                \
+  IF_WASM(V, WasmTypeInfo)              \
   V(WeakCell)
 
 #define TORQUE_VISITOR_ID_LIST(V)     \
