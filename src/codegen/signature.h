@@ -124,6 +124,44 @@ size_t hash_value(const Signature<T>& sig) {
   return hash;
 }
 
+template <typename T, size_t num_returns = 0, size_t num_params = 0>
+class FixedSizeSignature : public Signature<T> {
+ public:
+  explicit FixedSizeSignature(std::array<T, num_returns + num_params> reps)
+      : Signature<T>(num_returns, num_params, InitReps(reps)) {}
+
+  // Add return types to this signature (only allowed if there are none yet).
+  template <typename... ReturnTypes>
+  auto Returns(ReturnTypes... return_types) const {
+    static_assert(num_returns == 0, "Please specify all return types at once");
+    return FixedSizeSignature<T, sizeof...(ReturnTypes), num_params>{Concat(
+        std::array<T, sizeof...(ReturnTypes)>{{return_types...}}, reps_)};
+  }
+
+  // Add parameters to this signature (only allowed if there are none yet).
+  template <typename... ParamTypes>
+  auto Params(ParamTypes... param_types) const {
+    static_assert(num_params == 0, "Please specify all parameters at once");
+    return FixedSizeSignature<T, num_returns, sizeof...(ParamTypes)>{
+        Concat(reps_, std::array<T, sizeof...(ParamTypes)>{{param_types...}})};
+  }
+
+ private:
+  T* InitReps(const std::array<T, num_returns + num_params>& reps) {
+    reps_ = reps;
+    return reps_.data();
+  }
+
+  template <size_t sizeA, size_t sizeB>
+  static std::array<T, sizeA + sizeB> Concat(const std::array<T, sizeA>& a,
+                                             const std::array<T, sizeB>& b) {
+    return base::make_array<sizeA + sizeB>(
+        [&a, &b](std::size_t i) { return i < sizeA ? a[i] : b[i - sizeA]; });
+  }
+
+  std::array<T, num_returns + num_params> reps_;
+};
+
 }  // namespace internal
 }  // namespace v8
 
