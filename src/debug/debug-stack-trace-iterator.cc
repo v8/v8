@@ -122,9 +122,11 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
 
 v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
   CHECK(!Done());
+#if V8_ENABLE_WEBASSEMBLY
   if (frame_inspector_ && frame_inspector_->IsWasm()) {
     return v8::Local<v8::Value>();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   CHECK_NOT_NULL(iterator_.frame());
   bool is_optimized = iterator_.frame()->is_optimized();
   if (is_optimized || !is_top_frame_ ||
@@ -172,7 +174,9 @@ DebugStackTraceIterator::GetScopeIterator() const {
 
 bool DebugStackTraceIterator::Restart() {
   DCHECK(!Done());
+#if V8_ENABLE_WEBASSEMBLY
   if (iterator_.is_wasm()) return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
   return LiveEdit::RestartFrame(iterator_.javascript_frame());
 }
 

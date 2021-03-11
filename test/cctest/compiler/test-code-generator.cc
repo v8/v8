@@ -10,16 +10,19 @@
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/wasm-compiler.h"
 #include "src/execution/isolate.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/wasm/wasm-engine.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler.h"
+#include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -1433,6 +1436,7 @@ TEST(AssembleTailCallGap) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
@@ -1532,6 +1536,7 @@ TEST(Regress_1171759) {
 
   CHECK_EQ(0, mt.Call());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

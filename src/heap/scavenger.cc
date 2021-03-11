@@ -18,6 +18,7 @@
 #include "src/heap/sweeper.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/utils/utils-inl.h"

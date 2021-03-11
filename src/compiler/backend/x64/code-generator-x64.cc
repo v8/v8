@@ -4725,7 +4725,13 @@ void CodeGenerator::PrepareForDeoptimizationExits(
 void CodeGenerator::IncrementStackAccessCounter(
     InstructionOperand* source, InstructionOperand* destination) {
   DCHECK(FLAG_trace_turbo_stack_accesses);
-  if (!info()->IsOptimizing() && !info()->IsWasm()) return;
+  if (!info()->IsOptimizing()) {
+#if V8_ENABLE_WEBASSEMBLY
+    if (!info()->IsWasm()) return;
+#else
+    return;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  }
   DCHECK_NOT_NULL(debug_name_);
   auto IncrementCounter = [&](ExternalReference counter) {
     __ incl(__ ExternalReferenceAsOperand(counter));

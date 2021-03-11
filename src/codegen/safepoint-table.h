@@ -70,7 +70,9 @@ class SafepointEntry {
 class SafepointTable {
  public:
   explicit SafepointTable(Code code);
+#if V8_ENABLE_WEBASSEMBLY
   explicit SafepointTable(const wasm::WasmCode* code);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   SafepointTable(const SafepointTable&) = delete;
   SafepointTable& operator=(const SafepointTable&) = delete;

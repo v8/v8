@@ -485,7 +485,9 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kCall_ReceiverIsAny:
     case Builtins::kHandleApiCall:
     case Builtins::kInstantiateAsmJs:
+#if V8_ENABLE_WEBASSEMBLY
     case Builtins::kGenericJSToWasmWrapper:
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined
     // or are converted to use kCallBuiltinPointer.

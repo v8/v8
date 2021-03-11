@@ -247,9 +247,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case CODE_DATA_CONTAINER_TYPE:
       return kVisitCodeDataContainer;
 
-    case WASM_INSTANCE_OBJECT_TYPE:
-      return kVisitWasmInstanceObject;
-
     case PREPARSE_DATA_TYPE:
       return kVisitPreparseData;
 
@@ -306,12 +303,12 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_SEGMENTER_TYPE:
     case JS_SEGMENTS_TYPE:
 #endif  // V8_INTL_SUPPORT
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_EXCEPTION_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
-#if V8_ENABLE_WEBASSEMBLY
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_BOUND_FUNCTION_TYPE: {
@@ -348,12 +345,14 @@ VisitorId Map::GetVisitorId(Map map) {
       if (instance_type == PROTOTYPE_INFO_TYPE) {
         return kVisitPrototypeInfo;
       }
+#if V8_ENABLE_WEBASSEMBLY
       if (instance_type == WASM_CAPI_FUNCTION_DATA_TYPE) {
         return kVisitWasmCapiFunctionData;
       }
       if (instance_type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
         return kVisitWasmIndirectFunctionTable;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       return kVisitStruct;
 
     case LOAD_HANDLER_TYPE:
@@ -365,12 +364,16 @@ VisitorId Map::GetVisitorId(Map map) {
     case SYNTHETIC_MODULE_TYPE:
       return kVisitSyntheticModule;
 
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_INSTANCE_OBJECT_TYPE:
+      return kVisitWasmInstanceObject;
     case WASM_ARRAY_TYPE:
       return kVisitWasmArray;
     case WASM_STRUCT_TYPE:
       return kVisitWasmStruct;
     case WASM_TYPE_INFO_TYPE:
       return kVisitWasmTypeInfo;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define MAKE_TQ_CASE(TYPE, Name) \
   case TYPE:                     \

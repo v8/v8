@@ -26,11 +26,14 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -2675,6 +2678,7 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
   return OnStackReplacement(masm, false);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was pushed to the stack by the caller as int32.
   __ Pop(r11);
@@ -2769,244 +2773,6 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     }
   }
 
-  __ ret(0);
-}
-
-void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
-                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
-                               bool builtin_exit_frame) {
-  // rax: number of arguments including receiver
-  // rbx: pointer to C function  (C callee-saved)
-  // rbp: frame pointer of calling JS frame (restored after C call)
-  // rsp: stack pointer  (restored after C call)
-  // rsi: current context (restored)
-  //
-  // If argv_mode == kArgvInRegister:
-  // r15: pointer to the first argument
-
-#ifdef V8_TARGET_OS_WIN
-  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9. It requires the
-  // stack to be aligned to 16 bytes. It only allows a single-word to be
-  // returned in register rax. Larger return sizes must be written to an address
-  // passed as a hidden first argument.
-  const Register kCCallArg0 = rcx;
-  const Register kCCallArg1 = rdx;
-  const Register kCCallArg2 = r8;
-  const Register kCCallArg3 = r9;
-  const int kArgExtraStackSpace = 2;
-  const int kMaxRegisterResultSize = 1;
-#else
-  // GCC / Clang passes arguments in rdi, rsi, rdx, rcx, r8, r9. Simple results
-  // are returned in rax, and a struct of two pointers are returned in rax+rdx.
-  // Larger return sizes must be written to an address passed as a hidden first
-  // argument.
-  const Register kCCallArg0 = rdi;
-  const Register kCCallArg1 = rsi;
-  const Register kCCallArg2 = rdx;
-  const Register kCCallArg3 = rcx;
-  const int kArgExtraStackSpace = 0;
-  const int kMaxRegisterResultSize = 2;
-#endif  // V8_TARGET_OS_WIN
-
-  // Enter the exit frame that transitions from JavaScript to C++.
-  int arg_stack_space =
-      kArgExtraStackSpace +
-      (result_size <= kMaxRegisterResultSize ? 0 : result_size);
-  if (argv_mode == kArgvInRegister) {
-    DCHECK(save_doubles == kDontSaveFPRegs);
-    DCHECK(!builtin_exit_frame);
-    __ EnterApiExitFrame(arg_stack_space);
-    // Move argc into r12 (argv is already in r15).
-    __ movq(r12, rax);
-  } else {
-    __ EnterExitFrame(
-        arg_stack_space, save_doubles == kSaveFPRegs,
-        builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
-  }
-
-  // rbx: pointer to builtin function  (C callee-saved).
-  // rbp: frame pointer of exit frame  (restored after C call).
-  // rsp: stack pointer (restored after C call).
-  // r12: number of arguments including receiver (C callee-saved).
-  // r15: argv pointer (C callee-saved).
-
-  // Check stack alignment.
-  if (FLAG_debug_code) {
-    __ CheckStackAlignment();
-  }
-
-  // Call C function. The arguments object will be created by stubs declared by
-  // DECLARE_RUNTIME_FUNCTION().
-  if (result_size <= kMaxRegisterResultSize) {
-    // Pass a pointer to the Arguments object as the first argument.
-    // Return result in single register (rax), or a register pair (rax, rdx).
-    __ movq(kCCallArg0, r12);  // argc.
-    __ movq(kCCallArg1, r15);  // argv.
-    __ Move(kCCallArg2, ExternalReference::isolate_address(masm->isolate()));
-  } else {
-    DCHECK_LE(result_size, 2);
-    // Pass a pointer to the result location as the first argument.
-    __ leaq(kCCallArg0, StackSpaceOperand(kArgExtraStackSpace));
-    // Pass a pointer to the Arguments object as the second argument.
-    __ movq(kCCallArg1, r12);  // argc.
-    __ movq(kCCallArg2, r15);  // argv.
-    __ Move(kCCallArg3, ExternalReference::isolate_address(masm->isolate()));
-  }
-  __ call(rbx);
-
-  if (result_size > kMaxRegisterResultSize) {
-    // Read result values stored on stack. Result is stored
-    // above the the two Arguments object slots on Win64.
-    DCHECK_LE(result_size, 2);
-    __ movq(kReturnRegister0, StackSpaceOperand(kArgExtraStackSpace + 0));
-    __ movq(kReturnRegister1, StackSpaceOperand(kArgExtraStackSpace + 1));
-  }
-  // Result is in rax or rdx:rax - do not destroy these registers!
-
-  // Check result for exception sentinel.
-  Label exception_returned;
-  __ CompareRoot(rax, RootIndex::kException);
-  __ j(equal, &exception_returned);
-
-  // Check that there is no pending exception, otherwise we
-  // should have returned the exception sentinel.
-  if (FLAG_debug_code) {
-    Label okay;
-    __ LoadRoot(kScratchRegister, RootIndex::kTheHoleValue);
-    ExternalReference pending_exception_address = ExternalReference::Create(
-        IsolateAddressId::kPendingExceptionAddress, masm->isolate());
-    Operand pending_exception_operand =
-        masm->ExternalReferenceAsOperand(pending_exception_address);
-    __ cmp_tagged(kScratchRegister, pending_exception_operand);
-    __ j(equal, &okay, Label::kNear);
-    __ int3();
-    __ bind(&okay);
-  }
-
-  // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(save_doubles == kSaveFPRegs, argv_mode == kArgvOnStack);
-  __ ret(0);
-
-  // Handling of exception.
-  __ bind(&exception_returned);
-
-  ExternalReference pending_handler_context_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
-  ExternalReference pending_handler_entrypoint_address =
-      ExternalReference::Create(
-          IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
-  ExternalReference pending_handler_fp_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
-  ExternalReference pending_handler_sp_address = ExternalReference::Create(
-      IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
-
-  // Ask the runtime for help to determine the handler. This will set rax to
-  // contain the current pending exception, don't clobber it.
-  ExternalReference find_handler =
-      ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ movq(arg_reg_1, Immediate(0));  // argc.
-    __ movq(arg_reg_2, Immediate(0));  // argv.
-    __ Move(arg_reg_3, ExternalReference::isolate_address(masm->isolate()));
-    __ PrepareCallCFunction(3);
-    __ CallCFunction(find_handler, 3);
-  }
-  // Retrieve the handler context, SP and FP.
-  __ movq(rsi,
-          masm->ExternalReferenceAsOperand(pending_handler_context_address));
-  __ movq(rsp, masm->ExternalReferenceAsOperand(pending_handler_sp_address));
-  __ movq(rbp, masm->ExternalReferenceAsOperand(pending_handler_fp_address));
-
-  // If the handler is a JS frame, restore the context to the frame. Note that
-  // the context will be set to (rsi == 0) for non-JS frames.
-  Label skip;
-  __ testq(rsi, rsi);
-  __ j(zero, &skip, Label::kNear);
-  __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
-  __ bind(&skip);
-
-  // Reset the masking register. This is done independent of the underlying
-  // feature flag {FLAG_untrusted_code_mitigations} to make the snapshot work
-  // with both configurations. It is safe to always do this, because the
-  // underlying register is caller-saved and can be arbitrarily clobbered.
-  __ ResetSpeculationPoisonRegister();
-
-  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
-  ExternalReference c_entry_fp_address = ExternalReference::Create(
-      IsolateAddressId::kCEntryFPAddress, masm->isolate());
-  Operand c_entry_fp_operand =
-      masm->ExternalReferenceAsOperand(c_entry_fp_address);
-  __ movq(c_entry_fp_operand, Immediate(0));
-
-  // Compute the handler entry address and jump to it.
-  __ movq(rdi,
-          masm->ExternalReferenceAsOperand(pending_handler_entrypoint_address));
-  __ jmp(rdi);
-}
-
-void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
-  Label check_negative, process_64_bits, done;
-
-  // Account for return address and saved regs.
-  const int kArgumentOffset = 4 * kSystemPointerSize;
-
-  MemOperand mantissa_operand(MemOperand(rsp, kArgumentOffset));
-  MemOperand exponent_operand(
-      MemOperand(rsp, kArgumentOffset + kDoubleSize / 2));
-
-  // The result is returned on the stack.
-  MemOperand return_operand = mantissa_operand;
-
-  Register scratch1 = rbx;
-
-  // Since we must use rcx for shifts below, use some other register (rax)
-  // to calculate the result if ecx is the requested return register.
-  Register result_reg = rax;
-  // Save ecx if it isn't the return register and therefore volatile, or if it
-  // is the return register, then save the temp register we use in its stead
-  // for the result.
-  Register save_reg = rax;
-  __ pushq(rcx);
-  __ pushq(scratch1);
-  __ pushq(save_reg);
-
-  __ movl(scratch1, mantissa_operand);
-  __ Movsd(kScratchDoubleReg, mantissa_operand);
-  __ movl(rcx, exponent_operand);
-
-  __ andl(rcx, Immediate(HeapNumber::kExponentMask));
-  __ shrl(rcx, Immediate(HeapNumber::kExponentShift));
-  __ leal(result_reg, MemOperand(rcx, -HeapNumber::kExponentBias));
-  __ cmpl(result_reg, Immediate(HeapNumber::kMantissaBits));
-  __ j(below, &process_64_bits, Label::kNear);
-
-  // Result is entirely in lower 32-bits of mantissa
-  int delta = HeapNumber::kExponentBias + Double::kPhysicalSignificandSize;
-  __ subl(rcx, Immediate(delta));
-  __ xorl(result_reg, result_reg);
-  __ cmpl(rcx, Immediate(31));
-  __ j(above, &done, Label::kNear);
-  __ shll_cl(scratch1);
-  __ jmp(&check_negative, Label::kNear);
-
-  __ bind(&process_64_bits);
-  __ Cvttsd2siq(result_reg, kScratchDoubleReg);
-  __ jmp(&done, Label::kNear);
-
-  // If the double was negative, negate the integer result.
-  __ bind(&check_negative);
-  __ movl(result_reg, scratch1);
-  __ negl(result_reg);
-  __ cmpl(exponent_operand, Immediate(0));
-  __ cmovl(greater, result_reg, scratch1);
-
-  // Restore registers
-  __ bind(&done);
-  __ movl(return_operand, result_reg);
-  __ popq(save_reg);
-  __ popq(scratch1);
-  __ popq(rcx);
   __ ret(0);
 }
 
@@ -3752,6 +3518,246 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ popq(function_data);
   __ popq(wasm_instance);
   __ jmp(&compile_wrapper_done);
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
+                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
+                               bool builtin_exit_frame) {
+  // rax: number of arguments including receiver
+  // rbx: pointer to C function  (C callee-saved)
+  // rbp: frame pointer of calling JS frame (restored after C call)
+  // rsp: stack pointer  (restored after C call)
+  // rsi: current context (restored)
+  //
+  // If argv_mode == kArgvInRegister:
+  // r15: pointer to the first argument
+
+#ifdef V8_TARGET_OS_WIN
+  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9. It requires the
+  // stack to be aligned to 16 bytes. It only allows a single-word to be
+  // returned in register rax. Larger return sizes must be written to an address
+  // passed as a hidden first argument.
+  const Register kCCallArg0 = rcx;
+  const Register kCCallArg1 = rdx;
+  const Register kCCallArg2 = r8;
+  const Register kCCallArg3 = r9;
+  const int kArgExtraStackSpace = 2;
+  const int kMaxRegisterResultSize = 1;
+#else
+  // GCC / Clang passes arguments in rdi, rsi, rdx, rcx, r8, r9. Simple results
+  // are returned in rax, and a struct of two pointers are returned in rax+rdx.
+  // Larger return sizes must be written to an address passed as a hidden first
+  // argument.
+  const Register kCCallArg0 = rdi;
+  const Register kCCallArg1 = rsi;
+  const Register kCCallArg2 = rdx;
+  const Register kCCallArg3 = rcx;
+  const int kArgExtraStackSpace = 0;
+  const int kMaxRegisterResultSize = 2;
+#endif  // V8_TARGET_OS_WIN
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  int arg_stack_space =
+      kArgExtraStackSpace +
+      (result_size <= kMaxRegisterResultSize ? 0 : result_size);
+  if (argv_mode == kArgvInRegister) {
+    DCHECK(save_doubles == kDontSaveFPRegs);
+    DCHECK(!builtin_exit_frame);
+    __ EnterApiExitFrame(arg_stack_space);
+    // Move argc into r12 (argv is already in r15).
+    __ movq(r12, rax);
+  } else {
+    __ EnterExitFrame(
+        arg_stack_space, save_doubles == kSaveFPRegs,
+        builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
+  }
+
+  // rbx: pointer to builtin function  (C callee-saved).
+  // rbp: frame pointer of exit frame  (restored after C call).
+  // rsp: stack pointer (restored after C call).
+  // r12: number of arguments including receiver (C callee-saved).
+  // r15: argv pointer (C callee-saved).
+
+  // Check stack alignment.
+  if (FLAG_debug_code) {
+    __ CheckStackAlignment();
+  }
+
+  // Call C function. The arguments object will be created by stubs declared by
+  // DECLARE_RUNTIME_FUNCTION().
+  if (result_size <= kMaxRegisterResultSize) {
+    // Pass a pointer to the Arguments object as the first argument.
+    // Return result in single register (rax), or a register pair (rax, rdx).
+    __ movq(kCCallArg0, r12);  // argc.
+    __ movq(kCCallArg1, r15);  // argv.
+    __ Move(kCCallArg2, ExternalReference::isolate_address(masm->isolate()));
+  } else {
+    DCHECK_LE(result_size, 2);
+    // Pass a pointer to the result location as the first argument.
+    __ leaq(kCCallArg0, StackSpaceOperand(kArgExtraStackSpace));
+    // Pass a pointer to the Arguments object as the second argument.
+    __ movq(kCCallArg1, r12);  // argc.
+    __ movq(kCCallArg2, r15);  // argv.
+    __ Move(kCCallArg3, ExternalReference::isolate_address(masm->isolate()));
+  }
+  __ call(rbx);
+
+  if (result_size > kMaxRegisterResultSize) {
+    // Read result values stored on stack. Result is stored
+    // above the the two Arguments object slots on Win64.
+    DCHECK_LE(result_size, 2);
+    __ movq(kReturnRegister0, StackSpaceOperand(kArgExtraStackSpace + 0));
+    __ movq(kReturnRegister1, StackSpaceOperand(kArgExtraStackSpace + 1));
+  }
+  // Result is in rax or rdx:rax - do not destroy these registers!
+
+  // Check result for exception sentinel.
+  Label exception_returned;
+  __ CompareRoot(rax, RootIndex::kException);
+  __ j(equal, &exception_returned);
+
+  // Check that there is no pending exception, otherwise we
+  // should have returned the exception sentinel.
+  if (FLAG_debug_code) {
+    Label okay;
+    __ LoadRoot(kScratchRegister, RootIndex::kTheHoleValue);
+    ExternalReference pending_exception_address = ExternalReference::Create(
+        IsolateAddressId::kPendingExceptionAddress, masm->isolate());
+    Operand pending_exception_operand =
+        masm->ExternalReferenceAsOperand(pending_exception_address);
+    __ cmp_tagged(kScratchRegister, pending_exception_operand);
+    __ j(equal, &okay, Label::kNear);
+    __ int3();
+    __ bind(&okay);
+  }
+
+  // Exit the JavaScript to C++ exit frame.
+  __ LeaveExitFrame(save_doubles == kSaveFPRegs, argv_mode == kArgvOnStack);
+  __ ret(0);
+
+  // Handling of exception.
+  __ bind(&exception_returned);
+
+  ExternalReference pending_handler_context_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
+  ExternalReference pending_handler_entrypoint_address =
+      ExternalReference::Create(
+          IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
+  ExternalReference pending_handler_fp_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
+  ExternalReference pending_handler_sp_address = ExternalReference::Create(
+      IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
+
+  // Ask the runtime for help to determine the handler. This will set rax to
+  // contain the current pending exception, don't clobber it.
+  ExternalReference find_handler =
+      ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ movq(arg_reg_1, Immediate(0));  // argc.
+    __ movq(arg_reg_2, Immediate(0));  // argv.
+    __ Move(arg_reg_3, ExternalReference::isolate_address(masm->isolate()));
+    __ PrepareCallCFunction(3);
+    __ CallCFunction(find_handler, 3);
+  }
+  // Retrieve the handler context, SP and FP.
+  __ movq(rsi,
+          masm->ExternalReferenceAsOperand(pending_handler_context_address));
+  __ movq(rsp, masm->ExternalReferenceAsOperand(pending_handler_sp_address));
+  __ movq(rbp, masm->ExternalReferenceAsOperand(pending_handler_fp_address));
+
+  // If the handler is a JS frame, restore the context to the frame. Note that
+  // the context will be set to (rsi == 0) for non-JS frames.
+  Label skip;
+  __ testq(rsi, rsi);
+  __ j(zero, &skip, Label::kNear);
+  __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
+  __ bind(&skip);
+
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_untrusted_code_mitigations} to make the snapshot work
+  // with both configurations. It is safe to always do this, because the
+  // underlying register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  ExternalReference c_entry_fp_address = ExternalReference::Create(
+      IsolateAddressId::kCEntryFPAddress, masm->isolate());
+  Operand c_entry_fp_operand =
+      masm->ExternalReferenceAsOperand(c_entry_fp_address);
+  __ movq(c_entry_fp_operand, Immediate(0));
+
+  // Compute the handler entry address and jump to it.
+  __ movq(rdi,
+          masm->ExternalReferenceAsOperand(pending_handler_entrypoint_address));
+  __ jmp(rdi);
+}
+
+void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
+  Label check_negative, process_64_bits, done;
+
+  // Account for return address and saved regs.
+  const int kArgumentOffset = 4 * kSystemPointerSize;
+
+  MemOperand mantissa_operand(MemOperand(rsp, kArgumentOffset));
+  MemOperand exponent_operand(
+      MemOperand(rsp, kArgumentOffset + kDoubleSize / 2));
+
+  // The result is returned on the stack.
+  MemOperand return_operand = mantissa_operand;
+
+  Register scratch1 = rbx;
+
+  // Since we must use rcx for shifts below, use some other register (rax)
+  // to calculate the result if ecx is the requested return register.
+  Register result_reg = rax;
+  // Save ecx if it isn't the return register and therefore volatile, or if it
+  // is the return register, then save the temp register we use in its stead
+  // for the result.
+  Register save_reg = rax;
+  __ pushq(rcx);
+  __ pushq(scratch1);
+  __ pushq(save_reg);
+
+  __ movl(scratch1, mantissa_operand);
+  __ Movsd(kScratchDoubleReg, mantissa_operand);
+  __ movl(rcx, exponent_operand);
+
+  __ andl(rcx, Immediate(HeapNumber::kExponentMask));
+  __ shrl(rcx, Immediate(HeapNumber::kExponentShift));
+  __ leal(result_reg, MemOperand(rcx, -HeapNumber::kExponentBias));
+  __ cmpl(result_reg, Immediate(HeapNumber::kMantissaBits));
+  __ j(below, &process_64_bits, Label::kNear);
+
+  // Result is entirely in lower 32-bits of mantissa
+  int delta = HeapNumber::kExponentBias + Double::kPhysicalSignificandSize;
+  __ subl(rcx, Immediate(delta));
+  __ xorl(result_reg, result_reg);
+  __ cmpl(rcx, Immediate(31));
+  __ j(above, &done, Label::kNear);
+  __ shll_cl(scratch1);
+  __ jmp(&check_negative, Label::kNear);
+
+  __ bind(&process_64_bits);
+  __ Cvttsd2siq(result_reg, kScratchDoubleReg);
+  __ jmp(&done, Label::kNear);
+
+  // If the double was negative, negate the integer result.
+  __ bind(&check_negative);
+  __ movl(result_reg, scratch1);
+  __ negl(result_reg);
+  __ cmpl(exponent_operand, Immediate(0));
+  __ cmovl(greater, result_reg, scratch1);
+
+  // Restore registers
+  __ bind(&done);
+  __ movl(return_operand, result_reg);
+  __ popq(save_reg);
+  __ popq(scratch1);
+  __ popq(rcx);
+  __ ret(0);
 }
 
 namespace {

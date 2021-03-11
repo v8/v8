@@ -8,6 +8,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/pipeline.h"
+#include "src/debug/debug.h"
 #include "src/handles/handles.h"
 #include "src/logging/counters.h"
 #include "src/objects/js-function.h"

@@ -80,7 +80,6 @@
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
 #include "src/compiler/verifier.h"
-#include "src/compiler/wasm-compiler.h"
 #include "src/compiler/zone-stats.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/diagnostics/disassembler.h"
@@ -96,6 +95,7 @@
 #include "src/utils/utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
@@ -1421,6 +1421,7 @@ struct InliningPhase {
   }
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 struct WasmInliningPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
   void Run(PipelineData* data, Zone* temp_zone) {
@@ -1444,6 +1445,7 @@ struct WasmInliningPhase {
     graph_reducer.ReduceGraph();
   }
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct TyperPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(Typer)
@@ -1676,6 +1678,7 @@ struct LoopPeelingPhase {
   }
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 struct WasmLoopUnrollingPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmLoopUnrolling)
 
@@ -1709,6 +1712,7 @@ struct WasmLoopUnrollingPhase {
     }
   }
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct LoopExitEliminationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LoopExitElimination)
@@ -2593,20 +2597,6 @@ CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
   }
   return FAILED;
 }
-
-#else
-// TODO(clemensb): Remove these methods once src/wasm is excluded from no-wasm
-// builds.
-
-// static
-std::unique_ptr<OptimizedCompilationJob>
-Pipeline::NewWasmHeapStubCompilationJob(
-    Isolate* isolate, wasm::WasmEngine* wasm_engine,
-    CallDescriptor* call_descriptor, std::unique_ptr<Zone> zone, Graph* graph,
-    CodeKind kind, std::unique_ptr<char[]> debug_name,
-    const AssemblerOptions& options, SourcePositionTable* source_positions) {
-  UNREACHABLE();
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void PipelineImpl::RunPrintAndVerify(const char* phase, bool untyped) {
@@ -2743,11 +2733,13 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<SimplifiedLoweringPhase>(linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
     DCHECK(FLAG_turbo_inline_js_wasm_calls);
     Run<WasmInliningPhase>();
     RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // From now on it is invalid to look at types on the nodes, because the types
   // on the nodes might not make sense after representation selection due to the
@@ -3299,27 +3291,6 @@ void Pipeline::GenerateCodeForWasmFunction(
   DCHECK(result->succeeded());
   info->SetWasmCompilationResult(std::move(result));
 }
-#else   // V8_ENABLE_WEBASSEMBLY
-// TODO(clemensb): Remove these methods once src/wasm is excluded from no-wasm
-// builds.
-
-// static
-wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
-    wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
-    MachineGraph* mcgraph, CodeKind kind, int wasm_kind, const char* debug_name,
-    const AssemblerOptions& options, SourcePositionTable* source_positions) {
-  UNREACHABLE();
-}
-
-// static
-void Pipeline::GenerateCodeForWasmFunction(
-    OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
-    MachineGraph* mcgraph, CallDescriptor* call_descriptor,
-    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    wasm::FunctionBody function_body, const wasm::WasmModule* module,
-    int function_index, std::vector<compiler::WasmLoopInfo>* loop_info) {
-  UNREACHABLE();
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // static
@@ -3514,8 +3485,10 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     }
     // TODO(jgruber): The parameter is called is_stub but actually contains
     // something different. Update either the name or its contents.
-    const bool is_stub =
-        !data->info()->IsOptimizing() && !data->info()->IsWasm();
+    bool is_stub = !data->info()->IsOptimizing();
+#if V8_ENABLE_WEBASSEMBLY
+    if (data->info()->IsWasm()) is_stub = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
     Zone temp_zone(data->allocator(), kMachineGraphVerifierZoneName);
     MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage, is_stub,
                               data->debug_name(), &temp_zone);

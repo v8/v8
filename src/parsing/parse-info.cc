@@ -50,7 +50,9 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
   flags.SetFlagsForFunctionFromScript(script);
 
   flags.set_allow_lazy_parsing(true);
+#if V8_ENABLE_WEBASSEMBLY
   flags.set_is_asm_wasm_broken(shared.is_asm_wasm_broken());
+#endif  // V8_ENABLE_WEBASSEMBLY
   flags.set_is_repl_mode(shared.is_repl_mode());
 
   // CollectTypeProfile uses its own feedback slots. If we have existing

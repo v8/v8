@@ -31,6 +31,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/prototype.h"

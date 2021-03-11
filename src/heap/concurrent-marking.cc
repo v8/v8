@@ -27,6 +27,7 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/utils/utils-inl.h"
@@ -110,9 +111,11 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclassFast(map, object);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
     return VisitJSObjectSubclass(map, object);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   int VisitJSWeakCollection(Map map, JSWeakCollection object) {
     return VisitJSObjectSubclass(map, object);

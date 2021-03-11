@@ -10,7 +10,10 @@
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -19,10 +22,12 @@ SafepointTable::SafepointTable(Code code)
     : SafepointTable(code.InstructionStart(), code.SafepointTableAddress(),
                      code.stack_slots(), true) {}
 
+#if V8_ENABLE_WEBASSEMBLY
 SafepointTable::SafepointTable(const wasm::WasmCode* code)
     : SafepointTable(code->instruction_start(),
                      code->instruction_start() + code->safepoint_table_offset(),
                      code->stack_slots(), false) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 SafepointTable::SafepointTable(Address instruction_start,
                                Address safepoint_table_address,

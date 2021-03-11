@@ -20,10 +20,13 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/wasm-compiler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/parsing/parse-info.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -462,7 +465,9 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
 
 Reduction JSInliner::ReduceJSCall(Node* node) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
+#if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(node->opcode(), IrOpcode::kJSWasmCall);
+#endif  // V8_ENABLE_WEBASSEMBLY
   JSCallAccessor call(node);
 
   // Determine the call target.

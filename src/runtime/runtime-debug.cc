@@ -22,6 +22,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -29,7 +30,10 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
@@ -376,6 +380,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(index++, *buffer_data_str);
     result->set(index++, *buffer_data_obj);
 
+#if V8_ENABLE_WEBASSEMBLY
     Handle<Symbol> memory_symbol = factory->array_buffer_wasm_memory_symbol();
     Handle<Object> memory_object =
         JSObject::GetDataProperty(js_array_buffer, memory_symbol);
@@ -387,6 +392,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       result->set(index++, *buffer_memory_str);
       result->set(index++, *buffer_memory_obj);
     }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS, index);
   }

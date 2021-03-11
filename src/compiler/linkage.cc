@@ -43,6 +43,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallAddress:
       os << "Addr";
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmCapiFunction:
       os << "WasmExit";
       break;
@@ -52,6 +53,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallWasmImportWrapper:
       os << "WasmImportWrapper";
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
       os << "BuiltinPointer";
       break;
@@ -174,26 +176,34 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
     case kCallJSFunction:
       return StandardFrameConstants::kFixedSlotCount;
     case kCallAddress:
+#if V8_ENABLE_WEBASSEMBLY
       if (code_kind == CodeKind::C_WASM_ENTRY) {
         return CWasmEntryFrameConstants::kFixedSlotCount;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       return CommonFrameConstants::kFixedSlotCountAboveFp +
              CommonFrameConstants::kCPSlotCount;
     case kCallCodeObject:
     case kCallBuiltinPointer:
       return TypedFrameConstants::kFixedSlotCount;
+#if V8_ENABLE_WEBASSEMBLY
     case kCallWasmFunction:
     case kCallWasmImportWrapper:
       return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
   UNREACHABLE();
 }
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info) {
+#if V8_ENABLE_WEBASSEMBLY
   DCHECK(info->IsOptimizing() || info->IsWasm());
+#else
+  DCHECK(info->IsOptimizing());
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.
@@ -468,10 +478,12 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       kind = CallDescriptor::kCallCodeObject;
       target_type = MachineType::AnyTagged();
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case StubCallMode::kCallWasmRuntimeStub:
       kind = CallDescriptor::kCallWasmFunction;
       target_type = MachineType::Pointer();
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case StubCallMode::kCallBuiltinPointer:
       kind = CallDescriptor::kCallBuiltinPointer;
       target_type = MachineType::AnyTagged();

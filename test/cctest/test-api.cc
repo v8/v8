@@ -71,9 +71,12 @@
 #include "src/utils/utils.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/flag-utils.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 static const bool kLogThreading = false;
 
@@ -15475,7 +15478,7 @@ THREADED_TEST(ScriptContextDependence) {
            101);
 }
 
-
+#if V8_ENABLE_WEBASSEMBLY
 static int asm_warning_triggered = 0;
 
 static void AsmJsWarningListener(v8::Local<v8::Message> message,
@@ -15502,14 +15505,11 @@ TEST(AsmJsWarning) {
       "  return {};\n"
       "}\n"
       "module();");
-#if V8_ENABLE_WEBASSEMBLY
   int kExpectedWarnings = 1;
-#else
-  int kExpectedWarnings = 0;
-#endif
   CHECK_EQ(kExpectedWarnings, asm_warning_triggered);
   isolate->RemoveMessageListeners(AsmJsWarningListener);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 static int error_level_message_count = 0;
 static int expected_error_level = 0;

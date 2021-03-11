@@ -555,8 +555,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
+#if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
                                        Handle<Map> opt_parent);
+
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
+      Handle<String> name, Handle<WasmExportedFunctionData> data);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmJSFunction(
+      Handle<String> name, Handle<WasmJSFunctionData> data);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
+      Handle<WasmCapiFunctionData> data);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
   Handle<SyntheticModule> NewSyntheticModule(
@@ -682,13 +691,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForApiFunction(
       MaybeHandle<String> maybe_name,
       Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind);
-
-  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
-      Handle<String> name, Handle<WasmExportedFunctionData> data);
-  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmJSFunction(
-      Handle<String> name, Handle<WasmJSFunctionData> data);
-  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
-      Handle<WasmCapiFunctionData> data);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
       MaybeHandle<String> name, int builtin_index,

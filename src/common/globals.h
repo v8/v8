@@ -1691,7 +1691,9 @@ enum IcCheckType { ELEMENT, PROPERTY };
 //    without going through the on-heap Code trampoline.
 enum class StubCallMode {
   kCallCodeObject,
+#if V8_ENABLE_WEBASSEMBLY
   kCallWasmRuntimeStub,
+#endif  // V8_ENABLE_WEBASSEMBLY
   kCallBuiltinPointer,
 };
 

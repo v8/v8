@@ -199,9 +199,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallCodeObject,         // target is a Code object
     kCallJSFunction,         // target is a JSFunction object
     kCallAddress,            // target is a machine pointer
+#if V8_ENABLE_WEBASSEMBLY    // ↓ WebAssembly only
     kCallWasmCapiFunction,   // target is a Wasm C API function
     kCallWasmFunction,       // target is a wasm function
     kCallWasmImportWrapper,  // target is a wasm import wrapper
+#endif                       // ↑ WebAssembly only
     kCallBuiltinPointer,     // target is a builtin pointer
   };
 
@@ -288,6 +290,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
+#if V8_ENABLE_WEBASSEMBLY
   // Returns {true} if this descriptor is a call to a WebAssembly function.
   bool IsWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
 
@@ -296,9 +299,14 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns {true} if this descriptor is a call to a Wasm C API function.
   bool IsWasmCapiFunction() const { return kind_ == kCallWasmCapiFunction; }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   bool RequiresFrameAsIncoming() const {
-    return IsCFunctionCall() || IsJSFunctionCall() || IsWasmFunctionCall();
+    if (IsCFunctionCall() || IsJSFunctionCall()) return true;
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmFunctionCall()) return true;
+#endif  // V8_ENABLE_WEBASSEMBLY
+    return false;
   }
 
   // The number of return values from this call.

@@ -17,7 +17,10 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/roots/roots-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
