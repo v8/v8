@@ -531,7 +531,6 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
                                  Handle<JSArrayBuffer> array_buffer,
                                  size_t addr, T value, bool use_timeout,
                                  int64_t rel_timeout_ns) {
-  DCHECK(FLAG_harmony_atomics_waitasync);
   base::TimeDelta rel_timeout =
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
 
@@ -706,7 +705,6 @@ void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
   // This function must run in the main thread of node's Isolate. This function
   // may allocate memory. To avoid deadlocks, we shouldn't be holding g_mutex.
 
-  DCHECK(FLAG_harmony_atomics_waitasync);
   DCHECK(node->IsAsync());
 
   Isolate* isolate = node->isolate_for_async_waiters_;
@@ -737,7 +735,6 @@ void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
 
 void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
   // This function must run in the main thread of node's Isolate.
-  DCHECK(FLAG_harmony_atomics_waitasync);
 
   auto v8_isolate =
       reinterpret_cast<v8::Isolate*>(node->isolate_for_async_waiters_);
@@ -779,7 +776,6 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
 
 void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
   // This function must run in the main thread of isolate.
-  DCHECK(FLAG_harmony_atomics_waitasync);
 
   FutexWaitListNode* node;
   {
@@ -813,7 +809,6 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
 
 void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
   // This function must run in the main thread of node's Isolate.
-  DCHECK(FLAG_harmony_atomics_waitasync);
   DCHECK(node->IsAsync());
 
   {
@@ -966,7 +961,6 @@ void FutexWaitList::VerifyNode(FutexWaitListNode* node, FutexWaitListNode* head,
   }
 
   if (node->async_timeout_time_ != base::TimeTicks()) {
-    DCHECK(FLAG_harmony_atomics_waitasync);
     DCHECK(node->IsAsync());
   }
 

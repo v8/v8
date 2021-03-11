@@ -2073,6 +2073,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeRepeat, 1, true);
     SimpleInstallFunction(isolate_, prototype, "replace",
                           Builtins::kStringPrototypeReplace, 2, true);
+    SimpleInstallFunction(isolate(), prototype, "replaceAll",
+                          Builtins::kStringPrototypeReplaceAll, 2, true);
     SimpleInstallFunction(isolate_, prototype, "search",
                           Builtins::kStringPrototypeSearch, 1, true);
     SimpleInstallFunction(isolate_, prototype, "slice",
@@ -3299,6 +3301,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kAtomicsIsLockFree, 1, true);
     SimpleInstallFunction(isolate_, atomics_object, "wait",
                           Builtins::kAtomicsWait, 4, true);
+    SimpleInstallFunction(isolate(), atomics_object, "waitAsync",
+                          Builtins::kAtomicsWaitAsync, 4, true);
     SimpleInstallFunction(isolate_, atomics_object, "notify",
                           Builtins::kAtomicsNotify, 3, true);
   }
@@ -4318,7 +4322,6 @@ void Genesis::InitializeCallSiteBuiltins() {
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_sequence)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_top_level_await)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_logical_assignment)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_brand_checks)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
@@ -4329,12 +4332,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_dateformat_day_period)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
-
-void Genesis::InitializeGlobal_harmony_atomics_waitasync() {
-  if (!FLAG_harmony_atomics_waitasync) return;
-  SimpleInstallFunction(isolate(), isolate()->atomics_object(), "waitAsync",
-                        Builtins::kAtomicsWaitAsync, 4, true);
-}
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   if (!FLAG_harmony_sharedarraybuffer) return;
@@ -4465,17 +4462,6 @@ void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
 
   // Store regexp prototype map again after change.
   native_context()->set_regexp_prototype_map(prototype->map());
-}
-
-void Genesis::InitializeGlobal_harmony_string_replaceall() {
-  if (!FLAG_harmony_string_replaceall) return;
-
-  Handle<JSFunction> string_fun(native_context()->string_function(), isolate());
-  Handle<JSObject> string_prototype(
-      JSObject::cast(string_fun->instance_prototype()), isolate());
-
-  SimpleInstallFunction(isolate(), string_prototype, "replaceAll",
-                        Builtins::kStringPrototypeReplaceAll, 2, true);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {

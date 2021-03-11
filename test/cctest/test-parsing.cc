@@ -1619,7 +1619,6 @@ const char* ReadString(unsigned* start) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyLogicalAssignment,
 };
 
 enum ParserSyncTestResult {
@@ -1630,15 +1629,11 @@ enum ParserSyncTestResult {
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
-  i::FLAG_harmony_logical_assignment =
-      flags.contains(kAllowHarmonyLogicalAssignment);
 }
 
 void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
                     base::EnumSet<ParserFlag> flags) {
   compile_flags->set_allow_natives_syntax(flags.contains(kAllowNatives));
-  compile_flags->set_allow_harmony_logical_assignment(
-      flags.contains(kAllowHarmonyLogicalAssignment));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -12401,9 +12396,7 @@ TEST(LogicalAssignmentDestructuringErrors) {
   };
   // clang-format on
 
-  static const ParserFlag flags[] = {kAllowHarmonyLogicalAssignment};
-  RunParserSyncTest(context_data, error_data, kError, nullptr, 0, flags,
-                    arraysize(flags));
+  RunParserSyncTest(context_data, error_data, kError);
 }
 
 }  // namespace test_parsing

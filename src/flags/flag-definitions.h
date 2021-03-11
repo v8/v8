@@ -286,9 +286,6 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
   V(harmony_atomics, "harmony atomics")                               \
   V(harmony_weak_refs, "harmony weak references")                     \
-  V(harmony_string_replaceall, "harmony String.prototype.replaceAll") \
-  V(harmony_logical_assignment, "harmony logical assignment")         \
-  V(harmony_atomics_waitasync, "harmony Atomics.waitAsync")           \
   V(harmony_regexp_match_indices, "harmony regexp match indices")     \
   V(harmony_private_brand_checks, "harmony private brand checks")
 

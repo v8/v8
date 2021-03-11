@@ -36,7 +36,6 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
   set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
                                isolate->NeedsDetailedOptimizedCodeLineInfo());
   set_allow_harmony_top_level_await(FLAG_harmony_top_level_await);
-  set_allow_harmony_logical_assignment(FLAG_harmony_logical_assignment);
 }
 
 // static

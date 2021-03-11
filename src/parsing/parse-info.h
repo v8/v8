@@ -63,8 +63,7 @@ class Zone;
   V(is_oneshot_iife, bool, 1, _)                         \
   V(collect_source_positions, bool, 1, _)                \
   V(allow_harmony_top_level_await, bool, 1, _)           \
-  V(is_repl_mode, bool, 1, _)                            \
-  V(allow_harmony_logical_assignment, bool, 1, _)
+  V(is_repl_mode, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
  public:
