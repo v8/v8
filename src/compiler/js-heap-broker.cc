@@ -164,6 +164,7 @@ class ObjectData : public ZoneObject {
            kind_ == kNeverSerializedHeapObject ||
            kind_ == kUnserializedReadOnlyHeapObject;
   }
+  bool IsNull() const { return object_->IsNull(); }
 
 #ifdef DEBUG
   enum class Usage{kUnused, kOnlyIdentityUsed, kDataUsed};
@@ -271,6 +272,7 @@ FunctionTemplateInfoData::FunctionTemplateInfoData(
       c_function_(v8::ToCData<Address>(object->GetCFunction())),
       c_signature_(v8::ToCData<CFunctionInfo*>(object->GetCSignature())),
       known_receivers_(broker->zone()) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
   auto function_template_info = Handle<FunctionTemplateInfo>::cast(object);
   is_signature_undefined_ =
       function_template_info->signature().IsUndefined(broker->isolate());
@@ -3511,8 +3513,10 @@ BIMODAL_ACCESSOR_C(RegExpBoilerplateDescription, int, flags)
 
 base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
   if (data_->should_access_heap()) {
-    return CallHandlerInfoRef(broker(), broker()->CanonicalPersistentHandle(
-                                            object()->call_code(kAcquireLoad)));
+    HeapObject call_code = object()->call_code(kAcquireLoad);
+    if (call_code.IsUndefined()) return base::nullopt;
+    return CallHandlerInfoRef(broker(),
+                              broker()->CanonicalPersistentHandle(call_code));
   }
   ObjectData* call_code = data()->AsFunctionTemplateInfo()->call_code();
   if (!call_code) return base::nullopt;
@@ -3528,40 +3532,72 @@ bool FunctionTemplateInfoRef::is_signature_undefined() const {
 
 bool FunctionTemplateInfoRef::has_call_code() const {
   if (data_->should_access_heap()) {
-    CallOptimization call_optimization(broker()->isolate(), object());
-    return call_optimization.is_simple_api_call();
+    HeapObject call_code = object()->call_code(kAcquireLoad);
+    return !call_code.IsUndefined();
   }
   return data()->AsFunctionTemplateInfo()->has_call_code();
 }
 
-BIMODAL_ACCESSOR_C(FunctionTemplateInfo, bool, accept_any_receiver)
+bool FunctionTemplateInfoRef ::accept_any_receiver() const {
+  if (data_->should_access_heap()) {
+    return object()->accept_any_receiver();
+  }
+  return ObjectRef ::data()->AsFunctionTemplateInfo()->accept_any_receiver();
+}
 
 HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
     MapRef receiver_map, SerializationPolicy policy) {
   const HolderLookupResult not_found;
 
   if (data_->should_access_heap()) {
-    CallOptimization call_optimization(broker()->isolate(), object());
-    Handle<Map> receiver_map_ref(receiver_map.object());
-    if (!receiver_map_ref->IsJSReceiverMap() ||
-        (receiver_map_ref->is_access_check_needed() &&
+    // There are currently two ways we can see a FunctionTemplateInfo on the
+    // background thread: 1.) As part of a SharedFunctionInfo and 2.) in an
+    // AccessorPair. In both cases, the FTI is fully constructed on the main
+    // thread before.
+    // TODO(nicohartmann@, v8:7790): Once the above no longer holds, we might
+    // have to use the GC predicate to check whether objects are fully
+    // initialized and safe to read.
+    if (!receiver_map.IsJSReceiverMap() ||
+        (receiver_map.is_access_check_needed() &&
          !object()->accept_any_receiver())) {
       return not_found;
     }
 
-    HolderLookupResult result;
-    Handle<JSObject> holder = call_optimization.LookupHolderOfExpectedType(
-        receiver_map_ref, &result.lookup);
+    if (!receiver_map.IsJSObjectMap()) return not_found;
 
-    switch (result.lookup) {
-      case CallOptimization::kHolderFound:
-        result.holder = JSObjectRef(broker(), holder);
-        break;
-      default:
-        DCHECK_EQ(result.holder, base::nullopt);
-        break;
+    DCHECK(has_call_code());
+
+    DisallowGarbageCollection no_gc;
+    HeapObject signature = object()->signature();
+    if (signature.IsUndefined()) {
+      return HolderLookupResult(CallOptimization::kHolderIsReceiver);
     }
-    return result;
+    auto expected_receiver_type = FunctionTemplateInfo::cast(signature);
+    if (expected_receiver_type.IsTemplateFor(*receiver_map.object())) {
+      return HolderLookupResult(CallOptimization::kHolderIsReceiver);
+    }
+
+    if (!receiver_map.IsJSGlobalProxyMap()) return not_found;
+    if (policy == SerializationPolicy::kSerializeIfNeeded) {
+      receiver_map.SerializePrototype();
+    }
+    if (!receiver_map.serialized_prototype()) return not_found;
+    if (receiver_map.prototype().IsNull()) return not_found;
+
+    JSObject raw_prototype = JSObject::cast(*receiver_map.prototype().object());
+    if (!expected_receiver_type.IsTemplateFor(raw_prototype.map())) {
+      return not_found;
+    }
+    Handle<JSObject> prototype =
+        broker()->CanonicalPersistentHandle(raw_prototype);
+    if (ObjectData* data = broker()->TryGetOrCreateData(prototype)) {
+      return HolderLookupResult(CallOptimization::kHolderFound,
+                                JSObjectRef(broker(), data));
+    }
+
+    TRACE_BROKER_MISSING(broker(),
+                         "holder for receiver with map " << receiver_map);
+    return not_found;
   }
 
   FunctionTemplateInfoData* fti_data = data()->AsFunctionTemplateInfo();
@@ -3897,6 +3933,8 @@ base::Optional<JSFunctionRef> NativeContextRef::GetConstructorFunction(
       UNREACHABLE();
   }
 }
+
+bool ObjectRef::IsNull() const { return object()->IsNull(); }
 
 bool ObjectRef::IsNullOrUndefined() const {
   if (IsSmi()) return false;
@@ -4519,8 +4557,8 @@ void MapRef::SerializePrototype() {
 }
 
 bool MapRef::serialized_prototype() const {
-  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
   if (data_->should_access_heap()) return true;
+  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
   return data()->AsMap()->serialized_prototype();
 }
 
