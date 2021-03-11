@@ -59,6 +59,8 @@ void FreeUnreferencedObject(void* object) {
     } else {  // Returning to free list.
       base_page->heap()->stats_collector()->NotifyExplicitFree(header_size);
       normal_space.free_list().Add({&header, header_size});
+      // No need to update the bitmap as the same bit is reused for the free
+      // list entry.
     }
   }
 }
@@ -99,7 +101,6 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
     // adjustments are needed.
     lab.Set(free_start, lab.size() + size_delta);
     SET_MEMORY_INACCESSIBLE(lab.start(), size_delta);
-
     header.SetSize(new_size);
     return true;
   }
@@ -109,7 +110,7 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
     SET_MEMORY_INACCESSIBLE(free_start, size_delta);
     base_page.heap()->stats_collector()->NotifyExplicitFree(size_delta);
     normal_space.free_list().Add({free_start, size_delta});
-
+    NormalPage::From(&base_page)->object_start_bitmap().SetBit(free_start);
     header.SetSize(new_size);
   }
   // Return success in any case, as we want to avoid that embedders start

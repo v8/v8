@@ -6,6 +6,7 @@
 
 #include "include/cppgc/garbage-collected.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/page-memory.h"
@@ -16,7 +17,7 @@
 namespace cppgc {
 namespace internal {
 
-class ExplicitManagementTest : public testing::TestSupportingAllocationOnly {
+class ExplicitManagementTest : public testing::TestWithHeap {
  public:
   size_t AllocatedObjectSize() const {
     auto* heap = Heap::From(GetHeap());
@@ -28,6 +29,11 @@ class ExplicitManagementTest : public testing::TestSupportingAllocationOnly {
     return Heap::From(GetHeap())
         ->object_allocator()
         .ResetLinearAllocationBuffers();
+  }
+
+  void TearDown() override {
+    PreciseGC();
+    TestWithHeap::TearDown();
   }
 };
 
