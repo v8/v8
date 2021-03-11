@@ -401,7 +401,7 @@ Handle<Map> ParentOfDescriptorOwner(Isolate* isolate, Handle<Map> maybe_root,
 template <typename Char>
 Handle<Object> JsonParser<Char>::BuildJsonObject(
     const JsonContinuation& cont,
-    const std::vector<JsonProperty>& property_stack, Handle<Map> feedback) {
+    const SmallVector<JsonProperty>& property_stack, Handle<Map> feedback) {
   size_t start = cont.index;
   int length = static_cast<int>(property_stack.size() - start);
   int named_length = length - cont.elements;
@@ -645,7 +645,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 template <typename Char>
 Handle<Object> JsonParser<Char>::BuildJsonArray(
     const JsonContinuation& cont,
-    const std::vector<Handle<Object>>& element_stack) {
+    const SmallVector<Handle<Object>>& element_stack) {
   size_t start = cont.index;
   int length = static_cast<int>(element_stack.size() - start);
 
@@ -686,12 +686,10 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
 template <typename Char>
 MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
   std::vector<JsonContinuation> cont_stack;
-  std::vector<JsonProperty> property_stack;
-  std::vector<Handle<Object>> element_stack;
+  SmallVector<JsonProperty> property_stack;
+  SmallVector<Handle<Object>> element_stack;
 
   cont_stack.reserve(16);
-  property_stack.reserve(16);
-  element_stack.reserve(16);
 
   JsonContinuation cont(isolate_, JsonContinuation::kReturn, 0);
 
@@ -833,7 +831,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             }
           }
           value = BuildJsonObject(cont, property_stack, feedback);
-          property_stack.resize(cont.index);
+          property_stack.resize_no_init(cont.index);
           Expect(JsonToken::RBRACE);
 
           // Return the object.
@@ -852,7 +850,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           if (V8_LIKELY(Check(JsonToken::COMMA))) break;
 
           value = BuildJsonArray(cont, element_stack);
-          element_stack.resize(cont.index);
+          element_stack.resize_no_init(cont.index);
           Expect(JsonToken::RBRACK);
 
           // Return the array.
