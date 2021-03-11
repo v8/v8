@@ -581,7 +581,7 @@ DEFINE_BOOL(
     turboprop_as_toptier, false,
     "enable experimental turboprop compiler without further tierup to turbofan")
 DEFINE_IMPLICATION(turboprop_as_toptier, turboprop)
-DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 14 * KB)
+DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 20 * KB)
 DEFINE_VALUE_IMPLICATION(turboprop, reuse_opt_code_count, 2)
 DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
                      "max number of map checks to perform in minimorphic state")
