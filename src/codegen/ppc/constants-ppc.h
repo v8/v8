@@ -2929,6 +2929,11 @@ class Instruction {
       PPC_XFX_OPCODE_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
+    opcode = extcode | BitField(10, 2);
+    switch (opcode) {
+      PPC_XX2_OPCODE_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
     opcode = extcode | BitField(10, 1);
     switch (opcode) {
       PPC_X_OPCODE_LIST(OPCODE_CASES)
@@ -2936,11 +2941,6 @@ class Instruction {
       PPC_XFL_OPCODE_LIST(OPCODE_CASES)
       PPC_XX1_OPCODE_LIST(OPCODE_CASES)
       PPC_EVX_OPCODE_LIST(OPCODE_CASES)
-      return static_cast<Opcode>(opcode);
-    }
-    opcode = extcode | BitField(10, 2);
-    switch (opcode) {
-      PPC_XX2_OPCODE_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
     opcode = extcode | BitField(9, 1);

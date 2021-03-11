@@ -3857,6 +3857,15 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       return;
     }
     // Vector instructions.
+    case LVX: {
+      DECODE_VX_INSTRUCTION(vrt, ra, rb, T)
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      intptr_t addr = (ra_val + rb_val) & 0xFFFFFFFFFFFFFFF0;
+      simdr_t* ptr = reinterpret_cast<simdr_t*>(addr);
+      set_simd_register(vrt, *ptr);
+      break;
+    }
     case STVX: {
       DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
@@ -4415,6 +4424,30 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VECTOR_ADD_SUB_SATURATE
+#define VECTOR_FP_ROUNDING(type, op)                       \
+  int t = instr->RTValue();                                \
+  int b = instr->RBValue();                                \
+  FOR_EACH_LANE(i, type) {                                 \
+    type b_val = get_simd_register_by_lane<type>(b, i);    \
+    set_simd_register_by_lane<type>(t, i, std::op(b_val)); \
+  }
+    case XVRDPIP: {
+      VECTOR_FP_ROUNDING(double, ceil)
+      break;
+    }
+    case XVRDPIM: {
+      VECTOR_FP_ROUNDING(double, floor)
+      break;
+    }
+    case XVRDPIZ: {
+      VECTOR_FP_ROUNDING(double, trunc)
+      break;
+    }
+    case XVRDPI: {
+      VECTOR_FP_ROUNDING(double, nearbyint)
+      break;
+    }
+#undef VECTOR_FP_ROUNDING
     case VSEL: {
       int vrt = instr->RTValue();
       int vra = instr->RAValue();
