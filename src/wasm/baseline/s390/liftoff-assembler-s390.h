@@ -1475,8 +1475,18 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
   bailout(kUnsupportedArchitecture, "emit_i32_cond_jumpi");
 }
 
+#define EMIT_EQZ(test, src) \
+  {                         \
+    Label done;             \
+    test(r0, src);          \
+    mov(dst, Operand(1));   \
+    beq(&done);             \
+    mov(dst, Operand(0));   \
+    bind(&done);            \
+  }
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "emit_i32_eqz");
+  EMIT_EQZ(ltr, src);
 }
 
 #define EMIT_SET_CONDITION(dst, cond) \
@@ -1502,7 +1512,7 @@ void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_eqz");
+  EMIT_EQZ(ltgr, src.gp());
 }
 
 void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
