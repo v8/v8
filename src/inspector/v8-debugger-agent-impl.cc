@@ -194,6 +194,14 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
                               int* columnNumber) {
   if (*lineNumber < script.startLine() || *lineNumber > script.endLine())
     return;
+  if (*lineNumber == script.startLine() &&
+      *columnNumber < script.startColumn()) {
+    return;
+  }
+  if (*lineNumber == script.endLine() && script.endColumn() < *columnNumber) {
+    return;
+  }
+
   if (hint.isEmpty()) return;
   intptr_t sourceOffset = script.offset(*lineNumber, *columnNumber);
   if (sourceOffset == V8DebuggerScript::kNoOffset) return;
@@ -913,6 +921,13 @@ V8DebuggerAgentImpl::setBreakpointImpl(const String16& breakpointId,
   if (scriptIterator == m_scripts.end()) return nullptr;
   V8DebuggerScript* script = scriptIterator->second.get();
   if (lineNumber < script->startLine() || script->endLine() < lineNumber) {
+    return nullptr;
+  }
+  if (lineNumber == script->startLine() &&
+      columnNumber < script->startColumn()) {
+    return nullptr;
+  }
+  if (lineNumber == script->endLine() && script->endColumn() < columnNumber) {
     return nullptr;
   }
 
