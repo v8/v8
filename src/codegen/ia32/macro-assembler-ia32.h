@@ -338,6 +338,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                           SSE4_1)
   AVX_OP3_WITH_TYPE_SCOPE(Extractps, extractps, Operand, XMMRegister, uint8_t,
                           SSE4_1)
+  AVX_OP3_WITH_TYPE_SCOPE(Roundps, roundps, XMMRegister, XMMRegister,
+                          RoundingMode, SSE4_1)
+  AVX_OP3_WITH_TYPE_SCOPE(Roundpd, roundpd, XMMRegister, XMMRegister,
+                          RoundingMode, SSE4_1)
 #undef AVX_OP3_WITH_TYPE_SCOPE
 
 // SSE/SSE2 instructions with AVX version.
@@ -700,9 +704,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Cvttsd2ui(dst, Operand(src), tmp);
   }
   void Cvttsd2ui(Register dst, Operand src, XMMRegister tmp);
-
-  void Roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
-  void Roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.
   void Pmulhrsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);

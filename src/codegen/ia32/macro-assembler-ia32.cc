@@ -628,28 +628,6 @@ void TurboAssembler::Cvttsd2ui(Register dst, Operand src, XMMRegister tmp) {
   add(dst, Immediate(0x80000000));
 }
 
-void TurboAssembler::Roundps(XMMRegister dst, XMMRegister src,
-                             RoundingMode mode) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vroundps(dst, src, mode);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    roundps(dst, src, mode);
-  }
-}
-
-void TurboAssembler::Roundpd(XMMRegister dst, XMMRegister src,
-                             RoundingMode mode) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vroundpd(dst, src, mode);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    roundpd(dst, src, mode);
-  }
-}
-
 void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
                               XMMRegister src2) {
   if (CpuFeatures::IsSupported(AVX)) {
