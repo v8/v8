@@ -102,8 +102,10 @@ class MakeGarbageCollectedTraitBase
    * \returns the memory to construct an object of type T on.
    */
   static void* Allocate(AllocationHandle& handle, size_t size) {
-    return SpacePolicy<T, typename SpaceTrait<T>::Space>::Allocate(handle,
-                                                                   size);
+    return SpacePolicy<
+        typename internal::GCInfoFolding<
+            T, typename T::ParentMostGarbageCollectedType>::ResultType,
+        typename SpaceTrait<T>::Space>::Allocate(handle, size);
   }
 
   /**

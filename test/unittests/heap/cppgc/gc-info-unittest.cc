@@ -4,6 +4,8 @@
 
 #include "include/cppgc/internal/gc-info.h"
 
+#include <type_traits>
+
 #include "include/cppgc/platform.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
@@ -160,6 +162,111 @@ TEST_F(GCInfoTraitTest, TraitReturnsDifferentIndexForDifferentTypes) {
   const GCInfoIndex index2 = GCInfoTrait<OtherBasicType>::Index();
   EXPECT_NE(index1, index2);
 }
+
+namespace {
+
+struct Dummy {};
+
+class BaseWithVirtualDestructor
+    : public GarbageCollected<BaseWithVirtualDestructor> {
+ public:
+  virtual ~BaseWithVirtualDestructor() = default;
+  void Trace(Visitor*) const {}
+
+ private:
+  std::unique_ptr<Dummy> non_trivially_destructible_;
+};
+
+class ChildOfBaseWithVirtualDestructor : public BaseWithVirtualDestructor {
+ public:
+  ~ChildOfBaseWithVirtualDestructor() override = default;
+};
+
+static_assert(std::has_virtual_destructor<BaseWithVirtualDestructor>::value,
+              "Must have virtual destructor.");
+static_assert(!std::is_trivially_destructible<BaseWithVirtualDestructor>::value,
+              "Must not be trivially destructible");
+#ifdef CPPGC_SUPPORTS_OBJECT_NAMES
+static_assert(std::is_same<typename internal::GCInfoFolding<
+                               ChildOfBaseWithVirtualDestructor,
+                               ChildOfBaseWithVirtualDestructor::
+                                   ParentMostGarbageCollectedType>::ResultType,
+                           ChildOfBaseWithVirtualDestructor>::value,
+              "No folding to preserve object names");
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+static_assert(std::is_same<typename internal::GCInfoFolding<
+                               ChildOfBaseWithVirtualDestructor,
+                               ChildOfBaseWithVirtualDestructor::
+                                   ParentMostGarbageCollectedType>::ResultType,
+                           BaseWithVirtualDestructor>::value,
+              "Must fold into base as base has virtual destructor.");
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
+
+class TriviallyDestructibleBase
+    : public GarbageCollected<TriviallyDestructibleBase> {
+ public:
+  virtual void Trace(Visitor*) const {}
+};
+
+class ChildOfTriviallyDestructibleBase : public TriviallyDestructibleBase {};
+
+static_assert(!std::has_virtual_destructor<TriviallyDestructibleBase>::value,
+              "Must not have virtual destructor.");
+static_assert(std::is_trivially_destructible<TriviallyDestructibleBase>::value,
+              "Must be trivially destructible");
+#ifdef CPPGC_SUPPORTS_OBJECT_NAMES
+static_assert(std::is_same<typename internal::GCInfoFolding<
+                               ChildOfTriviallyDestructibleBase,
+                               ChildOfTriviallyDestructibleBase::
+                                   ParentMostGarbageCollectedType>::ResultType,
+                           ChildOfTriviallyDestructibleBase>::value,
+              "No folding to preserve object names");
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+static_assert(std::is_same<typename internal::GCInfoFolding<
+                               ChildOfTriviallyDestructibleBase,
+                               ChildOfTriviallyDestructibleBase::
+                                   ParentMostGarbageCollectedType>::ResultType,
+                           TriviallyDestructibleBase>::value,
+              "Must fold into base as both are trivially destructible.");
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
+
+class TypeWithCustomFinalizationMethodAtBase
+    : public GarbageCollected<TypeWithCustomFinalizationMethodAtBase> {
+ public:
+  void FinalizeGarbageCollectedObject() {}
+  void Trace(Visitor*) const {}
+
+ private:
+  std::unique_ptr<Dummy> non_trivially_destructible_;
+};
+
+class ChildOfTypeWithCustomFinalizationMethodAtBase
+    : public TypeWithCustomFinalizationMethodAtBase {};
+
+static_assert(
+    !std::has_virtual_destructor<TypeWithCustomFinalizationMethodAtBase>::value,
+    "Must not have virtual destructor.");
+static_assert(!std::is_trivially_destructible<
+                  TypeWithCustomFinalizationMethodAtBase>::value,
+              "Must not be trivially destructible");
+#ifdef CPPGC_SUPPORTS_OBJECT_NAMES
+static_assert(
+    std::is_same<typename internal::GCInfoFolding<
+                     ChildOfTypeWithCustomFinalizationMethodAtBase,
+                     ChildOfTypeWithCustomFinalizationMethodAtBase::
+                         ParentMostGarbageCollectedType>::ResultType,
+                 ChildOfTypeWithCustomFinalizationMethodAtBase>::value,
+    "No folding to preserve object names");
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+static_assert(std::is_same<typename internal::GCInfoFolding<
+                               ChildOfTypeWithCustomFinalizationMethodAtBase,
+                               ChildOfTypeWithCustomFinalizationMethodAtBase::
+                                   ParentMostGarbageCollectedType>::ResultType,
+                           TypeWithCustomFinalizationMethodAtBase>::value,
+              "Must fold into base as base has custom finalizer dispatch.");
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
+
+}  // namespace
 
 }  // namespace internal
 }  // namespace cppgc
