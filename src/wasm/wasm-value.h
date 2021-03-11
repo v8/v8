@@ -86,20 +86,20 @@ class WasmValue {
  public:
   WasmValue() : type_(kWasmStmt), bit_pattern_{} {}
 
-#define DEFINE_TYPE_SPECIFIC_METHODS(name, localtype, ctype)                  \
-  explicit WasmValue(ctype v) : type_(localtype), bit_pattern_{} {            \
-    static_assert(sizeof(ctype) <= sizeof(bit_pattern_),                      \
-                  "size too big for WasmValue");                              \
-    base::WriteUnalignedValue<ctype>(reinterpret_cast<Address>(bit_pattern_), \
-                                     v);                                      \
-  }                                                                           \
-  ctype to_##name() const {                                                   \
-    DCHECK_EQ(localtype, type_);                                              \
-    return to_##name##_unchecked();                                           \
-  }                                                                           \
-  ctype to_##name##_unchecked() const {                                       \
-    return base::ReadUnalignedValue<ctype>(                                   \
-        reinterpret_cast<Address>(bit_pattern_));                             \
+#define DEFINE_TYPE_SPECIFIC_METHODS(name, localtype, ctype)       \
+  explicit WasmValue(ctype v) : type_(localtype), bit_pattern_{} { \
+    static_assert(sizeof(ctype) <= sizeof(bit_pattern_),           \
+                  "size too big for WasmValue");                   \
+    base::WriteLittleEndianValue<ctype>(                           \
+        reinterpret_cast<Address>(bit_pattern_), v);               \
+  }                                                                \
+  ctype to_##name() const {                                        \
+    DCHECK_EQ(localtype, type_);                                   \
+    return to_##name##_unchecked();                                \
+  }                                                                \
+  ctype to_##name##_unchecked() const {                            \
+    return base::ReadLittleEndianValue<ctype>(                     \
+        reinterpret_cast<Address>(bit_pattern_));                  \
   }
   FOREACH_PRIMITIVE_WASMVAL_TYPE(DEFINE_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_TYPE_SPECIFIC_METHODS
