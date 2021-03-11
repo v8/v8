@@ -3942,13 +3942,14 @@ void CodeGenerator::AssembleConstructFrame() {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (call_descriptor->IsCFunctionCall()) {
-      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
 #if V8_ENABLE_WEBASSEMBLY
+      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
         __ StubPrologue(StackFrame::C_WASM_ENTRY);
         // Reserve stack space for saving the c_entry_fp later.
         __ addi(sp, sp, Operand(-kSystemPointerSize));
 #else
-        UNREACHABLE();
+      // For balance.
+      if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
       } else {
         __ mflr(r0);
