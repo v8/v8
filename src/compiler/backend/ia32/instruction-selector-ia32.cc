@@ -2515,8 +2515,10 @@ void InstructionSelector::VisitS128Select(Node* node) {
 void InstructionSelector::VisitS128AndNot(Node* node) {
   IA32OperandGenerator g(this);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
-  Emit(kIA32S128AndNot, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kIA32S128AndNot, dst, g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(0)));
 }
 
 #define VISIT_SIMD_SPLAT(Type)                               \

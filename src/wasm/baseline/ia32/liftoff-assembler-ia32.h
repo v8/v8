@@ -4134,7 +4134,7 @@ void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
   Cmpunordps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
   Orps(liftoff::kScratchDoubleReg, dst.fp());
   Psrld(dst.fp(), dst.fp(), byte{10});
-  Andnps(dst.fp(), liftoff::kScratchDoubleReg);
+  Andnps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
@@ -4165,7 +4165,7 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
   // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
   Cmpunordps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
   Psrld(dst.fp(), dst.fp(), byte{10});
-  Andnps(dst.fp(), liftoff::kScratchDoubleReg);
+  Andnps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,

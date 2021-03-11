@@ -3617,12 +3617,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32S128AndNot: {
-      XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The inputs have been inverted by instruction selector, so we can call
       // andnps here without any modifications.
-      XMMRegister src1 = i.InputSimd128Register(1);
-      __ Andnps(dst, src1);
+      __ Andnps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
       break;
     }
     case kIA32I8x16Swizzle: {
