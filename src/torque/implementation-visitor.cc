@@ -5235,6 +5235,7 @@ void ReportAllUnusedMacros() {
                                                  "FromConstexpr<"};
     const std::string name = macro->ReadableName();
     const bool ignore =
+        StartsWithSingleUnderscore(name) ||
         std::any_of(ignored_prefixes.begin(), ignored_prefixes.end(),
                     [&name](const std::string& prefix) {
                       return StringStartsWith(name, prefix);

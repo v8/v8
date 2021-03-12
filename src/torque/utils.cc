@@ -313,6 +313,10 @@ std::string UnderlinifyPath(std::string path) {
   return path;
 }
 
+bool StartsWithSingleUnderscore(const std::string& str) {
+  return str.length() >= 2 && str[0] == '_' && str[1] != '_';
+}
+
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents) {
   std::ifstream old_contents_stream(file_path.c_str());

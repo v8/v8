@@ -234,7 +234,7 @@ template <class T>
 class BindingsManager {
  public:
   base::Optional<Binding<T>*> TryLookup(const std::string& name) {
-    if (name.length() >= 2 && name[0] == '_' && name[1] != '_') {
+    if (StartsWithSingleUnderscore(name)) {
       Error("Trying to reference '", name, "' which is marked as unused.")
           .Throw();
     }
