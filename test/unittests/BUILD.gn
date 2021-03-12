@@ -399,6 +399,7 @@ v8_source_set("unittests_sources") {
       "wasm/decoder-unittest.cc",
       "wasm/function-body-decoder-unittest.cc",
       "wasm/leb-helper-unittest.cc",
+      "wasm/liftoff-register-unittests.cc",
       "wasm/loop-assignment-analysis-unittest.cc",
       "wasm/module-decoder-memory64-unittest.cc",
       "wasm/module-decoder-unittest.cc",

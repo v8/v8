@@ -2371,12 +2371,21 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_DEBUG_BREAK);
 
+    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
+    constexpr uint32_t last =
+        31 - base::bits::CountLeadingZeros32(
+                 WasmDebugBreakFrameConstants::kPushedFpRegs);
+    constexpr uint32_t first = base::bits::CountTrailingZeros32(
+        WasmDebugBreakFrameConstants::kPushedFpRegs);
+    static_assert(
+        base::bits::CountPopulation(
+            WasmDebugBreakFrameConstants::kPushedFpRegs) == last - first + 1,
+        "All registers in the range from first to last have to be set");
+
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    constexpr DwVfpRegister lowest_fp_reg = DwVfpRegister::from_code(
-        WasmDebugBreakFrameConstants::kFirstPushedFpReg);
-    constexpr DwVfpRegister highest_fp_reg = DwVfpRegister::from_code(
-        WasmDebugBreakFrameConstants::kLastPushedFpReg);
+    constexpr DwVfpRegister lowest_fp_reg = DwVfpRegister::from_code(first);
+    constexpr DwVfpRegister highest_fp_reg = DwVfpRegister::from_code(last);
 
     // Store gp parameter registers.
     __ stm(db_w, sp, WasmDebugBreakFrameConstants::kPushedGpRegs);
