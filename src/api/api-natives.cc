@@ -704,7 +704,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
                                                TERMINAL_FAST_ELEMENTS_KIND);
-  JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {
@@ -740,6 +739,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (immutable_proto) map->set_is_immutable_proto(true);
 
+  JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
   return result;
 }
 

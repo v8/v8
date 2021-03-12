@@ -364,13 +364,16 @@
                 kRelaxedStore);                                      \
   }
 
-#define BIT_FIELD_ACCESSORS(holder, field, name, BitField)      \
-  typename BitField::FieldType holder::name() const {           \
-    return BitField::decode(field());                           \
-  }                                                             \
-  void holder::set_##name(typename BitField::FieldType value) { \
-    set_##field(BitField::update(field(), value));              \
+#define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
+  typename BitField::FieldType holder::name() const {                      \
+    return BitField::decode(get_field());                                  \
+  }                                                                        \
+  void holder::set_##name(typename BitField::FieldType value) {            \
+    set_##set_field(BitField::update(set_field(), value));                 \
   }
+
+#define BIT_FIELD_ACCESSORS(holder, field, name, BitField) \
+  BIT_FIELD_ACCESSORS2(holder, field, field, name, BitField)
 
 #define INSTANCE_TYPE_CHECKER(type, forinstancetype)    \
   V8_INLINE bool Is##type(InstanceType instance_type) { \

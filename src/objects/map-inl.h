@@ -62,21 +62,26 @@ ACCESSORS_CHECKED(Map, prototype_info, Object,
 // is explicitly allowlisted here. The former is never modified after the map
 // is setup but it's being read by concurrent marker when pointer compression
 // is enabled. The latter bit can be modified on a live objects.
-BIT_FIELD_ACCESSORS(Map, bit_field, has_non_instance_prototype,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
                     Map::Bits1::HasNonInstancePrototypeBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, has_named_interceptor,
-                    Map::Bits1::HasNamedInterceptorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, has_indexed_interceptor,
-                    Map::Bits1::HasIndexedInterceptorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_undetectable,
-                    Map::Bits1::IsUndetectableBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_access_check_needed,
-                    Map::Bits1::IsAccessCheckNeededBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_constructor,
-                    Map::Bits1::IsConstructorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, has_prototype_slot,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_prototype_slot,
                     Map::Bits1::HasPrototypeSlotBit)
+
+// These are fine to be written as non-atomic since we don't have data races.
+// However, they have to be read atomically from the background since the
+// |bit_field| as a whole can mutate when using the above setters.
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, is_callable,
+                     Map::Bits1::IsCallableBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, has_named_interceptor,
+                     Map::Bits1::HasNamedInterceptorBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, has_indexed_interceptor,
+                     Map::Bits1::HasIndexedInterceptorBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, is_undetectable,
+                     Map::Bits1::IsUndetectableBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, is_access_check_needed,
+                     Map::Bits1::IsAccessCheckNeededBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field, bit_field, is_constructor,
+                     Map::Bits1::IsConstructorBit)
 
 // |bit_field2| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field2, new_target_is_base,
@@ -437,12 +442,18 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
   DCHECK_EQ(unused_in_property_array, UnusedPropertyFields());
 }
 
-byte Map::bit_field() const {
-  return ACQUIRE_READ_BYTE_FIELD(*this, kBitFieldOffset);
-}
+byte Map::bit_field() const { return ReadField<byte>(kBitFieldOffset); }
 
 void Map::set_bit_field(byte value) {
-  RELEASE_WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
+  WriteField<byte>(kBitFieldOffset, value);
+}
+
+byte Map::relaxed_bit_field() const {
+  return RELAXED_READ_BYTE_FIELD(*this, kBitFieldOffset);
+}
+
+void Map::set_relaxed_bit_field(byte value) {
+  RELAXED_WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
 }
 
 byte Map::bit_field2() const {
