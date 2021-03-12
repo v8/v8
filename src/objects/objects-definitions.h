@@ -101,7 +101,7 @@ namespace internal {
 // code for the class including allocation and garbage collection routines,
 // casts and predicates.  All you need to define is the class, methods and
 // object verification routines.  Easy, no?
-#define STRUCT_LIST_GENERATOR_BASE(V, _)                                       \
+#define STRUCT_LIST_GENERATOR(V, _)                                            \
   V(_, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE, PromiseFulfillReactionJobTask,  \
     promise_fulfill_reaction_job_task)                                         \
   V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,    \
@@ -158,8 +158,6 @@ namespace internal {
           wasm_indirect_function_table)                                        \
   IF_WASM(V, _, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData,                \
           wasm_js_function_data)
-
-#define STRUCT_LIST_GENERATOR(V, _) STRUCT_LIST_GENERATOR_BASE(V, _)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)
