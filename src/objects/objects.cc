@@ -461,6 +461,9 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
 
   if (input->IsString() || input->IsNumber() || input->IsOddball()) {
     return Object::ToString(isolate, input).ToHandleChecked();
+  } else if (input->IsJSProxy()) {
+    HeapObject target = Handle<JSProxy>::cast(input)->target(isolate);
+    return NoSideEffectsToString(isolate, Handle<Object>(target, isolate));
   } else if (input->IsBigInt()) {
     MaybeHandle<String> maybe_string =
         BigInt::ToString(isolate, Handle<BigInt>::cast(input), 10, kDontThrow);

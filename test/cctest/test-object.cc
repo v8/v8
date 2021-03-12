@@ -77,6 +77,11 @@ TEST(NoSideEffectsToString) {
               "Error: fisk hest");
   CheckObject(isolate, factory->NewJSObject(isolate->object_function()),
               "#<Object>");
+  CheckObject(
+      isolate,
+      factory->NewJSProxy(factory->NewJSObject(isolate->object_function()),
+                          factory->NewJSObject(isolate->object_function())),
+      "#<Object>");
 }
 
 TEST(EnumCache) {
