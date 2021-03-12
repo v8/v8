@@ -60,6 +60,7 @@ InstructionSelector::InstructionSelector(
       enable_scheduling_(enable_scheduling),
       enable_roots_relative_addressing_(enable_roots_relative_addressing),
       enable_switch_jump_table_(enable_switch_jump_table),
+      state_values_cache_(zone),
       poisoning_level_(poisoning_level),
       frame_(frame),
       instruction_selection_failed_(false),
@@ -581,6 +582,8 @@ class StateObjectDeduplicator {
     return id;
   }
 
+  size_t size() const { return objects_.size(); }
+
  private:
   static bool HasObjectId(Node* node) {
     return node->opcode() == IrOpcode::kTypedObjectState ||
@@ -652,24 +655,94 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
   }
 }
 
+struct InstructionSelector::CachedStateValues : public ZoneObject {
+ public:
+  CachedStateValues(Zone* zone, StateValueList* values, size_t values_start,
+                    InstructionOperandVector* inputs, size_t inputs_start)
+      : inputs_(inputs->begin() + inputs_start, inputs->end(), zone),
+        values_(values->MakeSlice(values_start)) {}
+
+  size_t Emit(InstructionOperandVector* inputs, StateValueList* values) {
+    inputs->insert(inputs->end(), inputs_.begin(), inputs_.end());
+    values->PushCachedSlice(values_);
+    return inputs_.size();
+  }
+
+ private:
+  InstructionOperandVector inputs_;
+  StateValueList::Slice values_;
+};
+
+class InstructionSelector::CachedStateValuesBuilder {
+ public:
+  explicit CachedStateValuesBuilder(StateValueList* values,
+                                    InstructionOperandVector* inputs,
+                                    StateObjectDeduplicator* deduplicator)
+      : values_(values),
+        inputs_(inputs),
+        deduplicator_(deduplicator),
+        values_start_(values->size()),
+        nested_start_(values->nested_count()),
+        inputs_start_(inputs->size()),
+        deduplicator_start_(deduplicator->size()) {}
+
+  // We can only build a CachedStateValues for a StateValue if it didn't update
+  // any of the ids in the deduplicator.
+  bool CanCache() const { return deduplicator_->size() == deduplicator_start_; }
+
+  InstructionSelector::CachedStateValues* Build(Zone* zone) {
+    DCHECK(CanCache());
+    DCHECK(values_->nested_count() == nested_start_);
+    return zone->New<InstructionSelector::CachedStateValues>(
+        zone, values_, values_start_, inputs_, inputs_start_);
+  }
+
+ private:
+  StateValueList* values_;
+  InstructionOperandVector* inputs_;
+  StateObjectDeduplicator* deduplicator_;
+  size_t values_start_;
+  size_t nested_start_;
+  size_t inputs_start_;
+  size_t deduplicator_start_;
+};
+
 size_t InstructionSelector::AddInputsToFrameStateDescriptor(
     StateValueList* values, InstructionOperandVector* inputs,
     OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* node,
     FrameStateInputKind kind, Zone* zone) {
-  size_t entries = 0;
-  StateValuesAccess::iterator it = StateValuesAccess(node).begin();
-  // Take advantage of sparse nature of StateValuesAccess to skip over multiple
-  // empty nodes at once pushing repeated OptimizedOuts all in one go.
-  while (!it.done()) {
-    values->PushOptimizedOut(it.AdvanceTillNotEmpty());
-    if (it.done()) break;
-    StateValuesAccess::TypedNode input_node = *it;
-    entries += AddOperandToStateValueDescriptor(values, inputs, g, deduplicator,
-                                                input_node.node,
-                                                input_node.type, kind, zone);
-    ++it;
+  // StateValues are often shared across different nodes, and processing them is
+  // expensive, so cache the result of processing a StateValue so that we can
+  // quickly copy the result if we see it again.
+  FrameStateInput key(node, kind);
+  auto cache_entry = state_values_cache_.find(key);
+  if (cache_entry != state_values_cache_.end()) {
+    // Entry found in cache, emit cached version.
+    return cache_entry->second->Emit(inputs, values);
+  } else {
+    // Not found in cache, generate and then store in cache if possible.
+    size_t entries = 0;
+    CachedStateValuesBuilder cache_builder(values, inputs, deduplicator);
+    StateValuesAccess::iterator it = StateValuesAccess(node).begin();
+    // Take advantage of sparse nature of StateValuesAccess to skip over
+    // multiple empty nodes at once pushing repeated OptimizedOuts all in one
+    // go.
+    while (!it.done()) {
+      values->PushOptimizedOut(it.AdvanceTillNotEmpty());
+      if (it.done()) break;
+      StateValuesAccess::TypedNode input_node = *it;
+      entries += AddOperandToStateValueDescriptor(values, inputs, g,
+                                                  deduplicator, input_node.node,
+                                                  input_node.type, kind, zone);
+      ++it;
+    }
+    if (cache_builder.CanCache()) {
+      // Use this->zone() to build the cache entry in the instruction selector's
+      // zone rather than the more long-lived instruction zone.
+      state_values_cache_.emplace(key, cache_builder.Build(this->zone()));
+    }
+    return entries;
   }
-  return entries;
 }
 
 // Returns the number of instruction operands added to inputs.
