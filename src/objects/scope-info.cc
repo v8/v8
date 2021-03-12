@@ -190,7 +190,9 @@ Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
     if (scope->is_function_scope()) {
       DeclarationScope* function_scope = scope->AsDeclarationScope();
       has_simple_parameters = function_scope->has_simple_parameters();
+#if V8_ENABLE_WEBASSEMBLY
       is_asm_module = function_scope->is_asm_module();
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
     FunctionKind function_kind = kNormalFunction;
     if (scope->is_declaration_scope()) {

@@ -254,8 +254,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
   // Accessor methods for output flags.
   bool allow_eval_cache() const { return allow_eval_cache_; }
   void set_allow_eval_cache(bool value) { allow_eval_cache_ = value; }
+
+#if V8_ENABLE_WEBASSEMBLY
   bool contains_asm_module() const { return contains_asm_module_; }
   void set_contains_asm_module(bool value) { contains_asm_module_ = value; }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   LanguageMode language_mode() const { return language_mode_; }
   void set_language_mode(LanguageMode value) { language_mode_ = value; }
 
@@ -347,7 +351,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   bool allow_eval_cache_ : 1;
+#if V8_ENABLE_WEBASSEMBLY
   bool contains_asm_module_ : 1;
+#endif  // V8_ENABLE_WEBASSEMBLY
   LanguageMode language_mode_ : 1;
 };
 

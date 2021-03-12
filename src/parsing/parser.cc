@@ -489,12 +489,14 @@ void Parser::DeserializeScopeChain(
 namespace {
 
 void MaybeResetCharacterStream(ParseInfo* info, FunctionLiteral* literal) {
+#if V8_ENABLE_WEBASSEMBLY
   // Don't reset the character stream if there is an asm.js module since it will
   // be used again by the asm-parser.
   if (info->contains_asm_module()) {
     if (FLAG_stress_validate_asm) return;
     if (literal != nullptr && literal->scope()->ContainsAsmModule()) return;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
   info->ResetCharacterStream();
 }
 
@@ -3435,6 +3437,7 @@ void Parser::SetLanguageMode(Scope* scope, LanguageMode mode) {
   scope->SetLanguageMode(mode);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void Parser::SetAsmModule() {
   // Store the usage count; The actual use counter on the isolate is
   // incremented after parsing is done.
@@ -3443,6 +3446,7 @@ void Parser::SetAsmModule() {
   scope()->AsDeclarationScope()->set_is_asm_module();
   info_->set_contains_asm_module(true);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Expression* Parser::ExpressionListToExpression(
     const ScopedPtrList<Expression>& args) {
