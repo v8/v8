@@ -78,7 +78,7 @@ class MakeGarbageCollectedTraitBase
       static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
                     "Custom space must inherit from CustomSpaceBase.");
       return internal::MakeGarbageCollectedTraitInternal::Allocate(
-          handle, size, internal::GCInfoTrait<T>::Index(),
+          handle, size, internal::GCInfoTrait<U>::Index(),
           CustomSpace::kSpaceIndex);
     }
   };
@@ -88,7 +88,7 @@ class MakeGarbageCollectedTraitBase
     static void* Allocate(AllocationHandle& handle, size_t size) {
       // Default space.
       return internal::MakeGarbageCollectedTraitInternal::Allocate(
-          handle, size, internal::GCInfoTrait<T>::Index());
+          handle, size, internal::GCInfoTrait<U>::Index());
     }
   };
 
