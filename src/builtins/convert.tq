@@ -72,6 +72,12 @@ FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
 FromConstexpr<uint32, constexpr uint32>(i: constexpr uint32): uint32 {
   return Unsigned(%FromConstexpr<int32>(i));
 }
+FromConstexpr<uint64, constexpr uint64>(i: constexpr uint64): uint64 {
+  return Uint64Constant(i);
+}
+FromConstexpr<uint64, constexpr int31>(i: constexpr int31): uint64 {
+  return Convert<uint64>(Unsigned(Int32Constant(i)));
+}
 FromConstexpr<uintptr, constexpr int31>(i: constexpr int31): uintptr {
   return ChangeUint32ToWord(i);
 }
@@ -152,6 +158,9 @@ Convert<Smi, uint32>(ui: uint32): Smi {
 Convert<uintptr, uint32>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);
 }
+Convert<uint64, uint32>(ui: uint32): uint64 {
+  return ChangeUint32ToUint64(ui);
+}
 Convert<intptr, uint16>(ui: uint16): intptr {
   return Signed(ChangeUint32ToWord(ui));
 }
@@ -178,6 +187,9 @@ Convert<int32, uint31>(i: uint31): int32 {
 }
 Convert<int32, intptr>(i: intptr): int32 {
   return TruncateIntPtrToInt32(i);
+}
+Convert<int32, int64>(i: int64): int32 {
+  return TruncateInt64ToInt32(i);
 }
 Convert<int32, Number>(n: Number): int32 {
   typeswitch (n) {
