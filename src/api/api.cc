@@ -8135,7 +8135,7 @@ void Isolate::Initialize(Isolate* isolate,
   }
 #endif  // ENABLE_GDB_JIT_INTERFACE
 #if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (code_event_handler == nullptr) {
+  if (code_event_handler == nullptr && i::FLAG_enable_system_instrumentation) {
     code_event_handler = i::ETWJITInterface::EventHandler;
   }
 #endif  // defined(V8_TARGET_OS_WIN)

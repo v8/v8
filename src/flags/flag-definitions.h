@@ -1880,6 +1880,9 @@ DEFINE_BOOL(interpreted_frames_native_stack, false,
             "profilers).")
 #endif
 
+DEFINE_BOOL(enable_system_instrumentation, false,
+            "Enable platform-specific profiling.")
+
 //
 // Disassembler only flags
 //

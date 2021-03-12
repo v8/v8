@@ -4536,13 +4536,16 @@ int Shell::Main(int argc, char* argv[]) {
   std::unique_ptr<platform::tracing::TracingController> tracing;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = std::make_unique<platform::tracing::TracingController>();
-    const char* trace_path =
-        options.trace_path ? options.trace_path : "v8_trace.json";
-    trace_file.open(trace_path);
-    if (!trace_file.good()) {
-      printf("Cannot open trace file '%s' for writing: %s.\n", trace_path,
-             strerror(errno));
-      return 1;
+
+    if (!options.enable_system_instrumentation) {
+      const char* trace_path =
+          options.trace_path ? options.trace_path : "v8_trace.json";
+      trace_file.open(trace_path);
+      if (!trace_file.good()) {
+        printf("Cannot open trace file '%s' for writing: %s.\n", trace_path,
+               strerror(errno));
+        return 1;
+      }
     }
 
 #ifdef V8_USE_PERFETTO
