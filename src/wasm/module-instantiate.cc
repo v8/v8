@@ -1686,18 +1686,12 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   Handle<JSObject> exports_object;
   MaybeHandle<String> single_function_name;
   bool is_asm_js = is_asmjs_module(module_);
-  // TODO(clemensb): Remove this #if once this compilation unit is fully
-  // excluded from non-wasm builds.
   if (is_asm_js) {
-#if V8_ENABLE_WEBASSEMBLY
     Handle<JSFunction> object_function = Handle<JSFunction>(
         isolate_->native_context()->object_function(), isolate_);
     exports_object = isolate_->factory()->NewJSObject(object_function);
     single_function_name =
         isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);
-#else
-    UNREACHABLE();
-#endif
   } else {
     exports_object = isolate_->factory()->NewJSObjectWithNullProto();
   }
