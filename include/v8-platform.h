@@ -408,6 +408,7 @@ class PageAllocator {
     kNoAccess,
     kRead,
     kReadWrite,
+    // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
     kReadExecute,
     // Set this when reserving memory that will later require kReadWriteExecute

@@ -91,7 +91,7 @@ void MemoryChunk::SetReadAndWritable() {
     DCHECK(IsAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
     CHECK(reservation_.SetPermissions(unprotect_start, unprotect_size,
-                                      PageAllocator::kReadWriteExecute));
+                                      PageAllocator::kReadWrite));
   }
 }
 
