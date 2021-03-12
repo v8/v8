@@ -2291,7 +2291,7 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& args) {
                    .FromMaybe(0);
     switch (arg) {
       case 0:
-        V8_IMMEDIATE_CRASH();
+        IMMEDIATE_CRASH();
         break;
       case 1:
         CHECK(0);

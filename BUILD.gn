@@ -4497,6 +4497,7 @@ v8_component("v8_libbase") {
     "src/base/hashmap.h",
     "src/base/ieee754.cc",
     "src/base/ieee754.h",
+    "src/base/immediate-crash.h",
     "src/base/iterator.h",
     "src/base/lazy-instance.h",
     "src/base/logging.cc",

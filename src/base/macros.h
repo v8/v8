@@ -183,12 +183,6 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_CFI_ICALL V8_CLANG_NO_SANITIZE("cfi-icall")
 #endif
 
-#if V8_CC_GNU
-#define V8_IMMEDIATE_CRASH() __builtin_trap()
-#else
-#define V8_IMMEDIATE_CRASH() ((void(*)())0)()
-#endif
-
 // A convenience wrapper around static_assert without a string message argument.
 // Once C++17 becomes the default, this macro can be removed in favor of the
 // new static_assert(condition) overload.

@@ -12,6 +12,7 @@
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/immediate-crash.h"
 #include "src/base/template-utils.h"
 
 V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
@@ -24,28 +25,25 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
     void V8_Fatal(const char* file, int line, const char* format, ...);
 #define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
 
-#elif !defined(OFFICIAL_BUILD)
+#else
+[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
+    void V8_Fatal(const char* format, ...);
+#if !defined(OFFICIAL_BUILD)
 // In non-official release, include full error message, but drop file & line
 // numbers. It saves binary size to drop the |file| & |line| as opposed to just
 // passing in "", 0 for them.
-[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
-    void V8_Fatal(const char* format, ...);
 #define FATAL(...) V8_Fatal(__VA_ARGS__)
 #else
-// In official builds, include only messages that contain parameters because
-// single-message errors can always be derived from stack traces.
-[[noreturn]] V8_BASE_EXPORT V8_NOINLINE void V8_FatalNoContext();
-[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
-    void V8_Fatal(const char* format, ...);
-// FATAL(msg) -> V8_FatalNoContext()
-// FATAL(msg, ...) -> V8_Fatal()
+// FATAL(msg) -> IMMEDIATE_CRASH()
+// FATAL(msg, ...) -> V8_Fatal(msg, ...)
 #define FATAL_HELPER(_7, _6, _5, _4, _3, _2, _1, _0, ...) _0
-#define FATAL_DISCARD_ARG(arg) V8_FatalNoContext()
+#define FATAL_DISCARD_ARG(arg) IMMEDIATE_CRASH()
 #define FATAL(...)                                                            \
   FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
-               V8_Fatal, V8_Fatal, FATAL_DISCARD_ARG)                         \
+               V8_Fatal, FATAL_DISCARD_ARG)                                   \
   (__VA_ARGS__)
-#endif
+#endif  // !defined(OFFICIAL_BUILD)
+#endif  // DEBUG
 
 #define UNIMPLEMENTED() FATAL("unimplemented code")
 #define UNREACHABLE() FATAL("unreachable code")
