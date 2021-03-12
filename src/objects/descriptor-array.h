@@ -217,6 +217,7 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
+  friend class WebSnapshotDeserializer;
   DECL_INT16_ACCESSORS(filler16bits)
 
   inline void SetKey(InternalIndex descriptor_number, Name key);

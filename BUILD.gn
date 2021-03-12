@@ -3926,6 +3926,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/ostreams.cc",
     "src/utils/utils.cc",
     "src/utils/version.cc",
+    "src/web-snapshot/web-snapshot.cc",
+    "src/web-snapshot/web-snapshot.h",
     "src/zone/accounting-allocator.cc",
     "src/zone/type-stats.cc",
     "src/zone/zone-segment.cc",
