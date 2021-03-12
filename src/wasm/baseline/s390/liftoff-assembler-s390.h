@@ -2839,8 +2839,7 @@ void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
 void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  DCHECK(target != no_reg);
-  Call(target);
+  bailout(kUnsupportedArchitecture, "CallIndirect");
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
@@ -2848,9 +2847,7 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
 }
 
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  Call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
+  bailout(kUnsupportedArchitecture, "CallRuntimeStub");
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
