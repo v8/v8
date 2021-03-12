@@ -792,6 +792,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 
 // V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
 #define UNOP_LIST(V)                                                           \
+  V(u32_to_intptr, LoadU32, Register, Register, , , USE, , void)               \
   V(i32_signextend_i8, lbr, Register, Register, , , USE, , void)               \
   V(i32_signextend_i16, lhr, Register, Register, , , USE, , void)              \
   V(i64_signextend_i8, lgbr, LiftoffRegister, LiftoffRegister, LFR_TO_REG,     \
@@ -1144,14 +1145,6 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   beq(trap_div_by_zero);
   ModU64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
-}
-
-void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-#ifdef V8_TARGET_ARCH_S390X
-  bailout(kUnsupportedArchitecture, "emit_u32_to_intptr");
-#else
-// This is a nop on s390.
-#endif
 }
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
