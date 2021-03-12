@@ -1103,15 +1103,6 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       id_map_(isolate->global_handles()->Create(
           ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
-ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
-                                     size_t size)
-    : isolate_(isolate),
-      delegate_(nullptr),
-      position_(data),
-      end_(data + size),
-      id_map_(isolate->global_handles()->Create(
-          ReadOnlyRoots(isolate_).empty_fixed_array())) {}
-
 ValueDeserializer::~ValueDeserializer() {
   GlobalHandles::Destroy(id_map_.location());
 
