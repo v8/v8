@@ -540,6 +540,7 @@ class MachineRepresentationChecker {
             CheckValueInputIsTagged(node, 0);
             break;
           case IrOpcode::kLoad:
+          case IrOpcode::kUnalignedLoad:
           case IrOpcode::kWord32AtomicLoad:
           case IrOpcode::kWord32AtomicPairLoad:
           case IrOpcode::kWord64AtomicLoad:
@@ -559,6 +560,7 @@ class MachineRepresentationChecker {
                                             MachineRepresentation::kWord32);
             V8_FALLTHROUGH;
           case IrOpcode::kStore:
+          case IrOpcode::kUnalignedStore:
           case IrOpcode::kWord32AtomicStore:
           case IrOpcode::kWord32AtomicExchange:
           case IrOpcode::kWord32AtomicAdd:
