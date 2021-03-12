@@ -8761,6 +8761,11 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
   return isolate->SetRAILMode(rail_mode);
 }
 
+void Isolate::UpdateLoadStartTime() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->UpdateLoadStartTime();
+}
+
 void Isolate::IncreaseHeapLimitForDebugging() {
   // No-op.
 }
