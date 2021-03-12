@@ -3989,6 +3989,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_LOGICAL_OP(a_val & b_val)
       break;
     }
+    case VANDC: {
+      VECTOR_LOGICAL_OP(a_val & (~b_val))
+      break;
+    }
     case VOR: {
       VECTOR_LOGICAL_OP(a_val | b_val)
       break;
@@ -4022,6 +4026,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_ARITHMETIC_OP(double, *)
       break;
     }
+    case XVDIVDP: {
+      VECTOR_ARITHMETIC_OP(double, /)
+      break;
+    }
     case VADDFP: {
       VECTOR_ARITHMETIC_OP(float, +)
       break;
@@ -4032,6 +4040,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
     case XVMULSP: {
       VECTOR_ARITHMETIC_OP(float, *)
+      break;
+    }
+    case XVDIVSP: {
+      VECTOR_ARITHMETIC_OP(float, /)
       break;
     }
     case VADDUDM: {
@@ -4503,6 +4515,35 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+#define VECTOR_FP_QF(type, sign)                             \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                          \
+  FOR_EACH_LANE(i, type) {                                   \
+    type a_val = get_simd_register_by_lane<type>(a, i);      \
+    type b_val = get_simd_register_by_lane<type>(b, i);      \
+    type t_val = get_simd_register_by_lane<type>(t, i);      \
+    type reuslt = sign * ((sign * b_val) + (a_val * t_val)); \
+    if (isinf(a_val)) reuslt = a_val;                        \
+    if (isinf(b_val)) reuslt = b_val;                        \
+    if (isinf(t_val)) reuslt = t_val;                        \
+    set_simd_register_by_lane<type>(t, i, reuslt);           \
+  }
+    case XVMADDMDP: {
+      VECTOR_FP_QF(double, +1)
+      break;
+    }
+    case XVNMSUBMDP: {
+      VECTOR_FP_QF(double, -1)
+      break;
+    }
+    case XVMADDMSP: {
+      VECTOR_FP_QF(float, +1)
+      break;
+    }
+    case XVNMSUBMSP: {
+      VECTOR_FP_QF(float, -1)
+      break;
+    }
+#undef VECTOR_FP_QF
 #undef FOR_EACH_LANE
 #undef DECODE_VX_INSTRUCTION
     default: {
