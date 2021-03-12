@@ -1132,68 +1132,72 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
   }
 }
 
-WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
+WasmCode* NativeModule::PublishCodeLocked(
+    std::unique_ptr<WasmCode> owned_code) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
+  WasmCode* code = owned_code.get();
+  new_owned_code_.emplace_back(std::move(owned_code));
+
   // Add the code to the surrounding code ref scope, so the returned pointer is
   // guaranteed to be valid.
-  WasmCodeRefScope::AddRef(code.get());
+  WasmCodeRefScope::AddRef(code);
 
-  if (!code->IsAnonymous() &&
-      code->index() >= module_->num_imported_functions) {
-    DCHECK_LT(code->index(), num_functions());
-
-    code->RegisterTrapHandlerData();
-
-    // Assume an order of execution tiers that represents the quality of their
-    // generated code.
-    static_assert(ExecutionTier::kNone < ExecutionTier::kLiftoff &&
-                      ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
-                  "Assume an order on execution tiers");
-
-    uint32_t slot_idx = declared_function_index(module(), code->index());
-    WasmCode* prior_code = code_table_[slot_idx];
-    // If we are tiered down, install all debugging code (except for stepping
-    // code, which is only used for a single frame and never installed in the
-    // code table of jump table). Otherwise, install code if it was compiled
-    // with a higher tier.
-    static_assert(
-        kForDebugging > kNoDebugging && kWithBreakpoints > kForDebugging,
-        "for_debugging is ordered");
-    const bool update_code_table =
-        // Never install stepping code.
-        code->for_debugging() != kForStepping &&
-        (!prior_code ||
-         (tiering_state_ == kTieredDown
-              // Tiered down: Install breakpoints over normal debug code.
-              ? prior_code->for_debugging() <= code->for_debugging()
-              // Tiered up: Install if the tier is higher than before.
-              : prior_code->tier() < code->tier()));
-    if (update_code_table) {
-      code_table_[slot_idx] = code.get();
-      if (prior_code) {
-        WasmCodeRefScope::AddRef(prior_code);
-        // The code is added to the current {WasmCodeRefScope}, hence the ref
-        // count cannot drop to zero here.
-        prior_code->DecRefOnLiveCode();
-      }
-
-      PatchJumpTablesLocked(slot_idx, code->instruction_start());
-    } else {
-      // The code tables does not hold a reference to the code, hence decrement
-      // the initial ref count of 1. The code was added to the
-      // {WasmCodeRefScope} though, so it cannot die here.
-      code->DecRefOnLiveCode();
-    }
-    if (!code->for_debugging() && tiering_state_ == kTieredDown &&
-        code->tier() == ExecutionTier::kTurbofan) {
-      liftoff_bailout_count_.fetch_add(1);
-    }
+  if (code->IsAnonymous() || code->index() < module_->num_imported_functions) {
+    return code;
   }
-  WasmCode* result = code.get();
-  new_owned_code_.emplace_back(std::move(code));
-  return result;
+
+  DCHECK_LT(code->index(), num_functions());
+
+  code->RegisterTrapHandlerData();
+
+  // Assume an order of execution tiers that represents the quality of their
+  // generated code.
+  static_assert(ExecutionTier::kNone < ExecutionTier::kLiftoff &&
+                    ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
+                "Assume an order on execution tiers");
+
+  uint32_t slot_idx = declared_function_index(module(), code->index());
+  WasmCode* prior_code = code_table_[slot_idx];
+  // If we are tiered down, install all debugging code (except for stepping
+  // code, which is only used for a single frame and never installed in the
+  // code table of jump table). Otherwise, install code if it was compiled
+  // with a higher tier.
+  static_assert(
+      kForDebugging > kNoDebugging && kWithBreakpoints > kForDebugging,
+      "for_debugging is ordered");
+  const bool update_code_table =
+      // Never install stepping code.
+      code->for_debugging() != kForStepping &&
+      (!prior_code ||
+       (tiering_state_ == kTieredDown
+            // Tiered down: Install breakpoints over normal debug code.
+            ? prior_code->for_debugging() <= code->for_debugging()
+            // Tiered up: Install if the tier is higher than before.
+            : prior_code->tier() < code->tier()));
+  if (update_code_table) {
+    code_table_[slot_idx] = code;
+    if (prior_code) {
+      WasmCodeRefScope::AddRef(prior_code);
+      // The code is added to the current {WasmCodeRefScope}, hence the ref
+      // count cannot drop to zero here.
+      prior_code->DecRefOnLiveCode();
+    }
+
+    PatchJumpTablesLocked(slot_idx, code->instruction_start());
+  } else {
+    // The code tables does not hold a reference to the code, hence decrement
+    // the initial ref count of 1. The code was added to the
+    // {WasmCodeRefScope} though, so it cannot die here.
+    code->DecRefOnLiveCode();
+  }
+  if (!code->for_debugging() && tiering_state_ == kTieredDown &&
+      code->tier() == ExecutionTier::kTurbofan) {
+    liftoff_bailout_count_.fetch_add(1);
+  }
+
+  return code;
 }
 
 void NativeModule::ReinstallDebugCode(WasmCode* code) {
