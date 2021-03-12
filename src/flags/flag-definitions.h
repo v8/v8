@@ -517,9 +517,9 @@ DEFINE_BOOL(use_ic, true, "use inline caching")
 DEFINE_INT(budget_for_feedback_vector_allocation, 940,
            "The budget in amount of bytecode executed by a function before we "
            "decide to allocate feedback vectors")
-DEFINE_INT(scale_factor_for_feedback_allocation, 4,
+DEFINE_INT(scale_factor_for_feedback_allocation, 12,
            "scale bytecode size for feedback vector allocation.")
-DEFINE_BOOL(feedback_allocation_on_bytecode_size, false,
+DEFINE_BOOL(feedback_allocation_on_bytecode_size, true,
             "Instead of a fixed budget for lazy feedback vector allocation, "
             "scale it based in the bytecode size.")
 DEFINE_IMPLICATION(sparkplug, feedback_allocation_on_bytecode_size)
