@@ -10,12 +10,16 @@
   'proposals/simd/data': [FAIL],
   'proposals/js-types/data': [FAIL],
 
-  # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
-  # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
-  # need to update to use its testsuite.
-  'linking': [FAIL],
-  'elem': [FAIL],
-  'data': [FAIL],
+  # Missing rebase in the proposal repository.
+  'proposals/js-types/table': [FAIL],
+  'proposals/js-types/unreached-invalid': [FAIL],
+  'proposals/memory64/linking': [FAIL],
+  'proposals/memory64/table': [FAIL],
+  'proposals/memory64/unreached-invalid': [FAIL],
+  'proposals/simd/elem': [FAIL],
+  'proposals/simd/linking': [FAIL],
+  'proposals/simd/table': [FAIL],
+  'proposals/simd/unreached-invalid': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
   'proposals/js-types/elem': [FAIL],
