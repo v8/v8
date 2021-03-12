@@ -2924,6 +2924,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+    case LDBRX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      intptr_t result = __builtin_bswap64(ReadDW(ra_val + rb_val));
+      set_register(rt, result);
+      break;
+    }
     case STDX:
     case STDUX: {
       int rs = instr->RSValue();
@@ -3911,6 +3921,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VSPLT(int8_t)
       break;
     }
+    case XXSPLTIB: {
+      int8_t imm8 = instr->Bits(18, 11);
+      int t = instr->RTValue();
+      FOR_EACH_LANE(i, int8_t) {
+        set_simd_register_by_lane<int8_t>(t, i, imm8);
+      }
+      break;
+    }
 #undef VSPLT
 #define VINSERT(type, element)                                              \
   uint32_t uim = static_cast<uint32_t>(instr->Bits(20, 16)) / sizeof(type); \
@@ -4460,6 +4478,28 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         int64_t temp = vra_val ^ vrb_val;
         temp = temp & mask;
         set_simd_register_by_lane<int64_t>(vrt, i, temp ^ vra_val);
+      }
+      break;
+    }
+    case VPERM: {
+      int vrt = instr->RTValue();
+      int vra = instr->RAValue();
+      int vrb = instr->RBValue();
+      int vrc = instr->RCValue();
+      int8_t temp[kSimd128Size] = {0};
+      FOR_EACH_LANE(i, int8_t) {
+        int8_t lane_num = get_simd_register_by_lane<int8_t>(vrc, i);
+        // Get the five least significant bits.
+        lane_num = (lane_num << 3) >> 3;
+        int reg = vra;
+        if (lane_num >= kSimd128Size) {
+          lane_num = lane_num - kSimd128Size;
+          reg = vrb;
+        }
+        temp[i] = get_simd_register_by_lane<int8_t>(reg, lane_num);
+      }
+      FOR_EACH_LANE(i, int8_t) {
+        set_simd_register_by_lane<int8_t>(vrt, i, temp[i]);
       }
       break;
     }

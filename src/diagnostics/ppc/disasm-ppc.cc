@@ -790,7 +790,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
   }
 
   // ?? are all of these xo_form?
-  switch (EXT2 | (instr->BitField(9, 1))) {
+  switch (EXT2 | (instr->BitField(10, 1))) {
     case CMP: {
 #if V8_TARGET_ARCH_PPC64
       if (instr->Bit(21)) {
@@ -1054,6 +1054,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
     }
     case MTVSRDD: {
       Format(instr, "mtvsrwz 'Xt, 'ra");
+      return;
+    }
+    case LDBRX: {
+      Format(instr, "ldbrx   'rt, 'ra, 'rb");
       return;
     }
 #endif
