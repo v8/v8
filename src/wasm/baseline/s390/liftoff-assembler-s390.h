@@ -644,31 +644,37 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   }
 }
 
+#ifdef V8_TARGET_BIG_ENDIAN
+constexpr int stack_bias = -4;
+#else
+constexpr int stack_bias = 0;
+#endif
+
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
   DCHECK_LT(0, offset);
   RecordUsedSpillOffset(offset);
-  MemOperand dst = liftoff::GetStackSlot(offset);
+
   switch (kind) {
     case kI32:
-      StoreU32(reg.gp(), dst);
+      StoreU32(reg.gp(), liftoff::GetStackSlot(offset + stack_bias));
       break;
     case kI64:
     case kOptRef:
     case kRef:
     case kRtt:
     case kRttWithDepth:
-      StoreU64(reg.gp(), dst);
+      StoreU64(reg.gp(), liftoff::GetStackSlot(offset));
       break;
     case kF32:
-      StoreF32(reg.fp(), dst);
+      StoreF32(reg.fp(), liftoff::GetStackSlot(offset + stack_bias));
       break;
     case kF64:
-      StoreF64(reg.fp(), dst);
+      StoreF64(reg.fp(), liftoff::GetStackSlot(offset));
       break;
     case kS128: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      StoreV128(reg.fp(), dst, scratch);
+      StoreV128(reg.fp(), liftoff::GetStackSlot(offset), scratch);
       break;
     }
     default:
@@ -678,23 +684,18 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
 
 void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
-  MemOperand dst = liftoff::GetStackSlot(offset);
   UseScratchRegisterScope temps(this);
   Register src = no_reg;
-  if (!is_uint12(abs(dst.offset()))) {
-    src = GetUnusedRegister(kGpReg, {}).gp();
-  } else {
-    src = temps.Acquire();
-  }
+  src = ip;
   switch (value.type().kind()) {
     case kI32: {
       mov(src, Operand(value.to_i32()));
-      StoreU32(src, dst);
+      StoreU32(src, liftoff::GetStackSlot(offset + stack_bias));
       break;
     }
     case kI64: {
       mov(src, Operand(value.to_i64()));
-      StoreU64(src, dst);
+      StoreU64(src, liftoff::GetStackSlot(offset));
       break;
     }
     default:
@@ -704,28 +705,27 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
-  MemOperand src = liftoff::GetStackSlot(offset);
   switch (kind) {
     case kI32:
-      LoadS32(reg.gp(), src);
+      LoadS32(reg.gp(), liftoff::GetStackSlot(offset + stack_bias));
       break;
     case kI64:
     case kRef:
     case kOptRef:
     case kRtt:
     case kRttWithDepth:
-      LoadU64(reg.gp(), src);
+      LoadU64(reg.gp(), liftoff::GetStackSlot(offset));
       break;
     case kF32:
-      LoadF32(reg.fp(), src);
+      LoadF32(reg.fp(), liftoff::GetStackSlot(offset + stack_bias));
       break;
     case kF64:
-      LoadF64(reg.fp(), src);
+      LoadF64(reg.fp(), liftoff::GetStackSlot(offset));
       break;
     case kS128: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      LoadV128(reg.fp(), src, scratch);
+      LoadV128(reg.fp(), liftoff::GetStackSlot(offset), scratch);
       break;
     }
     default:
