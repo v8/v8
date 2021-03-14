@@ -102,7 +102,8 @@ class HeapObjectHeader {
 
   V8_EXPORT_PRIVATE HeapObjectName GetName() const;
 
-  V8_EXPORT_PRIVATE void Trace(Visitor*) const;
+  template <AccessMode = AccessMode::kNonAtomic>
+  void Trace(Visitor*) const;
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
@@ -274,6 +275,13 @@ bool HeapObjectHeader::IsFree() const {
 bool HeapObjectHeader::IsFinalizable() const {
   const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
   return gc_info.finalize;
+}
+
+template <AccessMode mode>
+void HeapObjectHeader::Trace(Visitor* visitor) const {
+  const GCInfo& gc_info =
+      GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex<mode>());
+  return gc_info.trace(visitor, Payload());
 }
 
 template <AccessMode mode, HeapObjectHeader::EncodedHalf part,

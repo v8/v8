@@ -32,10 +32,5 @@ HeapObjectName HeapObjectHeader::GetName() const {
   return gc_info.name(Payload());
 }
 
-void HeapObjectHeader::Trace(Visitor* visitor) const {
-  const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
-  return gc_info.trace(visitor, Payload());
-}
-
 }  // namespace internal
 }  // namespace cppgc
