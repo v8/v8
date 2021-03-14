@@ -47,7 +47,7 @@ vars = {
   'checkout_google_benchmark' : False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:e0358b49272c8b354eda0a595e1d7887343fab27',
+  'gn_version': 'git_revision:64b3b9401c1c3ed5f3c43c1cac00b91f83597ab8',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:fd10124659e991321df2f8a5d3749687b54ceb0a',
