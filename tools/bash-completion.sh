@@ -40,10 +40,16 @@ _v8_flag() {
   defines=$(cat $v8_source/src/flags/flag-definitions.h \
     | grep "^DEFINE" \
     | grep -v "DEFINE_IMPLICATION" \
+    | grep -v "DEFINE_NEG_IMPLICATION" \
+    | grep -v "DEFINE_VALUE_IMPLICATION" \
     | sed -e 's/_/-/g'; \
     cat $v8_source/src/flags/flag-definitions.h \
     | grep "^  V(harmony_" \
     | sed -e 's/^  V/DEFINE-BOOL/' \
+    | sed -e 's/_/-/g' ;\
+    cat $v8_source/src/wasm/wasm-feature-flags.h \
+    | grep "^  V(" \
+    | sed -e 's/^  V(/DEFINE-BOOL(experimental-wasm-/' \
     | sed -e 's/_/-/g')
   targets=$(echo "$defines" \
     | sed -ne 's/^DEFINE-[^(]*(\([^,]*\).*/--\1/p'; \
