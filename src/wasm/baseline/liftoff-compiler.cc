@@ -376,7 +376,7 @@ class LiftoffCompiler {
     std::unique_ptr<ElseState> else_state;
     LiftoffAssembler::CacheState label_state;
     MovableLabel label;
-    TryInfo* try_info = nullptr;
+    std::unique_ptr<TryInfo> try_info;
     // Number of exceptions on the stack below this control.
     int num_exceptions = 0;
 
@@ -1064,7 +1064,7 @@ class LiftoffCompiler {
   }
 
   void Try(FullDecoder* decoder, Control* block) {
-    block->try_info = compilation_zone_->New<TryInfo>();
+    block->try_info = std::make_unique<TryInfo>();
     block->try_info->previous_catch = current_catch_;
     current_catch_ = static_cast<int32_t>(decoder->control_depth() - 1);
     PushControl(block);
