@@ -1075,13 +1075,8 @@ class LiftoffCompiler {
     unsupported(decoder, kExceptionHandling, "catch");
   }
 
-  void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
-    unsupported(decoder, kExceptionHandling, "delegate");
-  }
-
-  void Rethrow(FullDecoder* decoder, Control* try_block) {
-    int index = try_block->try_info->catch_state.stack_height() - 1;
-    auto& exception = __ cache_state()->stack_state[index];
+  void Rethrow(FullDecoder* decoder,
+               const LiftoffAssembler::VarState& exception) {
     DCHECK_EQ(exception.kind(), kRef);
     DEBUG_CODE_COMMENT("call WasmRethrow builtin");
     compiler::CallDescriptor* rethrow_descriptor =
@@ -1093,6 +1088,38 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(decoder->position()), true);
     __ CallRuntimeStub(WasmCode::kWasmRethrow);
     DefineSafepoint();
+  }
+
+  void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
+    DCHECK_EQ(block, decoder->control_at(0));
+    Control* target = decoder->control_at(depth);
+    DCHECK(block->is_incomplete_try());
+    __ bind(&block->try_info->catch_label);
+    __ cache_state()->Split(block->try_info->catch_state);
+    if (block->try_info->catch_reached) {
+      if (depth == decoder->control_depth() - 1) {
+        // Delegate to the caller, do not emit a landing pad.
+        Rethrow(decoder, __ cache_state()->stack_state.back());
+      } else {
+        DCHECK(target->is_incomplete_try());
+        if (!target->try_info->catch_reached) {
+          target->try_info->catch_state.InitMerge(
+              *__ cache_state(), __ num_locals(), 1,
+              target->stack_depth + target->num_exceptions);
+          target->try_info->catch_reached = true;
+        }
+        __ MergeStackWith(target->try_info->catch_state, 1,
+                          LiftoffAssembler::kForwardJump);
+        __ emit_jump(&target->try_info->catch_label);
+      }
+    }
+    current_catch_ = block->try_info->previous_catch;
+  }
+
+  void Rethrow(FullDecoder* decoder, Control* try_block) {
+    int index = try_block->try_info->catch_state.stack_height() - 1;
+    auto& exception = __ cache_state()->stack_state[index];
+    Rethrow(decoder, exception);
     EmitLandingPad(decoder);
   }
 
