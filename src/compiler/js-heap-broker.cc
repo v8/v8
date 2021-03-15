@@ -3030,27 +3030,6 @@ void MapRef::SerializeForElementStore() {
   data()->AsMap()->SerializeForElementStore(broker());
 }
 
-namespace {
-// This helper function has two modes. If {prototype_maps} is nullptr, the
-// prototype chain is serialized as necessary to determine the result.
-// Otherwise, the heap is untouched and the encountered prototypes are pushed
-// onto {prototype_maps}.
-bool HasOnlyStablePrototypesWithFastElementsHelper(
-    JSHeapBroker* broker, MapRef const& map,
-    ZoneVector<MapRef>* prototype_maps) {
-  for (MapRef prototype_map = map;;) {
-    if (prototype_maps == nullptr) prototype_map.SerializePrototype();
-    prototype_map = prototype_map.prototype().AsHeapObject().map();
-    if (prototype_map.oddball_type() == OddballType::kNull) return true;
-    if (!map.prototype().IsJSObject() || !prototype_map.is_stable() ||
-        !IsFastElementsKind(prototype_map.elements_kind())) {
-      return false;
-    }
-    if (prototype_maps != nullptr) prototype_maps->push_back(prototype_map);
-  }
-}
-}  // namespace
-
 void MapData::SerializeForElementLoad(JSHeapBroker* broker) {
   if (serialized_for_element_load_) return;
   serialized_for_element_load_ = true;
@@ -3064,22 +3043,34 @@ void MapData::SerializeForElementStore(JSHeapBroker* broker) {
   serialized_for_element_store_ = true;
 
   TraceScope tracer(broker, this, "MapData::SerializeForElementStore");
-  HasOnlyStablePrototypesWithFastElementsHelper(broker, MapRef(broker, this),
-                                                nullptr);
+  // TODO(solanes, v8:7790): This should use MapData methods rather than
+  // constructing MapRefs, but it involves non-trivial refactoring and this
+  // method should go away anyway once the compiler is fully concurrent.
+  MapRef map(broker, this);
+  for (MapRef prototype_map = map;;) {
+    prototype_map.SerializePrototype();
+    prototype_map = prototype_map.prototype().map();
+    if (prototype_map.oddball_type() == OddballType::kNull ||
+        !map.prototype().IsJSObject() || !prototype_map.is_stable() ||
+        !IsFastElementsKind(prototype_map.elements_kind())) {
+      return;
+    }
+  }
 }
 
 bool MapRef::HasOnlyStablePrototypesWithFastElements(
     ZoneVector<MapRef>* prototype_maps) {
-  for (MapRef prototype_map = *this;;) {
-    if (prototype_maps == nullptr) prototype_map.SerializePrototype();
-    prototype_map = prototype_map.prototype().AsHeapObject().map();
-    if (prototype_map.oddball_type() == OddballType::kNull) return true;
+  DCHECK_NOT_NULL(prototype_maps);
+  MapRef prototype_map = prototype().map();
+  while (prototype_map.oddball_type() != OddballType::kNull) {
     if (!prototype().IsJSObject() || !prototype_map.is_stable() ||
         !IsFastElementsKind(prototype_map.elements_kind())) {
       return false;
     }
-    if (prototype_maps != nullptr) prototype_maps->push_back(prototype_map);
+    prototype_maps->push_back(prototype_map);
+    prototype_map = prototype_map.prototype().map();
   }
+  return true;
 }
 
 bool MapRef::supports_fast_array_iteration() const {
