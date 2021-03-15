@@ -287,7 +287,9 @@ int Script::ColumnOffset() const {
 
 std::vector<int> Script::LineEnds() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  if (script->type() == i::Script::TYPE_WASM) return std::vector<int>();
+#if V8_ENABLE_WEBASSEMBLY
+  if (script->type() == i::Script::TYPE_WASM) return {};
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   i::Isolate* isolate = script->GetIsolate();
   i::HandleScope scope(isolate);
@@ -352,9 +354,11 @@ MaybeLocal<String> Script::Source() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 bool Script::IsWasm() const {
   return Utils::OpenHandle(this)->type() == i::Script::TYPE_WASM;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Script::IsModule() const {
   return Utils::OpenHandle(this)->origin_options().IsModule();
@@ -430,10 +434,12 @@ bool Script::GetPossibleBreakpoints(
 
 int Script::GetSourceOffset(const Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+#if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::TYPE_WASM) {
     DCHECK_EQ(0, location.GetLineNumber());
     return location.GetColumnNumber();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   int line = std::max(location.GetLineNumber() - script->line_offset(), 0);
   int column = location.GetColumnNumber();
@@ -676,14 +682,18 @@ void GetLoadedScripts(Isolate* v8_isolate,
     i::Script::Iterator iterator(isolate);
     for (i::Script script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
-      if (script.type() == i::Script::TYPE_NORMAL ||
-          script.type() == i::Script::TYPE_WASM) {
-        if (script.HasValidSource()) {
-          i::HandleScope handle_scope(isolate);
-          i::Handle<i::Script> script_handle(script, isolate);
-          scripts.Append(ToApiHandle<Script>(script_handle));
-        }
+#if V8_ENABLE_WEBASSEMBLY
+      if (script.type() != i::Script::TYPE_NORMAL &&
+          script.type() != i::Script::TYPE_WASM) {
+        continue;
       }
+#else
+      if (script.type() != i::Script::TYPE_NORMAL) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
+      if (!script.HasValidSource()) continue;
+      i::HandleScope handle_scope(isolate);
+      i::Handle<i::Script> script_handle(script, isolate);
+      scripts.Append(ToApiHandle<Script>(script_handle));
     }
   }
 }

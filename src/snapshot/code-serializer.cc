@@ -56,9 +56,11 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
     script->name().ShortPrint();
     PrintF("]\n");
   }
+#if V8_ENABLE_WEBASSEMBLY
   // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
   // context independent.
   if (script->ContainsAsmModule()) return nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);

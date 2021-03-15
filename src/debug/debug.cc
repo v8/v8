@@ -2148,9 +2148,13 @@ void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
   // inspector to filter scripts by native context.
   script->set_context_data(isolate_->native_context()->debug_context_id());
   if (ignore_events()) return;
+#if V8_ENABLE_WEBASSEMBLY
   if (!script->IsUserJavaScript() && script->type() != i::Script::TYPE_WASM) {
     return;
   }
+#else
+  if (!script->IsUserJavaScript()) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (!debug_delegate_) return;
   SuppressDebug while_processing(this);
   DebugScope debug_scope(this);

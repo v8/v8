@@ -32,11 +32,8 @@
 #include "src/snapshot/snapshot.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-objects-inl.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-#if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -583,10 +580,12 @@ namespace {
 int ScriptLinePosition(Handle<Script> script, int line) {
   if (line < 0) return -1;
 
+#if V8_ENABLE_WEBASSEMBLY
   if (script->type() == Script::TYPE_WASM) {
     // Wasm positions are relative to the start of the module.
     return 0;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Script::InitLineEnds(script->GetIsolate(), script);
 
@@ -623,12 +622,16 @@ Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
     return isolate->factory()->null_value();
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  const bool is_wasm_script = script->type() == Script::TYPE_WASM;
+#else
+  const bool is_wasm_script = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
   Handle<String> sourceText =
-      script->type() == Script::TYPE_WASM
-          ? isolate->factory()->empty_string()
-          : isolate->factory()->NewSubString(
-                handle(String::cast(script->source()), isolate),
-                info.line_start, info.line_end);
+      is_wasm_script ? isolate->factory()->empty_string()
+                     : isolate->factory()->NewSubString(
+                           handle(String::cast(script->source()), isolate),
+                           info.line_start, info.line_end);
 
   Handle<JSObject> jsinfo =
       isolate->factory()->NewJSObject(isolate->object_function());

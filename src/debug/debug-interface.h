@@ -154,7 +154,6 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> SourceMappingURL() const;
   Maybe<int> ContextId() const;
   MaybeLocal<String> Source() const;
-  bool IsWasm() const;
   bool IsModule() const;
   bool GetPossibleBreakpoints(
       const debug::Location& start, const debug::Location& end,
@@ -167,6 +166,7 @@ class V8_EXPORT_PRIVATE Script {
   bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
                      BreakpointId* id) const;
 #if V8_ENABLE_WEBASSEMBLY
+  bool IsWasm() const;
   void RemoveWasmBreakpoint(BreakpointId id);
 #endif  // V8_ENABLE_WEBASSEMBLY
   bool SetBreakpointOnScriptEntry(BreakpointId* id) const;

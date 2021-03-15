@@ -2158,11 +2158,15 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - context data: " << Brief(context_data());
   os << "\n - compilation type: " << compilation_type();
   os << "\n - line ends: " << Brief(line_ends());
-  if (type() == TYPE_WASM) {
+  bool is_wasm = false;
+#if V8_ENABLE_WEBASSEMBLY
+  if ((is_wasm = (type() == TYPE_WASM))) {
     if (has_wasm_breakpoint_infos()) {
       os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
     }
-  } else {
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  if (!is_wasm) {
     if (has_eval_from_shared()) {
       os << "\n - eval from shared: " << Brief(eval_from_shared());
     }

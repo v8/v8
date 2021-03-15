@@ -73,9 +73,6 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-#if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -5326,9 +5323,11 @@ Handle<String> JSMessageObject::GetSourceLine() const {
   Isolate* isolate = GetIsolate();
   Handle<Script> the_script(script(), isolate);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (the_script->type() == Script::TYPE_WASM) {
     return isolate->factory()->empty_string();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;

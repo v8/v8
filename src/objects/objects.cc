@@ -4745,8 +4745,10 @@ template <typename LocalIsolate>
 // static
 void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
   if (!script->line_ends().IsUndefined(isolate)) return;
+#if V8_ENABLE_WEBASSEMBLY
   DCHECK(script->type() != Script::TYPE_WASM ||
          script->source_mapping_url().IsString());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Object src_obj = script->source();
   if (!src_obj.IsString()) {
@@ -4769,26 +4771,29 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
 
 bool Script::GetPositionInfo(Handle<Script> script, int position,
                              PositionInfo* info, OffsetFlag offset_flag) {
+  bool init_line_ends = true;
+#if V8_ENABLE_WEBASSEMBLY
   // For wasm, we do not create an artificial line_ends array, but do the
   // translation directly.
-  if (script->type() != Script::TYPE_WASM)
-    InitLineEnds(script->GetIsolate(), script);
+  init_line_ends = script->type() != Script::TYPE_WASM;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  if (init_line_ends) InitLineEnds(script->GetIsolate(), script);
   return script->GetPositionInfo(position, info, offset_flag);
 }
 
 bool Script::IsUserJavaScript() const { return type() == Script::TYPE_NORMAL; }
 
-bool Script::ContainsAsmModule() {
 #if V8_ENABLE_WEBASSEMBLY
+bool Script::ContainsAsmModule() {
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo::ScriptIterator iter(this->GetIsolate(), *this);
   for (SharedFunctionInfo info = iter.Next(); !info.is_null();
        info = iter.Next()) {
     if (info.HasAsmWasmData()) return true;
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
   return false;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 

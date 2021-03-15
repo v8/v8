@@ -158,13 +158,16 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
   i::Handle<i::FixedArray> host_defined_options(script->host_defined_options(),
                                                 isolate);
   ScriptOriginOptions options(script->origin_options());
+  bool is_wasm = false;
+#if V8_ENABLE_WEBASSEMBLY
+  is_wasm = script->type() == i::Script::TYPE_WASM;
+#endif  // V8_ENABLE_WEBASSEMBLY
   v8::ScriptOrigin origin(
       reinterpret_cast<v8::Isolate*>(isolate), Utils::ToLocal(scriptName),
       script->line_offset(), script->column_offset(),
       options.IsSharedCrossOrigin(), script->id(),
-      Utils::ToLocal(source_map_url), options.IsOpaque(),
-      script->type() == i::Script::TYPE_WASM, options.IsModule(),
-      Utils::PrimitiveArrayToLocal(host_defined_options));
+      Utils::ToLocal(source_map_url), options.IsOpaque(), is_wasm,
+      options.IsModule(), Utils::PrimitiveArrayToLocal(host_defined_options));
   return origin;
 }
 
