@@ -655,13 +655,22 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 
   HandleScope scope(isolate_);
 
-  // Obtain shared function info for the function.
+  // Obtain shared function info for the innermost function containing this
+  // position.
   Handle<Object> result =
-      FindSharedFunctionInfoInScript(script, *source_position);
+      FindInnermostContainingFunctionInfo(script, *source_position);
   if (result->IsUndefined(isolate_)) return false;
 
-  // Set the breakpoint in the function.
   auto shared = Handle<SharedFunctionInfo>::cast(result);
+  if (!EnsureBreakInfo(shared)) return false;
+  PrepareFunctionForDebugExecution(shared);
+
+  // Find the nested shared function info that is closest to the position within
+  // the containing function.
+  shared = FindClosestSharedFunctionInfoFromPosition(*source_position, script,
+                                                     shared);
+
+  // Set the breakpoint in the function.
   return SetBreakpoint(shared, break_point, source_position);
 }
 
@@ -1436,7 +1445,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
                                    std::vector<BreakLocation>* locations) {
   if (restrict_to_function) {
     Handle<Object> result =
-        FindSharedFunctionInfoInScript(script, start_position);
+        FindInnermostContainingFunctionInfo(script, start_position);
     if (result->IsUndefined(isolate_)) return false;
 
     // Make sure the function has set up the debug info.
@@ -1450,69 +1459,18 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     return true;
   }
 
-  bool candidateSubsumesRange = false;
-  bool triedTopLevelCompile = false;
-  while (true) {
-    HandleScope scope(isolate_);
-    std::vector<Handle<SharedFunctionInfo>> candidates;
-    std::vector<IsCompiledScope> compiled_scopes;
-    SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
-    for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
-         info = iterator.Next()) {
-      if (info.EndPosition() < start_position ||
-          info.StartPosition() >= end_position) {
-        continue;
-      }
-      candidateSubsumesRange |= info.StartPosition() <= start_position &&
-                                info.EndPosition() >= end_position;
-      if (!info.IsSubjectToDebugging()) continue;
-      if (!info.is_compiled() && !info.allows_lazy_compilation()) continue;
-      candidates.push_back(i::handle(info, isolate_));
-    }
-
-    if (!triedTopLevelCompile && !candidateSubsumesRange &&
-        script->shared_function_infos().length() > 0) {
-      MaybeObject maybeToplevel = script->shared_function_infos().Get(0);
-      HeapObject heap_object;
-      const bool topLevelInfoExists =
-          maybeToplevel->GetHeapObject(&heap_object) &&
-          !heap_object.IsUndefined();
-      if (!topLevelInfoExists) {
-        CompileTopLevel(isolate_, script);
-        triedTopLevelCompile = true;
-        continue;
-      }
-    }
-
-    bool was_compiled = false;
-    for (const auto& candidate : candidates) {
-      IsCompiledScope is_compiled_scope(candidate->is_compiled_scope(isolate_));
-      if (!is_compiled_scope.is_compiled()) {
-        // Code that cannot be compiled lazily are internal and not debuggable.
-        DCHECK(candidate->allows_lazy_compilation());
-        if (!Compiler::Compile(isolate_, candidate, Compiler::CLEAR_EXCEPTION,
-                               &is_compiled_scope)) {
-          return false;
-        } else {
-          was_compiled = true;
-        }
-      }
-      DCHECK(is_compiled_scope.is_compiled());
-      compiled_scopes.push_back(is_compiled_scope);
-      if (!EnsureBreakInfo(candidate)) return false;
-      PrepareFunctionForDebugExecution(candidate);
-    }
-    if (was_compiled) continue;
-
-    for (const auto& candidate : candidates) {
-      CHECK(candidate->HasBreakInfo());
-      Handle<DebugInfo> debug_info(candidate->GetDebugInfo(), isolate_);
-      FindBreakablePositions(debug_info, start_position, end_position,
-                             locations);
-    }
-    return true;
+  HandleScope scope(isolate_);
+  std::vector<Handle<SharedFunctionInfo>> candidates;
+  if (!FindSharedFunctionInfosIntersectingRange(script, start_position,
+                                                end_position, &candidates)) {
+    return false;
   }
-  UNREACHABLE();
+  for (const auto& candidate : candidates) {
+    CHECK(candidate->HasBreakInfo());
+    Handle<DebugInfo> debug_info(candidate->GetDebugInfo(), isolate_);
+    FindBreakablePositions(debug_info, start_position, end_position, locations);
+  }
+  return true;
 }
 
 class SharedFunctionInfoFinder {
@@ -1578,17 +1536,118 @@ SharedFunctionInfo FindSharedFunctionInfoCandidate(int position,
 }
 }  // namespace
 
+Handle<SharedFunctionInfo> Debug::FindClosestSharedFunctionInfoFromPosition(
+    int position, Handle<Script> script,
+    Handle<SharedFunctionInfo> outer_shared) {
+  CHECK(outer_shared->HasBreakInfo());
+  int closest_position = FindBreakablePosition(
+      Handle<DebugInfo>(outer_shared->GetDebugInfo(), isolate_), position);
+  Handle<SharedFunctionInfo> closest_candidate = outer_shared;
+  if (closest_position == position) return outer_shared;
+
+  const int start_position = outer_shared->StartPosition();
+  const int end_position = outer_shared->EndPosition();
+  if (start_position == end_position) return outer_shared;
+
+  if (closest_position == 0) closest_position = end_position;
+  std::vector<Handle<SharedFunctionInfo>> candidates;
+  // Find all shared function infos of functions that are intersecting from
+  // the requested position until the end of the enclosing function.
+  if (!FindSharedFunctionInfosIntersectingRange(
+          script, position, closest_position, &candidates)) {
+    return outer_shared;
+  }
+
+  for (auto candidate : candidates) {
+    CHECK(candidate->HasBreakInfo());
+    Handle<DebugInfo> debug_info(candidate->GetDebugInfo(), isolate_);
+    const int candidate_position = FindBreakablePosition(debug_info, position);
+    if (candidate_position >= position &&
+        candidate_position < closest_position) {
+      closest_position = candidate_position;
+      closest_candidate = candidate;
+    }
+    if (closest_position == position) break;
+  }
+  return closest_candidate;
+}
+
+bool Debug::FindSharedFunctionInfosIntersectingRange(
+    Handle<Script> script, int start_position, int end_position,
+    std::vector<Handle<SharedFunctionInfo>>* intersecting_shared) {
+  bool candidateSubsumesRange = false;
+  bool triedTopLevelCompile = false;
+
+  while (true) {
+    std::vector<Handle<SharedFunctionInfo>> candidates;
+    std::vector<IsCompiledScope> compiled_scopes;
+    {
+      DisallowGarbageCollection no_gc;
+      SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
+      for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
+           info = iterator.Next()) {
+        if (info.EndPosition() < start_position ||
+            info.StartPosition() >= end_position) {
+          continue;
+        }
+        candidateSubsumesRange |= info.StartPosition() <= start_position &&
+                                  info.EndPosition() >= end_position;
+        if (!info.IsSubjectToDebugging()) continue;
+        if (!info.is_compiled() && !info.allows_lazy_compilation()) continue;
+        candidates.push_back(i::handle(info, isolate_));
+      }
+    }
+
+    if (!triedTopLevelCompile && !candidateSubsumesRange &&
+        script->shared_function_infos().length() > 0) {
+      MaybeObject maybeToplevel = script->shared_function_infos().Get(0);
+      HeapObject heap_object;
+      const bool topLevelInfoExists =
+          maybeToplevel->GetHeapObject(&heap_object) &&
+          !heap_object.IsUndefined();
+      if (!topLevelInfoExists) {
+        CompileTopLevel(isolate_, script);
+        triedTopLevelCompile = true;
+        continue;
+      }
+    }
+
+    bool was_compiled = false;
+    for (const auto& candidate : candidates) {
+      IsCompiledScope is_compiled_scope(candidate->is_compiled_scope(isolate_));
+      if (!is_compiled_scope.is_compiled()) {
+        // Code that cannot be compiled lazily are internal and not debuggable.
+        DCHECK(candidate->allows_lazy_compilation());
+        if (!Compiler::Compile(isolate_, candidate, Compiler::CLEAR_EXCEPTION,
+                               &is_compiled_scope)) {
+          return false;
+        } else {
+          was_compiled = true;
+        }
+      }
+      DCHECK(is_compiled_scope.is_compiled());
+      compiled_scopes.push_back(is_compiled_scope);
+      if (!EnsureBreakInfo(candidate)) return false;
+      PrepareFunctionForDebugExecution(candidate);
+    }
+    if (was_compiled) continue;
+    *intersecting_shared = std::move(candidates);
+    return true;
+  }
+  UNREACHABLE();
+}
+
 // We need to find a SFI for a literal that may not yet have been compiled yet,
 // and there may not be a JSFunction referencing it. Find the SFI closest to
 // the given position, compile it to reveal possible inner SFIs and repeat.
 // While we are at this, also ensure code with debug break slots so that we do
 // not have to compile a SFI without JSFunction, which is paifu for those that
 // cannot be compiled without context (need to find outer compilable SFI etc.)
-Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
-                                                     int position) {
+Handle<Object> Debug::FindInnermostContainingFunctionInfo(Handle<Script> script,
+                                                          int position) {
   for (int iteration = 0;; iteration++) {
     // Go through all shared function infos associated with this script to
-    // find the inner most function containing this position.
+    // find the innermost function containing this position.
     // If there is no shared function info for this script at all, there is
     // no point in looking for it by walking the heap.
 
@@ -1613,7 +1672,6 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
         // be no JSFunction referencing it. We can anticipate creating a debug
         // info while bypassing PrepareFunctionForDebugExecution.
         if (iteration > 1) {
-          AllowGarbageCollection allow_before_return;
           CreateBreakInfo(shared_handle);
         }
         return shared_handle;

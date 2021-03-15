@@ -294,8 +294,16 @@ class V8_EXPORT_PRIVATE Debug {
   void RemoveAllCoverageInfos();
 
   // This function is used in FunctionNameUsing* tests.
-  Handle<Object> FindSharedFunctionInfoInScript(Handle<Script> script,
-                                                int position);
+  Handle<Object> FindInnermostContainingFunctionInfo(Handle<Script> script,
+                                                     int position);
+
+  Handle<SharedFunctionInfo> FindClosestSharedFunctionInfoFromPosition(
+      int position, Handle<Script> script,
+      Handle<SharedFunctionInfo> outer_shared);
+
+  bool FindSharedFunctionInfosIntersectingRange(
+      Handle<Script> script, int start_position, int end_position,
+      std::vector<Handle<SharedFunctionInfo>>* candidates);
 
   static Handle<Object> GetSourceBreakLocations(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
