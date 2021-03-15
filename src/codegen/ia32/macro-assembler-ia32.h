@@ -716,8 +716,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Requires that dst == src1 if AVX is not supported.
   void I32x4ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    XMMRegister scratch, bool low, bool is_signed);
-  void I16x8ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                   XMMRegister scratch, bool low, bool is_signed);
+  void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                      XMMRegister scratch, bool is_signed);
+  void I16x8ExtMulHighS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                        XMMRegister scratch);
+  void I16x8ExtMulHighU(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                        XMMRegister scratch);
   // Requires dst == mask when AVX is not supported.
   void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
                   XMMRegister src2, XMMRegister scratch);

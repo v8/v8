@@ -696,19 +696,81 @@ void TurboAssembler::I32x4ExtMul(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::I16x8ExtMul(XMMRegister dst, XMMRegister src1,
-                                 XMMRegister src2, XMMRegister scratch,
-                                 bool low, bool is_signed) {
-  if (low) {
-    is_signed ? Pmovsxbw(scratch, src1) : Pmovzxbw(scratch, src1);
-    is_signed ? Pmovsxbw(dst, src2) : Pmovzxbw(dst, src2);
-    Pmullw(dst, scratch);
+void TurboAssembler::I16x8ExtMulLow(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, XMMRegister scratch,
+                                    bool is_signed) {
+  is_signed ? Pmovsxbw(scratch, src1) : Pmovzxbw(scratch, src1);
+  is_signed ? Pmovsxbw(dst, src2) : Pmovzxbw(dst, src2);
+  Pmullw(dst, scratch);
+}
+
+void TurboAssembler::I16x8ExtMulHighS(XMMRegister dst, XMMRegister src1,
+                                      XMMRegister src2, XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpunpckhbw(scratch, src1, src1);
+    vpsraw(scratch, scratch, 8);
+    vpunpckhbw(dst, src2, src2);
+    vpsraw(dst, dst, 8);
+    vpmullw(dst, dst, scratch);
   } else {
-    Palignr(scratch, src1, uint8_t{8});
-    is_signed ? Pmovsxbw(scratch, scratch) : Pmovzxbw(scratch, scratch);
-    Palignr(dst, src2, uint8_t{8});
-    is_signed ? Pmovsxbw(dst, dst) : Pmovzxbw(dst, dst);
-    Pmullw(dst, scratch);
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
+    movaps(scratch, src2);
+    punpckhbw(dst, dst);
+    psraw(dst, 8);
+    punpckhbw(scratch, scratch);
+    psraw(scratch, 8);
+    pmullw(dst, scratch);
+  }
+}
+
+void TurboAssembler::I16x8ExtMulHighU(XMMRegister dst, XMMRegister src1,
+                                      XMMRegister src2, XMMRegister scratch) {
+  // The logic here is slightly complicated to handle all the cases of register
+  // aliasing. This allows flexibility for callers in TurboFan and Liftoff.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    if (src1 == src2) {
+      vpxor(scratch, scratch, scratch);
+      vpunpckhbw(dst, src1, scratch);
+      vpmullw(dst, dst, dst);
+    } else {
+      if (dst == src2) {
+        // We overwrite dst, then use src2, so swap src1 and src2.
+        std::swap(src1, src2);
+      }
+      vpxor(scratch, scratch, scratch);
+      vpunpckhbw(dst, src1, scratch);
+      vpunpckhbw(scratch, src2, scratch);
+      vpmullw(dst, dst, scratch);
+    }
+  } else {
+    if (src1 == src2) {
+      xorps(scratch, scratch);
+      if (dst != src1) {
+        movaps(dst, src1);
+      }
+      punpckhbw(dst, scratch);
+      pmullw(dst, scratch);
+    } else {
+      // When dst == src1, nothing special needs to be done.
+      // When dst == src2, swap src1 and src2, since we overwrite dst.
+      // When dst is unique, copy src1 to dst first.
+      if (dst == src2) {
+        std::swap(src1, src2);
+        // Now, dst == src1.
+      } else if (dst != src1) {
+        // dst != src1 && dst != src2.
+        movaps(dst, src1);
+      }
+      xorps(scratch, scratch);
+      punpckhbw(dst, scratch);
+      punpckhbw(scratch, src2);
+      psrlw(scratch, 8);
+      pmullw(dst, scratch);
+    }
   }
 }
 

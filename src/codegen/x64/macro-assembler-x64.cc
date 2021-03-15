@@ -2296,20 +2296,81 @@ void TurboAssembler::I32x4ExtMul(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::I16x8ExtMul(XMMRegister dst, XMMRegister src1,
-                                 XMMRegister src2, bool low, bool is_signed) {
-  if (low) {
-    is_signed ? Pmovsxbw(kScratchDoubleReg, src1)
-              : Pmovzxbw(kScratchDoubleReg, src1);
-    is_signed ? Pmovsxbw(dst, src2) : Pmovzxbw(dst, src2);
-    Pmullw(dst, kScratchDoubleReg);
+void TurboAssembler::I16x8ExtMulLow(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, bool is_signed) {
+  is_signed ? Pmovsxbw(kScratchDoubleReg, src1)
+            : Pmovzxbw(kScratchDoubleReg, src1);
+  is_signed ? Pmovsxbw(dst, src2) : Pmovzxbw(dst, src2);
+  Pmullw(dst, kScratchDoubleReg);
+}
+
+void TurboAssembler::I16x8ExtMulHighS(XMMRegister dst, XMMRegister src1,
+                                      XMMRegister src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpunpckhbw(kScratchDoubleReg, src1, src1);
+    vpsraw(kScratchDoubleReg, kScratchDoubleReg, 8);
+    vpunpckhbw(dst, src2, src2);
+    vpsraw(dst, dst, 8);
+    vpmullw(dst, dst, kScratchDoubleReg);
   } else {
-    Palignr(kScratchDoubleReg, src1, uint8_t{8});
-    is_signed ? Pmovsxbw(kScratchDoubleReg, kScratchDoubleReg)
-              : Pmovzxbw(kScratchDoubleReg, kScratchDoubleReg);
-    Palignr(dst, src2, uint8_t{8});
-    is_signed ? Pmovsxbw(dst, dst) : Pmovzxbw(dst, dst);
-    Pmullw(dst, kScratchDoubleReg);
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
+    movaps(kScratchDoubleReg, src2);
+    punpckhbw(dst, dst);
+    psraw(dst, 8);
+    punpckhbw(kScratchDoubleReg, kScratchDoubleReg);
+    psraw(kScratchDoubleReg, 8);
+    pmullw(dst, kScratchDoubleReg);
+  }
+}
+
+void TurboAssembler::I16x8ExtMulHighU(XMMRegister dst, XMMRegister src1,
+                                      XMMRegister src2) {
+  // The logic here is slightly complicated to handle all the cases of register
+  // aliasing. This allows flexibility for callers in TurboFan and Liftoff.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    if (src1 == src2) {
+      vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      vpunpckhbw(dst, src1, kScratchDoubleReg);
+      vpmullw(dst, dst, dst);
+    } else {
+      if (dst == src2) {
+        // We overwrite dst, then use src2, so swap src1 and src2.
+        std::swap(src1, src2);
+      }
+      vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      vpunpckhbw(dst, src1, kScratchDoubleReg);
+      vpunpckhbw(kScratchDoubleReg, src2, kScratchDoubleReg);
+      vpmullw(dst, dst, kScratchDoubleReg);
+    }
+  } else {
+    if (src1 == src2) {
+      xorps(kScratchDoubleReg, kScratchDoubleReg);
+      if (dst != src1) {
+        movaps(dst, src1);
+      }
+      punpckhbw(dst, kScratchDoubleReg);
+      pmullw(dst, kScratchDoubleReg);
+    } else {
+      // When dst == src1, nothing special needs to be done.
+      // When dst == src2, swap src1 and src2, since we overwrite dst.
+      // When dst is unique, copy src1 to dst first.
+      if (dst == src2) {
+        std::swap(src1, src2);
+        // Now, dst == src1.
+      } else if (dst != src1) {
+        // dst != src1 && dst != src2.
+        movaps(dst, src1);
+      }
+      xorps(kScratchDoubleReg, kScratchDoubleReg);
+      punpckhbw(dst, kScratchDoubleReg);
+      punpckhbw(kScratchDoubleReg, src2);
+      psrlw(kScratchDoubleReg, 8);
+      pmullw(dst, kScratchDoubleReg);
+    }
   }
 }
 
