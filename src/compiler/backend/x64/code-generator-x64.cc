@@ -3352,13 +3352,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16Splat: {
       XMMRegister dst = i.OutputSimd128Register();
-      if (HasRegisterInput(instr, 0)) {
-        __ Movd(dst, i.InputRegister(0));
+      if (CpuFeatures::IsSupported(AVX2)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        CpuFeatureScope avx2_scope(tasm(), AVX2);
+        if (HasRegisterInput(instr, 0)) {
+          __ vmovd(kScratchDoubleReg, i.InputRegister(0));
+          __ vpbroadcastb(dst, kScratchDoubleReg);
+        } else {
+          __ vpbroadcastb(dst, i.InputOperand(0));
+        }
       } else {
-        __ Movd(dst, i.InputOperand(0));
+        if (HasRegisterInput(instr, 0)) {
+          __ Movd(dst, i.InputRegister(0));
+        } else {
+          __ Movd(dst, i.InputOperand(0));
+        }
+        __ Xorps(kScratchDoubleReg, kScratchDoubleReg);
+        __ Pshufb(dst, kScratchDoubleReg);
       }
-      __ Xorps(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pshufb(dst, kScratchDoubleReg);
+
       break;
     }
     case kX64Pextrb: {
