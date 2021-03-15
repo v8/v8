@@ -1152,6 +1152,9 @@ WasmCode* NativeModule::PublishCodeLocked(
 
   code->RegisterTrapHandlerData();
 
+  // Put the code in the debugging cache, if needed.
+  if (V8_UNLIKELY(cached_code_)) InsertToCodeCache(code);
+
   // Assume an order of execution tiers that represents the quality of their
   // generated code.
   static_assert(ExecutionTier::kNone < ExecutionTier::kLiftoff &&
@@ -1514,6 +1517,23 @@ void NativeModule::TransferNewOwnedCodeLocked() const {
         insertion_hint, code->instruction_start(), std::move(code));
   }
   new_owned_code_.clear();
+}
+
+void NativeModule::InsertToCodeCache(WasmCode* code) {
+  // The caller holds {allocation_mutex_}.
+  DCHECK(!allocation_mutex_.TryLock());
+  DCHECK_NOT_NULL(cached_code_);
+  if (code->IsAnonymous()) return;
+  // Only cache Liftoff debugging code or TurboFan code (no breakpoints or
+  // stepping).
+  if (code->tier() == ExecutionTier::kLiftoff &&
+      code->for_debugging() != kForDebugging) {
+    return;
+  }
+  auto key = std::make_pair(code->tier(), code->index());
+  if (cached_code_->insert(std::make_pair(key, code)).second) {
+    code->IncRef();
+  }
 }
 
 WasmCode* NativeModule::Lookup(Address pc) const {
@@ -2032,23 +2052,55 @@ void NativeModule::RecompileForTiering() {
   {
     base::MutexGuard lock(&allocation_mutex_);
     current_state = tiering_state_;
+
+    // Initialize {cached_code_} to signal that this cache should get filled
+    // from now on.
+    if (!cached_code_) {
+      cached_code_ = std::make_unique<
+          std::map<std::pair<ExecutionTier, int>, WasmCode*>>();
+      // Fill with existing code.
+      for (auto& code_entry : owned_code_) {
+        InsertToCodeCache(code_entry.second.get());
+      }
+    }
   }
   RecompileNativeModule(this, current_state);
 }
 
 std::vector<int> NativeModule::FindFunctionsToRecompile(
     TieringState new_tiering_state) {
+  WasmCodeRefScope code_ref_scope;
   base::MutexGuard guard(&allocation_mutex_);
   std::vector<int> function_indexes;
   int imported = module()->num_imported_functions;
   int declared = module()->num_declared_functions;
+  const bool tier_down = new_tiering_state == kTieredDown;
   for (int slot_index = 0; slot_index < declared; ++slot_index) {
     int function_index = imported + slot_index;
-    WasmCode* code = code_table_[slot_index];
-    bool code_is_good = new_tiering_state == kTieredDown
-                            ? code && code->for_debugging()
-                            : code && code->tier() == ExecutionTier::kTurbofan;
-    if (!code_is_good) function_indexes.push_back(function_index);
+    WasmCode* old_code = code_table_[slot_index];
+    bool code_is_good =
+        tier_down ? old_code && old_code->for_debugging()
+                  : old_code && old_code->tier() == ExecutionTier::kTurbofan;
+    if (code_is_good) continue;
+    DCHECK_NOT_NULL(cached_code_);
+    auto cache_it = cached_code_->find(std::make_pair(
+        tier_down ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan,
+        function_index));
+    if (cache_it != cached_code_->end()) {
+      WasmCode* cached_code = cache_it->second;
+      if (old_code) {
+        WasmCodeRefScope::AddRef(old_code);
+        // The code is added to the current {WasmCodeRefScope}, hence the ref
+        // count cannot drop to zero here.
+        old_code->DecRefOnLiveCode();
+      }
+      code_table_[slot_index] = cached_code;
+      PatchJumpTablesLocked(slot_index, cached_code->instruction_start());
+      cached_code->IncRef();
+      continue;
+    }
+    // Otherwise add the function to the set of functions to recompile.
+    function_indexes.push_back(function_index);
   }
   return function_indexes;
 }
