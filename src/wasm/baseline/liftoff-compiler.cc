@@ -1070,12 +1070,16 @@ class LiftoffCompiler {
     PushControl(block);
   }
 
-  // Load the exception tag in {kReturnRegister0}.
-  void GetExceptionTag(LiftoffAssembler::VarState& exception) {
+  // Load the property in {kReturnRegister0}.
+  LiftoffRegister GetExceptionProperty(LiftoffAssembler::VarState& exception,
+                                       RootIndex root_index) {
+    DCHECK(root_index == RootIndex::kwasm_exception_tag_symbol ||
+           root_index == RootIndex::kwasm_exception_values_symbol);
+
     LiftoffRegList pinned;
     LiftoffRegister tag_symbol_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadExceptionTagSymbol(tag_symbol_reg.gp(), pinned);
+    LoadExceptionSymbol(tag_symbol_reg.gp(), pinned, root_index);
     LiftoffRegister context_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_TAGGED_PTR_INSTANCE_FIELD(context_reg.gp(), NativeContext, pinned);
@@ -1094,6 +1098,7 @@ class LiftoffCompiler {
     DEBUG_CODE_COMMENT("Call builtin");
     __ CallRuntimeStub(WasmCode::RuntimeStubId::kWasmGetOwnProperty);
     DefineSafepoint();
+    return LiftoffRegister(kReturnRegister0);
   }
 
   void CatchException(FullDecoder* decoder,
@@ -1120,9 +1125,10 @@ class LiftoffCompiler {
 
     DEBUG_CODE_COMMENT("load caught exception tag");
     DCHECK_EQ(__ cache_state()->stack_state.back().kind(), kRef);
-    GetExceptionTag(__ cache_state()->stack_state.back());
+    LiftoffRegister caught_tag =
+        GetExceptionProperty(__ cache_state()->stack_state.back(),
+                             RootIndex::kwasm_exception_tag_symbol);
     LiftoffRegList pinned;
-    LiftoffRegister caught_tag(kReturnRegister0);
     pinned.set(caught_tag);
 
     DEBUG_CODE_COMMENT("load expected exception tag");
@@ -1145,10 +1151,8 @@ class LiftoffCompiler {
       block->try_info->in_handler = true;
       num_exceptions_++;
     }
-    if (env_->module->exceptions[imm.index].sig->parameter_count() > 0) {
-      // TODO(thibaudm): Unpack exception.
-      unsupported(decoder, kExceptionHandling, "exception with parameters");
-    }
+    GetExceptionValues(decoder, __ cache_state()->stack_state.back(),
+                       imm.exception);
   }
 
   void Rethrow(FullDecoder* decoder,
@@ -3842,12 +3846,50 @@ class LiftoffCompiler {
         tmp_reg, pinned, LiftoffAssembler::kSkipWriteBarrier);
   }
 
+  void Load32BitExceptionValue(LiftoffRegister dst,
+                               LiftoffRegister values_array, uint32_t* index,
+                               LiftoffRegList pinned) {
+    LiftoffRegister upper = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadSmiAsInt32(
+        upper, values_array.gp(),
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index), pinned);
+    (*index)++;
+    __ emit_i32_shli(upper.gp(), upper.gp(), 16);
+    __ LoadSmiAsInt32(
+        dst, values_array.gp(),
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index), pinned);
+    (*index)++;
+    __ emit_i32_or(dst.gp(), upper.gp(), dst.gp());
+  }
+
   void StoreExceptionValue(ValueType type, Register values_array,
                            int* index_in_array, LiftoffRegList pinned) {
     // TODO(clemensb): Handle more types.
     DCHECK_EQ(kWasmI32, type);
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     Store32BitExceptionValue(values_array, index_in_array, value.gp(), pinned);
+  }
+
+  void GetExceptionValues(FullDecoder* decoder,
+                          LiftoffAssembler::VarState& exception_var,
+                          const WasmException* exception) {
+    LiftoffRegList pinned;
+    DEBUG_CODE_COMMENT("get exception values");
+    LiftoffRegister values_array = GetExceptionProperty(
+        exception_var, RootIndex::kwasm_exception_values_symbol);
+    uint32_t index = 0;
+    const WasmExceptionSig* sig = exception->sig;
+    LiftoffRegister value = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    for (ValueType param : sig->parameters()) {
+      if (param != kWasmI32) {
+        unsupported(decoder, kExceptionHandling,
+                    "unsupported type in exception payload");
+        return;
+      }
+      Load32BitExceptionValue(value, values_array, &index, pinned);
+      __ PushRegister(kI32, value);
+    }
+    DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(exception));
   }
 
   void EmitLandingPad(FullDecoder* decoder) {
@@ -5559,11 +5601,10 @@ class LiftoffCompiler {
                                WasmExportedFunctionData::kInstanceOffset),
                            pinned);
       LiftoffRegister func_index = target;
-      __ LoadTaggedSignedAsInt32(
-          func_index, func_data.gp(),
-          wasm::ObjectAccess::ToTagged(
-              WasmExportedFunctionData::kFunctionIndexOffset),
-          pinned);
+      __ LoadSmiAsInt32(func_index, func_data.gp(),
+                        wasm::ObjectAccess::ToTagged(
+                            WasmExportedFunctionData::kFunctionIndexOffset),
+                        pinned);
       LiftoffRegister imported_function_refs = temp;
       __ LoadTaggedPointer(imported_function_refs.gp(), callee_instance.gp(),
                            no_reg,
@@ -5590,11 +5631,10 @@ class LiftoffCompiler {
                     WasmInstanceObject::kJumpTableStartOffset),
                 kPointerLoadType, pinned);
         LiftoffRegister jump_table_offset = temp;
-        __ LoadTaggedSignedAsInt32(
-            jump_table_offset, func_data.gp(),
-            wasm::ObjectAccess::ToTagged(
-                WasmExportedFunctionData::kJumpTableOffsetOffset),
-            pinned);
+        __ LoadSmiAsInt32(jump_table_offset, func_data.gp(),
+                          wasm::ObjectAccess::ToTagged(
+                              WasmExportedFunctionData::kJumpTableOffsetOffset),
+                          pinned);
         __ emit_ptrsize_add(target.gp(), jump_table_start.gp(),
                             jump_table_offset.gp());
         __ emit_jump(&perform_call);
@@ -5716,10 +5756,10 @@ class LiftoffCompiler {
                          pinned);
   }
 
-  void LoadExceptionTagSymbol(Register dst, LiftoffRegList pinned) {
+  void LoadExceptionSymbol(Register dst, LiftoffRegList pinned,
+                           RootIndex root_index) {
     LOAD_INSTANCE_FIELD(dst, IsolateRoot, kSystemPointerSize, pinned);
-    uint32_t offset_imm =
-        IsolateData::root_slot_offset(RootIndex::kwasm_exception_tag_symbol);
+    uint32_t offset_imm = IsolateData::root_slot_offset(root_index);
     __ LoadFullPointer(dst, dst, offset_imm);
   }
 

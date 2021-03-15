@@ -646,10 +646,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
                                           LiftoffRegList pinned) {
     int offset = FixedArray::kLengthOffset - kHeapObjectTag;
-    LoadTaggedSignedAsInt32(dst, array, offset, pinned);
+    LoadSmiAsInt32(dst, array, offset, pinned);
   }
-  inline void LoadTaggedSignedAsInt32(LiftoffRegister dst, Register src_addr,
-                                      int32_t offset, LiftoffRegList pinned) {
+  inline void LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
+                             int32_t offset, LiftoffRegList pinned) {
     if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
       DCHECK_EQ(kSmiShiftSize + kSmiTagSize, 4 * kBitsPerByte);
