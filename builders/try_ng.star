@@ -4,11 +4,16 @@
 
 load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "defaults_triggered", "defaults_try", "v8_builder")
 
-def try_ng_pair(name, **kwargs):
+#TODO(almuthanna): get rid of kwargs and specify default values
+def try_ng_pair(name, use_cas=False, experimental = False, **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
-    kwargs.setdefault("properties", {})["triggers"] = [name + "_ng_triggered"]
     cq_tg = kwargs.pop("cq_properties_trigger", None)
     cq_td = kwargs.pop("cq_properties_triggered", None)
+    cq_exp = dict(cq_tg)
+    kwargs.setdefault("properties", {})["triggers"] = [name + "_ng_triggered"]
+    if experimental:
+        cq_tg["includable_only"] = "true"
+        cq_td["includable_only"] = "true"
     v8_builder(
         defaults_try,
         name = name + "_ng",
@@ -25,6 +30,17 @@ def try_ng_pair(name, **kwargs):
         cq_properties = cq_td,
         in_list = "tryserver",
     )
+    if experimental:
+        cq_exp["experiment_percentage"] = 100
+        kwargs["properties"]["triggers"] = None
+        v8_builder(
+            defaults_try,
+            name = name + "_exp",
+            bucket = "try",
+            cq_properties = cq_exp,
+            in_list = "tryserver",
+            **kwargs
+        )
 
 try_ng_pair(
     name = "v8_android_arm64_n5x_rel",
@@ -160,11 +176,12 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux64_tsan_rel",
-    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
-    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_trigger = {"cancel_stale": False},
+    cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
+    experimental = True,
 )
 
 try_ng_pair(
