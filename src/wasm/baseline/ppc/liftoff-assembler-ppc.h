@@ -120,6 +120,11 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   bailout(kUnsupportedArchitecture, "LoadTaggedPointer");
 }
 
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  bailout(kUnsupportedArchitecture, "LoadFullPointer");
+}
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,

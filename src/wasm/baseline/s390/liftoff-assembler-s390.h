@@ -220,6 +220,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
       MemOperand(src_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm));
 }
 
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  UseScratchRegisterScope temps(this);
+  LoadU64(dst, MemOperand(src_addr, offset_imm), r1);
+}
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
