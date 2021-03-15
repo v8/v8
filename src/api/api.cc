@@ -5878,7 +5878,9 @@ void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
 
 void V8::SetIsCrossOriginIsolated() {
   i::FLAG_harmony_sharedarraybuffer = true;
+#if V8_ENABLE_WEBASSEMBLY
   i::FLAG_experimental_wasm_threads = true;
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 template <typename ObjectType>

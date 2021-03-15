@@ -127,13 +127,11 @@ void V8::InitializeOncePerProcessImpl() {
   // continue exposing wasm on correctness fuzzers even in jitless mode.
   // TODO(jgruber): Remove this once / if wasm can run without executable
   // memory.
-  if (FLAG_jitless && !FLAG_correctness_fuzzer_suppressions) {
 #if V8_ENABLE_WEBASSEMBLY
+  if (FLAG_jitless && !FLAG_correctness_fuzzer_suppressions) {
     FLAG_expose_wasm = false;
-#else
-    STATIC_ASSERT(!FLAG_expose_wasm);
-#endif
   }
+#endif
 
   if (FLAG_regexp_interpret_all && FLAG_regexp_tier_up) {
     // Turning off the tier-up strategy, because the --regexp-interpret-all and
