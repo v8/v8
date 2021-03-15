@@ -4139,6 +4139,40 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_ARITHMETIC_OP(int8_t, -)
       break;
     }
+#define VECTOR_MULTIPLY_EVEN_ODD(input_type, result_type, is_odd)  \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                                \
+  size_t i = 0, j = 0, k = 0;                                      \
+  size_t lane_size = sizeof(input_type);                           \
+  if (is_odd) {                                                    \
+    i = 1;                                                         \
+    j = lane_size;                                                 \
+  }                                                                \
+  for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {      \
+    input_type src0 = get_simd_register_by_lane<input_type>(a, i); \
+    input_type src1 = get_simd_register_by_lane<input_type>(b, i); \
+    set_simd_register_by_lane<result_type>(t, k, src0 * src1);     \
+  }
+    case VMULEUB: {
+      VECTOR_MULTIPLY_EVEN_ODD(uint8_t, uint16_t, false)
+      break;
+    }
+    case VMULESB: {
+      VECTOR_MULTIPLY_EVEN_ODD(int8_t, int16_t, false)
+      break;
+    }
+    case VMULEUH: {
+      VECTOR_MULTIPLY_EVEN_ODD(uint16_t, uint32_t, false)
+      break;
+    }
+    case VMULESH: {
+      VECTOR_MULTIPLY_EVEN_ODD(int16_t, int32_t, false)
+      break;
+    }
+    case VMULOUH: {
+      VECTOR_MULTIPLY_EVEN_ODD(int16_t, int32_t, true)
+      break;
+    }
+#undef VECTOR_MULTIPLY_EVEN_ODD
 #undef VECTOR_ARITHMETIC_OP
 #define VECTOR_MIN_MAX_OP(type, op)                                        \
   DECODE_VX_INSTRUCTION(t, a, b, T)                                        \
@@ -4620,6 +4654,26 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VECTOR_FP_QF
+    case VMHRADDSHS: {
+      int vrt = instr->RTValue();
+      int vra = instr->RAValue();
+      int vrb = instr->RBValue();
+      int vrc = instr->RCValue();
+      FOR_EACH_LANE(i, int16_t) {
+        int16_t vra_val = get_simd_register_by_lane<int16_t>(vra, i);
+        int16_t vrb_val = get_simd_register_by_lane<int16_t>(vrb, i);
+        int16_t vrc_val = get_simd_register_by_lane<int16_t>(vrc, i);
+        int32_t temp = vra_val * vrb_val;
+        temp = (temp + 0x00004000) >> 15;
+        temp += vrc_val;
+        if (temp > kMaxInt16)
+          temp = kMaxInt16;
+        else if (temp < kMinInt16)
+          temp = kMinInt16;
+        set_simd_register_by_lane<int16_t>(vrt, i, static_cast<int16_t>(temp));
+      }
+      break;
+    }
 #undef FOR_EACH_LANE
 #undef DECODE_VX_INSTRUCTION
 #undef GET_ADDRESS
