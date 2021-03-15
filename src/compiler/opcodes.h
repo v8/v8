@@ -963,8 +963,6 @@
   V(I8x16Popcnt)                \
   V(I8x16Abs)                   \
   V(I8x16BitMask)               \
-  V(S128Load)                   \
-  V(S128Store)                  \
   V(S128Zero)                   \
   V(S128Const)                  \
   V(S128Not)                    \

@@ -546,8 +546,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I8x16Popcnt, Operator::kNoProperties, 1, 0, 1)                         \
   V(I8x16Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16BitMask, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S128Load, Operator::kNoProperties, 2, 0, 1)                            \
-  V(S128Store, Operator::kNoProperties, 3, 0, 1)                           \
   V(S128Zero, Operator::kNoProperties, 0, 0, 1)                            \
   V(S128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
   V(S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \

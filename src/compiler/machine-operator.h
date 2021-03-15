@@ -802,8 +802,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16Abs();
   const Operator* I8x16BitMask();
 
-  const Operator* S128Load();
-  const Operator* S128Store();
   const Operator* S128Const(const uint8_t value[16]);
 
   const Operator* S128Zero();
