@@ -421,8 +421,13 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
       if (entry.trampoline_pc() != SafepointEntry::kNoTrampolinePC) {
         os << " trampoline: " << std::hex << entry.trampoline_pc() << std::dec;
       }
-      if (entry.has_deoptimization_index()) {
-        os << " deopt: " << std::setw(6) << entry.deoptimization_index();
+      if (entry.has_register_bits()) {
+        os << " registers: ";
+        uint32_t register_bits = entry.register_bits();
+        int bits = 32 - base::bits::CountLeadingZeros32(register_bits);
+        for (int i = bits - 1; i >= 0; --i) {
+          os << ((register_bits >> i) & 1);
+        }
       }
       os << "\n";
     }

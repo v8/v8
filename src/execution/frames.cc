@@ -1973,8 +1973,24 @@ int WasmFrame::LookupExceptionHandlerInTable() {
 }
 
 void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
-  // Nothing to iterate here. This will change once we support references in
-  // Liftoff.
+  DCHECK(caller_pc());
+  wasm::WasmCode* code =
+      isolate()->wasm_engine()->code_manager()->LookupCode(caller_pc());
+  DCHECK(code);
+  SafepointTable table(code);
+  SafepointEntry safepoint_entry = table.FindEntry(caller_pc());
+  if (!safepoint_entry.has_register_bits()) return;
+  uint32_t register_bits = safepoint_entry.register_bits();
+
+  while (register_bits != 0) {
+    int reg_code = base::bits::CountTrailingZeros(register_bits);
+    register_bits &= ~(1 << reg_code);
+    FullObjectSlot spill_slot(&Memory<Address>(
+        fp() +
+        WasmDebugBreakFrameConstants::GetPushedGpRegisterOffset(reg_code)));
+
+    v->VisitRootPointer(Root::kTop, nullptr, spill_slot);
+  }
 }
 
 void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,

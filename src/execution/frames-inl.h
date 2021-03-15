@@ -163,7 +163,7 @@ inline Address CommonFrame::caller_fp() const {
 }
 
 inline Address CommonFrame::caller_pc() const {
-  return base::Memory<Address>(ComputePCAddress(fp()));
+  return ReadPC(reinterpret_cast<Address*>(ComputePCAddress(fp())));
 }
 
 inline Address CommonFrame::ComputePCAddress(Address fp) {

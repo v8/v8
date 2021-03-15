@@ -193,6 +193,8 @@ class LiftoffAssembler : public TurboAssembler {
 
     void DefineSafepoint(Safepoint& safepoint);
 
+    void DefineSafepointWithCalleeSavedRegisters(Safepoint& safepoint);
+
     base::SmallVector<VarState, 8> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
