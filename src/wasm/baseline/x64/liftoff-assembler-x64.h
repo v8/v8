@@ -332,6 +332,13 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   LoadTaggedPointerField(dst, src_op);
 }
 
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  Operand src_op = liftoff::GetMemOp(this, src_addr, no_reg,
+                                     static_cast<uint32_t>(offset_imm));
+  movq(dst, src_op);
+}
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,

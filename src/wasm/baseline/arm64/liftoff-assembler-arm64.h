@@ -444,6 +444,14 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   LoadTaggedPointerField(dst, src_op);
 }
 
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  UseScratchRegisterScope temps(this);
+  MemOperand src_op =
+      liftoff::GetMemOp(this, &temps, src_addr, no_reg, offset_imm);
+  Ldr(dst.X(), src_op);
+}
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,

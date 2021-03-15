@@ -63,6 +63,7 @@ struct WasmModule;
   V(WasmI32AtomicWait64)                 \
   V(WasmI64AtomicWait32)                 \
   V(WasmI64AtomicWait64)                 \
+  V(WasmGetOwnProperty)                  \
   V(WasmRefFunc)                         \
   V(WasmMemoryGrow)                      \
   V(WasmTableInit)                       \

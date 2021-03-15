@@ -2537,8 +2537,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("catch after unwind for try");
       return 0;
     }
-    c->kind = kControlTryCatch;
     FallThruTo(c);
+    c->kind = kControlTryCatch;
     // TODO(jkummerow): Consider moving the stack manipulation after the
     // INTERFACE call for consistency.
     DCHECK_LE(stack_ + c->stack_depth, stack_end_);

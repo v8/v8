@@ -633,6 +633,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
                                 LiftoffRegList pinned);
+  inline void LoadFullPointer(Register dst, Register src_addr,
+                              int32_t offset_imm);
   enum SkipWriteBarrier : bool {
     kSkipWriteBarrier = true,
     kNoSkipWriteBarrier = false

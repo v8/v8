@@ -716,6 +716,14 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                         offset_imm, LoadType::kI32Load, pinned);
 }
 
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  UseScratchRegisterScope temps(this);
+  MemOperand src_op =
+      liftoff::GetMemOp(this, &temps, src_addr, no_reg, offset_imm);
+  ldr(dst, src_op);
+}
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
