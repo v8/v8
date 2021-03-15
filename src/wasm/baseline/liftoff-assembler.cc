@@ -537,22 +537,10 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
 
 void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
   for (const auto& slot : stack_state) {
-    if (is_reference(slot.kind())) {
-      DCHECK(slot.is_stack());
-      safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
-    }
-  }
-}
+    DCHECK(!slot.is_reg());
 
-void LiftoffAssembler::CacheState::DefineSafepointWithCalleeSavedRegisters(
-    Safepoint& safepoint) {
-  for (const auto& slot : stack_state) {
-    if (!is_reference(slot.kind())) continue;
-    if (slot.is_stack()) {
+    if (is_reference(slot.kind())) {
       safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
-    } else {
-      DCHECK(slot.is_reg());
-      safepoint.DefineRegister(slot.reg().gp().code());
     }
   }
 }

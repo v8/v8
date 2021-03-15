@@ -36,10 +36,9 @@ WasmInspectorTest.compile = async function(bytes, module_name = 'module') {
 };
 
 WasmInspectorTest.instantiate =
-    async function(bytes, instance_name = 'instance', imports) {
+    async function(bytes, instance_name = 'instance') {
   const instantiate_code = `var ${instance_name} = (${
-      WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(bytes)},
-        ${imports});`;
+      WasmInspectorTest.instantiateFromBuffer})(${JSON.stringify(bytes)});`;
   await WasmInspectorTest.evalWithUrl(instantiate_code, 'instantiate');
 };
 

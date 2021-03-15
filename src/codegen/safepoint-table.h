@@ -50,18 +50,6 @@ class SafepointEntry {
     return deopt_index_;
   }
 
-  uint32_t register_bits() const {
-    // The register bits use the same field as the deopt_index_.
-    DCHECK(is_valid());
-    return deopt_index_;
-  }
-
-  bool has_register_bits() const {
-    // The register bits use the same field as the deopt_index_.
-    DCHECK(is_valid());
-    return deopt_index_ != kNoDeoptIndex;
-  }
-
   bool has_deoptimization_index() const {
     DCHECK(is_valid());
     return deopt_index_ != kNoDeoptIndex;
@@ -73,7 +61,7 @@ class SafepointEntry {
   }
 
  private:
-  uint32_t deopt_index_;
+  unsigned deopt_index_;
   uint8_t* bits_;
   // It needs to be an integer as it is -1 for eager deoptimizations.
   int trampoline_pc_;
@@ -184,20 +172,11 @@ class Safepoint {
  public:
   static const int kNoDeoptimizationIndex = SafepointEntry::kNoDeoptIndex;
 
-  void DefinePointerSlot(int index) { stack_indexes_->push_back(index); }
-
-  void DefineRegister(int reg_code) {
-    // Make sure the recorded index is always less than 31, so that we don't
-    // generate {kNoDeoptimizationIndex} by accident.
-    DCHECK_LT(reg_code, 31);
-    *register_indexes_ |= 1u << reg_code;
-  }
+  void DefinePointerSlot(int index) { indexes_->push_back(index); }
 
  private:
-  Safepoint(ZoneChunkList<int>* stack_indexes, uint32_t* register_indexes)
-      : stack_indexes_(stack_indexes), register_indexes_(register_indexes) {}
-  ZoneChunkList<int>* const stack_indexes_;
-  uint32_t* register_indexes_;
+  explicit Safepoint(ZoneChunkList<int>* indexes) : indexes_(indexes) {}
+  ZoneChunkList<int>* const indexes_;
 
   friend class SafepointTableBuilder;
 };
@@ -234,15 +213,13 @@ class SafepointTableBuilder {
     unsigned pc;
     unsigned deopt_index;
     int trampoline;
-    ZoneChunkList<int>* stack_indexes;
-    uint32_t register_indexes;
+    ZoneChunkList<int>* indexes;
     DeoptimizationInfo(Zone* zone, unsigned pc)
         : pc(pc),
           deopt_index(Safepoint::kNoDeoptimizationIndex),
           trampoline(-1),
-          stack_indexes(zone->New<ZoneChunkList<int>>(
-              zone, ZoneChunkList<int>::StartMode::kSmall)),
-          register_indexes(0) {}
+          indexes(zone->New<ZoneChunkList<int>>(
+              zone, ZoneChunkList<int>::StartMode::kSmall)) {}
   };
 
   // Compares all fields of a {DeoptimizationInfo} except {pc} and {trampoline}.
