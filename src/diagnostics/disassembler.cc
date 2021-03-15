@@ -301,7 +301,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   while (pc < end) {
     // First decode instruction so that we know its length.
     byte* prev_pc = pc;
-    if (constants > 0) {
+    bool decoding_constant_pool = constants > 0;
+    if (decoding_constant_pool) {
       SNPrintF(
           decode_buffer, "%08x       constant",
           base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(pc)));
@@ -391,7 +392,11 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // If this is a constant pool load and we haven't found any RelocInfo
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
-    if (pcs.empty() && !code.is_null()) {
+    // Make sure we're also not currently in the middle of decoding a constant
+    // pool itself, rather than a contant pool load. Since it can store any
+    // bytes, a constant could accidentally match with the bit-pattern checked
+    // by IsInConstantPool() below.
+    if (pcs.empty() && !code.is_null() && !decoding_constant_pool) {
       RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
                             0, Code());
       if (dummy_rinfo.IsInConstantPool()) {
