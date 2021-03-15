@@ -94,6 +94,8 @@ class ValueSerializer {
   void SetTreatArrayBufferViewsAsHostObjects(bool mode);
 
  private:
+  friend class WebSnapshotSerializer;
+
   // Managing allocations of the internal buffer.
   Maybe<bool> ExpandBuffer(size_t required_capacity);
 
@@ -182,6 +184,7 @@ class ValueDeserializer {
  public:
   ValueDeserializer(Isolate* isolate, Vector<const uint8_t> data,
                     v8::ValueDeserializer::Delegate* delegate);
+  ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
   ~ValueDeserializer();
   ValueDeserializer(const ValueDeserializer&) = delete;
   ValueDeserializer& operator=(const ValueDeserializer&) = delete;
@@ -230,6 +233,8 @@ class ValueDeserializer {
   bool ReadRawBytes(size_t length, const void** data) V8_WARN_UNUSED_RESULT;
 
  private:
+  friend class WebSnapshotDeserializer;
+
   // Reading the wire format.
   Maybe<SerializationTag> PeekTag() const V8_WARN_UNUSED_RESULT;
   void ConsumeTag(SerializationTag peeked_tag);

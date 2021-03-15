@@ -152,6 +152,8 @@ class ObjectCacheIndexMap {
     return find_result.already_exists;
   }
 
+  int size() const { return next_index_; }
+
  private:
   IdentityMap<int, base::DefaultAllocationPolicy> map_;
   int next_index_;
