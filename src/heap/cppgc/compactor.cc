@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
+#include "src/heap/cppgc/object-poisoner.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 
@@ -370,6 +371,10 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
 void CompactSpace(NormalPageSpace* space,
                   MovableReferences& movable_references) {
   using Pages = NormalPageSpace::Pages;
+
+#ifdef V8_USE_ADDRESS_SANITIZER
+  UnmarkedObjectsPoisoner().Traverse(space);
+#endif  // V8_USE_ADDRESS_SANITIZER
 
   DCHECK(space->is_compactable());
 

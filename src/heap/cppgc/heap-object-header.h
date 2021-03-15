@@ -190,6 +190,7 @@ Address HeapObjectHeader::Payload() const {
 
 template <AccessMode mode>
 Address HeapObjectHeader::PayloadEnd() const {
+  DCHECK(!IsLargeObject());
   return reinterpret_cast<Address>(const_cast<HeapObjectHeader*>(this)) +
          GetSize<mode>();
 }

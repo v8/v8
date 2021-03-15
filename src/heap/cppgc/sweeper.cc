@@ -18,6 +18,7 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/heap-visitor.h"
+#include "src/heap/cppgc/object-poisoner.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sanitizers.h"
@@ -160,6 +161,9 @@ class DeferredFinalizationBuilder final {
       result_.unfinalized_objects.push_back({header});
       found_finalizer_ = true;
     } else {
+      // Unmarked memory may have been poisoned. In the non-concurrent case this
+      // is taken care of by finalizing a header.
+      ASAN_UNPOISON_MEMORY_REGION(header, size);
       SET_MEMORY_INACCESSIBLE(header, size);
     }
   }
@@ -478,7 +482,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 };
 
 // This visitor:
-// - resets linear allocation buffers and clears free lists for all spaces;
+// - clears free lists for all spaces;
 // - moves all Heap pages to local Sweeper's state (SpaceStates).
 class PrepareForSweepVisitor final
     : public HeapVisitor<PrepareForSweepVisitor> {
@@ -497,11 +501,17 @@ class PrepareForSweepVisitor final
       return true;
     DCHECK(!space->linear_allocation_buffer().size());
     space->free_list().Clear();
+#ifdef V8_USE_ADDRESS_SANITIZER
+    UnmarkedObjectsPoisoner().Traverse(space);
+#endif  // V8_USE_ADDRESS_SANITIZER
     ExtractPages(space);
     return true;
   }
 
   bool VisitLargePageSpace(LargePageSpace* space) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+    UnmarkedObjectsPoisoner().Traverse(space);
+#endif  // V8_USE_ADDRESS_SANITIZER
     ExtractPages(space);
     return true;
   }
