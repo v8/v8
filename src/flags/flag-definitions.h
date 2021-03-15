@@ -268,7 +268,6 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                              \
-  V(harmony_top_level_await, "harmony top level await")                     \
   V(harmony_relative_indexing_methods, "harmony relative indexing methods") \
   V(harmony_class_static_blocks, "harmony static initializer blocks")
 
@@ -282,12 +281,13 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                      \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
-  V(harmony_atomics, "harmony atomics")                               \
-  V(harmony_weak_refs, "harmony weak references")                     \
-  V(harmony_regexp_match_indices, "harmony regexp match indices")     \
-  V(harmony_private_brand_checks, "harmony private brand checks")
+#define HARMONY_SHIPPING_BASE(V)                                  \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")       \
+  V(harmony_atomics, "harmony atomics")                           \
+  V(harmony_weak_refs, "harmony weak references")                 \
+  V(harmony_regexp_match_indices, "harmony regexp match indices") \
+  V(harmony_private_brand_checks, "harmony private brand checks") \
+  V(harmony_top_level_await, "harmony top level await")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)

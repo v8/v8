@@ -1233,10 +1233,6 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Value> module_namespace = root_module->GetModuleNamespace();
   if (i::FLAG_harmony_top_level_await) {
     Local<Promise> result_promise(result.As<Promise>());
-    if (result_promise->State() == Promise::kRejected) {
-      resolver->Reject(realm, result_promise->Result()).ToChecked();
-      return;
-    }
 
     // Setup callbacks, and then chain them to the result promise.
     // ModuleResolutionData will be deleted by the callbacks.

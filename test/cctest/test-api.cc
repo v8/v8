@@ -23579,7 +23579,14 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
       if (i::FLAG_harmony_top_level_await) {
         v8::Local<v8::Promise> promise = result.As<v8::Promise>();
         CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK_EQ(13, promise->Result()->Int32Value(env.local()).FromJust());
+        CHECK(promise->Result()->IsUndefined());
+        // Fulfilled top-level await promises always resolve to undefined. Check
+        // the test result via a global variable.
+        CHECK_EQ(13, env->Global()
+                         ->Get(env.local(), v8_str("Result"))
+                         .ToLocalChecked()
+                         ->Int32Value(env.local())
+                         .FromJust());
       } else {
         CHECK(!result.IsEmpty());
         CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
@@ -23607,17 +23614,20 @@ void RunStreamingTest(const char** chunks,
 TEST(StreamingSimpleScript) {
   // This script is unrealistically small, since no one chunk is enough to fill
   // the backing buffer of Scanner, let alone overflow it.
-  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
-                          nullptr};
+  const char* chunks[] = {"function foo() { ret",
+                          "urn 13; } globalThis.Result = f", "oo(); ", nullptr};
   RunStreamingTest(chunks);
 }
 
 TEST(StreamingScriptConstantArray) {
   // When run with Ignition, tests that the streaming parser canonicalizes
   // handles so that they are only added to the constant pool array once.
-  const char* chunks[] = {
-      "var a = {};",        "var b = {};", "var c = 'testing';",
-      "var d = 'testing';", "13;",         nullptr};
+  const char* chunks[] = {"var a = {};",
+                          "var b = {};",
+                          "var c = 'testing';",
+                          "var d = 'testing';",
+                          "globalThis.Result = 13;",
+                          nullptr};
   RunStreamingTest(chunks);
 }
 
@@ -23632,7 +23642,7 @@ TEST(StreamingScriptEvalShadowing) {
       "    function g() {\n"
       "      return y\n"
       "    }\n"
-      "    return g();\n"
+      "    return (globalThis.Result = g());\n"
       "  })()\n"
       "})()\n";
   const char* chunks[] = {chunk1, nullptr};
@@ -23656,7 +23666,7 @@ TEST(StreamingBiggerScript) {
       "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
       "  return result;\n"
       "}\n";
-  const char* chunks[] = {chunk1, "foo(); ", nullptr};
+  const char* chunks[] = {chunk1, "globalThis.Result = foo(); ", nullptr};
   RunStreamingTest(chunks);
 }
 
@@ -23668,7 +23678,8 @@ TEST(StreamingScriptWithParseError) {
         "  // This will result in a parse error.\n"
         "  var if else then foo";
     char chunk2[] = "  13\n";
-    const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+    const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                            nullptr};
 
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::ONE_BYTE,
                      false);
@@ -23679,7 +23690,8 @@ TEST(StreamingScriptWithParseError) {
         "  // This will be parsed successfully.\n"
         "  function foo() { return ";
     char chunk2[] = "  13; }\n";
-    const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+    const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                            nullptr};
 
     RunStreamingTest(chunks);
   }
@@ -23696,7 +23708,7 @@ TEST(StreamingUtf8Script) {
       "  var foob\xec\x92\x81r = 13;\n"
       "  return foob\xec\x92\x81r;\n"
       "}\n";
-  const char* chunks[] = {chunk1, "foo(); ", nullptr};
+  const char* chunks[] = {chunk1, "globalThis.Result = foo(); ", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23720,7 +23732,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersSanityCheck) {
   for (int i = 0; i < 3; ++i) {
     chunk2[i] = reference[i];
   }
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23741,7 +23754,8 @@ TEST(StreamingUtf8ScriptWithSplitCharacters) {
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
   chunk2[1] = reference[2];
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23768,7 +23782,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
     chunk2[0] = reference[0];
     chunk2[1] = reference[1];
     chunk3[0] = reference[2];
-    const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", nullptr};
+    const char* chunks[] = {chunk1, chunk2, chunk3,
+                            "globalThis.Result = foo();", nullptr};
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
   }
   // The small chunk is at the end of a character
@@ -23786,7 +23801,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
     chunk1[strlen(chunk1) - 1] = reference[0];
     chunk2[0] = reference[1];
     chunk2[1] = reference[2];
-    const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", nullptr};
+    const char* chunks[] = {chunk1, chunk2, chunk3,
+                            "globalThis.Result = foo();", nullptr};
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
   }
   // Case 2: the script ends with a multi-byte character. Make sure that it's
@@ -23794,7 +23810,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
   {
     char chunk1[] =
         "var foob\xec\x92\x81 = 13;\n"
-        "foob\xec\x92\x81";
+        "globalThis.Result = foob\xec\x92\x81";
     const char* chunks[] = {chunk1, nullptr};
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
   }
@@ -23819,7 +23835,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
   chunk3[0] = reference[2];
-  const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, chunk3, "globalThis.Result = foo();",
+                          nullptr};
 
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
@@ -23890,7 +23907,8 @@ TEST(StreamingScriptWithInvalidUtf8) {
       "}\n";
   for (int i = 0; i < 5; ++i) chunk1[strlen(chunk1) - 5 + i] = reference[i];
 
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
 }
 
@@ -23911,7 +23929,8 @@ TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit) {
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
   chunk2[1] = reference[2];
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -23932,7 +23951,8 @@ TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit2) {
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
   chunk2[1] = reference[2];
-  const char* chunks[] = {chunk1, chunk2, "foo();", nullptr};
+  const char* chunks[] = {chunk1, chunk2, "globalThis.Result = foo();",
+                          nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
@@ -24792,7 +24812,8 @@ TEST(ClassPrototypeCreationContext) {
 
 
 TEST(SimpleStreamingScriptWithSourceURL) {
-  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo();\n",
+  const char* chunks[] = {"function foo() { ret",
+                          "urn 13; } globalThis.Result = f", "oo();\n",
                           "//# sourceURL=bar2.js\n", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
                    "bar2.js");
@@ -24800,7 +24821,8 @@ TEST(SimpleStreamingScriptWithSourceURL) {
 
 
 TEST(StreamingScriptWithSplitSourceURL) {
-  const char* chunks[] = {"function foo() { ret", "urn 13; } f",
+  const char* chunks[] = {"function foo() { ret",
+                          "urn 13; } globalThis.Result = f",
                           "oo();\n//# sourceURL=b", "ar2.js\n", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
                    "bar2.js");
@@ -24809,7 +24831,8 @@ TEST(StreamingScriptWithSplitSourceURL) {
 
 TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
   const char* chunks[] = {"function foo() { ret", "urn 13; }\n//#",
-                          " sourceMappingURL=bar2.js\n", "foo();", nullptr};
+                          " sourceMappingURL=bar2.js\n",
+                          "globalThis.Result = foo();", nullptr};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, true,
                    nullptr, "bar2.js");
 }
