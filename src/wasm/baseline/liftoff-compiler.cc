@@ -1026,8 +1026,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), true);
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
-    // TODO(ahaas): Define a proper safepoint here.
-    safepoint_table_builder_.DefineSafepoint(&asm_);
+    DefineSafepointWithCalleeSavedRegisters();
     RegisterDebugSideTableEntry(decoder,
                                 DebugSideTableBuilder::kAllowRegisters);
   }
@@ -5787,6 +5786,11 @@ class LiftoffCompiler {
   void DefineSafepoint() {
     Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
     __ cache_state()->DefineSafepoint(safepoint);
+  }
+
+  void DefineSafepointWithCalleeSavedRegisters() {
+    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
+    __ cache_state()->DefineSafepointWithCalleeSavedRegisters(safepoint);
   }
 
   Register LoadInstanceIntoRegister(LiftoffRegList pinned, Register fallback) {
