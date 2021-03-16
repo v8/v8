@@ -13,6 +13,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
@@ -4674,6 +4675,66 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+#define VECTOR_UNARY_OP(type, op)                         \
+  int t = instr->RTValue();                               \
+  int b = instr->RBValue();                               \
+  FOR_EACH_LANE(i, type) {                                \
+    set_simd_register_by_lane<type>(                      \
+        t, i, op(get_simd_register_by_lane<type>(b, i))); \
+  }
+    case XVABSDP: {
+      VECTOR_UNARY_OP(double, std::abs)
+      break;
+    }
+    case XVNEGDP: {
+      VECTOR_UNARY_OP(double, -)
+      break;
+    }
+    case XVSQRTDP: {
+      VECTOR_UNARY_OP(double, std::sqrt)
+      break;
+    }
+    case XVABSSP: {
+      VECTOR_UNARY_OP(float, std::abs)
+      break;
+    }
+    case XVNEGSP: {
+      VECTOR_UNARY_OP(float, -)
+      break;
+    }
+    case XVSQRTSP: {
+      VECTOR_UNARY_OP(float, std::sqrt)
+      break;
+    }
+    case XVRESP: {
+      VECTOR_UNARY_OP(float, base::Recip)
+      break;
+    }
+    case XVRSQRTESP: {
+      VECTOR_UNARY_OP(float, base::RecipSqrt)
+      break;
+    }
+#undef VECTOR_UNARY_OP
+#define VECTOR_ROUNDING_AVERAGE(intermediate_type, result_type)              \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                                          \
+  FOR_EACH_LANE(i, result_type) {                                            \
+    intermediate_type a_val = static_cast<intermediate_type>(                \
+        get_simd_register_by_lane<result_type>(a, i));                       \
+    intermediate_type b_val = static_cast<intermediate_type>(                \
+        get_simd_register_by_lane<result_type>(b, i));                       \
+    intermediate_type t_val = ((a_val + b_val) + 1) >> 1;                    \
+    set_simd_register_by_lane<result_type>(t, i,                             \
+                                           static_cast<result_type>(t_val)); \
+  }
+    case VAVGUH: {
+      VECTOR_ROUNDING_AVERAGE(uint32_t, uint16_t)
+      break;
+    }
+    case VAVGUB: {
+      VECTOR_ROUNDING_AVERAGE(uint16_t, uint8_t)
+      break;
+    }
+#undef VECTOR_ROUNDING_AVERAGE
 #undef FOR_EACH_LANE
 #undef DECODE_VX_INSTRUCTION
 #undef GET_ADDRESS
