@@ -3883,12 +3883,24 @@ class LiftoffCompiler {
                            int* index_in_array, LiftoffRegList pinned) {
     // TODO(clemensb): Handle more types.
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-    if (type == kWasmI32) {
-      Store32BitExceptionValue(values_array, index_in_array, value.gp(),
-                               pinned);
-    } else {
-      DCHECK_EQ(type, kWasmI64);
-      Store64BitExceptionValue(values_array, index_in_array, value, pinned);
+    switch (type.kind()) {
+      case kI32:
+        Store32BitExceptionValue(values_array, index_in_array, value.gp(),
+                                 pinned);
+        break;
+      case kF32: {
+        LiftoffRegister gp_reg =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+        __ emit_type_conversion(kExprI32ReinterpretF32, gp_reg, value, nullptr);
+        Store32BitExceptionValue(values_array, index_in_array, gp_reg.gp(),
+                                 pinned);
+        break;
+      }
+      case kI64:
+        Store64BitExceptionValue(values_array, index_in_array, value, pinned);
+        break;
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -3986,7 +3998,7 @@ class LiftoffCompiler {
     for (size_t param_idx = sig->parameter_count(); param_idx > 0;
          --param_idx) {
       ValueType type = sig->GetParam(param_idx - 1);
-      if (type != kWasmI32 && type != kWasmI64) {
+      if (type != kWasmI32 && type != kWasmI64 && type != kWasmF32) {
         unsupported(decoder, kExceptionHandling,
                     "unsupported type in exception payload");
         return;
