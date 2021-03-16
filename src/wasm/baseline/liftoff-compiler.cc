@@ -574,6 +574,7 @@ class LiftoffCompiler {
       Control* c = decoder->control_at(i);
       Unuse(c->label.get());
       if (c->else_state) Unuse(c->else_state->label.get());
+      if (c->is_try()) Unuse(&c->try_info->catch_label);
     }
     for (auto& ool : out_of_line_code_) Unuse(ool.label.get());
 #endif
@@ -3846,6 +3847,22 @@ class LiftoffCompiler {
         tmp_reg, pinned, LiftoffAssembler::kSkipWriteBarrier);
   }
 
+  void Store64BitExceptionValue(Register values_array, int* index_in_array,
+                                LiftoffRegister value, LiftoffRegList pinned) {
+    if (kNeedI64RegPair) {
+      Store32BitExceptionValue(values_array, index_in_array, value.low_gp(),
+                               pinned);
+      Store32BitExceptionValue(values_array, index_in_array, value.high_gp(),
+                               pinned);
+    } else {
+      Store32BitExceptionValue(values_array, index_in_array, value.gp(),
+                               pinned);
+      __ emit_i64_shri(value, value, 32);
+      Store32BitExceptionValue(values_array, index_in_array, value.gp(),
+                               pinned);
+    }
+  }
+
   void Load32BitExceptionValue(LiftoffRegister dst,
                                LiftoffRegister values_array, uint32_t* index,
                                LiftoffRegList pinned) {
@@ -3865,9 +3882,14 @@ class LiftoffCompiler {
   void StoreExceptionValue(ValueType type, Register values_array,
                            int* index_in_array, LiftoffRegList pinned) {
     // TODO(clemensb): Handle more types.
-    DCHECK_EQ(kWasmI32, type);
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-    Store32BitExceptionValue(values_array, index_in_array, value.gp(), pinned);
+    if (type == kWasmI32) {
+      Store32BitExceptionValue(values_array, index_in_array, value.gp(),
+                               pinned);
+    } else {
+      DCHECK_EQ(type, kWasmI64);
+      Store64BitExceptionValue(values_array, index_in_array, value, pinned);
+    }
   }
 
   void GetExceptionValues(FullDecoder* decoder,
@@ -3964,7 +3986,7 @@ class LiftoffCompiler {
     for (size_t param_idx = sig->parameter_count(); param_idx > 0;
          --param_idx) {
       ValueType type = sig->GetParam(param_idx - 1);
-      if (type != kWasmI32) {
+      if (type != kWasmI32 && type != kWasmI64) {
         unsupported(decoder, kExceptionHandling,
                     "unsupported type in exception payload");
         return;
