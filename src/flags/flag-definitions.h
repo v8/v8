@@ -424,7 +424,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_WEAK_IMPLICATION(future, write_protect_code_memory)
 DEFINE_WEAK_IMPLICATION(future, finalize_streaming_on_background)
 DEFINE_WEAK_IMPLICATION(future, super_ic)
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
@@ -606,11 +605,20 @@ DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
 #if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
 // Don't disable --write-protect-code-memory on Apple Silicon.
-DEFINE_NEG_IMPLICATION(sparkplug, write_protect_code_memory)
+DEFINE_WEAK_VALUE_IMPLICATION(sparkplug, write_protect_code_memory, false)
 #endif
 
 #undef FLAG
 #define FLAG FLAG_FULL
+
+#if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+DEFINE_BOOL(write_code_using_rwx, true,
+            "flip permissions to rwx to write page instead of rw")
+DEFINE_NEG_IMPLICATION(jitless, write_code_using_rwx)
+#else
+DEFINE_BOOL_READONLY(write_code_using_rwx, false,
+                     "flip permissions to rwx to write page instead of rw")
+#endif
 
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
