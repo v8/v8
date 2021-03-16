@@ -224,7 +224,7 @@ void StatsCollector::NotifySweepingCompleted() {
 }
 
 size_t StatsCollector::allocated_memory_size() const {
-  return memory_allocated_bytes_;
+  return memory_allocated_bytes_ - memory_freed_bytes_since_end_of_marking_;
 }
 
 size_t StatsCollector::allocated_object_size() const {
