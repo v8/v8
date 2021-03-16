@@ -3054,9 +3054,6 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   // garbage.
   int inobject_properties = new_map->GetInObjectProperties();
   if (inobject_properties) {
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(*object);
-    chunk->InvalidateRecordedSlots(*object);
-
     for (int i = 0; i < inobject_properties; i++) {
       FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
       object->FastPropertyAtPut(index, Smi::zero());
