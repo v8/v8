@@ -470,7 +470,6 @@ void Compactor::InitializeIfShouldCompact(
   compaction_worklists_ = std::make_unique<CompactionWorklists>();
 
   is_enabled_ = true;
-  enable_for_next_gc_for_testing_ = false;
 }
 
 bool Compactor::CancelIfShouldNotCompact(
@@ -506,8 +505,14 @@ Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
     CompactSpace(space, movable_references);
   }
 
+  enable_for_next_gc_for_testing_ = false;
   is_enabled_ = false;
   return CompactableSpaceHandling::kIgnore;
+}
+
+void Compactor::EnableForNextGCForTesting() {
+  DCHECK_NULL(heap_.heap()->marker());
+  enable_for_next_gc_for_testing_ = true;
 }
 
 }  // namespace internal
