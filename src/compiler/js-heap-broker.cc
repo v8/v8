@@ -3972,14 +3972,47 @@ Maybe<double> ObjectRef::OddballToNumber() const {
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
     uint32_t index, SerializationPolicy policy) const {
-  if (data_->should_access_heap()) {
-    CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
-    return GetOwnElementFromHeap(broker(), object(), index, true);
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    // `elements` are currently still serialized as members of JSObjectRef.
+    // TODO(jgruber,v8:7790): Once JSObject is no longer serialized, we must
+    // guarantee consistency between `object`, `elements_kind` and `elements`
+    // through other means (store/load order? locks? storing elements_kind in
+    // elements.map?).
+    STATIC_ASSERT(IsSerializedHeapObject<JSObject>());
+
+    base::Optional<FixedArrayBaseRef> maybe_elements_ref = elements();
+    if (!maybe_elements_ref.has_value()) {
+      TRACE_BROKER_MISSING(broker(), "JSObject::elements" << *this);
+      return {};
+    }
+
+    FixedArrayBaseRef elements_ref = maybe_elements_ref.value();
+    ElementsKind elements_kind = GetElementsKind();
+
+    DCHECK_LE(index, JSObject::kMaxElementIndex);
+
+    Object maybe_element;
+    auto result = ConcurrentLookupIterator::TryGetOwnConstantElement(
+        &maybe_element, broker()->isolate(), broker()->local_isolate(),
+        *object(), *elements_ref.object(), elements_kind, index);
+
+    if (result == ConcurrentLookupIterator::kGaveUp) {
+      TRACE_BROKER_MISSING(broker(), "JSObject::GetOwnConstantElement on "
+                                         << *this << " at index " << index);
+      return {};
+    } else if (result == ConcurrentLookupIterator::kNotPresent) {
+      return {};
+    }
+
+    DCHECK_EQ(result, ConcurrentLookupIterator::kPresent);
+    return ObjectRef{broker(),
+                     broker()->CanonicalPersistentHandle(maybe_element)};
+  } else {
+    ObjectData* element =
+        data()->AsJSObject()->GetOwnConstantElement(broker(), index, policy);
+    if (element == nullptr) return base::nullopt;
+    return ObjectRef(broker(), element);
   }
-  ObjectData* element =
-      data()->AsJSObject()->GetOwnConstantElement(broker(), index, policy);
-  if (element == nullptr) return base::nullopt;
-  return ObjectRef(broker(), element);
 }
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(

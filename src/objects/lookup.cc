@@ -1303,5 +1303,92 @@ base::Optional<Object> ConcurrentLookupIterator::TryGetOwnCowElement(
   return result;
 }
 
+// static
+ConcurrentLookupIterator::Result
+ConcurrentLookupIterator::TryGetOwnConstantElement(
+    Object* result_out, Isolate* isolate, LocalIsolate* local_isolate,
+    JSObject holder, FixedArrayBase elements, ElementsKind elements_kind,
+    size_t index) {
+  DisallowGarbageCollection no_gc;
+
+  DCHECK_LE(index, JSObject::kMaxElementIndex);
+
+  // Own 'constant' elements (PropertyAttributes READ_ONLY|DONT_DELETE) occur in
+  // three main cases:
+  //
+  // 1. Frozen elements: guaranteed constant.
+  // 2. Dictionary elements: may be constant.
+  // 3. String wrapper elements: guaranteed constant.
+
+  // Interesting field reads below:
+  //
+  // - elements.length (immutable on FixedArrays).
+  // - elements[i] (immutable if constant; be careful around dictionaries).
+  // - holder.AsJSPrimitiveWrapper.value.AsString.length (immutable).
+  // - holder.AsJSPrimitiveWrapper.value.AsString[i] (immutable).
+  // - single_character_string_cache()->get().
+
+  if (IsFrozenElementsKind(elements_kind)) {
+    FixedArray elements_fixed_array = FixedArray::cast(elements);
+    if (index >= static_cast<uint32_t>(elements_fixed_array.length())) {
+      return kGaveUp;
+    }
+    Object result = elements_fixed_array.get(isolate, static_cast<int>(index));
+    if (IsHoleyElementsKindForRead(elements_kind) &&
+        result == ReadOnlyRoots(isolate).the_hole_value()) {
+      return kNotPresent;
+    }
+    *result_out = result;
+    return kPresent;
+  } else if (IsDictionaryElementsKind(elements_kind)) {
+    DCHECK(elements.IsNumberDictionary());
+    // TODO(jgruber, v8:7790): Add support. Dictionary elements require racy
+    // NumberDictionary lookups. This should be okay in general (slot iteration
+    // depends only on the dict's capacity), but 1. we'd need to update
+    // NumberDictionary methods to do atomic reads, and 2. the dictionary
+    // elements case isn't very important for callers of this function.
+    return kGaveUp;
+  } else if (IsStringWrapperElementsKind(elements_kind)) {
+    // In this case we don't care about the actual `elements`. All in-bounds
+    // reads are redirected to the wrapped String.
+
+    JSPrimitiveWrapper js_value = JSPrimitiveWrapper::cast(holder);
+    String wrapped_string = String::cast(js_value.value());
+
+    // The access guard below protects only internalized string accesses.
+    // TODO(jgruber): Support other string kinds.
+    Map wrapped_string_map = wrapped_string.synchronized_map(isolate);
+    if (!InstanceTypeChecker::IsInternalizedString(
+            wrapped_string_map.instance_type())) {
+      return kGaveUp;
+    }
+
+    const uint32_t length = static_cast<uint32_t>(wrapped_string.length());
+    if (index >= length) return kGaveUp;
+
+    uint16_t charcode;
+    {
+      SharedStringAccessGuardIfNeeded access_guard(local_isolate);
+      charcode = wrapped_string.Get(static_cast<int>(index));
+    }
+
+    if (charcode > unibrow::Latin1::kMaxChar) return kGaveUp;
+
+    Object value = isolate->factory()->single_character_string_cache()->get(
+        charcode, kRelaxedLoad);
+    if (value == ReadOnlyRoots(isolate).undefined_value()) return kGaveUp;
+
+    *result_out = value;
+    return kPresent;
+  } else {
+    DCHECK(!IsFrozenElementsKind(elements_kind));
+    DCHECK(!IsDictionaryElementsKind(elements_kind));
+    DCHECK(!IsStringWrapperElementsKind(elements_kind));
+    return kGaveUp;
+  }
+
+  UNREACHABLE();
+}
+
 }  // namespace internal
 }  // namespace v8
