@@ -414,7 +414,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     } else {
       Handle<Map> new_map =
           Map::Copy(isolate, initial_map, "SetInstancePrototype");
-      JSFunction::SetInitialMap(function, new_map, value);
+      JSFunction::SetInitialMap(isolate, function, new_map, value);
 
       // If the function is used as the global Array function, cache the
       // updated initial maps (and transitioned versions) in the native context.
@@ -486,15 +486,14 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
   SetInstancePrototype(isolate, function, construct_prototype);
 }
 
-void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                               Handle<HeapObject> prototype) {
-  SetInitialMap(function, map, prototype, function);
+void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                               Handle<Map> map, Handle<HeapObject> prototype) {
+  SetInitialMap(isolate, function, map, prototype, function);
 }
 
-void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                               Handle<HeapObject> prototype,
+void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                               Handle<Map> map, Handle<HeapObject> prototype,
                                Handle<JSFunction> constructor) {
-  Isolate* isolate = function->GetIsolate();
   if (map->prototype() != *prototype) {
     Map::SetPrototype(isolate, map, prototype);
   }
@@ -553,7 +552,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
   // Finally link initial map and constructor function.
   DCHECK(prototype->IsJSReceiver());
-  JSFunction::SetInitialMap(function, map, prototype);
+  JSFunction::SetInitialMap(isolate, function, map, prototype);
   map->StartInobjectSlackTracking();
 }
 
@@ -725,7 +724,7 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
   Handle<HeapObject> prototype(new_target->instance_prototype(), isolate);
-  JSFunction::SetInitialMap(new_target, map, prototype, constructor);
+  JSFunction::SetInitialMap(isolate, new_target, map, prototype, constructor);
   DCHECK(new_target->instance_prototype().IsJSReceiver());
   map->set_construction_counter(Map::kNoSlackTracking);
   map->StartInobjectSlackTracking();

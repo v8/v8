@@ -449,7 +449,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   if (!IsResumableFunction(info->kind()) && prototype->IsTheHole(isolate)) {
     prototype = factory->NewFunctionPrototype(result);
   }
-  JSFunction::SetInitialMap(result, initial_map, prototype);
+  JSFunction::SetInitialMap(isolate, result, initial_map, prototype);
 
   return result;
 }

@@ -2145,7 +2145,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       JSObject::cast(module_constructor->instance_prototype()), isolate);
   Handle<Map> module_map = isolate->factory()->NewMap(
       i::WASM_MODULE_OBJECT_TYPE, WasmModuleObject::kHeaderSize);
-  JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
+  JSFunction::SetInitialMap(isolate, module_constructor, module_map,
+                            module_proto);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
               1);
   InstallFunc(isolate, module_constructor, "exports", WebAssemblyModuleExports,
@@ -2165,7 +2166,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       JSObject::cast(instance_constructor->instance_prototype()), isolate);
   Handle<Map> instance_map = isolate->factory()->NewMap(
       i::WASM_INSTANCE_OBJECT_TYPE, WasmInstanceObject::kHeaderSize);
-  JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
+  JSFunction::SetInitialMap(isolate, instance_constructor, instance_map,
+                            instance_proto);
   InstallGetter(isolate, instance_proto, "exports",
                 WebAssemblyInstanceGetExports);
   JSObject::AddProperty(isolate, instance_proto,
@@ -2187,7 +2189,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       JSObject::cast(table_constructor->instance_prototype()), isolate);
   Handle<Map> table_map = isolate->factory()->NewMap(
       i::WASM_TABLE_OBJECT_TYPE, WasmTableObject::kHeaderSize);
-  JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
+  JSFunction::SetInitialMap(isolate, table_constructor, table_map, table_proto);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
@@ -2208,7 +2210,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       JSObject::cast(memory_constructor->instance_prototype()), isolate);
   Handle<Map> memory_map = isolate->factory()->NewMap(
       i::WASM_MEMORY_OBJECT_TYPE, WasmMemoryObject::kHeaderSize);
-  JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
+  JSFunction::SetInitialMap(isolate, memory_constructor, memory_map,
+                            memory_proto);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
   if (enabled_features.has_type_reflection()) {
@@ -2227,7 +2230,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       JSObject::cast(global_constructor->instance_prototype()), isolate);
   Handle<Map> global_map = isolate->factory()->NewMap(
       i::WASM_GLOBAL_OBJECT_TYPE, WasmGlobalObject::kHeaderSize);
-  JSFunction::SetInitialMap(global_constructor, global_map, global_proto);
+  JSFunction::SetInitialMap(isolate, global_constructor, global_map,
+                            global_proto);
   InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
   InstallGetterSetter(isolate, global_proto, "value", WebAssemblyGlobalGetValue,
                       WebAssemblyGlobalSetValue);
@@ -2256,7 +2260,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       JSObject::cast(exception_constructor->instance_prototype()), isolate);
   Handle<Map> exception_map = isolate->factory()->NewMap(
       i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
-  JSFunction::SetInitialMap(exception_constructor, exception_map,
+  JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
                             exception_proto);
 
   // Setup Function
@@ -2274,7 +2278,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
               handle(context->function_function().prototype(), isolate), false,
               kDontThrow)
               .FromJust());
-    JSFunction::SetInitialMap(function_constructor, function_map,
+    JSFunction::SetInitialMap(isolate, function_constructor, function_map,
                               function_proto);
     InstallFunc(isolate, function_constructor, "type", WebAssemblyFunctionType,
                 1);

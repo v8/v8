@@ -739,7 +739,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (immutable_proto) map->set_is_immutable_proto(true);
 
-  JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
+  JSFunction::SetInitialMap(isolate, result, map,
+                            Handle<JSObject>::cast(prototype));
   return result;
 }
 

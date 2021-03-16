@@ -221,10 +221,10 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // The initial map for an object created by this constructor.
   DECL_GETTER(initial_map, Map)
 
-  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                            Handle<HeapObject> prototype);
-  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                            Handle<HeapObject> prototype,
+  static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                            Handle<Map> map, Handle<HeapObject> prototype);
+  static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                            Handle<Map> map, Handle<HeapObject> prototype,
                             Handle<JSFunction> constructor);
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(

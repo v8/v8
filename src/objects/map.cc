@@ -2159,7 +2159,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                               reason);
       initial_map->DeprecateTransitionTree(isolate);
       Handle<HeapObject> prototype(result->prototype(), isolate);
-      JSFunction::SetInitialMap(constructor, result, prototype);
+      JSFunction::SetInitialMap(isolate, constructor, result, prototype);
 
       // Deoptimize all code that embeds the previous initial map.
       initial_map->dependent_code().DeoptimizeDependentCodeGroup(
