@@ -221,7 +221,8 @@ class WasmGraphBuilder {
   V8_EXPORT_PRIVATE WasmGraphBuilder(
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       const wasm::FunctionSig* sig,
-      compiler::SourcePositionTable* spt = nullptr);
+      compiler::SourcePositionTable* spt = nullptr)
+      : WasmGraphBuilder(env, zone, mcgraph, sig, spt, nullptr) {}
 
   V8_EXPORT_PRIVATE ~WasmGraphBuilder();
 
@@ -368,10 +369,6 @@ class WasmGraphBuilder {
                   wasm::WasmCodePosition position, wasm::ValueType type);
   static void PrintDebugName(Node* node);
 
-  void set_instance_node(Node* instance_node) {
-    this->instance_node_ = instance_node;
-  }
-
   Node* effect();
   Node* control();
   Node* SetEffect(Node* node);
@@ -514,8 +511,15 @@ class WasmGraphBuilder {
   void RemoveBytecodePositionDecorator();
 
  protected:
+  V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
+                                     MachineGraph* mcgraph,
+                                     const wasm::FunctionSig* sig,
+                                     compiler::SourcePositionTable* spt,
+                                     Isolate* isolate);
+
   Node* NoContextConstant();
 
+  Node* BuildLoadInstance();
   Node* BuildLoadIsolateRoot();
 
   // MemBuffer is only called with valid offsets (after bounds checking), so the
@@ -731,11 +735,10 @@ class WasmGraphBuilder {
 
   WasmInstanceCacheNodes* instance_cache_ = nullptr;
 
-  SetOncePointer<Node> instance_node_;
   SetOncePointer<Node> stack_check_code_node_;
-  SetOncePointer<Node> isolate_root_node_;
   SetOncePointer<const Operator> stack_check_call_operator_;
 
+  bool use_js_isolate_and_params() const { return isolate_ != nullptr; }
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
   const bool untrusted_code_mitigations_ = true;
@@ -745,6 +748,7 @@ class WasmGraphBuilder {
   compiler::WasmDecorator* decorator_ = nullptr;
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
+  Isolate* const isolate_;
 
   std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
   CallDescriptor* i32_atomic_wait_descriptor_ = nullptr;
@@ -755,9 +759,10 @@ enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
 
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
-    const wasm::WasmModule* module, compiler::SourcePositionTable* spt,
-    StubCallMode stub_mode, wasm::WasmFeatures features,
-    const JSWasmCallData* js_wasm_call_data, Node* frame_state);
+    const wasm::WasmModule* module, Isolate* isolate,
+    compiler::SourcePositionTable* spt, StubCallMode stub_mode,
+    wasm::WasmFeatures features, const JSWasmCallData* js_wasm_call_data,
+    Node* frame_state);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, const wasm::FunctionSig* signature,

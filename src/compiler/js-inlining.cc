@@ -420,7 +420,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
 
     BuildInlinedJSToWasmWrapper(
         graph()->zone(), jsgraph(), wasm_call_params.signature(),
-        wasm_call_params.module(), source_positions_,
+        wasm_call_params.module(), isolate(), source_positions_,
         StubCallMode::kCallBuiltinPointer, wasm::WasmFeatures::FromFlags(),
         &js_wasm_call_data, continuation_frame_state);
 

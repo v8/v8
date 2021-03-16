@@ -123,8 +123,6 @@ class WasmGraphBuildingInterface {
         decoder->zone(), SsaEnv::kReached, start, start, num_locals);
     SetEnv(ssa_env);
 
-    // Initialize the instance parameter (index 0).
-    builder_->set_instance_node(builder_->Param(kWasmInstanceParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
     // the instance parameter.
     uint32_t index = 0;
