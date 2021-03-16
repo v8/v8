@@ -4763,6 +4763,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return values;
   }
   V8_INLINE void PushReturns(ReturnVector values) {
+    EnsureStackSpace(static_cast<int>(values.size()));
     for (Value& value : values) Push(value);
   }
 
