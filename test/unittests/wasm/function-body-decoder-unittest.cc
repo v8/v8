@@ -4269,17 +4269,18 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   HeapType::Representation func_heap_2 =
       static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
 
-  // Passing/failing tests due to static subtyping.
   std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
       {std::make_tuple(HeapType::kData, array_heap, true),
        std::make_tuple(HeapType::kData, super_struct_heap, true),
        std::make_tuple(HeapType::kFunc, func_heap_1, true),
        std::make_tuple(func_heap_1, func_heap_1, true),
-       std::make_tuple(func_heap_1, func_heap_2, false),
+       std::make_tuple(func_heap_1, func_heap_2, true),
        std::make_tuple(super_struct_heap, sub_struct_heap, true),
-       std::make_tuple(sub_struct_heap, super_struct_heap, false),
-       std::make_tuple(sub_struct_heap, array_heap, false),
-       std::make_tuple(HeapType::kFunc, array_heap, false)};
+       std::make_tuple(array_heap, sub_struct_heap, true),
+       std::make_tuple(super_struct_heap, func_heap_1, true),
+       std::make_tuple(HeapType::kEq, super_struct_heap, false),
+       std::make_tuple(HeapType::kAny, func_heap_1, false),
+       std::make_tuple(HeapType::kI31, array_heap, false)};
 
   for (auto test : tests) {
     HeapType from_heap = HeapType(std::get<0>(test));
@@ -4308,10 +4309,10 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       ExpectValidates(&cast_sig,
                       {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
     } else {
-      std::string error_message = "[0] expected supertype of type " +
-                                  std::to_string(to_heap.ref_index()) +
-                                  ", found local.get of type " +
-                                  test_reps[1].name();
+      std::string error_message =
+          "[0] expected subtype of (ref null func) or (ref null data), found "
+          "local.get of type " +
+          test_reps[1].name();
       ExpectFailure(&test_sig,
                     {WASM_REF_TEST(WASM_LOCAL_GET(0),
                                    WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
@@ -4339,20 +4340,27 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       kAppendEnd,
       "ref.cast[0] expected subtype of (ref null func) or (ref null data), "
       "found i32.const of type i32");
+}
 
-  // Trivial type error.
+TEST_F(FunctionBodyDecoderTest, LocalTeeTyping) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte array_type = builder.AddArray(kWasmI8, true);
+
+  ValueType types[] = {ValueType::Ref(array_type, kNonNullable)};
+  FunctionSig sig(1, 0, types);
+
+  AddLocals(ValueType::Ref(array_type, kNullable), 1);
+
   ExpectFailure(
-      sigs.v_v(),
-      {WASM_REF_TEST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
-      kAppendEnd,
-      "ref.test[0] expected subtype of (ref null func) or (ref null data), "
-      "found i32.const of type i32");
-  ExpectFailure(
-      sigs.v_v(),
-      {WASM_REF_CAST(WASM_I32V(1), WASM_RTT_CANON(array_heap)), kExprDrop},
-      kAppendEnd,
-      "ref.cast[0] expected subtype of (ref null func) or (ref null data), "
-      "found i32.const of type i32");
+      &sig,
+      {WASM_LOCAL_TEE(0, WASM_ARRAY_NEW_DEFAULT(array_type, WASM_I32V(5),
+                                                WASM_RTT_CANON(array_type)))},
+      kAppendEnd, "expected (ref 0), got (ref null 0)");
 }
 
 // This tests that num_locals_ in decoder remains consistent, even if we fail

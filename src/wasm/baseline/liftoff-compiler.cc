@@ -2364,11 +2364,35 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
-  void Unreachable(FullDecoder* decoder) {
-    Label* unreachable_label =
-        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapUnreachable);
-    __ emit_jump(unreachable_label);
+  WasmCode::RuntimeStubId GetRuntimeStubIdForTrapReason(TrapReason reason) {
+    switch (reason) {
+#define RUNTIME_STUB_FOR_TRAP(trap_reason) \
+  case k##trap_reason:                     \
+    return WasmCode::kThrowWasm##trap_reason;
+
+      FOREACH_WASM_TRAPREASON(RUNTIME_STUB_FOR_TRAP)
+#undef RUNTIME_STUB_FOR_TRAP
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  void Trap(FullDecoder* decoder, TrapReason reason) {
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, GetRuntimeStubIdForTrapReason(reason));
+    __ emit_jump(trap_label);
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+  }
+
+  void AssertNull(FullDecoder* decoder, const Value& arg, Value* result) {
+    LiftoffRegList pinned;
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+    Label* trap_label =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapNullDereference);
+    LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
+    LoadNullValue(null.gp(), pinned);
+    __ emit_cond_jump(kUnequal, trap_label, kOptRef, obj.gp(), null.gp());
+    __ PushRegister(kOptRef, obj);
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {

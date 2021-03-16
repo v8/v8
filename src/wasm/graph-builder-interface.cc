@@ -397,13 +397,22 @@ class WasmGraphBuildingInterface {
     builder_->TableSet(imm.index, index.node, value.node, decoder->position());
   }
 
-  void Unreachable(FullDecoder* decoder) {
+  void Trap(FullDecoder* decoder, TrapReason reason) {
     ValueVector values;
     if (FLAG_wasm_loop_unrolling) {
       BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
                            values);
     }
-    builder_->Trap(wasm::TrapReason::kTrapUnreachable, decoder->position());
+    builder_->Trap(reason, decoder->position());
+  }
+
+  void AssertNull(FullDecoder* decoder, const Value& obj, Value* result) {
+    builder_->TrapIfFalse(
+        wasm::TrapReason::kTrapIllegalCast,
+        builder_->Binop(kExprRefEq, obj.node, builder_->RefNull(),
+                        decoder->position()),
+        decoder->position());
+    result->node = obj.node;
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {}
@@ -631,15 +640,15 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
-    SsaEnv* non_null_env = ssa_env_;
-    SsaEnv* null_env = Split(decoder->zone(), non_null_env);
-    non_null_env->SetNotMerged();
-    builder_->BrOnNull(ref_object.node, &null_env->control,
-                       &non_null_env->control);
-    builder_->SetControl(non_null_env->control);
-    SetEnv(null_env);
+    SsaEnv* false_env = ssa_env_;
+    SsaEnv* true_env = Split(decoder->zone(), false_env);
+    false_env->SetNotMerged();
+    builder_->BrOnNull(ref_object.node, &true_env->control,
+                       &false_env->control);
+    builder_->SetControl(false_env->control);
+    SetEnv(true_env);
     BrOrRet(decoder, depth, 1);
-    SetEnv(non_null_env);
+    SetEnv(false_env);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,

@@ -1063,7 +1063,7 @@ struct ControlBase : public PcForErrors<validate> {
     const TableIndexImmediate<validate>& imm)                                  \
   F(TableSet, const Value& index, const Value& value,                          \
     const TableIndexImmediate<validate>& imm)                                  \
-  F(Unreachable)                                                               \
+  F(Trap, TrapReason reason)                                                   \
   F(NopForTestingUnsupportedInLiftoff)                                         \
   F(Select, const Value& cond, const Value& fval, const Value& tval,           \
     Value* result)                                                             \
@@ -1159,6 +1159,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(RttSub, uint32_t type_index, const Value& parent, Value* result)           \
   F(RefTest, const Value& obj, const Value& rtt, Value* result)                \
   F(RefCast, const Value& obj, const Value& rtt, Value* result)                \
+  F(AssertNull, const Value& obj, Value* result)                               \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
     uint32_t depth)                                                            \
   F(RefIsData, const Value& object, Value* result)                             \
@@ -2943,7 +2944,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   DECODE(Unreachable) {
-    CALL_INTERFACE_IF_REACHABLE(Unreachable);
+    CALL_INTERFACE_IF_REACHABLE(Trap, TrapReason::kTrapUnreachable);
     EndControl();
     return 1;
   }
@@ -3079,8 +3080,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(LocalTee) {
     LocalIndexImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    Value value = Peek(0, 0, this->local_type(imm.index));
-    Value result = CreateValue(value.type);
+    ValueType local_type = this->local_type(imm.index);
+    Value value = Peek(0, 0, local_type);
+    Value result = CreateValue(local_type);
     CALL_INTERFACE_IF_REACHABLE(LocalTee, value, &result, imm);
     Drop(value);
     Push(result);
@@ -4011,6 +4013,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
+  bool ObjectRelatedWithRtt(Value obj, Value rtt) {
+    return IsSubtypeOf(ValueType::Ref(rtt.type.ref_index(), kNonNullable),
+                       obj.type, this->module_) ||
+           IsSubtypeOf(obj.type,
+                       ValueType::Ref(rtt.type.ref_index(), kNullable),
+                       this->module_);
+  }
+
   int DecodeGCOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     switch (opcode) {
       case kExprStructNewWithRtt: {
@@ -4302,8 +4312,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 "rtt for a supertype of type " + std::to_string(imm.index));
             return 0;
           }
-          Value value =
-              CreateValue(ValueType::Rtt(imm.index, parent.type.depth() + 1));
+          Value value = parent.type.has_depth()
+                            ? CreateValue(ValueType::Rtt(
+                                  imm.index, parent.type.depth() + 1))
+                            : CreateValue(ValueType::Rtt(imm.index));
 
           CALL_INTERFACE_IF_REACHABLE(RttSub, imm.index, parent, &value);
           Drop(parent);
@@ -4329,15 +4341,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         if (!obj.type.is_bottom() && !rtt.type.is_bottom()) {
-          if (!VALIDATE(IsSubtypeOf(
-                  ValueType::Ref(rtt.type.ref_index(), kNonNullable), obj.type,
-                  this->module_))) {
-            PopTypeError(
-                0, obj,
-                "supertype of type " + std::to_string(rtt.type.ref_index()));
-            return 0;
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
+            CALL_INTERFACE_IF_REACHABLE(RefTest, obj, rtt, &value);
+          } else {
+            // Unrelated types. Will always fail.
+            CALL_INTERFACE_IF_REACHABLE(I32Const, &value, 0);
           }
-          CALL_INTERFACE_IF_REACHABLE(RefTest, obj, rtt, &value);
         }
         Drop(2);
         Push(value);
@@ -4359,17 +4370,25 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         if (!obj.type.is_bottom() && !rtt.type.is_bottom()) {
-          if (!VALIDATE(IsSubtypeOf(
-                  ValueType::Ref(rtt.type.ref_index(), kNonNullable), obj.type,
-                  this->module_))) {
-            PopTypeError(
-                0, obj,
-                "supertype of type " + std::to_string(rtt.type.ref_index()));
-            return 0;
-          }
           Value value = CreateValue(
               ValueType::Ref(rtt.type.ref_index(), obj.type.nullability()));
-          CALL_INTERFACE_IF_REACHABLE(RefCast, obj, rtt, &value);
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
+            CALL_INTERFACE_IF_REACHABLE(RefCast, obj, rtt, &value);
+          } else {
+            // Unrelated types. The only way this will not trap is if the object
+            // is null.
+            if (obj.type.is_nullable()) {
+              // Drop rtt from the stack, then assert that obj is null.
+              CALL_INTERFACE_IF_REACHABLE(Drop);
+              CALL_INTERFACE_IF_REACHABLE(AssertNull, obj, &value);
+            } else {
+              // TODO(manoskouk): Change the trap label.
+              CALL_INTERFACE_IF_REACHABLE(Trap, TrapReason::kTrapIllegalCast);
+              EndControl();
+            }
+          }
           Drop(2);
           Push(value);
         }
@@ -4396,14 +4415,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
-        // The static type of {obj} must be a supertype of {rtt}'s type.
-        if (!VALIDATE(rtt.type.is_bottom() || obj.type.is_bottom() ||
-                      IsHeapSubtypeOf(rtt.type.ref_index(),
-                                      obj.type.heap_representation(),
-                                      this->module_))) {
-          PopTypeError(1, rtt, obj.type);
-          return 0;
-        }
         Control* c = control_at(branch_depth.depth);
         if (c->br_merge()->arity == 0) {
           this->DecodeError(
@@ -4423,13 +4434,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Push(result_on_branch);
         TypeCheckBranchResult check_result = TypeCheckBranch(c, true, 0);
         if (V8_LIKELY(check_result == kReachableBranch)) {
-          // The {value_on_branch} parameter we pass to the interface must be
-          // pointer-identical to the object on the stack, so we can't reuse
-          // {result_on_branch} which was passed-by-value to {Push}.
-          Value* value_on_branch = stack_value(1);
-          CALL_INTERFACE(BrOnCast, obj, rtt, value_on_branch,
-                         branch_depth.depth);
-          c->br_merge()->reached = true;
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
+            // The {value_on_branch} parameter we pass to the interface must
+            // be pointer-identical to the object on the stack, so we can't
+            // reuse {result_on_branch} which was passed-by-value to {Push}.
+            Value* value_on_branch = stack_value(1);
+            CALL_INTERFACE(BrOnCast, obj, rtt, value_on_branch,
+                           branch_depth.depth);
+            c->br_merge()->reached = true;
+          }
+          // Otherwise the types are unrelated. Do not branch.
         } else if (check_result == kInvalidStack) {
           return 0;
         }

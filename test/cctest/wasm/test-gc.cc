@@ -863,6 +863,105 @@ WASM_COMPILED_EXEC_TEST(BasicRtt) {
   tester.CheckResult(kRefCast, 43);
 }
 
+WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
+  WasmGCTester tester(execution_tier);
+  byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  byte subtype_index =
+      tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmS128, false)});
+  ValueType sig_types[] = {kWasmS128, kWasmI32, kWasmF64};
+  FunctionSig sig(1, 2, sig_types);
+  byte sig_index = tester.DefineSignature(&sig);
+
+  const byte kRefTestNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(WASM_REF_NULL(type_index), WASM_RTT_CANON(subtype_index)),
+       kExprEnd});
+  const byte kRefTestUpcast = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(
+           WASM_STRUCT_NEW_DEFAULT(
+               subtype_index,
+               WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
+           WASM_RTT_CANON(type_index)),
+       kExprEnd});
+  const byte kRefTestUpcastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(WASM_REF_NULL(subtype_index), WASM_RTT_CANON(type_index)),
+       kExprEnd});
+  const byte kRefTestUnrelated = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(
+           WASM_STRUCT_NEW_DEFAULT(
+               subtype_index,
+               WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
+           WASM_RTT_CANON(sig_index)),
+       kExprEnd});
+  const byte kRefTestUnrelatedNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(WASM_REF_NULL(subtype_index), WASM_RTT_CANON(sig_index)),
+       kExprEnd});
+  const byte kRefTestUnrelatedNonNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(
+           WASM_STRUCT_NEW_DEFAULT(type_index, WASM_RTT_CANON(type_index)),
+           WASM_RTT_CANON(sig_index)),
+       kExprEnd});
+
+  const byte kRefCastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(type_index),
+                                      WASM_RTT_CANON(subtype_index))),
+       kExprEnd});
+  const byte kRefCastUpcast = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(
+           WASM_STRUCT_NEW_DEFAULT(
+               subtype_index,
+               WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
+           WASM_RTT_CANON(type_index))),
+       kExprEnd});
+  const byte kRefCastUpcastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(subtype_index),
+                                      WASM_RTT_CANON(type_index))),
+       kExprEnd});
+  const byte kRefCastUnrelated = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(
+           WASM_STRUCT_NEW_DEFAULT(
+               subtype_index,
+               WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
+           WASM_RTT_CANON(sig_index))),
+       kExprEnd});
+  const byte kRefCastUnrelatedNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(subtype_index),
+                                      WASM_RTT_CANON(sig_index))),
+       kExprEnd});
+  const byte kRefCastUnrelatedNonNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(
+           WASM_STRUCT_NEW_DEFAULT(type_index, WASM_RTT_CANON(type_index)),
+           WASM_RTT_CANON(sig_index))),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult(kRefTestNull, 0);
+  tester.CheckResult(kRefTestUpcast, 1);
+  tester.CheckResult(kRefTestUpcastNull, 0);
+  tester.CheckResult(kRefTestUnrelated, 0);
+  tester.CheckResult(kRefTestUnrelatedNull, 0);
+  tester.CheckResult(kRefTestUnrelatedNonNullable, 0);
+
+  tester.CheckResult(kRefCastNull, 1);
+  tester.CheckResult(kRefCastUpcast, 0);
+  tester.CheckResult(kRefCastUpcastNull, 1);
+  tester.CheckHasThrown(kRefCastUnrelated);
+  tester.CheckResult(kRefCastUnrelatedNull, 1);
+  tester.CheckHasThrown(kRefCastUnrelatedNonNullable);
+}
+
 WASM_EXEC_TEST(NoDepthRtt) {
   WasmGCTester tester(execution_tier);
 
@@ -871,14 +970,19 @@ WASM_EXEC_TEST(NoDepthRtt) {
       tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)});
   const byte empty_struct_index = tester.DefineStruct({});
 
+  ValueType kRttTypeNoDepth = ValueType::Rtt(type_index);
+  FunctionSig sig_t1_v_nd(1, 0, &kRttTypeNoDepth);
   ValueType kRttSubtypeNoDepth = ValueType::Rtt(subtype_index);
   FunctionSig sig_t2_v_nd(1, 0, &kRttSubtypeNoDepth);
 
+  const byte kRttTypeCanon = tester.DefineFunction(
+      &sig_t1_v_nd, {}, {WASM_RTT_CANON(type_index), kExprEnd});
   const byte kRttSubtypeCanon = tester.DefineFunction(
       &sig_t2_v_nd, {}, {WASM_RTT_CANON(subtype_index), kExprEnd});
   const byte kRttSubtypeSub = tester.DefineFunction(
       &sig_t2_v_nd, {},
-      {WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index)), kExprEnd});
+      {WASM_RTT_SUB(subtype_index, WASM_CALL_FUNCTION0(kRttTypeCanon)),
+       kExprEnd});
 
   const byte kTestCanon = tester.DefineFunction(
       tester.sigs.i_v(), {optref(type_index)},
@@ -1057,25 +1161,6 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
   tester.CompileModule();
 
   tester.CheckResult(caller, 47, 5);
-}
-
-WASM_COMPILED_EXEC_TEST(RefTestCastNull) {
-  WasmGCTester tester(execution_tier);
-  byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
-
-  const byte kRefTestNull = tester.DefineFunction(
-      tester.sigs.i_v(), {},
-      {WASM_REF_TEST(WASM_REF_NULL(type_index), WASM_RTT_CANON(type_index)),
-       kExprEnd});
-
-  const byte kRefCastNull = tester.DefineFunction(
-      tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(type_index),
-                                      WASM_RTT_CANON(type_index))),
-       kExprEnd});
-  tester.CompileModule();
-  tester.CheckResult(kRefTestNull, 0);
-  tester.CheckResult(kRefCastNull, 1);
 }
 
 WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
