@@ -1524,6 +1524,14 @@ Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
+  if (V8_UNLIKELY(!deserialization_complete_)) {
+    // During isolate initialization heap always grows. GC is only requested
+    // if a new page allocation fails. In such a case we should crash with
+    // an out-of-memory instead of performing GC because the prologue/epilogue
+    // callbacks may see objects that are not yet deserialized.
+    CHECK(always_allocate());
+    FatalProcessOutOfMemory("GC during deserialization");
+  }
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced ||
