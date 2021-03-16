@@ -922,7 +922,7 @@ class Assembler : public AssemblerBase {
   void mtxer(Register src);
   void mcrfs(CRegister cr, FPSCRBit bit);
   void mfcr(Register dst);
-  void mtcrf(unsigned char FXM, Register src);
+  void mtcr(Register src);
 #if V8_TARGET_ARCH_PPC64
   void mffprd(Register dst, DoubleRegister src);
   void mffprwz(Register dst, DoubleRegister src);

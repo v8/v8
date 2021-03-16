@@ -1060,6 +1060,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "ldbrx   'rt, 'ra, 'rb");
       return;
     }
+    case MTCRF: {
+      Format(instr, "mtcr    'rs");
+      return;
+    }
 #endif
   }
 

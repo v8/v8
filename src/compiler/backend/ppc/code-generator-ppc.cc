@@ -2985,7 +2985,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(ip, Operand(1));
       // Check if both lanes are 0, if so then return false.
       __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
-      __ mtcrf(0xFF, r0);  // Clear cr.
+      __ mtcr(r0);  // Clear cr.
       __ vcmpequd(kScratchSimd128Reg, src, kScratchSimd128Reg, SetRC);
       __ isel(dst, r0, ip, bit_number);
       break;
@@ -2998,7 +2998,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ li(ip, Operand(1));                                               \
   /* Check if all lanes > 0, if not then return false.*/               \
   __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg); \
-  __ mtcrf(0xFF, r0); /* Clear cr.*/                                   \
+  __ mtcr(r0); /* Clear cr.*/                                          \
   __ opcode(kScratchSimd128Reg, src, kScratchSimd128Reg, SetRC);       \
   __ isel(dst, ip, r0, bit_number);
     case kPPC_I64x2AllTrue: {

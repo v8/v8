@@ -3880,6 +3880,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_d_register_from_double(frt, frt_val);
       return;
     }
+    case MTCRF: {
+      // This only simulates mtcr.
+      int rs = instr->RSValue();
+      uint8_t fxm = instr->Bits(19, 12);
+      DCHECK_EQ(fxm, 0xFF);
+      condition_reg_ = static_cast<int32_t>(get_register(rs));
+      break;
+    }
     // Vector instructions.
     case LVX: {
       DECODE_VX_INSTRUCTION(vrt, ra, rb, T)
