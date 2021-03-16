@@ -2302,8 +2302,8 @@ void PrintScopeInfoList(ScopeInfo scope_info, std::ostream& os,
 
 void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "ScopeInfo");
-  if (length() == 0) {
-    os << "\n - length = 0\n";
+  if (IsEmpty()) {
+    os << "\n - empty\n";
     return;
   }
   int flags = Flags();
