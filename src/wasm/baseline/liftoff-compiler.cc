@@ -3899,6 +3899,14 @@ class LiftoffCompiler {
       case kI64:
         Store64BitExceptionValue(values_array, index_in_array, value, pinned);
         break;
+      case kF64: {
+        LiftoffRegister tmp_reg =
+            pinned.set(__ GetUnusedRegister(reg_class_for(kI64), pinned));
+        __ emit_type_conversion(kExprI64ReinterpretF64, tmp_reg, value,
+                                nullptr);
+        Store64BitExceptionValue(values_array, index_in_array, tmp_reg, pinned);
+        break;
+      }
       default:
         UNREACHABLE();
     }
@@ -3998,7 +4006,8 @@ class LiftoffCompiler {
     for (size_t param_idx = sig->parameter_count(); param_idx > 0;
          --param_idx) {
       ValueType type = sig->GetParam(param_idx - 1);
-      if (type != kWasmI32 && type != kWasmI64 && type != kWasmF32) {
+      if (type != kWasmI32 && type != kWasmI64 && type != kWasmF32 &&
+          type != kWasmF64) {
         unsupported(decoder, kExceptionHandling,
                     "unsupported type in exception payload");
         return;
