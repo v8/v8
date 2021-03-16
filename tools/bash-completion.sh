@@ -32,7 +32,7 @@
 # Flag completion rule for bash.
 # To load in your shell, "source path/to/this/file".
 
-v8_source=$(readlink -f $(dirname $BASH_SOURCE)/..)
+v8_source="$(realpath "$(dirname "$BASH_SOURCE")"/..)"
 
 _get_v8_flags() {
   # The first `sed` command joins lines when a line ends with '('.
@@ -48,16 +48,15 @@ _get_v8_flags() {
     grep "^  V(harmony_" "$flags_file" \
     | sed -e 's/^  V/DEFINE-BOOL/' \
     | sed -e 's/_/-/g'; \
-    grep "^  V(" $v8_source/src/wasm/wasm-feature-flags.h \
+    grep "^  V(" "$v8_source/src/wasm/wasm-feature-flags.h" \
     | sed -e 's/^  V(/DEFINE-BOOL(experimental-wasm-/' \
     | sed -e 's/_/-/g')
-  sed -ne 's/^DEFINE-[^(]*(\([^,]*\).*/--\1/p' <<< $defines
-  sed -ne 's/^DEFINE-BOOL(\([^,]*\).*/--no\1/p' <<< $defines
+  sed -ne 's/^DEFINE-[^(]*(\([^,]*\).*/--\1/p' <<< "$defines"
+  sed -ne 's/^DEFINE-BOOL(\([^,]*\).*/--no\1/p' <<< "$defines"
 }
 
 _get_d8_flags() {
-  cat $v8_source/src/d8/d8.cc \
-    | grep "strcmp(argv\[i\]" \
+  grep "strcmp(argv\[i\]" "$v8_source/src/d8/d8.cc" \
     | sed -ne 's/^[^"]*"--\([^"]*\)".*/--\1/p'
 }
 
@@ -75,7 +74,7 @@ _test_flag() {
   return 0
 }
 
-complete -F _d8_flag -f d8
+complete -F _d8_flag -f d8 v8 v8-debug
 complete -F _test_flag -f cctest unittests
 
 # Many distros set up their own GDB completion scripts. The logic below is
