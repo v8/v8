@@ -229,7 +229,7 @@ class WasmGraphBuilder {
   // Operations independent of {control} or {effect}.
   //-----------------------------------------------------------------------
   Node* Start(unsigned params);
-  Node* Param(unsigned index);
+  Node* Param(int index, const char* debug_name = nullptr);
   Node* Loop(Node* entry);
   Node* TerminateLoop(Node* effect, Node* control);
   Node* LoopExit(Node* loop_node);
@@ -726,6 +726,8 @@ class WasmGraphBuilder {
   Zone* const zone_;
   MachineGraph* const mcgraph_;
   wasm::CompilationEnv* const env_;
+
+  Node** parameters_;
 
   WasmInstanceCacheNodes* instance_cache_ = nullptr;
 

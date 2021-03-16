@@ -35,8 +35,7 @@ Int64Lowering::Int64Lowering(
       stack_(zone),
       replacements_(nullptr),
       signature_(signature),
-      placeholder_(
-          graph->NewNode(common->Parameter(-2, "placeholder"), graph->start())),
+      placeholder_(graph->NewNode(common->Dead())),
       special_case_(std::move(special_case)) {
   DCHECK_NOT_NULL(graph);
   DCHECK_NOT_NULL(graph->end());

@@ -468,11 +468,24 @@ WasmGraphBuilder::~WasmGraphBuilder() = default;
 Node* WasmGraphBuilder::Start(unsigned params) {
   Node* start = graph()->NewNode(mcgraph()->common()->Start(params));
   graph()->SetStart(start);
+  parameters_ = zone_->NewArray<Node*>(params);
+  for (unsigned i = 0; i < params; i++) {
+    parameters_[i] = nullptr;
+  }
   return start;
 }
 
-Node* WasmGraphBuilder::Param(unsigned index) {
-  return gasm_->Parameter(index);
+Node* WasmGraphBuilder::Param(int index, const char* debug_name) {
+  DCHECK_NOT_NULL(graph()->start());
+  // Turbofan allows negative parameter indices.
+  static constexpr int kMinParameterIndex = -1;
+  DCHECK_GE(index, kMinParameterIndex);
+  int array_index = index - kMinParameterIndex;
+  if (parameters_[array_index] == nullptr) {
+    parameters_[array_index] = graph()->NewNode(
+        mcgraph()->common()->Parameter(index, debug_name), graph()->start());
+  }
+  return parameters_[array_index];
 }
 
 Node* WasmGraphBuilder::Loop(Node* entry) {
@@ -6678,20 +6691,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     SetEffectControl(Start(wasm_param_count + 5));
 
     // Create the js_closure and js_context parameters.
-    Node* js_closure =
-        graph()->NewNode(mcgraph()->common()->Parameter(
-                             Linkage::kJSCallClosureParamIndex, "%closure"),
-                         graph()->start());
-    Node* js_context = graph()->NewNode(
-        mcgraph()->common()->Parameter(
-            Linkage::GetJSCallContextParamIndex(wasm_param_count + 1),
-            "%context"),
-        graph()->start());
-
-    // Create the instance_node node to pass as parameter. It is loaded from
-    // an actual reference to an instance or a placeholder reference,
-    // called {WasmExportedFunction} via the {WasmExportedFunctionData}
-    // structure.
+    Node* js_closure = Param(Linkage::kJSCallClosureParamIndex, "%closure");
+    Node* js_context = Param(
+        Linkage::GetJSCallContextParamIndex(wasm_param_count + 1), "%context");
     Node* function_data = gasm_->LoadFunctionDataFromJSFunction(js_closure);
     instance_node_.set(gasm_->LoadExportedFunctionInstance(function_data));
 

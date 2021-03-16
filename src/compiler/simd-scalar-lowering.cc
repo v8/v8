@@ -68,8 +68,7 @@ SimdScalarLowering::SimdScalarLowering(
       stack_(mcgraph_->zone()),
       replacements_(nullptr),
       signature_(signature),
-      placeholder_(graph()->NewNode(common()->Parameter(-2, "placeholder"),
-                                    graph()->start())),
+      placeholder_(graph()->NewNode(common()->Dead())),
       parameter_count_after_lowering_(-1) {
   DCHECK_NOT_NULL(graph());
   DCHECK_NOT_NULL(graph()->end());
