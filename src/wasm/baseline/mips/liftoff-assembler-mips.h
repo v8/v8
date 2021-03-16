@@ -446,6 +446,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
        static_cast<uint32_t>(offset_imm), LoadType::kI32Load, pinned);
 }
 
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  MemOperand src_op = MemOperand(src_addr, offset_imm);
+  lw(dst, src_op);
+}
+
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
