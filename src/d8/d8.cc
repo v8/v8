@@ -3959,6 +3959,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
       options.enable_system_instrumentation = true;
       options.trace_enabled = true;
+      i::FLAG_interpreted_frames_native_stack = true;
       argv[i] = nullptr;
 #endif
     }
