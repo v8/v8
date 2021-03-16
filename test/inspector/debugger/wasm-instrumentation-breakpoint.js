@@ -19,7 +19,6 @@ Protocol.Debugger.onPaused(async msg => {
 });
 
 // TODO(clemensb): Add test for 'beforeScriptWithSourceMapExecution'.
-// TODO(clemensb): Add test for module without start function.
 
 InspectorTest.runAsyncTestSuite([
   async function testBreakInStartFunction() {
@@ -64,5 +63,29 @@ InspectorTest.runAsyncTestSuite([
     await WasmInspectorTest.instantiate(builder.toArray());
     InspectorTest.log('Done.');
     await Protocol.Debugger.disable();
-  }
+  },
+
+  async function testBreakInExportedFunction() {
+    const builder = new WasmModuleBuilder();
+    const func =
+        builder.addFunction('func', kSig_v_v).addBody([kExprNop]).exportFunc();
+
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Setting instrumentation breakpoint');
+    InspectorTest.logMessage(
+        await Protocol.Debugger.setInstrumentationBreakpoint(
+            {instrumentation: 'beforeScriptExecution'}));
+    InspectorTest.log('Instantiating wasm module.');
+    await WasmInspectorTest.instantiate(builder.toArray());
+    InspectorTest.log(
+        'Calling exported function \'func\' (should trigger a breakpoint).');
+    await WasmInspectorTest.evalWithUrl('instance.exports.func()', 'call_func');
+    InspectorTest.log(
+        'Calling exported function \'func\' a second time ' +
+        '(should trigger no breakpoint).');
+    await WasmInspectorTest.evalWithUrl('instance.exports.func()', 'call_func');
+    InspectorTest.log('Done.');
+    await Protocol.Debugger.disable();
+  },
+
 ]);
