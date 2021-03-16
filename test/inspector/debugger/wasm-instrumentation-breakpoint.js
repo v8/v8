@@ -18,8 +18,6 @@ Protocol.Debugger.onPaused(async msg => {
   Protocol.Debugger.resume();
 });
 
-// TODO(clemensb): Add test for 'beforeScriptWithSourceMapExecution'.
-
 InspectorTest.runAsyncTestSuite([
   async function testBreakInStartFunction() {
     const builder = new WasmModuleBuilder();
@@ -83,6 +81,36 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.log(
         'Calling exported function \'func\' a second time ' +
         '(should trigger no breakpoint).');
+    await WasmInspectorTest.evalWithUrl('instance.exports.func()', 'call_func');
+    InspectorTest.log('Done.');
+    await Protocol.Debugger.disable();
+  },
+
+  async function testBreakOnlyWithSourceMap() {
+    const builder = new WasmModuleBuilder();
+    const func =
+        builder.addFunction('func', kSig_v_v).addBody([kExprNop]).exportFunc();
+    const bytes_no_source_map = builder.toArray();
+    builder.addCustomSection('sourceMappingURL', [3, 97, 98, 99]);
+    const bytes_with_source_map = builder.toArray();
+
+    await Protocol.Debugger.enable();
+    InspectorTest.log(
+        'Setting instrumentation breakpoint for source maps only');
+    InspectorTest.logMessage(
+        await Protocol.Debugger.setInstrumentationBreakpoint(
+            {instrumentation: 'beforeScriptWithSourceMapExecution'}));
+
+    InspectorTest.log('Instantiating wasm module without source map.');
+    await WasmInspectorTest.instantiate(bytes_no_source_map);
+    InspectorTest.log(
+        'Calling exported function \'func\' (should trigger no breakpoint).');
+    await WasmInspectorTest.evalWithUrl('instance.exports.func()', 'call_func');
+
+    InspectorTest.log('Instantiating wasm module with source map.');
+    await WasmInspectorTest.instantiate(bytes_with_source_map);
+    InspectorTest.log(
+        'Calling exported function \'func\' (should trigger a breakpoint).');
     await WasmInspectorTest.evalWithUrl('instance.exports.func()', 'call_func');
     InspectorTest.log('Done.');
     await Protocol.Debugger.disable();
