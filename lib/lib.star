@@ -181,7 +181,7 @@ def v8_basic_builder(defaults, **kwargs):
 
     # TODO(machenbach): Remove this when CAS is the default.
     if kwargs.get("executable") == "recipe:chromium_integration":
-      kwargs["experiments"] = {"luci.swarming.use_rbe_cas": 20}
+      kwargs["experiments"] = {"luci.swarming.use_rbe_cas": 100}
 
     properties["$recipe_engine/isolated"] = {
         "server": "https://isolateserver.appspot.com/",
