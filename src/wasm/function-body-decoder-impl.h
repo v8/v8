@@ -3184,10 +3184,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(MemoryGrow) {
     if (!CheckHasMemory()) return 0;
     MemoryIndexImmediate<validate> imm(this, this->pc_ + 1);
-    if (!VALIDATE(this->module_->origin == kWasmOrigin)) {
-      this->DecodeError("grow_memory is not supported for asmjs modules");
-      return 0;
-    }
+    // This opcode will not be emitted by the asm translator.
+    DCHECK_EQ(kWasmOrigin, this->module_->origin);
     Value value = Peek(0, 0, kWasmI32);
     Value result = CreateValue(kWasmI32);
     CALL_INTERFACE_IF_REACHABLE(MemoryGrow, value, &result);

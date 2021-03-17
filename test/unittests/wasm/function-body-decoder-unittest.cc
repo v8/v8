@@ -2239,14 +2239,6 @@ TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
   ExpectFailure(sigs.i_d(), code);
 }
 
-TEST_F(FunctionBodyDecoderTest, AsmJsMemoryGrow) {
-  module->origin = kAsmJsSloppyOrigin;
-  builder.InitializeMemory();
-
-  byte code[] = {WASM_LOCAL_GET(0), kExprMemoryGrow, 0};
-  ExpectFailure(sigs.i_i(), code);
-}
-
 TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
   ValueType float32int32float32[] = {kWasmF32, kWasmI32, kWasmF32};
   FunctionSig sig_f_if(1, 2, float32int32float32);
