@@ -568,7 +568,7 @@ class LiftoffCompiler {
       Control* c = decoder->control_at(i);
       Unuse(c->label.get());
       if (c->else_state) Unuse(c->else_state->label.get());
-      if (c->is_try()) Unuse(&c->try_info->catch_label);
+      if (c->try_info != nullptr) Unuse(&c->try_info->catch_label);
     }
     for (auto& ool : out_of_line_code_) Unuse(ool.label.get());
 #endif
