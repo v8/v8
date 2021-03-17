@@ -2426,8 +2426,9 @@ SIMD_VISIT_PMIN_MAX(F32x4Pmax)
 #if V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
-  bool is_swizzle;
-  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  auto param = ShuffleParameterOf(node->op());
+  bool is_swizzle = param.is_swizzle();
+  base::Memcpy(shuffle, param.imm().data(), kSimd128Size);
   PPCOperandGenerator g(this);
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);

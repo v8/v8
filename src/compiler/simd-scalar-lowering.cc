@@ -2234,7 +2234,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kI8x16Shuffle: {
       DCHECK_EQ(2, node->InputCount());
-      S128ImmediateParameter shuffle = S128ImmediateParameterOf(node->op());
+      S128ImmediateParameter shuffle = ShuffleParameterOf(node->op()).imm();
       Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
       Node** rep_right = GetReplacementsWithType(node->InputAt(1), rep_type);
       Node** rep_node = zone()->NewArray<Node*>(16);

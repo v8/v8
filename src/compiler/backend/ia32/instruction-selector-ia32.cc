@@ -2877,8 +2877,9 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
-  bool is_swizzle;
-  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  auto param = ShuffleParameterOf(node->op());
+  bool is_swizzle = param.is_swizzle();
+  base::Memcpy(shuffle, param.imm().data(), kSimd128Size);
 
   int imm_count = 0;
   static const int kMaxImms = 6;

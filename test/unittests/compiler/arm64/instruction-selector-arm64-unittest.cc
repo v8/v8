@@ -2275,7 +2275,7 @@ TEST_P(InstructionSelectorSimdF32x4MulWithDupTest, MulWithDup) {
   const MachineType type = MachineType::Simd128();
   {
     StreamBuilder m(this, type, type, type, type);
-    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
+    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle, true),
                               m.Parameter(0), m.Parameter(1));
     m.Return(m.AddNode(m.machine()->F32x4Mul(), m.Parameter(2), shuffle));
     Stream s = m.Build();
@@ -2291,7 +2291,7 @@ TEST_P(InstructionSelectorSimdF32x4MulWithDupTest, MulWithDup) {
   // Multiplication operator should be commutative, so test shuffle op as lhs.
   {
     StreamBuilder m(this, type, type, type, type);
-    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
+    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle, true),
                               m.Parameter(0), m.Parameter(1));
     m.Return(m.AddNode(m.machine()->F32x4Mul(), shuffle, m.Parameter(2)));
     Stream s = m.Build();
@@ -2315,8 +2315,8 @@ TEST_F(InstructionSelectorTest, SimdF32x4MulWithDupNegativeTest) {
   const uint8_t mask[kSimd128Size] = {0};
   {
     StreamBuilder m(this, type, type, type, type);
-    Node* shuffle = m.AddNode((m.machine()->I8x16Shuffle(mask)), m.Parameter(0),
-                              m.Parameter(1));
+    Node* shuffle = m.AddNode((m.machine()->I8x16Shuffle(mask, true)),
+                              m.Parameter(0), m.Parameter(1));
     m.Return(m.AddNode(m.machine()->F32x4Mul(), m.Parameter(2), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
@@ -2361,7 +2361,7 @@ TEST_P(InstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
   const MachineType type = MachineType::Simd128();
   {
     StreamBuilder m(this, type, type, type, type);
-    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
+    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle, true),
                               m.Parameter(0), m.Parameter(1));
     m.Return(m.AddNode(m.machine()->F64x2Mul(), m.Parameter(2), shuffle));
     Stream s = m.Build();
@@ -2377,7 +2377,7 @@ TEST_P(InstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
   // Multiplication operator should be commutative, so test shuffle op as lhs.
   {
     StreamBuilder m(this, type, type, type, type);
-    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle),
+    Node* shuffle = m.AddNode(m.machine()->I8x16Shuffle(param.shuffle, true),
                               m.Parameter(0), m.Parameter(1));
     m.Return(m.AddNode(m.machine()->F64x2Mul(), shuffle, m.Parameter(2)));
     Stream s = m.Build();
@@ -2401,8 +2401,8 @@ TEST_F(InstructionSelectorTest, SimdF64x2MulWithDupNegativeTest) {
   const uint8_t mask[kSimd128Size] = {0};
   {
     StreamBuilder m(this, type, type, type, type);
-    Node* shuffle = m.AddNode((m.machine()->I8x16Shuffle(mask)), m.Parameter(0),
-                              m.Parameter(1));
+    Node* shuffle = m.AddNode((m.machine()->I8x16Shuffle(mask, true)),
+                              m.Parameter(0), m.Parameter(1));
     m.Return(m.AddNode(m.machine()->F64x2Mul(), m.Parameter(2), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());

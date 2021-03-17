@@ -204,6 +204,24 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
 V8_EXPORT_PRIVATE S128ImmediateParameter const& S128ImmediateParameterOf(
     Operator const* op) V8_WARN_UNUSED_RESULT;
 
+struct ShuffleParameter {
+ public:
+  ShuffleParameter(const uint8_t immediate[16], bool is_swizzle)
+      : s128_imm_(immediate), is_swizzle_(is_swizzle) {}
+  const S128ImmediateParameter imm() const { return s128_imm_; }
+  bool is_swizzle() const { return is_swizzle_; }
+
+ private:
+  S128ImmediateParameter s128_imm_;
+  bool is_swizzle_;
+};
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           ShuffleParameter const&);
+
+V8_EXPORT_PRIVATE ShuffleParameter const& ShuffleParameterOf(Operator const* op)
+    V8_WARN_UNUSED_RESULT;
+
 StackCheckKind StackCheckKindOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 // ShiftKind::kShiftOutZeros means that it is guaranteed that the bits shifted
@@ -813,7 +831,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S128AndNot();
 
   const Operator* I8x16Swizzle();
-  const Operator* I8x16Shuffle(const uint8_t shuffle[16]);
+  const Operator* I8x16Shuffle(const uint8_t shuffle[16], bool is_swizzle);
 
   const Operator* V128AnyTrue();
   const Operator* I64x2AllTrue();

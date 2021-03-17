@@ -3360,26 +3360,6 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
-                                              bool* is_swizzle) {
-  // Get raw shuffle indices.
-  base::Memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(),
-               kSimd128Size);
-  bool needs_swap;
-  bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
-                      GetVirtualRegister(node->InputAt(1));
-  wasm::SimdShuffle::CanonicalizeShuffle(inputs_equal, shuffle, &needs_swap,
-                                         is_swizzle);
-  if (needs_swap) {
-    SwapShuffleInputs(node);
-  }
-  // Duplicate the first input; for some shuffles on some architectures, it's
-  // easiest to implement a swizzle as a shuffle so it might be used.
-  if (*is_swizzle) {
-    node->ReplaceInput(1, node->InputAt(0));
-  }
-}
-
 // static
 void InstructionSelector::SwapShuffleInputs(Node* node) {
   Node* input0 = node->InputAt(0);
