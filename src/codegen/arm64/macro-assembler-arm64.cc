@@ -12,6 +12,7 @@
 #include "src/codegen/external-reference-table.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/reloc-info.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"
@@ -1769,25 +1770,36 @@ void TurboAssembler::JumpHelper(int64_t offset, RelocInfo::Mode rmode,
   Bind(&done);
 }
 
-namespace {
-
 // The calculated offset is either:
 // * the 'target' input unmodified if this is a Wasm call, or
+// * the offset of the target from the code range start, if this is a call to
+//   un-embedded builtin, or
 // * the offset of the target from the current PC, in instructions, for any
 //   other type of call.
-static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
-                                     byte* pc) {
+int64_t TurboAssembler::CalculateTargetOffset(Address target,
+                                              RelocInfo::Mode rmode, byte* pc) {
   int64_t offset = static_cast<int64_t>(target);
-  // The target of WebAssembly calls is still an index instead of an actual
-  // address at this point, and needs to be encoded as-is.
-  if (rmode != RelocInfo::WASM_CALL && rmode != RelocInfo::WASM_STUB_CALL) {
-    offset -= reinterpret_cast<int64_t>(pc);
-    DCHECK_EQ(offset % kInstrSize, 0);
-    offset = offset / static_cast<int>(kInstrSize);
+  if (rmode == RelocInfo::WASM_CALL || rmode == RelocInfo::WASM_STUB_CALL) {
+    // The target of WebAssembly calls is still an index instead of an actual
+    // address at this point, and needs to be encoded as-is.
+    return offset;
   }
+  if (RelocInfo::IsRuntimeEntry(rmode)) {
+    // The runtime entry targets are used for generating short builtin calls
+    // from JIT-compiled code (it's not used during snapshot creation).
+    // The value is encoded as an offset from the code range (see
+    // Assembler::runtime_entry_at()).
+    // Note, that builtin-to-builitin calls use different OFF_HEAP_TARGET mode
+    // and therefore are encoded differently.
+    DCHECK_NE(options().code_range_start, 0);
+    offset -= static_cast<int64_t>(options().code_range_start);
+  } else {
+    offset -= reinterpret_cast<int64_t>(pc);
+  }
+  DCHECK_EQ(offset % kInstrSize, 0);
+  offset = offset / static_cast<int>(kInstrSize);
   return offset;
 }
-}  // namespace
 
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
@@ -1804,14 +1816,8 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     int builtin_index = Builtins::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index)) {
       // Inline the trampoline.
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.AcquireX();
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-      Jump(scratch, cond);
+      CHECK_EQ(cond, Condition::al);  // Implement if necessary.
+      TailCallBuiltin(builtin_index);
       return;
     }
   }
@@ -1923,12 +1929,45 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   RecordCommentForOffHeapTrampoline(builtin_index);
   CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate());
   Address entry = d.InstructionStartOfBuiltin(builtin_index);
-  Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-  Call(scratch);
+  if (options().short_builtin_calls) {
+    Call(entry, RelocInfo::RUNTIME_ENTRY);
+
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireX();
+    Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    Call(scratch);
+  }
+  if (FLAG_code_comments) RecordComment("]");
+}
+
+void TurboAssembler::TailCallBuiltin(int builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  RecordCommentForOffHeapTrampoline(builtin_index);
+  CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  EmbeddedData d = EmbeddedData::FromBlob(isolate());
+  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  if (options().short_builtin_calls) {
+    Jump(entry, RelocInfo::RUNTIME_ENTRY);
+
+  } else {
+    // The control flow integrity (CFI) feature allows us to "sign" code entry
+    // points as a target for calls, jumps or both. Arm64 has special
+    // instructions for this purpose, so-called "landing pads" (see
+    // TurboAssembler::CallTarget(), TurboAssembler::JumpTarget() and
+    // TurboAssembler::JumpOrCallTarget()). Currently, we generate "Call"
+    // landing pads for CPP builtins. In order to allow tail calling to those
+    // builtins we have to use a workaround.
+    // x17 is used to allow using "Call" (i.e. `bti c`) rather than "Jump"
+    // (i.e. `bti j`) landing pads for the tail-called code.
+    Register temp = x17;
+
+    Ldr(temp, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    Jump(temp);
+  }
+  if (FLAG_code_comments) RecordComment("]");
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

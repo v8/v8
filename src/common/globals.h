@@ -99,6 +99,18 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
                   kStackLimitSlackForDeoptimizationInBytes <=
               MB);
 
+// Determine whether the short builtin calls optimization is enabled.
+#ifdef V8_SHORT_BUILTIN_CALLS
+#ifndef V8_COMPRESS_POINTERS
+// TODO(11527): Fix this by passing Isolate* to Code::OffHeapInstructionStart()
+// and friends.
+#error Short builtin calls feature requires pointer compression
+#endif
+#define V8_SHORT_BUILTIN_CALLS_BOOL true
+#else
+#define V8_SHORT_BUILTIN_CALLS_BOOL false
+#endif
+
 // Determine whether dict mode prototypes feature is enabled.
 #ifdef V8_DICT_MODE_PROTOTYPES
 #define V8_DICT_MODE_PROTOTYPES_BOOL true

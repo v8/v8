@@ -524,7 +524,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   Operand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
   Operand EntryFromBuiltinIndexAsOperand(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
+  void CallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return CallBuiltin(static_cast<int>(builtin));
+  }
   void CallBuiltin(int builtin_index);
+  void TailCallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return TailCallBuiltin(static_cast<int>(builtin));
+  }
   void TailCallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;

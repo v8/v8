@@ -1620,14 +1620,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
         if (cc == never) return;
         j(NegateCondition(cc), &skip, Label::kNear);
       }
-      // Inline the trampoline.
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
-      jmp(kScratchRegister);
-      if (FLAG_code_comments) RecordComment("]");
+      TailCallBuiltin(builtin_index);
       bind(&skip);
       return;
     }
@@ -1706,10 +1699,15 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   RecordCommentForOffHeapTrampoline(builtin_index);
   CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate());
   Address entry = d.InstructionStartOfBuiltin(builtin_index);
-  Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
-  call(kScratchRegister);
+  if (options().short_builtin_calls) {
+    call(entry, RelocInfo::RUNTIME_ENTRY);
+
+  } else {
+    Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
+    call(kScratchRegister);
+  }
   if (FLAG_code_comments) RecordComment("]");
 }
 
@@ -1717,10 +1715,14 @@ void TurboAssembler::TailCallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   RecordCommentForOffHeapTrampoline(builtin_index);
   CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate());
   Address entry = d.InstructionStartOfBuiltin(builtin_index);
-  Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
-  jmp(kScratchRegister);
+  if (options().short_builtin_calls) {
+    jmp(entry, RelocInfo::RUNTIME_ENTRY);
+
+  } else {
+    Jump(entry, RelocInfo::OFF_HEAP_TARGET);
+  }
   if (FLAG_code_comments) RecordComment("]");
 }
 

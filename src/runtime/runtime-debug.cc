@@ -941,7 +941,7 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
 
   // Track the embedded blob size as well.
   {
-    i::EmbeddedData d = i::EmbeddedData::FromBlob();
+    i::EmbeddedData d = i::EmbeddedData::FromBlob(isolate);
     PrintF("Embedded blob is %d bytes\n",
            static_cast<int>(d.code_size() + d.data_size()));
   }

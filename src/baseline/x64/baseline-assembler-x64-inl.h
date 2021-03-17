@@ -117,15 +117,25 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 }
 
 void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
-  __ RecordCommentForOffHeapTrampoline(builtin);
-  __ Call(__ EntryFromBuiltinIndexAsOperand(builtin));
-  if (FLAG_code_comments) __ RecordComment("]");
+  if (FLAG_short_builtin_calls) {
+    // Generate direct or pc-relative call.
+    __ CallBuiltin(builtin);
+  } else {
+    __ RecordCommentForOffHeapTrampoline(builtin);
+    __ Call(__ EntryFromBuiltinIndexAsOperand(builtin));
+    if (FLAG_code_comments) __ RecordComment("]");
+  }
 }
 
 void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
-  __ RecordCommentForOffHeapTrampoline(builtin);
-  __ Jump(__ EntryFromBuiltinIndexAsOperand(builtin));
-  if (FLAG_code_comments) __ RecordComment("]");
+  if (FLAG_short_builtin_calls) {
+    // Generate direct or pc-relative jump.
+    __ TailCallBuiltin(builtin);
+  } else {
+    __ RecordCommentForOffHeapTrampoline(builtin);
+    __ Jump(__ EntryFromBuiltinIndexAsOperand(builtin));
+    if (FLAG_code_comments) __ RecordComment("]");
+  }
 }
 
 void BaselineAssembler::Test(Register value, int mask) {

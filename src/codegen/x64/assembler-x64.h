@@ -833,6 +833,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
+  void jmp(Address entry, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);

@@ -150,7 +150,14 @@ Address Code::OffHeapInstructionStart() const {
   if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
     return raw_instruction_size();
   }
-  EmbeddedData d = EmbeddedData::FromBlob();
+  // TODO(11527): pass Isolate as an argument.
+  // GetIsolateFromWritableObject(*this) works for both read-only and writable
+  // objects here because short builtin calls feature requires pointer
+  // compression.
+  EmbeddedData d =
+      FLAG_short_builtin_calls
+          ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))
+          : EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index());
 }
 
@@ -159,7 +166,14 @@ Address Code::OffHeapInstructionEnd() const {
   if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
     return raw_instruction_size();
   }
-  EmbeddedData d = EmbeddedData::FromBlob();
+  // TODO(11527): pass Isolate as an argument.
+  // GetIsolateFromWritableObject(*this) works for both read-only and writable
+  // objects here because short builtin calls feature requires pointer
+  // compression.
+  EmbeddedData d =
+      FLAG_short_builtin_calls
+          ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))
+          : EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index()) +
          d.InstructionSizeOfBuiltin(builtin_index());
 }
@@ -889,6 +903,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   bool marked = MarkCodeForDeoptimization(group);
   if (marked) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());
+    // TODO(11527): pass Isolate as an argument.
     Deoptimizer::DeoptimizeMarkedCode(GetIsolateFromWritableObject(*this));
   }
 }

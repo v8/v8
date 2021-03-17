@@ -111,23 +111,40 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 }
 
 void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
-  ScratchRegisterScope temps(this);
-  Register temp = temps.AcquireScratch();
-  __ LoadEntryFromBuiltinIndex(builtin, temp);
-  __ Call(temp);
+  if (FLAG_short_builtin_calls) {
+    // Generate direct or pc-relative call.
+    __ CallBuiltin(builtin);
+  } else {
+    ScratchRegisterScope temps(this);
+    Register temp = temps.AcquireScratch();
+    __ LoadEntryFromBuiltinIndex(builtin, temp);
+    __ Call(temp);
+  }
 }
 
 void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
-  // x17 is used to allow using "Call" (i.e. `bti c`) rather than "Jump" (i.e.]
-  // `bti j`) landing pads for the tail-called code.
-  Register temp = x17;
+  if (FLAG_short_builtin_calls) {
+    // Generate direct or pc-relative call.
+    __ TailCallBuiltin(builtin);
+  } else {
+    // The control flow integrity (CFI) feature allows us to "sign" code entry
+    // points as a target for calls, jumps or both. Arm64 has special
+    // instructions for this purpose, so-called "landing pads" (see
+    // TurboAssembler::CallTarget(), TurboAssembler::JumpTarget() and
+    // TurboAssembler::JumpOrCallTarget()). Currently, we generate "Call"
+    // landing pads for CPP builtins. In order to allow tail calling to those
+    // builtins we have to use a workaround.
+    // x17 is used to allow using "Call" (i.e. `bti c`) rather than "Jump" (i.e.
+    // `bti j`) landing pads for the tail-called code.
+    Register temp = x17;
 
-  // Make sure we're don't use this register as a temporary.
-  UseScratchRegisterScope temps(masm());
-  temps.Exclude(temp);
+    // Make sure we're don't use this register as a temporary.
+    UseScratchRegisterScope temps(masm());
+    temps.Exclude(temp);
 
-  __ LoadEntryFromBuiltinIndex(builtin, temp);
-  __ Jump(temp);
+    __ LoadEntryFromBuiltinIndex(builtin, temp);
+    __ Jump(temp);
+  }
 }
 
 void BaselineAssembler::Test(Register value, int mask) {

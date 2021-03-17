@@ -1447,6 +1447,14 @@ void Assembler::j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode) {
   emitl(code_target_index);
 }
 
+void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
+  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
+  EnsureSpace ensure_space(this);
+  // 1110 1001 #32-bit disp.
+  emit(0xE9);
+  emit_runtime_entry(entry, rmode);
+}
+
 void Assembler::jmp_rel(int32_t offset) {
   EnsureSpace ensure_space(this);
   // The offset is encoded relative to the next instruction.

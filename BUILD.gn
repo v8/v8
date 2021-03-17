@@ -169,6 +169,10 @@ declare_args() {
   # Enables various testing features.
   v8_enable_test_features = ""
 
+  # Enable short builtins call instruction sequences by un-embedding builtins.
+  # Sets -dV8_SHORT_BUILTIN_CALLS
+  v8_enable_short_builtin_calls = ""
+
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
   # tools/gen-postmortem-metadata.py for details.
@@ -340,6 +344,11 @@ if (v8_enable_zone_compression == "") {
 if (v8_enable_heap_sandbox == "") {
   v8_enable_heap_sandbox = false
 }
+if (v8_enable_short_builtin_calls == "") {
+  v8_enable_short_builtin_calls = false
+}
+assert(!v8_enable_short_builtin_calls || v8_enable_pointer_compression,
+       "Short builtin calls feature requires pointer compression")
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
 }
@@ -767,6 +776,9 @@ config("features") {
   }
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
+  }
+  if (v8_enable_short_builtin_calls) {
+    defines += [ "V8_SHORT_BUILTIN_CALLS" ]
   }
   if (v8_dict_mode_prototypes) {
     defines += [ "V8_DICT_MODE_PROTOTYPES" ]

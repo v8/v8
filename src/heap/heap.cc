@@ -5196,6 +5196,49 @@ void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
   read_only_space_ = space;
 }
 
+uint8_t* Heap::RemapEmbeddedBuiltinsIntoCodeRange(
+    const uint8_t* embedded_blob_code, size_t embedded_blob_code_size) {
+  const base::AddressRegion& code_range = memory_allocator()->code_range();
+
+  CHECK_NE(code_range.begin(), kNullAddress);
+  CHECK(!code_range.is_empty());
+
+  v8::PageAllocator* code_page_allocator =
+      memory_allocator()->code_page_allocator();
+
+  const size_t kAllocatePageSize = code_page_allocator->AllocatePageSize();
+  size_t allocate_code_size =
+      RoundUp(embedded_blob_code_size, kAllocatePageSize);
+
+  // Allocate the re-embedded code blob in the end.
+  void* hint = reinterpret_cast<void*>(code_range.end() - allocate_code_size);
+
+  void* embedded_blob_copy = code_page_allocator->AllocatePages(
+      hint, allocate_code_size, kAllocatePageSize, PageAllocator::kNoAccess);
+
+  if (!embedded_blob_copy) {
+    V8::FatalProcessOutOfMemory(
+        isolate(), "Can't allocate space for re-embedded builtins");
+  }
+
+  size_t code_size =
+      RoundUp(embedded_blob_code_size, code_page_allocator->CommitPageSize());
+
+  if (!code_page_allocator->SetPermissions(embedded_blob_copy, code_size,
+                                           PageAllocator::kReadWrite)) {
+    V8::FatalProcessOutOfMemory(isolate(),
+                                "Re-embedded builtins: set permissions");
+  }
+  memcpy(embedded_blob_copy, embedded_blob_code, embedded_blob_code_size);
+
+  if (!code_page_allocator->SetPermissions(embedded_blob_copy, code_size,
+                                           PageAllocator::kReadExecute)) {
+    V8::FatalProcessOutOfMemory(isolate(),
+                                "Re-embedded builtins: set permissions");
+  }
+  return reinterpret_cast<uint8_t*>(embedded_blob_copy);
+}
+
 class StressConcurrentAllocationObserver : public AllocationObserver {
  public:
   explicit StressConcurrentAllocationObserver(Heap* heap)

@@ -2453,6 +2453,63 @@ TEST(IsDebugActive) {
   *debug_is_active = false;
 }
 
+TEST(CallBuiltin) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester(isolate,
+                                 kNumParams + 1);  // Include receiver.
+  PromiseBuiltinsAssembler m(asm_tester.state());
+
+  {
+    auto receiver = m.Parameter<Object>(1);
+    auto name = m.Parameter<Name>(2);
+    auto context = m.Parameter<Context>(kNumParams + 3);
+
+    auto value = m.CallBuiltin(Builtins::kGetProperty, context, receiver, name);
+    m.Return(value);
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Factory* factory = isolate->factory();
+  Handle<Name> name = factory->InternalizeUtf8String("a");
+  Handle<Object> value(Smi::FromInt(153), isolate);
+  Handle<JSObject> object = factory->NewJSObjectWithNullProto();
+  JSObject::AddProperty(isolate, object, name, value, NONE);
+
+  Handle<Object> result = ft.Call(object, name).ToHandleChecked();
+  CHECK_EQ(*value, *result);
+}
+
+TEST(TailCallBuiltin) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester(isolate,
+                                 kNumParams + 1);  // Include receiver.
+  PromiseBuiltinsAssembler m(asm_tester.state());
+
+  {
+    auto receiver = m.Parameter<Object>(1);
+    auto name = m.Parameter<Name>(2);
+    auto context = m.Parameter<Context>(kNumParams + 3);
+
+    m.TailCallBuiltin(Builtins::kGetProperty, context, receiver, name);
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Factory* factory = isolate->factory();
+  Handle<Name> name = factory->InternalizeUtf8String("a");
+  Handle<Object> value(Smi::FromInt(153), isolate);
+  Handle<JSObject> object = factory->NewJSObjectWithNullProto();
+  JSObject::AddProperty(isolate, object, name, value, NONE);
+
+  Handle<Object> result = ft.Call(object, name).ToHandleChecked();
+  CHECK_EQ(*value, *result);
+}
+
 class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
  public:
   AppendJSArrayCodeStubAssembler(compiler::CodeAssemblerState* state,

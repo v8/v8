@@ -287,7 +287,7 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
 
 // static
 void Builtins::InitializeBuiltinEntryTable(Isolate* isolate) {
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
   Address* builtin_entry_table = isolate->builtin_entry_table();
   for (int i = 0; i < builtin_count; i++) {
     // TODO(jgruber,chromium:1020986): Remove the CHECK once the linked issue is

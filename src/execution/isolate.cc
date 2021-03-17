@@ -3283,7 +3283,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
   HandleScope scope(isolate);
   Builtins* builtins = isolate->builtins();
 
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
 
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
@@ -3371,15 +3371,32 @@ void Isolate::CreateAndSetEmbeddedBlob() {
     SetStickyEmbeddedBlob(code, code_size, data, data_size);
   }
 
+  MaybeRemapEmbeddedBuiltinsIntoCodeRange();
+
   CreateOffHeapTrampolines(this);
+}
+
+void Isolate::MaybeRemapEmbeddedBuiltinsIntoCodeRange() {
+  if (!FLAG_short_builtin_calls || !RequiresCodeRange()) return;
+
+  CHECK_NOT_NULL(embedded_blob_code_);
+  CHECK_NE(embedded_blob_code_size_, 0);
+
+  embedded_blob_code_ = heap_.RemapEmbeddedBuiltinsIntoCodeRange(
+      embedded_blob_code_, embedded_blob_code_size_);
+  CHECK_NOT_NULL(embedded_blob_code_);
+  // The un-embedded code blob is already a part of the registered code range
+  // so it's not necessary to register it again.
 }
 
 void Isolate::TearDownEmbeddedBlob() {
   // Nothing to do in case the blob is embedded into the binary or unset.
   if (StickyEmbeddedBlobCode() == nullptr) return;
 
-  CHECK_EQ(embedded_blob_code(), StickyEmbeddedBlobCode());
-  CHECK_EQ(embedded_blob_data(), StickyEmbeddedBlobData());
+  if (!FLAG_short_builtin_calls) {
+    CHECK_EQ(embedded_blob_code(), StickyEmbeddedBlobCode());
+    CHECK_EQ(embedded_blob_data(), StickyEmbeddedBlobData());
+  }
   CHECK_EQ(CurrentEmbeddedBlobCode(), StickyEmbeddedBlobCode());
   CHECK_EQ(CurrentEmbeddedBlobData(), StickyEmbeddedBlobData());
 
@@ -3388,8 +3405,10 @@ void Isolate::TearDownEmbeddedBlob() {
   if (current_embedded_blob_refs_ == 0 && enable_embedded_blob_refcounting_) {
     // We own the embedded blob and are the last holder. Free it.
     InstructionStream::FreeOffHeapInstructionStream(
-        const_cast<uint8_t*>(embedded_blob_code()), embedded_blob_code_size(),
-        const_cast<uint8_t*>(embedded_blob_data()), embedded_blob_data_size());
+        const_cast<uint8_t*>(CurrentEmbeddedBlobCode()),
+        embedded_blob_code_size(),
+        const_cast<uint8_t*>(CurrentEmbeddedBlobData()),
+        embedded_blob_data_size());
     ClearEmbeddedBlob();
   }
 }
@@ -3582,6 +3601,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     CreateAndSetEmbeddedBlob();
   } else {
     setup_delegate_->SetupBuiltins(this);
+    MaybeRemapEmbeddedBuiltinsIntoCodeRange();
   }
 
   // Initialize custom memcopy and memmove functions (must happen after

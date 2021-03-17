@@ -25,7 +25,7 @@ Builtins::Name InstructionStream::TryLookupCode(Isolate* isolate,
                                                 Address address) {
   if (!PcIsOffHeap(isolate, address)) return Builtins::kNoBuiltinId;
 
-  EmbeddedData d = EmbeddedData::FromBlob();
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
   if (address < d.InstructionStartOfBuiltin(0)) return Builtins::kNoBuiltinId;
 
   // Note: Addresses within the padding section between builtins (i.e. within
