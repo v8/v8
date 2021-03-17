@@ -63,6 +63,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction ReduceBranch(Node* node);
   Reduction ReduceDeoptimizeConditional(Node* node);
   Reduction ReduceIf(Node* node, bool is_true_branch);
+  Reduction ReduceTrapConditional(Node* node);
   Reduction ReduceLoop(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceStart(Node* node);

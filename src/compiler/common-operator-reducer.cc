@@ -74,6 +74,9 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceSwitch(node);
     case IrOpcode::kStaticAssert:
       return ReduceStaticAssert(node);
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
+      return ReduceTrapConditional(node);
     default:
       break;
   }
@@ -469,6 +472,33 @@ Reduction CommonOperatorReducer::ReduceStaticAssert(Node* node) {
     return Changed(node);
   } else {
     return NoChange();
+  }
+}
+
+Reduction CommonOperatorReducer::ReduceTrapConditional(Node* trap) {
+  DCHECK(trap->opcode() == IrOpcode::kTrapIf ||
+         trap->opcode() == IrOpcode::kTrapUnless);
+  bool trapping_condition = trap->opcode() == IrOpcode::kTrapIf;
+  Node* const cond = trap->InputAt(0);
+  Decision decision = DecideCondition(broker(), cond);
+
+  if (decision == Decision::kUnknown) {
+    return NoChange();
+  } else if ((decision == Decision::kTrue) == trapping_condition) {
+    // This will trap, all that follows is dead.
+    for (Node* const use : trap->uses()) {
+      Replace(use, dead());
+    }
+    Node* effect_input = NodeProperties::GetEffectInput(trap);
+    graph()->end()->AppendInput(
+        graph()->zone(),
+        graph()->NewNode(common()->Return(0),
+                         graph()->NewNode(common()->Int32Constant(0)),
+                         effect_input, trap));
+    return NoChange();
+  } else {
+    // This will not trap, remove it.
+    return Replace(NodeProperties::GetControlInput(trap));
   }
 }
 
