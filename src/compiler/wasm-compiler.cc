@@ -125,9 +125,10 @@ constexpr Builtins::Name WasmRuntimeStubIdToBuiltinName(
   }
 }
 
-CallDescriptor* GetBuiltinCallDescriptor(Builtins::Name name, Zone* zone,
-                                         StubCallMode stub_mode,
-                                         bool needs_frame_state = false) {
+CallDescriptor* GetBuiltinCallDescriptor(
+    Builtins::Name name, Zone* zone, StubCallMode stub_mode,
+    bool needs_frame_state = false,
+    Operator::Properties properties = Operator::kNoProperties) {
   CallInterfaceDescriptor interface_descriptor =
       Builtins::CallInterfaceDescriptorFor(name);
   return Linkage::GetStubCallDescriptor(
@@ -136,7 +137,7 @@ CallDescriptor* GetBuiltinCallDescriptor(Builtins::Name name, Zone* zone,
       interface_descriptor.GetStackParameterCount(),  // stack parameter count
       needs_frame_state ? CallDescriptor::kNeedsFrameState
                         : CallDescriptor::kNoFlags,  // flags
-      Operator::kNoProperties,                       // properties
+      properties,                                    // properties
       stub_mode);                                    // stub call mode
 }
 
@@ -177,9 +178,11 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   template <typename... Args>
-  Node* CallBuiltin(Builtins::Name name, Args*... args) {
+  Node* CallBuiltin(Builtins::Name name, Operator::Properties properties,
+                    Args*... args) {
     auto* call_descriptor = GetBuiltinCallDescriptor(
-        name, temp_zone(), StubCallMode::kCallBuiltinPointer);
+        name, temp_zone(), StubCallMode::kCallBuiltinPointer, false,
+        properties);
     Node* call_target = GetBuiltinPointerTarget(name);
     return Call(call_descriptor, call_target, args...);
   }
@@ -2406,7 +2409,7 @@ Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
 
 Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
   return gasm_->CallBuiltin(
-      Builtins::kWasmGetOwnProperty, except_obj,
+      Builtins::kWasmGetOwnProperty, Operator::kEliminatable, except_obj,
       LOAD_ROOT(wasm_exception_tag_symbol, wasm_exception_tag_symbol),
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
 }
@@ -2415,7 +2418,7 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
                                            const wasm::WasmException* exception,
                                            Vector<Node*> values) {
   Node* values_array = gasm_->CallBuiltin(
-      Builtins::kWasmGetOwnProperty, except_obj,
+      Builtins::kWasmGetOwnProperty, Operator::kEliminatable, except_obj,
       LOAD_ROOT(wasm_exception_values_symbol, wasm_exception_values_symbol),
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
   uint32_t index = 0;
@@ -2825,6 +2828,8 @@ Node* WasmGraphBuilder::BuildWasmCall(const wasm::FunctionSig* sig,
   const Operator* op = mcgraph()->common()->Call(call_descriptor);
   Node* call =
       BuildCallNode(sig, args, position, instance_node, op, frame_state);
+  // TODO(manoskouk): Don't always set control if we ever add properties to wasm
+  // calls.
   SetControl(call);
 
   size_t ret_count = sig->return_count();
@@ -2854,6 +2859,8 @@ Node* WasmGraphBuilder::BuildWasmReturnCall(const wasm::FunctionSig* sig,
   const Operator* op = mcgraph()->common()->TailCall(call_descriptor);
   Node* call = BuildCallNode(sig, args, position, instance_node, op);
 
+  // TODO(manoskouk): {call} will not always be a control node if we ever add
+  // properties to wasm calls.
   gasm_->MergeControlToEnd(call);
 
   return call;
@@ -3165,8 +3172,9 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
         wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset));
     // TODO(manoskouk): Find an elegant way to avoid allocating this pair for
     // every call.
-    Node* function_instance_node = gasm_->CallBuiltin(
-        Builtins::kWasmAllocatePair, BuildLoadInstance(), callable);
+    Node* function_instance_node =
+        gasm_->CallBuiltin(Builtins::kWasmAllocatePair, Operator::kEliminatable,
+                           BuildLoadInstance(), callable);
 
     gasm_->Goto(&end_label, call_target, function_instance_node);
   }
@@ -5529,7 +5537,8 @@ Node* WasmGraphBuilder::TableFill(uint32_t table_index, Node* start,
 Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
                                          const wasm::StructType* type,
                                          Node* rtt, Vector<Node*> fields) {
-  Node* s = gasm_->CallBuiltin(Builtins::kWasmAllocateStructWithRtt, rtt);
+  Node* s = gasm_->CallBuiltin(Builtins::kWasmAllocateStructWithRtt,
+                               Operator::kEliminatable, rtt);
   for (uint32_t i = 0; i < type->field_count(); i++) {
     gasm_->StoreStructField(s, type, i, fields[i]);
   }
@@ -5546,9 +5555,9 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                   length, gasm_->Uint32Constant(wasm::kV8MaxWasmArrayLength)),
               position);
   wasm::ValueType element_type = type->element_type();
-  Node* a =
-      gasm_->CallBuiltin(Builtins::kWasmAllocateArrayWithRtt, rtt, length,
-                         Int32Constant(element_type.element_size_bytes()));
+  Node* a = gasm_->CallBuiltin(
+      Builtins::kWasmAllocateArrayWithRtt, Operator::kEliminatable, rtt, length,
+      Int32Constant(element_type.element_size_bytes()));
   auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
   auto done = gasm_->MakeLabel();
   Node* start_offset =
@@ -5580,7 +5589,7 @@ Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
 }
 
 Node* WasmGraphBuilder::RttSub(uint32_t type_index, Node* parent_rtt) {
-  return gasm_->CallBuiltin(Builtins::kWasmAllocateRtt,
+  return gasm_->CallBuiltin(Builtins::kWasmAllocateRtt, Operator::kEliminatable,
                             Int32Constant(type_index), parent_rtt);
 }
 
@@ -6237,7 +6246,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   // once we have a proper WasmGC <-> JS interaction story.
   Node* BuildAllocateObjectWrapper(Node* input) {
     return gasm_->CallBuiltin(
-        Builtins::kWasmAllocateObjectWrapper, input,
+        Builtins::kWasmAllocateObjectWrapper, Operator::kEliminatable, input,
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
   }
 
@@ -6245,7 +6254,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* BuildUnpackObjectWrapper(Node* input, UnpackFailureBehavior failure) {
     Node* obj = gasm_->CallBuiltin(
-        Builtins::kWasmGetOwnProperty, input,
+        Builtins::kWasmGetOwnProperty, Operator::kEliminatable, input,
         LOAD_ROOT(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol),
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
     // Invalid object wrappers (i.e. any other JS object that doesn't have the
@@ -6508,8 +6517,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                                Node* iterable, Node* context) {
     Node* length = BuildChangeUint31ToSmi(
         mcgraph()->Uint32Constant(static_cast<uint32_t>(sig->return_count())));
-    return gasm_->CallBuiltin(Builtins::kIterableToFixedArrayForWasm, iterable,
-                              length, context);
+    return gasm_->CallBuiltin(Builtins::kIterableToFixedArrayForWasm,
+                              Operator::kEliminatable, iterable, length,
+                              context);
   }
 
   // Generate a call to the AllocateJSArray builtin.
@@ -6518,8 +6528,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // we make sure this is true based on statically known limits.
     STATIC_ASSERT(wasm::kV8MaxWasmFunctionMultiReturns <=
                   JSArray::kInitialMaxFastElementArray);
-    return SetControl(gasm_->CallBuiltin(Builtins::kWasmAllocateJSArray,
-                                         array_length, context));
+    return gasm_->CallBuiltin(Builtins::kWasmAllocateJSArray,
+                              Operator::kEliminatable, array_length, context);
   }
 
   Node* BuildCallAndReturn(bool is_import, Node* js_context,
