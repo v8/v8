@@ -87,7 +87,6 @@ enum class OddballType : uint8_t {
   V(DescriptorArray)                                \
   V(FeedbackCell)                                   \
   V(FeedbackVector)                                 \
-  V(FunctionTemplateInfo)                           \
   V(Name)                                           \
   V(RegExpBoilerplateDescription)                   \
   V(SharedFunctionInfo)                             \
@@ -137,6 +136,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
   V(FixedArrayBase)                           \
+  V(FunctionTemplateInfo)                     \
   V(JSReceiver)                               \
   V(SourceTextModule)                         \
   /* Subtypes of Object */                    \
@@ -192,7 +192,6 @@ class V8_EXPORT_PRIVATE ObjectRef {
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
-  bool IsNull() const;
   bool IsNullOrUndefined() const;
   bool IsTheHole() const;
 

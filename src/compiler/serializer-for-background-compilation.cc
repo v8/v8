@@ -2260,27 +2260,21 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
 
 void SerializerForBackgroundCompilation::ProcessApiCall(
     Handle<SharedFunctionInfo> target, const HintsVector& arguments) {
-  for (const auto b :
-       {Builtins::kCallFunctionTemplate_CheckAccess,
-        Builtins::kCallFunctionTemplate_CheckCompatibleReceiver,
-        Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver}) {
-    ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(b));
-  }
+  ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                          Builtins::kCallFunctionTemplate_CheckAccess));
+  ObjectRef(broker(),
+            broker()->isolate()->builtins()->builtin_handle(
+                Builtins::kCallFunctionTemplate_CheckCompatibleReceiver));
+  ObjectRef(
+      broker(),
+      broker()->isolate()->builtins()->builtin_handle(
+          Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver));
+
   FunctionTemplateInfoRef target_template_info(
       broker(),
       broker()->CanonicalPersistentHandle(target->function_data(kAcquireLoad)));
   if (!target_template_info.has_call_code()) return;
-  if (FLAG_turbo_direct_heap_access) {
-    // The object stored in CallHandlerInfo::data may still be
-    // SerializedHeapObject, so we keep serializing this here.
-    // TODO(v8:7790): Remove this once all JSObjects are NeverSerialized.
-    Handle<CallHandlerInfo> call_handler_info =
-        target_template_info.call_code()->object();
-    ObjectRef(broker(),
-              broker()->CanonicalPersistentHandle(call_handler_info->data()));
-  } else {
-    target_template_info.SerializeCallCode();
-  }
+  target_template_info.SerializeCallCode();
 
   SharedFunctionInfoRef target_ref(broker(), target);
   target_ref.SerializeFunctionTemplateInfo();
