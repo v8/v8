@@ -345,10 +345,13 @@ if (v8_enable_heap_sandbox == "") {
   v8_enable_heap_sandbox = false
 }
 if (v8_enable_short_builtin_calls == "") {
+  v8_enable_short_builtin_calls =
+      v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64")
+}
+if (v8_enable_short_builtin_calls && !v8_enable_pointer_compression) {
+  # Disable short calls when pointer compression is not enabled.
   v8_enable_short_builtin_calls = false
 }
-assert(!v8_enable_short_builtin_calls || v8_enable_pointer_compression,
-       "Short builtin calls feature requires pointer compression")
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
 }
