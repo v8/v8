@@ -341,12 +341,6 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
     return;
   }
 
-  // TODO(v8:11453): Implement exception handling in Liftoff.
-  if (reason == kExceptionHandling) {
-    DCHECK(env->enabled_features.has_eh());
-    return;
-  }
-
   // Otherwise, bailout is not allowed.
   FATAL("Liftoff bailout should not happen. Cause: %s\n", detail);
 }
@@ -3928,7 +3922,6 @@ class LiftoffCompiler {
 
   void StoreExceptionValue(ValueType type, Register values_array,
                            int* index_in_array, LiftoffRegList pinned) {
-    // TODO(clemensb): Handle more types.
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     switch (type.kind()) {
       case kI32:
@@ -3964,7 +3957,22 @@ class LiftoffCompiler {
         }
         break;
       }
-      default:
+      case wasm::kRef:
+      case wasm::kOptRef:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth: {
+        --(*index_in_array);
+        __ StoreTaggedPointer(
+            values_array, no_reg,
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                *index_in_array),
+            value, pinned);
+        break;
+      }
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kStmt:
+      case wasm::kBottom:
         UNREACHABLE();
     }
   }
@@ -4007,7 +4015,21 @@ class LiftoffCompiler {
         }
         break;
       }
-      default:
+      case wasm::kRef:
+      case wasm::kOptRef:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth: {
+        __ LoadTaggedPointer(
+            value.gp(), values_array.gp(), no_reg,
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index),
+            pinned);
+        (*index)++;
+        break;
+      }
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kStmt:
+      case wasm::kBottom:
         UNREACHABLE();
     }
     __ PushRegister(kind, value);
@@ -4024,12 +4046,6 @@ class LiftoffCompiler {
     uint32_t index = 0;
     const WasmExceptionSig* sig = exception->sig;
     for (ValueType param : sig->parameters()) {
-      if (param != kWasmI32 && param != kWasmI64 && param != kWasmF32 &&
-          param != kWasmF64 && param != kWasmS128) {
-        unsupported(decoder, kExceptionHandling,
-                    "unsupported type in exception payload");
-        return;
-      }
       LoadExceptionValue(param.kind(), values_array, &index, pinned);
     }
     DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(exception));
@@ -4107,12 +4123,6 @@ class LiftoffCompiler {
     for (size_t param_idx = sig->parameter_count(); param_idx > 0;
          --param_idx) {
       ValueType type = sig->GetParam(param_idx - 1);
-      if (type != kWasmI32 && type != kWasmI64 && type != kWasmF32 &&
-          type != kWasmF64 && type != kWasmS128) {
-        unsupported(decoder, kExceptionHandling,
-                    "unsupported type in exception payload");
-        return;
-      }
       StoreExceptionValue(type, values_array.gp(), &index, pinned);
     }
     DCHECK_EQ(0, index);
