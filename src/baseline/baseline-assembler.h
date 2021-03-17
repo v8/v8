@@ -1,4 +1,3 @@
-
 // Copyright 2021 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -8,7 +7,8 @@
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_ARM
 
 #include "src/codegen/macro-assembler.h"
 #include "src/objects/tagged-index.h"
@@ -17,7 +17,7 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
-enum class Condition : uint8_t;
+enum class Condition : uint32_t;
 
 class BaselineAssembler {
  public:

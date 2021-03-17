@@ -1258,7 +1258,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   // Normally the first thing we'd do here is Push(lr, fp), but we already
   // entered the frame in BaselineCompiler::Prologue, as we had to use the
-  // value lr had before the call to this BaselineOutOfLinePrologue builtin.
+  // value lr before the call to this BaselineOutOfLinePrologue builtin.
 
   Register callee_context = descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kCalleeContext);

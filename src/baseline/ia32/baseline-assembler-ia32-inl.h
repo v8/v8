@@ -43,7 +43,7 @@ class BaselineAssembler::ScratchRegisterScope {
 };
 
 // TODO(v8:11461): Unify condition names in the MacroAssembler.
-enum class Condition : uint8_t {
+enum class Condition : uint32_t {
   kEqual = equal,
   kNotEqual = not_equal,
 

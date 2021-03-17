@@ -5,6 +5,7 @@
 #ifndef V8_BASELINE_X64_BASELINE_ASSEMBLER_X64_INL_H_
 #define V8_BASELINE_X64_BASELINE_ASSEMBLER_X64_INL_H_
 
+#include "src/base/macros.h"
 #include "src/baseline/baseline-assembler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/x64/register-x64.h"
@@ -45,7 +46,7 @@ class BaselineAssembler::ScratchRegisterScope {
 };
 
 // TODO(v8:11461): Unify condition names in the MacroAssembler.
-enum class Condition : uint8_t {
+enum class Condition : uint32_t {
   kEqual = equal,
   kNotEqual = not_equal,
 
