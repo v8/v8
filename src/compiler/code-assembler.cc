@@ -225,6 +225,22 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
                 : IsInt32AbsWithOverflowSupported();
 }
 
+bool CodeAssembler::IsWord32PopcntSupported() const {
+  return raw_assembler()->machine()->Word32Popcnt().IsSupported();
+}
+
+bool CodeAssembler::IsWord64PopcntSupported() const {
+  return raw_assembler()->machine()->Word64Popcnt().IsSupported();
+}
+
+bool CodeAssembler::IsWord32CtzSupported() const {
+  return raw_assembler()->machine()->Word32Ctz().IsSupported();
+}
+
+bool CodeAssembler::IsWord64CtzSupported() const {
+  return raw_assembler()->machine()->Word64Ctz().IsSupported();
+}
+
 #ifdef DEBUG
 void CodeAssembler::GenerateCheckMaybeObjectIsObject(TNode<MaybeObject> node,
                                                      const char* location) {

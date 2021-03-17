@@ -540,6 +540,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool TryGetIntPtrOrSmiConstantValue(TNode<IntPtrT> maybe_constant,
                                       int* value);
 
+  TNode<IntPtrT> PopulationCountFallback(TNode<UintPtrT> value);
+  TNode<Int64T> Word64PopulationCount(TNode<Word64T> value);
+  TNode<Int32T> Word32PopulationCount(TNode<Word32T> value);
+  TNode<Int64T> Word64CountTrailingZeros(TNode<Word64T> value);
+  TNode<Int32T> Word32CountTrailingZeros(TNode<Word32T> value);
+
   // Round the 32bits payload of the provided word up to the next power of two.
   TNode<IntPtrT> IntPtrRoundUpToPowerOfTwo32(TNode<IntPtrT> value);
   // Select the maximum of the two provided IntPtr values.

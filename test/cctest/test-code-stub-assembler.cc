@@ -4221,6 +4221,86 @@ TEST(SmiUntagComparisonOptimization) {
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
 }
 
+TEST(PopCount) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  const std::vector<std::pair<uint32_t, int>> test_cases = {
+      {0, 0},
+      {1, 1},
+      {(1 << 31), 1},
+      {0b01010101010101010101010101010101, 16},
+      {0b10101010101010101010101010101010, 16},
+      {0b11100011100000011100011111000111, 17}  // arbitrarily chosen
+  };
+
+  for (std::pair<uint32_t, int> test_case : test_cases) {
+    uint32_t value32 = test_case.first;
+    uint64_t value64 = (static_cast<uint64_t>(value32) << 32) | value32;
+    int expected_pop32 = test_case.second;
+    int expected_pop64 = 2 * expected_pop32;
+
+    TNode<Int32T> pop32 = m.Word32PopulationCount(m.Uint32Constant(value32));
+    CSA_CHECK(&m, m.Word32Equal(pop32, m.Int32Constant(expected_pop32)));
+
+    if (m.Is64()) {
+      // TODO(emrich): enable once 64-bit operations are supported on 32-bit
+      // architectures.
+
+      TNode<Int64T> pop64 = m.Word64PopulationCount(m.Uint64Constant(value64));
+      CSA_CHECK(&m, m.Word64Equal(pop64, m.Int64Constant(expected_pop64)));
+    }
+  }
+  m.Return(m.UndefinedConstant());
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  ft.Call();
+}
+
+TEST(CountTrailingZeros) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  const std::vector<std::pair<uint32_t, int>> test_cases = {
+      {1, 0},
+      {2, 1},
+      {(0b0101010'0000'0000), 9},
+      {(1 << 31), 31},
+      {std::numeric_limits<uint32_t>::max(), 0},
+  };
+
+  for (std::pair<uint32_t, int> test_case : test_cases) {
+    uint32_t value32 = test_case.first;
+    uint64_t value64 = static_cast<uint64_t>(value32) << 32;
+    int expected_ctz32 = test_case.second;
+    int expected_ctz64 = expected_ctz32 + 32;
+
+    TNode<Int32T> pop32 = m.Word32CountTrailingZeros(m.Uint32Constant(value32));
+    CSA_CHECK(&m, m.Word32Equal(pop32, m.Int32Constant(expected_ctz32)));
+
+    if (m.Is64()) {
+      // TODO(emrich): enable once 64-bit operations are supported on 32-bit
+      // architectures.
+
+      TNode<Int64T> pop64_ext =
+          m.Word64CountTrailingZeros(m.Uint64Constant(value32));
+      TNode<Int64T> pop64 =
+          m.Word64CountTrailingZeros(m.Uint64Constant(value64));
+
+      CSA_CHECK(&m, m.Word64Equal(pop64_ext, m.Int64Constant(expected_ctz32)));
+      CSA_CHECK(&m, m.Word64Equal(pop64, m.Int64Constant(expected_ctz64)));
+    }
+  }
+  m.Return(m.UndefinedConstant());
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

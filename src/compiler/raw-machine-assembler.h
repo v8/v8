@@ -539,6 +539,14 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Word32PairSar(Node* low_word, Node* high_word, Node* shift) {
     return AddNode(machine()->Word32PairSar(), low_word, high_word, shift);
   }
+  Node* Word32Popcnt(Node* a) {
+    return AddNode(machine()->Word32Popcnt().op(), a);
+  }
+  Node* Word64Popcnt(Node* a) {
+    return AddNode(machine()->Word64Popcnt().op(), a);
+  }
+  Node* Word32Ctz(Node* a) { return AddNode(machine()->Word32Ctz().op(), a); }
+  Node* Word64Ctz(Node* a) { return AddNode(machine()->Word64Ctz().op(), a); }
   Node* StackPointerGreaterThan(Node* value) {
     return AddNode(
         machine()->StackPointerGreaterThan(StackCheckKind::kCodeStubAssembler),

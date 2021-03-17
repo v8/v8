@@ -366,6 +366,11 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Float64RoundTiesEven, Float64T, Float64T)                  \
   V(Float64RoundTruncate, Float64T, Float64T)                  \
   V(Word32Clz, Int32T, Word32T)                                \
+  V(Word64Clz, Int64T, Word64T)                                \
+  V(Word32Ctz, Int32T, Word32T)                                \
+  V(Word64Ctz, Int64T, Word64T)                                \
+  V(Word32Popcnt, Int32T, Word32T)                             \
+  V(Word64Popcnt, Int64T, Word64T)                             \
   V(Word32BitwiseNot, Word32T, Word32T)                        \
   V(WordNot, WordT, WordT)                                     \
   V(Word64Not, Word64T, Word64T)                               \
@@ -415,6 +420,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsInt32AbsWithOverflowSupported() const;
   bool IsInt64AbsWithOverflowSupported() const;
   bool IsIntPtrAbsWithOverflowSupported() const;
+  bool IsWord32PopcntSupported() const;
+  bool IsWord64PopcntSupported() const;
+  bool IsWord32CtzSupported() const;
+  bool IsWord64CtzSupported() const;
 
   // Shortened aliases for use in CodeAssembler subclasses.
   using Label = CodeAssemblerLabel;

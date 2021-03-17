@@ -549,6 +549,130 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
   return var_x.value();
 }
 
+TNode<IntPtrT> CodeStubAssembler::PopulationCountFallback(
+    TNode<UintPtrT> value) {
+  // Taken from slow path of base::bits::CountPopulation, the comments here show
+  // C++ code and comments from there for reference.
+  // Fall back to divide-and-conquer popcount (see "Hacker's Delight" by Henry
+  // S. Warren,  Jr.), chapter 5-1.
+  constexpr uintptr_t mask[] = {static_cast<uintptr_t>(0x5555555555555555),
+                                static_cast<uintptr_t>(0x3333333333333333),
+                                static_cast<uintptr_t>(0x0f0f0f0f0f0f0f0f)};
+
+  // TNode<UintPtrT> value = Unsigned(value_word);
+  TNode<UintPtrT> lhs, rhs;
+
+  // Start with 64 buckets of 1 bits, holding values from [0,1].
+  // {value = ((value >> 1) & mask[0]) + (value & mask[0])}
+  lhs = WordAnd(WordShr(value, UintPtrConstant(1)), UintPtrConstant(mask[0]));
+  rhs = WordAnd(value, UintPtrConstant(mask[0]));
+  value = UintPtrAdd(lhs, rhs);
+
+  // Having 32 buckets of 2 bits, holding values from [0,2] now.
+  // {value = ((value >> 2) & mask[1]) + (value & mask[1])}
+  lhs = WordAnd(WordShr(value, UintPtrConstant(2)), UintPtrConstant(mask[1]));
+  rhs = WordAnd(value, UintPtrConstant(mask[1]));
+  value = UintPtrAdd(lhs, rhs);
+
+  // Having 16 buckets of 4 bits, holding values from [0,4] now.
+  // {value = ((value >> 4) & mask[2]) + (value & mask[2])}
+  lhs = WordAnd(WordShr(value, UintPtrConstant(4)), UintPtrConstant(mask[2]));
+  rhs = WordAnd(value, UintPtrConstant(mask[2]));
+  value = UintPtrAdd(lhs, rhs);
+
+  // Having 8 buckets of 8 bits, holding values from [0,8] now.
+  // From this point on, the buckets are bigger than the number of bits
+  // required to hold the values, and the buckets are bigger the maximum
+  // result, so there's no need to mask value anymore, since there's no
+  // more risk of overflow between buckets.
+  // {value = (value >> 8) + value}
+  lhs = WordShr(value, UintPtrConstant(8));
+  value = UintPtrAdd(lhs, value);
+
+  // Having 4 buckets of 16 bits, holding values from [0,16] now.
+  // {value = (value >> 16) + value}
+  lhs = WordShr(value, UintPtrConstant(16));
+  value = UintPtrAdd(lhs, value);
+
+  if (Is64()) {
+    // Having 2 buckets of 32 bits, holding values from [0,32] now.
+    // {value = (value >> 32) + value}
+    lhs = WordShr(value, UintPtrConstant(32));
+    value = UintPtrAdd(lhs, value);
+  }
+
+  // Having 1 buckets of sizeof(intptr_t) bits, holding values from [0,64] now.
+  // {return static_cast<unsigned>(value & 0xff)}
+  return Signed(WordAnd(value, UintPtrConstant(0xff)));
+}
+
+TNode<Int64T> CodeStubAssembler::Word64PopulationCount(TNode<Word64T> value) {
+  if (IsWord64PopcntSupported()) {
+    return Word64Popcnt(value);
+  }
+
+  if (Is32()) {
+    // Unsupported.
+    UNREACHABLE();
+  }
+
+  return ReinterpretCast<Int64T>(
+      PopulationCountFallback(ReinterpretCast<UintPtrT>(value)));
+}
+
+TNode<Int32T> CodeStubAssembler::Word32PopulationCount(TNode<Word32T> value) {
+  if (IsWord32PopcntSupported()) {
+    return Word32Popcnt(value);
+  }
+
+  if (Is32()) {
+    TNode<IntPtrT> res =
+        PopulationCountFallback(ReinterpretCast<UintPtrT>(value));
+    return ReinterpretCast<Int32T>(res);
+  } else {
+    TNode<IntPtrT> res = PopulationCountFallback(
+        ReinterpretCast<UintPtrT>(ChangeUint32ToUint64(value)));
+    return TruncateInt64ToInt32(ReinterpretCast<Int64T>(res));
+  }
+}
+
+TNode<Int64T> CodeStubAssembler::Word64CountTrailingZeros(
+    TNode<Word64T> value) {
+  if (IsWord64CtzSupported()) {
+    return Word64Ctz(value);
+  }
+
+  if (Is32()) {
+    // Unsupported.
+    UNREACHABLE();
+  }
+
+  // Same fallback as in base::bits::CountTrailingZeros.
+  // Fall back to popcount (see "Hacker's Delight" by Henry S. Warren, Jr.),
+  // chapter 5-4. On x64, since is faster than counting in a loop and faster
+  // than doing binary search.
+  TNode<Word64T> lhs = Word64Not(value);
+  TNode<Word64T> rhs = Uint64Sub(Unsigned(value), Uint64Constant(1));
+  return Word64PopulationCount(Word64And(lhs, rhs));
+}
+
+TNode<Int32T> CodeStubAssembler::Word32CountTrailingZeros(
+    TNode<Word32T> value) {
+  if (IsWord32CtzSupported()) {
+    return Word32Ctz(value);
+  }
+
+  if (Is32()) {
+    // Same fallback as in Word64CountTrailingZeros.
+    TNode<Word32T> lhs = Word32BitwiseNot(value);
+    TNode<Word32T> rhs = Int32Sub(Signed(value), Int32Constant(1));
+    return Word32PopulationCount(Word32And(lhs, rhs));
+  } else {
+    TNode<Int64T> res64 = Word64CountTrailingZeros(ChangeUint32ToUint64(value));
+    return TruncateInt64ToInt32(Signed(res64));
+  }
+}
+
 template <>
 TNode<Smi> CodeStubAssembler::TaggedToParameter(TNode<Smi> value) {
   return value;
