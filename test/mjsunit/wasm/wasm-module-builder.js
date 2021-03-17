@@ -120,10 +120,15 @@ function wasmRefType(index) {
   return {opcode: kWasmRef, index: index};
 }
 let kWasmI31Ref = 0x6a;
-let kWasmRtt = 0x69;
+let kWasmRttWithDepth = 0x69;
 function wasmRtt(index, depth) {
-  return {opcode: kWasmRtt, index: index, depth: depth};
+  return { opcode: kWasmRttWithDepth, index: index, depth: depth };
 }
+let kWasmRtt = 0x68;
+function wasmRttNoDepth(index) {
+  return { opcode: kWasmRtt, index: index };
+}
+let kWasmDataRef = 0x67;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -404,7 +409,10 @@ const kWasmOpcodes = {
   'I64SExtendI32': 0xc4,
   'RefNull': 0xd0,
   'RefIsNull': 0xd1,
-  'RefFunc': 0xd2
+  'RefFunc': 0xd2,
+  'RefAsNonNull': 0xd3,
+  'BrOnNull': 0xd4,
+  'RefEq': 0xd5,
 };
 
 function defineWasmOpcode(name, value) {
@@ -455,6 +463,15 @@ let kExprRttSub = 0x31;
 let kExprRefTest = 0x40;
 let kExprRefCast = 0x41;
 let kExprBrOnCast = 0x42;
+let kExprRefIsFunc = 0x50;
+let kExprRefIsData = 0x51;
+let kExprRefIsI31 = 0x52;
+let kExprRefAsFunc = 0x58;
+let kExprRefAsData = 0x59;
+let kExprRefAsI31 = 0x5a;
+let kExprBrOnFunc = 0x60;
+let kExprBrOnData = 0x61;
+let kExprBrOnI31 = 0x62;
 
 // Numeric opcodes.
 let kExprI32SConvertSatF32 = 0x00;
