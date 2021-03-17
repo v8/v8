@@ -1960,7 +1960,10 @@ class WasmDecoder : public Decoder {
             ArrayIndexImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
-          case kExprBrOnCast: {
+          case kExprBrOnCast:
+          case kExprBrOnData:
+          case kExprBrOnFunc:
+          case kExprBrOnI31: {
             BranchDepthImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
@@ -1972,12 +1975,15 @@ class WasmDecoder : public Decoder {
           case kExprI31New:
           case kExprI31GetS:
           case kExprI31GetU:
-            return length;
+          case kExprRefAsData:
+          case kExprRefAsFunc:
+          case kExprRefAsI31:
+          case kExprRefIsData:
+          case kExprRefIsFunc:
+          case kExprRefIsI31:
           case kExprRefTest:
-          case kExprRefCast: {
-            TypeIndexImmediate<validate> ht(decoder, pc + length);
-            return length + ht.length;
-          }
+          case kExprRefCast:
+            return length;
           default:
             // This is unreachable except for malformed modules.
             if (validate) {
