@@ -3967,9 +3967,25 @@ class LiftoffCompiler {
       case kI32:
         Load32BitExceptionValue(value.gp(), values_array, index, pinned);
         break;
+      case kF32: {
+        LiftoffRegister tmp_reg =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+        Load32BitExceptionValue(tmp_reg.gp(), values_array, index, pinned);
+        __ emit_type_conversion(kExprF32ReinterpretI32, value, tmp_reg,
+                                nullptr);
+        break;
+      }
       case kI64:
         Load64BitExceptionValue(value, values_array, index, pinned);
         break;
+      case kF64: {
+        RegClass rc = reg_class_for(kI64);
+        LiftoffRegister tmp_reg = pinned.set(__ GetUnusedRegister(rc, pinned));
+        Load64BitExceptionValue(tmp_reg, values_array, index, pinned);
+        __ emit_type_conversion(kExprF64ReinterpretI64, value, tmp_reg,
+                                nullptr);
+        break;
+      }
       default:
         UNREACHABLE();
     }
@@ -3987,7 +4003,8 @@ class LiftoffCompiler {
     uint32_t index = 0;
     const WasmExceptionSig* sig = exception->sig;
     for (ValueType param : sig->parameters()) {
-      if (param != kWasmI32 && param != kWasmI64) {
+      if (param != kWasmI32 && param != kWasmI64 && param != kWasmF32 &&
+          param != kWasmF64) {
         unsupported(decoder, kExceptionHandling,
                     "unsupported type in exception payload");
         return;
