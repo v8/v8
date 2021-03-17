@@ -2744,11 +2744,12 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   Subu(sp, sp, Operand(kDoubleSize));  // Put input on stack.
   Sdc1(double_input, MemOperand(sp, 0));
 
-  if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
 #if V8_ENABLE_WEBASSEMBLY
+  if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
 #else
-    UNREACHABLE();
+  // For balance.
+  if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
