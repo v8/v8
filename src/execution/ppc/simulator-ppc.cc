@@ -3885,6 +3885,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rs = instr->RSValue();
       uint8_t fxm = instr->Bits(19, 12);
       DCHECK_EQ(fxm, 0xFF);
+      USE(fxm);
       condition_reg_ = static_cast<int32_t>(get_register(rs));
       break;
     }
