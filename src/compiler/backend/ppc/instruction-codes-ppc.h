@@ -242,6 +242,8 @@ namespace compiler {
   V(PPC_F32x4NearestInt)             \
   V(PPC_F32x4Pmin)                   \
   V(PPC_F32x4Pmax)                   \
+  V(PPC_F32x4Qfma)                   \
+  V(PPC_F32x4Qfms)                   \
   V(PPC_I64x2Splat)                  \
   V(PPC_I64x2ExtractLane)            \
   V(PPC_I64x2ReplaceLane)            \
@@ -267,6 +269,10 @@ namespace compiler {
   V(PPC_I64x2SConvertI32x4High)      \
   V(PPC_I64x2UConvertI32x4Low)       \
   V(PPC_I64x2UConvertI32x4High)      \
+  V(PPC_I64x2ExtMulLowI32x4S)        \
+  V(PPC_I64x2ExtMulHighI32x4S)       \
+  V(PPC_I64x2ExtMulLowI32x4U)        \
+  V(PPC_I64x2ExtMulHighI32x4U)       \
   V(PPC_I32x4Splat)                  \
   V(PPC_I32x4ExtractLane)            \
   V(PPC_I32x4ReplaceLane)            \
@@ -298,8 +304,10 @@ namespace compiler {
   V(PPC_I32x4DotI16x8S)              \
   V(PPC_I32x4ExtAddPairwiseI16x8S)   \
   V(PPC_I32x4ExtAddPairwiseI16x8U)   \
-  V(PPC_F32x4Qfma)                   \
-  V(PPC_F32x4Qfms)                   \
+  V(PPC_I32x4ExtMulLowI16x8S)        \
+  V(PPC_I32x4ExtMulHighI16x8S)       \
+  V(PPC_I32x4ExtMulLowI16x8U)        \
+  V(PPC_I32x4ExtMulHighI16x8U)       \
   V(PPC_I16x8Splat)                  \
   V(PPC_I16x8ExtractLaneU)           \
   V(PPC_I16x8ExtractLaneS)           \
@@ -337,6 +345,10 @@ namespace compiler {
   V(PPC_I16x8ExtAddPairwiseI8x16S)   \
   V(PPC_I16x8ExtAddPairwiseI8x16U)   \
   V(PPC_I16x8Q15MulRSatS)            \
+  V(PPC_I16x8ExtMulLowI8x16S)        \
+  V(PPC_I16x8ExtMulHighI8x16S)       \
+  V(PPC_I16x8ExtMulLowI8x16U)        \
+  V(PPC_I16x8ExtMulHighI8x16U)       \
   V(PPC_I8x16Splat)                  \
   V(PPC_I8x16ExtractLaneU)           \
   V(PPC_I8x16ExtractLaneS)           \

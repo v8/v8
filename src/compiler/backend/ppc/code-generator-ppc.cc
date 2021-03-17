@@ -3682,6 +3682,83 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     i.InputSimd128Register(1), kScratchSimd128Reg);
       break;
     }
+#define EXT_MUL(mul_even, mul_odd)                  \
+  Simd128Register dst = i.OutputSimd128Register(),  \
+                  src0 = i.InputSimd128Register(0), \
+                  src1 = i.InputSimd128Register(1); \
+  __ mul_even(dst, src0, src1);                     \
+  __ mul_odd(kScratchSimd128Reg, src0, src1);
+    case kPPC_I64x2ExtMulLowI32x4S: {
+      constexpr int lane_width_in_bytes = 8;
+      EXT_MUL(vmulesw, vmulosw)
+      __ vextractd(dst, dst, Operand(1 * lane_width_in_bytes));
+      __ vextractd(kScratchSimd128Reg, kScratchSimd128Reg,
+                   Operand(1 * lane_width_in_bytes));
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_I64x2ExtMulHighI32x4S: {
+      constexpr int lane_width_in_bytes = 8;
+      EXT_MUL(vmulesw, vmulosw)
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_I64x2ExtMulLowI32x4U: {
+      constexpr int lane_width_in_bytes = 8;
+      EXT_MUL(vmuleuw, vmulouw)
+      __ vextractd(dst, dst, Operand(1 * lane_width_in_bytes));
+      __ vextractd(kScratchSimd128Reg, kScratchSimd128Reg,
+                   Operand(1 * lane_width_in_bytes));
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_I64x2ExtMulHighI32x4U: {
+      constexpr int lane_width_in_bytes = 8;
+      EXT_MUL(vmuleuw, vmulouw)
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_I32x4ExtMulLowI16x8S: {
+      EXT_MUL(vmulesh, vmulosh)
+      __ vmrglw(dst, dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I32x4ExtMulHighI16x8S: {
+      EXT_MUL(vmulesh, vmulosh)
+      __ vmrghw(dst, dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I32x4ExtMulLowI16x8U: {
+      EXT_MUL(vmuleuh, vmulouh)
+      __ vmrglw(dst, dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I32x4ExtMulHighI16x8U: {
+      EXT_MUL(vmuleuh, vmulouh)
+      __ vmrghw(dst, dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I16x8ExtMulLowI8x16S: {
+      EXT_MUL(vmulesb, vmulosb)
+      __ vmrglh(dst, dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I16x8ExtMulHighI8x16S: {
+      EXT_MUL(vmulesb, vmulosb)
+      __ vmrghh(dst, dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I16x8ExtMulLowI8x16U: {
+      EXT_MUL(vmuleub, vmuloub)
+      __ vmrglh(dst, dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I16x8ExtMulHighI8x16U: {
+      EXT_MUL(vmuleub, vmuloub)
+      __ vmrghh(dst, dst, kScratchSimd128Reg);
+      break;
+    }
+#undef EXT_MUL
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

@@ -2177,6 +2177,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Mul)              \
   V(I64x2Eq)               \
   V(I64x2Ne)               \
+  V(I64x2ExtMulLowI32x4S)  \
+  V(I64x2ExtMulHighI32x4S) \
+  V(I64x2ExtMulLowI32x4U)  \
+  V(I64x2ExtMulHighI32x4U) \
   V(I32x4Add)              \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
@@ -2191,6 +2195,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GtU)              \
   V(I32x4GeU)              \
   V(I32x4DotI16x8S)        \
+  V(I32x4ExtMulLowI16x8S)  \
+  V(I32x4ExtMulHighI16x8S) \
+  V(I32x4ExtMulLowI16x8U)  \
+  V(I32x4ExtMulHighI16x8U) \
   V(I16x8Add)              \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
@@ -2212,6 +2220,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8SubSatU)          \
   V(I16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS)      \
+  V(I16x8ExtMulLowI8x16S)  \
+  V(I16x8ExtMulHighI8x16S) \
+  V(I16x8ExtMulLowI8x16U)  \
+  V(I16x8ExtMulHighI8x16U) \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16MinS)             \
@@ -2471,42 +2483,6 @@ void InstructionSelector::VisitS128Const(Node* node) {
   }
 }
 
-void InstructionSelector::VisitI64x2ExtMulLowI32x4S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI64x2ExtMulHighI32x4S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI64x2ExtMulLowI32x4U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI64x2ExtMulHighI32x4U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4ExtMulLowI16x8S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4ExtMulHighI16x8S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4ExtMulLowI16x8U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4ExtMulHighI16x8U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8ExtMulLowI8x16S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8ExtMulHighI8x16S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8ExtMulLowI8x16U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
-  UNIMPLEMENTED();
-}
 void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2ConvertLowI32x4S(Node* node) {
   UNIMPLEMENTED();

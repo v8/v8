@@ -2289,6 +2289,14 @@ using Instr = uint32_t;
   V(vmulouh, VMULOUH, 0x10000048)                          \
   /* Vector Multiply Odd Signed Halfword */                \
   V(vmulosh, VMULOSH, 0x10000148)                          \
+  /* Vector Multiply Even Signed Word */                   \
+  V(vmulesw, VMULESW, 0x10000388)                          \
+  /* Vector Multiply Even Unsigned Word */                 \
+  V(vmuleuw, VMULEUW, 0x10000288)                          \
+  /* Vector Multiply Odd Signed Word */                    \
+  V(vmulosw, VMULOSW, 0x10000188)                          \
+  /* Vector Multiply Odd Unsigned Word */                  \
+  V(vmulouw, VMULOUW, 0x10000088)                          \
   /* Vector Sum across Quarter Signed Halfword Saturate */ \
   V(vsum4shs, VSUM4SHS, 0x10000648)                        \
   /* Vector Pack Unsigned Word Unsigned Saturate */        \
@@ -2390,7 +2398,19 @@ using Instr = uint32_t;
   /* Vector Maximum Single-Precision */                    \
   V(vmaxfp, VMAXFP, 0x1000040A)                            \
   /* Vector Bit Permute Quadword */                        \
-  V(vbpermq, VBPERMQ, 0x1000054C)
+  V(vbpermq, VBPERMQ, 0x1000054C)                          \
+  /* Vector Merge High Byte */                             \
+  V(vmrghb, VMRGHB, 0x1000000C)                            \
+  /* Vector Merge High Halfword */                         \
+  V(vmrghh, VMRGHH, 0x1000004C)                            \
+  /* Vector Merge High Word */                             \
+  V(vmrghw, VMRGHW, 0x1000008C)                            \
+  /* Vector Merge Low Byte */                              \
+  V(vmrglb, VMRGLB, 0x1000010C)                            \
+  /* Vector Merge Low Halfword */                          \
+  V(vmrglh, VMRGLH, 0x1000014C)                            \
+  /* Vector Merge Low Word */                              \
+  V(vmrglw, VMRGLW, 0x1000018C)
 
 #define PPC_VX_OPCODE_C_FORM_LIST(V)       \
   /* Vector Unpack Low Signed Word */      \
@@ -2459,26 +2479,6 @@ using Instr = uint32_t;
   V(vgbbd, VGBBD, 0x1000050C)                                             \
   /* Vector Log Base 2 Estimate Single-Precision */                       \
   V(vlogefp, VLOGEFP, 0x100001CA)                                         \
-  /* Vector Merge High Byte */                                            \
-  V(vmrghb, VMRGHB, 0x1000000C)                                           \
-  /* Vector Merge High Halfword */                                        \
-  V(vmrghh, VMRGHH, 0x1000004C)                                           \
-  /* Vector Merge High Word */                                            \
-  V(vmrghw, VMRGHW, 0x1000008C)                                           \
-  /* Vector Merge Low Byte */                                             \
-  V(vmrglb, VMRGLB, 0x1000010C)                                           \
-  /* Vector Merge Low Halfword */                                         \
-  V(vmrglh, VMRGLH, 0x1000014C)                                           \
-  /* Vector Merge Low Word */                                             \
-  V(vmrglw, VMRGLW, 0x1000018C)                                           \
-  /* Vector Multiply Even Signed Word */                                  \
-  V(vmulesw, VMULESW, 0x10000388)                                         \
-  /* Vector Multiply Even Unsigned Word */                                \
-  V(vmuleuw, VMULEUW, 0x10000288)                                         \
-  /* Vector Multiply Odd Signed Word */                                   \
-  V(vmulosw, VMULOSW, 0x10000188)                                         \
-  /* Vector Multiply Odd Unsigned Word */                                 \
-  V(vmulouw, VMULOUW, 0x10000088)                                         \
   /* Vector NAND */                                                       \
   V(vnand, VNAND, 0x10000584)                                             \
   /* Vector OR with Complement */                                         \

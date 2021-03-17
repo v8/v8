@@ -4149,18 +4149,20 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_ARITHMETIC_OP(int8_t, -)
       break;
     }
-#define VECTOR_MULTIPLY_EVEN_ODD(input_type, result_type, is_odd)  \
-  DECODE_VX_INSTRUCTION(t, a, b, T)                                \
-  size_t i = 0, j = 0, k = 0;                                      \
-  size_t lane_size = sizeof(input_type);                           \
-  if (is_odd) {                                                    \
-    i = 1;                                                         \
-    j = lane_size;                                                 \
-  }                                                                \
-  for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {      \
-    input_type src0 = get_simd_register_by_lane<input_type>(a, i); \
-    input_type src1 = get_simd_register_by_lane<input_type>(b, i); \
-    set_simd_register_by_lane<result_type>(t, k, src0 * src1);     \
+#define VECTOR_MULTIPLY_EVEN_ODD(input_type, result_type, is_odd)              \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                                            \
+  size_t i = 0, j = 0, k = 0;                                                  \
+  size_t lane_size = sizeof(input_type);                                       \
+  if (is_odd) {                                                                \
+    i = 1;                                                                     \
+    j = lane_size;                                                             \
+  }                                                                            \
+  for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {                  \
+    result_type src0 =                                                         \
+        static_cast<result_type>(get_simd_register_by_lane<input_type>(a, i)); \
+    result_type src1 =                                                         \
+        static_cast<result_type>(get_simd_register_by_lane<input_type>(b, i)); \
+    set_simd_register_by_lane<result_type>(t, k, src0 * src1);                 \
   }
     case VMULEUB: {
       VECTOR_MULTIPLY_EVEN_ODD(uint8_t, uint16_t, false)
@@ -4168,6 +4170,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
     case VMULESB: {
       VECTOR_MULTIPLY_EVEN_ODD(int8_t, int16_t, false)
+      break;
+    }
+    case VMULOUB: {
+      VECTOR_MULTIPLY_EVEN_ODD(uint8_t, uint16_t, true)
+      break;
+    }
+    case VMULOSB: {
+      VECTOR_MULTIPLY_EVEN_ODD(int8_t, int16_t, true)
       break;
     }
     case VMULEUH: {
@@ -4179,10 +4189,57 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
     case VMULOUH: {
+      VECTOR_MULTIPLY_EVEN_ODD(uint16_t, uint32_t, true)
+      break;
+    }
+    case VMULOSH: {
       VECTOR_MULTIPLY_EVEN_ODD(int16_t, int32_t, true)
       break;
     }
+    case VMULEUW: {
+      VECTOR_MULTIPLY_EVEN_ODD(uint32_t, uint64_t, false)
+      break;
+    }
+    case VMULESW: {
+      VECTOR_MULTIPLY_EVEN_ODD(int32_t, int64_t, false)
+      break;
+    }
+    case VMULOUW: {
+      VECTOR_MULTIPLY_EVEN_ODD(uint32_t, uint64_t, true)
+      break;
+    }
+    case VMULOSW: {
+      VECTOR_MULTIPLY_EVEN_ODD(int32_t, int64_t, true)
+      break;
+    }
 #undef VECTOR_MULTIPLY_EVEN_ODD
+#define VECTOR_MERGE(type, is_low_side)                                    \
+  DECODE_VX_INSTRUCTION(t, a, b, T)                                        \
+  constexpr size_t index_limit = (kSimd128Size / sizeof(type)) / 2;        \
+  for (size_t i = 0, source_index = is_low_side ? i + index_limit : i;     \
+       i < index_limit; i++, source_index++) {                             \
+    set_simd_register_by_lane<type>(                                       \
+        t, 2 * i, get_simd_register_by_lane<type>(a, source_index));       \
+    set_simd_register_by_lane<type>(                                       \
+        t, (2 * i) + 1, get_simd_register_by_lane<type>(b, source_index)); \
+  }
+    case VMRGLW: {
+      VECTOR_MERGE(int32_t, true)
+      break;
+    }
+    case VMRGHW: {
+      VECTOR_MERGE(int32_t, false)
+      break;
+    }
+    case VMRGLH: {
+      VECTOR_MERGE(int16_t, true)
+      break;
+    }
+    case VMRGHH: {
+      VECTOR_MERGE(int16_t, false)
+      break;
+    }
+#undef VECTOR_MERGE
 #undef VECTOR_ARITHMETIC_OP
 #define VECTOR_MIN_MAX_OP(type, op)                                        \
   DECODE_VX_INSTRUCTION(t, a, b, T)                                        \
