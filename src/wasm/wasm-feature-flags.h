@@ -32,7 +32,12 @@
   /* Memory64 proposal. */                                                     \
   /* https://github.com/WebAssembly/memory64 */                                \
   /* V8 side owner: clemensb */                                                \
-  V(memory64, "memory64", false)
+  V(memory64, "memory64", false)                                               \
+                                                                               \
+  /* Relaxed SIMD proposal. */                                                 \
+  /* https://github.com/WebAssembly/relaxed-simd */                            \
+  /* V8 side owner: zhin */                                                    \
+  V(relaxed_simd, "relaxed simd", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
