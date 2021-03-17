@@ -827,6 +827,17 @@
         'suffix': 'nosse3',
         'test_args': ['--extra-flags', '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx']
       },
+      # Nossse3.
+      {
+        'name': 'mozilla',
+        'suffix': 'nossse3',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx']
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nossse3',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx']
+      },
       # Nosse4.
       {
         'name': 'mozilla',
@@ -918,6 +929,24 @@
         'name': 'v8testing',
         'suffix': 'nosse3',
         'test_args': ['--extra-flags', '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx'],
+        'shards': 3
+      },
+      # Nossse3.
+      {
+        'name': 'mozilla',
+        'suffix': 'nossse3',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx']
+      },
+      {
+        'name': 'test262',
+        'suffix': 'nossse3',
+        'variant': 'default',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx']
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nossse3',
+        'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx'],
         'shards': 3
       },
       # Nosse4.

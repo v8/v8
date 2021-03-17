@@ -93,6 +93,7 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
   "--enable-armv8": ["--no-enable-armv8"],
   "--gc-interval=*": ["--gc-interval=*"],
   "--no-enable-sse3": ["--enable-sse3"],
+  "--no-enable-ssse3": ["--enable-ssse3"],
   "--no-enable-sse4-1": ["--enable-sse4-1"],
   "--optimize-for-size": ["--max-semi-space-size=*"],
   "--stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
