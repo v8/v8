@@ -2687,7 +2687,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       if (!this_value.type()->IsSubtypeOf(method->aggregate_type())) {
         ReportError("this parameter must be a subtype of ",
                     *method->aggregate_type(), " but it is of type ",
-                    this_value.type());
+                    *this_value.type());
       }
     } else {
       AddCallParameter(callable, this_value, method->aggregate_type(),

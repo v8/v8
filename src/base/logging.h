@@ -51,6 +51,8 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 namespace v8 {
 namespace base {
 
+class CheckMessageStream : public std::ostringstream {};
+
 // Overwrite the default function that prints a stack trace.
 V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 
@@ -141,7 +143,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 namespace detail {
 template <typename... Ts>
 std::string PrintToString(Ts&&... ts) {
-  std::ostringstream oss;
+  CheckMessageStream oss;
   int unused_results[]{((oss << std::forward<Ts>(ts)), 0)...};
   (void)unused_results;  // Avoid "unused variable" warning.
   return oss.str();
@@ -164,7 +166,8 @@ auto GetUnderlyingEnumTypeForPrinting(T val) {
 template <typename T>
 typename std::enable_if<
     !std::is_function<typename std::remove_pointer<T>::type>::value &&
-        !std::is_enum<T>::value && has_output_operator<T>::value,
+        !std::is_enum<T>::value &&
+        has_output_operator<T, CheckMessageStream>::value,
     std::string>::type
 PrintCheckOperand(T val) {
   return detail::PrintToString(std::forward<T>(val));
@@ -185,7 +188,8 @@ PrintCheckOperand(T val) {
 
 // Define PrintCheckOperand<T> for enums with an output operator.
 template <typename T>
-typename std::enable_if<std::is_enum<T>::value && has_output_operator<T>::value,
+typename std::enable_if<std::is_enum<T>::value &&
+                            has_output_operator<T, CheckMessageStream>::value,
                         std::string>::type
 PrintCheckOperand(T val) {
   std::string val_str = detail::PrintToString(val);
@@ -205,15 +209,16 @@ PrintCheckOperand(T val) {
 
 // Define PrintCheckOperand<T> for enums without an output operator.
 template <typename T>
-typename std::enable_if<
-    std::is_enum<T>::value && !has_output_operator<T>::value, std::string>::type
+typename std::enable_if<std::is_enum<T>::value &&
+                            !has_output_operator<T, CheckMessageStream>::value,
+                        std::string>::type
 PrintCheckOperand(T val) {
   return detail::PrintToString(detail::GetUnderlyingEnumTypeForPrinting(val));
 }
 
 // Define default PrintCheckOperand<T> for non-printable types.
 template <typename T>
-typename std::enable_if<!has_output_operator<T>::value &&
+typename std::enable_if<!has_output_operator<T, CheckMessageStream>::value &&
                             !std::is_enum<T>::value,
                         std::string>::type
 PrintCheckOperand(T val) {
@@ -242,7 +247,7 @@ template <typename Lhs, typename Rhs>
 V8_NOINLINE std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
   std::string lhs_str = PrintCheckOperand<Lhs>(lhs);
   std::string rhs_str = PrintCheckOperand<Rhs>(rhs);
-  std::ostringstream ss;
+  CheckMessageStream ss;
   ss << msg;
   constexpr size_t kMaxInlineLength = 50;
   if (lhs_str.size() <= kMaxInlineLength &&
