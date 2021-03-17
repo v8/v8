@@ -5,8 +5,7 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_GC_INFO_H_
 #define INCLUDE_CPPGC_INTERNAL_GC_INFO_H_
 
-#include <atomic>
-#include <cstdint>
+#include <stdint.h>
 
 #include "cppgc/internal/finalizer-trait.h"
 #include "cppgc/internal/name-trait.h"
@@ -18,11 +17,16 @@ namespace internal {
 
 using GCInfoIndex = uint16_t;
 
-// Acquires a new GC info object and returns the index. In addition, also
-// updates `registered_index` atomically.
-V8_EXPORT GCInfoIndex
-EnsureGCInfoIndex(std::atomic<GCInfoIndex>& registered_index,
-                  FinalizationCallback, TraceCallback, NameCallback, bool);
+class V8_EXPORT RegisteredGCInfoIndex final {
+ public:
+  RegisteredGCInfoIndex(FinalizationCallback finalization_callback,
+                        TraceCallback trace_callback,
+                        NameCallback name_callback, bool has_v_table);
+  GCInfoIndex GetIndex() const { return index_; }
+
+ private:
+  const GCInfoIndex index_;
+};
 
 // Fold types based on finalizer behavior. Note that finalizer characteristics
 // align with trace behavior, i.e., destructors are virtual when trace methods
@@ -55,17 +59,13 @@ struct GCInfoFolding {
 // Trait determines how the garbage collector treats objects wrt. to traversing,
 // finalization, and naming.
 template <typename T>
-struct GCInfoTrait final {
+struct GCInfoTrait {
   static GCInfoIndex Index() {
     static_assert(sizeof(T), "T must be fully defined");
-    static std::atomic<GCInfoIndex>
-        registered_index;  // Uses zero initialization.
-    const GCInfoIndex index = registered_index.load(std::memory_order_acquire);
-    return index ? index
-                 : EnsureGCInfoIndex(
-                       registered_index, FinalizerTrait<T>::kCallback,
-                       TraceTrait<T>::Trace, NameTrait<T>::GetName,
-                       std::is_polymorphic<T>::value);
+    static const RegisteredGCInfoIndex registered_index(
+        FinalizerTrait<T>::kCallback, TraceTrait<T>::Trace,
+        NameTrait<T>::GetName, std::is_polymorphic<T>::value);
+    return registered_index.GetIndex();
   }
 };
 
