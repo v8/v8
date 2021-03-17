@@ -1314,12 +1314,8 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(Map map) {
-  RuntimeCallTimerScope timer(
-      LocalHeap::Current() == nullptr
-          ? GetIsolate()->counters()->runtime_call_stats()
-          : LocalIsolate::FromHeap(LocalHeap::Current())->runtime_call_stats(),
-      RuntimeCallCounterId::kIsTemplateFor);
-
+  RuntimeCallTimerScope timer(GetIsolate(),
+                              RuntimeCallCounterId::kIsTemplateFor);
   // There is a constraint on the object; check.
   if (!map.IsJSObjectMap()) return false;
   // Fetch the constructor function of the object.
@@ -1346,14 +1342,14 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) {
 // static
 FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
-  DCHECK(function_template_info->rare_data(kAcquireLoad).IsUndefined(isolate));
+  DCHECK(function_template_info->rare_data().IsUndefined(isolate));
   Handle<Struct> struct_obj = isolate->factory()->NewStruct(
       FUNCTION_TEMPLATE_RARE_DATA_TYPE, AllocationType::kOld);
   Handle<FunctionTemplateRareData> rare_data =
       i::Handle<FunctionTemplateRareData>::cast(struct_obj);
   rare_data->set_c_function(Smi(0));
   rare_data->set_c_signature(Smi(0));
-  function_template_info->set_rare_data(*rare_data, kReleaseStore);
+  function_template_info->set_rare_data(*rare_data);
   return *rare_data;
 }
 
