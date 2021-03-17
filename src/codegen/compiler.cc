@@ -3074,6 +3074,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   if (maybe_result.is_null()) {
     // No cache entry found, finalize compilation of the script and add it to
     // the isolate cache.
+    DCHECK_EQ(task->flags().is_module(), origin_options.IsModule());
 
     Handle<Script> script;
     if (FLAG_finalize_streaming_on_background && !origin_options.IsModule()) {
@@ -3104,8 +3105,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       isolate->heap()->SetRootScriptList(*scripts);
     } else {
       ParseInfo* parse_info = task->info();
-      DCHECK(parse_info->flags().is_toplevel());
       DCHECK_EQ(parse_info->flags().is_module(), origin_options.IsModule());
+      DCHECK(parse_info->flags().is_toplevel());
 
       script = parse_info->CreateScript(isolate, source, kNullMaybeHandle,
                                         origin_options);
