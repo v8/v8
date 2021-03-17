@@ -2042,13 +2042,21 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
       x1, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(
                                   DeoptimizationData::kOsrPcOffsetIndex)));
 
+  // Pop the return address to this function's caller from the return stack
+  // buffer, since we'll never return to it.
+  Label jump;
+  __ Adr(lr, &jump);
+  __ Ret();
+
+  __ Bind(&jump);
+
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
   __ Add(x0, x0, x1);
-  __ Add(lr, x0, Code::kHeaderSize - kHeapObjectTag);
-
-  // And "return" to the OSR entry point of the function.
-  __ Ret();
+  UseScratchRegisterScope temps(masm);
+  temps.Exclude(x17);
+  __ Add(x17, x0, Code::kHeaderSize - kHeapObjectTag);
+  __ Br(x17);
 }
 }  // namespace
 
