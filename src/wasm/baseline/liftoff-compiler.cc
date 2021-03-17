@@ -3886,20 +3886,44 @@ class LiftoffCompiler {
     }
   }
 
-  void Load32BitExceptionValue(LiftoffRegister dst,
+  void Load16BitExceptionValue(LiftoffRegister dst,
                                LiftoffRegister values_array, uint32_t* index,
                                LiftoffRegList pinned) {
-    LiftoffRegister upper = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadSmiAsInt32(
-        upper, values_array.gp(),
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index), pinned);
-    (*index)++;
-    __ emit_i32_shli(upper.gp(), upper.gp(), 16);
     __ LoadSmiAsInt32(
         dst, values_array.gp(),
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index), pinned);
     (*index)++;
-    __ emit_i32_or(dst.gp(), upper.gp(), dst.gp());
+  }
+
+  void Load32BitExceptionValue(Register dst, LiftoffRegister values_array,
+                               uint32_t* index, LiftoffRegList pinned) {
+    LiftoffRegister upper = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    Load16BitExceptionValue(upper, values_array, index, pinned);
+    __ emit_i32_shli(upper.gp(), upper.gp(), 16);
+    Load16BitExceptionValue(LiftoffRegister(dst), values_array, index, pinned);
+    __ emit_i32_or(dst, upper.gp(), dst);
+  }
+
+  void Load64BitExceptionValue(LiftoffRegister dst,
+                               LiftoffRegister values_array, uint32_t* index,
+                               LiftoffRegList pinned) {
+    if (kNeedI64RegPair) {
+      Load32BitExceptionValue(dst.high_gp(), values_array, index, pinned);
+      Load32BitExceptionValue(dst.low_gp(), values_array, index, pinned);
+    } else {
+      Load16BitExceptionValue(dst, values_array, index, pinned);
+      __ emit_i64_shli(dst, dst, 48);
+      LiftoffRegister tmp_reg =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      Load16BitExceptionValue(tmp_reg, values_array, index, pinned);
+      __ emit_i64_shli(tmp_reg, tmp_reg, 32);
+      __ emit_i64_or(dst, tmp_reg, dst);
+      Load16BitExceptionValue(tmp_reg, values_array, index, pinned);
+      __ emit_i64_shli(tmp_reg, tmp_reg, 16);
+      __ emit_i64_or(dst, tmp_reg, dst);
+      Load16BitExceptionValue(tmp_reg, values_array, index, pinned);
+      __ emit_i64_or(dst, tmp_reg, dst);
+    }
   }
 
   void StoreExceptionValue(ValueType type, Register values_array,
@@ -3935,6 +3959,23 @@ class LiftoffCompiler {
     }
   }
 
+  void LoadExceptionValue(ValueKind kind, LiftoffRegister values_array,
+                          uint32_t* index, LiftoffRegList pinned) {
+    RegClass rc = reg_class_for(kind);
+    LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
+    switch (kind) {
+      case kI32:
+        Load32BitExceptionValue(value.gp(), values_array, index, pinned);
+        break;
+      case kI64:
+        Load64BitExceptionValue(value, values_array, index, pinned);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ PushRegister(kind, value);
+  }
+
   void GetExceptionValues(FullDecoder* decoder,
                           LiftoffAssembler::VarState& exception_var,
                           const WasmException* exception) {
@@ -3942,17 +3983,16 @@ class LiftoffCompiler {
     DEBUG_CODE_COMMENT("get exception values");
     LiftoffRegister values_array = GetExceptionProperty(
         exception_var, RootIndex::kwasm_exception_values_symbol);
+    pinned.set(values_array);
     uint32_t index = 0;
     const WasmExceptionSig* sig = exception->sig;
-    LiftoffRegister value = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     for (ValueType param : sig->parameters()) {
-      if (param != kWasmI32) {
+      if (param != kWasmI32 && param != kWasmI64) {
         unsupported(decoder, kExceptionHandling,
                     "unsupported type in exception payload");
         return;
       }
-      Load32BitExceptionValue(value, values_array, &index, pinned);
-      __ PushRegister(kI32, value);
+      LoadExceptionValue(param.kind(), values_array, &index, pinned);
     }
     DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(exception));
   }
