@@ -412,15 +412,13 @@ transitioning builtin WasmGetOwnProperty(implicit context: Context)(
     try {
       TryHasOwnProperty(
           receiver, receiver.map, receiver.instanceType, uniqueName)
-          otherwise Found, NotFound, Bailout;
+          otherwise Found, NotFound, NotFound;
     } label Found {
       tail GetPropertyWithReceiver(
           receiver, uniqueName, receiver, SmiConstant(kReturnUndefined));
     }
   } label NotFound deferred {
     return Undefined;
-  } label Bailout deferred {
-    unreachable;
   }
 }
 

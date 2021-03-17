@@ -1134,7 +1134,7 @@ class LiftoffCompiler {
 
     DEBUG_CODE_COMMENT("compare tags");
     Label caught;
-    __ emit_cond_jump(kEqual, &caught, kI32, imm_tag, kReturnRegister0);
+    __ emit_cond_jump(kEqual, &caught, kI32, imm_tag, caught_tag.gp());
     // The tags don't match, merge the current state into the catch state and
     // jump to the next handler.
     __ MergeFullStackWith(block->try_info->catch_state, *__ cache_state());
