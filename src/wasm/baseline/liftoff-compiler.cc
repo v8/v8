@@ -3954,6 +3954,16 @@ class LiftoffCompiler {
         Store64BitExceptionValue(values_array, index_in_array, tmp_reg, pinned);
         break;
       }
+      case kS128: {
+        LiftoffRegister tmp_reg =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+        for (int i : {3, 2, 1, 0}) {
+          __ emit_i32x4_extract_lane(tmp_reg, value, i);
+          Store32BitExceptionValue(values_array, index_in_array, tmp_reg.gp(),
+                                   pinned);
+        }
+        break;
+      }
       default:
         UNREACHABLE();
     }
@@ -3986,6 +3996,17 @@ class LiftoffCompiler {
                                 nullptr);
         break;
       }
+      case kS128: {
+        LiftoffRegister tmp_reg =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+        Load32BitExceptionValue(tmp_reg.gp(), values_array, index, pinned);
+        __ emit_i32x4_splat(value, tmp_reg);
+        for (int lane : {1, 2, 3}) {
+          Load32BitExceptionValue(tmp_reg.gp(), values_array, index, pinned);
+          __ emit_i32x4_replace_lane(value, value, tmp_reg, lane);
+        }
+        break;
+      }
       default:
         UNREACHABLE();
     }
@@ -4004,7 +4025,7 @@ class LiftoffCompiler {
     const WasmExceptionSig* sig = exception->sig;
     for (ValueType param : sig->parameters()) {
       if (param != kWasmI32 && param != kWasmI64 && param != kWasmF32 &&
-          param != kWasmF64) {
+          param != kWasmF64 && param != kWasmS128) {
         unsupported(decoder, kExceptionHandling,
                     "unsupported type in exception payload");
         return;
@@ -4087,7 +4108,7 @@ class LiftoffCompiler {
          --param_idx) {
       ValueType type = sig->GetParam(param_idx - 1);
       if (type != kWasmI32 && type != kWasmI64 && type != kWasmF32 &&
-          type != kWasmF64) {
+          type != kWasmF64 && type != kWasmS128) {
         unsupported(decoder, kExceptionHandling,
                     "unsupported type in exception payload");
         return;
