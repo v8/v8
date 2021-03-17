@@ -1302,7 +1302,7 @@ class LiftoffCompiler {
     if (!c->end_merge.reached) {
       if (c->try_info->catch_reached) {
         // Drop the implicit exception ref.
-        __ DropValue(c->stack_depth + c->num_exceptions);
+        __ DropValue(__ num_locals() + c->stack_depth + c->num_exceptions);
       }
       // Else we did not enter the catch state, continue with the current state.
     } else {

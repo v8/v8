@@ -440,6 +440,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_l);
   builder.addFunction("throw_catch_param", kSig_i_i)
+      .addLocals(kWasmI64, 1)
       .addBody([
         kExprLocalGet, 0,
         kExprI64UConvertI32,
@@ -457,7 +458,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
             kExprI32Const, 0,
           kExprEnd,
         kExprEnd,
-      ]).addLocals(kWasmI64, 1).exportFunc();
+      ]).exportFunc();
   let instance = builder.instantiate();
 
   assertEquals(1, instance.exports.throw_catch_param(5));
@@ -663,6 +664,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
     // p == 2 -> path == 298
     // p == 3 -> path == 338
     // else   -> path == 146
+    .addLocals(kWasmI32, 1)
     .addBody([
         kExprTry, kWasmI32,
           kExprTry, kWasmI32,
@@ -719,7 +721,6 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprI32Ior,
         kExprEnd,
     ])
-    .addLocals(kWasmI32, 1)
     .exportFunc();
 
   // Scenario 2: Catches an exception raised from the direct callee.
@@ -1066,4 +1067,27 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
 
   let instance = builder.instantiate();
+})();
+
+(function TestThrowWithLocal() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  builder.addFunction('throw_with_local', kSig_i_v)
+    .addLocals(kWasmI32, 4)
+    .addBody([
+        kExprI32Const, 42,
+        kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0,
+        kExprTry, kWasmF32,
+          kExprThrow, except,
+        kExprCatchAll,
+          kExprF32Const, 0, 0, 0, 0,
+        kExprEnd,
+        kExprDrop,  // Drop the f32.
+        kExprDrop,  // Drop the f64.
+        // Leave the '42' on the stack.
+    ]).exportFunc();
+
+  let instance = builder.instantiate();
+  assertEquals(42, instance.exports.throw_with_local());
 })();

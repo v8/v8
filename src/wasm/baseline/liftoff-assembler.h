@@ -422,6 +422,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   void DropValues(int count);
 
+  // Careful: this indexes "from the other end", i.e. depth=0 is the value
+  // at the bottom of the stack!
   void DropValue(int depth);
 
   // Ensure that the loop inputs are either in a register or spilled to the
