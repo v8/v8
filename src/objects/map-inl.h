@@ -657,12 +657,14 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 #endif
 }
 
+bool Map::ConcurrentIsMap(IsolateRoot isolate, const Object& object) const {
+  return object.IsHeapObject() && HeapObject::cast(object).map(isolate) ==
+                                      GetReadOnlyRoots(isolate).meta_map();
+}
+
 DEF_GETTER(Map, GetBackPointer, HeapObject) {
   Object object = constructor_or_back_pointer(isolate);
-  // This is the equivalent of IsMap() but avoids reading the instance type so
-  // it can be used concurrently without acquire load.
-  if (object.IsHeapObject() && HeapObject::cast(object).map(isolate) ==
-                                   GetReadOnlyRoots(isolate).meta_map()) {
+  if (ConcurrentIsMap(isolate, object)) {
     return Map::cast(object);
   }
   // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
@@ -674,8 +676,7 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value.IsMap());
   CHECK(GetBackPointer().IsUndefined());
-  CHECK_IMPLIES(value.IsMap(), Map::cast(value).GetConstructor() ==
-                                   constructor_or_back_pointer());
+  CHECK_EQ(Map::cast(value).GetConstructor(), constructor_or_back_pointer());
   set_constructor_or_back_pointer(value, mode);
 }
 
@@ -710,7 +711,7 @@ bool Map::IsPrototypeValidityCellValid() const {
 DEF_GETTER(Map, GetConstructor, Object) {
   Object maybe_constructor = constructor_or_back_pointer(isolate);
   // Follow any back pointers.
-  while (maybe_constructor.IsMap(isolate)) {
+  while (ConcurrentIsMap(isolate, maybe_constructor)) {
     maybe_constructor =
         Map::cast(maybe_constructor).constructor_or_back_pointer(isolate);
   }

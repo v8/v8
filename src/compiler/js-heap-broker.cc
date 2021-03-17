@@ -3482,7 +3482,7 @@ BIMODAL_ACCESSOR_C(Map, int, NextFreePropertyIndex)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 BIMODAL_ACCESSOR(Map, HeapObject, prototype)
 BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
-BIMODAL_ACCESSOR(Map, Object, GetConstructor)
+BIMODAL_ACCESSOR_WITH_FLAG(Map, Object, GetConstructor)
 BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 

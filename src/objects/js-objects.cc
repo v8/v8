@@ -4420,7 +4420,20 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
   } else {
     Handle<Map> new_map =
         Map::Copy(isolate, handle(object->map(), isolate), "CopyAsPrototype");
+    new_map->set_is_prototype_map(true);
 
+    // Replace the pointer to the exact constructor with the Object function
+    // from the same context if undetectable from JS. This is to avoid keeping
+    // memory alive unnecessarily.
+    Object maybe_constructor = new_map->GetConstructor();
+    if (maybe_constructor.IsJSFunction()) {
+      JSFunction constructor = JSFunction::cast(maybe_constructor);
+      if (!constructor.shared().IsApiFunction()) {
+        Context context = constructor.context().native_context();
+        JSFunction object_function = context.object_function();
+        new_map->SetConstructor(object_function);
+      }
+    }
     JSObject::MigrateToMap(isolate, object, new_map);
 
     if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && !object->HasFastProperties()) {
@@ -4441,21 +4454,6 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
         make_constant(object->property_dictionary_swiss());
       } else {
         make_constant(object->property_dictionary());
-      }
-    }
-
-    object->map().set_is_prototype_map(true);
-
-    // Replace the pointer to the exact constructor with the Object function
-    // from the same context if undetectable from JS. This is to avoid keeping
-    // memory alive unnecessarily.
-    Object maybe_constructor = object->map().GetConstructor();
-    if (maybe_constructor.IsJSFunction()) {
-      JSFunction constructor = JSFunction::cast(maybe_constructor);
-      if (!constructor.shared().IsApiFunction()) {
-        Context context = constructor.context().native_context();
-        JSFunction object_function = context.object_function();
-        object->map().SetConstructor(object_function);
       }
     }
   }

@@ -223,6 +223,9 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<HeapObject> prototype);
+  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
+                            Handle<HeapObject> prototype,
+                            Handle<JSFunction> constructor);
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
       Handle<JSFunction> function);

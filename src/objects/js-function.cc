@@ -463,9 +463,9 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     Handle<Map> new_map =
         Map::Copy(isolate, handle(function->map(), isolate), "SetPrototype");
 
-    JSObject::MigrateToMap(isolate, function, new_map);
     new_map->SetConstructor(*value);
     new_map->set_has_non_instance_prototype(true);
+    JSObject::MigrateToMap(isolate, function, new_map);
 
     FunctionKind kind = function->shared().kind();
     Handle<Context> native_context(function->context().native_context(),
@@ -488,12 +488,18 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<HeapObject> prototype) {
+  SetInitialMap(function, map, prototype, function);
+}
+
+void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
+                               Handle<HeapObject> prototype,
+                               Handle<JSFunction> constructor) {
   Isolate* isolate = function->GetIsolate();
   if (map->prototype() != *prototype) {
     Map::SetPrototype(isolate, map, prototype);
   }
+  map->SetConstructor(*constructor);
   function->set_prototype_or_initial_map(*map);
-  map->SetConstructor(*function);
   if (FLAG_log_maps) {
     LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
                           SharedFunctionInfo::DebugName(
@@ -719,9 +725,8 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
   Handle<HeapObject> prototype(new_target->instance_prototype(), isolate);
-  JSFunction::SetInitialMap(new_target, map, prototype);
+  JSFunction::SetInitialMap(new_target, map, prototype, constructor);
   DCHECK(new_target->instance_prototype().IsJSReceiver());
-  map->SetConstructor(*constructor);
   map->set_construction_counter(Map::kNoSlackTracking);
   map->StartInobjectSlackTracking();
   return true;

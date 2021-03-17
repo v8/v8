@@ -941,6 +941,11 @@ class Map : public HeapObject {
       MaybeHandle<Object> old_value, MaybeHandle<FieldType> new_field_type,
       MaybeHandle<Object> new_value);
 
+  // This is the equivalent of IsMap() but avoids reading the instance type so
+  // it can be used concurrently without acquire load.
+  V8_INLINE bool ConcurrentIsMap(IsolateRoot isolate,
+                                 const Object& object) const;
+
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
   DECL_RELEASE_SETTER(instance_descriptors, DescriptorArray)
 
