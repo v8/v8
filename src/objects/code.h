@@ -150,6 +150,27 @@ class Code : public HeapObject {
   inline Address InstructionEnd() const;
   V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
 
+  // When builtins un-embedding (FLAG_short_builtin_calls) is enabled both
+  // embedded and un-embedded builtins might be exeuted and thus two kinds of
+  // |pc|s might appear on the stack.
+  // Unlike the paremeterless versions of the functions above the below variants
+  // ensure that the instruction start correspond to the given |pc| value.
+  // Thus for off-heap trampoline Code objects the result might be the
+  // instruction start/end of the embedded code stream or of un-embedded one.
+  // For normal Code objects these functions just return the
+  // raw_instruction_start/end() values.
+  // TODO(11527): remove these versions once the full solution is ready.
+  inline Address InstructionStart(Isolate* isolate, Address pc) const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionStart(Isolate* isolate,
+                                                    Address pc) const;
+  inline Address InstructionEnd(Isolate* isolate, Address pc) const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd(Isolate* isolate,
+                                                  Address pc) const;
+
+  // Computes offset of the |pc| from the instruction start. The |pc| must
+  // belong to this code.
+  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
+
   inline int raw_instruction_size() const;
   inline void set_raw_instruction_size(int value);
   inline int InstructionSize() const;
@@ -331,7 +352,7 @@ class Code : public HeapObject {
   inline bool is_off_heap_trampoline() const;
 
   // Get the safepoint entry for the given pc.
-  SafepointEntry GetSafepointEntry(Address pc);
+  SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
 
   // The entire code object including its header is copied verbatim to the
   // snapshot so that it can be written in one, fast, memcpy during
@@ -370,7 +391,7 @@ class Code : public HeapObject {
   inline Address entry() const;
 
   // Returns true if pc is inside this object's instructions.
-  inline bool contains(Address pc);
+  inline bool contains(Isolate* isolate, Address pc);
 
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.
@@ -406,7 +427,7 @@ class Code : public HeapObject {
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
 
-  bool CanDeoptAt(Address pc);
+  bool CanDeoptAt(Isolate* isolate, Address pc);
 
   void SetMarkedForDeoptimization(const char* reason);
 

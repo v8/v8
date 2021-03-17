@@ -181,7 +181,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);
       CHECK(CodeKindCanDeoptimize(code.kind()));
-      if (code.contains(addr)) return code;
+      if (code.contains(isolate, addr)) return code;
       element = code.next_code_link();
     }
   }
@@ -262,7 +262,8 @@ class ActivationsFinder : public ThreadVisitor {
             code.marked_for_deoptimization()) {
           codes_->erase(code);
           // Obtain the trampoline to the deoptimizer call.
-          SafepointEntry safepoint = code.GetSafepointEntry(it.frame()->pc());
+          SafepointEntry safepoint =
+              code.GetSafepointEntry(isolate, it.frame()->pc());
           int trampoline_pc = safepoint.trampoline_pc();
           DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
           STATIC_ASSERT(SafepointEntry::kNoTrampolinePC == -1);
@@ -308,7 +309,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
       JSFunction function =
           static_cast<OptimizedFrame*>(it.frame())->function();
       TraceFoundActivation(isolate, function);
-      SafepointEntry safepoint = code.GetSafepointEntry(it.frame()->pc());
+      SafepointEntry safepoint =
+          code.GetSafepointEntry(isolate, it.frame()->pc());
 
       // Turbofan deopt is checked when we are patching addresses on stack.
       bool safe_if_deopt_triggered = safepoint.has_deoptimization_index();

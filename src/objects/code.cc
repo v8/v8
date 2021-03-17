@@ -131,8 +131,8 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   }
 }
 
-SafepointEntry Code::GetSafepointEntry(Address pc) {
-  SafepointTable table(*this);
+SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
+  SafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
 }
 
@@ -174,6 +174,19 @@ Address Code::OffHeapInstructionEnd() const {
       FLAG_short_builtin_calls
           ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))
           : EmbeddedData::FromBlob();
+  return d.InstructionStartOfBuiltin(builtin_index()) +
+         d.InstructionSizeOfBuiltin(builtin_index());
+}
+
+Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
+  return d.InstructionStartOfBuiltin(builtin_index());
+}
+
+Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionStartOfBuiltin(builtin_index()) +
          d.InstructionSizeOfBuiltin(builtin_index());
 }
@@ -245,10 +258,10 @@ int AbstractCode::SourceStatementPosition(int offset) {
   return statement_position;
 }
 
-bool Code::CanDeoptAt(Address pc) {
+bool Code::CanDeoptAt(Isolate* isolate, Address pc) {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(deoptimization_data());
-  Address code_start_address = InstructionStart();
+  Address code_start_address = InstructionStart(isolate, pc);
   for (int i = 0; i < deopt_data.DeoptCount(); i++) {
     if (deopt_data.Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data.Pc(i).value();
@@ -596,7 +609,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "\n";
 
   if (has_safepoint_info()) {
-    SafepointTable table(*this);
+    SafepointTable table(isolate, current_pc, *this);
     os << "Safepoints (size = " << table.size() << ")\n";
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);

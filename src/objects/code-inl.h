@@ -19,6 +19,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -275,6 +276,25 @@ Address Code::raw_metadata_start() const {
   return raw_instruction_start() + raw_instruction_size();
 }
 
+Address Code::InstructionStart(Isolate* isolate, Address pc) const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionStart(isolate, pc)
+             : raw_instruction_start();
+}
+
+Address Code::InstructionEnd(Isolate* isolate, Address pc) const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionEnd(isolate, pc)
+             : raw_instruction_end();
+}
+
+int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
+  Address instruction_start = InstructionStart(isolate, pc);
+  Address offset = pc - instruction_start;
+  DCHECK_LE(offset, InstructionSize());
+  return static_cast<int>(offset);
+}
+
 Address Code::MetadataStart() const {
   STATIC_ASSERT(kOnHeapBodyIsContiguous);
   return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataStart()
@@ -322,10 +342,10 @@ int Code::relocation_size() const {
 
 Address Code::entry() const { return raw_instruction_start(); }
 
-bool Code::contains(Address inner_pointer) {
+bool Code::contains(Isolate* isolate, Address inner_pointer) {
   if (is_off_heap_trampoline()) {
-    if (OffHeapInstructionStart() <= inner_pointer &&
-        inner_pointer < OffHeapInstructionEnd()) {
+    if (OffHeapInstructionStart(isolate, inner_pointer) <= inner_pointer &&
+        inner_pointer < OffHeapInstructionEnd(isolate, inner_pointer)) {
       return true;
     }
   }

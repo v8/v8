@@ -232,9 +232,9 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
   Code interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
 
-  if (interpreter_entry_trampoline.contains(pc) ||
-      interpreter_bytecode_advance.contains(pc) ||
-      interpreter_bytecode_dispatch.contains(pc)) {
+  if (interpreter_entry_trampoline.contains(isolate, pc) ||
+      interpreter_bytecode_advance.contains(isolate, pc) ||
+      interpreter_bytecode_dispatch.contains(isolate, pc)) {
     return true;
   } else if (FLAG_interpreted_frames_native_stack) {
     intptr_t marker = Memory<intptr_t>(
@@ -509,23 +509,22 @@ Code GetContainingCode(Isolate* isolate, Address pc) {
 
 Code StackFrame::LookupCode() const {
   Code result = GetContainingCode(isolate(), pc());
-  DCHECK_GE(pc(), result.InstructionStart());
-  DCHECK_LT(pc(), result.InstructionEnd());
+  DCHECK_GE(pc(), result.InstructionStart(isolate(), pc()));
+  DCHECK_LT(pc(), result.InstructionEnd(isolate(), pc()));
   return result;
 }
 
 void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
-                           Address* constant_pool_address, Code holder) {
+                           Address* constant_pool_address, Code holder) const {
   Address old_pc = ReadPC(pc_address);
   DCHECK(ReadOnlyHeap::Contains(holder) ||
          holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
-  unsigned pc_offset =
-      static_cast<unsigned>(old_pc - holder.InstructionStart());
+  unsigned pc_offset = holder.GetOffsetFromInstructionStart(isolate_, old_pc);
   Object code = holder;
   v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&code));
   if (code == holder) return;
   holder = Code::unchecked_cast(code);
-  Address pc = holder.InstructionStart() + pc_offset;
+  Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
   // TODO(v8:10026): avoid replacing a signed pointer.
   PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
   if (FLAG_enable_embedded_constant_pool && constant_pool_address) {
@@ -902,9 +901,9 @@ Object CommonFrame::context() const {
 }
 
 int CommonFrame::position() const {
-  AbstractCode code = AbstractCode::cast(LookupCode());
-  int code_offset = static_cast<int>(pc() - code.InstructionStart());
-  return code.SourcePosition(code_offset);
+  Code code = LookupCode();
+  int code_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
+  return AbstractCode::cast(code).SourcePosition(code_offset);
 }
 
 int CommonFrame::ComputeExpressionsCount() const {
@@ -963,11 +962,12 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
         isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
     if (!entry->safepoint_entry.is_valid()) {
-      entry->safepoint_entry = entry->code.GetSafepointEntry(inner_pointer);
+      entry->safepoint_entry =
+          entry->code.GetSafepointEntry(isolate(), inner_pointer);
       DCHECK(entry->safepoint_entry.is_valid());
     } else {
       DCHECK(entry->safepoint_entry.Equals(
-          entry->code.GetSafepointEntry(inner_pointer)));
+          entry->code.GetSafepointEntry(isolate(), inner_pointer)));
     }
 
     code = entry->code;
@@ -1125,7 +1125,7 @@ int StubFrame::LookupExceptionHandlerInTable() {
   DCHECK(code.is_turbofanned());
   DCHECK_EQ(code.kind(), CodeKind::BUILTIN);
   HandlerTable table(code);
-  int pc_offset = static_cast<int>(pc() - code.InstructionStart());
+  int pc_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   return table.LookupReturn(pc_offset);
 }
 
@@ -1188,7 +1188,7 @@ void CommonFrameWithJSLinkage::Summarize(
     std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   Code code = LookupCode();
-  int offset = static_cast<int>(pc() - code.InstructionStart());
+  int offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   Handle<AbstractCode> abstract_code(AbstractCode::cast(code), isolate());
   Handle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
@@ -1276,7 +1276,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         code_offset = iframe->GetBytecodeOffset();
       } else {
         Code code = frame->unchecked_code();
-        code_offset = static_cast<int>(frame->pc() - code.InstructionStart());
+        code_offset = code.GetOffsetFromInstructionStart(isolate, frame->pc());
       }
       PrintFunctionAndOffset(function, function.abstract_code(isolate),
                              code_offset, file, print_line_number);
@@ -1657,14 +1657,14 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   DCHECK_NULL(prediction);
   Code code = LookupCode();
   HandlerTable table(code);
-  int pc_offset = static_cast<int>(pc() - code.InstructionStart());
+  int pc_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   DCHECK_NULL(data);  // Data is not used and will not return a value.
 
   // When the return pc has been replaced by a trampoline there won't be
   // a handler for this trampoline. Thus we need to use the return pc that
   // _used to be_ on the stack to get the right ExceptionHandler.
   if (CodeKindCanDeoptimize(code.kind()) && code.marked_for_deoptimization()) {
-    SafepointTable safepoints(code);
+    SafepointTable safepoints(isolate(), pc(), code);
     pc_offset = safepoints.find_return_pc(pc_offset);
   }
   return table.LookupReturn(pc_offset);
@@ -1680,13 +1680,13 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   // The code object may have been replaced by lazy deoptimization. Fall
   // back to a slow search in this case to find the original optimized
   // code object.
-  if (!code.contains(pc())) {
+  if (!code.contains(isolate(), pc())) {
     code = isolate()->heap()->GcSafeFindCodeForInnerPointer(pc());
   }
   DCHECK(!code.is_null());
   DCHECK(CodeKindCanDeoptimize(code.kind()));
 
-  SafepointEntry safepoint_entry = code.GetSafepointEntry(pc());
+  SafepointEntry safepoint_entry = code.GetSafepointEntry(isolate(), pc());
   if (safepoint_entry.has_deoptimization_index()) {
     *deopt_index = safepoint_entry.deoptimization_index();
     return DeoptimizationData::cast(code.deoptimization_data());
@@ -2224,10 +2224,13 @@ void InternalFrame::Iterate(RootVisitor* v) const {
 
 namespace {
 
+// Predictably converts PC to uint32 by calculating offset of the PC in
+// from the embedded builtins start or from respective MemoryChunk.
 uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
-  if (InstructionStream::PcIsOffHeap(isolate, address)) {
-    // Ensure that we get predictable hashes for addresses in embedded code.
-    return EmbeddedData::FromBlob(isolate).AddressForHashing(address);
+  uint32_t hashable_address;
+  if (InstructionStream::TryGetAddressForHashing(isolate, address,
+                                                 &hashable_address)) {
+    return hashable_address;
   }
   return ObjectAddressForHashing(address);
 }

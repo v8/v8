@@ -1876,7 +1876,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
       Code code = it.frame()->LookupCode();
-      if (!code.CanDeoptAt(it.frame()->pc())) {
+      if (!code.CanDeoptAt(isolate(), it.frame()->pc())) {
         Code::BodyDescriptor::IterateBody(code.map(), code, visitor);
       }
       return;

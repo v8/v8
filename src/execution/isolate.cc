@@ -736,7 +736,7 @@ class StackTraceBuilder {
     Handle<Object> receiver(exit_frame->receiver(), isolate_);
     Handle<Code> code(exit_frame->LookupCode(), isolate_);
     const int offset =
-        static_cast<int>(exit_frame->pc() - code->InstructionStart());
+        code->GetOffsetFromInstructionStart(isolate_, exit_frame->pc());
 
     int flags = 0;
     if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
@@ -1724,7 +1724,7 @@ Object Isolate::UnwindAndFindHandler() {
         // Gather information from the handler.
         Code code = frame->LookupCode();
         HandlerTable table(code);
-        return FoundHandler(Context(), code.InstructionStart(),
+        return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
                             table.LookupReturn(0), code.constant_pool(),
                             handler->address() + StackHandlerConstants::kSize,
                             0);
@@ -1736,7 +1736,7 @@ Object Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next_address();
         Code code = frame->LookupCode();
         HandlerTable table(code);
-        Address instruction_start = code.InstructionStart();
+        Address instruction_start = code.InstructionStart(this, frame->pc());
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
         int handler_offset = table.LookupReturn(return_offset);
         DCHECK_NE(-1, handler_offset);
@@ -1808,8 +1808,9 @@ Object Isolate::UnwindAndFindHandler() {
           set_deoptimizer_lazy_throw(true);
         }
 
-        return FoundHandler(Context(), code.InstructionStart(), offset,
-                            code.constant_pool(), return_sp, frame->fp());
+        return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
+                            offset, code.constant_pool(), return_sp,
+                            frame->fp());
       }
 
       case StackFrame::STUB: {
@@ -1835,8 +1836,9 @@ Object Isolate::UnwindAndFindHandler() {
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             code.stack_slots() * kSystemPointerSize;
 
-        return FoundHandler(Context(), code.InstructionStart(), offset,
-                            code.constant_pool(), return_sp, frame->fp());
+        return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
+                            offset, code.constant_pool(), return_sp,
+                            frame->fp());
       }
 
       case StackFrame::INTERPRETED:
@@ -1874,8 +1876,9 @@ Object Isolate::UnwindAndFindHandler() {
           // Patch the context register directly on the frame, so that we don't
           // need to have a context read + write in the baseline code.
           sp_frame->PatchContext(context);
-          return FoundHandler(Context(), code.InstructionStart(), pc_offset,
-                              code.constant_pool(), return_sp, sp_frame->fp());
+          return FoundHandler(
+              Context(), code.InstructionStart(this, sp_frame->sp()), pc_offset,
+              code.constant_pool(), return_sp, sp_frame->fp());
         } else {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));

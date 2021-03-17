@@ -519,8 +519,8 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
       Code code = Code::cast(isolate->FindCodeObject(pc));
-      CHECK(target >= code.InstructionStart());
-      CHECK(target <= code.InstructionEnd());
+      CHECK(target >= code.InstructionStart(isolate, pc));
+      CHECK(target <= code.InstructionEnd(isolate, pc));
       break;
     }
     case OFF_HEAP_TARGET: {

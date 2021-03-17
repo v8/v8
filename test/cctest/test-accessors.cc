@@ -527,13 +527,14 @@ THREADED_TEST(Gc) {
 
 static void StackCheck(Local<String> name,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  i::StackFrameIterator iter(isolate);
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
     i::Code code = frame->LookupCode();
     CHECK(code.IsCode());
-    CHECK(code.contains(frame->pc()));
+    CHECK(code.contains(isolate, frame->pc()));
     iter.Advance();
   }
 }

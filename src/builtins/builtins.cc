@@ -112,7 +112,7 @@ const char* Builtins::Lookup(Address pc) {
   // May be called during initialization (disassembler).
   if (initialized_) {
     for (int i = 0; i < builtin_count; i++) {
-      if (isolate_->heap()->builtin(i).contains(pc)) return name(i);
+      if (isolate_->heap()->builtin(i).contains(isolate_, pc)) return name(i);
     }
   }
   return nullptr;

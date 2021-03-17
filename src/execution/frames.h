@@ -286,8 +286,8 @@ class StackFrame {
   V8_EXPORT_PRIVATE Code LookupCode() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
-  static void IteratePc(RootVisitor* v, Address* pc_address,
-                        Address* constant_pool_address, Code holder);
+  void IteratePc(RootVisitor* v, Address* pc_address,
+                 Address* constant_pool_address, Code holder) const;
 
   // Sets a callback function for return-address rewriting profilers
   // to resolve the location of a return address to the location of the
