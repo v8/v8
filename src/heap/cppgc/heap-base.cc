@@ -77,7 +77,7 @@ HeapBase::HeapBase(
       compactor_(raw_heap_),
       object_allocator_(&raw_heap_, page_backend_.get(),
                         stats_collector_.get()),
-      sweeper_(&raw_heap_, platform_.get(), stats_collector_.get()),
+      sweeper_(*this),
       stack_support_(stack_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
