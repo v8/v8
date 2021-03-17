@@ -1763,11 +1763,13 @@ void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
                      Handle<Object> key, char old_state, char new_state,
                      const char* modifier, const char* slow_stub_reason) {
   if (!FLAG_log_ic) return;
-  MSG_BUILDER();
-  if (keyed) msg << "Keyed";
   int line;
   int column;
+  // GetAbstractPC must come before MSG_BUILDER(), as it can GC, which might
+  // attempt to get the log lock again and result in a deadlock.
   Address pc = isolate_->GetAbstractPC(&line, &column);
+  MSG_BUILDER();
+  if (keyed) msg << "Keyed";
   msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << Time()
       << kNext << line << kNext << column << kNext << old_state << kNext
       << new_state << kNext
