@@ -1511,19 +1511,20 @@ void BaselineCompiler::VisitTestIn() {
 }
 
 void BaselineCompiler::VisitTestUndetectable() {
-  Label done, set_false;
-  __ JumpIfSmi(kInterpreterAccumulatorRegister, &set_false, Label::kNear);
+  Label done, is_smi, not_undetectable;
+  __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
   Register map_bit_field = kInterpreterAccumulatorRegister;
   __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
   __ LoadByteField(map_bit_field, map_bit_field, Map::kBitFieldOffset);
   __ Test(map_bit_field, Map::Bits1::IsUndetectableBit::kMask);
-  __ JumpIf(Condition::kZero, &set_false, Label::kNear);
+  __ JumpIf(Condition::kZero, &not_undetectable, Label::kNear);
 
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
   __ Jump(&done, Label::kNear);
 
-  __ Bind(&set_false);
+  __ Bind(&is_smi);
+  __ Bind(&not_undetectable);
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
   __ Bind(&done);
 }
@@ -1547,36 +1548,172 @@ void BaselineCompiler::VisitTestUndefined() {
 }
 
 void BaselineCompiler::VisitTestTypeOf() {
-  uint32_t literal_flag = Flag(0);
-  CallBuiltin(Builtins::kTypeof, kInterpreterAccumulatorRegister);
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
 
-#define TYPEOF_FLAG_VALUE(type_name)                                          \
-  static_cast<                                                                \
-      std::underlying_type<interpreter::TestTypeOfFlags::LiteralFlag>::type>( \
-      interpreter::TestTypeOfFlags::LiteralFlag::k##type_name)
-#define TYPEOF_COMPARE(type_name)                                         \
-  SelectBooleanConstant(kInterpreterAccumulatorRegister,                  \
-                        [&](Label* is_true, Label::Distance distance) {   \
-                          __ JumpIfRoot(kInterpreterAccumulatorRegister,  \
-                                        RootIndex::k##type_name##_string, \
-                                        is_true, distance);               \
-                        });
+  auto literal_flag =
+      static_cast<interpreter::TestTypeOfFlags::LiteralFlag>(Flag(0));
 
-#define TYPEOF_CASE(type_upper, type_lower) \
-  case TYPEOF_FLAG_VALUE(type_upper):       \
-    TYPEOF_COMPARE(type_lower);             \
-    break;
-
+  Label done;
   switch (literal_flag) {
-    default:
-      __ Trap();
-      break;
-      TYPEOF_LITERAL_LIST(TYPEOF_CASE)
-  }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kNumber: {
+      Label is_smi, is_heap_number;
+      __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, HEAP_NUMBER_TYPE,
+                       scratch_scope.AcquireScratch());
+      __ JumpIf(Condition::kEqual, &is_heap_number, Label::kNear);
 
-#undef TYPEOF_COMPARE
-#undef TYPEOF_FLAG_VALUE
-#undef TYPEOF_CASE
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+      __ Jump(&done, Label::kNear);
+
+      __ Bind(&is_smi);
+      __ Bind(&is_heap_number);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+      break;
+    }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kString: {
+      Label is_smi, bad_instance_type;
+      __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
+      STATIC_ASSERT(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, FIRST_NONSTRING_TYPE,
+                       scratch_scope.AcquireScratch());
+      __ JumpIf(Condition::kGreaterThanEqual, &bad_instance_type, Label::kNear);
+
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+      __ Jump(&done, Label::kNear);
+
+      __ Bind(&is_smi);
+      __ Bind(&bad_instance_type);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+      break;
+    }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kSymbol: {
+      Label is_smi, bad_instance_type;
+      __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, SYMBOL_TYPE,
+                       scratch_scope.AcquireScratch());
+      __ JumpIf(Condition::kNotEqual, &bad_instance_type, Label::kNear);
+
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+      __ Jump(&done, Label::kNear);
+
+      __ Bind(&is_smi);
+      __ Bind(&bad_instance_type);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+      break;
+    }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kBoolean: {
+      Label is_true, is_false;
+      __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue,
+                    &is_true, Label::kNear);
+      __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue,
+                    &is_false, Label::kNear);
+
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+      __ Jump(&done, Label::kNear);
+
+      __ Bind(&is_true);
+      __ Bind(&is_false);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+      break;
+    }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kBigInt: {
+      Label is_smi, bad_instance_type;
+      __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, BIGINT_TYPE,
+                       scratch_scope.AcquireScratch());
+      __ JumpIf(Condition::kNotEqual, &bad_instance_type, Label::kNear);
+
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+      __ Jump(&done, Label::kNear);
+
+      __ Bind(&is_smi);
+      __ Bind(&bad_instance_type);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+      break;
+    }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kUndefined: {
+      Label is_smi, is_null, not_undetectable;
+      __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
+
+      // null is undetectable, so test it explicitly, and return false.
+      __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kNullValue,
+                    &is_null, Label::kNear);
+
+      // All other undetectable maps are typeof undefined.
+      Register map_bit_field = kInterpreterAccumulatorRegister;
+      __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
+      __ LoadByteField(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+      __ Test(map_bit_field, Map::Bits1::IsUndetectableBit::kMask);
+      __ JumpIf(Condition::kZero, &not_undetectable, Label::kNear);
+
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+      __ Jump(&done, Label::kNear);
+
+      __ Bind(&is_smi);
+      __ Bind(&is_null);
+      __ Bind(&not_undetectable);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+      break;
+    }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kFunction: {
+      Label is_smi, not_callable, undetectable;
+      __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
+
+      // Check if the map is callable but not undetectable.
+      Register map_bit_field = kInterpreterAccumulatorRegister;
+      __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
+      __ LoadByteField(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+      __ Test(map_bit_field, Map::Bits1::IsCallableBit::kMask);
+      __ JumpIf(Condition::kZero, &not_callable, Label::kNear);
+      __ Test(map_bit_field, Map::Bits1::IsUndetectableBit::kMask);
+      __ JumpIf(Condition::kNotZero, &undetectable, Label::kNear);
+
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+      __ Jump(&done, Label::kNear);
+
+      __ Bind(&is_smi);
+      __ Bind(&not_callable);
+      __ Bind(&undetectable);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+      break;
+    }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kObject: {
+      Label is_smi, is_null, bad_instance_type, undetectable_or_callable;
+      __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
+
+      // If the object is null, return true.
+      __ JumpIfRoot(kInterpreterAccumulatorRegister, RootIndex::kNullValue,
+                    &is_null, Label::kNear);
+
+      // If the object's instance type isn't within the range, return false.
+      STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+      Register map = scratch_scope.AcquireScratch();
+      __ CmpObjectType(kInterpreterAccumulatorRegister, FIRST_JS_RECEIVER_TYPE,
+                       map);
+      __ JumpIf(Condition::kLessThan, &bad_instance_type, Label::kNear);
+
+      // If the map is undetectable or callable, return false.
+      Register map_bit_field = kInterpreterAccumulatorRegister;
+      __ LoadByteField(map_bit_field, map, Map::kBitFieldOffset);
+      __ Test(map_bit_field, Map::Bits1::IsUndetectableBit::kMask |
+                                 Map::Bits1::IsCallableBit::kMask);
+      __ JumpIf(Condition::kNotZero, &undetectable_or_callable, Label::kNear);
+
+      __ Bind(&is_null);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
+      __ Jump(&done, Label::kNear);
+
+      __ Bind(&is_smi);
+      __ Bind(&bad_instance_type);
+      __ Bind(&undetectable_or_callable);
+      __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
+      break;
+    }
+    case interpreter::TestTypeOfFlags::LiteralFlag::kOther:
+    default:
+      UNREACHABLE();
+  }
+  __ Bind(&done);
 }
 
 void BaselineCompiler::VisitToName() {

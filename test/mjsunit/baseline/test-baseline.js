@@ -81,11 +81,14 @@ assertEquals(run(()=>{ var x = 0; for(var i = 0; i < 10; ++i) x+=1; return x;}),
 function testTypeOf(o, t) {
   let types = ['number', 'string', 'symbol', 'boolean', 'bigint', 'undefined',
                'function', 'object'];
-  assertEquals(t, eval('run(()=>typeof ' + o + ')'));
-  assertTrue(eval('run(()=>typeof ' + o + ' == "' + t + '")'));
+  assertEquals(t, eval('run(()=>typeof ' + o + ')'),
+               `(()=>typeof ${o})() == ${t}`);
+  assertTrue(eval('run(()=>typeof ' + o + ' == "' + t + '")'),
+             `typeof ${o} == ${t}`);
   var other_types = types.filter((x) => x !== t);
   for (var other of other_types) {
-    assertFalse(eval('run(()=>typeof ' + o + ' == "' + other + '")'));
+    assertFalse(eval('run(()=>typeof ' + o + ' == "' + other + '")'),
+                `typeof ${o} != ${other}`);
   }
 }
 
@@ -100,15 +103,15 @@ testTypeOf('"42"', 'string');
 testTypeOf('Symbol(42)', 'symbol');
 testTypeOf('{}', 'object');
 testTypeOf('[]', 'object');
-//testTypeOf('new Proxy({}, {})', 'object');
-//testTypeOf('new Proxy([], {})', 'object');
+testTypeOf('new Proxy({}, {})', 'object');
+testTypeOf('new Proxy([], {})', 'object');
 testTypeOf('(_ => 42)', 'function');
 testTypeOf('function() {}', 'function');
 testTypeOf('function*() {}', 'function');
 testTypeOf('async function() {}', 'function');
 testTypeOf('async function*() {}', 'function');
-//testTypeOf('new Proxy(_ => 42, {})', 'function');
-//testTypeOf('class {}', 'function');
+testTypeOf('new Proxy(_ => 42, {})', 'function');
+testTypeOf('class {}', 'function');
 testTypeOf('Object', 'function');
 
 // Binop
