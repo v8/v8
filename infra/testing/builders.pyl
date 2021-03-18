@@ -758,6 +758,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
     ],
   },
   'v8_mac_arm64_sim_dbg_ng_triggered': {
@@ -768,6 +769,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
     ],
   },
   'v8_mac_arm64_sim_nodcheck_rel_ng_triggered': {
@@ -778,6 +780,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -1421,8 +1424,8 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'd8testing'},
-      {'name': 'd8testing', 'variant': 'extra'},
+      {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
   'V8 Mac - arm64 - sim - debug': {
@@ -1438,6 +1441,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
     ],
   },
   'V8 Mac - arm64 - sim - release': {
@@ -1453,6 +1457,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
     ],
   },
   'V8 Win32': {
