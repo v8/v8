@@ -593,6 +593,12 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
   }
 }
 
+#ifdef V8_TARGET_BIG_ENDIAN
+constexpr int stack_bias = -4;
+#else
+constexpr int stack_bias = 0;
+#endif
+
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
   DCHECK_NE(dst_offset, src_offset);
@@ -615,6 +621,9 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
     default:
       UNREACHABLE();
   }
+
+  dst_offset += (length == 4 ? stack_bias : 0);
+  src_offset += (length == 4 ? stack_bias : 0);
 
   if (is_int20(dst_offset)) {
     lay(ip, liftoff::GetStackSlot(dst_offset));
@@ -649,12 +658,6 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
     vlr(dst, src, Condition(0), Condition(0), Condition(0));
   }
 }
-
-#ifdef V8_TARGET_BIG_ENDIAN
-constexpr int stack_bias = -4;
-#else
-constexpr int stack_bias = 0;
-#endif
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
   DCHECK_LT(0, offset);
