@@ -31,7 +31,6 @@ ALL_VARIANT_FLAGS = {
   "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
   "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],
   "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
-                                         "--finalize-streaming-on-background",
                                          "--stress-wasm-code-gc"]],
   "stress_incremental_marking": [["--stress-incremental-marking"]],
   "stress_snapshot": [["--stress-snapshot"]],
@@ -58,8 +57,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "stress_concurrent_inlining": ["--single-threaded", "--predictable", "--no-turbo-direct-heap-access"],
   "stress_incremental_marking": ["--no-stress-incremental-marking"],
-  "future": ["--parallel-compile-tasks", "--no-turbo-direct-heap-access"],
-  "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile", "--parallel-compile-tasks"],
+  "future": ["--no-turbo-direct-heap-access"],
+  "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile"],
   "stress": ["--no-stress-opt", "--always-opt", "--no-always-opt", "--liftoff", "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline"],
   "sparkplug": ["--jitless", "--no-sparkplug" ],
@@ -101,7 +100,7 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
   "--stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "--stress_concurrent_inlining": ["--single-threaded", "--predictable"],
   "--stress-flush-bytecode": ["--no-stress-flush-bytecode"],
-  "--future": ["--parallel-compile-tasks", "--no-turbo-direct-heap-access"],
+  "--future": ["--no-turbo-direct-heap-access"],
   "--stress-incremental-marking": INCOMPATIBLE_FLAGS_PER_VARIANT["stress_incremental_marking"],
 }
 

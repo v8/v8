@@ -1301,11 +1301,11 @@ DEFINE_BOOL(script_streaming, true, "enable parsing on background")
 DEFINE_BOOL(stress_background_compile, false,
             "stress test parsing on background")
 DEFINE_BOOL(
-    finalize_streaming_on_background, false,
+    finalize_streaming_on_background, true,
     "perform the script streaming finalization on the background thread")
 // TODO(leszeks): Parallel compile tasks currently don't support off-thread
 // finalization.
-DEFINE_NEG_IMPLICATION(finalize_streaming_on_background, parallel_compile_tasks)
+DEFINE_NEG_IMPLICATION(parallel_compile_tasks, finalize_streaming_on_background)
 DEFINE_BOOL(disable_old_api_accessors, false,
             "Disable old-style API accessors whose setters trigger through the "
             "prototype chain")
