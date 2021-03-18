@@ -2709,9 +2709,8 @@ SIMD_VISIT_PMIN_MAX(F32x4Pmax)
 #if V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
-  uint8_t* shuffle_p = &shuffle[0];
-  bool is_swizzle;
-  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  auto param = ShuffleParameterOf(node->op());
+  base::Memcpy(shuffle, param.imm().data(), kSimd128Size);
   S390OperandGenerator g(this);
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
@@ -2725,13 +2724,12 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
                                ? max_index - current_index
                                : total_lane_count - current_index + max_index);
   }
-  shuffle_p = &shuffle_remapped[0];
   Emit(kS390_I8x16Shuffle, g.DefineAsRegister(node),
        g.UseUniqueRegister(input0), g.UseUniqueRegister(input1),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p + 4)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p + 8)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p + 12)));
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
 }
 #else
 void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
