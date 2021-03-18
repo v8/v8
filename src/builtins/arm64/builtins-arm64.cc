@@ -1518,10 +1518,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Ldr(kJavaScriptCallCodeStartRegister,
          MemOperand(kInterpreterDispatchTableRegister, x1));
   __ Call(kJavaScriptCallCodeStartRegister);
-  masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
   // Any returns to the entry trampoline are either due to the return bytecode
   // or the interpreter tail calling a builtin and then a dispatch.
+  masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
+  __ JumpTarget();
 
   // Get bytecode array and bytecode offset from the stack frame.
   __ Ldr(kInterpreterBytecodeArrayRegister,
@@ -1767,41 +1768,6 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 }
 
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
-  // Set the return address to the correct point in the interpreter entry
-  // trampoline.
-  Label builtin_trampoline, trampoline_loaded;
-  Smi interpreter_entry_return_pc_offset(
-      masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::zero());
-
-  // If the SFI function_data is an InterpreterData, the function will have a
-  // custom copy of the interpreter entry trampoline for profiling. If so,
-  // get the custom trampoline, otherwise grab the entry address of the global
-  // trampoline.
-  __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedPointerField(
-      x1, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadTaggedPointerField(
-      x1, FieldMemOperand(x1, SharedFunctionInfo::kFunctionDataOffset));
-  __ CompareObjectType(x1, kInterpreterDispatchTableRegister,
-                       kInterpreterDispatchTableRegister,
-                       INTERPRETER_DATA_TYPE);
-  __ B(ne, &builtin_trampoline);
-
-  __ LoadTaggedPointerField(
-      x1, FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
-  __ Add(x1, x1, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ B(&trampoline_loaded);
-
-  __ Bind(&builtin_trampoline);
-  __ Mov(x1, ExternalReference::
-                 address_of_interpreter_entry_trampoline_instruction_start(
-                     masm->isolate()));
-  __ Ldr(x1, MemOperand(x1));
-
-  __ Bind(&trampoline_loaded);
-  __ Add(lr, x1, Operand(interpreter_entry_return_pc_offset.value()));
-
   // Initialize the dispatch table register.
   __ Mov(
       kInterpreterDispatchTableRegister,
@@ -1835,6 +1801,11 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     __ bind(&okay);
   }
 
+  // Set up LR to point to code below, so we return there after we're done
+  // executing the function.
+  Label return_from_bytecode_dispatch;
+  __ Adr(lr, &return_from_bytecode_dispatch);
+
   // Dispatch to the target bytecode.
   __ Ldrb(x23, MemOperand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister));
@@ -1846,6 +1817,45 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   temps.Exclude(x17);
   __ Mov(x17, kJavaScriptCallCodeStartRegister);
   __ Jump(x17);
+
+  __ Bind(&return_from_bytecode_dispatch);
+
+  // We return here after having executed the function in the interpreter.
+  // Now jump to the correct point in the interpreter entry trampoline.
+  Label builtin_trampoline, trampoline_loaded;
+  Smi interpreter_entry_return_pc_offset(
+      masm->isolate()->heap()->interpreter_entry_return_pc_offset());
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::zero());
+
+  // If the SFI function_data is an InterpreterData, the function will have a
+  // custom copy of the interpreter entry trampoline for profiling. If so,
+  // get the custom trampoline, otherwise grab the entry address of the global
+  // trampoline.
+  __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ LoadTaggedPointerField(
+      x1, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      x1, FieldMemOperand(x1, SharedFunctionInfo::kFunctionDataOffset));
+  __ CompareObjectType(x1, kInterpreterDispatchTableRegister,
+                       kInterpreterDispatchTableRegister,
+                       INTERPRETER_DATA_TYPE);
+  __ B(ne, &builtin_trampoline);
+
+  __ LoadTaggedPointerField(
+      x1, FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
+  __ Add(x1, x1, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ B(&trampoline_loaded);
+
+  __ Bind(&builtin_trampoline);
+  __ Mov(x1, ExternalReference::
+                 address_of_interpreter_entry_trampoline_instruction_start(
+                     masm->isolate()));
+  __ Ldr(x1, MemOperand(x1));
+
+  __ Bind(&trampoline_loaded);
+
+  __ Add(x17, x1, Operand(interpreter_entry_return_pc_offset.value()));
+  __ Br(x17);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
