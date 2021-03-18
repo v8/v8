@@ -2735,7 +2735,7 @@ void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
     // 2. SSE4_2, dst == lhs.
     if (dst != lhs) {
-      movdqa(dst.fp(), lhs.fp());
+      movaps(dst.fp(), lhs.fp());
     }
     I64x2GtS(dst.fp(), dst.fp(), rhs.fp());
   } else {
@@ -2761,7 +2761,7 @@ void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
     if (dst == lhs) {
       // macro-assembler uses kScratchDoubleReg, so don't use it.
       I64x2GeS(liftoff::kScratchDoubleReg2, lhs.fp(), rhs.fp());
-      movdqa(dst.fp(), liftoff::kScratchDoubleReg2);
+      movaps(dst.fp(), liftoff::kScratchDoubleReg2);
     } else {
       I64x2GeS(dst.fp(), lhs.fp(), rhs.fp());
     }
@@ -2870,11 +2870,11 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
                                         LiftoffRegister mask) {
-  // Ensure that we don't overwrite any inputs with the movdqu below.
+  // Ensure that we don't overwrite any inputs with the movaps below.
   DCHECK_NE(dst, src1);
   DCHECK_NE(dst, src2);
   if (!CpuFeatures::IsSupported(AVX) && dst != mask) {
-    movdqu(dst.fp(), mask.fp());
+    movaps(dst.fp(), mask.fp());
     S128Select(dst.fp(), dst.fp(), src1.fp(), src2.fp());
   } else {
     S128Select(dst.fp(), mask.fp(), src1.fp(), src2.fp());
@@ -2926,7 +2926,7 @@ void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
     vpand(dst.fp(), lhs.fp(), kScratchDoubleReg);
   } else {
     if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    pand(dst.fp(), kScratchDoubleReg);
+    andps(dst.fp(), kScratchDoubleReg);
   }
   subq(kScratchRegister, Immediate(8));
   Movq(tmp_simd.fp(), kScratchRegister);
@@ -3427,7 +3427,7 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
     vpsubq(dst.fp(), reg, src.fp());
   } else {
     psubq(reg, src.fp());
-    if (dst.fp() != reg) movapd(dst.fp(), reg);
+    if (dst.fp() != reg) movaps(dst.fp(), reg);
   }
 }
 
@@ -3813,13 +3813,13 @@ void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
     vminpd(dst.fp(), rhs.fp(), lhs.fp());
   } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
     XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movapd(kScratchDoubleReg, src);
+    movaps(kScratchDoubleReg, src);
     minpd(kScratchDoubleReg, dst.fp());
     minpd(dst.fp(), src);
   } else {
-    movapd(kScratchDoubleReg, lhs.fp());
+    movaps(kScratchDoubleReg, lhs.fp());
     minpd(kScratchDoubleReg, rhs.fp());
-    movapd(dst.fp(), rhs.fp());
+    movaps(dst.fp(), rhs.fp());
     minpd(dst.fp(), lhs.fp());
   }
   // propagate -0's and NaNs, which may be non-canonical.
@@ -3841,13 +3841,13 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
     vmaxpd(dst.fp(), rhs.fp(), lhs.fp());
   } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
     XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movapd(kScratchDoubleReg, src);
+    movaps(kScratchDoubleReg, src);
     maxpd(kScratchDoubleReg, dst.fp());
     maxpd(dst.fp(), src);
   } else {
-    movapd(kScratchDoubleReg, lhs.fp());
+    movaps(kScratchDoubleReg, lhs.fp());
     maxpd(kScratchDoubleReg, rhs.fp());
-    movapd(dst.fp(), rhs.fp());
+    movaps(dst.fp(), rhs.fp());
     maxpd(dst.fp(), lhs.fp());
   }
   // Find discrepancies.
@@ -3902,7 +3902,7 @@ void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
     movaps(kScratchDoubleReg, src.fp());
     cmpeqps(kScratchDoubleReg, kScratchDoubleReg);
     if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
-    pand(dst.fp(), kScratchDoubleReg);
+    andps(dst.fp(), kScratchDoubleReg);
   }
   // Set top bit if >= 0 (but not -0.0!).
   Pxor(kScratchDoubleReg, dst.fp());

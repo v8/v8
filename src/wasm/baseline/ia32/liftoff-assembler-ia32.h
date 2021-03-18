@@ -3148,7 +3148,7 @@ void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
     // 2. SSE4_2, dst == lhs.
     if (dst != lhs) {
-      movdqa(dst.fp(), lhs.fp());
+      movaps(dst.fp(), lhs.fp());
     }
     I64x2GtS(dst.fp(), dst.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
   } else {
@@ -3177,7 +3177,7 @@ void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                               LiftoffRegList::ForRegs(lhs));
       // macro-assembler uses kScratchDoubleReg, so don't use it.
       I64x2GeS(tmp.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
-      movdqa(dst.fp(), tmp.fp());
+      movaps(dst.fp(), tmp.fp());
     } else {
       I64x2GeS(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
     }
@@ -3293,11 +3293,11 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
                                         LiftoffRegister mask) {
-  // Ensure that we don't overwrite any inputs with the movdqu below.
+  // Ensure that we don't overwrite any inputs with the movaps below.
   DCHECK_NE(dst, src1);
   DCHECK_NE(dst, src2);
   if (!CpuFeatures::IsSupported(AVX) && dst != mask) {
-    movdqu(dst.fp(), mask.fp());
+    movaps(dst.fp(), mask.fp());
     S128Select(dst.fp(), dst.fp(), src1.fp(), src2.fp(),
                liftoff::kScratchDoubleReg);
   } else {
@@ -3353,7 +3353,7 @@ void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
     vpand(dst.fp(), lhs.fp(), liftoff::kScratchDoubleReg);
   } else {
     if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    pand(dst.fp(), liftoff::kScratchDoubleReg);
+    andps(dst.fp(), liftoff::kScratchDoubleReg);
   }
   sub(tmp.gp(), Immediate(8));
   Movd(tmp_simd.fp(), tmp.gp());
@@ -4368,7 +4368,7 @@ void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
     movaps(liftoff::kScratchDoubleReg, src.fp());
     cmpeqps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
     if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
-    pand(dst.fp(), liftoff::kScratchDoubleReg);
+    andps(dst.fp(), liftoff::kScratchDoubleReg);
   }
   // Set top bit if >= 0 (but not -0.0!).
   Pxor(liftoff::kScratchDoubleReg, dst.fp());

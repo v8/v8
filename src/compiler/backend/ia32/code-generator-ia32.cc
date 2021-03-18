@@ -1488,7 +1488,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister tmp = i.TempSimd128Register(0);
       __ pcmpeqd(tmp, tmp);
       __ psrlq(tmp, 1);
-      __ andpd(i.OutputDoubleRegister(), tmp);
+      __ andps(i.OutputDoubleRegister(), tmp);
       break;
     }
     case kSSEFloat64Neg: {
@@ -1496,7 +1496,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister tmp = i.TempSimd128Register(0);
       __ pcmpeqd(tmp, tmp);
       __ psllq(tmp, 63);
-      __ xorpd(i.OutputDoubleRegister(), tmp);
+      __ xorps(i.OutputDoubleRegister(), tmp);
       break;
     }
     case kSSEFloat64Sqrt:
@@ -1657,7 +1657,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat64SilenceNaN:
-      __ xorpd(kScratchDoubleReg, kScratchDoubleReg);
+      __ xorps(kScratchDoubleReg, kScratchDoubleReg);
       __ subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
       break;
     case kIA32Movsxbl:
@@ -2687,7 +2687,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pcmpeqd(i.OutputSimd128Register(), i.InputOperand(1));
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      __ xorps(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
     case kAVXI32x4Ne: {
@@ -2733,7 +2733,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister tmp = i.TempSimd128Register(0);
       // NAN->0, negative->0
-      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      __ xorps(kScratchDoubleReg, kScratchDoubleReg);
       __ maxps(dst, kScratchDoubleReg);
       // scratch: float representation of max_signed
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
@@ -2746,8 +2746,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ subps(tmp, kScratchDoubleReg);
       __ cmpleps(kScratchDoubleReg, tmp);
       __ cvttps2dq(tmp, tmp);
-      __ pxor(tmp, kScratchDoubleReg);
-      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      __ xorps(tmp, kScratchDoubleReg);
+      __ xorps(kScratchDoubleReg, kScratchDoubleReg);
       __ pmaxsd(tmp, kScratchDoubleReg);
       // convert. Overflow lanes above max_signed will be 0x80000000
       __ cvttps2dq(dst, dst);
@@ -2827,7 +2827,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pmaxud(dst, src);
       __ pcmpeqd(dst, src);
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(dst, kScratchDoubleReg);
+      __ xorps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXI32x4GtU: {
@@ -3016,7 +3016,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pcmpeqw(i.OutputSimd128Register(), i.InputOperand(1));
       __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      __ xorps(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
     case kAVXI16x8Ne: {
@@ -3135,7 +3135,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pmaxuw(dst, src);
       __ pcmpeqw(dst, src);
       __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(dst, kScratchDoubleReg);
+      __ xorps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXI16x8GtU: {
@@ -3386,7 +3386,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pcmpeqb(i.OutputSimd128Register(), i.InputOperand(1));
       __ pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      __ xorps(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
     case kAVXI8x16Ne: {
@@ -3493,7 +3493,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pmaxub(dst, src);
       __ pcmpeqb(dst, src);
       __ pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(dst, kScratchDoubleReg);
+      __ xorps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXI8x16GtU: {
@@ -3577,7 +3577,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kSSES128And: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pand(i.OutputSimd128Register(), i.InputOperand(1));
+      __ andps(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
     case kAVXS128And: {
@@ -3588,7 +3588,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kSSES128Or: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ por(i.OutputSimd128Register(), i.InputOperand(1));
+      __ orps(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
     case kAVXS128Or: {
@@ -3599,7 +3599,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kSSES128Xor: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pxor(i.OutputSimd128Register(), i.InputOperand(1));
+      __ xorps(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
     case kAVXS128Xor: {
@@ -3864,7 +3864,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src2 = dst;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      __ xorps(kScratchDoubleReg, kScratchDoubleReg);
       if (instr->InputCount() == 2) {
         __ pblendw(kScratchDoubleReg, i.InputOperand(1), 0x55);
         src2 = kScratchDoubleReg;
@@ -3953,7 +3953,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ psllw(kScratchDoubleReg, 8);
       }
       __ psrlw(dst, 8);
-      __ por(dst, kScratchDoubleReg);
+      __ orps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXS8x16TransposeLow: {
@@ -3983,7 +3983,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ psrlw(kScratchDoubleReg, 8);
       }
       __ psllw(kScratchDoubleReg, 8);
-      __ por(dst, kScratchDoubleReg);
+      __ orps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXS8x16TransposeHigh: {
@@ -4016,7 +4016,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movaps(kScratchDoubleReg, dst);
       __ psrlw(kScratchDoubleReg, 8);
       __ psllw(dst, 8);
-      __ por(dst, kScratchDoubleReg);
+      __ orps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXS8x2Reverse:

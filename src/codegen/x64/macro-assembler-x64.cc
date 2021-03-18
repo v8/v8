@@ -1939,7 +1939,7 @@ void PinsrHelper(Assembler* assm, AvxFn<Src> avx, NoAvxFn<Src> noavx,
   }
 
   if (dst != src1) {
-    assm->movdqu(dst, src1);
+    assm->movaps(dst, src1);
   }
   if (feature.has_value()) {
     DCHECK(CpuFeatures::IsSupported(*feature));
@@ -2111,7 +2111,7 @@ void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src,
     // Make sure these are different so that we won't overwrite mask.
     DCHECK_NE(dst, mask);
     if (dst != src) {
-      movapd(dst, src);
+      movaps(dst, src);
     }
     CpuFeatureScope sse_scope(this, SSSE3);
     pshufb(dst, mask);
@@ -2296,7 +2296,7 @@ void TurboAssembler::I32x4ExtMul(XMMRegister dst, XMMRegister src1,
         : vpunpckhwd(dst, kScratchDoubleReg, dst);
   } else {
     DCHECK_EQ(dst, src1);
-    movdqu(kScratchDoubleReg, src1);
+    movaps(kScratchDoubleReg, src1);
     pmullw(dst, src2);
     is_signed ? pmulhw(kScratchDoubleReg, src2)
               : pmulhuw(kScratchDoubleReg, src2);
@@ -2689,7 +2689,7 @@ void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
     pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
     psrld(kScratchDoubleReg, byte{16});
     // kScratchDoubleReg =|0|b|0|d|0|f|0|h|
-    pand(kScratchDoubleReg, src);
+    andps(kScratchDoubleReg, src);
     // dst = |0|a|0|c|0|e|0|g|
     if (dst != src) {
       movaps(dst, src);
