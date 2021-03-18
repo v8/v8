@@ -388,6 +388,22 @@ bool ExpectFused(TestExecutionTier tier) {
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
                              TestExecutionTier execution_tier)
 
+// Use this for experimental relaxed-simd opcodes.
+#define WASM_RELAXED_SIMD_TEST(name)                                      \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
+                             TestExecutionTier execution_tier);           \
+  TEST(RunWasm_##name##_turbofan) {                                       \
+    if (!CpuFeatures::SupportsWasmSimd128()) return;                      \
+    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                                \
+    RunWasm_##name##_Impl(kNoLowerSimd, TestExecutionTier::kTurbofan);    \
+  }                                                                       \
+  TEST(RunWasm_##name##_interpreter) {                                    \
+    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                                \
+    RunWasm_##name##_Impl(kNoLowerSimd, TestExecutionTier::kInterpreter); \
+  }                                                                       \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
+                             TestExecutionTier execution_tier)
+
 // Returns true if the platform can represent the result.
 template <typename T>
 bool PlatformCanRepresent(T x) {
@@ -627,12 +643,12 @@ WASM_SIMD_TEST(F32x4Sqrt) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Sqrt, std::sqrt);
 }
 
-WASM_SIMD_TEST_POST_MVP(F32x4RecipApprox) {
+WASM_RELAXED_SIMD_TEST(F32x4RecipApprox) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipApprox,
                    base::Recip, false /* !exact */);
 }
 
-WASM_SIMD_TEST_POST_MVP(F32x4RecipSqrtApprox) {
+WASM_RELAXED_SIMD_TEST(F32x4RecipSqrtApprox) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipSqrtApprox,
                    base::RecipSqrt, false /* !exact */);
 }
@@ -785,7 +801,7 @@ WASM_SIMD_TEST(F32x4Le) {
 }
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
-WASM_SIMD_TEST_POST_MVP(F32x4Qfma) {
+WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
   WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
   // Set up global to hold mask output.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
@@ -809,7 +825,7 @@ WASM_SIMD_TEST_POST_MVP(F32x4Qfma) {
   }
 }
 
-WASM_SIMD_TEST_POST_MVP(F32x4Qfms) {
+WASM_RELAXED_SIMD_TEST(F32x4Qfms) {
   WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
   // Set up global to hold mask output.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
@@ -1509,7 +1525,7 @@ WASM_SIMD_TEST(I64x2Mul) {
 }
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
-WASM_SIMD_TEST_POST_MVP(F64x2Qfma) {
+WASM_RELAXED_SIMD_TEST(F64x2Qfma) {
   WasmRunner<int32_t, double, double, double> r(execution_tier, lower_simd);
   // Set up global to hold mask output.
   double* g = r.builder().AddGlobal<double>(kWasmS128);
@@ -1533,7 +1549,7 @@ WASM_SIMD_TEST_POST_MVP(F64x2Qfma) {
   }
 }
 
-WASM_SIMD_TEST_POST_MVP(F64x2Qfms) {
+WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
   WasmRunner<int32_t, double, double, double> r(execution_tier, lower_simd);
   // Set up global to hold mask output.
   double* g = r.builder().AddGlobal<double>(kWasmS128);

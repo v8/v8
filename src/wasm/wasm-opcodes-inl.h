@@ -545,8 +545,19 @@ constexpr bool WasmOpcodes::IsThrowingOpcode(WasmOpcode opcode) {
 constexpr bool WasmOpcodes::IsSimdPostMvpOpcode(WasmOpcode opcode) {
   switch (opcode) {
 #define CHECK_OPCODE(name, opcode, _) case kExpr##name:
-    FOREACH_SIMD_POST_MVP_OPCODE(CHECK_OPCODE)
     FOREACH_SIMD_POST_MVP_MEM_OPCODE(CHECK_OPCODE)
+#undef CHECK_OPCODE
+    return true;
+    default:
+      return false;
+  }
+}
+
+// static
+constexpr bool WasmOpcodes::IsRelaxedSimdOpcode(WasmOpcode opcode) {
+  switch (opcode) {
+#define CHECK_OPCODE(name, opcode, _) case kExpr##name:
+    FOREACH_RELAXED_SIMD_OPCODE(CHECK_OPCODE)
 #undef CHECK_OPCODE
     return true;
     default:

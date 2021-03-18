@@ -2359,12 +2359,20 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
-  bool CheckSimdPostMvp(WasmOpcode opcode) {
+  bool CheckSimdFeatureFlagOpcode(WasmOpcode opcode) {
     if (!FLAG_wasm_simd_post_mvp && WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {
       this->DecodeError(
           "simd opcode not available, enable with --wasm-simd-post-mvp");
       return false;
     }
+
+    if (!FLAG_experimental_wasm_relaxed_simd &&
+        WasmOpcodes::IsRelaxedSimdOpcode(opcode)) {
+      this->DecodeError(
+          "simd opcode not available, enable with --experimental-relaxed-simd");
+      return false;
+    }
+
     return true;
   }
 
@@ -3338,7 +3346,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this->pc_, &opcode_length);
     if (!VALIDATE(this->ok())) return 0;
     trace_msg->AppendOpcode(full_opcode);
-    if (!CheckSimdPostMvp(full_opcode)) {
+    if (!CheckSimdFeatureFlagOpcode(full_opcode)) {
       return 0;
     }
     return DecodeSimdOpcode(full_opcode, opcode_length);
