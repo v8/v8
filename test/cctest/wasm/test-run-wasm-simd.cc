@@ -8,8 +8,10 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <map>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "src/base/bits.h"
@@ -19,7 +21,6 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
@@ -33,6 +34,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-simd-utils.h"
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -47,7 +49,6 @@ namespace {
 using DoubleUnOp = double (*)(double);
 using DoubleBinOp = double (*)(double, double);
 using DoubleCompareOp = int64_t (*)(double, double);
-using FloatUnOp = float (*)(float);
 using FloatBinOp = float (*)(float, float);
 using FloatCompareOp = int (*)(float, float);
 using Int64UnOp = int64_t (*)(int64_t);
@@ -240,96 +241,6 @@ int64_t GreaterEqual(double a, double b) { return a >= b ? -1 : 0; }
 int64_t Less(double a, double b) { return a < b ? -1 : 0; }
 
 int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
-
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
-// Only used for qfma and qfms tests below.
-
-// FMOperation holds the params (a, b, c) for a Multiply-Add or
-// Multiply-Subtract operation, and the expected result if the operation was
-// fused, rounded only once for the entire operation, or unfused, rounded after
-// multiply and again after add/subtract.
-template <typename T>
-struct FMOperation {
-  const T a;
-  const T b;
-  const T c;
-  const T fused_result;
-  const T unfused_result;
-};
-
-// large_n is large number that overflows T when multiplied by itself, this is a
-// useful constant to test fused/unfused behavior.
-template <typename T>
-constexpr T large_n = T(0);
-
-template <>
-constexpr double large_n<double> = 1e200;
-
-template <>
-constexpr float large_n<float> = 1e20;
-
-// Fused Multiply-Add performs a + b * c.
-template <typename T>
-static constexpr FMOperation<T> qfma_array[] = {
-    {1.0f, 2.0f, 3.0f, 7.0f, 7.0f},
-    // fused: a + b * c = -inf + (positive overflow) = -inf
-    // unfused: a + b * c = -inf + inf = NaN
-    {-std::numeric_limits<T>::infinity(), large_n<T>, large_n<T>,
-     -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN()},
-    // fused: a + b * c = inf + (negative overflow) = inf
-    // unfused: a + b * c = inf + -inf = NaN
-    {std::numeric_limits<T>::infinity(), -large_n<T>, large_n<T>,
-     std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN()},
-    // NaN
-    {std::numeric_limits<T>::quiet_NaN(), 2.0f, 3.0f,
-     std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()},
-    // -NaN
-    {-std::numeric_limits<T>::quiet_NaN(), 2.0f, 3.0f,
-     std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()}};
-
-template <typename T>
-static constexpr Vector<const FMOperation<T>> qfma_vector() {
-  return ArrayVector(qfma_array<T>);
-}
-
-// Fused Multiply-Subtract performs a - b * c.
-template <typename T>
-static constexpr FMOperation<T> qfms_array[]{
-    {1.0f, 2.0f, 3.0f, -5.0f, -5.0f},
-    // fused: a - b * c = inf - (positive overflow) = inf
-    // unfused: a - b * c = inf - inf = NaN
-    {std::numeric_limits<T>::infinity(), large_n<T>, large_n<T>,
-     std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN()},
-    // fused: a - b * c = -inf - (negative overflow) = -inf
-    // unfused: a - b * c = -inf - -inf = NaN
-    {-std::numeric_limits<T>::infinity(), -large_n<T>, large_n<T>,
-     -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN()},
-    // NaN
-    {std::numeric_limits<T>::quiet_NaN(), 2.0f, 3.0f,
-     std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()},
-    // -NaN
-    {-std::numeric_limits<T>::quiet_NaN(), 2.0f, 3.0f,
-     std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()}};
-
-template <typename T>
-static constexpr Vector<const FMOperation<T>> qfms_vector() {
-  return ArrayVector(qfms_array<T>);
-}
-
-// Fused results only when fma3 feature is enabled, and running on TurboFan or
-// Liftoff (which can fall back to TurboFan if FMA is not implemented).
-bool ExpectFused(TestExecutionTier tier) {
-#ifdef V8_TARGET_ARCH_X64
-  return CpuFeatures::IsSupported(FMA3) &&
-         (tier == TestExecutionTier::kTurbofan ||
-          tier == TestExecutionTier::kLiftoff);
-#else
-  return (tier == TestExecutionTier::kTurbofan ||
-          tier == TestExecutionTier::kLiftoff);
-#endif
-}
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
-
 }  // namespace
 
 #define WASM_SIMD_CHECK_LANE_S(TYPE, value, LANE_TYPE, lane_value, lane_index) \
@@ -387,42 +298,6 @@ bool ExpectFused(TestExecutionTier tier) {
   }                                                                       \
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
                              TestExecutionTier execution_tier)
-
-// Use this for experimental relaxed-simd opcodes.
-#define WASM_RELAXED_SIMD_TEST(name)                                      \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
-                             TestExecutionTier execution_tier);           \
-  TEST(RunWasm_##name##_turbofan) {                                       \
-    if (!CpuFeatures::SupportsWasmSimd128()) return;                      \
-    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                                \
-    RunWasm_##name##_Impl(kNoLowerSimd, TestExecutionTier::kTurbofan);    \
-  }                                                                       \
-  TEST(RunWasm_##name##_interpreter) {                                    \
-    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                                \
-    RunWasm_##name##_Impl(kNoLowerSimd, TestExecutionTier::kInterpreter); \
-  }                                                                       \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
-                             TestExecutionTier execution_tier)
-
-// Returns true if the platform can represent the result.
-template <typename T>
-bool PlatformCanRepresent(T x) {
-#if V8_TARGET_ARCH_ARM
-  return std::fpclassify(x) != FP_SUBNORMAL;
-#else
-  return true;
-#endif
-}
-
-// Returns true for very small and very large numbers. We skip these test
-// values for the approximation instructions, which don't work at the extremes.
-bool IsExtreme(float x) {
-  float abs_x = std::fabs(x);
-  const float kSmallFloatThreshold = 1.0e-32f;
-  const float kLargeFloatThreshold = 1.0e32f;
-  return abs_x != 0.0f &&  // 0 or -0 are fine.
-         (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
-}
 
 #if V8_OS_AIX
 template <typename T>
@@ -524,113 +399,6 @@ WASM_SIMD_TEST(F32x4ConvertI32x4) {
   }
 }
 
-bool IsSameNan(float expected, float actual) {
-  // Sign is non-deterministic.
-  uint32_t expected_bits = bit_cast<uint32_t>(expected) & ~0x80000000;
-  uint32_t actual_bits = bit_cast<uint32_t>(actual) & ~0x80000000;
-  // Some implementations convert signaling NaNs to quiet NaNs.
-  return (expected_bits == actual_bits) ||
-         ((expected_bits | 0x00400000) == actual_bits);
-}
-
-bool IsCanonical(float actual) {
-  uint32_t actual_bits = bit_cast<uint32_t>(actual);
-  // Canonical NaN has quiet bit and no payload.
-  return (actual_bits & 0xFFC00000) == actual_bits;
-}
-
-void CheckFloatResult(float x, float y, float expected, float actual,
-                      bool exact = true) {
-  if (std::isnan(expected)) {
-    CHECK(std::isnan(actual));
-    if (std::isnan(x) && IsSameNan(x, actual)) return;
-    if (std::isnan(y) && IsSameNan(y, actual)) return;
-    if (IsSameNan(expected, actual)) return;
-    if (IsCanonical(actual)) return;
-    // This is expected to assert; it's useful for debugging.
-    CHECK_EQ(bit_cast<uint32_t>(expected), bit_cast<uint32_t>(actual));
-  } else {
-    if (exact) {
-      CHECK_EQ(expected, actual);
-      // The sign of 0's must match.
-      CHECK_EQ(std::signbit(expected), std::signbit(actual));
-      return;
-    }
-    // Otherwise, perform an approximate equality test. First check for
-    // equality to handle +/-Infinity where approximate equality doesn't work.
-    if (expected == actual) return;
-
-    // 1% error allows all platforms to pass easily.
-    constexpr float kApproximationError = 0.01f;
-    float abs_error = std::abs(expected) * kApproximationError,
-          min = expected - abs_error, max = expected + abs_error;
-    CHECK_LE(min, actual);
-    CHECK_GE(max, actual);
-  }
-}
-
-// Test some values not included in the float inputs from value_helper. These
-// tests are useful for opcodes that are synthesized during code gen, like Min
-// and Max on ia32 and x64.
-static constexpr uint32_t nan_test_array[] = {
-    // Bit patterns of quiet NaNs and signaling NaNs, with or without
-    // additional payload.
-    0x7FC00000, 0xFFC00000, 0x7FFFFFFF, 0xFFFFFFFF, 0x7F876543, 0xFF876543,
-    // NaN with top payload bit unset.
-    0x7FA00000,
-    // Both Infinities.
-    0x7F800000, 0xFF800000,
-    // Some "normal" numbers, 1 and -1.
-    0x3F800000, 0xBF800000};
-
-#define FOR_FLOAT32_NAN_INPUTS(i) \
-  for (size_t i = 0; i < arraysize(nan_test_array); ++i)
-
-void RunF32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, FloatUnOp expected_op,
-                      bool exact = true) {
-  WasmRunner<int32_t, float> r(execution_tier, lower_simd);
-  // Global to hold output.
-  float* g = r.builder().AddGlobal<float>(kWasmS128);
-  // Build fn to splat test value, perform unop, and write the result.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
-        WASM_ONE);
-
-  FOR_FLOAT32_INPUTS(x) {
-    if (!PlatformCanRepresent(x)) continue;
-    // Extreme values have larger errors so skip them for approximation tests.
-    if (!exact && IsExtreme(x)) continue;
-    float expected = expected_op(x);
-#if V8_OS_AIX
-    if (!MightReverseSign<FloatUnOp>(expected_op))
-      expected = FpOpWorkaround<float>(x, expected);
-#endif
-    if (!PlatformCanRepresent(expected)) continue;
-    r.Call(x);
-    for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
-      CheckFloatResult(x, x, expected, actual, exact);
-    }
-  }
-
-  FOR_FLOAT32_NAN_INPUTS(i) {
-    float x = bit_cast<float>(nan_test_array[i]);
-    if (!PlatformCanRepresent(x)) continue;
-    // Extreme values have larger errors so skip them for approximation tests.
-    if (!exact && IsExtreme(x)) continue;
-    float expected = expected_op(x);
-    if (!PlatformCanRepresent(expected)) continue;
-    r.Call(x);
-    for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
-      CheckFloatResult(x, x, expected, actual, exact);
-    }
-  }
-}
-
 WASM_SIMD_TEST(F32x4Abs) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Abs, std::abs);
 }
@@ -641,16 +409,6 @@ WASM_SIMD_TEST(F32x4Neg) {
 
 WASM_SIMD_TEST(F32x4Sqrt) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Sqrt, std::sqrt);
-}
-
-WASM_RELAXED_SIMD_TEST(F32x4RecipApprox) {
-  RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipApprox,
-                   base::Recip, false /* !exact */);
-}
-
-WASM_RELAXED_SIMD_TEST(F32x4RecipSqrtApprox) {
-  RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipSqrtApprox,
-                   base::RecipSqrt, false /* !exact */);
 }
 
 WASM_SIMD_TEST(F32x4Ceil) {
@@ -715,8 +473,6 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     }
   }
 }
-
-#undef FOR_FLOAT32_NAN_INPUTS
 
 WASM_SIMD_TEST(F32x4Add) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Add, Add);
@@ -799,56 +555,6 @@ WASM_SIMD_TEST(F32x4Lt) {
 WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_tier, lower_simd, kExprF32x4Le, LessEqual);
 }
-
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
-WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
-  WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
-  // Set up global to hold mask output.
-  float* g = r.builder().AddGlobal<float>(kWasmS128);
-  // Build fn to splat test values, perform compare op, and write the result.
-  byte value1 = 0, value2 = 1, value3 = 2;
-  BUILD(r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_QFMA(
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value1)),
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value2)),
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value3)))),
-        WASM_ONE);
-
-  for (FMOperation<float> x : qfma_vector<float>()) {
-    r.Call(x.a, x.b, x.c);
-    float expected =
-        ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
-    for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
-      CheckFloatResult(x.a, x.b, expected, actual, true /* exact */);
-    }
-  }
-}
-
-WASM_RELAXED_SIMD_TEST(F32x4Qfms) {
-  WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
-  // Set up global to hold mask output.
-  float* g = r.builder().AddGlobal<float>(kWasmS128);
-  // Build fn to splat test values, perform compare op, and write the result.
-  byte value1 = 0, value2 = 1, value3 = 2;
-  BUILD(r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_QFMS(
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value1)),
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value2)),
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value3)))),
-        WASM_ONE);
-
-  for (FMOperation<float> x : qfms_vector<float>()) {
-    r.Call(x.a, x.b, x.c);
-    float expected =
-        ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
-    for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
-      CheckFloatResult(x.a, x.b, expected, actual, true /* exact */);
-    }
-  }
-}
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 
 WASM_SIMD_TEST(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
@@ -1123,80 +829,6 @@ WASM_SIMD_TEST(I64x2ExtractWithF64x2) {
                WASM_I64V(1), WASM_I64V(0)));
   CHECK_EQ(1, r.Call());
 }
-
-bool IsExtreme(double x) {
-  double abs_x = std::fabs(x);
-  const double kSmallFloatThreshold = 1.0e-298;
-  const double kLargeFloatThreshold = 1.0e298;
-  return abs_x != 0.0f &&  // 0 or -0 are fine.
-         (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
-}
-
-bool IsSameNan(double expected, double actual) {
-  // Sign is non-deterministic.
-  uint64_t expected_bits = bit_cast<uint64_t>(expected) & ~0x8000000000000000;
-  uint64_t actual_bits = bit_cast<uint64_t>(actual) & ~0x8000000000000000;
-  // Some implementations convert signaling NaNs to quiet NaNs.
-  return (expected_bits == actual_bits) ||
-         ((expected_bits | 0x0008000000000000) == actual_bits);
-}
-
-bool IsCanonical(double actual) {
-  uint64_t actual_bits = bit_cast<uint64_t>(actual);
-  // Canonical NaN has quiet bit and no payload.
-  return (actual_bits & 0xFFF8000000000000) == actual_bits;
-}
-
-void CheckDoubleResult(double x, double y, double expected, double actual,
-                       bool exact = true) {
-  if (std::isnan(expected)) {
-    CHECK(std::isnan(actual));
-    if (std::isnan(x) && IsSameNan(x, actual)) return;
-    if (std::isnan(y) && IsSameNan(y, actual)) return;
-    if (IsSameNan(expected, actual)) return;
-    if (IsCanonical(actual)) return;
-    // This is expected to assert; it's useful for debugging.
-    CHECK_EQ(bit_cast<uint64_t>(expected), bit_cast<uint64_t>(actual));
-  } else {
-    if (exact) {
-      CHECK_EQ(expected, actual);
-      // The sign of 0's must match.
-      CHECK_EQ(std::signbit(expected), std::signbit(actual));
-      return;
-    }
-    // Otherwise, perform an approximate equality test. First check for
-    // equality to handle +/-Infinity where approximate equality doesn't work.
-    if (expected == actual) return;
-
-    // 1% error allows all platforms to pass easily.
-    constexpr double kApproximationError = 0.01f;
-    double abs_error = std::abs(expected) * kApproximationError,
-           min = expected - abs_error, max = expected + abs_error;
-    CHECK_LE(min, actual);
-    CHECK_GE(max, actual);
-  }
-}
-
-// Test some values not included in the double inputs from value_helper. These
-// tests are useful for opcodes that are synthesized during code gen, like Min
-// and Max on ia32 and x64.
-static constexpr uint64_t double_nan_test_array[] = {
-    // quiet NaNs, + and -
-    0x7FF8000000000001, 0xFFF8000000000001,
-    // with payload
-    0x7FF8000000000011, 0xFFF8000000000011,
-    // signaling NaNs, + and -
-    0x7FF0000000000001, 0xFFF0000000000001,
-    // with payload
-    0x7FF0000000000011, 0xFFF0000000000011,
-    // Both Infinities.
-    0x7FF0000000000000, 0xFFF0000000000000,
-    // Some "normal" numbers, 1 and -1.
-    0x3FF0000000000000, 0xBFF0000000000000};
-
-#define FOR_FLOAT64_NAN_INPUTS(i) \
-  for (size_t i = 0; i < arraysize(double_nan_test_array); ++i)
-
 void RunF64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode opcode, DoubleUnOp expected_op,
                       bool exact = true) {
@@ -1425,8 +1057,6 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-#undef FOR_FLOAT64_NAN_INPUTS
-
 WASM_SIMD_TEST(F64x2Add) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Add, Add);
 }
@@ -1523,56 +1153,6 @@ WASM_SIMD_TEST(I64x2Mul) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Mul,
                     base::MulWithWraparound);
 }
-
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
-WASM_RELAXED_SIMD_TEST(F64x2Qfma) {
-  WasmRunner<int32_t, double, double, double> r(execution_tier, lower_simd);
-  // Set up global to hold mask output.
-  double* g = r.builder().AddGlobal<double>(kWasmS128);
-  // Build fn to splat test values, perform compare op, and write the result.
-  byte value1 = 0, value2 = 1, value3 = 2;
-  BUILD(r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_F64x2_QFMA(
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value1)),
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value2)),
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value3)))),
-        WASM_ONE);
-
-  for (FMOperation<double> x : qfma_vector<double>()) {
-    r.Call(x.a, x.b, x.c);
-    double expected =
-        ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
-    for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
-      CheckDoubleResult(x.a, x.b, expected, actual, true /* exact */);
-    }
-  }
-}
-
-WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
-  WasmRunner<int32_t, double, double, double> r(execution_tier, lower_simd);
-  // Set up global to hold mask output.
-  double* g = r.builder().AddGlobal<double>(kWasmS128);
-  // Build fn to splat test values, perform compare op, and write the result.
-  byte value1 = 0, value2 = 1, value3 = 2;
-  BUILD(r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_F64x2_QFMS(
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value1)),
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value2)),
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value3)))),
-        WASM_ONE);
-
-  for (FMOperation<double> x : qfms_vector<double>()) {
-    r.Call(x.a, x.b, x.c);
-    double expected =
-        ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
-    for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
-      CheckDoubleResult(x.a, x.b, expected, actual, true /* exact */);
-    }
-  }
-}
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 
 WASM_SIMD_TEST(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
@@ -2406,7 +1986,7 @@ WASM_SIMD_TEST(I16x8LeU) {
 WASM_SIMD_TEST(I16x8RoundingAverageU) {
   RunI16x8BinOpTest<uint16_t>(execution_tier, lower_simd,
                               kExprI16x8RoundingAverageU,
-                              base::RoundingAverageUnsigned);
+                              RoundingAverageUnsigned);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I16x8Q15MulRSatS) {
@@ -2796,7 +2376,7 @@ WASM_SIMD_TEST(I8x16LeU) {
 WASM_SIMD_TEST(I8x16RoundingAverageU) {
   RunI8x16BinOpTest<uint8_t>(execution_tier, lower_simd,
                              kExprI8x16RoundingAverageU,
-                             base::RoundingAverageUnsigned);
+                             RoundingAverageUnsigned);
 }
 
 void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,

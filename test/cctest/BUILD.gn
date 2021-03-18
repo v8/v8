@@ -435,6 +435,7 @@ v8_source_set("cctest_sources") {
       "wasm/test-run-wasm-js.cc",
       "wasm/test-run-wasm-memory64.cc",
       "wasm/test-run-wasm-module.cc",
+      "wasm/test-run-wasm-relaxed-simd.cc",
       "wasm/test-run-wasm-sign-extension.cc",
       "wasm/test-run-wasm-simd-liftoff.cc",
       "wasm/test-run-wasm-simd-scalar-lowering.cc",
@@ -453,6 +454,8 @@ v8_source_set("cctest_sources") {
       "wasm/wasm-atomics-utils.h",
       "wasm/wasm-run-utils.cc",
       "wasm/wasm-run-utils.h",
+      "wasm/wasm-simd-utils.cc",
+      "wasm/wasm-simd-utils.h",
     ]
     public_deps += [ "../..:wasm_test_common" ]
   }
