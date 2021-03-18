@@ -9,6 +9,10 @@
 #include "src/objects/objects-inl.h"
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/simd-shuffle.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -1939,6 +1943,7 @@ TEST_F(InstructionSelectorTest, SIMDSplatZero) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 struct ArchShuffle {
   uint8_t shuffle[kSimd128Size];
   ArchOpcode arch_opcode;
@@ -2197,6 +2202,7 @@ TEST_P(InstructionSelectorSIMDArchShuffleTest, SIMDArchShuffle) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSIMDArchShuffleTest,
                          ::testing::ValuesIn(kArchShuffles));
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal
