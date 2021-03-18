@@ -1423,10 +1423,10 @@ RUNTIME_FUNCTION(Runtime_SwissTableUpdate) {
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableDelete) {
   HandleScope scope(isolate);
-  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
-  Handle<Smi> index = args.at<Smi>(1);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, entry, 1);
 
-  InternalIndex i(Smi::ToInt(*index));
+  InternalIndex i(Smi::ToInt(*entry));
 
   return *SwissNameDictionary::DeleteEntry(isolate, table, i);
 }
@@ -1435,8 +1435,8 @@ RUNTIME_FUNCTION(Runtime_SwissTableDelete) {
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableEquals) {
   HandleScope scope(isolate);
-  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
-  Handle<SwissNameDictionary> other = args.at<SwissNameDictionary>(1);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, other, 1);
 
   return Smi::FromInt(table->EqualsForTesting(*other));
 }
@@ -1445,29 +1445,39 @@ RUNTIME_FUNCTION(Runtime_SwissTableEquals) {
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableElementsCount) {
   HandleScope scope(isolate);
-  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
 
   return Smi::FromInt(table->NumberOfElements());
 }
 
 // TODO(v8:11330) This is only here while the CSA/Torque implementaton of
 // SwissNameDictionary is work in progress.
+RUNTIME_FUNCTION(Runtime_SwissTableKeyAt) {
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, entry, 1);
+
+  return table->KeyAt(InternalIndex(Smi::ToInt(*entry)));
+}
+
+// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableValueAt) {
   HandleScope scope(isolate);
-  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
-  Handle<Smi> index = args.at<Smi>(1);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, entry, 1);
 
-  return table->ValueAt(InternalIndex(Smi::ToInt(*index)));
+  return table->ValueAt(InternalIndex(Smi::ToInt(*entry)));
 }
 
 // TODO(v8:11330) This is only here while the CSA/Torque implementaton of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableDetailsAt) {
   HandleScope scope(isolate);
-  Handle<SwissNameDictionary> table = args.at<SwissNameDictionary>(0);
-  Handle<Smi> index = args.at<Smi>(1);
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, table, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, entry, 1);
 
-  PropertyDetails d = table->DetailsAt(InternalIndex(Smi::ToInt(*index)));
+  PropertyDetails d = table->DetailsAt(InternalIndex(Smi::ToInt(*entry)));
   return d.AsSmi();
 }
 

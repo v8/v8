@@ -599,6 +599,7 @@
   'test-run-variables/*': [SKIP],
   'test-serialize/*': [SKIP],
   'test-sloppy-equality/*' : [SKIP],
+  'test-swiss-name-dictionary-csa/*': [SKIP],
   'test-torque/*': [SKIP],
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
 
