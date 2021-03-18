@@ -1300,7 +1300,12 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
     : HeapObjectData(broker, storage, object, kind),
       instance_type_(object->instance_type()),
       instance_size_(object->instance_size()),
-      bit_field_(object->bit_field()),
+      // We read the bit_field as relaxed since `has_non_instance_prototype` can
+      // be modified in live objects, and because we serialize some maps on the
+      // background. Those background-serialized maps are the native context's
+      // maps for which this bit is "set" but it doesn't change value (i.e. it
+      // is set to false when it was already false).
+      bit_field_(object->relaxed_bit_field()),
       bit_field2_(object->bit_field2()),
       bit_field3_(object->bit_field3()),
       can_be_deprecated_(object->NumberOfOwnDescriptors() > 0
