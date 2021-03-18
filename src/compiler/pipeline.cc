@@ -2865,11 +2865,6 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   Run<ScheduledMachineLoweringPhase>();
   RunPrintAndVerify(ScheduledMachineLoweringPhase::phase_name(), true);
 
-  // The DecompressionOptimizationPhase updates node's operations but does not
-  // otherwise rewrite the graph, thus it is safe to run on a scheduled graph.
-  Run<DecompressionOptimizationPhase>();
-  RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
-
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json()) {
     data->node_origins()->RemoveDecorator();
