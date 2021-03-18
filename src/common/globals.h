@@ -106,9 +106,6 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
 // and friends.
 #error Short builtin calls feature requires pointer compression
 #endif
-#define V8_SHORT_BUILTIN_CALLS_BOOL true
-#else
-#define V8_SHORT_BUILTIN_CALLS_BOOL false
 #endif
 
 // Determine whether dict mode prototypes feature is enabled.
