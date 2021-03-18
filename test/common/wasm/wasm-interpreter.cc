@@ -894,8 +894,9 @@ class SideTable : public ZoneObject {
           }
           TRACE("control @%u: Try, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
-          CLabel* end_label = CLabel::New(&control_transfer_zone, stack_height,
-                                          imm.out_arity());
+          CLabel* end_label =
+              CLabel::New(&control_transfer_zone, stack_height - imm.in_arity(),
+                          imm.out_arity());
           CLabel* catch_label =
               CLabel::New(&control_transfer_zone, stack_height, 0);
           control_stack.emplace_back(i.pc(), end_label, catch_label,
