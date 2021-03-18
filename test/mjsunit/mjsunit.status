@@ -834,6 +834,7 @@
   'regress/wasm/regress-1132461': [SKIP],
   'regress/wasm/regress-1161555': [SKIP],
   'regress/wasm/regress-1161954': [SKIP],
+  'regress/wasm/regress-1187831': [SKIP],
   'regress/regress-1172797': [SKIP],
   'regress/wasm/regress-1179025': [SKIP],
   'wasm/simd-errors': [SKIP],
@@ -1433,6 +1434,7 @@
   'regress/wasm/regress-1161555': [SKIP],
   'regress/wasm/regress-1161954': [SKIP],
   'regress/wasm/regress-1165966': [SKIP],
+  'regress/wasm/regress-1187831': [SKIP],
 }],  # no_simd_sse == True
 
 ##############################################################################
