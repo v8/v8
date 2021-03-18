@@ -2839,17 +2839,19 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
 }
 
 void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
-  bailout(kUnsupportedArchitecture, "TailCallNativeWasmCode");
+  Jump(addr, RelocInfo::WASM_CALL);
 }
 
 void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  bailout(kUnsupportedArchitecture, "CallIndirect");
+  DCHECK(target != no_reg);
+  Call(target);
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
-  bailout(kUnsupportedArchitecture, "TailCallIndirect");
+  DCHECK(target != no_reg);
+  Jump(target);
 }
 
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
