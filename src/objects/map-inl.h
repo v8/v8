@@ -314,6 +314,8 @@ Handle<Map> Map::AddMissingTransitionsForTesting(
   return AddMissingTransitions(isolate, split_map, descriptors);
 }
 
+// TODO(solanes, v8:7790, v8:11353): Make the instance_type accessors non-atomic
+// when TSAN sees the map's store synchronization.
 InstanceType Map::instance_type() const {
   return static_cast<InstanceType>(
       RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
