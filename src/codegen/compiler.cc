@@ -1410,6 +1410,7 @@ bool CompileAllWithBaseline(Isolate* isolate,
     Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
     IsCompiledScope is_compiled_scope(*shared_info, isolate);
     if (!is_compiled_scope.is_compiled()) continue;
+    if (!CanCompileWithBaseline(isolate, shared_info)) continue;
     if (!CompileSharedWithBaseline(isolate, shared_info, flag,
                                    &is_compiled_scope)) {
       return false;
