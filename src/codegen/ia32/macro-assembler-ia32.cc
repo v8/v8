@@ -799,7 +799,11 @@ void TurboAssembler::I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src) {
     vpmovsxdq(dst, dst);
   } else {
     CpuFeatureScope sse_scope(this, SSE4_1);
-    pshufd(dst, src, 0xEE);
+    if (dst == src) {
+      movhlps(dst, src);
+    } else {
+      pshufd(dst, src, 0xEE);
+    }
     pmovsxdq(dst, dst);
   }
 }
@@ -811,9 +815,11 @@ void TurboAssembler::I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
     vpxor(scratch, scratch, scratch);
     vpunpckhdq(dst, src, scratch);
   } else {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pshufd(dst, src, 0xEE);
-    pmovzxdq(dst, dst);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    xorps(scratch, scratch);
+    punpckhdq(dst, scratch);
   }
 }
 
