@@ -1230,12 +1230,12 @@ void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
     // src = |a|b|c|d|e|f|g|h| (low)
-    // scratch = |0|a|0|c|0|e|0|g|
-    vpsrld(tmp, src, 16);
-    // dst = |0|b|0|d|0|f|0|h|
-    vpblendw(dst, src, tmp, 0xAA);
+    // dst = |0|a|0|c|0|e|0|g|
+    vpsrld(dst, src, 16);
+    // scratch = |0|b|0|d|0|f|0|h|
+    vpblendw(tmp, src, dst, 0xAA);
     // dst = |a+b|c+d|e+f|g+h|
-    vpaddd(dst, tmp, dst);
+    vpaddd(dst, dst, tmp);
   } else if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     // There is a potentially better lowering if we get rip-relative constants,
