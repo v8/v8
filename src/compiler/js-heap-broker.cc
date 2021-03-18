@@ -3518,7 +3518,7 @@ BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, is_undetectable,
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
 BIMODAL_ACCESSOR_C(Map, int, NextFreePropertyIndex)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
-BIMODAL_ACCESSOR(Map, HeapObject, prototype)
+BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, prototype)
 BIMODAL_ACCESSOR_WITH_FLAG_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR_WITH_FLAG(Map, Object, GetConstructor)
 BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
