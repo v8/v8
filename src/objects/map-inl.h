@@ -458,12 +458,10 @@ void Map::set_relaxed_bit_field(byte value) {
   RELAXED_WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
 }
 
-byte Map::bit_field2() const {
-  return ACQUIRE_READ_BYTE_FIELD(*this, kBitField2Offset);
-}
+byte Map::bit_field2() const { return ReadField<byte>(kBitField2Offset); }
 
 void Map::set_bit_field2(byte value) {
-  RELEASE_WRITE_BYTE_FIELD(*this, kBitField2Offset, value);
+  WriteField<byte>(kBitField2Offset, value);
 }
 
 bool Map::is_abandoned_prototype_map() const {
