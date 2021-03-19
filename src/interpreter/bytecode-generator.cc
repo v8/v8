@@ -5347,8 +5347,37 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
 }
 
 void BytecodeGenerator::VisitCallNew(CallNew* expr) {
-  Register constructor = VisitForRegisterValue(expr->expression());
   RegisterList args = register_allocator()->NewGrowableRegisterList();
+
+  // Load the constructor. It's in the first register in args for ease of
+  // calling %reflect_construct if we have a non-final spread. For all other
+  // cases it is popped before emitting the construct below.
+  VisitAndPushIntoRegisterList(expr->expression(), &args);
+
+  // We compile the new differently depending on the presence of spreads and
+  // their positions.
+  //
+  // If there is only one spread and it is the final argument, there is a
+  // special ConstructWithSpread bytecode.
+  //
+  // If there is a non-final spread, we rewrite calls like
+  //     new ctor(1, ...x, 2)
+  // to
+  //     %reflect_construct(ctor, [1, ...x, 2])
+  const CallNew::SpreadPosition spread_position = expr->spread_position();
+
+  if (spread_position == CallNew::kHasNonFinalSpread) {
+    BuildCreateArrayLiteral(expr->arguments(), nullptr);
+    builder()->SetExpressionPosition(expr);
+    builder()
+        ->StoreAccumulatorInRegister(
+            register_allocator()->GrowRegisterList(&args))
+        .CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX, args);
+    return;
+  }
+
+  Register constructor = args.first_register();
+  args = args.PopLeft();
   VisitArguments(expr->arguments(), &args);
 
   // The accumulator holds new target which is the same as the
@@ -5357,9 +5386,10 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
   builder()->LoadAccumulatorWithRegister(constructor);
 
   int feedback_slot_index = feedback_index(feedback_spec()->AddCallICSlot());
-  if (expr->only_last_arg_is_spread()) {
+  if (spread_position == CallNew::kHasFinalSpread) {
     builder()->ConstructWithSpread(constructor, args, feedback_slot_index);
   } else {
+    DCHECK_EQ(spread_position, CallNew::kNoSpread);
     builder()->Construct(constructor, args, feedback_slot_index);
   }
 }

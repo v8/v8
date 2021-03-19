@@ -1186,7 +1186,6 @@ class ParserBase {
   BlockT ParseClassStaticBlock(ClassInfo* class_info);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ParsePropertyInfo* prop_info, bool* has_seen_proto);
-  // TODO(syg): Remove has_spread once SpreadCallNew is removed.
   void ParseArguments(
       ExpressionListT* args, bool* has_spread,
       ParsingArrowHeadFlag maybe_arrow = kCertainlyNotArrowHead);
@@ -3564,11 +3563,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
       bool has_spread;
       ParseArguments(&args, &has_spread);
 
-      if (has_spread) {
-        result = impl()->SpreadCallNew(result, args, new_pos);
-      } else {
-        result = factory()->NewCallNew(result, args, new_pos);
-      }
+      result = factory()->NewCallNew(result, args, new_pos, has_spread);
     }
     // The expression can still continue with . or [ after the arguments.
     return ParseMemberExpressionContinuation(result);
@@ -3582,7 +3577,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
 
   // NewExpression without arguments.
   ExpressionListT args(pointer_buffer());
-  return factory()->NewCallNew(result, args, new_pos);
+  return factory()->NewCallNew(result, args, new_pos, false);
 }
 
 template <typename Impl>

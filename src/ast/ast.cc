@@ -891,6 +891,22 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
          MatchLiteralCompareNull(right_, op(), left_, expr);
 }
 
+void CallBase::ComputeSpreadPosition() {
+  int arguments_length = arguments_.length();
+  int first_spread_index = 0;
+  for (; first_spread_index < arguments_length; first_spread_index++) {
+    if (arguments_.at(first_spread_index)->IsSpread()) break;
+  }
+  SpreadPosition position;
+  if (first_spread_index == arguments_length - 1) {
+    position = kHasFinalSpread;
+  } else {
+    DCHECK_LT(first_spread_index, arguments_length - 1);
+    position = kHasNonFinalSpread;
+  }
+  bit_field_ |= SpreadPositionField::encode(position);
+}
+
 Call::CallType Call::GetCallType() const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != nullptr) {
@@ -933,22 +949,6 @@ Call::CallType Call::GetCallType() const {
   }
 
   return OTHER_CALL;
-}
-
-void Call::ComputeSpreadPosition() {
-  int arguments_length = arguments_.length();
-  int first_spread_index = 0;
-  for (; first_spread_index < arguments_length; first_spread_index++) {
-    if (arguments_.at(first_spread_index)->IsSpread()) break;
-  }
-  SpreadPosition position;
-  if (first_spread_index == arguments_length - 1) {
-    position = kHasFinalSpread;
-  } else {
-    DCHECK_LT(first_spread_index, arguments_length - 1);
-    position = kHasNonFinalSpread;
-  }
-  bit_field_ |= SpreadPositionField::encode(position);
 }
 
 CaseClause::CaseClause(Zone* zone, Expression* label,

@@ -3345,19 +3345,6 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
   }
 }
 
-namespace {
-
-bool OnlyLastArgIsSpread(const ScopedPtrList<Expression>& args) {
-  for (int i = 0; i < args.length() - 1; i++) {
-    if (args.at(i)->IsSpread()) {
-      return false;
-    }
-  }
-  return args.at(args.length() - 1)->IsSpread();
-}
-
-}  // namespace
-
 ArrayLiteral* Parser::ArrayLiteralFromListWithSpread(
     const ScopedPtrList<Expression>& list) {
   // If there's only a single spread argument, a fast path using CallWithSpread
@@ -3372,21 +3359,6 @@ ArrayLiteral* Parser::ArrayLiteralFromListWithSpread(
 
   DCHECK_LT(first_spread, list.length());
   return factory()->NewArrayLiteral(list, first_spread, kNoSourcePosition);
-}
-
-Expression* Parser::SpreadCallNew(Expression* function,
-                                  const ScopedPtrList<Expression>& args_list,
-                                  int pos) {
-  // TODO(syg): Handle all spread cases in BytecodeGenerator.
-  if (OnlyLastArgIsSpread(args_list)) {
-    // Handle in BytecodeGenerator.
-    return factory()->NewCallNew(function, args_list, pos);
-  }
-  ScopedPtrList<Expression> args(pointer_buffer());
-  args.Add(function);
-  args.Add(ArrayLiteralFromListWithSpread(args_list));
-
-  return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args, pos);
 }
 
 void Parser::SetLanguageMode(Scope* scope, LanguageMode mode) {
