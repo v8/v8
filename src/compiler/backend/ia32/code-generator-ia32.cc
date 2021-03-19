@@ -3624,7 +3624,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I8x16Swizzle: {
       __ I8x16Swizzle(i.OutputSimd128Register(), i.InputSimd128Register(0),
                       i.InputSimd128Register(1), kScratchDoubleReg,
-                      i.TempRegister(0));
+                      i.TempRegister(0), MiscField::decode(instr->opcode()));
       break;
     }
     case kIA32I8x16Shuffle: {

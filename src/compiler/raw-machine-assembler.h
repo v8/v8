@@ -864,6 +864,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // SIMD operations.
+  Node* S128Const(const uint8_t value[16]) {
+    return AddNode(machine()->S128Const(value));
+  }
   Node* I64x2Splat(Node* a) { return AddNode(machine()->I64x2Splat(), a); }
   Node* I64x2SplatI32Pair(Node* a, Node* b) {
     return AddNode(machine()->I64x2SplatI32Pair(), a, b);

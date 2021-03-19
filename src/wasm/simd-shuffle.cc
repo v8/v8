@@ -161,6 +161,12 @@ void SimdShuffle::Pack16Lanes(uint32_t* dst, const uint8_t* shuffle) {
   }
 }
 
+bool SimdSwizzle::AllInRangeOrTopBitSet(
+    std::array<uint8_t, kSimd128Size> shuffle) {
+  return std::all_of(shuffle.begin(), shuffle.end(),
+                     [](auto i) { return (i < kSimd128Size) || (i & 0x80); });
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

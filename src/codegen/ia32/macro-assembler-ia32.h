@@ -758,7 +758,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
                                  XMMRegister tmp);
   void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
-                    XMMRegister scratch, Register tmp);
+                    XMMRegister scratch, Register tmp, bool omit_add = false);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }

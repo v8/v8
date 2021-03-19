@@ -1272,7 +1272,12 @@ void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
 
 void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
                                   XMMRegister mask, XMMRegister scratch,
-                                  Register tmp) {
+                                  Register tmp, bool omit_add) {
+  if (omit_add) {
+    Pshufb(dst, src, scratch);
+    return;
+  }
+
   // Out-of-range indices should return 0, add 112 so that any value > 15
   // saturates to 128 (top bit set), so pshufb will zero that lane.
   Operand op = ExternalReferenceAsOperand(
