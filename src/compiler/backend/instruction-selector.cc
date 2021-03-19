@@ -1504,12 +1504,6 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
       return VisitLoadTransform(node);
     }
-    case IrOpcode::kPrefetchTemporal: {
-      return VisitPrefetchTemporal(node);
-    }
-    case IrOpcode::kPrefetchNonTemporal: {
-      return VisitPrefetchNonTemporal(node);
-    }
     case IrOpcode::kLoadLane: {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
       return VisitLoadLane(node);
@@ -2815,14 +2809,6 @@ void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
-
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
-// TODO(v8:11168): Prototyping prefetch.
-void InstructionSelector::VisitPrefetchTemporal(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
-  UNIMPLEMENTED();
-}
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 || !V8_TARGET_ARCH_IA32
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

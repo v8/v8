@@ -514,10 +514,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F64x2ConvertLowI32x4S, 0xfdfe, s_s)      \
   V(F64x2ConvertLowI32x4U, 0xfdff, s_s)
 
-#define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
-  V(PrefetchT, 0xfdc5, v_i)                 \
-  V(PrefetchNT, 0xfdc6, v_i)
-
 #define FOREACH_RELAXED_SIMD_OPCODE(V) \
   V(F32x4Qfma, 0xfdaf, s_sss)          \
   V(F32x4Qfms, 0xfdb0, s_sss)          \
@@ -558,7 +554,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   FOREACH_SIMD_MASK_OPERAND_OPCODE(V)  \
   FOREACH_SIMD_MEM_OPCODE(V)           \
   FOREACH_SIMD_MEM_1_OPERAND_OPCODE(V) \
-  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V)  \
   FOREACH_SIMD_CONST_OPCODE(V)
 
 #define FOREACH_NUMERIC_OPCODE(V)                         \
@@ -796,7 +791,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr bool IsControlOpcode(WasmOpcode);
   static constexpr bool IsExternRefOpcode(WasmOpcode);
   static constexpr bool IsThrowingOpcode(WasmOpcode);
-  static constexpr bool IsSimdPostMvpOpcode(WasmOpcode);
   static constexpr bool IsRelaxedSimdOpcode(WasmOpcode);
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.

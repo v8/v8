@@ -979,8 +979,6 @@
   V(I16x8AllTrue)               \
   V(I8x16AllTrue)               \
   V(LoadTransform)              \
-  V(PrefetchTemporal)           \
-  V(PrefetchNonTemporal)        \
   V(LoadLane)                   \
   V(StoreLane)
 

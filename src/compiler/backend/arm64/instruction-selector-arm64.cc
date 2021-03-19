@@ -622,26 +622,6 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   selector->Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitPrefetchTemporal(Node* node) {
-  Arm64OperandGenerator g(this);
-  InstructionOperand inputs[2] = {g.UseRegister(node->InputAt(0)),
-                                  g.UseRegister(node->InputAt(1))};
-  InstructionCode opcode = kArm64Prfm;
-  opcode |= AddressingModeField::encode(kMode_MRR);
-  opcode |= MiscField::encode(PLDL1KEEP);
-  Emit(opcode, 0, nullptr, 2, inputs);
-}
-
-void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
-  Arm64OperandGenerator g(this);
-  InstructionOperand inputs[2] = {g.UseRegister(node->InputAt(0)),
-                                  g.UseRegister(node->InputAt(1))};
-  InstructionCode opcode = kArm64Prfm;
-  opcode |= AddressingModeField::encode(kMode_MRR);
-  opcode |= MiscField::encode(PLDL1STRM);
-  Emit(opcode, 0, nullptr, 2, inputs);
-}
-
 namespace {
 // Manually add base and index into a register to get the actual address.
 // This should be used prior to instructions that only support

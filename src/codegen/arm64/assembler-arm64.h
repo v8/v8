@@ -880,9 +880,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Store-release exclusive half-word.
   void stlxrh(const Register& rs, const Register& rt, const Register& rn);
 
-  void prfm(int prfop, const MemOperand& addr);
-  void prfm(PrefetchOperation prfop, const MemOperand& addr);
-
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
   // that is equal to the 64-bit immediate argument. If an explicit left shift

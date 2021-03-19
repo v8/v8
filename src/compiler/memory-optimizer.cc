@@ -38,8 +38,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kLoadLane:
     case IrOpcode::kLoadTransform:
     case IrOpcode::kMemoryBarrier:
-    case IrOpcode::kPrefetchNonTemporal:
-    case IrOpcode::kPrefetchTemporal:
     case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:

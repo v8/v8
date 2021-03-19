@@ -390,8 +390,6 @@ namespace compiler {
   V(X64I32x4AllTrue)                      \
   V(X64I16x8AllTrue)                      \
   V(X64I8x16AllTrue)                      \
-  V(X64Prefetch)                          \
-  V(X64PrefetchNta)                       \
   V(X64Word64AtomicAddUint8)              \
   V(X64Word64AtomicAddUint16)             \
   V(X64Word64AtomicAddUint32)             \

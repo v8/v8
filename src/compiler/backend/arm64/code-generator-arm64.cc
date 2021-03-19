@@ -1501,10 +1501,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kArm64Prfm: {
-      __ prfm(MiscField::decode(opcode), i.MemoryOperand(0));
-      break;
-    }
     case kArm64Clz:
       __ Clz(i.OutputRegister64(), i.InputRegister64(0));
       break;

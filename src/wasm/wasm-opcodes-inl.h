@@ -357,9 +357,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(I32x4, ExtAddPairwiseI16x8, "extadd_pairwise_i16x8")
     CASE_SIGN_OP(I16x8, ExtAddPairwiseI8x16, "extadd_pairwise_i8x6")
 
-    CASE_OP(PrefetchT, "prefetch_t")
-    CASE_OP(PrefetchNT, "prefetch_nt")
-
     CASE_F64x2_OP(ConvertLowI32x4S, "convert_low_i32x4_s")
     CASE_F64x2_OP(ConvertLowI32x4U, "convert_low_i32x4_u")
     CASE_I32x4_OP(TruncSatF64x2SZero, "trunc_sat_f64x2_s_zero")
@@ -542,18 +539,6 @@ constexpr bool WasmOpcodes::IsThrowingOpcode(WasmOpcode opcode) {
 }
 
 // static
-constexpr bool WasmOpcodes::IsSimdPostMvpOpcode(WasmOpcode opcode) {
-  switch (opcode) {
-#define CHECK_OPCODE(name, opcode, _) case kExpr##name:
-    FOREACH_SIMD_POST_MVP_MEM_OPCODE(CHECK_OPCODE)
-#undef CHECK_OPCODE
-    return true;
-    default:
-      return false;
-  }
-}
-
-// static
 constexpr bool WasmOpcodes::IsRelaxedSimdOpcode(WasmOpcode opcode) {
   switch (opcode) {
 #define CHECK_OPCODE(name, opcode, _) case kExpr##name:
@@ -603,8 +588,7 @@ constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(byte opcode) {
 constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
-      FOREACH_SIMD_MEM_1_OPERAND_OPCODE(CASE)
-          FOREACH_SIMD_POST_MVP_MEM_OPCODE(CASE) kSigEnum_None;
+      FOREACH_SIMD_MEM_1_OPERAND_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
 

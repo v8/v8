@@ -419,8 +419,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kX64MFence:
     case kX64LFence:
-    case kX64Prefetch:
-    case kX64PrefetchNta:
       return kHasSideEffect;
 
     case kX64Word64AtomicAddUint8:

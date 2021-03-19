@@ -786,7 +786,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void ret(int imm16);
   void ud2();
   void setcc(Condition cc, Register reg);
-  void prefetch(Operand src, int level);
 
   void pblendw(XMMRegister dst, Operand src, uint8_t mask);
   void pblendw(XMMRegister dst, XMMRegister src, uint8_t mask);

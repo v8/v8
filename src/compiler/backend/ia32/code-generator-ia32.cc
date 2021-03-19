@@ -4067,12 +4067,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }
-    case kIA32Prefetch:
-      __ prefetch(i.MemoryOperand(), 1);
-      break;
-    case kIA32PrefetchNta:
-      __ prefetch(i.MemoryOperand(), 0);
-      break;
     case kIA32Word32AtomicPairLoad: {
       XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
       __ movq(tmp, i.MemoryOperand());

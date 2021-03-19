@@ -802,21 +802,6 @@ struct MachineOperatorGlobalCache {
   PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
 
-  struct PrefetchTemporalOperator final : public Operator {
-    PrefetchTemporalOperator()
-        : Operator(IrOpcode::kPrefetchTemporal,
-                   Operator::kNoDeopt | Operator::kNoThrow, "PrefetchTemporal",
-                   2, 1, 1, 0, 1, 0) {}
-  };
-  PrefetchTemporalOperator kPrefetchTemporal;
-  struct PrefetchNonTemporalOperator final : public Operator {
-    PrefetchNonTemporalOperator()
-        : Operator(IrOpcode::kPrefetchNonTemporal,
-                   Operator::kNoDeopt | Operator::kNoThrow,
-                   "PrefetchNonTemporal", 2, 1, 1, 0, 1, 0) {}
-  };
-  PrefetchNonTemporalOperator kPrefetchNonTemporal;
-
 #define OVERFLOW_OP(Name, properties)                                        \
   struct Name##Operator final : public Operator {                            \
     Name##Operator()                                                         \
@@ -1329,14 +1314,6 @@ const Operator* MachineOperatorBuilder::TruncateFloat32ToInt32(
   }
 PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
-
-const Operator* MachineOperatorBuilder::PrefetchTemporal() {
-  return &cache_.kPrefetchTemporal;
-}
-
-const Operator* MachineOperatorBuilder::PrefetchNonTemporal() {
-  return &cache_.kPrefetchNonTemporal;
-}
 
 #define OVERFLOW_OP(Name, properties) \
   const Operator* MachineOperatorBuilder::Name() { return &cache_.k##Name; }

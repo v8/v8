@@ -4081,12 +4081,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqb);
       break;
     }
-    case kX64Prefetch:
-      __ prefetch(i.MemoryOperand(), 1);
-      break;
-    case kX64PrefetchNta:
-      __ prefetch(i.MemoryOperand(), 0);
-      break;
     case kWord32AtomicExchangeInt8: {
       __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
       __ movsxbl(i.InputRegister(0), i.InputRegister(0));

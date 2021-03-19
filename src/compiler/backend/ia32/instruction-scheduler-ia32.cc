@@ -420,8 +420,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Poke:
     case kIA32MFence:
     case kIA32LFence:
-    case kIA32Prefetch:
-    case kIA32PrefetchNta:
       return kHasSideEffect;
 
     case kIA32Word32AtomicPairLoad:

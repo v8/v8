@@ -1079,8 +1079,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(LoadLane, LoadType type, const Value& value, const Value& index,           \
     const MemoryAccessImmediate<validate>& imm, const uint8_t laneidx,         \
     Value* result)                                                             \
-  F(Prefetch, const MemoryAccessImmediate<validate>& imm, const Value& index,  \
-    bool temporal)                                                             \
   F(StoreMem, StoreType type, const MemoryAccessImmediate<validate>& imm,      \
     const Value& index, const Value& value)                                    \
   F(StoreLane, StoreType type, const MemoryAccessImmediate<validate>& imm,     \
@@ -1885,9 +1883,7 @@ class WasmDecoder : public Decoder {
             return length;
           FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
             return length + 1;
-          FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE)
-          case kExprPrefetchT:
-          case kExprPrefetchNT: {
+          FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate<validate> imm(decoder, pc + length,
                                                 UINT32_MAX,
                                                 kConservativelyAssumeMemory64);
@@ -2360,12 +2356,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   bool CheckSimdFeatureFlagOpcode(WasmOpcode opcode) {
-    if (!FLAG_wasm_simd_post_mvp && WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {
-      this->DecodeError(
-          "simd opcode not available, enable with --wasm-simd-post-mvp");
-      return false;
-    }
-
     if (!FLAG_experimental_wasm_relaxed_simd &&
         WasmOpcodes::IsRelaxedSimdOpcode(opcode)) {
       this->DecodeError(
@@ -3881,19 +3871,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return opcode_length + 16;
   }
 
-  uint32_t SimdPrefetch(uint32_t opcode_length, bool temporal) {
-    if (!CheckHasMemory()) return 0;
-    // Alignment doesn't matter, set to an arbitrary value.
-    uint32_t max_alignment = 4;
-    MemoryAccessImmediate<validate> imm(this, this->pc_ + opcode_length,
-                                        max_alignment);
-    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
-    Value index = Peek(0, 0, index_type);
-    CALL_INTERFACE_IF_REACHABLE(Prefetch, imm, index, temporal);
-    Drop(index);
-    return opcode_length + imm.length;
-  }
-
   uint32_t DecodeSimdOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     // opcode_length is the number of bytes that this SIMD-specific opcode takes
     // up in the LEB128 encoded form.
@@ -3998,12 +3975,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprS128Const:
         return SimdConstOp(opcode_length);
-      case kExprPrefetchT: {
-        return SimdPrefetch(opcode_length, /*temporal=*/true);
-      }
-      case kExprPrefetchNT: {
-        return SimdPrefetch(opcode_length, /*temporal=*/false);
-      }
       default: {
         const FunctionSig* sig = WasmOpcodes::Signature(opcode);
         if (!VALIDATE(sig != nullptr)) {

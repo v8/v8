@@ -531,12 +531,6 @@ class WasmGraphBuildingInterface {
     SetEnv(if_block->false_env);
   }
 
-  void Prefetch(FullDecoder* decoder,
-                const MemoryAccessImmediate<validate>& imm, const Value& index,
-                bool temporal) {
-    builder_->Prefetch(index.node, imm.offset, imm.alignment, temporal);
-  }
-
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate<validate>& imm, const Value& index,
                Value* result) {
