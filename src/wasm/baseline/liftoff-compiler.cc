@@ -90,10 +90,8 @@ constexpr ValueKind kPointerKind = LiftoffAssembler::kPointerKind;
 constexpr ValueKind kSmiKind = LiftoffAssembler::kSmiKind;
 constexpr ValueKind kTaggedKind = LiftoffAssembler::kTaggedKind;
 
-// Used to construct fixed-size signatures: MakeSig().Returns(...).Params(...);
-FixedSizeSignature<ValueKind> MakeSig() {
-  return FixedSizeSignature<ValueKind>{{}};
-}
+// Used to construct fixed-size signatures: MakeSig::Returns(...).Params(...);
+using MakeSig = FixedSizeSignature<ValueKind>;
 
 #if V8_TARGET_ARCH_ARM64
 // On ARM64, the Assembler keeps track of pointers to Labels to resolve
@@ -1078,8 +1076,7 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_TAGGED_PTR_INSTANCE_FIELD(context_reg.gp(), NativeContext, pinned);
 
-    auto sig = MakeSig()
-                   .Returns(kPointerKind)
+    auto sig = MakeSig::Returns(kPointerKind)
                    .Params(kPointerKind, kPointerKind, kPointerKind);
     LiftoffAssembler::VarState tag_symbol(kPointerKind, tag_symbol_reg, 0);
     LiftoffAssembler::VarState context(kPointerKind, context_reg, 0);
@@ -1156,7 +1153,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* rethrow_descriptor =
         GetBuiltinCallDescriptor<WasmRethrowDescriptor>(compilation_zone_);
 
-    auto rethrow_sig = MakeSig().Params(kPointerKind);
+    auto rethrow_sig = MakeSig::Params(kPointerKind);
     __ PrepareBuiltinCall(&rethrow_sig, rethrow_descriptor, {exception});
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), true);
@@ -1419,7 +1416,7 @@ class LiftoffCompiler {
     auto emit_with_c_fallback = [=](LiftoffRegister dst, LiftoffRegister src) {
       if ((asm_.*emit_fn)(dst.fp(), src.fp())) return;
       ExternalReference ext_ref = fallback_fn();
-      auto sig = MakeSig().Params(kind);
+      auto sig = MakeSig::Params(kind);
       GenerateCCall(&dst, &sig, kind, &src, ext_ref);
     };
     EmitUnOp<kind, kind>(emit_with_c_fallback);
@@ -1445,7 +1442,7 @@ class LiftoffCompiler {
       ExternalReference ext_ref = fallback_fn();
       if (can_trap) {
         // External references for potentially trapping conversions return int.
-        auto sig = MakeSig().Returns(kI32).Params(src_kind);
+        auto sig = MakeSig::Returns(kI32).Params(src_kind);
         LiftoffRegister ret_reg =
             __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst));
         LiftoffRegister dst_regs[] = {ret_reg, dst};
@@ -1566,7 +1563,7 @@ class LiftoffCompiler {
         return EmitUnOp<kI32, kI32>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i32_popcnt(dst.gp(), src.gp())) return;
-              auto sig = MakeSig().Returns(kI32).Params(kI32);
+              auto sig = MakeSig::Returns(kI32).Params(kI32);
               GenerateCCall(&dst, &sig, kStmt, &src,
                             ExternalReference::wasm_word32_popcnt());
             });
@@ -1575,7 +1572,7 @@ class LiftoffCompiler {
             [=](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i64_popcnt(dst, src)) return;
               // The c function returns i32. We will zero-extend later.
-              auto sig = MakeSig().Returns(kI32).Params(kI64);
+              auto sig = MakeSig::Returns(kI32).Params(kI64);
               LiftoffRegister c_call_dst = kNeedI64RegPair ? dst.low() : dst;
               GenerateCCall(&c_call_dst, &sig, kStmt, &src,
                             ExternalReference::wasm_word64_popcnt());
@@ -1665,7 +1662,7 @@ class LiftoffCompiler {
         __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst, ret));
     LiftoffRegister arg_regs[] = {lhs, rhs};
     LiftoffRegister result_regs[] = {ret, dst};
-    auto sig = MakeSig().Returns(kI32).Params(kI64, kI64);
+    auto sig = MakeSig::Returns(kI32).Params(kI64, kI64);
     GenerateCCall(result_regs, &sig, kI64, arg_regs, ext_ref);
     __ LoadConstant(tmp, WasmValue(int32_t{0}));
     __ emit_cond_jump(kEqual, trap_by_zero, kI32, ret.gp(), tmp.gp());
@@ -2017,7 +2014,7 @@ class LiftoffCompiler {
     WasmCode::RuntimeStubId target = WasmCode::kWasmRefFunc;
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmRefFuncDescriptor>(compilation_zone_);
-    auto sig = MakeSig().Returns(kRef).Params(kI32);
+    auto sig = MakeSig::Returns(kRef).Params(kI32);
     LiftoffRegister func_index_reg = __ GetUnusedRegister(kGpReg, {});
     __ LoadConstant(func_index_reg, WasmValue(function_index));
     LiftoffAssembler::VarState func_index_var(kI32, func_index_reg, 0);
@@ -3222,7 +3219,7 @@ class LiftoffCompiler {
     LiftoffRegister dst = __ GetUnusedRegister(rc, {src}, {});
     if (!(asm_.*emit_fn)(dst, src)) {
       // Return v128 via stack for ARM.
-      auto sig_v_s = MakeSig().Params(kS128);
+      auto sig_v_s = MakeSig::Params(kS128);
       GenerateCCall(&dst, &sig_v_s, kS128, &src, ext_ref());
     }
     __ PushRegister(kS128, dst);
@@ -4121,7 +4118,7 @@ class LiftoffCompiler {
             compilation_zone_);
 
     auto create_values_sig =
-        MakeSig().Returns(kPointerKind).Params(kPointerKind);
+        MakeSig::Returns(kPointerKind).Params(kPointerKind);
 
     __ PrepareBuiltinCall(&create_values_sig, create_values_descriptor,
                           {LiftoffAssembler::VarState{
@@ -4162,7 +4159,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* throw_descriptor =
         GetBuiltinCallDescriptor<WasmThrowDescriptor>(compilation_zone_);
 
-    auto throw_sig = MakeSig().Params(kPointerKind, kPointerKind);
+    auto throw_sig = MakeSig::Params(kPointerKind, kPointerKind);
 
     __ PrepareBuiltinCall(
         &throw_sig, throw_descriptor,
@@ -4437,7 +4434,7 @@ class LiftoffCompiler {
       __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
     }
 
-    auto sig = MakeSig().Returns(kI32).Params(kPointerKind, kI32);
+    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kI32);
     auto call_descriptor =
         GetBuiltinCallDescriptor<WasmAtomicNotifyDescriptor>(compilation_zone_);
 
@@ -4600,7 +4597,7 @@ class LiftoffCompiler {
 
     ExternalReference ext_ref = ExternalReference::wasm_memory_init();
     auto sig =
-        MakeSig().Returns(kI32).Params(kPointerKind, kI32, kI32, kI32, kI32);
+        MakeSig::Returns(kI32).Params(kPointerKind, kI32, kI32, kI32, kI32);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, src,
                               segment_index, size};
     // We don't need the instance anymore after the call. We can use the
@@ -4642,7 +4639,7 @@ class LiftoffCompiler {
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_copy();
-    auto sig = MakeSig().Returns(kI32).Params(kPointerKind, kI32, kI32, kI32);
+    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kI32, kI32, kI32);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, src, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
@@ -4663,7 +4660,7 @@ class LiftoffCompiler {
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_fill();
-    auto sig = MakeSig().Returns(kI32).Params(kPointerKind, kI32, kI32, kI32);
+    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kI32, kI32, kI32);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, value, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
@@ -4703,7 +4700,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableInitDescriptor>(compilation_zone_);
 
-    auto sig = MakeSig().Params(kI32, kI32, kI32, kSmiKind, kSmiKind);
+    auto sig = MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {dst, src, size, table_index, segment_index});
@@ -4759,7 +4756,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableCopyDescriptor>(compilation_zone_);
 
-    auto sig = MakeSig().Params(kI32, kI32, kI32, kSmiKind, kSmiKind);
+    auto sig = MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {dst, src, size, table_dst_index, table_src_index});
@@ -4788,7 +4785,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableGrowDescriptor>(compilation_zone_);
 
-    auto sig = MakeSig().Returns(kSmiKind).Params(kSmiKind, kI32, kTaggedKind);
+    auto sig = MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kTaggedKind);
 
     __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, delta, value});
     __ CallRuntimeStub(target);
@@ -4846,7 +4843,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmTableFillDescriptor>(compilation_zone_);
 
-    auto sig = MakeSig().Params(kSmiKind, kI32, kI32, kTaggedKind);
+    auto sig = MakeSig::Params(kSmiKind, kI32, kI32, kTaggedKind);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {table_index, start, count, value});
@@ -4866,7 +4863,7 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_descriptor =
         GetBuiltinCallDescriptor<WasmAllocateStructWithRttDescriptor>(
             compilation_zone_);
-    auto sig = MakeSig().Returns(kRef).Params(rtt.type.kind());
+    auto sig = MakeSig::Returns(kRef).Params(rtt.type.kind());
     LiftoffAssembler::VarState rtt_value =
         __ cache_state()->stack_state.end()[-1];
     __ PrepareBuiltinCall(&sig, call_descriptor, {rtt_value});
@@ -5876,7 +5873,7 @@ class LiftoffCompiler {
       compiler::CallDescriptor* builtin_call_descriptor =
           GetBuiltinCallDescriptor<WasmAllocatePairDescriptor>(
               compilation_zone_);
-      auto builtin_sig = MakeSig().Returns(kOptRef).Params(kOptRef, kOptRef);
+      auto builtin_sig = MakeSig::Returns(kOptRef).Params(kOptRef, kOptRef);
       LiftoffRegister current_instance = instance;
       __ FillInstanceInto(current_instance.gp());
       LiftoffAssembler::VarState instance_var(kOptRef, current_instance, 0);

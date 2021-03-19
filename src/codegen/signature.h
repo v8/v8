@@ -127,11 +127,6 @@ size_t hash_value(const Signature<T>& sig) {
 template <typename T, size_t kNumReturns = 0, size_t kNumParams = 0>
 class FixedSizeSignature : public Signature<T> {
  public:
-  explicit FixedSizeSignature(std::array<T, kNumReturns + kNumParams> reps)
-      : Signature<T>(kNumReturns, kNumParams, reps_) {
-    std::copy(reps.begin(), reps.end(), reps_);
-  }
-
   // Add return types to this signature (only allowed if there are none yet).
   template <typename... ReturnTypes>
   auto Returns(ReturnTypes... return_types) const {
@@ -160,6 +155,27 @@ class FixedSizeSignature : public Signature<T> {
   }
 
   T reps_[kNumReturns + kNumParams];
+};
+
+// Specialization for zero-sized signatures.
+template <typename T>
+class FixedSizeSignature<T, 0, 0> : public Signature<T> {
+ public:
+  constexpr FixedSizeSignature() : Signature<T>(0, 0, nullptr) {}
+
+  // Add return types.
+  template <typename... ReturnTypes>
+  static auto Returns(ReturnTypes... return_types) {
+    return FixedSizeSignature<T, sizeof...(ReturnTypes), 0>{
+        std::initializer_list<T>{return_types...}.begin(), nullptr};
+  }
+
+  // Add parameters.
+  template <typename... ParamTypes>
+  static auto Params(ParamTypes... param_types) {
+    return FixedSizeSignature<T, 0, sizeof...(ParamTypes)>{
+        nullptr, std::initializer_list<T>{param_types...}.begin()};
+  }
 };
 
 }  // namespace internal
