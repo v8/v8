@@ -491,11 +491,10 @@ Node* WasmGraphBuilder::Loop(Node* entry) {
   return graph()->NewNode(mcgraph()->common()->Loop(1), entry);
 }
 
-Node* WasmGraphBuilder::TerminateLoop(Node* effect, Node* control) {
+void WasmGraphBuilder::TerminateLoop(Node* effect, Node* control) {
   Node* terminate =
       graph()->NewNode(mcgraph()->common()->Terminate(), effect, control);
   gasm_->MergeControlToEnd(terminate);
-  return terminate;
 }
 
 Node* WasmGraphBuilder::LoopExit(Node* loop_node) {
@@ -515,11 +514,10 @@ Node* WasmGraphBuilder::LoopExitValue(Node* value,
                           value, control());
 }
 
-Node* WasmGraphBuilder::TerminateThrow(Node* effect, Node* control) {
+void WasmGraphBuilder::TerminateThrow(Node* effect, Node* control) {
   Node* terminate =
       graph()->NewNode(mcgraph()->common()->Throw(), effect, control);
   gasm_->MergeControlToEnd(terminate);
-  return terminate;
 }
 
 bool WasmGraphBuilder::IsPhiWithMerge(Node* phi, Node* merge) {
@@ -1304,58 +1302,54 @@ TrapId WasmGraphBuilder::GetTrapIdForTrap(wasm::TrapReason reason) {
   }
 }
 
-Node* WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
-                                   wasm::WasmCodePosition position) {
+void WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
+                                  wasm::WasmCodePosition position) {
   TrapId trap_id = GetTrapIdForTrap(reason);
   Node* node = SetControl(graph()->NewNode(mcgraph()->common()->TrapIf(trap_id),
                                            cond, effect(), control()));
   SetSourcePosition(node, position);
-  return node;
 }
 
-Node* WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
-                                    wasm::WasmCodePosition position) {
+void WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
+                                   wasm::WasmCodePosition position) {
   TrapId trap_id = GetTrapIdForTrap(reason);
   Node* node = SetControl(graph()->NewNode(
       mcgraph()->common()->TrapUnless(trap_id), cond, effect(), control()));
   SetSourcePosition(node, position);
-  return node;
 }
 
 // Add a check that traps if {node} is equal to {val}.
-Node* WasmGraphBuilder::TrapIfEq32(wasm::TrapReason reason, Node* node,
-                                   int32_t val,
-                                   wasm::WasmCodePosition position) {
+void WasmGraphBuilder::TrapIfEq32(wasm::TrapReason reason, Node* node,
+                                  int32_t val,
+                                  wasm::WasmCodePosition position) {
   Int32Matcher m(node);
-  if (m.HasResolvedValue() && !m.Is(val)) return graph()->start();
+  if (m.HasResolvedValue() && !m.Is(val)) return;
   if (val == 0) {
-    return TrapIfFalse(reason, node, position);
+    TrapIfFalse(reason, node, position);
   } else {
-    return TrapIfTrue(reason, gasm_->Word32Equal(node, Int32Constant(val)),
-                      position);
+    TrapIfTrue(reason, gasm_->Word32Equal(node, Int32Constant(val)), position);
   }
 }
 
 // Add a check that traps if {node} is zero.
-Node* WasmGraphBuilder::ZeroCheck32(wasm::TrapReason reason, Node* node,
-                                    wasm::WasmCodePosition position) {
-  return TrapIfEq32(reason, node, 0, position);
+void WasmGraphBuilder::ZeroCheck32(wasm::TrapReason reason, Node* node,
+                                   wasm::WasmCodePosition position) {
+  TrapIfEq32(reason, node, 0, position);
 }
 
 // Add a check that traps if {node} is equal to {val}.
-Node* WasmGraphBuilder::TrapIfEq64(wasm::TrapReason reason, Node* node,
-                                   int64_t val,
-                                   wasm::WasmCodePosition position) {
+void WasmGraphBuilder::TrapIfEq64(wasm::TrapReason reason, Node* node,
+                                  int64_t val,
+                                  wasm::WasmCodePosition position) {
   Int64Matcher m(node);
-  if (m.HasResolvedValue() && !m.Is(val)) return graph()->start();
-  return TrapIfTrue(reason, gasm_->Word64Equal(node, Int64Constant(val)),
-                    position);
+  if (m.HasResolvedValue() && !m.Is(val)) return;
+  TrapIfTrue(reason, gasm_->Word64Equal(node, Int64Constant(val)), position);
 }
 
 // Add a check that traps if {node} is zero.
-Node* WasmGraphBuilder::ZeroCheck64(wasm::TrapReason reason, Node* node,
-                                    wasm::WasmCodePosition position) {
-  return TrapIfEq64(reason, node, 0, position);
+void WasmGraphBuilder::ZeroCheck64(wasm::TrapReason reason, Node* node,
+                                   wasm::WasmCodePosition position) {
+  TrapIfEq64(reason, node, 0, position);
 }
 
 Node* WasmGraphBuilder::Switch(unsigned count, Node* key) {
@@ -1393,12 +1387,11 @@ Node* WasmGraphBuilder::Return(Vector<Node*> vals) {
   return ret;
 }
 
-Node* WasmGraphBuilder::Trap(wasm::TrapReason reason,
-                             wasm::WasmCodePosition position) {
+void WasmGraphBuilder::Trap(wasm::TrapReason reason,
+                            wasm::WasmCodePosition position) {
   TrapIfFalse(reason, Int32Constant(0), position);
   // Connect control to end via a Throw() node.
   TerminateThrow(effect(), control());
-  return nullptr;
 }
 
 Node* WasmGraphBuilder::MaskShiftCount32(Node* node) {
@@ -3259,13 +3252,10 @@ Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,
                            kReturnCall);
 }
 
-Node* WasmGraphBuilder::BrOnNull(Node* ref_object, Node** null_node,
-                                 Node** non_null_node) {
+void WasmGraphBuilder::BrOnNull(Node* ref_object, Node** null_node,
+                                Node** non_null_node) {
   BranchExpectFalse(gasm_->WordEqual(ref_object, RefNull()), null_node,
                     non_null_node);
-  // Return value is not used, but we need it for compatibility
-  // with graph-builder-interface.
-  return nullptr;
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
@@ -3636,7 +3626,7 @@ Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
   return result;
 }
 
-Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
+void WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
   if (global.type.is_reference()) {
     if (global.mutability && global.imported) {
@@ -3644,13 +3634,15 @@ Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
       Node* offset = nullptr;
       GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &base, &offset);
 
-      return gasm_->StoreToObject(
+      gasm_->StoreToObject(
           ObjectAccess(MachineType::AnyTagged(), kFullWriteBarrier), base,
           offset, val);
+      return;
     }
     Node* globals_buffer =
         LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
-    return gasm_->StoreFixedArrayElementAny(globals_buffer, global.offset, val);
+    gasm_->StoreFixedArrayElementAny(globals_buffer, global.offset, val);
+    return;
   }
 
   MachineType mem_type = global.type.machine_type();
@@ -3667,7 +3659,7 @@ Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
 #endif
   // TODO(manoskouk): Cannot use StoreToObject here due to
   // GetGlobalBaseAndOffset pointer arithmetic.
-  return gasm_->Store(store_rep, base, offset, val);
+  gasm_->Store(store_rep, base, offset, val);
 }
 
 Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
@@ -3676,10 +3668,10 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
                                 gasm_->IntPtrConstant(table_index), index);
 }
 
-Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
-                                 wasm::WasmCodePosition position) {
-  return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableSet,
-                                gasm_->IntPtrConstant(table_index), index, val);
+void WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
+                                wasm::WasmCodePosition position) {
+  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableSet,
+                         gasm_->IntPtrConstant(table_index), index, val);
 }
 
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(
@@ -3833,14 +3825,13 @@ const Operator* WasmGraphBuilder::GetSafeStoreOperator(int offset,
   return mcgraph()->machine()->UnalignedStore(store_rep);
 }
 
-Node* WasmGraphBuilder::TraceFunctionEntry(wasm::WasmCodePosition position) {
+void WasmGraphBuilder::TraceFunctionEntry(wasm::WasmCodePosition position) {
   Node* call = BuildCallToRuntime(Runtime::kWasmTraceEnter, nullptr, 0);
   SetSourcePosition(call, position);
-  return call;
 }
 
-Node* WasmGraphBuilder::TraceFunctionExit(Vector<Node*> vals,
-                                          wasm::WasmCodePosition position) {
+void WasmGraphBuilder::TraceFunctionExit(Vector<Node*> vals,
+                                         wasm::WasmCodePosition position) {
   Node* info = gasm_->IntPtrConstant(0);
   size_t num_returns = vals.size();
   if (num_returns == 1) {
@@ -3855,13 +3846,12 @@ Node* WasmGraphBuilder::TraceFunctionExit(Vector<Node*> vals,
 
   Node* call = BuildCallToRuntime(Runtime::kWasmTraceExit, &info, 1);
   SetSourcePosition(call, position);
-  return call;
 }
 
-Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
-                                             MachineRepresentation rep,
-                                             Node* index, uintptr_t offset,
-                                             wasm::WasmCodePosition position) {
+void WasmGraphBuilder::TraceMemoryOperation(bool is_store,
+                                            MachineRepresentation rep,
+                                            Node* index, uintptr_t offset,
+                                            wasm::WasmCodePosition position) {
   int kAlign = 4;  // Ensure that the LSB is 0, such that this looks like a Smi.
   TNode<RawPtrT> info =
       gasm_->StackSlot(sizeof(wasm::MemoryTracingInfo), kAlign);
@@ -3883,7 +3873,6 @@ Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
   Node* call =
       BuildCallToRuntime(Runtime::kWasmTraceMemory, args, arraysize(args));
   SetSourcePosition(call, position);
-  return call;
 }
 
 namespace {
@@ -4195,11 +4184,11 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   return load;
 }
 
-Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
-                                  uint64_t offset, uint32_t alignment,
-                                  Node* val, uint8_t laneidx,
-                                  wasm::WasmCodePosition position,
-                                  wasm::ValueType type) {
+void WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
+                                 uint64_t offset, uint32_t alignment, Node* val,
+                                 uint8_t laneidx,
+                                 wasm::WasmCodePosition position,
+                                 wasm::ValueType type) {
   Node* store;
   has_simd_ = true;
   index = BoundsCheckMem(i::ElementSizeInBytes(mem_rep), index, offset,
@@ -4241,16 +4230,12 @@ Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
   if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(true, mem_rep, index, capped_offset, position);
   }
-
-  return store;
 }
 
-Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
-                                 uint64_t offset, uint32_t alignment, Node* val,
-                                 wasm::WasmCodePosition position,
-                                 wasm::ValueType type) {
-  Node* store;
-
+void WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
+                                uint64_t offset, uint32_t alignment, Node* val,
+                                wasm::WasmCodePosition position,
+                                wasm::ValueType type) {
   if (mem_rep == MachineRepresentation::kSimd128) {
     has_simd_ = true;
   }
@@ -4267,25 +4252,23 @@ Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
   if (mem_rep == MachineRepresentation::kWord8 ||
       mcgraph()->machine()->UnalignedStoreSupported(mem_rep)) {
     if (use_trap_handler()) {
-      store =
+      Node* store =
           gasm_->ProtectedStore(mem_rep, MemBuffer(capped_offset), index, val);
       SetSourcePosition(store, position);
     } else {
-      store = gasm_->Store(StoreRepresentation{mem_rep, kNoWriteBarrier},
-                           MemBuffer(capped_offset), index, val);
+      gasm_->Store(StoreRepresentation{mem_rep, kNoWriteBarrier},
+                   MemBuffer(capped_offset), index, val);
     }
   } else {
     // TODO(eholk): Support unaligned stores with trap handlers.
     DCHECK(!use_trap_handler());
     UnalignedStoreRepresentation rep(mem_rep);
-    store = gasm_->StoreUnaligned(rep, MemBuffer(capped_offset), index, val);
+    gasm_->StoreUnaligned(rep, MemBuffer(capped_offset), index, val);
   }
 
   if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(true, mem_rep, index, capped_offset, position);
   }
-
-  return store;
 }
 
 Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
@@ -5412,14 +5395,14 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   }
 }
 
-Node* WasmGraphBuilder::AtomicFence() {
-  return SetEffect(graph()->NewNode(mcgraph()->machine()->MemBarrier(),
-                                    effect(), control()));
+void WasmGraphBuilder::AtomicFence() {
+  SetEffect(graph()->NewNode(mcgraph()->machine()->MemBarrier(), effect(),
+                             control()));
 }
 
-Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
-                                   Node* src, Node* size,
-                                   wasm::WasmCodePosition position) {
+void WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
+                                  Node* src, Node* size,
+                                  wasm::WasmCodePosition position) {
   // The data segment index must be in bounds since it is required by
   // validation.
   DCHECK_LT(data_segment_index, env_->module->num_declared_data_segments);
@@ -5438,19 +5421,19 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
   MachineSignature sig(1, 1, sig_types);
   Node* call = BuildCCall(&sig, function, stack_slot);
-  return TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
+  TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
 
-Node* WasmGraphBuilder::DataDrop(uint32_t data_segment_index,
-                                 wasm::WasmCodePosition position) {
+void WasmGraphBuilder::DataDrop(uint32_t data_segment_index,
+                                wasm::WasmCodePosition position) {
   DCHECK_LT(data_segment_index, env_->module->num_declared_data_segments);
 
   Node* seg_size_array =
       LOAD_INSTANCE_FIELD(DataSegmentSizes, MachineType::Pointer());
   STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >> 2);
   auto access = ObjectAccess(MachineType::Int32(), kNoWriteBarrier);
-  return gasm_->StoreToObject(access, seg_size_array, data_segment_index << 2,
-                              Int32Constant(0));
+  gasm_->StoreToObject(access, seg_size_array, data_segment_index << 2,
+                       Int32Constant(0));
 }
 
 Node* WasmGraphBuilder::StoreArgsInStackSlot(
@@ -5474,8 +5457,8 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
   return stack_slot;
 }
 
-Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
-                                   wasm::WasmCodePosition position) {
+void WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
+                                  wasm::WasmCodePosition position) {
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_copy());
 
@@ -5488,11 +5471,11 @@ Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
   MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
   MachineSignature sig(1, 1, sig_types);
   Node* call = BuildCCall(&sig, function, stack_slot);
-  return TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
+  TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
 
-Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
-                                   wasm::WasmCodePosition position) {
+void WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
+                                  wasm::WasmCodePosition position) {
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_fill());
 
@@ -5505,20 +5488,20 @@ Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
   MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
   MachineSignature sig(1, 1, sig_types);
   Node* call = BuildCCall(&sig, function, stack_slot);
-  return TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
+  TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
 
-Node* WasmGraphBuilder::TableInit(uint32_t table_index,
-                                  uint32_t elem_segment_index, Node* dst,
-                                  Node* src, Node* size,
-                                  wasm::WasmCodePosition position) {
-  return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableInit, dst, src, size,
-                                gasm_->NumberConstant(table_index),
-                                gasm_->NumberConstant(elem_segment_index));
-}
-
-Node* WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
+void WasmGraphBuilder::TableInit(uint32_t table_index,
+                                 uint32_t elem_segment_index, Node* dst,
+                                 Node* src, Node* size,
                                  wasm::WasmCodePosition position) {
+  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableInit, dst, src, size,
+                         gasm_->NumberConstant(table_index),
+                         gasm_->NumberConstant(elem_segment_index));
+}
+
+void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
+                                wasm::WasmCodePosition position) {
   // The elem segment index must be in bounds since it is required by
   // validation.
   DCHECK_LT(elem_segment_index, env_->module->elem_segments.size());
@@ -5527,17 +5510,16 @@ Node* WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
       LOAD_INSTANCE_FIELD(DroppedElemSegments, MachineType::Pointer());
   auto store_rep =
       StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier);
-  return gasm_->Store(store_rep, dropped_elem_segments, elem_segment_index,
-                      Int32Constant(1));
+  gasm_->Store(store_rep, dropped_elem_segments, elem_segment_index,
+               Int32Constant(1));
 }
 
-Node* WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
-                                  uint32_t table_src_index, Node* dst,
-                                  Node* src, Node* size,
-                                  wasm::WasmCodePosition position) {
-  return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableCopy, dst, src, size,
-                                gasm_->NumberConstant(table_dst_index),
-                                gasm_->NumberConstant(table_src_index));
+void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
+                                 uint32_t table_src_index, Node* dst, Node* src,
+                                 Node* size, wasm::WasmCodePosition position) {
+  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableCopy, dst, src, size,
+                         gasm_->NumberConstant(table_dst_index),
+                         gasm_->NumberConstant(table_src_index));
 }
 
 Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
@@ -5561,9 +5543,9 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
   return BuildChangeSmiToInt32(length_smi);
 }
 
-Node* WasmGraphBuilder::TableFill(uint32_t table_index, Node* start,
-                                  Node* value, Node* count) {
-  return gasm_->CallRuntimeStub(
+void WasmGraphBuilder::TableFill(uint32_t table_index, Node* start, Node* value,
+                                 Node* count) {
+  gasm_->CallRuntimeStub(
       wasm::WasmCode::kWasmTableFill,
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), start,
       count, value);
@@ -5752,7 +5734,7 @@ void WasmGraphBuilder::FuncCheck(Node* object, bool object_can_be_null,
                         BranchHint::kTrue);
 }
 
-Node* WasmGraphBuilder::BrOnCastAbs(
+void WasmGraphBuilder::BrOnCastAbs(
     Node** match_control, Node** match_effect, Node** no_match_control,
     Node** no_match_effect, std::function<void(Callbacks)> type_checker) {
   SmallNodeVector no_match_controls, no_match_effects, match_controls,
@@ -5778,10 +5760,6 @@ Node* WasmGraphBuilder::BrOnCastAbs(
   // EffectPhis need their control dependency as an additional input.
   no_match_effects.emplace_back(*no_match_control);
   *no_match_effect = EffectPhi(count, no_match_effects.data());
-
-  // Return value is not used, but we need it for compatibility
-  // with graph-builder-interface.
-  return nullptr;
 }
 
 Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
@@ -5803,15 +5781,15 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
   return object;
 }
 
-Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
-                                 ObjectReferenceKnowledge config,
-                                 Node** match_control, Node** match_effect,
-                                 Node** no_match_control,
-                                 Node** no_match_effect) {
-  return BrOnCastAbs(match_control, match_effect, no_match_control,
-                     no_match_effect, [=](Callbacks callbacks) -> void {
-                       return TypeCheck(object, rtt, config, false, callbacks);
-                     });
+void WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
+                                ObjectReferenceKnowledge config,
+                                Node** match_control, Node** match_effect,
+                                Node** no_match_control,
+                                Node** no_match_effect) {
+  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
+              [=](Callbacks callbacks) -> void {
+                return TypeCheck(object, rtt, config, false, callbacks);
+              });
 }
 
 Node* WasmGraphBuilder::RefIsData(Node* object, bool object_can_be_null) {
@@ -5831,16 +5809,15 @@ Node* WasmGraphBuilder::RefAsData(Node* object, bool object_can_be_null,
   return object;
 }
 
-Node* WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
-                                 ObjectReferenceKnowledge config,
-                                 Node** match_control, Node** match_effect,
-                                 Node** no_match_control,
-                                 Node** no_match_effect) {
-  return BrOnCastAbs(match_control, match_effect, no_match_control,
-                     no_match_effect, [=](Callbacks callbacks) -> void {
-                       return DataCheck(object, config.object_can_be_null,
-                                        callbacks);
-                     });
+void WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
+                                ObjectReferenceKnowledge config,
+                                Node** match_control, Node** match_effect,
+                                Node** no_match_control,
+                                Node** no_match_effect) {
+  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
+              [=](Callbacks callbacks) -> void {
+                return DataCheck(object, config.object_can_be_null, callbacks);
+              });
 }
 
 Node* WasmGraphBuilder::RefIsFunc(Node* object, bool object_can_be_null) {
@@ -5860,16 +5837,15 @@ Node* WasmGraphBuilder::RefAsFunc(Node* object, bool object_can_be_null,
   return object;
 }
 
-Node* WasmGraphBuilder::BrOnFunc(Node* object, Node* /*rtt*/,
-                                 ObjectReferenceKnowledge config,
-                                 Node** match_control, Node** match_effect,
-                                 Node** no_match_control,
-                                 Node** no_match_effect) {
-  return BrOnCastAbs(match_control, match_effect, no_match_control,
-                     no_match_effect, [=](Callbacks callbacks) -> void {
-                       return FuncCheck(object, config.object_can_be_null,
-                                        callbacks);
-                     });
+void WasmGraphBuilder::BrOnFunc(Node* object, Node* /*rtt*/,
+                                ObjectReferenceKnowledge config,
+                                Node** match_control, Node** match_effect,
+                                Node** no_match_control,
+                                Node** no_match_effect) {
+  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
+              [=](Callbacks callbacks) -> void {
+                return FuncCheck(object, config.object_can_be_null, callbacks);
+              });
 }
 
 Node* WasmGraphBuilder::RefIsI31(Node* object) { return gasm_->IsI31(object); }
@@ -5880,20 +5856,17 @@ Node* WasmGraphBuilder::RefAsI31(Node* object,
   return object;
 }
 
-Node* WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
-                                ObjectReferenceKnowledge /* config */,
-                                Node** match_control, Node** match_effect,
-                                Node** no_match_control,
-                                Node** no_match_effect) {
+void WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
+                               ObjectReferenceKnowledge /* config */,
+                               Node** match_control, Node** match_effect,
+                               Node** no_match_control,
+                               Node** no_match_effect) {
   gasm_->Branch(gasm_->IsI31(object), match_control, no_match_control,
                 BranchHint::kTrue);
 
   SetControl(*no_match_control);
   *match_effect = effect();
   *no_match_effect = effect();
-
-  // Unused return value, needed for typing of BUILD in graph-builder-interface.
-  return nullptr;
 }
 
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
@@ -5913,17 +5886,16 @@ Node* WasmGraphBuilder::StructGet(Node* struct_object,
   return gasm_->LoadFromObject(machine_type, struct_object, offset);
 }
 
-Node* WasmGraphBuilder::StructSet(Node* struct_object,
-                                  const wasm::StructType* struct_type,
-                                  uint32_t field_index, Node* field_value,
-                                  CheckForNull null_check,
-                                  wasm::WasmCodePosition position) {
+void WasmGraphBuilder::StructSet(Node* struct_object,
+                                 const wasm::StructType* struct_type,
+                                 uint32_t field_index, Node* field_value,
+                                 CheckForNull null_check,
+                                 wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
     TrapIfTrue(wasm::kTrapNullDereference,
                gasm_->WordEqual(struct_object, RefNull()), position);
   }
-  return gasm_->StoreStructField(struct_object, struct_type, field_index,
-                                 field_value);
+  gasm_->StoreStructField(struct_object, struct_type, field_index, field_value);
 }
 
 void WasmGraphBuilder::BoundsCheck(Node* array, Node* index,
@@ -5948,18 +5920,18 @@ Node* WasmGraphBuilder::ArrayGet(Node* array_object,
   return gasm_->LoadFromObject(machine_type, array_object, offset);
 }
 
-Node* WasmGraphBuilder::ArraySet(Node* array_object,
-                                 const wasm::ArrayType* type, Node* index,
-                                 Node* value, CheckForNull null_check,
-                                 wasm::WasmCodePosition position) {
+void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,
+                                Node* index, Node* value,
+                                CheckForNull null_check,
+                                wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
     TrapIfTrue(wasm::kTrapNullDereference,
                gasm_->WordEqual(array_object, RefNull()), position);
   }
   BoundsCheck(array_object, index, position);
   Node* offset = gasm_->WasmArrayElementOffset(index, type->element_type());
-  return gasm_->StoreToObject(ObjectAccessForGCStores(type->element_type()),
-                              array_object, offset, value);
+  gasm_->StoreToObject(ObjectAccessForGCStores(type->element_type()),
+                       array_object, offset, value);
 }
 
 Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,

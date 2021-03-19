@@ -1008,7 +1008,7 @@ class WasmGraphBuildingInterface {
         builder_->RefCast(object.node, rtt.node, config, decoder->position());
   }
 
-  template <TFNode* (compiler::WasmGraphBuilder::*branch_function)(
+  template <void (compiler::WasmGraphBuilder::*branch_function)(
       TFNode*, TFNode*, StaticKnowledge, TFNode**, TFNode**, TFNode**,
       TFNode**)>
   void BrOnCastAbs(FullDecoder* decoder, const Value& object, const Value& rtt,

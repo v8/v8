@@ -232,11 +232,11 @@ class WasmGraphBuilder {
   Node* Start(unsigned params);
   Node* Param(int index, const char* debug_name = nullptr);
   Node* Loop(Node* entry);
-  Node* TerminateLoop(Node* effect, Node* control);
+  void TerminateLoop(Node* effect, Node* control);
   Node* LoopExit(Node* loop_node);
   // Assumes current control() is the corresponding loop exit.
   Node* LoopExitValue(Node* value, MachineRepresentation representation);
-  Node* TerminateThrow(Node* effect, Node* control);
+  void TerminateThrow(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
   template <typename... Nodes>
   Node* Merge(Node* fst, Nodes*... args);
@@ -282,18 +282,18 @@ class WasmGraphBuilder {
   Node* BranchNoHint(Node* cond, Node** true_node, Node** false_node);
   Node* BranchExpectFalse(Node* cond, Node** true_node, Node** false_node);
 
-  Node* TrapIfTrue(wasm::TrapReason reason, Node* cond,
+  void TrapIfTrue(wasm::TrapReason reason, Node* cond,
+                  wasm::WasmCodePosition position);
+  void TrapIfFalse(wasm::TrapReason reason, Node* cond,
                    wasm::WasmCodePosition position);
-  Node* TrapIfFalse(wasm::TrapReason reason, Node* cond,
-                    wasm::WasmCodePosition position);
-  Node* TrapIfEq32(wasm::TrapReason reason, Node* node, int32_t val,
+  void TrapIfEq32(wasm::TrapReason reason, Node* node, int32_t val,
+                  wasm::WasmCodePosition position);
+  void ZeroCheck32(wasm::TrapReason reason, Node* node,
                    wasm::WasmCodePosition position);
-  Node* ZeroCheck32(wasm::TrapReason reason, Node* node,
-                    wasm::WasmCodePosition position);
-  Node* TrapIfEq64(wasm::TrapReason reason, Node* node, int64_t val,
+  void TrapIfEq64(wasm::TrapReason reason, Node* node, int64_t val,
+                  wasm::WasmCodePosition position);
+  void ZeroCheck64(wasm::TrapReason reason, Node* node,
                    wasm::WasmCodePosition position);
-  Node* ZeroCheck64(wasm::TrapReason reason, Node* node,
-                    wasm::WasmCodePosition position);
 
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
@@ -305,10 +305,10 @@ class WasmGraphBuilder {
     return Return(ArrayVector(arr));
   }
 
-  Node* TraceFunctionEntry(wasm::WasmCodePosition position);
-  Node* TraceFunctionExit(Vector<Node*> vals, wasm::WasmCodePosition position);
+  void TraceFunctionEntry(wasm::WasmCodePosition position);
+  void TraceFunctionExit(Vector<Node*> vals, wasm::WasmCodePosition position);
 
-  Node* Trap(wasm::TrapReason reason, wasm::WasmCodePosition position);
+  void Trap(wasm::TrapReason reason, wasm::WasmCodePosition position);
 
   Node* CallDirect(uint32_t index, Vector<Node*> args, Vector<Node*> rets,
                    wasm::WasmCodePosition position);
@@ -325,24 +325,22 @@ class WasmGraphBuilder {
   Node* ReturnCallRef(uint32_t sig_index, Vector<Node*> args,
                       CheckForNull null_check, wasm::WasmCodePosition position);
 
-  // Return value is not expected to be used,
-  // but we need it for compatibility with graph-builder-interface.
-  Node* BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
+  void BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
 
   Node* Invert(Node* node);
 
   Node* GlobalGet(uint32_t index);
-  Node* GlobalSet(uint32_t index, Node* val);
+  void GlobalSet(uint32_t index, Node* val);
   Node* TableGet(uint32_t table_index, Node* index,
                  wasm::WasmCodePosition position);
-  Node* TableSet(uint32_t table_index, Node* index, Node* val,
-                 wasm::WasmCodePosition position);
+  void TableSet(uint32_t table_index, Node* index, Node* val,
+                wasm::WasmCodePosition position);
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
   //-----------------------------------------------------------------------
   Node* CurrentMemoryPages();
-  Node* TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
-                             uintptr_t offset, wasm::WasmCodePosition);
+  void TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
+                            uintptr_t offset, wasm::WasmCodePosition);
   Node* Prefetch(Node* index, uint64_t offset, uint32_t alignment,
                  bool temporal);
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
@@ -361,12 +359,12 @@ class WasmGraphBuilder {
   Node* LoadLane(wasm::ValueType type, MachineType memtype, Node* value,
                  Node* index, uint64_t offset, uint32_t alignment,
                  uint8_t laneidx, wasm::WasmCodePosition position);
-  Node* StoreMem(MachineRepresentation mem_rep, Node* index, uint64_t offset,
-                 uint32_t alignment, Node* val, wasm::WasmCodePosition position,
-                 wasm::ValueType type);
-  Node* StoreLane(MachineRepresentation mem_rep, Node* index, uint64_t offset,
-                  uint32_t alignment, Node* val, uint8_t laneidx,
-                  wasm::WasmCodePosition position, wasm::ValueType type);
+  void StoreMem(MachineRepresentation mem_rep, Node* index, uint64_t offset,
+                uint32_t alignment, Node* val, wasm::WasmCodePosition position,
+                wasm::ValueType type);
+  void StoreLane(MachineRepresentation mem_rep, Node* index, uint64_t offset,
+                 uint32_t alignment, Node* val, uint8_t laneidx,
+                 wasm::WasmCodePosition position, wasm::ValueType type);
   static void PrintDebugName(Node* node);
 
   Node* effect();
@@ -427,33 +425,33 @@ class WasmGraphBuilder {
   Node* AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
                  uint32_t alignment, uint64_t offset,
                  wasm::WasmCodePosition position);
-  Node* AtomicFence();
+  void AtomicFence();
 
-  Node* MemoryInit(uint32_t data_segment_index, Node* dst, Node* src,
-                   Node* size, wasm::WasmCodePosition position);
-  Node* MemoryCopy(Node* dst, Node* src, Node* size,
-                   wasm::WasmCodePosition position);
-  Node* DataDrop(uint32_t data_segment_index, wasm::WasmCodePosition position);
-  Node* MemoryFill(Node* dst, Node* fill, Node* size,
-                   wasm::WasmCodePosition position);
+  void MemoryInit(uint32_t data_segment_index, Node* dst, Node* src, Node* size,
+                  wasm::WasmCodePosition position);
+  void MemoryCopy(Node* dst, Node* src, Node* size,
+                  wasm::WasmCodePosition position);
+  void DataDrop(uint32_t data_segment_index, wasm::WasmCodePosition position);
+  void MemoryFill(Node* dst, Node* fill, Node* size,
+                  wasm::WasmCodePosition position);
 
-  Node* TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
-                  Node* src, Node* size, wasm::WasmCodePosition position);
-  Node* ElemDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
-  Node* TableCopy(uint32_t table_dst_index, uint32_t table_src_index, Node* dst,
-                  Node* src, Node* size, wasm::WasmCodePosition position);
+  void TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
+                 Node* src, Node* size, wasm::WasmCodePosition position);
+  void ElemDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
+  void TableCopy(uint32_t table_dst_index, uint32_t table_src_index, Node* dst,
+                 Node* src, Node* size, wasm::WasmCodePosition position);
   Node* TableGrow(uint32_t table_index, Node* value, Node* delta);
   Node* TableSize(uint32_t table_index);
-  Node* TableFill(uint32_t table_index, Node* start, Node* value, Node* count);
+  void TableFill(uint32_t table_index, Node* start, Node* value, Node* count);
 
   Node* StructNewWithRtt(uint32_t struct_index, const wasm::StructType* type,
                          Node* rtt, Vector<Node*> fields);
   Node* StructGet(Node* struct_object, const wasm::StructType* struct_type,
                   uint32_t field_index, CheckForNull null_check, bool is_signed,
                   wasm::WasmCodePosition position);
-  Node* StructSet(Node* struct_object, const wasm::StructType* struct_type,
-                  uint32_t field_index, Node* value, CheckForNull null_check,
-                  wasm::WasmCodePosition position);
+  void StructSet(Node* struct_object, const wasm::StructType* struct_type,
+                 uint32_t field_index, Node* value, CheckForNull null_check,
+                 wasm::WasmCodePosition position);
   Node* ArrayNewWithRtt(uint32_t array_index, const wasm::ArrayType* type,
                         Node* length, Node* initial_value, Node* rtt,
                         wasm::WasmCodePosition position);
@@ -461,9 +459,9 @@ class WasmGraphBuilder {
   Node* ArrayGet(Node* array_object, const wasm::ArrayType* type, Node* index,
                  CheckForNull null_check, bool is_signed,
                  wasm::WasmCodePosition position);
-  Node* ArraySet(Node* array_object, const wasm::ArrayType* type, Node* index,
-                 Node* value, CheckForNull null_check,
-                 wasm::WasmCodePosition position);
+  void ArraySet(Node* array_object, const wasm::ArrayType* type, Node* index,
+                Node* value, CheckForNull null_check,
+                wasm::WasmCodePosition position);
   Node* ArrayLen(Node* array_object, CheckForNull null_check,
                  wasm::WasmCodePosition position);
   Node* I31New(Node* input);
@@ -475,26 +473,26 @@ class WasmGraphBuilder {
   Node* RefTest(Node* object, Node* rtt, ObjectReferenceKnowledge config);
   Node* RefCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                 wasm::WasmCodePosition position);
-  Node* BrOnCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
-                 Node** match_control, Node** match_effect,
-                 Node** no_match_control, Node** no_match_effect);
+  void BrOnCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                Node** match_control, Node** match_effect,
+                Node** no_match_control, Node** no_match_effect);
   Node* RefIsData(Node* object, bool object_can_be_null);
   Node* RefAsData(Node* object, bool object_can_be_null,
                   wasm::WasmCodePosition position);
-  Node* BrOnData(Node* object, Node* rtt, ObjectReferenceKnowledge config,
-                 Node** match_control, Node** match_effect,
-                 Node** no_match_control, Node** no_match_effect);
+  void BrOnData(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                Node** match_control, Node** match_effect,
+                Node** no_match_control, Node** no_match_effect);
   Node* RefIsFunc(Node* object, bool object_can_be_null);
   Node* RefAsFunc(Node* object, bool object_can_be_null,
                   wasm::WasmCodePosition position);
-  Node* BrOnFunc(Node* object, Node* rtt, ObjectReferenceKnowledge config,
-                 Node** match_control, Node** match_effect,
-                 Node** no_match_control, Node** no_match_effect);
-  Node* RefIsI31(Node* object);
-  Node* RefAsI31(Node* object, wasm::WasmCodePosition position);
-  Node* BrOnI31(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+  void BrOnFunc(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
+  Node* RefIsI31(Node* object);
+  Node* RefAsI31(Node* object, wasm::WasmCodePosition position);
+  void BrOnI31(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+               Node** match_control, Node** match_effect,
+               Node** no_match_control, Node** no_match_effect);
 
   bool has_simd() const { return has_simd_; }
 
@@ -669,9 +667,9 @@ class WasmGraphBuilder {
   void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
   void FuncCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
 
-  Node* BrOnCastAbs(Node** match_control, Node** match_effect,
-                    Node** no_match_control, Node** no_match_effect,
-                    std::function<void(Callbacks)> type_checker);
+  void BrOnCastAbs(Node** match_control, Node** match_effect,
+                   Node** no_match_control, Node** no_match_effect,
+                   std::function<void(Callbacks)> type_checker);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);
