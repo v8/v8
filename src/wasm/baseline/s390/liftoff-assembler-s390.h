@@ -801,6 +801,9 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 
 // V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
 #define UNOP_LIST(V)                                                           \
+  V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)             \
+  V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG,        \
+    LFR_TO_REG, USE, true, bool)                                               \
   V(u32_to_intptr, LoadU32, Register, Register, , , USE, , void)               \
   V(i32_signextend_i8, lbr, Register, Register, , , USE, , void)               \
   V(i32_signextend_i16, lhr, Register, Register, , , USE, , void)              \
@@ -932,17 +935,6 @@ BINOP_LIST(EMIT_BINOP_FUNCTION)
 #undef INT32_AND_WITH_1F
 #undef REGISTER_AND_WITH_1F
 #undef LFR_TO_REG
-
-bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "i32_popcnt");
-  return true;
-}
-
-bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
-                                       LiftoffRegister src) {
-  Popcnt64(dst.gp(), src.gp());
-  return true;
-}
 
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
   fiebra(ROUND_TOWARD_POS_INF, dst, src);
