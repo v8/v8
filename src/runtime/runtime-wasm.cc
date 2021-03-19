@@ -30,15 +30,17 @@ namespace internal {
 
 namespace {
 
-template <typename FrameType, StackFrame::Type... skipped_frame_types>
+template <typename FrameType>
 class FrameFinder {
-  static_assert(sizeof...(skipped_frame_types) > 0,
-                "Specify at least one frame to skip");
-
  public:
-  explicit FrameFinder(Isolate* isolate)
+  explicit FrameFinder(Isolate* isolate,
+                       std::initializer_list<StackFrame::Type>
+                           skipped_frame_types = {StackFrame::EXIT})
       : frame_iterator_(isolate, isolate->thread_local_top()) {
-    for (auto type : {skipped_frame_types...}) {
+    // We skip at least one frame.
+    DCHECK_LT(0, skipped_frame_types.size());
+
+    for (auto type : skipped_frame_types) {
       DCHECK_EQ(type, frame_iterator_.frame()->type());
       USE(type);
       frame_iterator_.Advance();
@@ -54,9 +56,7 @@ class FrameFinder {
 };
 
 WasmInstanceObject GetWasmInstanceOnStackTop(Isolate* isolate) {
-  return FrameFinder<WasmFrame, StackFrame::EXIT>(isolate)
-      .frame()
-      ->wasm_instance();
+  return FrameFinder<WasmFrame>(isolate).frame()->wasm_instance();
 }
 
 Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
@@ -212,7 +212,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   CONVERT_SMI_ARG_CHECKED(func_index, 1);
 
 #ifdef DEBUG
-  FrameFinder<WasmCompileLazyFrame, StackFrame::EXIT> frame_finder(isolate);
+  FrameFinder<WasmCompileLazyFrame> frame_finder(isolate);
   DCHECK_EQ(*instance, frame_finder.frame()->wasm_instance());
 #endif
 
@@ -301,7 +301,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
 
-  FrameFinder<WasmFrame, StackFrame::EXIT> frame_finder(isolate);
+  FrameFinder<WasmFrame> frame_finder(isolate);
   int func_index = frame_finder.frame()->function_index();
   auto* native_module = instance->module_object().native_module();
 
@@ -550,8 +550,8 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  FrameFinder<WasmFrame, StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK>
-      frame_finder(isolate);
+  FrameFinder<WasmFrame> frame_finder(
+      isolate, {StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK});
   auto instance = handle(frame_finder.frame()->wasm_instance(), isolate);
   auto script = handle(instance->module_object().script(), isolate);
   WasmFrame* frame = frame_finder.frame();
