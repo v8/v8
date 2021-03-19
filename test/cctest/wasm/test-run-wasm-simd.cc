@@ -908,12 +908,15 @@ void RunF64x2ConvertLowI32x4Test(TestExecutionTier execution_tier,
                                  LowerSimd lower_simd, WasmOpcode opcode) {
   WasmRunner<int32_t, SrcType> r(execution_tier, lower_simd);
   double* g = r.builder().template AddGlobal<double>(kWasmS128);
-  // TODO(zhin): set top lanes to 0 to assert conversion happens on low lanes.
-  BUILD(
-      r,
-      WASM_GLOBAL_SET(
-          0, WASM_SIMD_UNOP(opcode, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)))),
-      WASM_ONE);
+  BUILD(r,
+        WASM_GLOBAL_SET(
+            0,
+            WASM_SIMD_UNOP(
+                opcode,
+                // Set top lane of i64x2 == set top 2 lanes of i32x4.
+                WASM_SIMD_I64x2_REPLACE_LANE(
+                    1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)), WASM_ZERO64))),
+        WASM_ONE);
 
   for (SrcType x : compiler::ValueHelper::GetVector<SrcType>()) {
     r.Call(x);
