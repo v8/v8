@@ -23,6 +23,7 @@
 #include "src/codegen/label.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/reloc-info.h"
+#include "src/codegen/shared-ia32-x64-macro-assembler.h"
 #include "src/codegen/turbo-assembler.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
@@ -70,9 +71,9 @@ class StackArgumentsAccessor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
-class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
  public:
-  using TurboAssemblerBase::TurboAssemblerBase;
+  using SharedTurboAssembler::SharedTurboAssembler;
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
@@ -725,7 +726,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Requires dst == mask when AVX is not supported.
   void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
                   XMMRegister src2, XMMRegister scratch);
-  void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
   void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
   void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);

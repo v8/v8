@@ -3137,6 +3137,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/ia32/macro-assembler-ia32.h",
       "src/codegen/ia32/register-ia32.h",
       "src/codegen/ia32/sse-instr.h",
+      "src/codegen/shared-ia32-x64-macro-assembler.h",
       "src/compiler/backend/ia32/instruction-codes-ia32.h",
       "src/execution/ia32/frame-constants-ia32.h",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
@@ -3146,6 +3147,7 @@ v8_header_set("v8_internal_headers") {
     sources += [  ### gcmole(arch:x64) ###
       "src/baseline/x64/baseline-assembler-x64-inl.h",
       "src/baseline/x64/baseline-compiler-x64-inl.h",
+      "src/codegen/shared-ia32-x64-macro-assembler.h",
       "src/codegen/x64/assembler-x64-inl.h",
       "src/codegen/x64/assembler-x64.h",
       "src/codegen/x64/constants-x64.h",
@@ -4033,6 +4035,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/ia32/cpu-ia32.cc",
       "src/codegen/ia32/interface-descriptors-ia32.cc",
       "src/codegen/ia32/macro-assembler-ia32.cc",
+      "src/codegen/shared-ia32-x64-macro-assembler.cc",
       "src/compiler/backend/ia32/code-generator-ia32.cc",
       "src/compiler/backend/ia32/instruction-scheduler-ia32.cc",
       "src/compiler/backend/ia32/instruction-selector-ia32.cc",
@@ -4045,6 +4048,7 @@ v8_source_set("v8_base_without_compiler") {
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [  ### gcmole(arch:x64) ###
+      "src/codegen/shared-ia32-x64-macro-assembler.cc",
       "src/codegen/x64/assembler-x64.cc",
       "src/codegen/x64/cpu-x64.cc",
       "src/codegen/x64/interface-descriptors-x64.cc",
