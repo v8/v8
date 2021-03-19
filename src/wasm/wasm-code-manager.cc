@@ -872,11 +872,10 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
   TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "functions",
                module_->num_declared_functions);
 
-  Object source_url_obj = script.source_url();
-  DCHECK(source_url_obj.IsString() || source_url_obj.IsUndefined());
+  Object url_obj = script.name();
+  DCHECK(url_obj.IsString() || url_obj.IsUndefined());
   std::unique_ptr<char[]> source_url =
-      source_url_obj.IsString() ? String::cast(source_url_obj).ToCString()
-                                : nullptr;
+      url_obj.IsString() ? String::cast(url_obj).ToCString() : nullptr;
 
   // Log all owned code, not just the current entries in the code table. This
   // will also include import wrappers.

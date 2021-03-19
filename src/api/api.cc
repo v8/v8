@@ -7400,13 +7400,12 @@ Local<ArrayBuffer> v8::WasmMemoryObject::Buffer() {
 
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
 #if V8_ENABLE_WEBASSEMBLY
-  i::Handle<i::WasmModuleObject> obj =
-      i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  auto source_url = i::String::cast(obj->script().source_url());
+  auto obj = i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
+  auto url =
+      i::handle(i::String::cast(obj->script().name()), obj->GetIsolate());
   int length;
-  std::unique_ptr<char[]> cstring = source_url.ToCString(
-      i::DISALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &length);
-  i::Handle<i::String> url(source_url, obj->GetIsolate());
+  std::unique_ptr<char[]> cstring =
+      url->ToCString(i::DISALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &length);
   return CompiledWasmModule(std::move(obj->shared_native_module()),
                             cstring.get(), length);
 #else

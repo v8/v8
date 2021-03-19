@@ -564,8 +564,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   DCHECK_NOT_NULL(code);
   DisallowGarbageCollection no_gc;
   Script script = builder_->instance_object()->module_object().script();
-  std::unique_ptr<char[]> source_url =
-      String::cast(script.source_url()).ToCString();
+  std::unique_ptr<char[]> source_url = String::cast(script.name()).ToCString();
   if (WasmCode::ShouldBeLogged(isolate())) {
     code->LogCode(isolate(), source_url.get(), script.id());
   }
