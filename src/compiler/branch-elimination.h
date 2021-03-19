@@ -52,6 +52,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
   // (true or false).
   class ControlPathConditions : public FunctionalList<BranchCondition> {
    public:
+    bool LookupCondition(Node* condition) const;
     bool LookupCondition(Node* condition, Node** branch, bool* is_true) const;
     void AddCondition(Zone* zone, Node* condition, Node* branch, bool is_true,
                       ControlPathConditions hint);

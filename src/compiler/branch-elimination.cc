@@ -323,8 +323,17 @@ Reduction BranchElimination::UpdateConditions(
 void BranchElimination::ControlPathConditions::AddCondition(
     Zone* zone, Node* condition, Node* branch, bool is_true,
     ControlPathConditions hint) {
-  DCHECK(!LookupCondition(condition, nullptr, nullptr));
-  PushFront({condition, branch, is_true}, zone, hint);
+  if (!LookupCondition(condition)) {
+    PushFront({condition, branch, is_true}, zone, hint);
+  }
+}
+
+bool BranchElimination::ControlPathConditions::LookupCondition(
+    Node* condition) const {
+  for (BranchCondition element : *this) {
+    if (element.condition == condition) return true;
+  }
+  return false;
 }
 
 bool BranchElimination::ControlPathConditions::LookupCondition(
