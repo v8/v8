@@ -30,10 +30,12 @@ namespace internal {
 ProfilerListener::ProfilerListener(Isolate* isolate,
                                    CodeEventObserver* observer,
                                    StringsStorage& function_and_resource_names,
+                                   WeakCodeRegistry& weak_code_registry,
                                    CpuProfilingNamingMode naming_mode)
     : isolate_(isolate),
       observer_(observer),
       function_and_resource_names_(function_and_resource_names),
+      weak_code_registry_(weak_code_registry),
       naming_mode_(naming_mode) {}
 
 ProfilerListener::~ProfilerListener() = default;
@@ -48,6 +50,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();
+  weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
 }
 
@@ -61,6 +64,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();
+  weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
 }
 
@@ -78,6 +82,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   DCHECK(!code->IsCode());
   rec->entry->FillFunctionInfo(*shared);
   rec->instruction_size = code->InstructionSize();
+  weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
 }
 
@@ -220,6 +225,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 
   rec->entry->FillFunctionInfo(*shared);
   rec->instruction_size = abstract_code->InstructionSize();
+  weak_code_registry_.Track(rec->entry, abstract_code);
   DispatchCodeEvent(evt_rec);
 }
 
@@ -283,6 +289,7 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();
+  weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
 }
 
@@ -324,13 +331,15 @@ void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::BytecodeFlushEvent(Address compiled_data_start) {
-  CodeEventsContainer evt_rec(CodeEventRecord::BYTECODE_FLUSH);
-  BytecodeFlushEventRecord* rec = &evt_rec.BytecodeFlushEventRecord_;
-  rec->instruction_start = compiled_data_start + BytecodeArray::kHeaderSize;
+void ProfilerListener::WeakCodeClearEvent() { weak_code_registry_.Sweep(this); }
 
+void ProfilerListener::OnHeapObjectDeletion(CodeEntry* entry) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DELETE);
+  evt_rec.CodeDeleteEventRecord_.entry = entry;
   DispatchCodeEvent(evt_rec);
 }
+
+void ProfilerListener::CodeSweepEvent() { weak_code_registry_.Sweep(this); }
 
 const char* ProfilerListener::GetName(Vector<const char> name) {
   // TODO(all): Change {StringsStorage} to accept non-null-terminated strings.

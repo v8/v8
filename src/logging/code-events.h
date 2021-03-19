@@ -37,8 +37,7 @@ using WasmName = Vector<const char>;
   V(CODE_MOVING_GC, code-moving-gc)                    \
   V(SHARED_FUNC_MOVE_EVENT, sfi-move)                  \
   V(SNAPSHOT_CODE_NAME_EVENT, snapshot-code-name)      \
-  V(TICK_EVENT, tick)                                  \
-  V(BYTECODE_FLUSH_EVENT, bytecode-flush)
+  V(TICK_EVENT, tick)
 // clang-format on
 
 #define TAGS_LIST(V)                       \
@@ -110,8 +109,9 @@ class CodeEventListener {
   virtual void CodeDependencyChangeEvent(Handle<Code> code,
                                          Handle<SharedFunctionInfo> shared,
                                          const char* reason) = 0;
-  // Invoked during GC. No allocation allowed.
-  virtual void BytecodeFlushEvent(Address compiled_data_start) = 0;
+  // Called during GC shortly after any weak references to code objects are
+  // cleared.
+  virtual void WeakCodeClearEvent() = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
 };
@@ -240,10 +240,9 @@ class CodeEventDispatcher : public CodeEventListener {
       listener->CodeDependencyChangeEvent(code, sfi, reason);
     });
   }
-  void BytecodeFlushEvent(Address compiled_data_start) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->BytecodeFlushEvent(compiled_data_start);
-    });
+  void WeakCodeClearEvent() override {
+    DispatchEventToListeners(
+        [=](CodeEventListener* listener) { listener->WeakCodeClearEvent(); });
   }
 
  private:
