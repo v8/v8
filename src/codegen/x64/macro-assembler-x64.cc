@@ -270,8 +270,8 @@ void TurboAssembler::StoreTaggedField(Operand dst_field_operand,
 void TurboAssembler::StoreTaggedSignedField(Operand dst_field_operand,
                                             Smi value) {
   if (SmiValuesAre32Bits()) {
-    movl(Operand(dst_field_operand, kSmiShift / kBitsPerByte),
-         Immediate(value.value()));
+    Move(kScratchRegister, value);
+    movq(dst_field_operand, kScratchRegister);
   } else {
     StoreTaggedField(dst_field_operand, Immediate(value));
   }
