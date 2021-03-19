@@ -139,6 +139,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F64x2NearestInt:
     case kPPC_F64x2Pmin:
     case kPPC_F64x2Pmax:
+    case kPPC_F64x2ConvertLowI32x4S:
+    case kPPC_F64x2ConvertLowI32x4U:
+    case kPPC_F64x2PromoteLowF32x4:
     case kPPC_F32x4Splat:
     case kPPC_F32x4ExtractLane:
     case kPPC_F32x4ReplaceLane:
@@ -167,6 +170,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F32x4NearestInt:
     case kPPC_F32x4Pmin:
     case kPPC_F32x4Pmax:
+    case kPPC_F32x4DemoteF64x2Zero:
     case kPPC_I64x2Splat:
     case kPPC_I64x2ExtractLane:
     case kPPC_I64x2ReplaceLane:
@@ -231,6 +235,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4ExtMulHighI16x8S:
     case kPPC_I32x4ExtMulLowI16x8U:
     case kPPC_I32x4ExtMulHighI16x8U:
+    case kPPC_I32x4TruncSatF64x2SZero:
+    case kPPC_I32x4TruncSatF64x2UZero:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:

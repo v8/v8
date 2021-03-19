@@ -3759,6 +3759,70 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef EXT_MUL
+    case kPPC_F64x2ConvertLowI32x4S: {
+      __ vupklsw(kScratchSimd128Reg, i.InputSimd128Register(0));
+      __ xvcvsxddp(i.OutputSimd128Register(), kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_F64x2ConvertLowI32x4U: {
+      Simd128Register dst = i.OutputSimd128Register();
+      constexpr int lane_width_in_bytes = 8;
+      __ vupklsw(dst, i.InputSimd128Register(0));
+      // Zero extend.
+      __ mov(ip, Operand(0xFFFFFFFF));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vinsertd(kScratchSimd128Reg, kScratchSimd128Reg,
+                  Operand(1 * lane_width_in_bytes));
+      __ vand(dst, kScratchSimd128Reg, dst);
+      __ xvcvuxddp(dst, dst);
+      break;
+    }
+    case kPPC_F64x2PromoteLowF32x4: {
+      constexpr int lane_number = 8;
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vextractd(kScratchSimd128Reg, src, Operand(lane_number));
+      __ vinsertw(kScratchSimd128Reg, kScratchSimd128Reg, Operand(lane_number));
+      __ xvcvspdp(dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_F32x4DemoteF64x2Zero: {
+      constexpr int lane_number = 8;
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ xvcvdpsp(kScratchSimd128Reg, src);
+      __ vextractuw(dst, kScratchSimd128Reg, Operand(lane_number));
+      __ vinsertw(kScratchSimd128Reg, dst, Operand(4));
+      __ vxor(dst, dst, dst);
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(lane_number));
+      break;
+    }
+    case kPPC_I32x4TruncSatF64x2SZero: {
+      constexpr int lane_number = 8;
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      // NaN to 0.
+      __ vor(kScratchSimd128Reg, src, src);
+      __ xvcmpeqdp(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vand(kScratchSimd128Reg, src, kScratchSimd128Reg);
+      __ xvcvdpsxws(kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vextractuw(dst, kScratchSimd128Reg, Operand(lane_number));
+      __ vinsertw(kScratchSimd128Reg, dst, Operand(4));
+      __ vxor(dst, dst, dst);
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(lane_number));
+      break;
+    }
+    case kPPC_I32x4TruncSatF64x2UZero: {
+      constexpr int lane_number = 8;
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ xvcvdpuxws(kScratchSimd128Reg, src);
+      __ vextractuw(dst, kScratchSimd128Reg, Operand(lane_number));
+      __ vinsertw(kScratchSimd128Reg, dst, Operand(4));
+      __ vxor(dst, dst, dst);
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(lane_number));
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

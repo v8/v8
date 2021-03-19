@@ -216,6 +216,9 @@ namespace compiler {
   V(PPC_F64x2NearestInt)             \
   V(PPC_F64x2Pmin)                   \
   V(PPC_F64x2Pmax)                   \
+  V(PPC_F64x2ConvertLowI32x4S)       \
+  V(PPC_F64x2ConvertLowI32x4U)       \
+  V(PPC_F64x2PromoteLowF32x4)        \
   V(PPC_F32x4Splat)                  \
   V(PPC_F32x4ExtractLane)            \
   V(PPC_F32x4ReplaceLane)            \
@@ -244,6 +247,7 @@ namespace compiler {
   V(PPC_F32x4Pmax)                   \
   V(PPC_F32x4Qfma)                   \
   V(PPC_F32x4Qfms)                   \
+  V(PPC_F32x4DemoteF64x2Zero)        \
   V(PPC_I64x2Splat)                  \
   V(PPC_I64x2ExtractLane)            \
   V(PPC_I64x2ReplaceLane)            \
@@ -308,6 +312,8 @@ namespace compiler {
   V(PPC_I32x4ExtMulHighI16x8S)       \
   V(PPC_I32x4ExtMulLowI16x8U)        \
   V(PPC_I32x4ExtMulHighI16x8U)       \
+  V(PPC_I32x4TruncSatF64x2SZero)     \
+  V(PPC_I32x4TruncSatF64x2UZero)     \
   V(PPC_I16x8Splat)                  \
   V(PPC_I16x8ExtractLaneU)           \
   V(PPC_I16x8ExtractLaneS)           \

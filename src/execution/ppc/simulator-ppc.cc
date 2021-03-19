@@ -1421,31 +1421,28 @@ void VectorCompareOp(Simulator* sim, Instruction* instr, bool is_fp,
   }
 }
 
-template <typename B, typename T>
-void VectorConverFromFPSaturate(Simulator* sim, Instruction* instr, B min_val,
-                                B max_val) {
+template <typename S, typename T>
+void VectorConverFromFPSaturate(Simulator* sim, Instruction* instr, T min_val,
+                                T max_val, bool even_lane_result = false) {
   int t = instr->RTValue();
   int b = instr->RBValue();
-  FOR_EACH_LANE(i, float) {
-    B kMinVal = min_val;
-    B kMaxVal = max_val;
+  FOR_EACH_LANE(i, S) {
     T t_val;
-    double b_val =
-        static_cast<double>(sim->get_simd_register_by_lane<float>(b, i));
+    double b_val = static_cast<double>(sim->get_simd_register_by_lane<S>(b, i));
     if (isnan(b_val)) {
-      t_val = kMinVal;
+      t_val = min_val;
     } else {
       // Round Towards Zero.
       b_val = std::trunc(b_val);
-      if (b_val < kMinVal) {
-        t_val = kMinVal;
-      } else if (b_val > kMaxVal) {
-        t_val = kMaxVal;
+      if (b_val < min_val) {
+        t_val = min_val;
+      } else if (b_val > max_val) {
+        t_val = max_val;
       } else {
         t_val = static_cast<T>(b_val);
       }
     }
-    sim->set_simd_register_by_lane<T>(t, i, t_val);
+    sim->set_simd_register_by_lane<T>(t, even_lane_result ? 2 * i : i, t_val);
   }
 }
 
@@ -4483,13 +4480,21 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     }
 #undef VECTOR_COMPARE_OP
     case XVCVSPSXWS: {
-      VectorConverFromFPSaturate<int64_t, int32_t>(this, instr, kMinInt,
-                                                   kMaxInt);
+      VectorConverFromFPSaturate<float, int32_t>(this, instr, kMinInt, kMaxInt);
       break;
     }
     case XVCVSPUXWS: {
-      VectorConverFromFPSaturate<uint64_t, uint32_t>(this, instr, 0,
-                                                     kMaxUInt32);
+      VectorConverFromFPSaturate<float, uint32_t>(this, instr, 0, kMaxUInt32);
+      break;
+    }
+    case XVCVDPSXWS: {
+      VectorConverFromFPSaturate<double, int32_t>(this, instr, kMinInt, kMaxInt,
+                                                  true);
+      break;
+    }
+    case XVCVDPUXWS: {
+      VectorConverFromFPSaturate<double, uint32_t>(this, instr, 0, kMaxUInt32,
+                                                   true);
       break;
     }
     case XVCVSXWSP: {
@@ -4507,6 +4512,42 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       FOR_EACH_LANE(i, uint32_t) {
         uint32_t b_val = get_simd_register_by_lane<uint32_t>(b, i);
         set_simd_register_by_lane<float>(t, i, static_cast<float>(b_val));
+      }
+      break;
+    }
+    case XVCVSXDDP: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      FOR_EACH_LANE(i, int64_t) {
+        int64_t b_val = get_simd_register_by_lane<int64_t>(b, i);
+        set_simd_register_by_lane<double>(t, i, static_cast<double>(b_val));
+      }
+      break;
+    }
+    case XVCVUXDDP: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      FOR_EACH_LANE(i, uint64_t) {
+        uint64_t b_val = get_simd_register_by_lane<uint64_t>(b, i);
+        set_simd_register_by_lane<double>(t, i, static_cast<double>(b_val));
+      }
+      break;
+    }
+    case XVCVSPDP: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      FOR_EACH_LANE(i, double) {
+        float b_val = get_simd_register_by_lane<float>(b, 2 * i);
+        set_simd_register_by_lane<double>(t, i, static_cast<double>(b_val));
+      }
+      break;
+    }
+    case XVCVDPSP: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      FOR_EACH_LANE(i, double) {
+        double b_val = get_simd_register_by_lane<double>(b, i);
+        set_simd_register_by_lane<float>(t, 2 * i, static_cast<float>(b_val));
       }
       break;
     }

@@ -359,49 +359,64 @@ using Instr = uint32_t;
   /* Decimal Floating Test Data Group Quad */                   \
   V(dtstdgq, DTSTDGQ, 0xFC0001C4)
 
-#define PPC_XX2_OPCODE_A_FORM_LIST(V)                                    \
-  /* VSX Vector Absolute Value Double-Precision */                       \
-  V(xvabsdp, XVABSDP, 0xF0000764)                                        \
-  /* VSX Vector Negate Double-Precision */                               \
-  V(xvnegdp, XVNEGDP, 0xF00007E4)                                        \
-  /* VSX Vector Square Root Double-Precision */                          \
-  V(xvsqrtdp, XVSQRTDP, 0xF000032C)                                      \
-  /* VSX Vector Absolute Value Single-Precision */                       \
-  V(xvabssp, XVABSSP, 0xF0000664)                                        \
-  /* VSX Vector Negate Single-Precision */                               \
-  V(xvnegsp, XVNEGSP, 0xF00006E4)                                        \
-  /* VSX Vector Reciprocal Estimate Single-Precision */                  \
-  V(xvresp, XVRESP, 0xF0000268)                                          \
-  /* VSX Vector Reciprocal Square Root Estimate Single-Precision */      \
-  V(xvrsqrtesp, XVRSQRTESP, 0xF0000228)                                  \
-  /* VSX Vector Square Root Single-Precision */                          \
-  V(xvsqrtsp, XVSQRTSP, 0xF000022C)                                      \
-  /* VSX Vector Convert Single-Precision to Signed Fixed-Point Word */   \
-  /* Saturate */                                                         \
-  V(xvcvspsxws, XVCVSPSXWS, 0xF0000260)                                  \
-  /* VSX Vector Convert Single-Precision to Unsigned Fixed-Point Word */ \
-  /* Saturate */                                                         \
-  V(xvcvspuxws, XVCVSPUXWS, 0xF0000220)                                  \
-  /* VSX Vector Convert Signed Fixed-Point Word to Single-Precision */   \
-  V(xvcvsxwsp, XVCVSXWSP, 0xF00002E0)                                    \
-  /* VSX Vector Convert Unsigned Fixed-Point Word to Single-Precision */ \
-  V(xvcvuxwsp, XVCVUXWSP, 0xF00002A0)                                    \
-  /* VSX Vector Round to Double-Precision Integer toward +Infinity */    \
-  V(xvrdpip, XVRDPIP, 0xF00003A4)                                        \
-  /* VSX Vector Round to Double-Precision Integer toward -Infinity */    \
-  V(xvrdpim, XVRDPIM, 0xF00003E4)                                        \
-  /* VSX Vector Round to Double-Precision Integer toward Zero */         \
-  V(xvrdpiz, XVRDPIZ, 0xF0000364)                                        \
-  /* VSX Vector Round to Double-Precision Integer */                     \
-  V(xvrdpi, XVRDPI, 0xF0000324)                                          \
-  /* VSX Vector Round to Single-Precision Integer toward +Infinity */    \
-  V(xvrspip, XVRSPIP, 0xF00002A4)                                        \
-  /* VSX Vector Round to Single-Precision Integer toward -Infinity */    \
-  V(xvrspim, XVRSPIM, 0xF00002E4)                                        \
-  /* VSX Vector Round to Single-Precision Integer toward Zero */         \
-  V(xvrspiz, XVRSPIZ, 0xF0000264)                                        \
-  /* VSX Vector Round to Single-Precision Integer */                     \
-  V(xvrspi, XVRSPI, 0xF0000224)
+#define PPC_XX2_OPCODE_A_FORM_LIST(V)                                        \
+  /* VSX Vector Absolute Value Double-Precision */                           \
+  V(xvabsdp, XVABSDP, 0xF0000764)                                            \
+  /* VSX Vector Negate Double-Precision */                                   \
+  V(xvnegdp, XVNEGDP, 0xF00007E4)                                            \
+  /* VSX Vector Square Root Double-Precision */                              \
+  V(xvsqrtdp, XVSQRTDP, 0xF000032C)                                          \
+  /* VSX Vector Absolute Value Single-Precision */                           \
+  V(xvabssp, XVABSSP, 0xF0000664)                                            \
+  /* VSX Vector Negate Single-Precision */                                   \
+  V(xvnegsp, XVNEGSP, 0xF00006E4)                                            \
+  /* VSX Vector Reciprocal Estimate Single-Precision */                      \
+  V(xvresp, XVRESP, 0xF0000268)                                              \
+  /* VSX Vector Reciprocal Square Root Estimate Single-Precision */          \
+  V(xvrsqrtesp, XVRSQRTESP, 0xF0000228)                                      \
+  /* VSX Vector Square Root Single-Precision */                              \
+  V(xvsqrtsp, XVSQRTSP, 0xF000022C)                                          \
+  /* VSX Vector Convert Single-Precision to Signed Fixed-Point Word */       \
+  /* Saturate */                                                             \
+  V(xvcvspsxws, XVCVSPSXWS, 0xF0000260)                                      \
+  /* VSX Vector Convert Single-Precision to Unsigned Fixed-Point Word */     \
+  /* Saturate */                                                             \
+  V(xvcvspuxws, XVCVSPUXWS, 0xF0000220)                                      \
+  /* VSX Vector Convert Signed Fixed-Point Word to Single-Precision */       \
+  V(xvcvsxwsp, XVCVSXWSP, 0xF00002E0)                                        \
+  /* VSX Vector Convert Unsigned Fixed-Point Word to Single-Precision */     \
+  V(xvcvuxwsp, XVCVUXWSP, 0xF00002A0)                                        \
+  /* VSX Vector Round to Double-Precision Integer toward +Infinity */        \
+  V(xvrdpip, XVRDPIP, 0xF00003A4)                                            \
+  /* VSX Vector Round to Double-Precision Integer toward -Infinity */        \
+  V(xvrdpim, XVRDPIM, 0xF00003E4)                                            \
+  /* VSX Vector Round to Double-Precision Integer toward Zero */             \
+  V(xvrdpiz, XVRDPIZ, 0xF0000364)                                            \
+  /* VSX Vector Round to Double-Precision Integer */                         \
+  V(xvrdpi, XVRDPI, 0xF0000324)                                              \
+  /* VSX Vector Round to Single-Precision Integer toward +Infinity */        \
+  V(xvrspip, XVRSPIP, 0xF00002A4)                                            \
+  /* VSX Vector Round to Single-Precision Integer toward -Infinity */        \
+  V(xvrspim, XVRSPIM, 0xF00002E4)                                            \
+  /* VSX Vector Round to Single-Precision Integer toward Zero */             \
+  V(xvrspiz, XVRSPIZ, 0xF0000264)                                            \
+  /* VSX Vector Round to Single-Precision Integer */                         \
+  V(xvrspi, XVRSPI, 0xF0000224)                                              \
+  /* VSX Vector Convert Signed Fixed-Point Doubleword to Double-Precision */ \
+  V(xvcvsxddp, XVCVSXDDP, 0xF00007E0)                                        \
+  /* VSX Vector Convert Unsigned Fixed-Point Doubleword to Double- */        \
+  /* Precision */                                                            \
+  V(xvcvuxddp, XVCVUXDDP, 0xF00007A0)                                        \
+  /* VSX Vector Convert Single-Precision to Double-Precision */              \
+  V(xvcvspdp, XVCVSPDP, 0xF0000724)                                          \
+  /* VSX Vector Convert Double-Precision to Single-Precision */              \
+  V(xvcvdpsp, XVCVDPSP, 0xF0000624)                                          \
+  /* VSX Vector Convert Double-Precision to Signed Fixed-Point Word */       \
+  /* Saturate */                                                             \
+  V(xvcvdpsxws, XVCVDPSXWS, 0xF0000360)                                      \
+  /* VSX Vector Convert Double-Precision to Unsigned Fixed-Point Word */     \
+  /* Saturate */                                                             \
+  V(xvcvdpuxws, XVCVDPUXWS, 0xF0000320)
 
 #define PPC_XX2_OPCODE_UNUSED_LIST(V)                                        \
   /* VSX Scalar Square Root Double-Precision */                              \
@@ -467,37 +482,22 @@ using Instr = uint32_t;
   V(xsrsqrtedp, XSRSQRTEDP, 0xF0000128)                                      \
   /* VSX Scalar Test for software Square Root Double-Precision */            \
   V(xstsqrtdp, XSTSQRTDP, 0xF00001A8)                                        \
-  /* VSX Vector Convert Double-Precision to Single-Precision */              \
-  V(xvcvdpsp, XVCVDPSP, 0xF0000624)                                          \
   /* VSX Vector Convert Double-Precision to Signed Fixed-Point Doubleword */ \
   /* Saturate */                                                             \
   V(xvcvdpsxds, XVCVDPSXDS, 0xF0000760)                                      \
-  /* VSX Vector Convert Double-Precision to Signed Fixed-Point Word */       \
-  /* Saturate */                                                             \
-  V(xvcvdpsxws, XVCVDPSXWS, 0xF0000360)                                      \
   /* VSX Vector Convert Double-Precision to Unsigned Fixed-Point */          \
   /* Doubleword Saturate */                                                  \
   V(xvcvdpuxds, XVCVDPUXDS, 0xF0000720)                                      \
-  /* VSX Vector Convert Double-Precision to Unsigned Fixed-Point Word */     \
-  /* Saturate */                                                             \
-  V(xvcvdpuxws, XVCVDPUXWS, 0xF0000320)                                      \
-  /* VSX Vector Convert Single-Precision to Double-Precision */              \
-  V(xvcvspdp, XVCVSPDP, 0xF0000724)                                          \
   /* VSX Vector Convert Single-Precision to Signed Fixed-Point Doubleword */ \
   /* Saturate */                                                             \
   V(xvcvspsxds, XVCVSPSXDS, 0xF0000660)                                      \
   /* VSX Vector Convert Single-Precision to Unsigned Fixed-Point */          \
   /* Doubleword Saturate */                                                  \
   V(xvcvspuxds, XVCVSPUXDS, 0xF0000620)                                      \
-  /* VSX Vector Convert Signed Fixed-Point Doubleword to Double-Precision */ \
-  V(xvcvsxddp, XVCVSXDDP, 0xF00007E0)                                        \
   /* VSX Vector Convert Signed Fixed-Point Doubleword to Single-Precision */ \
   V(xvcvsxdsp, XVCVSXDSP, 0xF00006E0)                                        \
   /* VSX Vector Convert Signed Fixed-Point Word to Double-Precision */       \
   V(xvcvsxwdp, XVCVSXWDP, 0xF00003E0)                                        \
-  /* VSX Vector Convert Unsigned Fixed-Point Doubleword to Double- */        \
-  /* Precision */                                                            \
-  V(xvcvuxddp, XVCVUXDDP, 0xF00007A0)                                        \
   /* VSX Vector Convert Unsigned Fixed-Point Doubleword to Single- */        \
   /* Precision */                                                            \
   V(xvcvuxdsp, XVCVUXDSP, 0xF00006A0)                                        \
