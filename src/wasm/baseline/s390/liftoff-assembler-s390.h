@@ -2855,7 +2855,7 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
 }
 
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
-  Call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
+  bailout(kUnsupportedArchitecture, "CallRuntimeStub");
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
