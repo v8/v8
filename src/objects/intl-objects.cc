@@ -1599,10 +1599,6 @@ Handle<JSArray> CreateArrayFromList(Isolate* isolate,
   return array;
 }
 
-// To mitigate the risk of bestfit locale matcher, we first check in without
-// turnning it on.
-static bool implement_bestfit = false;
-
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
 // https://tc39.github.io/ecma402/#sec-supportedlocales
 MaybeHandle<JSObject> SupportedLocales(
@@ -1627,7 +1623,8 @@ MaybeHandle<JSObject> SupportedLocales(
   // 3. If matcher is "best fit", then
   //    a. Let supportedLocales be BestFitSupportedLocales(availableLocales,
   //       requestedLocales).
-  if (matcher == Intl::MatcherOption::kBestFit && implement_bestfit) {
+  if (matcher == Intl::MatcherOption::kBestFit &&
+      FLAG_harmony_intl_best_fit_matcher) {
     supported_locales =
         BestFitSupportedLocales(isolate, available_locales, requested_locales);
   } else {
@@ -1884,7 +1881,8 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
     const std::vector<std::string>& requested_locales, MatcherOption matcher,
     const std::set<std::string>& relevant_extension_keys) {
   std::string locale;
-  if (matcher == Intl::MatcherOption::kBestFit && implement_bestfit) {
+  if (matcher == Intl::MatcherOption::kBestFit &&
+      FLAG_harmony_intl_best_fit_matcher) {
     locale = BestFitMatcher(isolate, available_locales, requested_locales);
   } else {
     locale = LookupMatcher(isolate, available_locales, requested_locales);

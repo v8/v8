@@ -4327,6 +4327,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_brand_checks)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
 
 #ifdef V8_INTL_SUPPORT
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_displaynames_date_types)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_dateformat_day_period)
 #endif  // V8_INTL_SUPPORT
