@@ -4189,7 +4189,6 @@ void WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
                                  uint8_t laneidx,
                                  wasm::WasmCodePosition position,
                                  wasm::ValueType type) {
-  Node* store;
   has_simd_ = true;
   index = BoundsCheckMem(i::ElementSizeInBytes(mem_rep), index, offset,
                          position, kCanOmitBoundsCheck);
@@ -4213,13 +4212,13 @@ void WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
   } else {
     UNREACHABLE();
   }
-  store = StoreMem(mem_rep, index, offset, alignment, output, position, type);
+  StoreMem(mem_rep, index, offset, alignment, output, position, type);
 #else
   MachineType memtype = MachineType(mem_rep, MachineSemantic::kNone);
   MemoryAccessKind load_kind =
       GetMemoryAccessKind(mcgraph(), memtype, use_trap_handler());
 
-  store = SetEffect(graph()->NewNode(
+  Node* store = SetEffect(graph()->NewNode(
       mcgraph()->machine()->StoreLane(load_kind, mem_rep, laneidx),
       MemBuffer(capped_offset), index, val, effect(), control()));
 
