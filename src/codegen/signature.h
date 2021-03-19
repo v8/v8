@@ -124,42 +124,42 @@ size_t hash_value(const Signature<T>& sig) {
   return hash;
 }
 
-template <typename T, size_t num_returns = 0, size_t num_params = 0>
+template <typename T, size_t kNumReturns = 0, size_t kNumParams = 0>
 class FixedSizeSignature : public Signature<T> {
  public:
-  explicit FixedSizeSignature(std::array<T, num_returns + num_params> reps)
-      : Signature<T>(num_returns, num_params, InitReps(reps)) {}
+  explicit FixedSizeSignature(std::array<T, kNumReturns + kNumParams> reps)
+      : Signature<T>(kNumReturns, kNumParams, reps_) {
+    std::copy(reps.begin(), reps.end(), reps_);
+  }
 
   // Add return types to this signature (only allowed if there are none yet).
   template <typename... ReturnTypes>
   auto Returns(ReturnTypes... return_types) const {
-    static_assert(num_returns == 0, "Please specify all return types at once");
-    return FixedSizeSignature<T, sizeof...(ReturnTypes), num_params>{Concat(
-        std::array<T, sizeof...(ReturnTypes)>{{return_types...}}, reps_)};
+    static_assert(kNumReturns == 0, "Please specify all return types at once");
+    return FixedSizeSignature<T, sizeof...(ReturnTypes), kNumParams>{
+        std::initializer_list<T>{return_types...}.begin(), reps_};
   }
 
   // Add parameters to this signature (only allowed if there are none yet).
   template <typename... ParamTypes>
   auto Params(ParamTypes... param_types) const {
-    static_assert(num_params == 0, "Please specify all parameters at once");
-    return FixedSizeSignature<T, num_returns, sizeof...(ParamTypes)>{
-        Concat(reps_, std::array<T, sizeof...(ParamTypes)>{{param_types...}})};
+    static_assert(kNumParams == 0, "Please specify all parameters at once");
+    return FixedSizeSignature<T, kNumReturns, sizeof...(ParamTypes)>{
+        reps_, std::initializer_list<T>{param_types...}.begin()};
   }
 
  private:
-  T* InitReps(const std::array<T, num_returns + num_params>& reps) {
-    reps_ = reps;
-    return reps_.data();
+  // Other template instantiations can call the private constructor.
+  template <typename T2, size_t kNumReturns2, size_t kNumParams2>
+  friend class FixedSizeSignature;
+
+  FixedSizeSignature(const T* returns, const T* params)
+      : Signature<T>(kNumReturns, kNumParams, reps_) {
+    std::copy(returns, returns + kNumReturns, reps_);
+    std::copy(params, params + kNumParams, reps_ + kNumReturns);
   }
 
-  template <size_t sizeA, size_t sizeB>
-  static std::array<T, sizeA + sizeB> Concat(const std::array<T, sizeA>& a,
-                                             const std::array<T, sizeB>& b) {
-    return base::make_array<sizeA + sizeB>(
-        [&a, &b](std::size_t i) { return i < sizeA ? a[i] : b[i - sizeA]; });
-  }
-
-  std::array<T, num_returns + num_params> reps_;
+  T reps_[kNumReturns + kNumParams];
 };
 
 }  // namespace internal
