@@ -31,6 +31,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
     DCHECK(!done());
     current_pc_start_offset_ = current_pc_end_offset_;
     current_pc_end_offset_ += ReadPosition();
+    current_bytecode_offset_ = bytecode_iterator_.current_offset();
     bytecode_iterator_.Advance();
   }
 
@@ -38,20 +39,14 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
     while (current_bytecode_offset() < bytecode_offset) {
       Advance();
     }
-    DCHECK(bytecode_offset == current_bytecode_offset() ||
-           // If kFunctionEntryBytecodeOffset is passed as bytecode_ofset, we
-           // want to return the PC for the first real bytecode.
-           bytecode_offset == kFunctionEntryBytecodeOffset);
+    DCHECK_EQ(bytecode_offset, current_bytecode_offset());
   }
 
   inline void AdvanceToPCOffset(Address pc_offset) {
     while (current_pc_end_offset() < pc_offset) {
       Advance();
     }
-    // pc could be inside the baseline prologue, wich means we didn't record any
-    // position for it.
-    DCHECK(pc_offset > current_pc_start_offset() ||
-           current_bytecode_offset() == 0);
+    DCHECK_GT(pc_offset, current_pc_start_offset());
     DCHECK_LE(pc_offset, current_pc_end_offset());
   }
 
@@ -68,7 +63,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   }
 
   inline int current_bytecode_offset() const {
-    return bytecode_iterator_.current_offset();
+    return current_bytecode_offset_;
   }
 
   static void UpdatePointersCallback(void* iterator) {
@@ -89,6 +84,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   int current_index_;
   Address current_pc_start_offset_;
   Address current_pc_end_offset_;
+  int current_bytecode_offset_;
   BytecodeArray bytecode_handle_storage_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
   LocalHeap* local_heap_;

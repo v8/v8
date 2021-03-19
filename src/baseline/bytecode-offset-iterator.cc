@@ -47,8 +47,11 @@ BytecodeOffsetIterator::~BytecodeOffsetIterator() {
 }
 
 void BytecodeOffsetIterator::Initialize() {
-  current_pc_start_offset_ = ReadPosition();
-  current_pc_end_offset_ = current_pc_start_offset_ + ReadPosition();
+  // Initialize values for the prologue.
+  // The first recorded position is at the start of the first bytecode.
+  current_pc_start_offset_ = 0;
+  current_pc_end_offset_ = ReadPosition();
+  current_bytecode_offset_ = kFunctionEntryBytecodeOffset;
 }
 
 void BytecodeOffsetIterator::UpdatePointers() {

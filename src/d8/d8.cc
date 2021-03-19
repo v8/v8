@@ -1851,6 +1851,11 @@ void Shell::TestVerifySourcePositions(
                i_isolate);
     offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(
         bytecode_offsets, bytecodes);
+    // A freshly initiated BytecodeOffsetIterator points to the prologue.
+    DCHECK_EQ(offset_iterator->current_pc_start_offset(), 0);
+    DCHECK_EQ(offset_iterator->current_bytecode_offset(),
+              i::kFunctionEntryBytecodeOffset);
+    offset_iterator->Advance();
   }
   while (!bytecode_iterator.done()) {
     if (has_baseline) {
