@@ -2987,11 +2987,23 @@ class LiftoffCompiler {
     LiftoffRegister input = pinned.set(__ PopToRegister());
     __ SpillAllRegisters();
 
-    constexpr Register kGpReturnReg = kGpReturnRegisters[0];
-    static_assert(kLiftoffAssemblerGpCacheRegs & kGpReturnReg.bit(),
-                  "first return register is a cache register (needs more "
-                  "complex code here otherwise)");
-    LiftoffRegister result = pinned.set(LiftoffRegister(kGpReturnReg));
+    LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+    Label done;
+
+    if (env_->module->is_memory64) {
+      // If the high word is not 0, this will always fail (would grow by
+      // >=256TB). The int32_t value will be sign-extended below.
+      __ LoadConstant(result, WasmValue(int32_t{-1}));
+      if (kNeedI64RegPair) {
+        __ emit_cond_jump(kUnequal /* neq */, &done, kI32, input.high_gp());
+        input = input.low();
+      } else {
+        LiftoffRegister high_word = __ GetUnusedRegister(kGpReg, pinned);
+        __ emit_i64_shri(high_word, input, 32);
+        __ emit_cond_jump(kUnequal /* neq */, &done, kI32, high_word.gp());
+      }
+    }
 
     WasmMemoryGrowDescriptor descriptor;
     DCHECK_EQ(0, descriptor.GetStackParameterCount());
@@ -3009,7 +3021,16 @@ class LiftoffCompiler {
       __ Move(result.gp(), kReturnRegister0, kI32);
     }
 
-    __ PushRegister(kI32, result);
+    __ bind(&done);
+
+    if (env_->module->is_memory64) {
+      LiftoffRegister result64 = result;
+      if (kNeedI64RegPair) result64 = __ GetUnusedRegister(kGpRegPair, pinned);
+      __ emit_type_conversion(kExprI64SConvertI32, result64, result, nullptr);
+      __ PushRegister(kI64, result64);
+    } else {
+      __ PushRegister(kI32, result);
+    }
   }
 
   OwnedVector<DebugSideTable::Entry::Value> GetCurrentDebugSideTableEntries(

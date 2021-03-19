@@ -48,9 +48,7 @@
   'proposals/memory64/elem': [FAIL],
   'proposals/memory64/float_memory64': [FAIL],
   'proposals/memory64/imports': [FAIL],
-  'proposals/memory64/load64': [FAIL],
   'proposals/memory64/memory64': [FAIL],
-  'proposals/memory64/memory_grow64': [FAIL],
   'proposals/memory64/memory_trap64': [FAIL],
 }],  # ALWAYS
 

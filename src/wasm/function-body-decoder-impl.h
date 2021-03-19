@@ -3194,8 +3194,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     MemoryIndexImmediate<validate> imm(this, this->pc_ + 1);
     // This opcode will not be emitted by the asm translator.
     DCHECK_EQ(kWasmOrigin, this->module_->origin);
-    Value value = Peek(0, 0, kWasmI32);
-    Value result = CreateValue(kWasmI32);
+    ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value value = Peek(0, 0, mem_type);
+    Value result = CreateValue(mem_type);
     CALL_INTERFACE_IF_REACHABLE(MemoryGrow, value, &result);
     Drop(value);
     Push(result);

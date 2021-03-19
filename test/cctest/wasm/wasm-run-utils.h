@@ -570,6 +570,11 @@ class WasmRunner : public WasmRunnerBase {
                    lower_simd) {}
 
   ReturnType Call(ParamTypes... p) {
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    // Save the original context, because CEntry (for runtime calls) will
+    // reset / invalidate it when returning.
+    SaveContext save_context(isolate);
+
     DCHECK(compiled_);
     if (interpret()) return CallInterpreter(p...);
 

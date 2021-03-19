@@ -2275,7 +2275,28 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
 
 Node* WasmGraphBuilder::MemoryGrow(Node* input) {
   needs_stack_check_ = true;
-  return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmMemoryGrow, input);
+  if (!env_->module->is_memory64) {
+    // For 32-bit memories, just call the builtin.
+    return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmMemoryGrow, input);
+  }
+
+  // If the input is not a positive int32, growing will always fail
+  // (growing negative or requesting >= 256 TB).
+  Node* old_effect = effect();
+  Diamond is_32_bit(graph(), mcgraph()->common(),
+                    gasm_->Uint64LessThanOrEqual(input, Int64Constant(kMaxInt)),
+                    BranchHint::kTrue);
+  is_32_bit.Chain(control());
+
+  SetControl(is_32_bit.if_true);
+
+  Node* grow_result = gasm_->ChangeInt32ToInt64(gasm_->CallRuntimeStub(
+      wasm::WasmCode::kWasmMemoryGrow, gasm_->TruncateInt64ToInt32(input)));
+
+  Node* diamond_result = is_32_bit.Phi(MachineRepresentation::kWord64,
+                                       grow_result, gasm_->Int64Constant(-1));
+  SetEffectControl(is_32_bit.EffectPhi(effect(), old_effect), is_32_bit.merge);
+  return diamond_result;
 }
 
 Node* WasmGraphBuilder::Throw(uint32_t exception_index,

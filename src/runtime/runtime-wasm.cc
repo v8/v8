@@ -127,6 +127,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
       isolate, handle(instance->memory_object(), isolate), delta_pages);
   // The WasmMemoryGrow builtin which calls this runtime function expects us to
   // always return a Smi.
+  DCHECK(!isolate->has_pending_exception());
   return Smi::FromInt(ret);
 }
 
