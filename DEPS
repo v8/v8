@@ -50,7 +50,7 @@ vars = {
   'gn_version': 'git_revision:64b3b9401c1c3ed5f3c43c1cac00b91f83597ab8',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:ea8dc31395c76b2990112b29b02386628d795d2d',
+  'luci_go': 'git_revision:4eef77dde582d6065203e3249dd80477391a7dd6',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -88,9 +88,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '100ae19f9952606f0be47eac6a71c0edd2fa8cb9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ffb4c76d1123f3765e85f90f14fb64255468b578',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9757ad58837498ee2d8e4a33deb2c91af19d6cf1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e58ece5f83ece5ddfd7f3ca5eebc3a887f6bcbdb',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'd879aac9717d15679125cfe8c26b482006f107f3',
   'third_party/instrumented_libraries':
@@ -184,7 +184,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c730daef7584945290b923a0b72c4ddccf66301b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '7caeed04db1c5cf0ef6a6ba6351286a33a9a4aff',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'ASZAw9q3qc9gzTTRn-mGL72ir5Z_qIi5GvZGRBYa4sMC'
+              'version': 'bhg2KKy6t2GgDqorzVeY1StsCo2DnehaEbW3S_o1r7gC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -256,7 +256,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '283bb29005b8a352998896fcaabcca0bb6d14181',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '96290388209ed8a17e6e9bead41ba7fdeb3fedef',
   'tools/luci-go': {
       'packages': [
         {
