@@ -63,29 +63,29 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
             // from the effect chain.
             // The effect chain looks like this (* stand for irrelevant nodes):
             //
-            // replacing effect (effect before stack check)
-            //   * * |  *
-            //   | | |  |
-            //   ( Load )
-            // * * | *
-            // | | | |
-            // ( Load )
+            // {replacing_effect} (effect before stack check)
+            //   *  *  |  *
+            //   |  |  |  |
+            // ( LoadFromObject )
             //   |  |
-            // stack_check
-            // |  * | *
-            // |  | | |
-            // |  (call)
-            // |   |     *
-            // |   |     |
-            // {use} (stack check effect that we need to replace)
-            DCHECK_EQ(use->InputAt(1)->opcode(), IrOpcode::kCall);
-            DCHECK_EQ(use->InputAt(1)->InputAt(1), stack_check);
-            DCHECK_EQ(stack_check->InputAt(1)->opcode(),
+            // {stack_check}
+            // |  *  |  *
+            // |  |  |  |
+            // |  ( Call )
+            // |   |    *
+            // |   |    |
+            // {use}: EffectPhi (stack check effect that we need to replace)
+            DCHECK_EQ(use->opcode(), IrOpcode::kEffectPhi);
+            DCHECK_EQ(NodeProperties::GetEffectInput(use, 1)->opcode(),
+                      IrOpcode::kCall);
+            DCHECK_EQ(NodeProperties::GetEffectInput(use), stack_check);
+            DCHECK_EQ(NodeProperties::GetEffectInput(
+                          NodeProperties::GetEffectInput(use, 1)),
+                      stack_check);
+            DCHECK_EQ(NodeProperties::GetEffectInput(stack_check)->opcode(),
                       IrOpcode::kLoadFromObject);
-            DCHECK_EQ(stack_check->InputAt(1)->InputAt(2)->opcode(),
-                      IrOpcode::kLoadFromObject);
-            Node* replacing_effect =
-                stack_check->InputAt(1)->InputAt(2)->InputAt(2);
+            Node* replacing_effect = NodeProperties::GetEffectInput(
+                NodeProperties::GetEffectInput(stack_check));
             FOREACH_COPY_INDEX(i) {
               COPY(use, i)->ReplaceUses(COPY(replacing_effect, i));
             }

@@ -396,7 +396,8 @@ bool ProduceWord32Result(Node* node) {
     //       return false;
     //   }
     // }
-    case IrOpcode::kLoad: {
+    case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable: {
       LoadRepresentation load_rep = LoadRepresentationOf(node->op());
       switch (load_rep.representation()) {
         case MachineRepresentation::kWord32:
@@ -1891,7 +1892,8 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         break;
       case IrOpcode::kWord32And:
         return VisitTestUnderMask(this, value, cont);
-      case IrOpcode::kLoad: {
+      case IrOpcode::kLoad:
+      case IrOpcode::kLoadImmutable: {
         LoadRepresentation load_rep = LoadRepresentationOf(value->op());
         switch (load_rep.representation()) {
           case MachineRepresentation::kWord32:

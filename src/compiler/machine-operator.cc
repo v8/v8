@@ -125,7 +125,8 @@ LoadRepresentation LoadRepresentationOf(Operator const* op) {
          IrOpcode::kWord64AtomicLoad == op->opcode() ||
          IrOpcode::kWord32AtomicPairLoad == op->opcode() ||
          IrOpcode::kPoisonedLoad == op->opcode() ||
-         IrOpcode::kUnalignedLoad == op->opcode());
+         IrOpcode::kUnalignedLoad == op->opcode() ||
+         IrOpcode::kLoadImmutable == op->opcode());
   return OpParameter<LoadRepresentation>(op);
 }
 
@@ -842,10 +843,18 @@ struct MachineOperatorGlobalCache {
               Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 2, 1,  \
               1, 1, 1, 0, MachineType::Type()) {}                              \
   };                                                                           \
+  struct LoadImmutable##Type##Operator final                                   \
+      : public Operator1<LoadRepresentation> {                                 \
+    LoadImmutable##Type##Operator()                                            \
+        : Operator1<LoadRepresentation>(IrOpcode::kLoadImmutable,              \
+                                        Operator::kPure, "LoadImmutable", 2,   \
+                                        0, 0, 1, 0, 0, MachineType::Type()) {} \
+  };                                                                           \
   Load##Type##Operator kLoad##Type;                                            \
   PoisonedLoad##Type##Operator kPoisonedLoad##Type;                            \
   UnalignedLoad##Type##Operator kUnalignedLoad##Type;                          \
-  ProtectedLoad##Type##Operator kProtectedLoad##Type;
+  ProtectedLoad##Type##Operator kProtectedLoad##Type;                          \
+  LoadImmutable##Type##Operator kLoadImmutable##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
 
@@ -1324,6 +1333,22 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
 #define LOAD(Type)                  \
   if (rep == MachineType::Type()) { \
     return &cache_.kLoad##Type;     \
+  }
+  MACHINE_TYPE_LIST(LOAD)
+#undef LOAD
+  UNREACHABLE();
+}
+
+// Represents a load from a position in memory that is known to be immutable,
+// e.g. an immutable IsolateRoot or an immutable field of a WasmInstanceObject.
+// Because the returned value cannot change through the execution of a function,
+// LoadImmutable is a pure operator and does not have effect or control edges.
+// Requires that the memory in question has been initialized at function start
+// even through inlining.
+const Operator* MachineOperatorBuilder::LoadImmutable(LoadRepresentation rep) {
+#define LOAD(Type)                       \
+  if (rep == MachineType::Type()) {      \
+    return &cache_.kLoadImmutable##Type; \
   }
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD

@@ -122,6 +122,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kWord32AtomicLoad:
           case IrOpcode::kWord64AtomicLoad:
           case IrOpcode::kLoad:
+          case IrOpcode::kLoadImmutable:
           case IrOpcode::kProtectedLoad:
           case IrOpcode::kPoisonedLoad:
             representation_vector_[node->id()] = PromoteRepresentation(
@@ -549,6 +550,7 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kLoad:
           case IrOpcode::kUnalignedLoad:
+          case IrOpcode::kLoadImmutable:
           case IrOpcode::kWord32AtomicLoad:
           case IrOpcode::kWord32AtomicPairLoad:
           case IrOpcode::kWord64AtomicLoad:

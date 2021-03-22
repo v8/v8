@@ -1628,6 +1628,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     // Machine operators
     // -----------------------
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable:
     case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:

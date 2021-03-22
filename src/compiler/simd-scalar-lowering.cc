@@ -551,6 +551,9 @@ void SimdScalarLowering::LowerLoadOp(Node* node, SimdType type) {
     case IrOpcode::kLoad:
       load_op = machine()->Load(MachineTypeFrom(type));
       break;
+    case IrOpcode::kLoadImmutable:
+      load_op = machine()->LoadImmutable(MachineTypeFrom(type));
+      break;
     case IrOpcode::kLoadFromObject:
       load_op = simplified()->LoadFromObject(
           ObjectAccess(MachineTypeFrom(type), kNoWriteBarrier));
@@ -1470,7 +1473,8 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kLoad:
     case IrOpcode::kLoadFromObject:
     case IrOpcode::kUnalignedLoad:
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kLoadImmutable: {
       LowerLoadOp(node, rep_type);
       break;
     }

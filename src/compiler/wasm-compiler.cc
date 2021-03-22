@@ -79,8 +79,13 @@ MachineType assert_size(int expected_size, MachineType type) {
   (WasmInstanceObject::k##name##OffsetEnd - \
    WasmInstanceObject::k##name##Offset + 1)  // NOLINT(whitespace/indent)
 
-#define LOAD_INSTANCE_FIELD(name, type)                                        \
+#define LOAD_MUTABLE_INSTANCE_FIELD(name, type)                                \
   gasm_->LoadFromObject(                                                       \
+      assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), BuildLoadInstance(), \
+      wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
+
+#define LOAD_INSTANCE_FIELD(name, type)                                        \
+  gasm_->LoadImmutable(                                                        \
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), BuildLoadInstance(), \
       wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
 
@@ -88,7 +93,7 @@ MachineType assert_size(int expected_size, MachineType type) {
   (use_js_isolate_and_params()                               \
        ? graph()->NewNode(mcgraph()->common()->HeapConstant( \
              isolate_->factory()->factory_name()))           \
-       : gasm_->LoadFromObject(                              \
+       : gasm_->LoadImmutable(                               \
              MachineType::Pointer(), BuildLoadIsolateRoot(), \
              IsolateData::root_slot_offset(RootIndex::k##root_name)))
 
@@ -243,6 +248,15 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* LoadFromObject(MachineType type, Node* base, int offset) {
     return LoadFromObject(type, base, IntPtrConstant(offset));
+  }
+
+  Node* LoadImmutable(LoadRepresentation rep, Node* base, Node* offset) {
+    return AddNode(graph()->NewNode(mcgraph()->machine()->LoadImmutable(rep),
+                                    base, offset));
+  }
+
+  Node* LoadImmutable(LoadRepresentation rep, Node* base, int offset) {
+    return LoadImmutable(rep, base, IntPtrConstant(offset));
   }
 
   Node* StoreToObject(ObjectAccess access, Node* base, Node* offset,
@@ -2956,19 +2970,19 @@ void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
                                                  Node** ift_targets,
                                                  Node** ift_instances) {
   if (table_index == 0) {
-    *ift_size =
-        LOAD_INSTANCE_FIELD(IndirectFunctionTableSize, MachineType::Uint32());
-    *ift_sig_ids = LOAD_INSTANCE_FIELD(IndirectFunctionTableSigIds,
-                                       MachineType::Pointer());
-    *ift_targets = LOAD_INSTANCE_FIELD(IndirectFunctionTableTargets,
-                                       MachineType::Pointer());
-    *ift_instances = LOAD_INSTANCE_FIELD(IndirectFunctionTableRefs,
-                                         MachineType::TaggedPointer());
+    *ift_size = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableSize,
+                                            MachineType::Uint32());
+    *ift_sig_ids = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableSigIds,
+                                               MachineType::Pointer());
+    *ift_targets = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableTargets,
+                                               MachineType::Pointer());
+    *ift_instances = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableRefs,
+                                                 MachineType::TaggedPointer());
     return;
   }
 
-  Node* ift_tables =
-      LOAD_INSTANCE_FIELD(IndirectFunctionTables, MachineType::TaggedPointer());
+  Node* ift_tables = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTables,
+                                                 MachineType::TaggedPointer());
   Node* ift_table = gasm_->LoadFixedArrayElementAny(ift_tables, table_index);
 
   *ift_size = gasm_->LoadFromObject(
@@ -3355,11 +3369,11 @@ void WasmGraphBuilder::InitInstanceCache(
 
   // Load the memory start.
   instance_cache->mem_start =
-      LOAD_INSTANCE_FIELD(MemoryStart, MachineType::UintPtr());
+      LOAD_MUTABLE_INSTANCE_FIELD(MemoryStart, MachineType::UintPtr());
 
   // Load the memory size.
   instance_cache->mem_size =
-      LOAD_INSTANCE_FIELD(MemorySize, MachineType::UintPtr());
+      LOAD_MUTABLE_INSTANCE_FIELD(MemorySize, MachineType::UintPtr());
 
   if (untrusted_code_mitigations_) {
     // Load the memory mask.
@@ -8159,6 +8173,8 @@ AssemblerOptions WasmStubAssemblerOptions() {
 #undef FATAL_UNSUPPORTED_OPCODE
 #undef WASM_INSTANCE_OBJECT_SIZE
 #undef LOAD_INSTANCE_FIELD
+#undef LOAD_MUTABLE_INSTANCE_FIELD
+#undef LOAD_ROOT
 
 }  // namespace compiler
 }  // namespace internal

@@ -1153,6 +1153,43 @@ LOAD_MATCHER(UnalignedLoad)
 LOAD_MATCHER(PoisonedLoad)
 LOAD_MATCHER(LoadFromObject)
 
+class IsLoadImmutableMatcher final : public TestNodeMatcher {
+ public:
+  IsLoadImmutableMatcher(const Matcher<LoadRepresentation>& rep_matcher,
+                         const Matcher<Node*>& base_matcher,
+                         const Matcher<Node*>& index_matcher)
+      : TestNodeMatcher(IrOpcode::kLoadImmutable),
+        rep_matcher_(rep_matcher),
+        base_matcher_(base_matcher),
+        index_matcher_(index_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    TestNodeMatcher::DescribeTo(os);
+    *os << " whose rep (";
+    rep_matcher_.DescribeTo(os);
+    *os << "), base (";
+    base_matcher_.DescribeTo(os);
+    *os << ") and index (";
+    index_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    LoadRepresentation rep = LoadRepresentationOf(node->op());
+    return TestNodeMatcher::MatchAndExplain(node, listener) &&
+           PrintMatchAndExplain(rep, "rep", rep_matcher_, listener) &&
+           PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
+                                base_matcher_, listener) &&
+           PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "index",
+                                index_matcher_, listener);
+  }
+
+ private:
+  const Matcher<LoadRepresentation> rep_matcher_;
+  const Matcher<Node*> base_matcher_;
+  const Matcher<Node*> index_matcher_;
+};
+
 #define STORE_MATCHER(kStore, representation)                                 \
   class Is##kStore##Matcher final : public TestNodeMatcher {                  \
    public:                                                                    \
@@ -2094,6 +2131,13 @@ Matcher<Node*> IsLoadFromObject(const Matcher<LoadRepresentation>& rep_matcher,
   return MakeMatcher(new IsLoadFromObjectMatcher(rep_matcher, base_matcher,
                                                  index_matcher, effect_matcher,
                                                  control_matcher));
+}
+
+Matcher<Node*> IsLoadImmutable(const Matcher<LoadRepresentation>& rep_matcher,
+                               const Matcher<Node*>& base_matcher,
+                               const Matcher<Node*>& index_matcher) {
+  return MakeMatcher(
+      new IsLoadImmutableMatcher(rep_matcher, base_matcher, index_matcher));
 }
 
 Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,

@@ -1992,7 +1992,8 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
       // zero-extension is a no-op.
       return true;
     }
-    case IrOpcode::kLoad: {
+    case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable: {
       // As for the operations above, a 32-bit load will implicitly clear the
       // top 32 bits of the destination register.
       LoadRepresentation load_rep = LoadRepresentationOf(node->op());

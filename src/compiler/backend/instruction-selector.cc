@@ -1495,7 +1495,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kRetain:
       VisitRetain(node);
       return;
-    case IrOpcode::kLoad: {
+    case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
       return VisitLoad(node);

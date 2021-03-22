@@ -254,6 +254,13 @@ void Int64Lowering::LowerNode(Node* node) {
                         machine()->UnalignedLoad(MachineType::Int32()));
       break;
     }
+    case IrOpcode::kLoadImmutable: {
+      MachineRepresentation rep =
+          LoadRepresentationOf(node->op()).representation();
+      LowerLoadOperator(node, rep,
+                        machine()->LoadImmutable(MachineType::Int32()));
+      break;
+    }
     case IrOpcode::kLoadFromObject: {
       ObjectAccess access = ObjectAccessOf(node->op());
       LowerLoadOperator(node, access.machine_type.representation(),

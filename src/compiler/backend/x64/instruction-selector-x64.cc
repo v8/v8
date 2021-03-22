@@ -1434,6 +1434,7 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
       }
     }
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kPoisonedLoad: {
       // The movzxbl/movsxbl/movzxwl/movsxwl/movl operations implicitly
@@ -1671,7 +1672,8 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
         }
         break;
       }
-      case IrOpcode::kLoad: {
+      case IrOpcode::kLoad:
+      case IrOpcode::kLoadImmutable: {
         if (TryMergeTruncateInt64ToInt32IntoLoad(this, node, value)) {
           return;
         }

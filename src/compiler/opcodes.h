@@ -681,6 +681,7 @@
   V(Comment)                             \
   V(Load)                                \
   V(PoisonedLoad)                        \
+  V(LoadImmutable)                       \
   V(Store)                               \
   V(StackSlot)                           \
   V(Word32Popcnt)                        \

@@ -206,6 +206,42 @@ TEST_F(Int64LoweringTest, Int64LoadFromObject) {
                       simplified);
 }
 
+TEST_F(Int64LoweringTest, Int64LoadImmutable) {
+  int32_t base = 0x1234;
+  int32_t index = 0x5678;
+
+  LowerGraph(graph()->NewNode(machine()->LoadImmutable(MachineType::Int64()),
+                              Int32Constant(base), Int32Constant(index)),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> high_word_load;
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  Matcher<Node*> high_word_load_matcher =
+      IsLoadImmutable(MachineType::Int32(), IsInt32Constant(base),
+                      IsInt32Add(IsInt32Constant(index), IsInt32Constant(0x4)));
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsLoadImmutable(MachineType::Int32(), IsInt32Constant(base),
+                                IsInt32Constant(index)),
+                AllOf(CaptureEq(&high_word_load), high_word_load_matcher),
+                start(), start()));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  Matcher<Node*> high_word_load_matcher =
+      IsLoadImmutable(MachineType::Int32(), IsInt32Constant(base),
+                      IsInt32Constant(index), start(), start());
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsLoadImmutable(
+                    MachineType::Int32(), IsInt32Constant(base),
+                    IsInt32Add(IsInt32Constant(index), IsInt32Constant(0x4))),
+                AllOf(CaptureEq(&high_word_load), high_word_load_matcher),
+                start(), start()));
+#endif
+}
+
 #if defined(V8_TARGET_LITTLE_ENDIAN)
 #define STORE_VERIFY(kStore, kRep)                                             \
   EXPECT_THAT(                                                                 \

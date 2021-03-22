@@ -98,6 +98,7 @@ inline bool IsPointerConstant(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant:
     case IrOpcode::kParameter:
+    case IrOpcode::kLoadImmutable:
       return true;
     default:
       return false;
