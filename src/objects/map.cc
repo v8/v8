@@ -1441,6 +1441,8 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
   Handle<HeapObject> prototype(map->prototype(), isolate);
   Map::SetPrototype(isolate, result, prototype);
   result->set_constructor_or_back_pointer(map->GetConstructor());
+  // TODO(solanes, v8:7790, v8:11353): set_relaxed_bit_field could be an atomic
+  // set if TSAN could see the transitions happening in StoreIC.
   result->set_relaxed_bit_field(map->bit_field());
   result->set_bit_field2(map->bit_field2());
   int new_bit_field3 = map->bit_field3();
