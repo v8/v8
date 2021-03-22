@@ -381,6 +381,45 @@ THREADED_TEST(ReceiverSignature) {
   }
 }
 
+static void DoNothingCallback(const v8::FunctionCallbackInfo<v8::Value>&) {}
+
+// Regression test for issue chromium:1188563.
+THREADED_TEST(Regress1188563) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // Set up some data for CallHandlerInfo.
+  v8::Local<v8::FunctionTemplate> data_constructor_templ =
+      v8::FunctionTemplate::New(isolate);
+  v8::Local<Function> data_constructor =
+      data_constructor_templ->GetFunction(env.local()).ToLocalChecked();
+  v8::Local<v8::Object> data =
+      data_constructor->NewInstance(env.local()).ToLocalChecked();
+
+  // Setup templates and instance with accessor property.
+  v8::Local<v8::FunctionTemplate> fun = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::FunctionTemplate> callback =
+      v8::FunctionTemplate::New(isolate, DoNothingCallback, data);
+  v8::Local<v8::ObjectTemplate> instance_templ = fun->InstanceTemplate();
+  instance_templ->SetAccessorProperty(v8_str("accessor"), callback, callback);
+  Local<Value> test_object =
+      instance_templ->NewInstance(env.local()).ToLocalChecked();
+  // Setup global variables.
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("test_object"), test_object)
+            .FromJust());
+  CompileRun(
+      "function test() {"
+      "  test_object.accessor;"
+      "};"
+      "%PrepareFunctionForOptimization(test);"
+      "try { test() } catch(e) {}"
+      "try { test() } catch(e) {}"
+      "%OptimizeFunctionOnNextCall(test);"
+      "test()");
+}
 
 THREADED_TEST(HulIgennem) {
   LocalContext env;

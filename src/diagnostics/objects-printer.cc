@@ -2098,7 +2098,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - undetectable: " << (undetectable() ? "true" : "false");
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
   os << "\n - instantiated: " << (instantiated() ? "true" : "false");
-  os << "\n - rare_data: " << Brief(rare_data());
+  os << "\n - rare_data: " << Brief(rare_data(kAcquireLoad));
   os << "\n";
 }
 
