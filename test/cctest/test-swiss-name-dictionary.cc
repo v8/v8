@@ -5,6 +5,7 @@
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-swiss-name-dictionary-infra.h"
+#include "test/cctest/test-swiss-name-dictionary-shared-tests.h"
 
 namespace v8 {
 namespace internal {
@@ -212,6 +213,14 @@ TEST(SizeFor) {
   CHECK_EQ(SwissNameDictionary::SizeFor(4), size_4);
   CHECK_EQ(SwissNameDictionary::SizeFor(8), size_8);
 }
+
+// Executes the tests defined in test-swiss-name-dictionary-shared-tests.h as if
+// they were defined in this file, using the RuntimeTestRunner. See comments in
+// test-swiss-name-dictionary-shared-tests.h and in
+// swiss-name-dictionary-infra.h for details.
+const char kRuntimeTestFileName[] = __FILE__;
+SharedSwissTableTests<RuntimeTestRunner, kRuntimeTestFileName>
+    execute_shared_tests_runtime;
 
 }  // namespace test_swiss_hash_table
 }  // namespace internal
