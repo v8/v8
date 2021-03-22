@@ -1750,8 +1750,6 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     isolate()->raw_native_context().set_retained_maps(
         ReadOnlyRoots(this).empty_weak_array_list());
   }
-
-  tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
   return ++contexts_disposed_;
 }
 
@@ -2252,6 +2250,7 @@ void Heap::MarkCompact() {
   mark_compact_collector()->Prepare();
 
   ms_count_++;
+  contexts_disposed_ = 0;
 
   MarkCompactPrologue();
 
@@ -3623,9 +3622,6 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
 
 GCIdleTimeHeapState Heap::ComputeHeapState() {
   GCIdleTimeHeapState heap_state;
-  heap_state.contexts_disposed = contexts_disposed_;
-  heap_state.contexts_disposal_rate =
-      tracer()->ContextDisposalRateInMilliseconds();
   heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   return heap_state;
@@ -3648,13 +3644,6 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = incremental_marking()->IsStopped();
       break;
     }
-    case GCIdleTimeAction::kFullGC: {
-      DCHECK_LT(0, contexts_disposed_);
-      HistogramTimerScope scope(isolate_->counters()->gc_context());
-      TRACE_EVENT0("v8", "V8.GCContext");
-      CollectAllGarbage(kNoGCFlags, GarbageCollectionReason::kContextDisposal);
-      break;
-    }
   }
 
   return result;
@@ -3668,8 +3657,6 @@ void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
   last_idle_notification_time_ = current_time;
   double deadline_difference = deadline_in_ms - current_time;
 
-  contexts_disposed_ = 0;
-
   if (FLAG_trace_idle_notification) {
     isolate_->PrintWithTimestamp(
         "Idle notification: requested idle time %.2f ms, used idle time %.2f "
@@ -3682,9 +3669,6 @@ void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
         break;
       case GCIdleTimeAction::kIncrementalStep:
         PrintF("incremental step");
-        break;
-      case GCIdleTimeAction::kFullGC:
-        PrintF("full GC");
         break;
     }
     PrintF("]");
@@ -3727,12 +3711,9 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
                              EmbedderAllocationCounter());
 
   GCIdleTimeHeapState heap_state = ComputeHeapState();
-
   GCIdleTimeAction action =
       gc_idle_time_handler_->Compute(idle_time_in_ms, heap_state);
-
   bool result = PerformIdleTimeAction(action, heap_state, deadline_in_ms);
-
   IdleNotificationEpilogue(action, heap_state, start_ms, deadline_in_ms);
   return result;
 }
