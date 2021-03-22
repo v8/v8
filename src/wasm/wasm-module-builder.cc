@@ -503,7 +503,7 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
           break;
         case kI8:
         case kI16:
-        case kStmt:
+        case kVoid:
         case kS128:
         case kBottom:
         case kRef:

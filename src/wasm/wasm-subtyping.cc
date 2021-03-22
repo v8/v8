@@ -281,7 +281,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case kS128:
     case kI8:
     case kI16:
-    case kStmt:
+    case kVoid:
     case kBottom:
       return subtype == supertype;
     case kRtt:

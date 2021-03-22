@@ -1395,7 +1395,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void DropStackSlotsAndRet(uint32_t num_stack_slots);
 
   // Execute a C call. Arguments are pushed to the stack and a pointer to this
-  // region is passed to the C function. If {out_argument_kind != kStmt},
+  // region is passed to the C function. If {out_argument_kind != kVoid},
   // this is the return value of the C function, stored in {rets[0]}. Further
   // outputs (specified in {sig->returns()}) are read from the buffer and stored
   // in the remaining {rets} registers.

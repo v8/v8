@@ -642,7 +642,7 @@ class DebugInfoImpl {
       }
       case kI8:
       case kI16:
-      case kStmt:
+      case kVoid:
       case kBottom:
         UNREACHABLE();
     }

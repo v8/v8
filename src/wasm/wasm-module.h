@@ -365,7 +365,7 @@ struct WasmTable {
             module->has_signature(heap_type.ref_index()));
   }
 
-  ValueType type = kWasmStmt;     // table type.
+  ValueType type = kWasmVoid;     // table type.
   uint32_t initial_size = 0;      // initial table size.
   uint32_t maximum_size = 0;      // maximum table size.
   bool has_maximum_size = false;  // true if there is a maximum size.

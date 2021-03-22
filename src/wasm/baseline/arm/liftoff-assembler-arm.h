@@ -4176,7 +4176,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   }
 
   // Load potential output value from the buffer on the stack.
-  if (out_argument_kind != kStmt) {
+  if (out_argument_kind != kVoid) {
     switch (out_argument_kind) {
       case kI32:
         ldr(result_reg->gp(), MemOperand(sp));

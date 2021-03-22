@@ -1199,7 +1199,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 // Determines the type encoded in a value type property (e.g. type reflection).
 // Returns false if there was an exception, true upon success. On success the
-// outgoing {type} is set accordingly, or set to {wasm::kWasmStmt} in case the
+// outgoing {type} is set accordingly, or set to {wasm::kWasmVoid} in case the
 // type could not be properly recognized.
 bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
                   Local<Context> context, i::wasm::ValueType* type,
@@ -1228,7 +1228,7 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
     *type = i::wasm::kWasmEqRef;
   } else {
     // Unrecognized type.
-    *type = i::wasm::kWasmStmt;
+    *type = i::wasm::kWasmVoid;
   }
   return true;
 }
@@ -1273,7 +1273,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::MaybeLocal<v8::Value> maybe =
         descriptor->Get(context, v8_str(isolate, "value"));
     if (!GetValueType(isolate, maybe, context, &type, enabled_features)) return;
-    if (type == i::wasm::kWasmStmt) {
+    if (type == i::wasm::kWasmVoid) {
       thrower.TypeError(
           "Descriptor property 'value' must be a WebAssembly type");
       return;
@@ -1386,7 +1386,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       UNIMPLEMENTED();
     case i::wasm::kI8:
     case i::wasm::kI16:
-    case i::wasm::kStmt:
+    case i::wasm::kVoid:
     case i::wasm::kS128:
     case i::wasm::kBottom:
       UNREACHABLE();
@@ -1489,7 +1489,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::wasm::ValueType type;
     MaybeLocal<Value> maybe = parameters->Get(context, i);
     if (!GetValueType(isolate, maybe, context, &type, enabled_features)) return;
-    if (type == i::wasm::kWasmStmt) {
+    if (type == i::wasm::kWasmVoid) {
       thrower.TypeError(
           "Argument 0 parameter type at index #%u must be a value type", i);
       return;
@@ -1500,7 +1500,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::wasm::ValueType type;
     MaybeLocal<Value> maybe = results->Get(context, i);
     if (!GetValueType(isolate, maybe, context, &type, enabled_features)) return;
-    if (type == i::wasm::kWasmStmt) {
+    if (type == i::wasm::kWasmVoid) {
       thrower.TypeError(
           "Argument 0 result type at index #%u must be a value type", i);
       return;
@@ -1863,7 +1863,7 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kBottom:
-    case i::wasm::kStmt:
+    case i::wasm::kVoid:
       UNREACHABLE();
   }
 }
@@ -1960,7 +1960,7 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kBottom:
-    case i::wasm::kStmt:
+    case i::wasm::kVoid:
       UNREACHABLE();
   }
 }

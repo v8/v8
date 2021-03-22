@@ -535,9 +535,9 @@ class WasmGraphBuilder {
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
   Node* BuildChangeEndiannessStore(Node* node, MachineRepresentation rep,
-                                   wasm::ValueType wasmtype = wasm::kWasmStmt);
+                                   wasm::ValueType wasmtype = wasm::kWasmVoid);
   Node* BuildChangeEndiannessLoad(Node* node, MachineType type,
-                                  wasm::ValueType wasmtype = wasm::kWasmStmt);
+                                  wasm::ValueType wasmtype = wasm::kWasmVoid);
 
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);

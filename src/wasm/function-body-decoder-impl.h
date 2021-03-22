@@ -484,7 +484,7 @@ struct ImmF64Immediate {
 template <Decoder::ValidateFlag validate>
 struct GlobalIndexImmediate {
   uint32_t index;
-  ValueType type = kWasmStmt;
+  ValueType type = kWasmVoid;
   const WasmGlobal* global = nullptr;
   uint32_t length;
 
@@ -518,7 +518,7 @@ struct SelectTypeImmediate {
 template <Decoder::ValidateFlag validate>
 struct BlockTypeImmediate {
   uint32_t length = 1;
-  ValueType type = kWasmStmt;
+  ValueType type = kWasmVoid;
   uint32_t sig_index = 0;
   const FunctionSig* sig = nullptr;
 
@@ -556,7 +556,7 @@ struct BlockTypeImmediate {
     return static_cast<uint32_t>(sig->parameter_count());
   }
   uint32_t out_arity() const {
-    if (type == kWasmStmt) return 0;
+    if (type == kWasmVoid) return 0;
     if (type != kWasmBottom) return 1;
     return static_cast<uint32_t>(sig->return_count());
   }
@@ -566,7 +566,7 @@ struct BlockTypeImmediate {
   }
   ValueType out_type(uint32_t index) {
     if (type == kWasmBottom) return sig->GetReturn(index);
-    DCHECK_NE(kWasmStmt, type);
+    DCHECK_NE(kWasmVoid, type);
     DCHECK_EQ(0, index);
     return type;
   }
@@ -914,7 +914,7 @@ struct PcForErrors<Decoder::kFullValidation> {
 // An entry on the value stack.
 template <Decoder::ValidateFlag validate>
 struct ValueBase : public PcForErrors<validate> {
-  ValueType type = kWasmStmt;
+  ValueType type = kWasmVoid;
 
   ValueBase(const byte* pc, ValueType type)
       : PcForErrors<validate>(pc), type(type) {}
@@ -3628,7 +3628,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   ValueType GetReturnType(const FunctionSig* sig) {
     DCHECK_GE(1, sig->return_count());
-    return sig->return_count() == 0 ? kWasmStmt : sig->GetReturn();
+    return sig->return_count() == 0 ? kWasmVoid : sig->GetReturn();
   }
 
   // TODO(jkummerow): Consider refactoring control stack management so
@@ -4568,7 +4568,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 #define CASE_ATOMIC_STORE_OP(Name, Type)          \
   case kExpr##Name: {                             \
     memtype = MachineType::Type();                \
-    ret_type = kWasmStmt;                         \
+    ret_type = kWasmVoid;                         \
     break; /* to generic mem access code below */ \
   }
       ATOMIC_STORE_OP_LIST(CASE_ATOMIC_STORE_OP)
@@ -4604,7 +4604,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // then).
     CHECK(!this->module_->is_memory64);
     ArgVector args = PeekArgs(sig);
-    if (ret_type == kWasmStmt) {
+    if (ret_type == kWasmVoid) {
       CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, VectorOf(args), imm,
                                   nullptr);
       DropArgs(sig);
@@ -4756,7 +4756,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   V8_INLINE Value CreateValue(ValueType type) { return Value{this->pc_, type}; }
   V8_INLINE void Push(Value value) {
-    DCHECK_NE(kWasmStmt, value.type);
+    DCHECK_NE(kWasmVoid, value.type);
     // {EnsureStackSpace} should have been called before, either in the central
     // decoding loop, or individually if more than one element is pushed.
     DCHECK_GT(stack_capacity_end_, stack_end_);
@@ -5072,7 +5072,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   int BuildSimpleOperator(WasmOpcode opcode, const FunctionSig* sig) {
     DCHECK_GE(1, sig->return_count());
-    ValueType ret = sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0);
+    ValueType ret = sig->return_count() == 0 ? kWasmVoid : sig->GetReturn(0);
     if (sig->parameter_count() == 1) {
       return BuildSimpleOperator(opcode, ret, sig->GetParam(0));
     } else {
@@ -5085,7 +5085,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   int BuildSimpleOperator(WasmOpcode opcode, ValueType return_type,
                           ValueType arg_type) {
     Value val = Peek(0, 0, arg_type);
-    if (return_type == kWasmStmt) {
+    if (return_type == kWasmVoid) {
       CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, val, nullptr);
       Drop(val);
     } else {
@@ -5101,7 +5101,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                           ValueType lhs_type, ValueType rhs_type) {
     Value rval = Peek(0, 1, rhs_type);
     Value lval = Peek(1, 0, lhs_type);
-    if (return_type == kWasmStmt) {
+    if (return_type == kWasmVoid) {
       CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, lval, rval, nullptr);
       Drop(2);
     } else {

@@ -2350,7 +2350,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         break;
       case wasm::kI8:
       case wasm::kI16:
-      case wasm::kStmt:
+      case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
     }
@@ -2481,7 +2481,7 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
         break;
       case wasm::kI8:
       case wasm::kI16:
-      case wasm::kStmt:
+      case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
     }
@@ -6241,7 +6241,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         UNIMPLEMENTED();
       case wasm::kI8:
       case wasm::kI16:
-      case wasm::kStmt:
+      case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
     }
@@ -6389,7 +6389,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kBottom:
-      case wasm::kStmt:
+      case wasm::kVoid:
         UNREACHABLE();
         break;
     }
@@ -6444,7 +6444,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kBottom:
-      case wasm::kStmt:
+      case wasm::kVoid:
         UNREACHABLE();
         break;
     }
@@ -6612,7 +6612,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         case wasm::kI8:
         case wasm::kI16:
         case wasm::kBottom:
-        case wasm::kStmt:
+        case wasm::kVoid:
           return false;
         case wasm::kI32:
         case wasm::kF32:
@@ -6661,7 +6661,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kBottom:
-      case wasm::kStmt:
+      case wasm::kVoid:
         UNREACHABLE();
         break;
     }

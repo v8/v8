@@ -1306,7 +1306,7 @@ TEST_F(FunctionBodyDecoderTest, TypeConversions) {
   TestUnop(kExprF32ConvertF64, kWasmF32, kWasmF64);
 }
 
-TEST_F(FunctionBodyDecoderTest, MacrosStmt) {
+TEST_F(FunctionBodyDecoderTest, MacrosVoid) {
   builder.InitializeMemory();
   ExpectValidates(sigs.v_i(), {WASM_LOCAL_SET(0, WASM_I32V_3(87348))});
   ExpectValidates(
@@ -1746,7 +1746,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
   WASM_FEATURE_SCOPE(return_call);
 
   const FunctionSig* sig = sigs.i_i();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   byte sig0 = builder.AddSignature(sigs.i_f());
 
@@ -1789,7 +1789,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithoutTableCrash) {
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectReturnCall) {
   const FunctionSig* sig = sigs.i_i();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   static byte code[] = {kExprReturnCallIndirect};
   ExpectFailure(sig, ArrayVector(code), kOmitEnd);
@@ -1869,7 +1869,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs1) {
   const FunctionSig* sig = sigs.i_i();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   byte sig0 = builder.AddSignature(sigs.i_f());
 
@@ -1931,7 +1931,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {
   const FunctionSig* sig = sigs.i_i();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   static byte code[] = {kExprCallIndirect};
   ExpectFailure(sig, ArrayVector(code), kOmitEnd);
@@ -1940,7 +1940,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {
 TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
   const FunctionSig* sig = sigs.i_i();
   builder.InitializeMemory();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   static byte code[] = {kExprI32StoreMem};
   ExpectFailure(sig, ArrayVector(code), kOmitEnd);
@@ -1950,7 +1950,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteI8x16Shuffle) {
   WASM_FEATURE_SCOPE(simd);
   const FunctionSig* sig = sigs.i_i();
   builder.InitializeMemory();
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   static byte code[] = {kSimdPrefix,
                         static_cast<byte>(kExprI8x16Shuffle & 0xff)};
@@ -3320,7 +3320,7 @@ TEST_F(FunctionBodyDecoderTest, DeclarativeElemDrop) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
   byte function_index = builder.AddFunction(sigs.v_i());
 
   ExpectFailure(sigs.a_v(), {WASM_REF_FUNC(function_index)});
@@ -3329,7 +3329,7 @@ TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefFuncUndeclared) {
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
   byte function_index = builder.AddFunction(sigs.v_i(), false);
 
   WASM_FEATURE_SCOPE(reftypes);
@@ -3350,7 +3350,7 @@ TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TableCopy) {
-  builder.InitializeTable(wasm::kWasmStmt);
+  builder.InitializeTable(wasm::kWasmVoid);
 
   ExpectValidates(sigs.v_v(),
                   {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});

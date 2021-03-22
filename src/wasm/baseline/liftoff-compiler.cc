@@ -544,7 +544,7 @@ class LiftoffCompiler {
         bailout_reason = kRefTypes;
         break;
       case kBottom:
-      case kStmt:
+      case kVoid:
         UNREACHABLE();
     }
     EmbeddedVector<char, 128> buffer;
@@ -1345,7 +1345,7 @@ class LiftoffCompiler {
       param_bytes += element_size_bytes(param_kind);
     }
     int out_arg_bytes =
-        out_argument_kind == kStmt ? 0 : element_size_bytes(out_argument_kind);
+        out_argument_kind == kVoid ? 0 : element_size_bytes(out_argument_kind);
     int stack_bytes = std::max(param_bytes, out_arg_bytes);
     __ CallC(sig, arg_regs, result_regs, out_argument_kind, stack_bytes,
              ext_ref);
@@ -1564,7 +1564,7 @@ class LiftoffCompiler {
             [=](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i32_popcnt(dst.gp(), src.gp())) return;
               auto sig = MakeSig::Returns(kI32).Params(kI32);
-              GenerateCCall(&dst, &sig, kStmt, &src,
+              GenerateCCall(&dst, &sig, kVoid, &src,
                             ExternalReference::wasm_word32_popcnt());
             });
       case kExprI64Popcnt:
@@ -1574,7 +1574,7 @@ class LiftoffCompiler {
               // The c function returns i32. We will zero-extend later.
               auto sig = MakeSig::Returns(kI32).Params(kI64);
               LiftoffRegister c_call_dst = kNeedI64RegPair ? dst.low() : dst;
-              GenerateCCall(&c_call_dst, &sig, kStmt, &src,
+              GenerateCCall(&c_call_dst, &sig, kVoid, &src,
                             ExternalReference::wasm_word64_popcnt());
               // Now zero-extend the result to i64.
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
@@ -1704,7 +1704,7 @@ class LiftoffCompiler {
           ValueKind sig_kinds[] = {k##kind, k##kind, k##kind};               \
           const bool out_via_stack = k##kind == kI64;                        \
           ValueKindSig sig(out_via_stack ? 0 : 1, 2, sig_kinds);             \
-          ValueKind out_arg_kind = out_via_stack ? kI64 : kStmt;             \
+          ValueKind out_arg_kind = out_via_stack ? kI64 : kVoid;             \
           GenerateCCall(&dst, &sig, out_arg_kind, args, ext_ref);            \
         });
     switch (opcode) {
@@ -3989,7 +3989,7 @@ class LiftoffCompiler {
       }
       case wasm::kI8:
       case wasm::kI16:
-      case wasm::kStmt:
+      case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
     }
@@ -4046,7 +4046,7 @@ class LiftoffCompiler {
       }
       case wasm::kI8:
       case wasm::kI16:
-      case wasm::kStmt:
+      case wasm::kVoid:
       case wasm::kBottom:
         UNREACHABLE();
     }
@@ -4603,7 +4603,7 @@ class LiftoffCompiler {
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result(instance);
-    GenerateCCall(&result, &sig, kStmt, args, ext_ref);
+    GenerateCCall(&result, &sig, kVoid, args, ext_ref);
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp());
@@ -4644,7 +4644,7 @@ class LiftoffCompiler {
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result(instance);
-    GenerateCCall(&result, &sig, kStmt, args, ext_ref);
+    GenerateCCall(&result, &sig, kVoid, args, ext_ref);
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp());
@@ -4665,7 +4665,7 @@ class LiftoffCompiler {
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result(instance);
-    GenerateCCall(&result, &sig, kStmt, args, ext_ref);
+    GenerateCCall(&result, &sig, kVoid, args, ext_ref);
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp());
@@ -6013,7 +6013,7 @@ class LiftoffCompiler {
         return LoadNullValue(reg.gp(), pinned);
       case kRtt:
       case kRttWithDepth:
-      case kStmt:
+      case kVoid:
       case kBottom:
       case kRef:
         UNREACHABLE();

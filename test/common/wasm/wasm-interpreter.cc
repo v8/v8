@@ -1438,7 +1438,7 @@ class WasmInterpreterInternals {
         case kRef:  // TODO(7748): Implement.
         case kRtt:
         case kRttWithDepth:
-        case kStmt:
+        case kVoid:
         case kBottom:
         case kI8:
         case kI16:
@@ -3204,7 +3204,7 @@ class WasmInterpreterInternals {
         case kRttWithDepth:
         case kI8:
         case kI16:
-        case kStmt:
+        case kVoid:
         case kBottom:
           UNREACHABLE();
       }
@@ -3322,7 +3322,7 @@ class WasmInterpreterInternals {
         case kRttWithDepth:
         case kI8:
         case kI16:
-        case kStmt:
+        case kVoid:
         case kBottom:
           UNREACHABLE();
       }
@@ -3721,7 +3721,7 @@ class WasmInterpreterInternals {
             case kRttWithDepth:
             case kI8:
             case kI16:
-            case kStmt:
+            case kVoid:
             case kBottom:
               UNREACHABLE();
           }
@@ -4022,7 +4022,7 @@ class WasmInterpreterInternals {
   }
 
   void Push(WasmValue val) {
-    DCHECK_NE(kWasmStmt, val.type());
+    DCHECK_NE(kWasmVoid, val.type());
     DCHECK_NE(kWasmI8, val.type());
     DCHECK_NE(kWasmI16, val.type());
     DCHECK_LE(1, stack_limit_ - sp_);
@@ -4036,7 +4036,7 @@ class WasmInterpreterInternals {
   void Push(WasmValue* vals, size_t arity) {
     DCHECK_LE(arity, stack_limit_ - sp_);
     for (WasmValue *val = vals, *end = vals + arity; val != end; ++val) {
-      DCHECK_NE(kWasmStmt, val->type());
+      DCHECK_NE(kWasmVoid, val->type());
       Push(*val);
     }
   }
@@ -4113,7 +4113,7 @@ class WasmInterpreterInternals {
           PrintF("i32x4:%d,%d,%d,%d", s.val[0], s.val[1], s.val[2], s.val[3]);
           break;
         }
-        case kStmt:
+        case kVoid:
           PrintF("void");
           break;
         case kRef:

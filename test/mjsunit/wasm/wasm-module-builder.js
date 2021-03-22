@@ -98,7 +98,7 @@ let kDeclFunctionLocals = 0x04;
 let kDeclFunctionExport = 0x08;
 
 // Value types and related
-let kWasmStmt = 0x40;
+let kWasmVoid = 0x40;
 let kWasmI32 = 0x7f;
 let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
@@ -1189,7 +1189,7 @@ class WasmModuleBuilder {
   addTable(
       type, initial_size, max_size = undefined, init_func_index = undefined) {
     if (type == kWasmI32 || type == kWasmI64 || type == kWasmF32 ||
-        type == kWasmF64 || type == kWasmS128 || type == kWasmStmt) {
+        type == kWasmF64 || type == kWasmS128 || type == kWasmVoid) {
       throw new Error('Tables must be of a reference type');
     }
     let table = new WasmTableBuilder(

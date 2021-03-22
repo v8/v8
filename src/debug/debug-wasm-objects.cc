@@ -1035,7 +1035,7 @@ Handle<WasmValueObject> WasmValueObject::New(
           StaticCharVector("(unimplemented)"));
       break;
     }
-    case wasm::kStmt:
+    case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();
   }

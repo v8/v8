@@ -88,7 +88,7 @@ ASSERT_TRIVIALLY_COPYABLE(Handle<Object>);
 // A wasm value with type information.
 class WasmValue {
  public:
-  WasmValue() : type_(kWasmStmt), bit_pattern_{} {}
+  WasmValue() : type_(kWasmVoid), bit_pattern_{} {}
 
 #define DEFINE_TYPE_SPECIFIC_METHODS(name, localtype, ctype)       \
   explicit WasmValue(ctype v) : type_(localtype), bit_pattern_{} { \

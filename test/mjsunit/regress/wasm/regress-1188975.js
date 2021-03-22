@@ -12,7 +12,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("f", kSig_v_v)
       .addBody([
         kExprUnreachable,
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
         kExprElse,
         kExprCatchAll,
         kExprEnd,

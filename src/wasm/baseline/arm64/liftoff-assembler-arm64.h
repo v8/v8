@@ -3167,7 +3167,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   }
 
   // Load potential output value from the buffer on the stack.
-  if (out_argument_kind != kStmt) {
+  if (out_argument_kind != kVoid) {
     Peek(liftoff::GetRegFromType(*next_result_reg, out_argument_kind), 0);
   }
 

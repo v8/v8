@@ -1219,7 +1219,7 @@ class WasmGraphBuildingInterface {
         return builder_->RefNull();
       case kRtt:
       case kRttWithDepth:
-      case kStmt:
+      case kVoid:
       case kBottom:
       case kRef:
         UNREACHABLE();

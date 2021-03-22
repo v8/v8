@@ -74,7 +74,7 @@ OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
       case kRttWithDepth:
       case kI8:
       case kI16:
-      case kStmt:
+      case kVoid:
       case kBottom:
         UNREACHABLE();
     }
@@ -109,7 +109,7 @@ OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case kRttWithDepth:
       case kI8:
       case kI16:
-      case kStmt:
+      case kVoid:
       case kBottom:
         UNREACHABLE();
     }

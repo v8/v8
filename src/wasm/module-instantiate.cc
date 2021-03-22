@@ -923,7 +923,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
       tagged_globals_->set(global.offset, *value->GetRef());
       break;
     }
-    case kStmt:
+    case kVoid:
     case kS128:
     case kBottom:
     case kI8:

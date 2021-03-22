@@ -612,7 +612,7 @@ void WasmTableObject::UpdateDispatchTables(
   int total_count = serialized_sig.length() - 1;
   std::unique_ptr<wasm::ValueType[]> reps(new wasm::ValueType[total_count]);
   int result_count;
-  static const wasm::ValueType kMarker = wasm::kWasmStmt;
+  static const wasm::ValueType kMarker = wasm::kWasmVoid;
   for (int i = 0, j = 0; i <= total_count; i++) {
     if (serialized_sig.get(i) == kMarker) {
       result_count = i;
@@ -1641,7 +1641,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     case wasm::kRttWithDepth:
       // TODO(7748): Expose RTTs to DevTools.
       UNIMPLEMENTED();
-    case wasm::kStmt:
+    case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();
   }
@@ -1671,7 +1671,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     case wasm::kRttWithDepth:
       // TODO(7748): Expose RTTs to DevTools.
       UNIMPLEMENTED();
-    case wasm::kStmt:
+    case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();
   }
@@ -1733,7 +1733,7 @@ bool WasmCapiFunction::MatchesSignature(const wasm::FunctionSig* sig) const {
       return false;
     }
   }
-  if (serialized_sig.get(serialized_index) != wasm::kWasmStmt) return false;
+  if (serialized_sig.get(serialized_index) != wasm::kWasmVoid) return false;
   serialized_index++;
   for (int i = 0; i < param_count; i++, serialized_index++) {
     if (sig->GetParam(i) != serialized_sig.get(serialized_index)) return false;
@@ -1830,7 +1830,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         break;
       case wasm::kRtt:
       case wasm::kRttWithDepth:
-      case wasm::kStmt:
+      case wasm::kVoid:
       case wasm::kBottom:
       case wasm::kI8:
       case wasm::kI16:

@@ -122,7 +122,7 @@ class WasmGenerator {
         : gen_(gen), emit_end_(emit_end) {
       gen->blocks_.emplace_back(br_types.begin(), br_types.end());
       if (param_types.size() == 0 && result_types.size() == 0) {
-        gen->builder_->EmitWithU8(block_type, kWasmStmt.value_type_code());
+        gen->builder_->EmitWithU8(block_type, kWasmVoid.value_type_code());
         return;
       }
       if (param_types.size() == 0 && result_types.size() == 1) {
@@ -135,11 +135,11 @@ class WasmGenerator {
       FunctionSig::Builder builder(zone, result_types.size(),
                                    param_types.size());
       for (auto& type : param_types) {
-        DCHECK_NE(type, kWasmStmt);
+        DCHECK_NE(type, kWasmVoid);
         builder.AddParam(type);
       }
       for (auto& type : result_types) {
-        DCHECK_NE(type, kWasmStmt);
+        DCHECK_NE(type, kWasmVoid);
         builder.AddReturn(type);
       }
       FunctionSig* sig = builder.Build();
@@ -199,10 +199,10 @@ class WasmGenerator {
 
   template <ValueKind T, IfType type>
   void if_(DataRange* data) {
-    static_assert(T == kStmt || type == kIfElse,
+    static_assert(T == kVoid || type == kIfElse,
                   "if without else cannot produce a value");
     if_({},
-        T == kStmt ? Vector<ValueType>{} : VectorOf({ValueType::Primitive(T)}),
+        T == kVoid ? Vector<ValueType>{} : VectorOf({ValueType::Primitive(T)}),
         type, data);
   }
 
@@ -217,7 +217,7 @@ class WasmGenerator {
     uint8_t delegate_target = data->get<uint8_t>() % (try_blocks_.size() + 1);
     bool is_unwind = num_catch == 0 && !has_catch_all && !is_delegate;
 
-    Vector<const ValueType> return_type_vec = return_type.kind() == kStmt
+    Vector<const ValueType> return_type_vec = return_type.kind() == kVoid
                                                   ? Vector<ValueType>{}
                                                   : VectorOf(&return_type, 1);
     BlockScope block_scope(this, kExprTry, {}, return_type_vec, return_type_vec,
@@ -305,7 +305,7 @@ class WasmGenerator {
     builder_->EmitWithI32V(
         kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
     ConsumeAndGenerate(break_types,
-                       wanted_kind == kStmt
+                       wanted_kind == kVoid
                            ? Vector<ValueType>{}
                            : VectorOf({ValueType::Primitive(wanted_kind)}),
                        data);
@@ -536,9 +536,9 @@ class WasmGenerator {
 
   void ConvertOrGenerate(ValueType src, ValueType dst, DataRange* data) {
     if (src == dst) return;
-    if (src == kWasmStmt && dst != kWasmStmt) {
+    if (src == kWasmVoid && dst != kWasmVoid) {
       Generate(dst, data);
-    } else if (dst == kWasmStmt && src != kWasmStmt) {
+    } else if (dst == kWasmVoid && src != kWasmVoid) {
       builder_->Emit(kExprDrop);
     } else {
       Convert(src, dst);
@@ -579,12 +579,12 @@ class WasmGenerator {
         builder_->EmitByte(0);  // Table index.
       }
     }
-    if (sig->return_count() == 0 && wanted_kind != kWasmStmt) {
+    if (sig->return_count() == 0 && wanted_kind != kWasmVoid) {
       // The call did not generate a value. Thus just generate it here.
       Generate(wanted_kind, data);
       return;
     }
-    if (wanted_kind == kWasmStmt) {
+    if (wanted_kind == kWasmVoid) {
       // The call did generate values, but we did not want one.
       for (size_t i = 0; i < sig->return_count(); ++i) {
         builder_->Emit(kExprDrop);
@@ -593,16 +593,16 @@ class WasmGenerator {
     }
     auto return_types = VectorOf(sig->returns().begin(), sig->return_count());
     auto wanted_types =
-        VectorOf(&wanted_kind, wanted_kind == kWasmStmt ? 0 : 1);
+        VectorOf(&wanted_kind, wanted_kind == kWasmVoid ? 0 : 1);
     ConsumeAndGenerate(return_types, wanted_types, data);
   }
 
   struct Var {
     uint32_t index;
-    ValueType type = kWasmStmt;
+    ValueType type = kWasmVoid;
     Var() = default;
     Var(uint32_t index, ValueType type) : index(index), type(type) {}
-    bool is_valid() const { return type != kWasmStmt; }
+    bool is_valid() const { return type != kWasmVoid; }
   };
 
   Var GetRandomLocal(DataRange* data) {
@@ -622,24 +622,24 @@ class WasmGenerator {
     // If there are no locals and no parameters, just generate any value (if a
     // value is needed), or do nothing.
     if (!local.is_valid()) {
-      if (wanted_kind == kStmt) return;
+      if (wanted_kind == kVoid) return;
       return Generate<wanted_kind>(data);
     }
 
     if (opcode != kExprLocalGet) Generate(local.type, data);
     builder_->EmitWithU32V(opcode, local.index);
-    if (wanted_kind != kStmt && local.type.kind() != wanted_kind) {
+    if (wanted_kind != kVoid && local.type.kind() != wanted_kind) {
       Convert(local.type, ValueType::Primitive(wanted_kind));
     }
   }
 
   template <ValueKind wanted_kind>
   void get_local(DataRange* data) {
-    static_assert(wanted_kind != kStmt, "illegal type");
+    static_assert(wanted_kind != kVoid, "illegal type");
     local_op<wanted_kind>(data, kExprLocalGet);
   }
 
-  void set_local(DataRange* data) { local_op<kStmt>(data, kExprLocalSet); }
+  void set_local(DataRange* data) { local_op<kVoid>(data, kExprLocalSet); }
 
   template <ValueKind wanted_kind>
   void tee_local(DataRange* data) {
@@ -671,12 +671,12 @@ class WasmGenerator {
 
   template <ValueKind wanted_kind>
   void global_op(DataRange* data) {
-    constexpr bool is_set = wanted_kind == kStmt;
+    constexpr bool is_set = wanted_kind == kVoid;
     Var global = GetRandomGlobal(data, is_set);
     // If there are no globals, just generate any value (if a value is needed),
     // or do nothing.
     if (!global.is_valid()) {
-      if (wanted_kind == kStmt) return;
+      if (wanted_kind == kVoid) return;
       return Generate<wanted_kind>(data);
     }
 
@@ -690,13 +690,13 @@ class WasmGenerator {
 
   template <ValueKind wanted_kind>
   void get_global(DataRange* data) {
-    static_assert(wanted_kind != kStmt, "illegal type");
+    static_assert(wanted_kind != kVoid, "illegal type");
     global_op<wanted_kind>(data);
   }
 
   template <ValueKind select_kind>
   void select_with_type(DataRange* data) {
-    static_assert(select_kind != kStmt, "illegal kind for select");
+    static_assert(select_kind != kVoid, "illegal kind for select");
     Generate<select_kind, select_kind, kI32>(data);
     // num_types is always 1.
     uint8_t num_types = 1;
@@ -704,7 +704,7 @@ class WasmGenerator {
                            ValueType::Primitive(select_kind).value_type_code());
   }
 
-  void set_global(DataRange* data) { global_op<kStmt>(data); }
+  void set_global(DataRange* data) { global_op<kVoid>(data); }
 
   void throw_or_rethrow(DataRange* data) {
     bool rethrow = data->get<uint8_t>() % 2;
@@ -822,31 +822,31 @@ class WasmGenerator {
 };
 
 template <>
-void WasmGenerator::block<kStmt>(DataRange* data) {
+void WasmGenerator::block<kVoid>(DataRange* data) {
   block({}, {}, data);
 }
 
 template <>
-void WasmGenerator::loop<kStmt>(DataRange* data) {
+void WasmGenerator::loop<kVoid>(DataRange* data) {
   loop({}, {}, data);
 }
 
 template <>
-void WasmGenerator::Generate<kStmt>(DataRange* data) {
+void WasmGenerator::Generate<kVoid>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() == 0) return;
 
   constexpr GenerateFn alternatives[] = {
-      &WasmGenerator::sequence<kStmt, kStmt>,
-      &WasmGenerator::sequence<kStmt, kStmt, kStmt, kStmt>,
-      &WasmGenerator::sequence<kStmt, kStmt, kStmt, kStmt, kStmt, kStmt, kStmt,
-                               kStmt>,
-      &WasmGenerator::block<kStmt>,
-      &WasmGenerator::loop<kStmt>,
-      &WasmGenerator::if_<kStmt, kIf>,
-      &WasmGenerator::if_<kStmt, kIfElse>,
+      &WasmGenerator::sequence<kVoid, kVoid>,
+      &WasmGenerator::sequence<kVoid, kVoid, kVoid, kVoid>,
+      &WasmGenerator::sequence<kVoid, kVoid, kVoid, kVoid, kVoid, kVoid, kVoid,
+                               kVoid>,
+      &WasmGenerator::block<kVoid>,
+      &WasmGenerator::loop<kVoid>,
+      &WasmGenerator::if_<kVoid, kIf>,
+      &WasmGenerator::if_<kVoid, kIfElse>,
       &WasmGenerator::br,
-      &WasmGenerator::br_if<kStmt>,
+      &WasmGenerator::br_if<kVoid>,
 
       &WasmGenerator::memop<kExprI32StoreMem, kI32>,
       &WasmGenerator::memop<kExprI32StoreMem8, kI32>,
@@ -872,13 +872,13 @@ void WasmGenerator::Generate<kStmt>(DataRange* data) {
 
       &WasmGenerator::drop,
 
-      &WasmGenerator::call<kStmt>,
-      &WasmGenerator::call_indirect<kStmt>,
+      &WasmGenerator::call<kVoid>,
+      &WasmGenerator::call_indirect<kVoid>,
 
       &WasmGenerator::set_local,
       &WasmGenerator::set_global,
       &WasmGenerator::throw_or_rethrow,
-      &WasmGenerator::try_block<kStmt>};
+      &WasmGenerator::try_block<kVoid>};
 
   GenerateOneOf(alternatives, data);
 }
@@ -897,9 +897,9 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::i32_const<3>,
       &WasmGenerator::i32_const<4>,
 
-      &WasmGenerator::sequence<kI32, kStmt>,
-      &WasmGenerator::sequence<kStmt, kI32>,
-      &WasmGenerator::sequence<kStmt, kI32, kStmt>,
+      &WasmGenerator::sequence<kI32, kVoid>,
+      &WasmGenerator::sequence<kVoid, kI32>,
+      &WasmGenerator::sequence<kVoid, kI32, kVoid>,
 
       &WasmGenerator::op<kExprI32Eqz, kI32>,
       &WasmGenerator::op<kExprI32Eq, kI32, kI32>,
@@ -1049,9 +1049,9 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
       &WasmGenerator::i64_const<7>,
       &WasmGenerator::i64_const<8>,
 
-      &WasmGenerator::sequence<kI64, kStmt>,
-      &WasmGenerator::sequence<kStmt, kI64>,
-      &WasmGenerator::sequence<kStmt, kI64, kStmt>,
+      &WasmGenerator::sequence<kI64, kVoid>,
+      &WasmGenerator::sequence<kVoid, kI64>,
+      &WasmGenerator::sequence<kVoid, kI64, kVoid>,
 
       &WasmGenerator::op<kExprI64Add, kI64, kI64>,
       &WasmGenerator::op<kExprI64Sub, kI64, kI64>,
@@ -1154,9 +1154,9 @@ void WasmGenerator::Generate<kF32>(DataRange* data) {
   }
 
   constexpr GenerateFn alternatives[] = {
-      &WasmGenerator::sequence<kF32, kStmt>,
-      &WasmGenerator::sequence<kStmt, kF32>,
-      &WasmGenerator::sequence<kStmt, kF32, kStmt>,
+      &WasmGenerator::sequence<kF32, kVoid>,
+      &WasmGenerator::sequence<kVoid, kF32>,
+      &WasmGenerator::sequence<kVoid, kF32, kVoid>,
 
       &WasmGenerator::op<kExprF32Abs, kF32>,
       &WasmGenerator::op<kExprF32Neg, kF32>,
@@ -1211,9 +1211,9 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
   }
 
   constexpr GenerateFn alternatives[] = {
-      &WasmGenerator::sequence<kF64, kStmt>,
-      &WasmGenerator::sequence<kStmt, kF64>,
-      &WasmGenerator::sequence<kStmt, kF64, kStmt>,
+      &WasmGenerator::sequence<kF64, kVoid>,
+      &WasmGenerator::sequence<kVoid, kF64>,
+      &WasmGenerator::sequence<kVoid, kF64, kVoid>,
 
       &WasmGenerator::op<kExprF64Abs, kF64>,
       &WasmGenerator::op<kExprF64Neg, kF64>,
@@ -1512,8 +1512,8 @@ void WasmGenerator::grow_memory(DataRange* data) {
 
 void WasmGenerator::Generate(ValueType type, DataRange* data) {
   switch (type.kind()) {
-    case kStmt:
-      return Generate<kStmt>(data);
+    case kVoid:
+      return Generate<kVoid>(data);
     case kI32:
       return Generate<kI32>(data);
     case kI64:
@@ -1554,7 +1554,7 @@ void WasmGenerator::Generate(Vector<const ValueType> types, DataRange* data) {
   }
 
   if (types.size() == 0) {
-    Generate(kWasmStmt, data);
+    Generate(kWasmVoid, data);
     return;
   }
   if (types.size() == 1) {

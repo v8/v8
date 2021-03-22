@@ -14,15 +14,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_v_l)
     .addLocals(kWasmI32, 2)
     .addBody([
-      kExprLoop, kWasmStmt,
+      kExprLoop, kWasmVoid,
         kExprLocalGet, 0x02,
         kExprLocalTee, 0x01,
-        kExprIf, kWasmStmt,
+        kExprIf, kWasmVoid,
         kExprElse,
-          kExprLoop, kWasmStmt,
-            kExprLoop, kWasmStmt,
+          kExprLoop, kWasmVoid,
+            kExprLoop, kWasmVoid,
               kExprLocalGet, 0x01,
-              kExprIf, kWasmStmt,
+              kExprIf, kWasmVoid,
               kExprElse,
                 kExprLocalGet, 0x02,
                 kExprBrIf, 0x04,

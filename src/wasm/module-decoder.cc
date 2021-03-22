@@ -647,7 +647,7 @@ class ModuleDecoderImpl : public Decoder {
           // ===== Imported global =============================================
           import->index = static_cast<uint32_t>(module_->globals.size());
           module_->globals.push_back(
-              {kWasmStmt, false, WasmInitExpr(), {0}, true, false});
+              {kWasmVoid, false, WasmInitExpr(), {0}, true, false});
           WasmGlobal* global = &module_->globals.back();
           global->type = consume_value_type();
           global->mutability = consume_mutability();
@@ -756,7 +756,7 @@ class ModuleDecoderImpl : public Decoder {
       TRACE("DecodeGlobal[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
       // Add an uninitialized global and pass a pointer to it.
       module_->globals.push_back(
-          {kWasmStmt, false, WasmInitExpr(), {0}, false, false});
+          {kWasmVoid, false, WasmInitExpr(), {0}, false, false});
       WasmGlobal* global = &module_->globals.back();
       global->type = consume_value_type();
       global->mutability = consume_mutability();
@@ -1305,7 +1305,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   WasmInitExpr DecodeInitExprForTesting() {
-    return consume_init_expr(nullptr, kWasmStmt, 0);
+    return consume_init_expr(nullptr, kWasmVoid, 0);
   }
 
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
@@ -1349,11 +1349,11 @@ class ModuleDecoderImpl : public Decoder {
   ValueType TypeOf(const WasmInitExpr& expr) {
     switch (expr.kind()) {
       case WasmInitExpr::kNone:
-        return kWasmStmt;
+        return kWasmVoid;
       case WasmInitExpr::kGlobalGet:
         return expr.immediate().index < module_->globals.size()
                    ? module_->globals[expr.immediate().index].type
-                   : kWasmStmt;
+                   : kWasmVoid;
       case WasmInitExpr::kI32Const:
         return kWasmI32;
       case WasmInitExpr::kI64Const:
@@ -1382,7 +1382,7 @@ class ModuleDecoderImpl : public Decoder {
           return ValueType::Rtt(expr.immediate().heap_type,
                                 operand_type.depth() + 1);
         } else {
-          return kWasmStmt;
+          return kWasmVoid;
         }
       }
     }
@@ -1841,7 +1841,7 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     WasmInitExpr expr = std::move(stack.back());
-    if (expected != kWasmStmt && !IsSubtypeOf(TypeOf(expr), expected, module)) {
+    if (expected != kWasmVoid && !IsSubtypeOf(TypeOf(expr), expected, module)) {
       errorf(pc(), "type error in init expression, expected %s, got %s",
              expected.name().c_str(), TypeOf(expr).name().c_str());
     }

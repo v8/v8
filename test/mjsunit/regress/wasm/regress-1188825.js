@@ -13,7 +13,7 @@ let exception = builder.addException(kSig_v_v);
 builder.addFunction("foo", kSig_v_v)
     .addBody([
         kExprTry,
-        kWasmStmt,
+        kWasmVoid,
         kExprCallFunction, imports,
         kExprCatch, exception,
         kExprEnd]

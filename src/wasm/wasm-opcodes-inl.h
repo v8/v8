@@ -575,7 +575,7 @@ enum WasmOpcodeSig : byte {
 #undef DECLARE_SIG_ENUM
 #define DECLARE_SIG(name, ...)                                                \
   constexpr ValueType kTypes_##name[] = {__VA_ARGS__};                        \
-  constexpr int kReturnsCount_##name = kTypes_##name[0] == kWasmStmt ? 0 : 1; \
+  constexpr int kReturnsCount_##name = kTypes_##name[0] == kWasmVoid ? 0 : 1; \
   constexpr FunctionSig kSig_##name(                                          \
       kReturnsCount_##name, static_cast<int>(arraysize(kTypes_##name)) - 1,   \
       kTypes_##name + (1 - kReturnsCount_##name));

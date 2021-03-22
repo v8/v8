@@ -42,7 +42,7 @@ class Simd128;
   V(I16, 1, I16, Int16, 'h', "i16")
 
 #define FOREACH_VALUE_TYPE(V)                                               \
-  V(Stmt, -1, Void, None, 'v', "<stmt>")                                    \
+  V(Void, -1, Void, None, 'v', "<void>")                                    \
   FOREACH_NUMERIC_VALUE_TYPE(V)                                             \
   V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")                   \
   V(RttWithDepth, kTaggedSizeLog2, RttWithDepth, TaggedPointer, 'k', "rtt") \
@@ -262,7 +262,7 @@ constexpr bool is_rtt(ValueKind kind) {
 }
 
 constexpr bool is_defaultable(ValueKind kind) {
-  CONSTEXPR_DCHECK(kind != kBottom && kind != kStmt);
+  CONSTEXPR_DCHECK(kind != kBottom && kind != kVoid);
   return kind != kRef && !is_rtt(kind);
 }
 
@@ -275,7 +275,7 @@ constexpr bool is_defaultable(ValueKind kind) {
 class ValueType {
  public:
   /******************************* Constructors *******************************/
-  constexpr ValueType() : bit_field_(KindField::encode(kStmt)) {}
+  constexpr ValueType() : bit_field_(KindField::encode(kVoid)) {}
   static constexpr ValueType Primitive(ValueKind kind) {
     CONSTEXPR_DCHECK(kind == kBottom || kind <= kI16);
     return ValueType(KindField::encode(kind));
@@ -450,7 +450,7 @@ class ValueType {
           default:
             return kRefCode;
         }
-      case kStmt:
+      case kVoid:
         return kVoidCode;
       case kRtt:
         return kRttCode;
@@ -555,7 +555,7 @@ constexpr ValueType kWasmF64 = ValueType::Primitive(kF64);
 constexpr ValueType kWasmS128 = ValueType::Primitive(kS128);
 constexpr ValueType kWasmI8 = ValueType::Primitive(kI8);
 constexpr ValueType kWasmI16 = ValueType::Primitive(kI16);
-constexpr ValueType kWasmStmt = ValueType::Primitive(kStmt);
+constexpr ValueType kWasmVoid = ValueType::Primitive(kVoid);
 constexpr ValueType kWasmBottom = ValueType::Primitive(kBottom);
 // Established reference-type proposal shorthands.
 constexpr ValueType kWasmFuncRef = ValueType::Ref(HeapType::kFunc, kNullable);
