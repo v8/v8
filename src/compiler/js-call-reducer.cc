@@ -7706,6 +7706,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
         ai_exec.lookup_start_object_maps(), kStartAtPrototype,
         JSObjectRef(broker(), holder));
   } else {
+    // TODO(v8:11457) Support dictionary mode protoypes here.
     return inference.NoChange();
   }
 

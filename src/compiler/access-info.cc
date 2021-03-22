@@ -27,17 +27,27 @@ namespace compiler {
 
 namespace {
 
-bool CanInlinePropertyAccess(Handle<Map> map) {
+bool CanInlinePropertyAccess(Handle<Map> map, AccessMode access_mode) {
   // We can inline property access to prototypes of all primitives, except
   // the special Oddball ones that have no wrapper counterparts (i.e. Null,
   // Undefined and TheHole).
+  // We can only inline accesses to dictionary mode holders if the access is a
+  // load and the holder is a prototype. The latter ensures a 1:1
+  // relationship between the map and the object (and therefore the property
+  // dictionary).
   STATIC_ASSERT(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
   if (map->IsBooleanMap()) return true;
   if (map->instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
-  return map->IsJSObjectMap() && !map->is_dictionary_map() &&
-         !map->has_named_interceptor() &&
-         // TODO(verwaest): Allowlist contexts to which we have access.
-         !map->is_access_check_needed();
+  if (map->IsJSObjectMap()) {
+    if (map->is_dictionary_map()) {
+      if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return false;
+      return access_mode == AccessMode::kLoad && map->is_prototype_map();
+    }
+    return !map->has_named_interceptor() &&
+           // TODO(verwaest): Allowlist contexts to which we have access.
+           !map->is_access_check_needed();
+  }
+  return false;
 }
 
 #ifdef DEBUG
@@ -146,9 +156,9 @@ PropertyAccessInfo PropertyAccessInfo::StringLength(Zone* zone,
 // static
 PropertyAccessInfo PropertyAccessInfo::DictionaryProtoDataConstant(
     Zone* zone, Handle<Map> receiver_map, Handle<JSObject> holder,
-    InternalIndex dictionary_index) {
+    InternalIndex dictionary_index, Handle<Name> name) {
   return PropertyAccessInfo(zone, kDictionaryProtoDataConstant, holder,
-                            {{receiver_map}, zone}, dictionary_index);
+                            {{receiver_map}, zone}, dictionary_index, name);
 }
 
 // static
@@ -227,14 +237,15 @@ PropertyAccessInfo::PropertyAccessInfo(
 PropertyAccessInfo::PropertyAccessInfo(
     Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
     ZoneVector<Handle<Map>>&& lookup_start_object_maps,
-    InternalIndex dictionary_index)
+    InternalIndex dictionary_index, Handle<Name> name)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
       holder_(holder),
       unrecorded_dependencies_(zone),
       field_representation_(Representation::None()),
       field_type_(Type::Any()),
-      dictionary_index_(dictionary_index) {}
+      dictionary_index_(dictionary_index),
+      name_{name} {}
 
 MinimorphicLoadPropertyAccessInfo::MinimorphicLoadPropertyAccessInfo(
     Kind kind, int offset, bool is_inobject,
@@ -323,6 +334,18 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return false;
     }
 
+    case kDictionaryProtoDataConstant: {
+      DCHECK_EQ(AccessMode::kLoad, access_mode);
+      if (this->dictionary_index_ == that->dictionary_index_) {
+        this->lookup_start_object_maps_.insert(
+            this->lookup_start_object_maps_.end(),
+            that->lookup_start_object_maps_.begin(),
+            that->lookup_start_object_maps_.end());
+        return true;
+      }
+      return false;
+    }
+
     case kNotFound:
     case kStringLength: {
       DCHECK(this->unrecorded_dependencies_.empty());
@@ -336,7 +359,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     case kModuleExport:
       return false;
 
-    case kDictionaryProtoDataConstant:
     case kDictionaryProtoAccessorConstant:
       // TODO(v8:11248) Dealt with in follow-up CLs.
       UNREACHABLE();
@@ -559,6 +581,28 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
                                                   accessor, holder);
 }
 
+PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
+    Handle<Map> receiver_map, Handle<Name> name, Handle<JSObject> holder,
+    InternalIndex dictionary_index, AccessMode access_mode,
+    PropertyDetails details) const {
+  CHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  DCHECK(holder->map().is_prototype_map());
+  DCHECK_EQ(access_mode, AccessMode::kLoad);
+
+  // We can only inline accesses to constant properties.
+  if (details.constness() != PropertyConstness::kConst) {
+    return PropertyAccessInfo::Invalid(zone());
+  }
+
+  if (details.kind() == PropertyKind::kData) {
+    return PropertyAccessInfo::DictionaryProtoDataConstant(
+        zone(), receiver_map, holder, dictionary_index, name);
+  }
+
+  // TODO(v8:11248) Support for accessors is implemented a in follow-up CL.
+  return PropertyAccessInfo::Invalid(zone());
+}
+
 MinimorphicLoadPropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     MinimorphicLoadPropertyAccessFeedback const& feedback) const {
   DCHECK(feedback.handler()->IsSmi());
@@ -573,6 +617,50 @@ MinimorphicLoadPropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
                                                       field_rep, field_type);
 }
 
+bool AccessInfoFactory::TryLoadPropertyDetails(
+    Handle<Map> map, MaybeHandle<JSObject> maybe_holder, Handle<Name> name,
+    InternalIndex* index_out, PropertyDetails* details_out) const {
+  if (map->is_dictionary_map()) {
+    DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+    DCHECK(map->is_prototype_map());
+
+    DisallowGarbageCollection no_gc;
+
+    if (maybe_holder.is_null()) {
+      // TODO(v8:11457) In this situation, we have a dictionary mode prototype
+      // as a receiver. Consider other means of obtaining the holder in this
+      // situation.
+
+      // Without the holder, we can't get the property details.
+      return false;
+    }
+
+    Handle<JSObject> holder = maybe_holder.ToHandleChecked();
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      SwissNameDictionary dict = holder->property_dictionary_swiss();
+      *index_out = dict.FindEntry(isolate(), name);
+      if (index_out->is_found()) {
+        *details_out = dict.DetailsAt(*index_out);
+      }
+    } else {
+      NameDictionary dict = holder->property_dictionary();
+      *index_out = dict.FindEntry(isolate(), name);
+      if (index_out->is_found()) {
+        *details_out = dict.DetailsAt(*index_out);
+      }
+    }
+  } else {
+    DescriptorArray descriptors = map->instance_descriptors(kAcquireLoad);
+    *index_out =
+        descriptors.Search(*name, *map, broker()->is_concurrent_inlining());
+    if (index_out->is_found()) {
+      *details_out = descriptors.GetDetails(*index_out);
+    }
+  }
+
+  return true;
+}
+
 PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, AccessMode access_mode) const {
   CHECK(name->IsUniqueName());
@@ -582,7 +670,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   }
 
   // Check if it is safe to inline property access for the {map}.
-  if (!CanInlinePropertyAccess(map)) {
+  if (!CanInlinePropertyAccess(map, access_mode)) {
     return PropertyAccessInfo::Invalid(zone());
   }
 
@@ -592,19 +680,25 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (!access_info.IsInvalid()) return access_info;
   }
 
+  // Only relevant if V8_DICT_PROPERTY_CONST_TRACKING enabled.
+  bool dictionary_prototype_on_chain = false;
+  bool fast_mode_prototype_on_chain = false;
+
   // Remember the receiver map. We use {map} as loop variable.
   Handle<Map> receiver_map = map;
   MaybeHandle<JSObject> holder;
   while (true) {
-    // Lookup the named property on the {map}.
-    Handle<DescriptorArray> descriptors(map->instance_descriptors(kAcquireLoad),
-                                        isolate());
-    InternalIndex const number =
-        descriptors->Search(*name, *map, broker()->is_concurrent_inlining());
-    if (number.is_found()) {
-      PropertyDetails const details = descriptors->GetDetails(number);
+    PropertyDetails details = PropertyDetails::Empty();
+    InternalIndex index = InternalIndex::NotFound();
+    if (!TryLoadPropertyDetails(map, holder, name, &index, &details)) {
+      return PropertyAccessInfo::Invalid(zone());
+    }
+
+    if (index.is_found()) {
       if (access_mode == AccessMode::kStore ||
           access_mode == AccessMode::kStoreInLiteral) {
+        DCHECK(!map->is_dictionary_map());
+
         // Don't bother optimizing stores to read-only properties.
         if (details.IsReadOnly()) {
           return PropertyAccessInfo::Invalid(zone());
@@ -617,9 +711,43 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
           return LookupTransition(receiver_map, name, holder);
         }
       }
+      if (map->is_dictionary_map()) {
+        DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+
+        if (fast_mode_prototype_on_chain) {
+          // TODO(v8:11248) While the work on dictionary mode prototypes is in
+          // progress, we may still see fast mode objects on the chain prior to
+          // reaching a dictionary mode prototype holding the property . Due to
+          // this only being an intermediate state, we don't stupport these kind
+          // of heterogenous prototype chains.
+          return PropertyAccessInfo::Invalid(zone());
+        }
+
+        // TryLoadPropertyDetails only succeeds if we know the holder.
+        return ComputeDictionaryProtoAccessInfo(receiver_map, name,
+                                                holder.ToHandleChecked(), index,
+                                                access_mode, details);
+      }
+      if (dictionary_prototype_on_chain) {
+        // If V8_DICT_PROPERTY_CONST_TRACKING_BOOL was disabled, then a
+        // dictionary prototype would have caused a bailout earlier.
+        DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+
+        // TODO(v8:11248) We have a fast mode holder, but there was a dictionary
+        // mode prototype earlier on the chain. Note that seeing a fast mode
+        // prototype even though V8_DICT_PROPERTY_CONST_TRACKING is enabled
+        // should only be possible while the implementation of dictionary mode
+        // prototypes is work in progress. Eventually, enabling
+        // V8_DICT_PROPERTY_CONST_TRACKING will guarantee that all prototypes
+        // are always in dictionary mode, making this case unreachable. However,
+        // due to the complications of checking dictionary mode prototypes for
+        // modification, we don't attempt to support dictionary mode prototypes
+        // occuring before a fast mode holder on the chain.
+        return PropertyAccessInfo::Invalid(zone());
+      }
       if (details.location() == kField) {
         if (details.kind() == kData) {
-          return ComputeDataFieldAccessInfo(receiver_map, map, holder, number,
+          return ComputeDataFieldAccessInfo(receiver_map, map, holder, index,
                                             access_mode);
         } else {
           DCHECK_EQ(kAccessor, details.kind());
@@ -630,8 +758,9 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         DCHECK_EQ(kDescriptor, details.location());
         DCHECK_EQ(kAccessor, details.kind());
         return ComputeAccessorDescriptorAccessInfo(receiver_map, name, map,
-                                                   holder, number, access_mode);
+                                                   holder, index, access_mode);
       }
+
       UNREACHABLE();
     }
 
@@ -654,6 +783,17 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       return PropertyAccessInfo::Invalid(zone());
     }
 
+    if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && !holder.is_null()) {
+      // At this point, we are past the first loop iteration.
+      DCHECK(holder.ToHandleChecked()->map().is_prototype_map());
+      DCHECK_NE(holder.ToHandleChecked()->map(), *receiver_map);
+
+      fast_mode_prototype_on_chain =
+          fast_mode_prototype_on_chain || !map->is_dictionary_map();
+      dictionary_prototype_on_chain =
+          dictionary_prototype_on_chain || map->is_dictionary_map();
+    }
+
     // Walk up the prototype chain.
     MapRef(broker(), map).SerializePrototype();
     // Acquire synchronously the map's prototype's map to guarantee that every
@@ -672,6 +812,15 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
             handle(map->prototype().synchronized_map(), isolate());
         DCHECK(map_prototype_map->IsJSObjectMap());
       } else if (map->prototype().IsNull()) {
+        if (dictionary_prototype_on_chain) {
+          // TODO(v8:11248) See earlier comment about
+          // dictionary_prototype_on_chain. We don't support absent properties
+          // with dictionary mode prototypes on the chain, either. This is again
+          // just due to how we currently deal with dependencies for dictionary
+          // properties during finalization.
+          return PropertyAccessInfo::Invalid(zone());
+        }
+
         // Store to property not found on the receiver or any prototype, we need
         // to transition to a new data property.
         // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
@@ -691,14 +840,14 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     map = map_prototype_map;
     CHECK(!map->is_deprecated());
 
-    if (!CanInlinePropertyAccess(map)) {
+    if (!CanInlinePropertyAccess(map, access_mode)) {
       return PropertyAccessInfo::Invalid(zone());
     }
 
-    // Successful lookup on prototype chain needs to guarantee that all
-    // the prototypes up to the holder have stable maps. Let us make sure
-    // the prototype maps are stable here.
-    CHECK(map->is_stable());
+    // Successful lookup on prototype chain needs to guarantee that all the
+    // prototypes up to the holder have stable maps, except for dictionary-mode
+    // prototypes.
+    CHECK_IMPLIES(!map->is_dictionary_map(), map->is_stable());
   }
   UNREACHABLE();
 }

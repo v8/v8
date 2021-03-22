@@ -102,7 +102,7 @@ class PropertyAccessInfo final {
   static PropertyAccessInfo Invalid(Zone* zone);
   static PropertyAccessInfo DictionaryProtoDataConstant(
       Zone* zone, Handle<Map> receiver_map, Handle<JSObject> holder,
-      InternalIndex dict_index);
+      InternalIndex dict_index, Handle<Name> name);
   static PropertyAccessInfo DictionaryProtoAccessorConstant(
       Zone* zone, Handle<Map> receiver_map, MaybeHandle<JSObject> holder,
       Handle<Object> constant);
@@ -173,6 +173,11 @@ class PropertyAccessInfo final {
     return dictionary_index_;
   }
 
+  Handle<Name> name() const {
+    DCHECK(HasDictionaryHolder());
+    return name_.ToHandleChecked();
+  }
+
  private:
   explicit PropertyAccessInfo(Zone* zone);
   PropertyAccessInfo(Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
@@ -188,7 +193,7 @@ class PropertyAccessInfo final {
                      ZoneVector<CompilationDependency const*>&& dependencies);
   PropertyAccessInfo(Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
                      ZoneVector<Handle<Map>>&& lookup_start_object_maps,
-                     InternalIndex dictionary_index);
+                     InternalIndex dictionary_index, Handle<Name> name);
 
   // Members used for fast and dictionary mode holders:
   Kind kind_;
@@ -207,6 +212,7 @@ class PropertyAccessInfo final {
 
   // Members only used for dictionary mode holders:
   InternalIndex dictionary_index_;
+  MaybeHandle<Name> name_;
 };
 
 // This class encapsulates information required to generate load properties
@@ -255,6 +261,11 @@ class AccessInfoFactory final {
                                                Handle<Name> name,
                                                AccessMode access_mode) const;
 
+  PropertyAccessInfo ComputeDictionaryProtoAccessInfo(
+      Handle<Map> receiver_map, Handle<Name> name, Handle<JSObject> holder,
+      InternalIndex dict_index, AccessMode access_mode,
+      PropertyDetails details) const;
+
   MinimorphicLoadPropertyAccessInfo ComputePropertyAccessInfo(
       MinimorphicLoadPropertyAccessFeedback const& feedback) const;
 
@@ -297,6 +308,10 @@ class AccessInfoFactory final {
   void MergePropertyAccessInfos(ZoneVector<PropertyAccessInfo> infos,
                                 AccessMode access_mode,
                                 ZoneVector<PropertyAccessInfo>* result) const;
+
+  bool TryLoadPropertyDetails(Handle<Map> map, MaybeHandle<JSObject> holder,
+                              Handle<Name> name, InternalIndex* index_out,
+                              PropertyDetails* details_out) const;
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   JSHeapBroker* broker() const { return broker_; }

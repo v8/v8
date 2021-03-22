@@ -105,6 +105,105 @@ class StableMapDependency final : public CompilationDependency {
   MapRef map_;
 };
 
+class ConstantInDictionaryPrototypeChainDependency final
+    : public CompilationDependency {
+ public:
+  explicit ConstantInDictionaryPrototypeChainDependency(
+      const MapRef receiver_map, const NameRef property_name,
+      const ObjectRef constant)
+      : receiver_map_(receiver_map),
+        property_name_{property_name},
+        constant_{constant} {
+    DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  }
+
+  // Checks that |constant_| is still the value of accessing |property_name_|
+  // starting at |receiver_map_|.
+  bool IsValid() const override { return !GetHolderIfValid().is_null(); }
+
+  void Install(const MaybeObjectHandle& code) const override {
+    SLOW_DCHECK(IsValid());
+    Isolate* isolate = receiver_map_.isolate();
+    Handle<JSObject> holder = GetHolderIfValid().ToHandleChecked();
+    Handle<Map> map = receiver_map_.object();
+
+    while (map->prototype() != *holder) {
+      map = handle(map->prototype().map(), isolate);
+      DCHECK(map->IsJSObjectMap());  // Due to IsValid holding.
+      DependentCode::InstallDependency(isolate, code, map,
+                                       DependentCode::kPrototypeCheckGroup);
+    }
+
+    DCHECK(map->prototype().map().IsJSObjectMap());  // Due to IsValid holding.
+    DependentCode::InstallDependency(isolate, code,
+                                     handle(map->prototype().map(), isolate),
+                                     DependentCode::kPrototypeCheckGroup);
+  }
+
+ private:
+  // If the dependency is still valid, returns holder of the constant. Otherwise
+  // returns null.
+  // TODO(neis) Currently, invoking IsValid and then Install duplicates the call
+  // to GetHolderIfValid. Instead, consider letting IsValid change the state
+  // (and store the holder), or merge IsValid and Install.
+  MaybeHandle<JSObject> GetHolderIfValid() const {
+    DisallowGarbageCollection no_gc;
+    Isolate* isolate = receiver_map_.isolate();
+
+    Handle<Object> holder;
+    HeapObject prototype = receiver_map_.object()->prototype();
+
+    enum class ValidationResult { kFoundCorrect, kFoundIncorrect, kNotFound };
+    auto try_load = [&](auto dictionary) -> ValidationResult {
+      InternalIndex entry =
+          dictionary.FindEntry(isolate, property_name_.object());
+      if (entry.is_not_found()) {
+        return ValidationResult::kNotFound;
+      }
+
+      PropertyDetails details = dictionary.DetailsAt(entry);
+      if (details.constness() != PropertyConstness::kConst) {
+        return ValidationResult::kFoundIncorrect;
+      }
+
+      Object value = dictionary.ValueAt(entry);
+      return value == *constant_.object() ? ValidationResult::kFoundCorrect
+                                          : ValidationResult::kFoundIncorrect;
+    };
+
+    while (prototype.IsJSObject()) {
+      // We only care about JSObjects because that's the only type of holder
+      // (and types of prototypes on the chain to the holder) that
+      // AccessInfoFactory::ComputePropertyAccessInfo allows.
+      JSObject object = JSObject::cast(prototype);
+
+      // We only support dictionary mode prototypes on the chain for this kind
+      // of dependency.
+      CHECK(!object.HasFastProperties());
+
+      ValidationResult result =
+          V8_DICT_MODE_PROTOTYPES_BOOL
+              ? try_load(object.property_dictionary_swiss())
+              : try_load(object.property_dictionary());
+
+      if (result == ValidationResult::kFoundCorrect) {
+        return handle(object, isolate);
+      } else if (result == ValidationResult::kFoundIncorrect) {
+        return MaybeHandle<JSObject>();
+      }
+
+      // In case of kNotFound, continue walking up the chain.
+      prototype = object.map().prototype();
+    }
+
+    return MaybeHandle<JSObject>();
+  }
+
+  MapRef receiver_map_;
+  NameRef property_name_;
+  ObjectRef constant_;
+};
+
 class TransitionDependency final : public CompilationDependency {
  public:
   explicit TransitionDependency(const MapRef& map) : map_(map) {
@@ -394,12 +493,20 @@ ObjectRef CompilationDependencies::DependOnPrototypeProperty(
 }
 
 void CompilationDependencies::DependOnStableMap(const MapRef& map) {
+  DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsNeverSerializedHeapObject());
   if (map.CanTransition()) {
     RecordDependency(zone_->New<StableMapDependency>(map));
   } else {
     DCHECK(map.is_stable());
   }
+}
+
+void CompilationDependencies::DependOnConstantInDictionaryPrototypeChain(
+    const MapRef& receiver_map, const NameRef& property_name,
+    const ObjectRef& constant) {
+  RecordDependency(zone_->New<ConstantInDictionaryPrototypeChainDependency>(
+      receiver_map, property_name, constant));
 }
 
 AllocationType CompilationDependencies::DependOnPretenureMode(

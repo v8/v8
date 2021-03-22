@@ -660,9 +660,14 @@ class DependentCode : public WeakFixedArray {
     // deoptimized when the transition is replaced by a new version.
     kTransitionGroup,
     // Group of code that omit run-time prototype checks for prototypes
-    // described by this map. The group is deoptimized whenever an object
-    // described by this map changes shape (and transitions to a new map),
-    // possibly invalidating the assumptions embedded in the code.
+    // described by this map. The group is deoptimized whenever the following
+    // conditions hold, possibly invalidating the assumptions embedded in the
+    // code:
+    // a) A fast-mode object described by this map changes shape (and
+    // transitions to a new map), or
+    // b) A dictionary-mode prototype described by this map changes shape, the
+    // const-ness of one of its properties changes, or its [[Prototype]]
+    // changes (only the latter causes a transition).
     kPrototypeCheckGroup,
     // Group of code that depends on global property values in property cells
     // not being changed.

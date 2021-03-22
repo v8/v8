@@ -67,6 +67,11 @@ static V8_INLINE bool CheckForName(Isolate* isolate, Handle<Name> name,
 // If true, *object_offset contains offset of object field.
 bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
                                         Handle<Name> name, FieldIndex* index) {
+  if (map->is_dictionary_map()) {
+    // There are not descriptors in a dictionary mode map.
+    return false;
+  }
+
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
       return CheckForName(isolate, name, isolate->factory()->length_string(),

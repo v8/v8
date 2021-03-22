@@ -426,6 +426,9 @@ class JSObjectData : public JSReceiverData {
       JSHeapBroker* broker, Representation representation,
       FieldIndex field_index,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  ObjectData* GetOwnDictionaryProperty(JSHeapBroker* broker,
+                                       InternalIndex dict_index,
+                                       SerializationPolicy policy);
 
   // This method is only used to assert our invariants.
   bool cow_or_empty_elements_tenured() const;
@@ -455,8 +458,9 @@ class JSObjectData : public JSReceiverData {
   // (2) are known not to (possibly they don't exist at all).
   // In case (2), the second pair component is nullptr.
   // For simplicity, this may in theory overlap with inobject_fields_.
-  // The keys of the map are the property_index() values of the
-  // respective property FieldIndex'es.
+  // For fast mode objects, the keys of the map are the property_index() values
+  // of the respective property FieldIndex'es. For slow mode objects, the keys
+  // are the dictionary indicies.
   ZoneUnorderedMap<int, ObjectData*> own_properties_;
 };
 
@@ -505,6 +509,14 @@ ObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
   return ObjectRef(broker, constant);
 }
 
+ObjectRef GetOwnDictionaryPropertyFromHeap(JSHeapBroker* broker,
+                                           Handle<JSObject> receiver,
+                                           InternalIndex dict_index) {
+  Handle<Object> constant =
+      JSObject::DictionaryPropertyAt(receiver, dict_index);
+  return ObjectRef(broker, constant);
+}
+
 }  // namespace
 
 ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
@@ -544,6 +556,25 @@ ObjectData* JSObjectData::GetOwnFastDataProperty(JSHeapBroker* broker,
       broker, Handle<JSObject>::cast(object()), representation, field_index);
   ObjectData* result(property.data());
   own_properties_.insert(std::make_pair(field_index.property_index(), result));
+  return result;
+}
+
+ObjectData* JSObjectData::GetOwnDictionaryProperty(JSHeapBroker* broker,
+                                                   InternalIndex dict_index,
+                                                   SerializationPolicy policy) {
+  auto p = own_properties_.find(dict_index.as_int());
+  if (p != own_properties_.end()) return p->second;
+
+  if (policy == SerializationPolicy::kAssumeSerialized) {
+    TRACE_MISSING(broker, "knowledge about dictionary property with index "
+                              << dict_index.as_int() << " on " << this);
+    return nullptr;
+  }
+
+  ObjectRef property = GetOwnDictionaryPropertyFromHeap(
+      broker, Handle<JSObject>::cast(object()), dict_index);
+  ObjectData* result(property.data());
+  own_properties_.insert(std::make_pair(dict_index.as_int(), result));
   return result;
 }
 
@@ -4031,6 +4062,19 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
   ObjectData* property = data()->AsJSObject()->GetOwnFastDataProperty(
       broker(), field_representation, index, policy);
   if (property == nullptr) return base::nullopt;
+  return ObjectRef(broker(), property);
+}
+
+ObjectRef JSObjectRef::GetOwnDictionaryProperty(
+    InternalIndex index, SerializationPolicy policy) const {
+  CHECK(index.is_found());
+  if (data_->should_access_heap()) {
+    return GetOwnDictionaryPropertyFromHeap(
+        broker(), Handle<JSObject>::cast(object()), index);
+  }
+  ObjectData* property =
+      data()->AsJSObject()->GetOwnDictionaryProperty(broker(), index, policy);
+  CHECK_NE(property, nullptr);
   return ObjectRef(broker(), property);
 }
 

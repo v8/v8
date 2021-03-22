@@ -3059,8 +3059,10 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
 
   switch (access_mode) {
     case AccessMode::kLoad:
-      // For PropertyAccessBuilder::TryBuildLoadConstantDataField
-      if (access_info.IsFastDataConstant()) {
+      // For PropertyAccessBuilder::TryBuildLoadConstantDataField and
+      // PropertyAccessBuilder::BuildLoadDictPrototypeConstant
+      if (access_info.IsFastDataConstant() ||
+          access_info.IsDictionaryProtoDataConstant()) {
         base::Optional<JSObjectRef> holder;
         Handle<JSObject> prototype;
         if (access_info.holder().ToHandle(&prototype)) {
@@ -3072,9 +3074,14 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
         }
 
         if (holder.has_value()) {
-          base::Optional<ObjectRef> constant(holder->GetOwnFastDataProperty(
-              access_info.field_representation(), access_info.field_index(),
-              SerializationPolicy::kSerializeIfNeeded));
+          SerializationPolicy policy = SerializationPolicy::kSerializeIfNeeded;
+          base::Optional<ObjectRef> constant =
+              access_info.IsFastDataConstant()
+                  ? holder->GetOwnFastDataProperty(
+                        access_info.field_representation(),
+                        access_info.field_index(), policy)
+                  : holder->GetOwnDictionaryProperty(
+                        access_info.dictionary_index(), policy);
           if (constant.has_value()) {
             result_hints->AddConstant(constant->object(), zone(), broker());
           }

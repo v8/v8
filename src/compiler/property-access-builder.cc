@@ -148,7 +148,25 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
   }
 }
 
-Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
+Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
+    PropertyAccessInfo const& access_info) {
+  DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  DCHECK(access_info.IsDictionaryProtoDataConstant());
+
+  JSObjectRef holder(broker(), access_info.holder().ToHandleChecked());
+  base::Optional<ObjectRef> value =
+      holder.GetOwnDictionaryProperty(access_info.dictionary_index());
+
+  for (const Handle<Map> map : access_info.lookup_start_object_maps()) {
+    dependencies()->DependOnConstantInDictionaryPrototypeChain(
+        MapRef{broker(), map}, NameRef{broker(), access_info.name()},
+        value.value());
+  }
+
+  return jsgraph()->Constant(value.value());
+}
+
+Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* lookup_start_object) {
   if (!access_info.IsFastDataConstant()) return nullptr;
@@ -274,8 +292,8 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
     Node* lookup_start_object, Node** effect, Node** control) {
   DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
 
-  if (Node* value = TryBuildLoadConstantDataField(name, access_info,
-                                                  lookup_start_object)) {
+  if (Node* value = TryFoldLoadConstantDataField(name, access_info,
+                                                 lookup_start_object)) {
     return value;
   }
 

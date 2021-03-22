@@ -45,6 +45,16 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that {map} stays stable.
   void DependOnStableMap(const MapRef& map);
 
+  // Depend on the fact that accessing property |property_name| from
+  // |receiver_map| yields the constant value |constant|, which is held by
+  // |holder|. Therefore, must be invalidated if |property_name| is added to any
+  // of the objects between receiver and |holder| on the prototype chain, b) any
+  // of the objects on the prototype chain up to |holder| change prototypes, or
+  // c) the value of |property_name| in |holder| changes.
+  void DependOnConstantInDictionaryPrototypeChain(const MapRef& receiver_map,
+                                                  const NameRef& property_name,
+                                                  const ObjectRef& constant);
+
   // Return the pretenure mode of {site} and record the assumption that it does
   // not change.
   AllocationType DependOnPretenureMode(const AllocationSiteRef& site);
