@@ -208,6 +208,26 @@ experiment_builder(
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
+
+experiment_builder(
+    name = "V8 Mac - arm64 - debug builder",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - debug"]},
+    use_goma = GOMA.DEFAULT,
+    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+)
+
+experiment_builder(
+    name = "V8 Mac - arm64 - debug",
+    bucket = "ci",
+    dimensions = {"host_class": "multibot"},
+    execution_timeout = 19800,
+    properties = {"builder_group": "client.v8"},
+    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+)
+
 experiment_builder(
     name = "V8 Mac - arm64 - sim - release builder",
     bucket = "ci",
