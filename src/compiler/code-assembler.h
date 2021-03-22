@@ -790,7 +790,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Object> LoadRoot(RootIndex root_index);
 
   template <typename Type>
-  TNode<Type> UnalignedLoad(TNode<RawPtrT> base, TNode<IntPtrT> offset);
+  TNode<Type> UnalignedLoad(TNode<RawPtrT> base, TNode<IntPtrT> offset) {
+    MachineType mt = MachineTypeOf<Type>::value;
+    return UncheckedCast<Type>(UnalignedLoad(mt, base, offset));
+  }
 
   // Store value to raw memory location.
   void Store(Node* base, Node* value);
@@ -1360,6 +1363,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                   Node* const* inputs);
 
   Node* AtomicLoad(MachineType type, TNode<RawPtrT> base, TNode<WordT> offset);
+
+  Node* UnalignedLoad(MachineType type, TNode<RawPtrT> base,
+                      TNode<WordT> offset);
 
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.
