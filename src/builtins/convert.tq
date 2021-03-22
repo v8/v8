@@ -69,6 +69,10 @@ FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
 FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
   return Unsigned(Int32Constant(i));
 }
+FromConstexpr<uint8, constexpr uint8>(i: constexpr uint8): uint8 {
+  const i: uint32 = i;
+  return %RawDownCast<uint8>(i);
+}
 FromConstexpr<uint32, constexpr uint32>(i: constexpr uint32): uint32 {
   return Unsigned(%FromConstexpr<int32>(i));
 }
@@ -133,6 +137,9 @@ macro Convert<To: type, From: type>(i: From): To labels Overflow {
 
 Convert<Boolean, bool>(b: bool): Boolean {
   return b ? True : False;
+}
+Convert<int32, bool>(b: bool): int32 {
+  return ChangeBoolToInt32(b);
 }
 Convert<Number, int32>(i: int32): Number {
   return ChangeInt32ToTagged(i);

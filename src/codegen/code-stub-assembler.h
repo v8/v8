@@ -541,10 +541,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       int* value);
 
   TNode<IntPtrT> PopulationCountFallback(TNode<UintPtrT> value);
-  TNode<Int64T> Word64PopulationCount(TNode<Word64T> value);
-  TNode<Int32T> Word32PopulationCount(TNode<Word32T> value);
-  TNode<Int64T> Word64CountTrailingZeros(TNode<Word64T> value);
-  TNode<Int32T> Word32CountTrailingZeros(TNode<Word32T> value);
+  TNode<Int64T> PopulationCount64(TNode<Word64T> value);
+  TNode<Int32T> PopulationCount32(TNode<Word32T> value);
+  TNode<Int64T> CountTrailingZeros64(TNode<Word64T> value);
+  TNode<Int32T> CountTrailingZeros32(TNode<Word32T> value);
+  TNode<Int64T> CountLeadingZeros64(TNode<Word64T> value);
+  TNode<Int32T> CountLeadingZeros32(TNode<Word32T> value);
 
   // Round the 32bits payload of the provided word up to the next power of two.
   TNode<IntPtrT> IntPtrRoundUpToPowerOfTwo32(TNode<IntPtrT> value);
@@ -2256,6 +2258,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Float64T> ChangeTaggedToFloat64(TNode<Context> context,
                                         TNode<Object> input);
 
+  TNode<Int32T> ChangeBoolToInt32(TNode<BoolT> b);
+
   void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
                        TVariable<Numeric>* var_numeric);
   void TaggedToNumericWithFeedback(TNode<Context> context, TNode<Object> value,
@@ -3555,6 +3559,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool ConstexprInt32GreaterThanEqual(int32_t a, int32_t b) { return a >= b; }
   uint32_t ConstexprUint32Add(uint32_t a, uint32_t b) { return a + b; }
   int32_t ConstexprUint32Sub(uint32_t a, uint32_t b) { return a - b; }
+  int32_t ConstexprInt32Sub(int32_t a, int32_t b) { return a - b; }
+  int32_t ConstexprInt32Add(int32_t a, int32_t b) { return a + b; }
   int31_t ConstexprInt31Add(int31_t a, int31_t b) {
     int32_t val;
     CHECK(!base::bits::SignedAddOverflow32(a, b, &val));
@@ -3713,6 +3719,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<IntPtrT> at_least_space_for);
   TNode<SwissNameDictionary> AllocateSwissNameDictionary(
       int at_least_space_for);
+
+  TNode<Uint64T> LoadSwissNameDictionaryCtrlTableGroup(TNode<IntPtrT> address);
 
  private:
   friend class CodeStubArguments;

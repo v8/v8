@@ -789,6 +789,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Load a value from the root array.
   TNode<Object> LoadRoot(RootIndex root_index);
 
+  template <typename Type>
+  TNode<Type> UnalignedLoad(TNode<RawPtrT> base, TNode<IntPtrT> offset);
+
   // Store value to raw memory location.
   void Store(Node* base, Node* value);
   void Store(Node* base, Node* offset, Node* value);

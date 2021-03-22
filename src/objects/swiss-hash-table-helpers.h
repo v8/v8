@@ -293,6 +293,9 @@ struct GroupPortableImpl {
       : ctrl(base::ReadLittleEndianValue<uint64_t>(
             reinterpret_cast<uintptr_t>(const_cast<ctrl_t*>(pos)))) {}
 
+  static constexpr uint64_t kMsbs = 0x8080808080808080ULL;
+  static constexpr uint64_t kLsbs = 0x0101010101010101ULL;
+
   // Returns a bitmask representing the positions of slots that match |hash|.
   BitMask<uint64_t, kWidth, 3> Match(h2_t hash) const {
     // For the technique, see:
@@ -308,22 +311,18 @@ struct GroupPortableImpl {
     //   v = 0x1716151413121110
     //   hash = 0x12
     //   retval = (v - lsbs) & ~v & msbs = 0x0000000080800000
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
-    constexpr uint64_t lsbs = 0x0101010101010101ULL;
-    auto x = ctrl ^ (lsbs * hash);
-    return BitMask<uint64_t, kWidth, 3>((x - lsbs) & ~x & msbs);
+    auto x = ctrl ^ (kLsbs * hash);
+    return BitMask<uint64_t, kWidth, 3>((x - kLsbs) & ~x & kMsbs);
   }
 
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint64_t, kWidth, 3> MatchEmpty() const {
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
-    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 6)) & msbs);
+    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 6)) & kMsbs);
   }
 
   // Returns a bitmask representing the positions of empty or deleted slots.
   BitMask<uint64_t, kWidth, 3> MatchEmptyOrDeleted() const {
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
-    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 7)) & msbs);
+    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 7)) & kMsbs);
   }
 
   // Returns the number of trailing empty or deleted elements in the group.
@@ -336,10 +335,8 @@ struct GroupPortableImpl {
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
-    constexpr uint64_t lsbs = 0x0101010101010101ULL;
-    auto x = ctrl & msbs;
-    auto res = (~x + (x >> 7)) & ~lsbs;
+    auto x = ctrl & kMsbs;
+    auto res = (~x + (x >> 7)) & ~kLsbs;
     base::WriteLittleEndianValue(reinterpret_cast<uint64_t*>(dst), res);
   }
 

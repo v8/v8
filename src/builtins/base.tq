@@ -904,16 +904,21 @@ extern operator '&' macro WordAnd(uintptr, uintptr): uintptr;
 extern operator '|' macro WordOr(uintptr, uintptr): uintptr;
 
 extern operator '+' macro Int32Add(int32, int32): int32;
+extern operator '+' macro Uint32Add(uint32, uint32): uint32;
 extern operator '+' macro ConstexprUint32Add(
     constexpr uint32, constexpr int32): constexpr uint32;
 extern operator '+' macro ConstexprInt31Add(
     constexpr int31, constexpr int31): constexpr int31;
+extern operator '+' macro ConstexprInt32Add(
+    constexpr int32, constexpr int32): constexpr int32;
 extern operator '*' macro ConstexprInt31Mul(
     constexpr int31, constexpr int31): constexpr int31;
 extern operator '-' macro Int32Sub(int16, int16): int32;
 extern operator '-' macro Int32Sub(uint16, uint16): int32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
+extern operator '-' macro UInt32Sub(uint32, uint32): uint32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
+extern operator '*' macro Uint32Mul(uint32, uint32): uint32;
 extern operator '/' macro Int32Div(int32, int32): int32;
 extern operator '%' macro Int32Mod(int32, int32): int32;
 extern operator '&' macro Word32And(int32, int32): int32;
@@ -950,6 +955,8 @@ extern operator '==' macro Word32Equal(bool, bool): bool;
 extern operator '!=' macro Word32NotEqual(bool, bool): bool;
 extern operator '|' macro ConstexprWord32Or(
     constexpr int32, constexpr int32): constexpr int32;
+extern operator '^' macro Word32Xor(int32, int32): int32;
+extern operator '^' macro Word32Xor(uint32, uint32): uint32;
 
 extern operator '==' macro Word64Equal(int64, int64): bool;
 extern operator '==' macro Word64Equal(uint64, uint64): bool;
@@ -962,6 +969,8 @@ extern operator '<<' macro Word64Shl(uint64, uint64): uint64;
 extern operator '|' macro Word64Or(int64, int64): int64;
 extern operator '|' macro Word64Or(uint64, uint64): uint64;
 extern operator '&' macro Word64And(uint64, uint64): uint64;
+extern operator '^' macro Word64Xor(int64, int64): int64;
+extern operator '^' macro Word64Xor(uint64, uint64): uint64;
 
 extern operator '+' macro Float64Add(float64, float64): float64;
 extern operator '-' macro Float64Sub(float64, float64): float64;
@@ -1037,6 +1046,9 @@ operator '==' macro PromiseStateEquals(
   return Word32Equal(s1, s2);
 }
 
+extern macro CountLeadingZeros64(uint64): int64;
+extern macro CountTrailingZeros64(uint64): int64;
+
 extern macro TaggedIsSmi(Object): bool;
 extern macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
@@ -1091,6 +1103,7 @@ extern macro ChangeTaggedToFloat64(implicit context: Context)(JSAny): float64;
 extern macro ChangeFloat64ToTagged(float64): Number;
 extern macro ChangeFloat64ToUintPtr(float64): uintptr;
 extern macro ChangeFloat64ToIntPtr(float64): intptr;
+extern macro ChangeBoolToInt32(bool): int32;
 extern macro ChangeInt32ToFloat64(int32): float64;
 extern macro ChangeInt32ToIntPtr(int32): intptr;    // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;   // Doesn't sign-extend.

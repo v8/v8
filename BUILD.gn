@@ -1442,6 +1442,7 @@ torque_files = [
   "src/objects/stack-frame-info.tq",
   "src/objects/string.tq",
   "src/objects/struct.tq",
+  "src/objects/swiss-hash-table-helpers.tq",
   "src/objects/swiss-name-dictionary.tq",
   "src/objects/synthetic-module.tq",
   "src/objects/template-objects.tq",

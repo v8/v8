@@ -4242,14 +4242,14 @@ TEST(PopCount) {
     int expected_pop32 = test_case.second;
     int expected_pop64 = 2 * expected_pop32;
 
-    TNode<Int32T> pop32 = m.Word32PopulationCount(m.Uint32Constant(value32));
+    TNode<Int32T> pop32 = m.PopulationCount32(m.Uint32Constant(value32));
     CSA_CHECK(&m, m.Word32Equal(pop32, m.Int32Constant(expected_pop32)));
 
     if (m.Is64()) {
       // TODO(emrich): enable once 64-bit operations are supported on 32-bit
       // architectures.
 
-      TNode<Int64T> pop64 = m.Word64PopulationCount(m.Uint64Constant(value64));
+      TNode<Int64T> pop64 = m.PopulationCount64(m.Uint64Constant(value64));
       CSA_CHECK(&m, m.Word64Equal(pop64, m.Int64Constant(expected_pop64)));
     }
   }
@@ -4279,7 +4279,7 @@ TEST(CountTrailingZeros) {
     int expected_ctz32 = test_case.second;
     int expected_ctz64 = expected_ctz32 + 32;
 
-    TNode<Int32T> pop32 = m.Word32CountTrailingZeros(m.Uint32Constant(value32));
+    TNode<Int32T> pop32 = m.CountTrailingZeros32(m.Uint32Constant(value32));
     CSA_CHECK(&m, m.Word32Equal(pop32, m.Int32Constant(expected_ctz32)));
 
     if (m.Is64()) {
@@ -4287,9 +4287,8 @@ TEST(CountTrailingZeros) {
       // architectures.
 
       TNode<Int64T> pop64_ext =
-          m.Word64CountTrailingZeros(m.Uint64Constant(value32));
-      TNode<Int64T> pop64 =
-          m.Word64CountTrailingZeros(m.Uint64Constant(value64));
+          m.CountTrailingZeros64(m.Uint64Constant(value32));
+      TNode<Int64T> pop64 = m.CountTrailingZeros64(m.Uint64Constant(value64));
 
       CSA_CHECK(&m, m.Word64Equal(pop64_ext, m.Int64Constant(expected_ctz32)));
       CSA_CHECK(&m, m.Word64Equal(pop64, m.Int64Constant(expected_ctz64)));

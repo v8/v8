@@ -606,7 +606,7 @@ TNode<IntPtrT> CodeStubAssembler::PopulationCountFallback(
   return Signed(WordAnd(value, UintPtrConstant(0xff)));
 }
 
-TNode<Int64T> CodeStubAssembler::Word64PopulationCount(TNode<Word64T> value) {
+TNode<Int64T> CodeStubAssembler::PopulationCount64(TNode<Word64T> value) {
   if (IsWord64PopcntSupported()) {
     return Word64Popcnt(value);
   }
@@ -620,7 +620,7 @@ TNode<Int64T> CodeStubAssembler::Word64PopulationCount(TNode<Word64T> value) {
       PopulationCountFallback(ReinterpretCast<UintPtrT>(value)));
 }
 
-TNode<Int32T> CodeStubAssembler::Word32PopulationCount(TNode<Word32T> value) {
+TNode<Int32T> CodeStubAssembler::PopulationCount32(TNode<Word32T> value) {
   if (IsWord32PopcntSupported()) {
     return Word32Popcnt(value);
   }
@@ -636,8 +636,7 @@ TNode<Int32T> CodeStubAssembler::Word32PopulationCount(TNode<Word32T> value) {
   }
 }
 
-TNode<Int64T> CodeStubAssembler::Word64CountTrailingZeros(
-    TNode<Word64T> value) {
+TNode<Int64T> CodeStubAssembler::CountTrailingZeros64(TNode<Word64T> value) {
   if (IsWord64CtzSupported()) {
     return Word64Ctz(value);
   }
@@ -653,11 +652,10 @@ TNode<Int64T> CodeStubAssembler::Word64CountTrailingZeros(
   // than doing binary search.
   TNode<Word64T> lhs = Word64Not(value);
   TNode<Word64T> rhs = Uint64Sub(Unsigned(value), Uint64Constant(1));
-  return Word64PopulationCount(Word64And(lhs, rhs));
+  return PopulationCount64(Word64And(lhs, rhs));
 }
 
-TNode<Int32T> CodeStubAssembler::Word32CountTrailingZeros(
-    TNode<Word32T> value) {
+TNode<Int32T> CodeStubAssembler::CountTrailingZeros32(TNode<Word32T> value) {
   if (IsWord32CtzSupported()) {
     return Word32Ctz(value);
   }
@@ -666,11 +664,19 @@ TNode<Int32T> CodeStubAssembler::Word32CountTrailingZeros(
     // Same fallback as in Word64CountTrailingZeros.
     TNode<Word32T> lhs = Word32BitwiseNot(value);
     TNode<Word32T> rhs = Int32Sub(Signed(value), Int32Constant(1));
-    return Word32PopulationCount(Word32And(lhs, rhs));
+    return PopulationCount32(Word32And(lhs, rhs));
   } else {
-    TNode<Int64T> res64 = Word64CountTrailingZeros(ChangeUint32ToUint64(value));
+    TNode<Int64T> res64 = CountTrailingZeros64(ChangeUint32ToUint64(value));
     return TruncateInt64ToInt32(Signed(res64));
   }
+}
+
+TNode<Int64T> CodeStubAssembler::CountLeadingZeros64(TNode<Word64T> value) {
+  return Word64Clz(value);
+}
+
+TNode<Int32T> CodeStubAssembler::CountLeadingZeros32(TNode<Word32T> value) {
+  return Word32Clz(value);
 }
 
 template <>
@@ -5624,6 +5630,10 @@ TNode<Number> CodeStubAssembler::ChangeUintPtrToTagged(TNode<UintPtrT> value) {
 
   BIND(&if_join);
   return var_result.value();
+}
+
+TNode<Int32T> CodeStubAssembler::ChangeBoolToInt32(TNode<BoolT> b) {
+  return UncheckedCast<Int32T>(b);
 }
 
 TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
@@ -14309,5 +14319,37 @@ TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
   return AllocateSwissNameDictionary(IntPtrConstant(at_least_space_for));
 }
 
+TNode<Uint64T> CodeStubAssembler::LoadSwissNameDictionaryCtrlTableGroup(
+    TNode<IntPtrT> address) {
+  TNode<RawPtrT> ptr = ReinterpretCast<RawPtrT>(address);
+  TNode<Uint64T> data = UnalignedLoad<Uint64T>(ptr, IntPtrConstant(0));
+
+#ifdef V8_TARGET_LITTLE_ENDIAN
+  return data;
+#else
+  // Reverse byte order.
+  // TODO(v8:11330) Doing this without using dedicated instructions (which we
+  // don't have access to here) will destroy any performance benefit Swiss
+  // Tables have. So we just support this so that we don't have to disable the
+  // test suite for SwissNameDictionary on big endian platforms.
+
+  TNode<Uint64T> result = Uint64Constant(0);
+  constexpr int count = sizeof(uint64_t);
+  for (int i = 0; i < count; ++i) {
+    int src_offset = i * 8;
+    int dest_offset = (count - i - 1) * 8;
+
+    TNode<Uint64T> mask = Uint64Constant(0xffULL << src_offset);
+    TNode<Uint64T> src_data = Word64And(data, mask);
+
+    TNode<Uint64T> shifted =
+        src_offset < dest_offset
+            ? Word64Shl(src_data, Uint64Constant(dest_offset - src_offset))
+            : Word64Shr(src_data, Uint64Constant(src_offset - dest_offset));
+    result = Unsigned(Word64Or(result, shifted));
+  }
+  return result;
+#endif
+}
 }  // namespace internal
 }  // namespace v8
