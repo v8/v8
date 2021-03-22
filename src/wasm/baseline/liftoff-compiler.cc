@@ -3108,42 +3108,42 @@ class LiftoffCompiler {
             .as_vector());
   }
 
-  enum CallKind : bool { kReturnCall = true, kNoReturnCall = false };
+  enum TailCall : bool { kTailCall = true, kNoTailCall = false };
 
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value[]) {
-    CallDirect(decoder, imm, args, nullptr, kNoReturnCall);
+    CallDirect(decoder, imm, args, nullptr, kNoTailCall);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    CallIndirect(decoder, index_val, imm, kNoReturnCall);
+    CallIndirect(decoder, index_val, imm, kNoTailCall);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
-    CallRef(decoder, func_ref.type, sig, kNoReturnCall);
+    CallRef(decoder, func_ref.type, sig, kNoTailCall);
   }
 
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
-    CallDirect(decoder, imm, args, nullptr, kReturnCall);
+    CallDirect(decoder, imm, args, nullptr, kTailCall);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index_val,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
-    CallIndirect(decoder, index_val, imm, kReturnCall);
+    CallIndirect(decoder, index_val, imm, kTailCall);
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
-    CallRef(decoder, func_ref.type, sig, kReturnCall);
+    CallRef(decoder, func_ref.type, sig, kTailCall);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
@@ -5474,7 +5474,7 @@ class LiftoffCompiler {
 
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
-                  const Value args[], Value returns[], CallKind call_kind) {
+                  const Value args[], Value returns[], TailCall tail_call) {
     ValueKindSig* sig = MakeKindSig(compilation_zone_, imm.sig);
     for (ValueKind ret : sig->returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
@@ -5507,7 +5507,7 @@ class LiftoffCompiler {
 
       Register* explicit_instance = &imported_function_ref;
       __ PrepareCall(sig, call_descriptor, &target, explicit_instance);
-      if (call_kind == kReturnCall) {
+      if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
             static_cast<int>(
@@ -5523,7 +5523,7 @@ class LiftoffCompiler {
       __ PrepareCall(sig, call_descriptor);
       // Just encode the function index. This will be patched at instantiation.
       Address addr = static_cast<Address>(imm.index);
-      if (call_kind == kReturnCall) {
+      if (tail_call) {
         DCHECK(descriptor_->CanTailCall(call_descriptor));
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -5537,7 +5537,7 @@ class LiftoffCompiler {
       }
     }
 
-    if (call_kind == kNoReturnCall) {
+    if (!tail_call) {
       DefineSafepoint();
       RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
       EmitLandingPad(decoder);
@@ -5547,7 +5547,7 @@ class LiftoffCompiler {
 
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate<validate>& imm,
-                    CallKind call_kind) {
+                    TailCall tail_call) {
     ValueKindSig* sig = MakeKindSig(compilation_zone_, imm.sig);
     for (ValueKind ret : sig->returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
@@ -5697,7 +5697,7 @@ class LiftoffCompiler {
 
     Register target = scratch;
     __ PrepareCall(sig, call_descriptor, &target, explicit_instance);
-    if (call_kind == kReturnCall) {
+    if (tail_call) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),
           static_cast<int>(
@@ -5707,9 +5707,7 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(sig, call_descriptor, target);
-    }
 
-    if (call_kind == kNoReturnCall) {
       DefineSafepoint();
       RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
       EmitLandingPad(decoder);
@@ -5718,7 +5716,7 @@ class LiftoffCompiler {
   }
 
   void CallRef(FullDecoder* decoder, ValueType func_ref_type,
-               const FunctionSig* type_sig, CallKind call_kind) {
+               const FunctionSig* type_sig, TailCall tail_call) {
     ValueKindSig* sig = MakeKindSig(compilation_zone_, type_sig);
     for (ValueKind ret : sig->returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
@@ -5906,7 +5904,7 @@ class LiftoffCompiler {
     Register target_reg = target.gp();
     Register instance_reg = instance.gp();
     __ PrepareCall(sig, call_descriptor, &target_reg, &instance_reg);
-    if (call_kind == kReturnCall) {
+    if (tail_call) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),
           static_cast<int>(
@@ -5916,8 +5914,7 @@ class LiftoffCompiler {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(sig, call_descriptor, target_reg);
-    }
-    if (call_kind == kNoReturnCall) {
+
       DefineSafepoint();
       RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
       EmitLandingPad(decoder);
