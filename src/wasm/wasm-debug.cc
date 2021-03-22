@@ -217,21 +217,29 @@ class DebugInfoImpl {
     return field_names_->GetName(struct_index, field_index);
   }
 
-  // If the top frame is a Wasm frame and its position is not in the list of
-  // breakpoints, return that position. Return 0 otherwise.
+  // If the frame position is not in the list of breakpoints, return that
+  // position. Return 0 otherwise.
   // This is used to generate a "dead breakpoint" in Liftoff, which is necessary
   // for OSR to find the correct return address.
-  int DeadBreakpoint(int func_index, std::vector<int>& breakpoints,
-                     Isolate* isolate) {
-    StackTraceFrameIterator it(isolate);
-    if (it.done() || !it.is_wasm()) return 0;
-    WasmFrame* frame = WasmFrame::cast(it.frame());
-    const auto& function = native_module_->module()->functions[func_index];
+  int DeadBreakpoint(WasmFrame* frame, Vector<const int> breakpoints) {
+    const auto& function =
+        native_module_->module()->functions[frame->function_index()];
     int offset = frame->position() - function.code.offset();
     if (std::binary_search(breakpoints.begin(), breakpoints.end(), offset)) {
       return 0;
     }
     return offset;
+  }
+
+  // Find the dead breakpoint (see above) for the top wasm frame, if that frame
+  // is in the function of the given index.
+  int DeadBreakpoint(int func_index, Vector<const int> breakpoints,
+                     Isolate* isolate) {
+    StackTraceFrameIterator it(isolate);
+    if (it.done() || !it.is_wasm()) return 0;
+    auto* wasm_frame = WasmFrame::cast(it.frame());
+    if (static_cast<int>(wasm_frame->function_index()) != func_index) return 0;
+    return DeadBreakpoint(wasm_frame, breakpoints);
   }
 
   WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
@@ -355,7 +363,7 @@ class DebugInfoImpl {
     } else {
       all_breakpoints.insert(insertion_point, offset);
       int dead_breakpoint =
-          DeadBreakpoint(func_index, all_breakpoints, isolate);
+          DeadBreakpoint(func_index, VectorOf(all_breakpoints), isolate);
       new_code = RecompileLiftoffWithBreakpoints(
           func_index, VectorOf(all_breakpoints), dead_breakpoint);
     }
@@ -411,6 +419,19 @@ class DebugInfoImpl {
     FloodWithBreakpoints(frame, kAfterWasmCall);
   }
 
+  void ClearStepping(WasmFrame* frame) {
+    WasmCodeRefScope wasm_code_ref_scope;
+    base::MutexGuard guard(&mutex_);
+    auto* code = frame->wasm_code();
+    if (code->for_debugging() != kForStepping) return;
+    int func_index = code->index();
+    std::vector<int> breakpoints = FindAllBreakpoints(func_index);
+    int dead_breakpoint = DeadBreakpoint(frame, VectorOf(breakpoints));
+    WasmCode* new_code = RecompileLiftoffWithBreakpoints(
+        func_index, VectorOf(breakpoints), dead_breakpoint);
+    UpdateReturnAddress(frame, new_code, kAfterBreakpoint);
+  }
+
   void ClearStepping(Isolate* isolate) {
     base::MutexGuard guard(&mutex_);
     auto it = per_isolate_data_.find(isolate);
@@ -452,7 +473,8 @@ class DebugInfoImpl {
     // If the breakpoint is still set in another isolate, don't remove it.
     DCHECK(std::is_sorted(remaining.begin(), remaining.end()));
     if (std::binary_search(remaining.begin(), remaining.end(), offset)) return;
-    int dead_breakpoint = DeadBreakpoint(func_index, remaining, isolate);
+    int dead_breakpoint =
+        DeadBreakpoint(func_index, VectorOf(remaining), isolate);
     UpdateBreakpoints(func_index, VectorOf(remaining), isolate,
                       isolate_data.stepping_frame, dead_breakpoint);
   }
@@ -815,6 +837,8 @@ void DebugInfo::PrepareStepOutTo(WasmFrame* frame) {
 void DebugInfo::ClearStepping(Isolate* isolate) {
   impl_->ClearStepping(isolate);
 }
+
+void DebugInfo::ClearStepping(WasmFrame* frame) { impl_->ClearStepping(frame); }
 
 bool DebugInfo::IsStepping(WasmFrame* frame) {
   return impl_->IsStepping(frame);

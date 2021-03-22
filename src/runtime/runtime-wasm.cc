@@ -552,12 +552,10 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   DCHECK_EQ(0, args.length());
   FrameFinder<WasmFrame> frame_finder(
       isolate, {StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK});
-  auto instance = handle(frame_finder.frame()->wasm_instance(), isolate);
-  auto script = handle(instance->module_object().script(), isolate);
   WasmFrame* frame = frame_finder.frame();
-  int position = frame->position();
-  auto frame_id = frame->id();
-  auto* debug_info = frame->native_module()->GetDebugInfo();
+  auto instance = handle(frame->wasm_instance(), isolate);
+  auto script = handle(instance->module_object().script(), isolate);
+  auto* debug_info = instance->module_object().native_module()->GetDebugInfo();
   isolate->set_context(instance->native_context());
 
   // Stepping can repeatedly create code, and code GC requires stack guards to
@@ -572,8 +570,9 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   DCHECK_EQ(script->break_on_entry(), instance->break_on_entry());
   if (script->break_on_entry()) {
     MaybeHandle<FixedArray> maybe_on_entry_breakpoints =
-        WasmScript::CheckBreakPoints(
-            isolate, script, WasmScript::kOnEntryBreakpointPosition, frame_id);
+        WasmScript::CheckBreakPoints(isolate, script,
+                                     WasmScript::kOnEntryBreakpointPosition,
+                                     frame->id());
     script->set_break_on_entry(false);
     // Update the "break_on_entry" flag on all live instances.
     i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
@@ -606,7 +605,8 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
 
   // Check whether we hit a breakpoint.
   Handle<FixedArray> breakpoints;
-  if (WasmScript::CheckBreakPoints(isolate, script, position, frame_id)
+  if (WasmScript::CheckBreakPoints(isolate, script, frame->position(),
+                                   frame->id())
           .ToHandle(&breakpoints)) {
     debug_info->ClearStepping(isolate);
     StepAction step_action = isolate->debug()->last_step_action();
@@ -615,7 +615,13 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
       // We hit one or several breakpoints. Notify the debug listeners.
       isolate->debug()->OnDebugBreak(breakpoints, step_action);
     }
+    return ReadOnlyRoots(isolate).undefined_value();
   }
+
+  // We did not hit a breakpoint. If we are in stepping code, but the user did
+  // not request stepping, clear this (to save further calls into this runtime
+  // function).
+  debug_info->ClearStepping(frame);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

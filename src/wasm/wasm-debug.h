@@ -208,6 +208,11 @@ class V8_EXPORT_PRIVATE DebugInfo {
 
   void ClearStepping(Isolate*);
 
+  // Remove stepping code from a single frame; this is a performance
+  // optimization only, hitting debug breaks while not stepping and not at a set
+  // breakpoint would be unobservable otherwise.
+  void ClearStepping(WasmFrame*);
+
   bool IsStepping(WasmFrame*);
 
   void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
