@@ -386,6 +386,7 @@ namespace compiler {
   V(PPC_I8x16Shuffle)                \
   V(PPC_I8x16Swizzle)                \
   V(PPC_I8x16BitMask)                \
+  V(PPC_I8x16Popcnt)                 \
   V(PPC_I64x2AllTrue)                \
   V(PPC_I32x4AllTrue)                \
   V(PPC_I16x8AllTrue)                \

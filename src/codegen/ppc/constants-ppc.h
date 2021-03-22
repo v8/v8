@@ -2424,7 +2424,9 @@ using Instr = uint32_t;
   /* Vector Unpack Low Signed Byte */      \
   V(vupklsb, VUPKLSB, 0x1000028E)          \
   /* Vector Unpack High Signed Byte */     \
-  V(vupkhsb, VUPKHSB, 0x1000020E)
+  V(vupkhsb, VUPKHSB, 0x1000020E)          \
+  /* Vector Population Count Byte */       \
+  V(vpopcntb, VPOPCNTB, 0x10000703)
 
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
@@ -2503,8 +2505,6 @@ using Instr = uint32_t;
   V(vpmsumh, VPMSUMH, 0x10000448)                                         \
   /* Vector Polynomial Multiply-Sum Word */                               \
   V(vpmsumw, VPMSUMW, 0x10000488)                                         \
-  /* Vector Population Count Byte */                                      \
-  V(vpopcntb, VPOPCNTB, 0x10000703)                                       \
   /* Vector Population Count Doubleword */                                \
   V(vpopcntd, VPOPCNTD, 0x100007C3)                                       \
   /* Vector Population Count Halfword */                                  \

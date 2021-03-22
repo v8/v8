@@ -3823,6 +3823,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vinsertd(dst, kScratchSimd128Reg, Operand(lane_number));
       break;
     }
+    case kPPC_I8x16Popcnt: {
+      __ vpopcntb(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

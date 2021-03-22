@@ -2293,6 +2293,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8Abs)                  \
   V(I8x16Neg)                  \
   V(I8x16Abs)                  \
+  V(I8x16Popcnt)               \
   V(I16x8SConvertI8x16Low)     \
   V(I16x8SConvertI8x16High)    \
   V(I16x8UConvertI8x16Low)     \
@@ -2489,7 +2490,6 @@ void InstructionSelector::VisitS128Const(Node* node) {
   }
 }
 
-void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GeS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Abs(Node* node) { UNIMPLEMENTED(); }

@@ -4842,6 +4842,17 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VECTOR_ROUNDING_AVERAGE
+    case VPOPCNTB: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      FOR_EACH_LANE(i, uint8_t) {
+        set_simd_register_by_lane<uint8_t>(
+            t, i,
+            base::bits::CountPopulation(
+                get_simd_register_by_lane<uint8_t>(b, i)));
+      }
+      break;
+    }
 #undef FOR_EACH_LANE
 #undef DECODE_VX_INSTRUCTION
 #undef GET_ADDRESS
