@@ -28,7 +28,7 @@ using IndexOpt = base::Optional<InternalIndex>;
 static const ValueOpt kNoValue;
 static const PropertyDetailsOpt kNoDetails;
 static const base::Optional<int> kNoInt;
-static const IndexOpt kIndexUnknown;
+static const IndexOpt kNoIndex;
 
 static const std::vector<int> interesting_initial_capacities = {
     4,
