@@ -66,6 +66,7 @@ using Int8UnOp = int8_t (*)(int8_t);
 using Int8BinOp = int8_t (*)(int8_t, int8_t);
 using Int8CompareOp = int (*)(int8_t, int8_t);
 using Int8ShiftOp = int8_t (*)(int8_t, int);
+using Shuffle = std::array<int8_t, kSimd128Size>;
 
 #define WASM_SIMD_TEST(name)                                              \
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
@@ -1537,48 +1538,56 @@ WASM_SIMD_TEST(S128Not) {
 template <typename Narrow, typename Wide>
 void RunExtAddPairwiseTest(TestExecutionTier execution_tier,
                            LowerSimd lower_simd, WasmOpcode ext_add_pairwise,
-                           WasmOpcode splat) {
+                           WasmOpcode splat, Shuffle interleaving_shuffle) {
   constexpr int num_lanes = kSimd128Size / sizeof(Wide);
-  WasmRunner<int32_t, Narrow> r(execution_tier, lower_simd);
+  WasmRunner<int32_t, Narrow, Narrow> r(execution_tier, lower_simd);
   Wide* g = r.builder().template AddGlobal<Wide>(kWasmS128);
 
-  // TODO(v8:11086) We splat the same value, so pairwise adding ends up adding
-  // the same value to itself, consider a more complicated test, like having 2
-  // vectors, and shuffling them.
-  BUILD(r, WASM_LOCAL_GET(0), WASM_SIMD_OP(splat),
+  BUILD(r,
+        WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, interleaving_shuffle,
+                                   WASM_SIMD_UNOP(splat, WASM_LOCAL_GET(0)),
+                                   WASM_SIMD_UNOP(splat, WASM_LOCAL_GET(1))),
         WASM_SIMD_OP(ext_add_pairwise), kExprGlobalSet, 0, WASM_ONE);
 
-  for (Narrow x : compiler::ValueHelper::GetVector<Narrow>()) {
-    r.Call(x);
-    Wide expected = AddLong<Wide>(x, x);
+  auto v = compiler::ValueHelper::GetVector<Narrow>();
+  // Iterate vector from both ends to try and splat two different values.
+  for (auto i = v.begin(), j = v.end() - 1; i < v.end(); i++, j--) {
+    r.Call(*i, *j);
+    Wide expected = AddLong<Wide>(*i, *j);
     for (int i = 0; i < num_lanes; i++) {
       CHECK_EQ(expected, ReadLittleEndianValue<Wide>(&g[i]));
     }
   }
 }
 
+// interleave even lanes from one input and odd lanes from another.
+constexpr Shuffle interleave_16x8_shuffle = {0, 1, 18, 19, 4,  5,  22, 23,
+                                             8, 9, 26, 27, 12, 13, 30, 31};
+constexpr Shuffle interleave_8x16_shuffle = {0, 17, 2,  19, 4,  21, 6,  23,
+                                             8, 25, 10, 27, 12, 29, 14, 31};
+
 WASM_SIMD_TEST_NO_LOWERING(I32x4ExtAddPairwiseI16x8S) {
-  RunExtAddPairwiseTest<int16_t, int32_t>(execution_tier, lower_simd,
-                                          kExprI32x4ExtAddPairwiseI16x8S,
-                                          kExprI16x8Splat);
+  RunExtAddPairwiseTest<int16_t, int32_t>(
+      execution_tier, lower_simd, kExprI32x4ExtAddPairwiseI16x8S,
+      kExprI16x8Splat, interleave_16x8_shuffle);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I32x4ExtAddPairwiseI16x8U) {
-  RunExtAddPairwiseTest<uint16_t, uint32_t>(execution_tier, lower_simd,
-                                            kExprI32x4ExtAddPairwiseI16x8U,
-                                            kExprI16x8Splat);
+  RunExtAddPairwiseTest<uint16_t, uint32_t>(
+      execution_tier, lower_simd, kExprI32x4ExtAddPairwiseI16x8U,
+      kExprI16x8Splat, interleave_16x8_shuffle);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I16x8ExtAddPairwiseI8x16S) {
-  RunExtAddPairwiseTest<int8_t, int16_t>(execution_tier, lower_simd,
-                                         kExprI16x8ExtAddPairwiseI8x16S,
-                                         kExprI8x16Splat);
+  RunExtAddPairwiseTest<int8_t, int16_t>(
+      execution_tier, lower_simd, kExprI16x8ExtAddPairwiseI8x16S,
+      kExprI8x16Splat, interleave_8x16_shuffle);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I16x8ExtAddPairwiseI8x16U) {
-  RunExtAddPairwiseTest<uint8_t, uint16_t>(execution_tier, lower_simd,
-                                           kExprI16x8ExtAddPairwiseI8x16U,
-                                           kExprI8x16Splat);
+  RunExtAddPairwiseTest<uint8_t, uint16_t>(
+      execution_tier, lower_simd, kExprI16x8ExtAddPairwiseI8x16U,
+      kExprI8x16Splat, interleave_8x16_shuffle);
 }
 
 void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
@@ -2586,7 +2595,6 @@ enum ShuffleKey {
       kNumShuffleKeys
 };
 
-using Shuffle = std::array<int8_t, kSimd128Size>;
 using ShuffleMap = std::map<ShuffleKey, const Shuffle>;
 
 ShuffleMap test_shuffles = {
