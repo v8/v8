@@ -1340,10 +1340,6 @@ class ModuleDecoderImpl : public Decoder {
                     kLastKnownModuleSection,
                 "not enough bits");
   WasmError intermediate_error_;
-  // Set of type offsets discovered in field types during type section decoding.
-  // Since struct types may be recursive, this is used for checking and error
-  // reporting once the whole type section is parsed.
-  std::unordered_map<uint32_t, int> deferred_check_type_index_;
   ModuleOrigin origin_;
 
   ValueType TypeOf(const WasmInitExpr& expr) {
