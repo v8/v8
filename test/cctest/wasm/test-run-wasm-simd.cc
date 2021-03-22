@@ -279,26 +279,6 @@ int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
                              TestExecutionTier execution_tier)
 
-// Use this for post-mvp instructions, for which we only implement interpreter
-// and TurboFan support. Liftoff support is generally not implemented yet, so
-// don't test that, and neither is scalar lowering.
-#define WASM_SIMD_TEST_POST_MVP(name)                                     \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
-                             TestExecutionTier execution_tier);           \
-  TEST(RunWasm_##name##_turbofan) {                                       \
-    if (!CpuFeatures::SupportsWasmSimd128()) return;                      \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                        \
-    FLAG_SCOPE(wasm_simd_post_mvp);                                       \
-    RunWasm_##name##_Impl(kNoLowerSimd, TestExecutionTier::kTurbofan);    \
-  }                                                                       \
-  TEST(RunWasm_##name##_interpreter) {                                    \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                        \
-    FLAG_SCOPE(wasm_simd_post_mvp);                                       \
-    RunWasm_##name##_Impl(kNoLowerSimd, TestExecutionTier::kInterpreter); \
-  }                                                                       \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
-                             TestExecutionTier execution_tier)
-
 #if V8_OS_AIX
 template <typename T>
 bool MightReverseSign(T float_op) {

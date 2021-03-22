@@ -966,11 +966,7 @@ DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
 DEFINE_BOOL(wasm_lazy_validation, false,
             "enable lazy validation for lazily compiled wasm functions")
-DEFINE_BOOL(wasm_simd_post_mvp, false,
-            "allow experimental SIMD operations for prototyping that are not "
-            "included in the current proposal")
 DEFINE_BOOL(wasm_simd_ssse3_codegen, false, "allow wasm SIMD SSSE3 codegen")
-DEFINE_IMPLICATION(wasm_simd_post_mvp, experimental_wasm_simd)
 
 DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
 DEFINE_BOOL(trace_wasm_code_gc, false, "trace garbage collection of wasm code")
