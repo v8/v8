@@ -961,8 +961,8 @@ void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
     // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
     // algorithm on these processors. ATOM CPU feature captures exactly
     // the right set of processors.
-    xorps(tmp1, tmp1);
-    pavgb(tmp1, src);
+    movaps(tmp1, src);
+    psrlw(tmp1, 1);
     if (dst != src) {
       movaps(dst, src);
     }
