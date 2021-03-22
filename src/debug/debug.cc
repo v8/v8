@@ -1430,13 +1430,22 @@ void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
   GetBreakablePositions(&it, start_position, end_position, locations);
 }
 
-void CompileTopLevel(Isolate* isolate, Handle<Script> script) {
+bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
   UnoptimizedCompileState compile_state(isolate);
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   ParseInfo parse_info(isolate, flags, &compile_state);
   IsCompiledScope is_compiled_scope;
-  Compiler::CompileToplevel(&parse_info, script, isolate, &is_compiled_scope);
+  const MaybeHandle<SharedFunctionInfo> maybe_result =
+      Compiler::CompileToplevel(&parse_info, script, isolate,
+                                &is_compiled_scope);
+  if (maybe_result.is_null()) {
+    if (isolate->has_pending_exception()) {
+      isolate->clear_pending_exception();
+    }
+    return false;
+  }
+  return true;
 }
 }  // namespace
 
@@ -1606,8 +1615,9 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
           maybeToplevel->GetHeapObject(&heap_object) &&
           !heap_object.IsUndefined();
       if (!topLevelInfoExists) {
-        CompileTopLevel(isolate_, script);
         triedTopLevelCompile = true;
+        const bool success = CompileTopLevel(isolate_, script);
+        if (!success) return false;
         continue;
       }
     }
@@ -1660,7 +1670,8 @@ Handle<Object> Debug::FindInnermostContainingFunctionInfo(Handle<Script> script,
         // It might be that the shared function info is not available as the
         // top level functions are removed due to the GC. Try to recompile
         // the top level functions.
-        CompileTopLevel(isolate_, script);
+        const bool success = CompileTopLevel(isolate_, script);
+        if (!success) break;
         continue;
       }
       // We found it if it's already compiled.
