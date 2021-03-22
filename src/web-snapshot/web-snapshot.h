@@ -65,10 +65,23 @@ class V8_EXPORT WebSnapshotSerializer
                     WebSnapshotData& data_out);
 
   // For inspecting the state after taking a snapshot.
-  uint32_t string_count() const;
-  uint32_t map_count() const;
-  uint32_t function_count() const;
-  uint32_t object_count() const;
+  uint32_t string_count() const {
+    return static_cast<uint32_t>(string_ids_.size());
+  }
+
+  uint32_t map_count() const { return static_cast<uint32_t>(map_ids_.size()); }
+
+  uint32_t context_count() const {
+    return static_cast<uint32_t>(context_ids_.size());
+  }
+
+  uint32_t function_count() const {
+    return static_cast<uint32_t>(function_ids_.size());
+  }
+
+  uint32_t object_count() const {
+    return static_cast<uint32_t>(object_ids_.size());
+  }
 
  private:
   WebSnapshotSerializer(const WebSnapshotSerializer&) = delete;
@@ -82,20 +95,23 @@ class V8_EXPORT WebSnapshotSerializer
 
   void SerializeString(Handle<String> string, uint32_t& id);
   void SerializeMap(Handle<Map> map, uint32_t& id);
-  void SerializeJSFunction(Handle<JSFunction> function, uint32_t& id);
-  void SerializeJSObject(Handle<JSObject> object, uint32_t& id);
-  void SerializePendingJSObject(Handle<JSObject> object);
+  void SerializeFunction(Handle<JSFunction> function, uint32_t& id);
+  void SerializeContext(Handle<Context> context, uint32_t& id);
+  void SerializeObject(Handle<JSObject> object, uint32_t& id);
+  void SerializePendingObject(Handle<JSObject> object);
   void SerializeExport(Handle<JSObject> object, const std::string& export_name);
   void WriteValue(Handle<Object> object, ValueSerializer& serializer);
 
   ValueSerializer string_serializer_;
   ValueSerializer map_serializer_;
+  ValueSerializer context_serializer_;
   ValueSerializer function_serializer_;
   ValueSerializer object_serializer_;
   ValueSerializer export_serializer_;
 
   ObjectCacheIndexMap string_ids_;
   ObjectCacheIndexMap map_ids_;
+  ObjectCacheIndexMap context_ids_;
   ObjectCacheIndexMap function_ids_;
   ObjectCacheIndexMap object_ids_;
   uint32_t export_count_ = 0;
@@ -112,6 +128,7 @@ class V8_EXPORT WebSnapshotDeserializer
   // For inspecting the state after taking a snapshot.
   size_t string_count() const { return strings_.size(); }
   size_t map_count() const { return maps_.size(); }
+  size_t context_count() const { return contexts_.size(); }
   size_t function_count() const { return functions_.size(); }
   size_t object_count() const { return objects_.size(); }
 
@@ -120,13 +137,21 @@ class V8_EXPORT WebSnapshotDeserializer
   WebSnapshotDeserializer& operator=(const WebSnapshotDeserializer&) = delete;
 
   void DeserializeStrings(const uint8_t* data, size_t& ix, size_t size);
+  Handle<String> ReadString(ValueDeserializer& deserializer,
+                            bool internalize = false);
   void DeserializeMaps(const uint8_t* data, size_t& ix, size_t size);
+  void DeserializeContexts(const uint8_t* data, size_t& ix, size_t size);
+  Handle<ScopeInfo> CreateScopeInfo(uint32_t variable_count, bool has_parent);
   void DeserializeFunctions(const uint8_t* data, size_t& ix, size_t size);
   void DeserializeObjects(const uint8_t* data, size_t& ix, size_t size);
   void DeserializeExports(const uint8_t* data, size_t& ix, size_t size);
+  void ReadValue(ValueDeserializer& deserializer, Handle<Object>& value,
+                 Representation& representation);
 
+  // TODO(v8:11525): Make these FixedArrays.
   std::vector<Handle<String>> strings_;
   std::vector<Handle<Map>> maps_;
+  std::vector<Handle<Context>> contexts_;
   std::vector<Handle<JSFunction>> functions_;
   std::vector<Handle<JSObject>> objects_;
 };

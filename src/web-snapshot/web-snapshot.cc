@@ -16,6 +16,17 @@
 namespace v8 {
 namespace internal {
 
+// When encountering an error during deserializing, we note down the error but
+// don't bail out from processing the snapshot further. This is to speed up
+// deserialization; the error case is now slower since we don't bail out, but
+// the non-error case is faster, since we don't repeatedly check for errors.
+// (Invariant: we might fill our internal data structures with arbitrary data,
+// but it shouldn't have an observable effect.)
+
+// This doesn't increase the complexity of processing the data in a robust and
+// secure way. We cannot trust the data anyway, so every upcoming byte can have
+// an arbitrary value, not depending on whether or not we've encountered an
+// error before.
 void WebSnapshotSerializerDeserializer::Throw(const char* message) {
   if (error_message_ != nullptr) {
     return;
@@ -33,11 +44,13 @@ WebSnapshotSerializer::WebSnapshotSerializer(v8::Isolate* isolate)
           reinterpret_cast<v8::internal::Isolate*>(isolate)),
       string_serializer_(isolate_, nullptr),
       map_serializer_(isolate_, nullptr),
+      context_serializer_(isolate_, nullptr),
       function_serializer_(isolate_, nullptr),
       object_serializer_(isolate_, nullptr),
       export_serializer_(isolate_, nullptr),
       string_ids_(isolate_->heap()),
       map_ids_(isolate_->heap()),
+      context_ids_(isolate_->heap()),
       function_ids_(isolate_->heap()),
       object_ids_(isolate_->heap()) {}
 
@@ -74,22 +87,6 @@ bool WebSnapshotSerializer::TakeSnapshot(
   return !has_error();
 }
 
-uint32_t WebSnapshotSerializer::string_count() const {
-  return static_cast<uint32_t>(string_ids_.size());
-}
-
-uint32_t WebSnapshotSerializer::map_count() const {
-  return static_cast<uint32_t>(map_ids_.size());
-}
-
-uint32_t WebSnapshotSerializer::function_count() const {
-  return static_cast<uint32_t>(function_ids_.size());
-}
-
-uint32_t WebSnapshotSerializer::object_count() const {
-  return static_cast<uint32_t>(object_ids_.size());
-}
-
 // Format (full snapshot):
 // - String count
 // - For each string:
@@ -97,6 +94,9 @@ uint32_t WebSnapshotSerializer::object_count() const {
 // - Shape count
 // - For each shape:
 //   - Serialized shape
+// - Context count
+// - For each context:
+//   - Serialized context
 // - Function count
 // - For each function:
 //   - Serialized function
@@ -110,30 +110,34 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
                                           size_t& buffer_size) {
   while (!pending_objects_.empty()) {
     const Handle<JSObject>& object = pending_objects_.front();
-    SerializePendingJSObject(object);
+    SerializePendingObject(object);
     pending_objects_.pop();
   }
 
   ValueSerializer total_serializer(isolate_, nullptr);
   size_t needed_size =
       string_serializer_.buffer_size_ + map_serializer_.buffer_size_ +
-      function_serializer_.buffer_size_ + object_serializer_.buffer_size_ +
-      export_serializer_.buffer_size_ + 4 * sizeof(uint32_t);
+      context_serializer_.buffer_size_ + function_serializer_.buffer_size_ +
+      object_serializer_.buffer_size_ + export_serializer_.buffer_size_ +
+      6 * sizeof(uint32_t);
   if (total_serializer.ExpandBuffer(needed_size).IsNothing()) {
     Throw("Web snapshot: Out of memory");
     return;
   }
 
-  total_serializer.WriteUint32(static_cast<uint32_t>(string_ids_.size()));
+  total_serializer.WriteUint32(static_cast<uint32_t>(string_count()));
   total_serializer.WriteRawBytes(string_serializer_.buffer_,
                                  string_serializer_.buffer_size_);
-  total_serializer.WriteUint32(static_cast<uint32_t>(map_ids_.size()));
+  total_serializer.WriteUint32(static_cast<uint32_t>(map_count()));
   total_serializer.WriteRawBytes(map_serializer_.buffer_,
                                  map_serializer_.buffer_size_);
-  total_serializer.WriteUint32(static_cast<uint32_t>(function_ids_.size()));
+  total_serializer.WriteUint32(static_cast<uint32_t>(context_count()));
+  total_serializer.WriteRawBytes(context_serializer_.buffer_,
+                                 context_serializer_.buffer_size_);
+  total_serializer.WriteUint32(static_cast<uint32_t>(function_count()));
   total_serializer.WriteRawBytes(function_serializer_.buffer_,
                                  function_serializer_.buffer_size_);
-  total_serializer.WriteUint32(static_cast<uint32_t>(object_ids_.size()));
+  total_serializer.WriteUint32(static_cast<uint32_t>(object_count()));
   total_serializer.WriteRawBytes(object_serializer_.buffer_,
                                  object_serializer_.buffer_size_);
   total_serializer.WriteUint32(export_count_);
@@ -233,9 +237,10 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
 }
 
 // Format (serialized function):
+// - 0 if there's no context, 1 + context id otherwise
 // - String id (source string)
-void WebSnapshotSerializer::SerializeJSFunction(Handle<JSFunction> function,
-                                                uint32_t& id) {
+void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
+                                              uint32_t& id) {
   if (InsertIntoIndexMap(function_ids_, function, id)) {
     return;
   }
@@ -244,8 +249,20 @@ void WebSnapshotSerializer::SerializeJSFunction(Handle<JSFunction> function,
     Throw("Web snapshot: Function without source code");
     return;
   }
-  // TODO(v8:11525): For inner functions, create a "substring" type, so that we
-  // don't need to serialize the same content twice.
+
+  Handle<Context> context(function->context(), isolate_);
+  if (context->IsNativeContext()) {
+    function_serializer_.WriteUint32(0);
+  } else {
+    DCHECK(context->IsFunctionContext());
+    uint32_t context_id = 0;
+    SerializeContext(context, context_id);
+    function_serializer_.WriteUint32(context_id + 1);
+  }
+
+  // TODO(v8:11525): For inner functions which occur inside a serialized
+  // function, create a "substring" type, so that we don't need to serialize the
+  // same content twice.
   Handle<String> full_source(
       String::cast(Script::cast(function->shared().script()).source()),
       isolate_);
@@ -261,8 +278,53 @@ void WebSnapshotSerializer::SerializeJSFunction(Handle<JSFunction> function,
   // TODO(v8:11525): Support properties in functions.
 }
 
-void WebSnapshotSerializer::SerializeJSObject(Handle<JSObject> object,
-                                              uint32_t& id) {
+// Format (serialized context):
+// - 0 if there's no parent context, 1 + parent context id otherwise
+// - Variable count
+// - For each variable:
+//   - String id (name)
+//   - Serialized value
+void WebSnapshotSerializer::SerializeContext(Handle<Context> context,
+                                             uint32_t& id) {
+  // Invariant: parent context is serialized first.
+
+  // Can't use InsertIntoIndexMap here, because it might reserve a lower id
+  // for the context than its parent.
+  int index_out = 0;
+  if (context_ids_.Lookup(context, &index_out)) {
+    id = static_cast<uint32_t>(index_out);
+    return;
+  }
+
+  uint32_t parent_context_id = 0;
+  if (!context->previous().IsNativeContext()) {
+    SerializeContext(handle(context->previous(), isolate_), parent_context_id);
+    ++parent_context_id;
+  }
+
+  InsertIntoIndexMap(context_ids_, context, id);
+
+  context_serializer_.WriteUint32(parent_context_id);
+
+  Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
+  int count = scope_info->ContextLocalCount();
+  context_serializer_.WriteUint32(count);
+
+  for (int i = 0; i < count; ++i) {
+    // TODO(v8:11525): support parameters
+    // TODO(v8:11525): distinguish variable modes
+    Handle<String> name(scope_info->context_local_names(i), isolate_);
+    uint32_t string_id = 0;
+    SerializeString(name, string_id);
+    context_serializer_.WriteUint32(string_id);
+    Handle<Object> value(context->get(scope_info->ContextHeaderLength() + i),
+                         isolate_);
+    WriteValue(value, context_serializer_);
+  }
+}
+
+void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object,
+                                            uint32_t& id) {
   DCHECK(!object->IsJSFunction());
   if (InsertIntoIndexMap(object_ids_, object, id)) {
     return;
@@ -274,7 +336,7 @@ void WebSnapshotSerializer::SerializeJSObject(Handle<JSObject> object,
 // - Shape id
 // - For each property:
 //   - Serialized value
-void WebSnapshotSerializer::SerializePendingJSObject(Handle<JSObject> object) {
+void WebSnapshotSerializer::SerializePendingObject(Handle<JSObject> object) {
   Handle<Map> map(object->map(), isolate_);
   uint32_t map_id = 0;
   SerializeMap(map, map_id);
@@ -303,6 +365,7 @@ void WebSnapshotSerializer::SerializeExport(Handle<JSObject> object,
                                             const std::string& export_name) {
   // TODO(v8:11525): Support exporting functions.
   ++export_count_;
+  // TODO(v8:11525): How to avoid creating the String but still de-dupe?
   Handle<String> export_name_string =
       isolate_->factory()
           ->NewStringFromOneByte(Vector<const uint8_t>(
@@ -312,7 +375,7 @@ void WebSnapshotSerializer::SerializeExport(Handle<JSObject> object,
   uint32_t string_id = 0;
   SerializeString(export_name_string, string_id);
   uint32_t object_id = 0;
-  SerializeJSObject(object, object_id);
+  SerializeObject(object, object_id);
   export_serializer_.WriteUint32(string_id);
   export_serializer_.WriteUint32(object_id);
 }
@@ -337,12 +400,12 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       // TODO(v8:11525): Implement.
       UNREACHABLE();
     case JS_FUNCTION_TYPE:
-      SerializeJSFunction(Handle<JSFunction>::cast(object), id);
+      SerializeFunction(Handle<JSFunction>::cast(object), id);
       serializer.WriteUint32(ValueType::FUNCTION_ID);
       serializer.WriteUint32(id);
       break;
     case JS_OBJECT_TYPE:
-      SerializeJSObject(Handle<JSObject>::cast(object), id);
+      SerializeObject(Handle<JSObject>::cast(object), id);
       serializer.WriteUint32(ValueType::OBJECT_ID);
       serializer.WriteUint32(id);
       break;
@@ -369,6 +432,7 @@ bool WebSnapshotDeserializer::UseWebSnapshot(const uint8_t* data,
     return false;
   }
 
+  // TODO(v8:11525): Add RuntimeCallStats.
   base::ElapsedTimer timer;
   if (FLAG_trace_web_snapshot) {
     timer.Start();
@@ -378,6 +442,7 @@ bool WebSnapshotDeserializer::UseWebSnapshot(const uint8_t* data,
   size_t ix = 0;
   DeserializeStrings(data, ix, buffer_size);
   DeserializeMaps(data, ix, buffer_size);
+  DeserializeContexts(data, ix, buffer_size);
   DeserializeFunctions(data, ix, buffer_size);
   DeserializeObjects(data, ix, buffer_size);
   DeserializeExports(data, ix, buffer_size);
@@ -417,6 +482,21 @@ void WebSnapshotDeserializer::DeserializeStrings(const uint8_t* data,
   ix = deserializer.position_ - data;
 }
 
+Handle<String> WebSnapshotDeserializer::ReadString(
+    ValueDeserializer& deserializer, bool internalize) {
+  uint32_t string_id;
+  if (!deserializer.ReadUint32(&string_id) || string_id >= strings_.size()) {
+    Throw("Web snapshot: malformed string id\n");
+    return isolate_->factory()->empty_string();
+  }
+  Handle<String> string = strings_[string_id];
+  if (internalize && !string->IsInternalizedString()) {
+    string = isolate_->factory()->InternalizeString(string);
+    strings_[string_id] = string;
+  }
+  return string;
+}
+
 void WebSnapshotDeserializer::DeserializeMaps(const uint8_t* data, size_t& ix,
                                               size_t size) {
   ValueDeserializer deserializer(isolate_, &data[ix], size - ix);
@@ -431,6 +511,8 @@ void WebSnapshotDeserializer::DeserializeMaps(const uint8_t* data, size_t& ix,
       Throw("Web snapshot: Malformed shape");
       return;
     }
+    // TODO(v8:11525): Consider passing the upper bound as a param and
+    // systematically enforcing it on the ValueSerializer side.
     if (property_count > kMaxNumberOfDescriptors) {
       Throw("Web snapshot: Malformed shape: too many properties");
       return;
@@ -439,17 +521,7 @@ void WebSnapshotDeserializer::DeserializeMaps(const uint8_t* data, size_t& ix,
     Handle<DescriptorArray> descriptors =
         isolate_->factory()->NewDescriptorArray(0, property_count);
     for (uint32_t p = 0; p < property_count; ++p) {
-      uint32_t string_id;
-      if (!deserializer.ReadUint32(&string_id) ||
-          string_id >= strings_.size()) {
-        Throw("Web snapshot: Malformed shape");
-        return;
-      }
-      Handle<String> key = strings_[string_id];
-      if (!key->IsInternalizedString()) {
-        key = isolate_->factory()->InternalizeString(key);
-        strings_[string_id] = key;
-      }
+      Handle<String> key = ReadString(deserializer, true);
 
       // Use the "none" representation until we see the first object having this
       // map. At that point, modify the representation.
@@ -468,6 +540,117 @@ void WebSnapshotDeserializer::DeserializeMaps(const uint8_t* data, size_t& ix,
   ix = deserializer.position_ - data;
 }
 
+void WebSnapshotDeserializer::DeserializeContexts(const uint8_t* data,
+                                                  size_t& ix, size_t size) {
+  ValueDeserializer deserializer(isolate_, &data[ix], size - ix);
+  uint32_t count;
+  if (!deserializer.ReadUint32(&count)) {
+    Throw("Web snapshot: Malformed context table");
+    return;
+  }
+  for (uint32_t i = 0; i < count; ++i) {
+    uint32_t parent_context_id;
+    // Parent context is serialized before child context. Note: not >= on
+    // purpose, we're going to subtract 1 later.
+    if (!deserializer.ReadUint32(&parent_context_id) ||
+        parent_context_id > contexts_.size()) {
+      Throw("Web snapshot: Malformed context");
+      return;
+    }
+
+    uint32_t variable_count;
+    if (!deserializer.ReadUint32(&variable_count)) {
+      Throw("Web snapshot: Malformed context");
+      return;
+    }
+    // TODO(v8:11525): Enforce upper limit for variable count.
+    Handle<ScopeInfo> scope_info =
+        CreateScopeInfo(variable_count, parent_context_id > 0);
+
+    Handle<Context> parent_context;
+    if (parent_context_id > 0) {
+      parent_context = contexts_[parent_context_id - 1];
+      scope_info->set_outer_scope_info(parent_context->scope_info());
+    } else {
+      parent_context = handle(isolate_->context(), isolate_);
+    }
+
+    Handle<Context> context =
+        isolate_->factory()->NewFunctionContext(parent_context, scope_info);
+    contexts_.emplace_back(context);
+
+    const int context_local_base = ScopeInfo::kVariablePartIndex;
+    const int context_local_info_base = context_local_base + variable_count;
+    for (int variable_index = 0;
+         variable_index < static_cast<int>(variable_count); ++variable_index) {
+      Handle<String> name = ReadString(deserializer, true);
+      scope_info->set(context_local_base + variable_index, *name);
+
+      // TODO(v8:11525): Support variable modes etc.
+      uint32_t info =
+          ScopeInfo::VariableModeBits::encode(VariableMode::kLet) |
+          ScopeInfo::InitFlagBit::encode(
+              InitializationFlag::kNeedsInitialization) |
+          ScopeInfo::MaybeAssignedFlagBit::encode(
+              MaybeAssignedFlag::kMaybeAssigned) |
+          ScopeInfo::ParameterNumberBits::encode(
+              ScopeInfo::ParameterNumberBits::kMax) |
+          ScopeInfo::IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
+      scope_info->set(context_local_info_base + variable_index,
+                      Smi::FromInt(info));
+
+      Handle<Object> value;
+      Representation representation;
+      ReadValue(deserializer, value, representation);
+      context->set(scope_info->ContextHeaderLength() + variable_index, *value);
+    }
+  }
+  ix = deserializer.position_ - data;
+}
+
+Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
+    uint32_t variable_count, bool has_parent) {
+  // TODO(v8:11525): Decide how to handle language modes. (The code below sets
+  // the language mode as strict.)
+  // TODO(v8:11525): Support (context-allocating) receiver.
+  // TODO(v8:11525): Support function variable & function name.
+  // TODO(v8:11525): Support classes.
+  const int length = ScopeInfo::kVariablePartIndex +
+                     ScopeInfo::kPositionInfoEntries + (has_parent ? 1 : 0) +
+                     2 * variable_count;
+
+  Handle<ScopeInfo> scope_info = isolate_->factory()->NewScopeInfo(length);
+  int flags =
+      ScopeInfo::ScopeTypeBits::encode(ScopeType::FUNCTION_SCOPE) |
+      ScopeInfo::SloppyEvalCanExtendVarsBit::encode(false) |
+      ScopeInfo::LanguageModeBit::encode(LanguageMode::kStrict) |
+      ScopeInfo::DeclarationScopeBit::encode(true) |
+      ScopeInfo::ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
+      ScopeInfo::HasClassBrandBit::encode(false) |
+      ScopeInfo::HasSavedClassVariableIndexBit::encode(false) |
+      ScopeInfo::HasNewTargetBit::encode(false) |
+      ScopeInfo::FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
+      ScopeInfo::HasInferredFunctionNameBit::encode(false) |
+      ScopeInfo::IsAsmModuleBit::encode(false) |
+      ScopeInfo::HasSimpleParametersBit::encode(true) |
+      ScopeInfo::FunctionKindBits::encode(FunctionKind::kNormalFunction) |
+      ScopeInfo::HasOuterScopeInfoBit::encode(has_parent) |
+      ScopeInfo::IsDebugEvaluateScopeBit::encode(false) |
+      ScopeInfo::ForceContextAllocationBit::encode(false) |
+      ScopeInfo::PrivateNameLookupSkipsOuterClassBit::encode(false) |
+      ScopeInfo::HasContextExtensionSlotBit::encode(false) |
+      ScopeInfo::IsReplModeScopeBit::encode(false) |
+      ScopeInfo::HasLocalsBlockListBit::encode(false);
+  scope_info->set_flags(flags);
+  DCHECK(!scope_info->IsEmpty());
+
+  scope_info->set_context_local_count(variable_count);
+  // TODO(v8:11525): Support parameters.
+  scope_info->set_parameter_count(0);
+  scope_info->SetPositionInfo(0, 0);
+  return scope_info;
+}
+
 void WebSnapshotDeserializer::DeserializeFunctions(const uint8_t* data,
                                                    size_t& ix, size_t size) {
   ValueDeserializer deserializer(isolate_, &data[ix], size - ix);
@@ -477,39 +660,48 @@ void WebSnapshotDeserializer::DeserializeFunctions(const uint8_t* data,
     return;
   }
   for (uint32_t i = 0; i < count; ++i) {
-    uint32_t source_id;
-    if (!deserializer.ReadUint32(&source_id) || source_id >= strings_.size()) {
+    uint32_t context_id;
+    // Note: > (not >= on purpose, we will subtract 1).
+    if (!deserializer.ReadUint32(&context_id) ||
+        context_id > contexts_.size()) {
       Throw("Web snapshot: Malformed function");
       return;
     }
-    Handle<String> source = strings_[source_id];
 
-    // See CreateDynamicFunction which builds the function in a similar way.
-    IncrementalStringBuilder builder(isolate_);
-    builder.AppendCString("(function anonymous");
-    builder.AppendString(source);
-    builder.AppendCString(")");
-    MaybeHandle<String> maybe_source = builder.Finish();
-    if (!maybe_source.ToHandle(&source)) {
-      Throw("Web snapshot: Error when creating function");
-      return;
+    Handle<String> source = ReadString(deserializer, false);
+
+    // TODO(v8:11525): Support other function kinds.
+    // TODO(v8:11525): Support (exported) top level functions.
+    Handle<Script> script = isolate_->factory()->NewScript(source);
+    // TODO(v8:11525): Deduplicate the SFIs for inner functions the user creates
+    // post-deserialization (by calling the outer function, if it's also in the
+    // snapshot) against the ones we create here.
+    Handle<SharedFunctionInfo> shared =
+        isolate_->factory()->NewSharedFunctionInfo(
+            isolate_->factory()->empty_string(), MaybeHandle<Code>(),
+            Builtins::kCompileLazy, FunctionKind::kNormalFunction);
+    shared->set_function_literal_id(1);
+    // TODO(v8:11525): Decide how to handle language modes.
+    shared->set_language_mode(LanguageMode::kStrict);
+    shared->set_uncompiled_data(
+        *isolate_->factory()->NewUncompiledDataWithoutPreparseData(
+            ReadOnlyRoots(isolate_).empty_string_handle(), 0,
+            source->length()));
+    shared->set_script(*script);
+    Handle<WeakFixedArray> infos(
+        isolate_->factory()->NewWeakFixedArray(3, AllocationType::kOld));
+    infos->Set(1, HeapObjectReference::Weak(*shared));
+    script->set_shared_function_infos(*infos);
+
+    Handle<JSFunction> function =
+        Factory::JSFunctionBuilder(isolate_, shared, isolate_->native_context())
+            .Build();
+    if (context_id > 0) {
+      DCHECK_LT(context_id - 1, contexts_.size());
+      Handle<Context> context = contexts_[context_id - 1];
+      function->set_context(*context);
+      shared->set_outer_scope_info(context->scope_info());
     }
-    Handle<JSFunction> function_from_string;
-    if (!Compiler::GetFunctionFromString(
-             handle(isolate_->context().native_context(), isolate_), source,
-             ONLY_SINGLE_FUNCTION_LITERAL, kNoSourcePosition, false)
-             .ToHandle(&function_from_string)) {
-      Throw("Web snapshot: Invalid function source code");
-      return;
-    }
-    Handle<Object> result;
-    if (!Execution::Call(isolate_, function_from_string,
-                         isolate_->factory()->undefined_value(), 0, nullptr)
-             .ToHandle(&result)) {
-      Throw("Web snapshot: Error when creating function");
-      return;
-    }
-    Handle<JSFunction> function = Handle<JSFunction>::cast(result);
     functions_.emplace_back(function);
   }
   ix = deserializer.position_ - data;
@@ -530,59 +722,24 @@ void WebSnapshotDeserializer::DeserializeObjects(const uint8_t* data,
       return;
     }
     Handle<Map> map = maps_[map_id];
-    DescriptorArray descriptors = map->instance_descriptors(kRelaxedLoad);
+    Handle<DescriptorArray> descriptors =
+        handle(map->instance_descriptors(kRelaxedLoad), isolate_);
     int no_properties = map->NumberOfOwnDescriptors();
     Handle<PropertyArray> property_array =
         isolate_->factory()->NewPropertyArray(no_properties);
     for (int i = 0; i < no_properties; ++i) {
       Handle<Object> value;
-      uint32_t value_type;
-      if (!deserializer.ReadUint32(&value_type)) {
-        Throw("Web snapshot: Malformed object property");
-        return;
-      }
-      Representation wanted_representation;
-      switch (value_type) {
-        case ValueType::STRING_ID: {
-          uint32_t string_id;
-          if (!deserializer.ReadUint32(&string_id) ||
-              string_id >= strings_.size()) {
-            Throw("Web snapshot: Malformed object property");
-            return;
-          }
-          value = strings_[string_id];
-          wanted_representation = Representation::Tagged();
-          break;
-        }
-        case ValueType::OBJECT_ID:
-          // TODO(v8:11525): Handle circular references.
-          UNREACHABLE();
-          break;
-        case ValueType::FUNCTION_ID: {
-          // Functions have been deserialized already.
-          uint32_t function_id;
-          if (!deserializer.ReadUint32(&function_id) ||
-              function_id >= functions_.size()) {
-            Throw("Web snapshot: Malformed object property");
-            return;
-          }
-          value = functions_[function_id];
-          wanted_representation = Representation::Tagged();
-          break;
-        }
-        default:
-          Throw("Web snapshot: Unsupported value type");
-          return;
-      }
+      Representation wanted_representation = Representation::None();
+      ReadValue(deserializer, value, wanted_representation);
       // Read the representation from the map.
-      PropertyDetails details = descriptors.GetDetails(InternalIndex(i));
+      PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
       CHECK_EQ(details.location(), kField);
       CHECK_EQ(kData, details.kind());
       Representation r = details.representation();
       if (r.IsNone()) {
         // Switch over to wanted_representation.
         details = details.CopyWithRepresentation(wanted_representation);
-        descriptors.SetDetails(InternalIndex(i), details);
+        descriptors->SetDetails(InternalIndex(i), details);
       } else if (!r.Equals(wanted_representation)) {
         // TODO(v8:11525): Support this case too.
         UNREACHABLE();
@@ -606,14 +763,21 @@ void WebSnapshotDeserializer::DeserializeExports(const uint8_t* data,
     return;
   }
   for (uint32_t i = 0; i < count; ++i) {
-    uint32_t string_id = 0, object_id = 0;
-    if (!deserializer.ReadUint32(&string_id) || string_id >= strings_.size() ||
-        !deserializer.ReadUint32(&object_id) || object_id >= objects_.size()) {
+    Handle<String> export_name = ReadString(deserializer, true);
+    uint32_t object_id = 0;
+    if (!deserializer.ReadUint32(&object_id) || object_id >= objects_.size()) {
       Throw("Web snapshot: Malformed export");
       return;
     }
-    Handle<String> export_name = strings_[string_id];
     Handle<Object> exported_object = objects_[object_id];
+
+    // Check for the correctness of the snapshot (thus far) before producing
+    // something observable. TODO(v8:11525): Strictly speaking, we should
+    // produce observable effects only when we know that the whole snapshot is
+    // correct.
+    if (has_error()) {
+      return;
+    }
 
     auto result = Object::SetProperty(isolate_, isolate_->global_object(),
                                       export_name, exported_object);
@@ -623,6 +787,51 @@ void WebSnapshotDeserializer::DeserializeExports(const uint8_t* data,
     }
   }
   ix = deserializer.position_ - data;
+}
+
+void WebSnapshotDeserializer::ReadValue(ValueDeserializer& deserializer,
+                                        Handle<Object>& value,
+                                        Representation& representation) {
+  uint32_t value_type;
+  // TODO(v8:11525): Consider adding a ReadByte.
+  if (!deserializer.ReadUint32(&value_type)) {
+    Throw("Web snapshot: Malformed variable");
+    return;
+  }
+  switch (value_type) {
+    case ValueType::STRING_ID: {
+      value = ReadString(deserializer, false);
+      representation = Representation::Tagged();
+      break;
+    }
+    case ValueType::OBJECT_ID:
+      uint32_t object_id;
+      if (!deserializer.ReadUint32(&object_id) ||
+          object_id >= objects_.size()) {
+        // TODO(v8:11525): Handle circular references + contexts referencing
+        // objects.
+        Throw("Web snapshot: Malformed variable");
+        return;
+      }
+      value = objects_[object_id];
+      representation = Representation::Tagged();
+      break;
+    case ValueType::FUNCTION_ID:
+      // TODO(v8:11525): Handle contexts referencing functions.
+      uint32_t function_id;
+      if (!deserializer.ReadUint32(&function_id) ||
+          function_id >= functions_.size()) {
+        Throw("Web snapshot: Malformed object property");
+        return;
+      }
+      value = functions_[function_id];
+      representation = Representation::Tagged();
+      break;
+    default:
+      // TODO(v8:11525): Handle other value types.
+      Throw("Web snapshot: Unsupported value type");
+      return;
+  }
 }
 
 }  // namespace internal

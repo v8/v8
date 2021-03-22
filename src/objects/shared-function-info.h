@@ -658,6 +658,8 @@ class SharedFunctionInfo
                                      Isolate* isolate);
 
  private:
+  friend class WebSnapshotDeserializer;
+
 #ifdef VERIFY_HEAP
   void SharedFunctionInfoVerify(ReadOnlyRoots roots);
 #endif

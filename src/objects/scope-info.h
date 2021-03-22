@@ -271,6 +271,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   inline ObjectSlot data_start();
 
  private:
+  friend class WebSnapshotDeserializer;
+
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int SavedClassVariableInfoIndex() const;

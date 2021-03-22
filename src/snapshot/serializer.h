@@ -152,6 +152,15 @@ class ObjectCacheIndexMap {
     return find_result.already_exists;
   }
 
+  bool Lookup(Handle<HeapObject> obj, int* index_out) const {
+    int* index = map_.Find(obj);
+    if (index == nullptr) {
+      return false;
+    }
+    *index_out = *index;
+    return true;
+  }
+
   int size() const { return next_index_; }
 
  private:
