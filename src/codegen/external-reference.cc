@@ -621,6 +621,35 @@ ExternalReference::address_of_enable_experimental_regexp_engine() {
   return ExternalReference(&FLAG_enable_experimental_regexp_engine);
 }
 
+namespace {
+
+static uintptr_t BaselineStartPCForBytecodeOffset(Address raw_code_obj,
+                                                  int bytecode_offset,
+                                                  Address raw_bytecode_array) {
+  Code code_obj = Code::cast(Object(raw_code_obj));
+  BytecodeArray bytecode_array =
+      BytecodeArray::cast(Object(raw_bytecode_array));
+  return code_obj.GetBaselineStartPCForBytecodeOffset(bytecode_offset,
+                                                      bytecode_array);
+}
+
+static uintptr_t BaselineEndPCForBytecodeOffset(Address raw_code_obj,
+                                                int bytecode_offset,
+                                                Address raw_bytecode_array) {
+  Code code_obj = Code::cast(Object(raw_code_obj));
+  BytecodeArray bytecode_array =
+      BytecodeArray::cast(Object(raw_bytecode_array));
+  return code_obj.GetBaselineEndPCForBytecodeOffset(bytecode_offset,
+                                                    bytecode_array);
+}
+
+}  // namespace
+
+FUNCTION_REFERENCE(baseline_end_pc_for_bytecode_offset,
+                   BaselineEndPCForBytecodeOffset)
+FUNCTION_REFERENCE(baseline_start_pc_for_bytecode_offset,
+                   BaselineStartPCForBytecodeOffset)
+
 ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
     Isolate* isolate) {
   return ExternalReference(isolate->thread_in_wasm_flag_address_address());

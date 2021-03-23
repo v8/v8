@@ -3462,6 +3462,109 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
 }
 
+namespace {
+
+// Converts an interpreter frame into a baseline frame and continues execution
+// in baseline code (baseline code has to exist on the shared function info),
+// either at the start or the end of the current bytecode.
+void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode) {
+  // Get bytecode array and bytecode offset from the stack frame.
+  __ ldr(kInterpreterBytecodeArrayRegister,
+         MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ ldr(kInterpreterBytecodeOffsetRegister,
+         MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
+
+  // Get function from the frame.
+  Register closure = r1;
+  __ ldr(closure, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+
+  // Replace BytecodeOffset with the feedback vector.
+  Register feedback_vector = r2;
+  __ ldr(feedback_vector,
+         FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ ldr(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  if (__ emit_debug_code()) {
+    Register scratch = r3;
+    __ CompareObjectType(feedback_vector, scratch, scratch,
+                         FEEDBACK_VECTOR_TYPE);
+    __ Assert(eq, AbortReason::kExpectedFeedbackVector);
+  }
+  __ str(feedback_vector,
+         MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  feedback_vector = no_reg;
+
+  // Get the Code object from the shared function info.
+  Register code_obj = r4;
+  __ ldr(code_obj,
+         FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(code_obj,
+         FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
+  __ ldr(code_obj,
+         FieldMemOperand(code_obj, BaselineData::kBaselineCodeOffset));
+  closure = no_reg;
+
+  // Compute baseline pc for bytecode offset.
+  __ Push(kInterpreterAccumulatorRegister);
+  ExternalReference get_baseline_pc_extref =
+      next_bytecode
+          ? ExternalReference::baseline_end_pc_for_bytecode_offset()
+          : ExternalReference::baseline_start_pc_for_bytecode_offset();
+  Register get_baseline_pc = r3;
+  __ Move(get_baseline_pc, get_baseline_pc_extref);
+
+  // If the code deoptimizes during the implicit function entry stack interrupt
+  // check, it will have a bailout ID of kFunctionEntryBytecodeOffset, which is
+  // not a valid bytecode offset.
+  // TODO(pthier): Investigate if it is feasible to handle this special case
+  // in TurboFan instead of here.
+  Label valid_bytecode_offset, function_entry_bytecode;
+  __ cmp(kInterpreterBytecodeOffsetRegister,
+         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag +
+                 kFunctionEntryBytecodeOffset));
+  __ b(eq, &function_entry_bytecode);
+
+  __ sub(kInterpreterBytecodeOffsetRegister, kInterpreterBytecodeOffsetRegister,
+         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+
+  __ bind(&valid_bytecode_offset);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ PrepareCallCFunction(3, 0, r0);
+    Register arg_reg_1 = r0;
+    Register arg_reg_2 = r1;
+    Register arg_reg_3 = r2;
+    __ mov(arg_reg_1, code_obj);
+    __ mov(arg_reg_2, kInterpreterBytecodeOffsetRegister);
+    __ mov(arg_reg_3, kInterpreterBytecodeArrayRegister);
+    __ CallCFunction(get_baseline_pc, 3, 0);
+  }
+  __ add(code_obj, code_obj, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ add(code_obj, code_obj, kReturnRegister0);
+  __ Pop(kInterpreterAccumulatorRegister);
+
+  __ Jump(code_obj);
+  __ Trap();  // Unreachable.
+
+  __ bind(&function_entry_bytecode);
+  // If the bytecode offset is kFunctionEntryOffset, get the start address of
+  // the first bytecode.
+  __ mov(kInterpreterBytecodeOffsetRegister, Operand(0));
+  __ Move(get_baseline_pc,
+          ExternalReference::baseline_start_pc_for_bytecode_offset());
+  __ b(&valid_bytecode_offset);
+}
+
+}  // namespace
+
+void Builtins::Generate_BaselineEnterAtBytecode(MacroAssembler* masm) {
+  Generate_BaselineEntry(masm, false);
+}
+
+void Builtins::Generate_BaselineEnterAtNextBytecode(MacroAssembler* masm) {
+  Generate_BaselineEntry(masm, true);
+}
+
 void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::INTERNAL);

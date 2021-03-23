@@ -371,7 +371,7 @@ CodeKind Code::kind() const {
 int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
                                          BytecodeArray bytecodes) {
   DisallowGarbageCollection no_gc;
-  CHECK(!is_baseline_prologue_builtin());
+  CHECK(!is_baseline_trampoline_builtin());
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
@@ -382,13 +382,33 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
 }
 
 uintptr_t Code::GetBaselinePCForBytecodeOffset(int bytecode_offset,
+                                               BytecodeToPCPosition position,
                                                BytecodeArray bytecodes) {
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
       ByteArray::cast(bytecode_offset_table()), bytecodes);
   offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
-  return offset_iterator.current_pc_start_offset();
+  uintptr_t pc = 0;
+  if (position == kPcAtStartOfBytecode) {
+    pc = offset_iterator.current_pc_start_offset();
+  } else {
+    DCHECK_EQ(position, kPcAtEndOfBytecode);
+    pc = offset_iterator.current_pc_end_offset();
+  }
+  return pc;
+}
+
+uintptr_t Code::GetBaselineStartPCForBytecodeOffset(int bytecode_offset,
+                                                    BytecodeArray bytecodes) {
+  return GetBaselinePCForBytecodeOffset(bytecode_offset, kPcAtStartOfBytecode,
+                                        bytecodes);
+}
+
+uintptr_t Code::GetBaselineEndPCForBytecodeOffset(int bytecode_offset,
+                                                  BytecodeArray bytecodes) {
+  return GetBaselinePCForBytecodeOffset(bytecode_offset, kPcAtEndOfBytecode,
+                                        bytecodes);
 }
 
 void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
@@ -414,12 +434,16 @@ inline bool Code::is_interpreter_trampoline_builtin() const {
           index == Builtins::kInterpreterEnterBytecodeDispatch);
 }
 
-inline bool Code::is_baseline_leave_frame_builtin() const {
-  return builtin_index() == Builtins::kBaselineLeaveFrame;
+inline bool Code::is_baseline_trampoline_builtin() const {
+  const int index = builtin_index();
+  return index != Builtins::kNoBuiltinId &&
+         (index == Builtins::kBaselineOutOfLinePrologue ||
+          index == Builtins::kBaselineEnterAtBytecode ||
+          index == Builtins::kBaselineEnterAtNextBytecode);
 }
 
-inline bool Code::is_baseline_prologue_builtin() const {
-  return builtin_index() == Builtins::kBaselineOutOfLinePrologue;
+inline bool Code::is_baseline_leave_frame_builtin() const {
+  return builtin_index() == Builtins::kBaselineLeaveFrame;
 }
 
 inline bool Code::checks_optimization_marker() const {

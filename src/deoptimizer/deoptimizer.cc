@@ -991,11 +991,25 @@ void Deoptimizer::DoComputeOutputFrames() {
       stack_guard->real_jslimit() - kStackLimitSlackForDeoptimizationInBytes);
 }
 
+namespace {
+
+// Get the dispatch builtin for unoptimized frames.
+Builtins::Name DispatchBuiltinFor(bool is_baseline, bool advance_bc) {
+  if (is_baseline) {
+    return advance_bc ? Builtins::kBaselineEnterAtNextBytecode
+                      : Builtins::kBaselineEnterAtBytecode;
+  } else {
+    return advance_bc ? Builtins::kInterpreterEnterBytecodeAdvance
+                      : Builtins::kInterpreterEnterBytecodeDispatch;
+  }
+}
+
+}  // namespace
+
 void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                             int frame_index,
                                             bool goto_catch_handler) {
   SharedFunctionInfo shared = translated_frame->raw_shared_info();
-
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   const bool is_bottommost = (0 == frame_index);
   const bool is_topmost = (output_count_ - 1 == frame_index);
@@ -1020,15 +1034,10 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
-  if (verbose_tracing_enabled()) {
-    PrintF(trace_scope()->file(), "  translating unoptimized frame ");
-    std::unique_ptr<char[]> name = shared.DebugNameCStr();
-    PrintF(trace_scope()->file(), "%s", name.get());
-    PrintF(trace_scope()->file(),
-           " => bytecode_offset=%d, variable_frame_size=%d, frame_size=%d%s\n",
-           real_bytecode_offset, frame_info.frame_size_in_bytes_without_fixed(),
-           output_frame_size, goto_catch_handler ? " (throw)" : "");
-  }
+
+  BytecodeArray bytecode_array =
+      shared.HasBreakInfo() ? shared.GetDebugInfo().DebugBytecodeArray()
+                            : shared.GetBytecodeArray(isolate());
 
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)
@@ -1038,6 +1047,34 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   CHECK(frame_index >= 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
+
+  // Compute this frame's PC and state.
+  // For interpreted frames, the PC will be a special builtin that
+  // continues the bytecode dispatch. Note that non-topmost and lazy-style
+  // bailout handlers also advance the bytecode offset before dispatch, hence
+  // simulating what normal handlers do upon completion of the operation.
+  // For baseline frames, the PC will be a builtin to convert the interpreter
+  // frame to a baseline frame before continuing execution of baseline code.
+  // We can't directly continue into baseline code, because of CFI.
+  Builtins* builtins = isolate_->builtins();
+  const bool advance_bc =
+      (!is_topmost || (deopt_kind_ == DeoptimizeKind::kLazy)) &&
+      !goto_catch_handler;
+  const bool is_baseline = shared.HasBaselineData();
+  Code dispatch_builtin =
+      builtins->builtin(DispatchBuiltinFor(is_baseline, advance_bc));
+
+  if (verbose_tracing_enabled()) {
+    PrintF(trace_scope()->file(), "  translating %s frame ",
+           is_baseline ? "baseline" : "interpreted");
+    std::unique_ptr<char[]> name = shared.DebugNameCStr();
+    PrintF(trace_scope()->file(), "%s", name.get());
+    PrintF(trace_scope()->file(), " => bytecode_offset=%d, ",
+           real_bytecode_offset);
+    PrintF(trace_scope()->file(), "variable_frame_size=%d, frame_size=%d%s\n",
+           frame_info.frame_size_in_bytes_without_fixed(), output_frame_size,
+           goto_catch_handler ? " (throw)" : "");
+  }
 
   // The top address of the frame is computed from the previous frame's top and
   // this frame's size.
@@ -1145,9 +1182,6 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   frame_writer.PushRawValue(argc, "actual argument count\n");
 
   // Set the bytecode array pointer.
-  Object bytecode_array = shared.HasBreakInfo()
-                              ? shared.GetDebugInfo().DebugBytecodeArray()
-                              : shared.GetBytecodeArray(isolate());
   frame_writer.PushRawObject(bytecode_array, "bytecode array\n");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
@@ -1237,26 +1271,16 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   CHECK_EQ(translated_frame->end(), value_iterator);
   CHECK_EQ(0u, frame_writer.top_offset());
 
-  // Compute this frame's PC and state. The PC will be a special builtin that
-  // continues the bytecode dispatch. Note that non-topmost and lazy-style
-  // bailout handlers also advance the bytecode offset before dispatch, hence
-  // simulating what normal handlers do upon completion of the operation.
-  Builtins* builtins = isolate_->builtins();
-  Code dispatch_builtin =
-      (!is_topmost || (deopt_kind_ == DeoptimizeKind::kLazy)) &&
-              !goto_catch_handler
-          ? builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance)
-          : builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  const intptr_t pc =
+      static_cast<intptr_t>(dispatch_builtin.InstructionStart());
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
     // authenticated at the end of the DeoptimizationEntry builtin.
     const intptr_t top_most_pc = PointerAuthentication::SignAndCheckPC(
-        static_cast<intptr_t>(dispatch_builtin.InstructionStart()),
-        frame_writer.frame()->GetTop());
+        pc, frame_writer.frame()->GetTop());
     output_frame->SetPc(top_most_pc);
   } else {
-    output_frame->SetPc(
-        static_cast<intptr_t>(dispatch_builtin.InstructionStart()));
+    output_frame->SetPc(pc);
   }
 
   // Update constant pool.
