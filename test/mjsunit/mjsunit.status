@@ -172,6 +172,11 @@
   'es6/unicode-regexp-ignore-case-noi18n':
       [['no_i18n == True', PASS], ['no_i18n == False', FAIL]],
 
+  # TODO(1161847): Skip merged-back tests in order to fix the stable branch -
+  # the testing harness doesn't provide the expected --fuzzing flag.
+  'regress/regress-crbug-1161847-1': [SKIP],
+  'regress/regress-crbug-1161847-2': [SKIP],
+
   # Needs to be adapted after changes to Function constructor. chromium:1065094
   'cross-realm-filtering': [SKIP],
 }],  # ALWAYS
