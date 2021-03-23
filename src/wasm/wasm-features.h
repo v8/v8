@@ -20,6 +20,9 @@
 namespace v8 {
 namespace internal {
 
+class Context;
+template <typename T>
+class Handle;
 class Isolate;
 
 namespace wasm {
@@ -57,6 +60,8 @@ class WasmFeatures : public base::EnumSet<WasmFeature> {
   static inline constexpr WasmFeatures ForAsmjs();
   static WasmFeatures FromFlags();
   static V8_EXPORT_PRIVATE WasmFeatures FromIsolate(Isolate*);
+  static V8_EXPORT_PRIVATE WasmFeatures FromContext(Isolate*,
+                                                    Handle<Context> context);
 };
 
 // static

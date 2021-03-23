@@ -9494,6 +9494,13 @@ class V8_EXPORT Isolate {
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
   /**
+   * This function can be called by the embedder to signal V8 that the dynamic
+   * enabling of features has finished. V8 can now set up dynamically added
+   * features.
+   */
+  void InstallConditionalFeatures(Local<Context> context);
+
+  /**
   * Check if V8 is dead and therefore unusable.  This is the case after
   * fatal errors such as out-of-memory situations.
   */

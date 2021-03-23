@@ -13,7 +13,9 @@
 
 namespace v8 {
 namespace internal {
-class WasmFrame;
+class Context;
+template <typename T>
+class Handle;
 
 namespace wasm {
 class StreamingDecoder;
@@ -24,6 +26,9 @@ class WasmJs {
  public:
   V8_EXPORT_PRIVATE static void Install(Isolate* isolate,
                                         bool exposed_on_global_object);
+
+  V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
+      Isolate* isolate, Handle<Context> context);
 };
 
 }  // namespace internal

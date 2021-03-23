@@ -115,6 +115,7 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
@@ -8878,6 +8879,13 @@ CALLBACK_SETTER(WasmSimdEnabledCallback, WasmSimdEnabledCallback,
 
 CALLBACK_SETTER(WasmExceptionsEnabledCallback, WasmExceptionsEnabledCallback,
                 wasm_exceptions_enabled_callback)
+
+void Isolate::InstallConditionalFeatures(Local<Context> context) {
+#if V8_ENABLE_WEBASSEMBLY
+  i::WasmJs::InstallConditionalFeatures(reinterpret_cast<i::Isolate*>(this),
+                                        Utils::OpenHandle(*context));
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
 
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                        void* data) {
