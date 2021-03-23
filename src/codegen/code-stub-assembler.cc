@@ -4,6 +4,8 @@
 
 #include "src/codegen/code-stub-assembler.h"
 
+#include <functional>
+
 #include "include/v8-internal.h"
 #include "src/base/macros.h"
 #include "src/codegen/code-factory.h"
@@ -14304,6 +14306,227 @@ void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
 
     Goto(if_unmodified);
   }
+}
+
+//
+// Begin of SwissNameDictionary macros
+//
+
+namespace {
+
+// Provides load and store functions that abstract over the details of accessing
+// the meta table in memory. Instead they allow using logical indices that are
+// independent from the underlying entry size in the meta table of a
+// SwissNameDictionary.
+class MetaTableAccessor {
+ public:
+  MetaTableAccessor(CodeStubAssembler& csa, MachineType mt)
+      : csa{csa}, mt{mt} {}
+
+  TNode<Uint32T> Load(TNode<ByteArray> meta_table, TNode<IntPtrT> index) {
+    TNode<IntPtrT> offset = OverallOffset(meta_table, index);
+
+    return csa.UncheckedCast<Uint32T>(
+        csa.LoadFromObject(mt, meta_table, offset));
+  }
+
+  TNode<Uint32T> Load(TNode<ByteArray> meta_table, int index) {
+    return Load(meta_table, csa.IntPtrConstant(index));
+  }
+
+  void Store(TNode<ByteArray> meta_table, TNode<IntPtrT> index,
+             TNode<Uint32T> data) {
+    TNode<IntPtrT> offset = OverallOffset(meta_table, index);
+
+#ifdef DEBUG
+    int bits = mt.MemSize() * 8;
+    TNode<IntPtrT> max_value = csa.IntPtrConstant(1ULL << bits);
+
+    CSA_ASSERT(&csa, csa.IntPtrLessThan(
+                         csa.ChangeInt32ToIntPtr(csa.Signed(data)), max_value));
+#endif
+
+    csa.StoreToObject(mt.representation(), meta_table, offset, data,
+                      StoreToObjectWriteBarrier::kNone);
+  }
+
+  void Store(TNode<ByteArray> meta_table, int index, TNode<Uint32T> data) {
+    Store(meta_table, csa.IntPtrConstant(index), data);
+  }
+
+ private:
+  TNode<IntPtrT> OverallOffset(TNode<ByteArray> meta_table,
+                               TNode<IntPtrT> index) {
+    // TODO(v8:11330): consider using ElementOffsetFromIndex().
+
+    int offset_to_data_minus_tag = ByteArray::kHeaderSize - kHeapObjectTag;
+
+    TNode<IntPtrT> overall_offset;
+    int size = mt.MemSize();
+    intptr_t constant;
+    if (csa.TryToIntPtrConstant(index, &constant)) {
+      intptr_t index_offset = constant * size;
+      overall_offset =
+          csa.IntPtrConstant(offset_to_data_minus_tag + index_offset);
+    } else {
+      TNode<IntPtrT> index_offset =
+          csa.IntPtrMul(index, csa.IntPtrConstant(size));
+      overall_offset = csa.IntPtrAdd(
+          csa.IntPtrConstant(offset_to_data_minus_tag), index_offset);
+    }
+
+#ifdef DEBUG
+    TNode<IntPtrT> byte_array_data_bytes =
+        csa.SmiToIntPtr(csa.LoadFixedArrayBaseLength(meta_table));
+    TNode<IntPtrT> max_allowed_offset = csa.IntPtrAdd(
+        byte_array_data_bytes, csa.IntPtrConstant(offset_to_data_minus_tag));
+    CSA_ASSERT(&csa, csa.UintPtrLessThan(overall_offset, max_allowed_offset));
+#endif
+
+    return overall_offset;
+  }
+
+  CodeStubAssembler& csa;
+  MachineType mt;
+};
+
+// Type of functions that given a MetaTableAccessor, use its load and store
+// functions to generate code for operating on the meta table.
+using MetaTableAccessFunction = std::function<void(MetaTableAccessor&)>;
+
+// Helper function for macros operating on the meta table of a
+// SwissNameDictionary. Given a MetaTableAccessFunction, generates branching
+// code and uses the builder to generate code for each of the three possible
+// sizes per entry a meta table can have.
+void GenerateMetaTableAccess(CodeStubAssembler* csa, TNode<IntPtrT> capacity,
+                             MetaTableAccessFunction builder) {
+  MetaTableAccessor mta8 = MetaTableAccessor(*csa, MachineType::Uint8());
+  MetaTableAccessor mta16 = MetaTableAccessor(*csa, MachineType::Uint16());
+  MetaTableAccessor mta32 = MetaTableAccessor(*csa, MachineType::Uint32());
+
+  using Label = compiler::CodeAssemblerLabel;
+  Label small(csa), medium(csa), done(csa);
+
+  csa->GotoIf(
+      csa->IntPtrLessThanOrEqual(
+          capacity,
+          csa->IntPtrConstant(SwissNameDictionary::kMax1ByteMetaTableCapacity)),
+      &small);
+  csa->GotoIf(
+      csa->IntPtrLessThanOrEqual(
+          capacity,
+          csa->IntPtrConstant(SwissNameDictionary::kMax2ByteMetaTableCapacity)),
+      &medium);
+
+  builder(mta32);
+  csa->Goto(&done);
+
+  csa->Bind(&medium);
+  builder(mta16);
+  csa->Goto(&done);
+
+  csa->Bind(&small);
+  builder(mta8);
+  csa->Goto(&done);
+  csa->Bind(&done);
+}
+
+}  // namespace
+
+TNode<IntPtrT> CodeStubAssembler::LoadSwissNameDictionaryNumberOfElements(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity) {
+  TNode<ByteArray> meta_table = LoadSwissNameDictionaryMetaTable(table);
+
+  TVARIABLE(Uint32T, nof, Uint32Constant(0));
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    nof = mta.Load(meta_table,
+                   SwissNameDictionary::kMetaTableElementCountFieldIndex);
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+  return ChangeInt32ToIntPtr(nof.value());
+}
+
+TNode<IntPtrT>
+CodeStubAssembler::LoadSwissNameDictionaryNumberOfDeletedElements(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity) {
+  TNode<ByteArray> meta_table = LoadSwissNameDictionaryMetaTable(table);
+
+  TVARIABLE(Uint32T, nod, Uint32Constant(0));
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    nod =
+        mta.Load(meta_table,
+                 SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex);
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+  return ChangeInt32ToIntPtr(nod.value());
+}
+
+void CodeStubAssembler::StoreSwissNameDictionaryEnumToEntryMapping(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> enum_index, TNode<Int32T> entry) {
+  TNode<ByteArray> meta_table = LoadSwissNameDictionaryMetaTable(table);
+  TNode<IntPtrT> meta_table_index = IntPtrAdd(
+      IntPtrConstant(SwissNameDictionary::kMetaTableEnumerationDataStartIndex),
+      enum_index);
+
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    mta.Store(meta_table, meta_table_index, Unsigned(entry));
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+}
+
+TNode<Uint32T>
+CodeStubAssembler::SwissNameDictionaryIncreaseElementCountOrBailout(
+    TNode<ByteArray> meta_table, TNode<IntPtrT> capacity,
+    TNode<Uint32T> max_usable_capacity, Label* bailout) {
+  TVARIABLE(Uint32T, used_var, Uint32Constant(0));
+
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    TNode<Uint32T> nof = mta.Load(
+        meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex);
+    TNode<Uint32T> nod =
+        mta.Load(meta_table,
+                 SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex);
+    TNode<Uint32T> used = Uint32Add(nof, nod);
+    GotoIf(Uint32GreaterThanOrEqual(used, max_usable_capacity), bailout);
+    TNode<Uint32T> inc_nof = Uint32Add(nof, Uint32Constant(1));
+    mta.Store(meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex,
+              inc_nof);
+    used_var = used;
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+  return used_var.value();
+}
+
+TNode<Uint32T> CodeStubAssembler::SwissNameDictionaryUpdateCountsForDeletion(
+    TNode<ByteArray> meta_table, TNode<IntPtrT> capacity) {
+  TVARIABLE(Uint32T, new_nof_var, Uint32Constant(0));
+
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    TNode<Uint32T> nof = mta.Load(
+        meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex);
+    TNode<Uint32T> nod =
+        mta.Load(meta_table,
+                 SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex);
+
+    TNode<Uint32T> new_nof = Uint32Sub(nof, Uint32Constant(1));
+    TNode<Uint32T> new_nod = Uint32Add(nod, Uint32Constant(1));
+
+    mta.Store(meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex,
+              new_nof);
+    mta.Store(meta_table,
+              SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex,
+              new_nod);
+
+    new_nof_var = new_nof;
+  };
+
+  GenerateMetaTableAccess(this, capacity, builder);
+  return new_nof_var.value();
 }
 
 TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(

@@ -573,7 +573,7 @@ Handle<SwissNameDictionary> Factory::CreateCanonicalEmptySwissNameDictionary() {
   ReadOnlyRoots roots(isolate());
 
   Handle<ByteArray> empty_meta_table =
-      NewByteArray(SwissNameDictionary::kMetaTableEnumerationTableStartOffset,
+      NewByteArray(SwissNameDictionary::kMetaTableEnumerationDataStartIndex,
                    AllocationType::kReadOnly);
 
   Map map = roots.swiss_name_dictionary_map();

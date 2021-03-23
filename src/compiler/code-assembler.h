@@ -1011,6 +1011,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                              static_cast<TNode<Word32T>>(right)));
   }
 
+  TNode<Uint32T> Uint32Sub(TNode<Uint32T> left, TNode<Uint32T> right) {
+    return Unsigned(Int32Sub(static_cast<TNode<Word32T>>(left),
+                             static_cast<TNode<Word32T>>(right)));
+  }
+
   TNode<Int32T> Int32Sub(TNode<Int32T> left, TNode<Int32T> right) {
     return Signed(Int32Sub(static_cast<TNode<Word32T>>(left),
                            static_cast<TNode<Word32T>>(right)));

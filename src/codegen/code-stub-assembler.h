@@ -3720,6 +3720,30 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<SwissNameDictionary> AllocateSwissNameDictionary(
       int at_least_space_for);
 
+  TNode<IntPtrT> LoadSwissNameDictionaryNumberOfElements(
+      TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity);
+
+  TNode<IntPtrT> LoadSwissNameDictionaryNumberOfDeletedElements(
+      TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity);
+
+  // Specialized operation to be used when adding entries:
+  // If used capacity (= number of present + deleted elements) is less than
+  // |max_usable|, increment the number of present entries and return the used
+  // capacity value (prior to the incrementation). Otherwise, goto |bailout|.
+  TNode<Uint32T> SwissNameDictionaryIncreaseElementCountOrBailout(
+      TNode<ByteArray> meta_table, TNode<IntPtrT> capacity,
+      TNode<Uint32T> max_usable_capacity, Label* bailout);
+
+  // Specialized operation to be used when deleting entries: Decreases the
+  // number of present entries and increases the number of deleted ones. Returns
+  // new (= decremented) number of present entries.
+  TNode<Uint32T> SwissNameDictionaryUpdateCountsForDeletion(
+      TNode<ByteArray> meta_table, TNode<IntPtrT> capacity);
+
+  void StoreSwissNameDictionaryEnumToEntryMapping(
+      TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+      TNode<IntPtrT> enum_index, TNode<Int32T> entry);
+
   TNode<Uint64T> LoadSwissNameDictionaryCtrlTableGroup(TNode<IntPtrT> address);
 
  private:

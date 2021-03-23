@@ -49,19 +49,19 @@ void SwissNameDictionary::SetCapacity(int capacity) {
 }
 
 int SwissNameDictionary::NumberOfElements() {
-  return GetMetaTableField(kMetaTableElementCountOffset);
+  return GetMetaTableField(kMetaTableElementCountFieldIndex);
 }
 
 int SwissNameDictionary::NumberOfDeletedElements() {
-  return GetMetaTableField(kMetaTableDeletedElementCountOffset);
+  return GetMetaTableField(kMetaTableDeletedElementCountFieldIndex);
 }
 
 void SwissNameDictionary::SetNumberOfElements(int elements) {
-  SetMetaTableField(kMetaTableElementCountOffset, elements);
+  SetMetaTableField(kMetaTableElementCountFieldIndex, elements);
 }
 
 void SwissNameDictionary::SetNumberOfDeletedElements(int deleted_elements) {
-  SetMetaTableField(kMetaTableDeletedElementCountOffset, deleted_elements);
+  SetMetaTableField(kMetaTableDeletedElementCountFieldIndex, deleted_elements);
 }
 
 int SwissNameDictionary::UsedCapacity() {
@@ -132,7 +132,7 @@ int SwissNameDictionary::CapacityFor(int at_least_space_for) {
 
 int SwissNameDictionary::EntryForEnumerationIndex(int enumeration_index) {
   DCHECK_LT(enumeration_index, UsedCapacity());
-  return GetMetaTableField(kMetaTableEnumerationTableStartOffset +
+  return GetMetaTableField(kMetaTableEnumerationDataStartIndex +
                            enumeration_index);
 }
 
@@ -142,7 +142,7 @@ void SwissNameDictionary::SetEntryForEnumerationIndex(int enumeration_index,
   DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
   DCHECK(IsFull(GetCtrl(entry)));
 
-  SetMetaTableField(kMetaTableEnumerationTableStartOffset + enumeration_index,
+  SetMetaTableField(kMetaTableEnumerationDataStartIndex + enumeration_index,
                     entry);
 }
 
@@ -736,7 +736,7 @@ SwissNameDictionary::probe(uint32_t hash, int capacity) {
 
 ACCESSORS_CHECKED2(SwissNameDictionary, meta_table, ByteArray,
                    MetaTablePointerOffset(), true,
-                   value.length() >= kMetaTableEnumerationTableStartOffset)
+                   value.length() >= kMetaTableEnumerationDataStartIndex)
 
 }  // namespace internal
 }  // namespace v8
