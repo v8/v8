@@ -372,6 +372,38 @@ function testbench(o, proto, update_proto, check_constness) {
   }
 })();
 
+// Test inlining of accessor.
+(function() {
+  var proto = Object.create(null);
+  proto.x_val = 1;
+  Object.defineProperty(proto, "x", {
+    get : function () {return this.x_val;}
+  });
+
+  var o = Object.create(proto);
+  assertFalse(%HasFastProperties(proto))
+
+  function read_x(arg_o) {
+    return arg_o.x;
+  }
+
+  %PrepareFunctionForOptimization(read_x);
+  assertEquals(1, read_x(o));
+  %OptimizeFunctionOnNextCall(read_x);
+  assertEquals(1, read_x(o));
+  assertOptimized(read_x);
+
+  // Test that we inlined the access:
+  var dummy = {x : 123};
+  read_x(dummy);
+
+  if (%IsDictPropertyConstTrackingEnabled()) {
+    assertTrue(%HasFastProperties(o));
+    assertFalse(%HasFastProperties(proto));
+    assertUnoptimized(read_x);
+  }
+})();
+
 // Invalidation by adding same property to receiver.
 (function() {
   var proto = Object.create(null);

@@ -160,7 +160,7 @@ Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
   for (const Handle<Map> map : access_info.lookup_start_object_maps()) {
     dependencies()->DependOnConstantInDictionaryPrototypeChain(
         MapRef{broker(), map}, NameRef{broker(), access_info.name()},
-        value.value());
+        value.value(), PropertyKind::kData);
   }
 
   return jsgraph()->Constant(value.value());
