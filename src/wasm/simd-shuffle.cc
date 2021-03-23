@@ -4,6 +4,8 @@
 
 #include "src/wasm/simd-shuffle.h"
 
+#include <algorithm>
+
 #include "src/common/globals.h"
 
 namespace v8 {
