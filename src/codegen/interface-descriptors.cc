@@ -333,15 +333,15 @@ void StoreTransitionDescriptor::InitializePlatformSpecific(
 
 void BaselineOutOfLinePrologueDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
+  // TODO(v8:11421): Implement on other platforms.
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+    V8_TARGET_ARCH_ARM
   Register registers[] = {kContextRegister,
                           kJSFunctionRegister,
                           kJavaScriptCallArgCountRegister,
                           kJavaScriptCallExtraArg1Register,
                           kJavaScriptCallNewTargetRegister,
                           kInterpreterBytecodeArrayRegister};
-  // TODO(v8:11421): Implement on other platforms.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
-    V8_TARGET_ARCH_ARM
   data->InitializePlatformSpecific(kParameterCount - kStackArgumentsCount,
                                    registers);
 #else
