@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --no-stress-flush-bytecode
 //
 // Tests tracking of constness of properties stored in dictionary
 // mode prototypes.
@@ -369,6 +370,38 @@ function testbench(o, proto, update_proto, check_constness) {
 
     // We never inlined the acceess, so it's still optimized.
     assertOptimized(read_x);
+  }
+})();
+
+// Test inlining of accessor.
+(function() {
+  var proto = Object.create(null);
+  proto.x_val = 1;
+  Object.defineProperty(proto, "x", {
+    get : function () {return this.x_val;}
+  });
+
+  var o = Object.create(proto);
+  assertFalse(%HasFastProperties(proto))
+
+  function read_x(arg_o) {
+    return arg_o.x;
+  }
+
+  %PrepareFunctionForOptimization(read_x);
+  assertEquals(1, read_x(o));
+  %OptimizeFunctionOnNextCall(read_x);
+  assertEquals(1, read_x(o));
+  assertOptimized(read_x);
+
+  // Test that we inlined the access:
+  var dummy = {x : 123};
+  read_x(dummy);
+
+  if (%IsDictPropertyConstTrackingEnabled()) {
+    assertTrue(%HasFastProperties(o));
+    assertFalse(%HasFastProperties(proto));
+    assertUnoptimized(read_x);
   }
 })();
 
