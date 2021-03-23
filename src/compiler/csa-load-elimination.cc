@@ -74,41 +74,14 @@ bool Subsumes(MachineRepresentation from, MachineRepresentation to) {
   return false;
 }
 
-inline bool IsFreshObject(Node* node) {
-  if (node->opcode() == IrOpcode::kAllocate) return true;
-#if V8_ENABLE_WEBASSEMBLY
-  if (node->opcode() == IrOpcode::kCall) {
-    NumberMatcher matcher(node->InputAt(0));
-    if (matcher.HasResolvedValue()) {
-      Builtins::Name callee =
-          static_cast<Builtins::Name>(matcher.ResolvedValue());
-      return callee == Builtins::kWasmAllocateArrayWithRtt ||
-             callee == Builtins::kWasmAllocatePair ||
-             callee == Builtins::kWasmAllocateFixedArray ||
-             callee == Builtins::kWasmAllocateJSArray ||
-             callee == Builtins::kWasmAllocateObjectWrapper ||
-             callee == Builtins::kWasmAllocateStructWithRtt;
-    }
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return false;
-}
-
-inline bool IsPointerConstant(Node* node) {
-  switch (node->opcode()) {
-    case IrOpcode::kHeapConstant:
-    case IrOpcode::kParameter:
-    case IrOpcode::kLoadImmutable:
-      return true;
-    default:
-      return false;
-  }
-}
-
 bool ObjectMayAlias(Node* a, Node* b) {
   if (a != b) {
-    if (IsFreshObject(b)) std::swap(a, b);
-    if (IsFreshObject(a) && (IsFreshObject(b) || IsPointerConstant(b))) {
+    if (NodeProperties::IsFreshObject(b)) std::swap(a, b);
+    if (NodeProperties::IsFreshObject(a) &&
+        (NodeProperties::IsFreshObject(b) ||
+         b->opcode() == IrOpcode::kParameter ||
+         b->opcode() == IrOpcode::kLoadImmutable ||
+         IrOpcode::IsConstantOpcode(b->opcode()))) {
       return false;
     }
   }
