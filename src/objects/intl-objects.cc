@@ -1472,13 +1472,19 @@ icu::LocaleMatcher BuildLocaleMatcher(
     UErrorCode* status) {
   icu::Locale default_locale =
       icu::Locale::forLanguageTag(DefaultLocale(isolate), *status);
-  DCHECK(U_SUCCESS(*status));
   icu::LocaleMatcher::Builder builder;
+  if (U_FAILURE(*status)) {
+    return builder.build(*status);
+  }
   builder.setDefaultLocale(&default_locale);
   for (auto it = available_locales.begin(); it != available_locales.end();
        ++it) {
-    builder.addSupportedLocale(
-        icu::Locale::forLanguageTag(it->c_str(), *status));
+    *status = U_ZERO_ERROR;
+    icu::Locale l = icu::Locale::forLanguageTag(it->c_str(), *status);
+    // skip invalid locale such as no-NO-NY
+    if (U_SUCCESS(*status)) {
+      builder.addSupportedLocale(l);
+    }
   }
 
   return builder.build(*status);
