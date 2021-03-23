@@ -122,6 +122,8 @@ class TranslatedValue {
     return storage_;
   }
 
+  void ReplaceElementsArrayWithCopy();
+
   Kind kind_;
   MaterializationState materialization_state_ = kUninitialized;
   TranslatedState* container_;  // This is only needed for materialization of
@@ -318,7 +320,15 @@ class TranslatedFrame {
 
 class TranslatedState {
  public:
-  TranslatedState() = default;
+  // There are two constructors, each for a different purpose:
+
+  // The default constructor is for the purpose of deoptimizing an optimized
+  // frame (replacing it with one or several unoptimized frames). It is used by
+  // the Deoptimizer.
+  TranslatedState() : purpose_(kDeoptimization) {}
+
+  // This constructor is for the purpose of merely inspecting an optimized
+  // frame. It is used by stack trace generation and various debugging features.
   explicit TranslatedState(const JavaScriptFrame* frame);
 
   void Prepare(Address stack_frame_pointer);
@@ -352,6 +362,12 @@ class TranslatedState {
 
  private:
   friend TranslatedValue;
+
+  // See the description of the constructors for an explanation of the two
+  // purposes. The only actual difference is that in the kFrameInspection case
+  // extra work is needed to not violate assumptions made by left-trimming.  For
+  // details, see the code around ReplaceElementsArrayWithCopy.
+  enum Purpose { kDeoptimization, kFrameInspection };
 
   TranslatedFrame CreateNextTranslatedFrame(TranslationIterator* iterator,
                                             FixedArray literal_array,
@@ -409,6 +425,7 @@ class TranslatedState {
   static Float32 GetFloatSlot(Address fp, int slot_index);
   static Float64 GetDoubleSlot(Address fp, int slot_index);
 
+  Purpose const purpose_;
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_ = nullptr;
   Address stack_frame_pointer_ = kNullAddress;
