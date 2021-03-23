@@ -2224,16 +2224,6 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     Node* frame_state, Node** effect, Node** control,
     ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info) {
   ObjectRef constant(broker(), access_info.constant());
-
-  if (access_info.IsDictionaryProtoAccessorConstant()) {
-    // For fast mode holders we recorded dependencies in BuildPropertyLoad.
-    for (const Handle<Map> map : access_info.lookup_start_object_maps()) {
-      dependencies()->DependOnConstantInDictionaryPrototypeChain(
-          MapRef{broker(), map}, NameRef{broker(), access_info.name()},
-          constant, PropertyKind::kAccessor);
-    }
-  }
-
   Node* target = jsgraph()->Constant(constant);
   // Introduce the call to the getter function.
   Node* value;
@@ -2369,8 +2359,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   Node* value;
   if (access_info.IsNotFound()) {
     value = jsgraph()->UndefinedConstant();
-  } else if (access_info.IsFastAccessorConstant() ||
-             access_info.IsDictionaryProtoAccessorConstant()) {
+  } else if (access_info.IsFastAccessorConstant()) {
     ConvertReceiverMode receiver_mode =
         receiver == lookup_start_object
             ? ConvertReceiverMode::kNotNullOrUndefined

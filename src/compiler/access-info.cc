@@ -135,7 +135,7 @@ PropertyAccessInfo PropertyAccessInfo::FastAccessorConstant(
     Zone* zone, Handle<Map> receiver_map, Handle<Object> constant,
     MaybeHandle<JSObject> holder) {
   return PropertyAccessInfo(zone, kFastAccessorConstant, holder, constant,
-                            MaybeHandle<Name>(), {{receiver_map}, zone});
+                            {{receiver_map}, zone});
 }
 
 // static
@@ -143,7 +143,7 @@ PropertyAccessInfo PropertyAccessInfo::ModuleExport(Zone* zone,
                                                     Handle<Map> receiver_map,
                                                     Handle<Cell> cell) {
   return PropertyAccessInfo(zone, kModuleExport, MaybeHandle<JSObject>(), cell,
-                            MaybeHandle<Name>{}, {{receiver_map}, zone});
+                            {{receiver_map}, zone});
 }
 
 // static
@@ -164,9 +164,9 @@ PropertyAccessInfo PropertyAccessInfo::DictionaryProtoDataConstant(
 // static
 PropertyAccessInfo PropertyAccessInfo::DictionaryProtoAccessorConstant(
     Zone* zone, Handle<Map> receiver_map, MaybeHandle<JSObject> holder,
-    Handle<Object> constant, Handle<Name> property_name) {
+    Handle<Object> constant) {
   return PropertyAccessInfo(zone, kDictionaryProtoAccessorConstant, holder,
-                            constant, property_name, {{receiver_map}, zone});
+                            constant, {{receiver_map}, zone});
 }
 
 // static
@@ -204,8 +204,7 @@ PropertyAccessInfo::PropertyAccessInfo(
 
 PropertyAccessInfo::PropertyAccessInfo(
     Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
-    Handle<Object> constant, MaybeHandle<Name> property_name,
-    ZoneVector<Handle<Map>>&& lookup_start_object_maps)
+    Handle<Object> constant, ZoneVector<Handle<Map>>&& lookup_start_object_maps)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
       constant_(constant),
@@ -213,11 +212,7 @@ PropertyAccessInfo::PropertyAccessInfo(
       unrecorded_dependencies_(zone),
       field_representation_(Representation::None()),
       field_type_(Type::Any()),
-      dictionary_index_(InternalIndex::NotFound()),
-      name_(property_name) {
-  DCHECK_IMPLIES(kind == kDictionaryProtoAccessorConstant,
-                 !property_name.is_null());
-}
+      dictionary_index_(InternalIndex::NotFound()) {}
 PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, Representation field_representation,
@@ -325,7 +320,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return false;
     }
 
-    case kDictionaryProtoAccessorConstant:
     case kFastAccessorConstant: {
       // Check if we actually access the same constant.
       if (this->constant_.address() == that->constant_.address()) {
@@ -364,6 +358,10 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     }
     case kModuleExport:
       return false;
+
+    case kDictionaryProtoAccessorConstant:
+      // TODO(v8:11248) Dealt with in follow-up CLs.
+      UNREACHABLE();
   }
 }
 
@@ -517,57 +515,54 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   UNREACHABLE();
 }
 
-namespace {
-using AccessorsObjectGetter = std::function<Handle<Object>()>;
-
-PropertyAccessInfo AccessorAccessInfoHelper(
-    Isolate* isolate, Zone* zone, JSHeapBroker* broker,
-    const AccessInfoFactory* ai_factory, Handle<Map> receiver_map,
-    Handle<Name> name, Handle<Map> map, MaybeHandle<JSObject> holder,
-    AccessMode access_mode, AccessorsObjectGetter get_accessors) {
+PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
+    Handle<Map> receiver_map, Handle<Name> name, Handle<Map> map,
+    MaybeHandle<JSObject> holder, InternalIndex descriptor,
+    AccessMode access_mode) const {
+  DCHECK(descriptor.is_found());
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate()),
+                                      isolate());
+  SLOW_DCHECK(descriptor == descriptors->Search(*name, *map));
   if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
     DCHECK(map->is_prototype_map());
     Handle<PrototypeInfo> proto_info(PrototypeInfo::cast(map->prototype_info()),
-                                     isolate);
+                                     isolate());
     Handle<JSModuleNamespace> module_namespace(
-        JSModuleNamespace::cast(proto_info->module_namespace()), isolate);
+        JSModuleNamespace::cast(proto_info->module_namespace()), isolate());
     Handle<Cell> cell(Cell::cast(module_namespace->module().exports().Lookup(
-                          isolate, name, Smi::ToInt(name->GetHash()))),
-                      isolate);
-    if (cell->value().IsTheHole(isolate)) {
+                          isolate(), name, Smi::ToInt(name->GetHash()))),
+                      isolate());
+    if (cell->value().IsTheHole(isolate())) {
       // This module has not been fully initialized yet.
-      return PropertyAccessInfo::Invalid(zone);
+      return PropertyAccessInfo::Invalid(zone());
     }
-    return PropertyAccessInfo::ModuleExport(zone, receiver_map, cell);
+    return PropertyAccessInfo::ModuleExport(zone(), receiver_map, cell);
   }
   if (access_mode == AccessMode::kHas) {
-    // kHas is not supported for dictionary mode objects.
-    DCHECK(!map->is_dictionary_map());
-
     // HasProperty checks don't call getter/setters, existence is sufficient.
-    return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map,
+    return PropertyAccessInfo::FastAccessorConstant(zone(), receiver_map,
                                                     Handle<Object>(), holder);
   }
-  Handle<Object> accessors = get_accessors();
+  Handle<Object> accessors(descriptors->GetStrongValue(descriptor), isolate());
   if (!accessors->IsAccessorPair()) {
-    return PropertyAccessInfo::Invalid(zone);
+    return PropertyAccessInfo::Invalid(zone());
   }
   Handle<Object> accessor(access_mode == AccessMode::kLoad
                               ? Handle<AccessorPair>::cast(accessors)->getter()
                               : Handle<AccessorPair>::cast(accessors)->setter(),
-                          isolate);
+                          isolate());
   if (!accessor->IsJSFunction()) {
-    CallOptimization optimization(isolate, accessor);
+    CallOptimization optimization(isolate(), accessor);
     if (!optimization.is_simple_api_call() ||
         optimization.IsCrossContextLazyAccessorPair(
-            *broker->target_native_context().object(), *map)) {
-      return PropertyAccessInfo::Invalid(zone);
+            *broker()->target_native_context().object(), *map)) {
+      return PropertyAccessInfo::Invalid(zone());
     }
 
     CallOptimization::HolderLookup lookup;
     holder = optimization.LookupHolderOfExpectedType(receiver_map, &lookup);
     if (lookup == CallOptimization::kHolderNotFound) {
-      return PropertyAccessInfo::Invalid(zone);
+      return PropertyAccessInfo::Invalid(zone());
     }
     DCHECK_IMPLIES(lookup == CallOptimization::kHolderIsReceiver,
                    holder.is_null());
@@ -575,39 +570,15 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   }
   if (access_mode == AccessMode::kLoad) {
     Handle<Name> cached_property_name;
-    if (FunctionTemplateInfo::TryGetCachedPropertyName(isolate, accessor)
+    if (FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), accessor)
             .ToHandle(&cached_property_name)) {
-      PropertyAccessInfo access_info = ai_factory->ComputePropertyAccessInfo(
-          map, cached_property_name, access_mode);
+      PropertyAccessInfo access_info =
+          ComputePropertyAccessInfo(map, cached_property_name, access_mode);
       if (!access_info.IsInvalid()) return access_info;
     }
   }
-  if (map->is_dictionary_map()) {
-    return PropertyAccessInfo::DictionaryProtoAccessorConstant(
-        zone, receiver_map, holder, accessor, name);
-  } else {
-    return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map,
-                                                    accessor, holder);
-  }
-}
-
-}  // namespace
-
-PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
-    Handle<Map> receiver_map, Handle<Name> name, Handle<Map> holder_map,
-    MaybeHandle<JSObject> holder, InternalIndex descriptor,
-    AccessMode access_mode) const {
-  DCHECK(descriptor.is_found());
-  Handle<DescriptorArray> descriptors(
-      holder_map->instance_descriptors(kRelaxedLoad), isolate());
-  SLOW_DCHECK(descriptor == descriptors->Search(*name, *holder_map));
-
-  auto get_accessors = [&]() {
-    return handle(descriptors->GetStrongValue(descriptor), isolate());
-  };
-  return AccessorAccessInfoHelper(isolate(), zone(), broker(), this,
-                                  receiver_map, name, holder_map, holder,
-                                  access_mode, get_accessors);
+  return PropertyAccessInfo::FastAccessorConstant(zone(), receiver_map,
+                                                  accessor, holder);
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
@@ -628,13 +599,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
         zone(), receiver_map, holder, dictionary_index, name);
   }
 
-  auto get_accessors = [&]() {
-    return JSObject::DictionaryPropertyAt(holder, dictionary_index);
-  };
-  Handle<Map> holder_map = handle(holder->map(), isolate());
-  return AccessorAccessInfoHelper(isolate(), zone(), broker(), this,
-                                  receiver_map, name, holder_map, holder,
-                                  access_mode, get_accessors);
+  // TODO(v8:11248) Support for accessors is implemented a in follow-up CL.
+  return PropertyAccessInfo::Invalid(zone());
 }
 
 MinimorphicLoadPropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(

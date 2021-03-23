@@ -110,11 +110,10 @@ class ConstantInDictionaryPrototypeChainDependency final
  public:
   explicit ConstantInDictionaryPrototypeChainDependency(
       const MapRef receiver_map, const NameRef property_name,
-      const ObjectRef constant, PropertyKind kind)
+      const ObjectRef constant)
       : receiver_map_(receiver_map),
         property_name_{property_name},
-        constant_{constant},
-        kind_{kind} {
+        constant_{constant} {
     DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
   }
 
@@ -167,26 +166,7 @@ class ConstantInDictionaryPrototypeChainDependency final
         return ValidationResult::kFoundIncorrect;
       }
 
-      Object dictionary_value = dictionary.ValueAt(entry);
-      Object value;
-      // We must be able to detect the case that the property |property_name_|
-      // of |holder_| was originally a plain function |constant_| (when creating
-      // this dependency) and has since become an accessor whose getter is
-      // |constant_|. Therefore, we cannot just look at the property kind of
-      // |details|, because that reflects the current situation, not the one
-      // when creating this dependency.
-      if (details.kind() != kind_) {
-        return ValidationResult::kFoundIncorrect;
-      }
-      if (kind_ == PropertyKind::kAccessor) {
-        // Only supporting loading at the moment, so we only ever want the
-        // getter.
-        CHECK(dictionary_value.IsAccessorPair());
-        value = AccessorPair::cast(dictionary_value)
-                    .get(AccessorComponent::ACCESSOR_GETTER);
-      } else {
-        value = dictionary_value;
-      }
+      Object value = dictionary.ValueAt(entry);
       return value == *constant_.object() ? ValidationResult::kFoundCorrect
                                           : ValidationResult::kFoundIncorrect;
     };
@@ -222,7 +202,6 @@ class ConstantInDictionaryPrototypeChainDependency final
   MapRef receiver_map_;
   NameRef property_name_;
   ObjectRef constant_;
-  PropertyKind kind_;
 };
 
 class TransitionDependency final : public CompilationDependency {
@@ -525,9 +504,9 @@ void CompilationDependencies::DependOnStableMap(const MapRef& map) {
 
 void CompilationDependencies::DependOnConstantInDictionaryPrototypeChain(
     const MapRef& receiver_map, const NameRef& property_name,
-    const ObjectRef& constant, PropertyKind kind) {
+    const ObjectRef& constant) {
   RecordDependency(zone_->New<ConstantInDictionaryPrototypeChainDependency>(
-      receiver_map, property_name, constant, kind));
+      receiver_map, property_name, constant));
 }
 
 AllocationType CompilationDependencies::DependOnPretenureMode(

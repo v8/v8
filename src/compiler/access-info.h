@@ -105,7 +105,7 @@ class PropertyAccessInfo final {
       InternalIndex dict_index, Handle<Name> name);
   static PropertyAccessInfo DictionaryProtoAccessorConstant(
       Zone* zone, Handle<Map> receiver_map, MaybeHandle<JSObject> holder,
-      Handle<Object> constant, Handle<Name> name);
+      Handle<Object> constant);
 
   bool Merge(PropertyAccessInfo const* that, AccessMode access_mode,
              Zone* zone) V8_WARN_UNUSED_RESULT;
@@ -183,7 +183,7 @@ class PropertyAccessInfo final {
   PropertyAccessInfo(Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
                      ZoneVector<Handle<Map>>&& lookup_start_object_maps);
   PropertyAccessInfo(Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
-                     Handle<Object> constant, MaybeHandle<Name> name,
+                     Handle<Object> constant,
                      ZoneVector<Handle<Map>>&& lookup_start_object_maps);
   PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                      MaybeHandle<Map> transition_map, FieldIndex field_index,
