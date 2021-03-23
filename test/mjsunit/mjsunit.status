@@ -46,6 +46,11 @@
   'regress/wasm/regress-1153442': [SKIP],
   # Introduced in https://chromium-review.googlesource.com/c/v8/v8/+/2649176
   'regress/wasm/regress-1161654': [SKIP],
+  # TODO(1161847): Skip merged-back tests in order to fix the stable branch -
+  # the testing harness doesn't provide the expected --fuzzing flag.
+  # Introduced in https://chromium-review.googlesource.com/c/v8/v8/+/2748079
+  'regress/regress-crbug-1161847-1': [SKIP],
+  'regress/regress-crbug-1161847-2': [SKIP],
 
   ##############################################################################
   # Open bugs.
