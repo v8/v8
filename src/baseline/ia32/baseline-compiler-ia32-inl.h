@@ -16,11 +16,11 @@ namespace baseline {
 #define __ basm_.
 
 void BaselineCompiler::Prologue() {
-  __ Move(ecx, bytecode_);
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
+  int max_frame_size = bytecode_->frame_size() + max_call_args_;
   CallBuiltin(Builtins::kBaselineOutOfLinePrologue, kContextRegister,
-              kJSFunctionRegister, kJavaScriptCallArgCountRegister, ecx,
-              kJavaScriptCallNewTargetRegister);
+              kJSFunctionRegister, kJavaScriptCallArgCountRegister,
+              max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
 
   PrologueFillFrame();
 }

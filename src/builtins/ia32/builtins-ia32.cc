@@ -1644,16 +1644,19 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       Builtins::kBaselineOutOfLinePrologue);
   Register arg_count = descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kJavaScriptCallArgCount);
-  Register bytecode_array = descriptor.GetRegisterParameter(
-      BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+  Register frame_size = descriptor.GetRegisterParameter(
+      BaselineOutOfLinePrologueDescriptor::kStackFrameSize);
 
   // Save argument count and bytecode array.
   XMMRegister saved_arg_count = xmm0;
   XMMRegister saved_bytecode_array = xmm1;
+  XMMRegister saved_frame_size = xmm2;
+  XMMRegister saved_feedback_vector = xmm3;
   __ movd(saved_arg_count, arg_count);
-  __ movd(saved_bytecode_array, bytecode_array);
+  __ movd(saved_frame_size, frame_size);
 
-  Register scratch = eax;
+  // Use the arg count (eax) as the scratch register.
+  Register scratch = arg_count;
 
   // Load the feedback vector from the closure.
   Register feedback_vector = ecx;
@@ -1671,7 +1674,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // register.
   Label has_optimized_code_or_marker;
   Register optimization_state = ecx;
-  XMMRegister saved_feedback_vector = xmm2;
   LoadOptimizationStateAndJumpIfNeedsProcessing(masm, optimization_state,
                                                 saved_feedback_vector,
                                                 &has_optimized_code_or_marker);
@@ -1685,6 +1687,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // Save the return address, so that we can push it to the end of the newly
   // set-up frame once we're done setting it up.
   __ PopReturnAddressTo(return_address, scratch);
+  // The bytecode array was pushed to the stack by the caller.
+  __ Pop(saved_bytecode_array, scratch);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::BASELINE);
 
@@ -1700,6 +1704,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // We'll use the bytecode for both code age/OSR resetting, and pushing onto
   // the frame, so load it into a register.
+  Register bytecode_array = scratch;
   __ movd(bytecode_array, saved_bytecode_array);
   // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset
   // are 8-bit fields next to each other, so we could just optimize by writing
@@ -1727,10 +1732,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     //
     // TODO(v8:11429): Backport this folded check to the
     // InterpreterEntryTrampoline.
-    Register frame_size = ecx;
-    __ movd(bytecode_array, saved_bytecode_array);
-    __ movzx_w(frame_size,
-               FieldOperand(bytecode_array, BytecodeArray::kFrameSizeOffset));
+    __ movd(frame_size, saved_frame_size);
     __ Move(scratch, esp);
     DCHECK_NE(frame_size, kJavaScriptCallNewTargetRegister);
     __ sub(scratch, frame_size);
@@ -1747,11 +1749,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ bind(&has_optimized_code_or_marker);
   {
     __ RecordComment("[ Optimized marker check");
-    // Drop the return address, rebalancing the return stack buffer by using
-    // JumpMode::kPushAndReturn. We can't leave the slot and overwrite it on
-    // return since we may do a runtime call along the way that requires the
-    // stack to only contain valid frames.
-    __ Drop(1);
+    // Drop the return address and bytecode array, rebalancing the return stack
+    // buffer by using JumpMode::kPushAndReturn. We can't leave the slot and
+    // overwrite it on return since we may do a runtime call along the way that
+    // requires the stack to only contain valid frames.
+    __ Drop(2);
     __ movd(arg_count, saved_arg_count);  // Restore actual argument count.
     MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                  saved_feedback_vector);
@@ -1769,7 +1771,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       FrameScope frame_scope(masm, StackFrame::INTERNAL);
       // Save incoming new target or generator
       __ Push(kJavaScriptCallNewTargetRegister);
-      __ CallRuntime(Runtime::kStackGuard, 0);
+      __ SmiTag(frame_size);
+      __ Push(frame_size);
+      __ CallRuntime(Runtime::kStackGuardWithGap, 1);
       __ Pop(kJavaScriptCallNewTargetRegister);
     }
 

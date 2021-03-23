@@ -391,8 +391,36 @@ void BaselineCompiler::AddPosition() {
 }
 
 void BaselineCompiler::PreVisitSingleBytecode() {
-  if (iterator().current_bytecode() == interpreter::Bytecode::kJumpLoop) {
-    EnsureLabels(iterator().GetJumpTargetOffset());
+  switch (iterator().current_bytecode()) {
+    case interpreter::Bytecode::kJumpLoop:
+      EnsureLabels(iterator().GetJumpTargetOffset());
+      break;
+
+    // TODO(leszeks): Update the max_call_args as part of the main bytecode
+    // visit loop, by patching the value passed to the prologue.
+    case interpreter::Bytecode::kCallProperty:
+    case interpreter::Bytecode::kCallAnyReceiver:
+    case interpreter::Bytecode::kCallWithSpread:
+    case interpreter::Bytecode::kCallNoFeedback:
+    case interpreter::Bytecode::kConstruct:
+    case interpreter::Bytecode::kConstructWithSpread:
+      return UpdateMaxCallArgs(
+          iterator().GetRegisterListOperand(1).register_count());
+    case interpreter::Bytecode::kCallUndefinedReceiver:
+      return UpdateMaxCallArgs(
+          iterator().GetRegisterListOperand(1).register_count() + 1);
+    case interpreter::Bytecode::kCallProperty0:
+    case interpreter::Bytecode::kCallUndefinedReceiver0:
+      return UpdateMaxCallArgs(1);
+    case interpreter::Bytecode::kCallProperty1:
+    case interpreter::Bytecode::kCallUndefinedReceiver1:
+      return UpdateMaxCallArgs(2);
+    case interpreter::Bytecode::kCallProperty2:
+    case interpreter::Bytecode::kCallUndefinedReceiver2:
+      return UpdateMaxCallArgs(3);
+
+    default:
+      break;
   }
 }
 

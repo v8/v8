@@ -1622,7 +1622,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register closure = descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kClosure);
   // Load the feedback vector from the closure.
-  Register feedback_vector = rbx;
+  Register feedback_vector = r11;
   __ LoadTaggedPointerField(
       feedback_vector, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedPointerField(feedback_vector,
@@ -1690,6 +1690,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   __ RecordComment("[ Stack/interrupt check");
   Label call_stack_guard;
+  Register frame_size = descriptor.GetRegisterParameter(
+      BaselineOutOfLinePrologueDescriptor::kStackFrameSize);
   {
     // Stack check. This folds the checks for both the interrupt stack limit
     // check and the real stack limit into one by just checking for the
@@ -1699,9 +1701,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     //
     // TODO(v8:11429): Backport this folded check to the
     // InterpreterEntryTrampoline.
-    Register frame_size = r11;
-    __ movzxwl(frame_size,
-               FieldOperand(bytecode_array, BytecodeArray::kFrameSizeOffset));
     __ Move(kScratchRegister, rsp);
     DCHECK_NE(frame_size, new_target);
     __ subq(kScratchRegister, frame_size);
@@ -1740,7 +1739,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       FrameScope frame_scope(masm, StackFrame::INTERNAL);
       // Save incoming new target or generator
       __ Push(new_target);
-      __ CallRuntime(Runtime::kStackGuard, 0);
+      __ SmiTag(frame_size);
+      __ Push(frame_size);
+      __ CallRuntime(Runtime::kStackGuardWithGap, 1);
       __ Pop(new_target);
     }
 

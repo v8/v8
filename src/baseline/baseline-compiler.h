@@ -111,6 +111,10 @@ class BaselineCompiler {
 
   // Misc. helpers.
 
+  void UpdateMaxCallArgs(int max_call_args) {
+    max_call_args_ = std::max(max_call_args_, max_call_args);
+  }
+
   // Select the root boolean constant based on the jump in the given
   // `jump_func` -- the function should jump to the given label if we want to
   // select "true", otherwise it should fall through.
@@ -169,6 +173,8 @@ class BaselineCompiler {
   interpreter::BytecodeArrayIterator iterator_;
   BytecodeOffsetTableBuilder bytecode_offset_table_builder_;
   Zone zone_;
+
+  int max_call_args_ = 0;
 
   struct ThreadedLabel {
     Label label;

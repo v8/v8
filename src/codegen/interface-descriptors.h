@@ -1466,16 +1466,26 @@ class V8_EXPORT_PRIVATE TailCallOptimizedCodeSlotDescriptor
 class BaselineOutOfLinePrologueDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kCalleeContext, kClosure,
-                               kJavaScriptCallArgCount,
-                               kInterpreterBytecodeArray,
-                               kJavaScriptCallNewTarget)
+                               kJavaScriptCallArgCount, kStackFrameSize,
+                               kJavaScriptCallNewTarget,
+                               kInterpreterBytecodeArray)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kCalleeContext
                          MachineType::AnyTagged(),  // kClosure
                          MachineType::Int32(),      // kJavaScriptCallArgCount
-                         MachineType::AnyTagged(),  // kInterpreterBytecodeArray
-                         MachineType::AnyTagged())  // kJavaScriptCallNewTarget
+                         MachineType::Int32(),      // kStackFrameSize
+                         MachineType::AnyTagged(),  // kJavaScriptCallNewTarget
+                         MachineType::AnyTagged())  // kInterpreterBytecodeArray
   DECLARE_DESCRIPTOR(BaselineOutOfLinePrologueDescriptor,
                      CallInterfaceDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  static const bool kPassLastArgsOnStack = true;
+#else
+  static const bool kPassLastArgsOnStack = false;
+#endif
+
+  // Pass bytecode array through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 1 : 0;
 };
 
 class BaselineLeaveFrameDescriptor : public CallInterfaceDescriptor {
