@@ -98,6 +98,10 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
   Operand dst(base, offset);
   switch (kind) {
     case kI32:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kRttWithDepth:
       assm->mov(dst, src.gp());
       break;
     case kI64:

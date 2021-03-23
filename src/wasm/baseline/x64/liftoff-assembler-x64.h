@@ -119,6 +119,12 @@ inline void Store(LiftoffAssembler* assm, Operand dst, LiftoffRegister src,
     case kI64:
       assm->movq(dst, src.gp());
       break;
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kRttWithDepth:
+      assm->StoreTaggedField(dst, src.gp());
+      break;
     case kF32:
       assm->Movss(dst, src.fp());
       break;
