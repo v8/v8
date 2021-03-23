@@ -3203,33 +3203,26 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
 
+  data.BeginPhaseKind("V8.WasmOptimization");
   if (FLAG_wasm_loop_unrolling) {
     pipeline.Run<WasmLoopUnrollingPhase>(loop_info);
-    pipeline.RunPrintAndVerify("V8.WasmLoopUnrolling", true);
+    pipeline.RunPrintAndVerify(WasmLoopUnrollingPhase::phase_name(), true);
   }
   const bool is_asm_js = is_asmjs_module(module);
 
   if (FLAG_wasm_opt || is_asm_js) {
     pipeline.Run<CsaEarlyOptimizationPhase>(is_asm_js);
     pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
+  } else {
+    pipeline.Run<WasmBaseOptimizationPhase>();
+    pipeline.RunPrintAndVerify(WasmBaseOptimizationPhase::phase_name(), true);
   }
 
   pipeline.Run<MemoryOptimizationPhase>();
   pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
-  data.BeginPhaseKind("V8.WasmOptimization");
   if (FLAG_turbo_splitting && !is_asm_js) {
     data.info()->set_splitting();
-  }
-  if (FLAG_wasm_opt || is_asm_js) {
-    pipeline.Run<CsaOptimizationPhase>(is_asm_js);
-    pipeline.RunPrintAndVerify(CsaOptimizationPhase::phase_name(), true);
-    pipeline.Run<DecompressionOptimizationPhase>();
-    pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
-                               true);
-  } else {
-    pipeline.Run<WasmBaseOptimizationPhase>();
-    pipeline.RunPrintAndVerify(WasmBaseOptimizationPhase::phase_name(), true);
   }
 
   if (data.node_origins()) {
