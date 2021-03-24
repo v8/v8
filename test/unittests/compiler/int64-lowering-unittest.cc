@@ -228,9 +228,8 @@ TEST_F(Int64LoweringTest, Int64LoadImmutable) {
                 AllOf(CaptureEq(&high_word_load), high_word_load_matcher),
                 start(), start()));
 #elif defined(V8_TARGET_BIG_ENDIAN)
-  Matcher<Node*> high_word_load_matcher =
-      IsLoadImmutable(MachineType::Int32(), IsInt32Constant(base),
-                      IsInt32Constant(index), start(), start());
+  Matcher<Node*> high_word_load_matcher = IsLoadImmutable(
+      MachineType::Int32(), IsInt32Constant(base), IsInt32Constant(index));
 
   EXPECT_THAT(
       graph()->end()->InputAt(1),
