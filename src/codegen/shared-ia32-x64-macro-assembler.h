@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_H_
 #define V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_H_
 
+#include "src/base/macros.h"
 #include "src/codegen/turbo-assembler.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -22,7 +23,15 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
+  void I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src);
+  void I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch);
+  void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
+  void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch);
   void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
+  void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch);
 };
 }  // namespace internal
 }  // namespace v8

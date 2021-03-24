@@ -607,11 +607,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // These Wasm SIMD ops do not have direct lowerings on x64. These
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
-  void I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src);
-  void I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src);
-  void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
-  void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src);
-  void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src);
 
   // Requires dst == mask when AVX is not supported.
   void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,

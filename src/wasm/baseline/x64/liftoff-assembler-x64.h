@@ -3567,7 +3567,7 @@ void LiftoffAssembler::emit_i64x2_uconvert_i32x4_low(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  I64x2UConvertI32x4High(dst.fp(), src.fp());
+  I64x2UConvertI32x4High(dst.fp(), src.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
@@ -4034,7 +4034,7 @@ void LiftoffAssembler::emit_i16x8_uconvert_i8x16_low(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_uconvert_i8x16_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  I16x8UConvertI8x16High(dst.fp(), src.fp());
+  I16x8UConvertI8x16High(dst.fp(), src.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_i16x8_low(LiftoffRegister dst,
@@ -4054,7 +4054,7 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_low(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  I32x4UConvertI16x8High(dst.fp(), src.fp());
+  I32x4UConvertI16x8High(dst.fp(), src.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,

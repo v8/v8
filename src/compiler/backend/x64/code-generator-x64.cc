@@ -2921,7 +2921,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2UConvertI32x4High: {
       __ I64x2UConvertI32x4High(i.OutputSimd128Register(),
-                                i.InputSimd128Register(0));
+                                i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
     case kX64I32x4Splat: {
@@ -3063,7 +3063,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4UConvertI16x8High: {
       __ I32x4UConvertI16x8High(i.OutputSimd128Register(),
-                                i.InputSimd128Register(0));
+                                i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
     case kX64I32x4ShrU: {
@@ -3254,7 +3254,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8UConvertI8x16High: {
       __ I16x8UConvertI8x16High(i.OutputSimd128Register(),
-                                i.InputSimd128Register(0));
+                                i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
     case kX64I16x8ShrU: {
