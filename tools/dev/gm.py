@@ -170,6 +170,17 @@ def PrintHelpAndExit():
   print(HELP)
   sys.exit(0)
 
+def PrintCompletionsAndExit():
+  for a in ARCHES:
+    print("%s" % a)
+    for m in MODES:
+      print("%s" % m)
+      print("%s.%s" % (a, m))
+      for t in TARGETS:
+        print("%s" % t)
+        print("%s.%s.%s" % (a, m, t))
+  sys.exit(0)
+
 def _Call(cmd, silent=False):
   if not silent: print("# %s" % cmd)
   return subprocess.call(cmd, shell=True)
@@ -377,6 +388,8 @@ class ArgumentParser(object):
   def ParseArg(self, argstring):
     if argstring in ("-h", "--help", "help"):
       PrintHelpAndExit()
+    if argstring == "--print-completions":
+      PrintCompletionsAndExit()
     arches = []
     modes = []
     targets = []

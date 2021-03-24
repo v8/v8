@@ -118,3 +118,21 @@ _maybe_setup_gdb_completions() {
 }
 _maybe_setup_gdb_completions
 unset _maybe_setup_gdb_completions
+
+_get_gm_flags() {
+  "$v8_source/tools/dev/gm.py" --print-completions
+
+  # cctest ignore directory structure, it's always "cctest/filename".
+  find "$v8_source/test/cctest/" -type f -name 'test-*' | \
+    xargs basename -a -s ".cc" | \
+    while read -r item; do echo "cctest/$item/*"; done
+}
+
+_gm_flag() {
+  local targets=$(_get_gm_flags)
+  COMPREPLY=($(compgen -W "$targets" -- "${COMP_WORDS[COMP_CWORD]}"))
+  return 0
+}
+
+# gm might be an alias, based on https://v8.dev/docs/build-gn#gm.
+complete -F _gm_flag gm.py gm
