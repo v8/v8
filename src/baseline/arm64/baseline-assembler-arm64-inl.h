@@ -87,8 +87,6 @@ void BaselineAssembler::Bind(Label* label) {
   __ BindJumpTarget(label);
 }
 
-void BaselineAssembler::JumpTarget() { __ JumpTarget(); }
-
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ B(target);
 }

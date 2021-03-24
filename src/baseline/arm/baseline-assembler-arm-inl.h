@@ -92,10 +92,6 @@ void BaselineAssembler::Bind(Label* label) {
   __ bind(label);
 }
 
-void BaselineAssembler::JumpTarget() {
-  // NOP on arm.
-}
-
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ b(target);
 }

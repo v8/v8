@@ -93,10 +93,6 @@ MemOperand BaselineAssembler::FeedbackVectorOperand() {
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
 
-void BaselineAssembler::JumpTarget() {
-  // NOP on x64.
-}
-
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ jmp(target, distance);
 }
