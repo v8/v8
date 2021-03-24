@@ -873,6 +873,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       AssembleArchBoolean(instr, condition);
       break;
     }
+    case kFlags_select: {
+      AssembleArchSelect(instr, condition);
+      break;
+    }
     case kFlags_trap: {
 #if V8_ENABLE_WEBASSEMBLY
       AssembleArchTrap(instr, condition);

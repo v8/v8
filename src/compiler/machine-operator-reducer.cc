@@ -1951,6 +1951,10 @@ Reduction MachineOperatorReducer::ReduceWordNXor(Node* node) {
 
 Reduction MachineOperatorReducer::ReduceWord32Xor(Node* node) {
   DCHECK_EQ(IrOpcode::kWord32Xor, node->opcode());
+  Int32BinopMatcher m(node);
+  if (m.right().IsWord32Equal() && m.left().Is(1)) {
+    return Replace(Word32Equal(m.right().node(), Int32Constant(0)));
+  }
   return ReduceWordNXor<Word32Adapter>(node);
 }
 

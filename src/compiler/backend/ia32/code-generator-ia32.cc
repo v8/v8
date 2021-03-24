@@ -4451,6 +4451,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ jmp(Operand::JumpTable(input, times_system_pointer_size, table));
 }
 
+void CodeGenerator::AssembleArchSelect(Instruction* instr,
+                                       FlagsCondition condition) {
+  UNIMPLEMENTED();
+}
+
 // The calling convention for JSFunctions on IA32 passes arguments on the
 // stack and the JSFunction and context in EDI and ESI, respectively, thus
 // the steps of the call look as follows:

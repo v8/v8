@@ -286,6 +286,9 @@ class WasmGraphBuilder {
                   wasm::WasmCodePosition position);
   void TrapIfFalse(wasm::TrapReason reason, Node* cond,
                    wasm::WasmCodePosition position);
+  Node* Select(Node *cond, Node* true_node, Node* false_node,
+               wasm::ValueType type);
+
   void TrapIfEq32(wasm::TrapReason reason, Node* node, int32_t val,
                   wasm::WasmCodePosition position);
   void ZeroCheck32(wasm::TrapReason reason, Node* node,

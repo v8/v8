@@ -702,6 +702,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Float64GreaterThanOrEqual(Node* a, Node* b) {
     return Float64LessThanOrEqual(b, a);
   }
+  Node* Float32Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Float32Select().op(), condition, b, c);
+  }
+  Node* Float64Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Float64Select().op(), condition, b, c);
+  }
 
   // Conversions.
   Node* BitcastTaggedToWord(Node* a) {

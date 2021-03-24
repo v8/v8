@@ -698,6 +698,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                    const Operand& operand);
   void Csel(const Register& rd, const Register& rn, const Operand& operand,
             Condition cond);
+  inline void Fcsel(const VRegister& fd, const VRegister& fn,
+                    const VRegister& fm, Condition cond);
 
   // Emits a runtime assert that the stack pointer is aligned.
   void AssertSpAligned();
@@ -1511,8 +1513,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                     Condition cond);
   inline void Extr(const Register& rd, const Register& rn, const Register& rm,
                    unsigned lsb);
-  inline void Fcsel(const VRegister& fd, const VRegister& fn,
-                    const VRegister& fm, Condition cond);
   void Fcvtl(const VRegister& vd, const VRegister& vn) {
     DCHECK(allow_macro_instructions());
     fcvtl(vd, vn);

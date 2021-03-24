@@ -2970,6 +2970,23 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ Cset(reg, cc);
 }
 
+void CodeGenerator::AssembleArchSelect(Instruction* instr,
+                                       FlagsCondition condition) {
+  Arm64OperandConverter i(this, instr);
+  MachineRepresentation rep =
+    LocationOperand::cast(instr->OutputAt(0))->representation();
+  Condition cc = FlagsConditionToCondition(condition);
+  DCHECK_EQ(instr->InputCount(), 4);
+  if (rep == MachineRepresentation::kFloat32) {
+    __ Fcsel(i.OutputFloat32Register(), i.InputFloat32Register(2),
+             i.InputFloat32Register(3), cc);
+  } else {
+    DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+    __ Fcsel(i.OutputFloat64Register(), i.InputFloat64Register(2),
+             i.InputFloat64Register(3), cc);
+  }
+}
+
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
   Register input = i.InputRegister32(0);

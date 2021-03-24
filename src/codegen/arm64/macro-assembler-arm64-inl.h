@@ -548,7 +548,7 @@ void TurboAssembler::Fcmp(const VRegister& fn, double value) {
   }
 }
 
-void MacroAssembler::Fcsel(const VRegister& fd, const VRegister& fn,
+void TurboAssembler::Fcsel(const VRegister& fd, const VRegister& fn,
                            const VRegister& fm, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK((cond != al) && (cond != nv));

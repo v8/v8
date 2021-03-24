@@ -452,7 +452,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
                 InstructionCode opcode, ImmediateMode operand_mode,
                 FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
-  InstructionOperand inputs[3];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;
@@ -505,6 +505,11 @@ void VisitBinop(InstructionSelector* selector, Node* node,
 
   if (!IsComparisonField::decode(properties)) {
     outputs[output_count++] = g.DefineAsRegister(node);
+  }
+
+  if (cont->IsSelect()) {
+    inputs[input_count++] = g.UseRegister(cont->true_value());
+    inputs[input_count++] = g.UseRegister(cont->false_value());
   }
 
   DCHECK_NE(0u, input_count);
@@ -2133,7 +2138,15 @@ namespace {
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont) {
-  selector->EmitWithContinuation(opcode, left, right, cont);
+  if (cont->IsSelect()) {
+    Arm64OperandGenerator g(selector);
+    InstructionOperand inputs[] = { left, right,
+                                    g.UseRegister(cont->true_value()),
+                                    g.UseRegister(cont->false_value()) };
+    selector->EmitWithContinuation(opcode, 0, nullptr, 4, inputs, cont);
+  } else {
+    selector->EmitWithContinuation(opcode, left, right, cont);
+  }
 }
 
 // This function checks whether we can convert:
@@ -2820,8 +2833,8 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
          g.UseRegister(value), g.Label(cont->true_block()),
          g.Label(cont->false_block()));
   } else {
-    EmitWithContinuation(cont->Encode(kArm64Tst32), g.UseRegister(value),
-                         g.UseRegister(value), cont);
+    VisitCompare(this, cont->Encode(kArm64Tst32), g.UseRegister(value),
+                 g.UseRegister(value), cont);
   }
 }
 
@@ -4017,7 +4030,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kWord32ReverseBits |
          MachineOperatorBuilder::kWord64ReverseBits |
-         MachineOperatorBuilder::kSatConversionIsSafe;
+         MachineOperatorBuilder::kSatConversionIsSafe |
+         MachineOperatorBuilder::kFloat32Select |
+         MachineOperatorBuilder::kFloat64Select;
 }
 
 // static

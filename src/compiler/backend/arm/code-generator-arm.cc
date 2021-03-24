@@ -41,6 +41,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
       case kFlags_deoptimize_and_poison:
       case kFlags_set:
       case kFlags_trap:
+      case kFlags_select:
         return SetCC;
       case kFlags_none:
         return LeaveCC;
@@ -3704,6 +3705,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   for (size_t index = 0; index < case_count; ++index) {
     __ b(GetLabel(i.InputRpo(index + 2)));
   }
+}
+
+void CodeGenerator::AssembleArchSelect(Instruction* instr,
+                                       FlagsCondition condition) {
+  UNIMPLEMENTED();
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {

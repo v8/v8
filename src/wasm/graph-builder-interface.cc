@@ -419,13 +419,8 @@ class WasmGraphBuildingInterface {
 
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
-    TFNode* controls[2];
-    builder_->BranchNoHint(cond.node, &controls[0], &controls[1]);
-    TFNode* merge = builder_->Merge(2, controls);
-    TFNode* inputs[] = {tval.node, fval.node, merge};
-    TFNode* phi = builder_->Phi(tval.type, 2, inputs);
-    result->node = phi;
-    builder_->SetControl(merge);
+    result->node =
+      builder_->Select(cond.node, tval.node, fval.node, result->type);
   }
 
   ValueVector CopyStackValues(FullDecoder* decoder, uint32_t count,

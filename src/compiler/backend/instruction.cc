@@ -416,6 +416,8 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "set";
     case kFlags_trap:
       return os << "trap";
+    case kFlags_select:
+      return os << "select";
   }
   UNREACHABLE();
 }

@@ -1292,6 +1292,28 @@ Node* WasmGraphBuilder::BranchExpectFalse(Node* cond, Node** true_node,
   return gasm_->Branch(cond, true_node, false_node, BranchHint::kFalse);
 }
 
+Node* WasmGraphBuilder::Select(Node *cond, Node* true_node,
+                               Node* false_node, wasm::ValueType type) {
+  MachineOperatorBuilder* m = mcgraph()->machine();
+  wasm::ValueKind kind = type.kind();
+  // Lower to select if supported.
+  if (kind == wasm::kF32 && m->Float32Select().IsSupported()) {
+    return mcgraph()->graph()->NewNode(m->Float32Select().op(), cond,
+                                       true_node, false_node);
+  }
+  if (kind == wasm::kF64 && m->Float64Select().IsSupported()) {
+    return mcgraph()->graph()->NewNode(m->Float64Select().op(), cond,
+                                       true_node, false_node);
+  }
+  // Default to control-flow.
+  Node* controls[2];
+  BranchNoHint(cond, &controls[0], &controls[1]);
+  Node* merge = Merge(2, controls);
+  SetControl(merge);
+  Node* inputs[] = {true_node, false_node, merge};
+  return Phi(type, 2, inputs);
+}
+
 TrapId WasmGraphBuilder::GetTrapIdForTrap(wasm::TrapReason reason) {
   // TODO(wasm): "!env_" should not happen when compiling an actual wasm
   // function.

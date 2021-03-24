@@ -92,6 +92,11 @@ class FlagsContinuation final {
     return FlagsContinuation(condition, trap_id, result);
   }
 
+  static FlagsContinuation ForSelect(FlagsCondition condition, Node* result,
+                                     Node* true_value, Node* false_value) {
+    return FlagsContinuation(condition, result, true_value, false_value);
+  }
+
   bool IsNone() const { return mode_ == kFlags_none; }
   bool IsBranch() const {
     return mode_ == kFlags_branch || mode_ == kFlags_branch_and_poison;
@@ -105,6 +110,7 @@ class FlagsContinuation final {
   }
   bool IsSet() const { return mode_ == kFlags_set; }
   bool IsTrap() const { return mode_ == kFlags_trap; }
+  bool IsSelect() const { return mode_ == kFlags_select; }
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
@@ -138,7 +144,7 @@ class FlagsContinuation final {
     return extra_args_count_;
   }
   Node* result() const {
-    DCHECK(IsSet());
+    DCHECK(IsSet() || IsSelect());
     return frame_state_or_result_;
   }
   TrapId trap_id() const {
@@ -152,6 +158,14 @@ class FlagsContinuation final {
   BasicBlock* false_block() const {
     DCHECK(IsBranch());
     return false_block_;
+  }
+  Node* true_value() const {
+    DCHECK(IsSelect());
+    return true_value_;
+  }
+  Node* false_value() const {
+    DCHECK(IsSelect());
+    return false_value_;
   }
 
   void Negate() {
@@ -244,6 +258,18 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
+  FlagsContinuation(FlagsCondition condition, Node* result,
+                    Node* true_value, Node* false_value)
+      : mode_(kFlags_select),
+        condition_(condition),
+        frame_state_or_result_(result),
+        true_value_(true_value),
+        false_value_(false_value) {
+    DCHECK_NOT_NULL(result);
+    DCHECK_NOT_NULL(true_value);
+    DCHECK_NOT_NULL(false_value);
+  }
+
   FlagsMode const mode_;
   FlagsCondition condition_;
   DeoptimizeKind kind_;             // Only valid if mode_ == kFlags_deoptimize*
@@ -256,6 +282,8 @@ class FlagsContinuation final {
   BasicBlock* true_block_;          // Only valid if mode_ == kFlags_branch*.
   BasicBlock* false_block_;         // Only valid if mode_ == kFlags_branch*.
   TrapId trap_id_;                  // Only valid if mode_ == kFlags_trap.
+  Node* true_value_;                // Only valid if mode_ == kFlags_select.
+  Node* false_value_;               // Only valid if mode_ == kFlags_select.
 };
 
 // This struct connects nodes of parameters which are going to be pushed on the
@@ -631,6 +659,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitSwitch(Node* node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
                        FeedbackSource const& feedback, FrameState frame_state);
+  void VisitSelect(Node* node);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);

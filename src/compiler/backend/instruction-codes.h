@@ -212,7 +212,8 @@ enum FlagsMode {
   kFlags_deoptimize = 3,
   kFlags_deoptimize_and_poison = 4,
   kFlags_set = 5,
-  kFlags_trap = 6
+  kFlags_trap = 6,
+  kFlags_select = 7,
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

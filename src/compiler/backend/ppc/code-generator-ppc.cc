@@ -43,6 +43,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
       case kFlags_deoptimize_and_poison:
       case kFlags_set:
       case kFlags_trap:
+      case kFlags_select:
         return SetRC;
       case kFlags_none:
         return LeaveRC;
@@ -4067,6 +4068,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ ShiftLeftImm(r0, input, Operand(kSystemPointerSizeLog2));
   __ LoadPX(kScratchReg, MemOperand(kScratchReg, r0));
   __ Jump(kScratchReg);
+}
+
+void CodeGenerator::AssembleArchSelect(Instruction* instr,
+                                       FlagsCondition condition) {
+  UNIMPLEMENTED();
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {
