@@ -277,7 +277,7 @@ class Code : public HeapObject {
   inline bool is_interpreter_trampoline_builtin() const;
 
   // Testers for baseline builtins.
-  inline bool is_baseline_prologue_builtin() const;
+  inline bool is_baseline_trampoline_builtin() const;
   inline bool is_baseline_leave_frame_builtin() const;
 
   // Tells whether the code checks the optimization marker in the function's
@@ -406,8 +406,12 @@ class Code : public HeapObject {
   static inline void CopyRelocInfoToByteArray(ByteArray dest,
                                               const CodeDesc& desc);
 
-  inline uintptr_t GetBaselinePCForBytecodeOffset(int bytecode_offset,
-                                                  BytecodeArray bytecodes);
+  inline uintptr_t GetBaselineStartPCForBytecodeOffset(int bytecode_offset,
+                                                       BytecodeArray bytecodes);
+
+  inline uintptr_t GetBaselineEndPCForBytecodeOffset(int bytecode_offset,
+                                                     BytecodeArray bytecodes);
+
   inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc,
                                             BytecodeArray bytecodes);
 
@@ -553,6 +557,17 @@ class Code : public HeapObject {
 
   bool is_promise_rejection() const;
   bool is_exception_caught() const;
+
+  enum BytecodeToPCPosition {
+    kPcAtStartOfBytecode,
+    // End of bytecode equals the start of the next bytecode.
+    // We need it when we deoptimize to the next bytecode (lazy deopt or deopt
+    // of non-topmost frame).
+    kPcAtEndOfBytecode
+  };
+  inline uintptr_t GetBaselinePCForBytecodeOffset(int bytecode_offset,
+                                                  BytecodeToPCPosition position,
+                                                  BytecodeArray bytecodes);
 
   OBJECT_CONSTRUCTORS(Code, HeapObject);
 };

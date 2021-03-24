@@ -40,6 +40,9 @@ class BaselineAssembler {
   inline void DebugBreak();
 
   inline void Bind(Label* label);
+  // Marks the current position as a valid jump target on CFI enabled
+  // architectures.
+  inline void JumpTarget();
   inline void JumpIf(Condition cc, Label* target,
                      Label::Distance distance = Label::kFar);
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);

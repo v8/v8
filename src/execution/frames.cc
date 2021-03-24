@@ -225,16 +225,13 @@ namespace {
 
 bool IsInterpreterFramePc(Isolate* isolate, Address pc,
                           StackFrame::State* state) {
-  Code interpreter_entry_trampoline =
-      isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
-  Code interpreter_bytecode_advance =
-      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeAdvance);
-  Code interpreter_bytecode_dispatch =
-      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
-
-  if (interpreter_entry_trampoline.contains(isolate, pc) ||
-      interpreter_bytecode_advance.contains(isolate, pc) ||
-      interpreter_bytecode_dispatch.contains(isolate, pc)) {
+  Builtins::Name builtin_index = InstructionStream::TryLookupCode(isolate, pc);
+  if (builtin_index != Builtins::kNoBuiltinId &&
+      (builtin_index == Builtins::kInterpreterEntryTrampoline ||
+       builtin_index == Builtins::kInterpreterEnterBytecodeAdvance ||
+       builtin_index == Builtins::kInterpreterEnterBytecodeDispatch ||
+       builtin_index == Builtins::kBaselineEnterAtBytecode ||
+       builtin_index == Builtins::kBaselineEnterAtNextBytecode)) {
     return true;
   } else if (FLAG_interpreted_frames_native_stack) {
     intptr_t marker = Memory<intptr_t>(
@@ -251,7 +248,7 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
     } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
     }
-    interpreter_entry_trampoline =
+    Code interpreter_entry_trampoline =
         isolate->heap()->GcSafeFindCodeForInnerPointer(pc);
     return interpreter_entry_trampoline.is_interpreter_trampoline_builtin();
   } else {
@@ -595,7 +592,10 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       switch (code_obj.kind()) {
         case CodeKind::BUILTIN:
           if (StackFrame::IsTypeMarker(marker)) break;
-          if (code_obj.is_interpreter_trampoline_builtin()) {
+          if (code_obj.is_interpreter_trampoline_builtin() ||
+              // Frames for baseline entry trampolines on the stack are still
+              // interpreted frames.
+              code_obj.is_baseline_trampoline_builtin()) {
             return INTERPRETED;
           }
           if (code_obj.is_baseline_leave_frame_builtin()) {
@@ -1838,8 +1838,8 @@ int BaselineFrame::GetBytecodeOffset() const {
 }
 
 intptr_t BaselineFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
-  return LookupCode().GetBaselinePCForBytecodeOffset(bytecode_offset,
-                                                     GetBytecodeArray());
+  return LookupCode().GetBaselineStartPCForBytecodeOffset(bytecode_offset,
+                                                          GetBytecodeArray());
 }
 
 void BaselineFrame::PatchContext(Context value) {
