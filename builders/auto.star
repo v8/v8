@@ -64,6 +64,8 @@ auto_builder(
                 # https://crrev.com/c/1547863
                 "third_party/perfetto",
                 "third_party/protobuf",
+                # https://crbug.com/1191946
+                "third_party/googletest/src",
                 # Skip these dependencies (list without solution name prefix).
                 "test/mozilla/data",
                 "test/simdjs/data",
