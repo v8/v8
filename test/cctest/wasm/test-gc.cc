@@ -1163,6 +1163,48 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
   tester.CheckResult(caller, 47, 5);
 }
 
+WASM_COMPILED_EXEC_TEST(CallReftypeParameters) {
+  WasmGCTester tester(execution_tier);
+  byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  ValueType kRefType{optref(type_index)};
+  ValueType sig_types[] = {kWasmI32, kRefType, kRefType, kRefType, kRefType,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32};
+  FunctionSig sig(1, 8, sig_types);
+  byte adder = tester.DefineFunction(
+      &sig, {},
+      {WASM_I32_ADD(
+           WASM_STRUCT_GET(type_index, 0, WASM_LOCAL_GET(0)),
+           WASM_I32_ADD(
+               WASM_STRUCT_GET(type_index, 0, WASM_LOCAL_GET(1)),
+               WASM_I32_ADD(
+                   WASM_STRUCT_GET(type_index, 0, WASM_LOCAL_GET(2)),
+                   WASM_I32_ADD(
+                       WASM_STRUCT_GET(type_index, 0, WASM_LOCAL_GET(3)),
+                       WASM_I32_ADD(
+                           WASM_LOCAL_GET(4),
+                           WASM_I32_ADD(WASM_LOCAL_GET(5),
+                                        WASM_I32_ADD(WASM_LOCAL_GET(6),
+                                                     WASM_LOCAL_GET(7)))))))),
+       kExprEnd});
+  byte caller = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_FUNCTION(adder,
+                          WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(2),
+                                                   WASM_RTT_CANON(type_index)),
+                          WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(4),
+                                                   WASM_RTT_CANON(type_index)),
+                          WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(8),
+                                                   WASM_RTT_CANON(type_index)),
+                          WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(16),
+                                                   WASM_RTT_CANON(type_index)),
+                          WASM_I32V(32), WASM_I32V(64), WASM_I32V(128),
+                          WASM_I32V(256)),
+       kExprEnd});
+
+  tester.CompileModule();
+  tester.CheckResult(caller, 510);
+}
+
 WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   WasmGCTester tester(execution_tier);
 

@@ -594,6 +594,14 @@ class LiftoffCompiler {
     }
   }
 
+  constexpr LiftoffRegList RegsUnusedByParams() {
+    LiftoffRegList regs = kGpCacheRegList;
+    for (auto reg : kGpParamRegisters) {
+      regs.clear(reg);
+    }
+    return regs;
+  }
+
   // Returns the number of inputs processed (1 or 2).
   uint32_t ProcessParameter(ValueKind kind, uint32_t input_idx) {
     const bool needs_pair = needs_gp_reg_pair(kind);
@@ -608,7 +616,12 @@ class LiftoffCompiler {
                                                    location.AsRegister());
       }
       DCHECK(location.IsCallerFrameSlot());
-      LiftoffRegister reg = __ GetUnusedRegister(rc, pinned);
+      // For reference type parameters we have to use registers that were not
+      // used for parameters because some reference type stack parameters may
+      // get processed before some value type register parameters.
+      LiftoffRegister reg = is_reference(reg_kind)
+                                ? __ GetUnusedRegister(RegsUnusedByParams())
+                                : __ GetUnusedRegister(rc, pinned);
       __ LoadCallerFrameSlot(reg, -location.AsCallerFrameSlot(), reg_kind);
       return reg;
     };
