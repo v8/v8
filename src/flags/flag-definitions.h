@@ -1546,7 +1546,7 @@ DEFINE_BOOL(experimental_flush_embedded_blob_icache, false,
 #define V8_SHORT_BUILTIN_CALLS_BOOL false
 #endif
 
-DEFINE_BOOL(short_builtin_calls, false,
+DEFINE_BOOL(short_builtin_calls, V8_SHORT_BUILTIN_CALLS_BOOL,
             "Put embedded builtins code into the code range for shorter "
             "builtin calls/jumps if system has >=4GB memory")
 
