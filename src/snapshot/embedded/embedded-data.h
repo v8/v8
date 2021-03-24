@@ -72,18 +72,19 @@ class EmbeddedData final {
     return (start <= pc) && (pc < start + code_size_);
   }
 
-  // When FLAG_short_builtin_calls is enabled, there will be two builtins
-  // instruction streams executed: the embedded one and the one un-embedded into
-  // the per-Isolate code range. In most of the cases, the per-Isolate
-  // instructions will be used but in some cases (like builtin calls from Wasm)
-  // the embedded instruction stream could be used.
+  // When short builtin calls optimization is enabled for the Isolate, there
+  // will be two builtins instruction streams executed: the embedded one and
+  // the one un-embedded into the per-Isolate code range. In most of the cases,
+  // the per-Isolate instructions will be used but in some cases (like builtin
+  // calls from Wasm) the embedded instruction stream could be used.
   // If the requested PC belongs to the embedded code blob - it'll be returned,
   // and the per-Isolate blob otherwise.
   // See http://crbug.com/v8/11527 for details.
   inline static EmbeddedData GetEmbeddedDataForPC(Isolate* isolate,
                                                   Address maybe_builtin_pc) {
     EmbeddedData d = EmbeddedData::FromBlob(isolate);
-    if (FLAG_short_builtin_calls && !d.IsInCodeRange(maybe_builtin_pc)) {
+    if (isolate->is_short_builtin_calls_enabled() &&
+        !d.IsInCodeRange(maybe_builtin_pc)) {
       EmbeddedData global_d = EmbeddedData::FromBlob();
       // If the pc does not belong to the embedded code blob we should be using
       // the un-embedded one.

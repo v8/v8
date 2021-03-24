@@ -51,7 +51,8 @@ bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
   DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
 
   if (EmbeddedData::FromBlob(isolate).IsInCodeRange(pc)) return true;
-  return FLAG_short_builtin_calls && EmbeddedData::FromBlob().IsInCodeRange(pc);
+  return isolate->is_short_builtin_calls_enabled() &&
+         EmbeddedData::FromBlob().IsInCodeRange(pc);
 }
 
 // static
@@ -68,7 +69,7 @@ bool InstructionStream::TryGetAddressForHashing(Isolate* isolate,
     return true;
   }
 
-  if (FLAG_short_builtin_calls) {
+  if (isolate->is_short_builtin_calls_enabled()) {
     d = EmbeddedData::FromBlob();
     if (d.IsInCodeRange(address)) {
       *hashable_address = d.AddressForHashing(address);
@@ -88,7 +89,8 @@ Builtins::Name InstructionStream::TryLookupCode(Isolate* isolate,
   Builtins::Name builtin =
       i::TryLookupCode(EmbeddedData::FromBlob(isolate), address);
 
-  if (FLAG_short_builtin_calls && !Builtins::IsBuiltinId(builtin)) {
+  if (isolate->is_short_builtin_calls_enabled() &&
+      !Builtins::IsBuiltinId(builtin)) {
     builtin = i::TryLookupCode(EmbeddedData::FromBlob(), address);
   }
   return builtin;

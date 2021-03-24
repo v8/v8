@@ -106,7 +106,7 @@ TEST(CodeRangeCorrectContents) {
   CHECK(PagesHasExactPage(
       pages, reinterpret_cast<Address>(i_isolate->CurrentEmbeddedBlobCode()),
       i_isolate->CurrentEmbeddedBlobCodeSize()));
-  if (FLAG_short_builtin_calls) {
+  if (i_isolate->is_short_builtin_calls_enabled()) {
     // In this case embedded blob code must be included via code_range.
     CHECK(PagesContainsRange(
         pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),

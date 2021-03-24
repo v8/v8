@@ -108,6 +108,10 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
 #endif
 #endif
 
+// This constant is used for detecting whether the machine has >= 4GB of
+// physical memory by checking the max old space size.
+const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
+
 // Determine whether dict mode prototypes feature is enabled.
 #ifdef V8_DICT_MODE_PROTOTYPES
 #define V8_DICT_MODE_PROTOTYPES_BOOL true

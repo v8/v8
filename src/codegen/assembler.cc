@@ -74,7 +74,8 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   options.code_range_start = code_range.begin();
 #endif
   options.short_builtin_calls =
-      FLAG_short_builtin_calls && !generating_embedded_builtin &&
+      isolate->is_short_builtin_calls_enabled() &&
+      !generating_embedded_builtin &&
       (options.code_range_start != kNullAddress) &&
       // Serialization of RUNTIME_ENTRY reloc infos is not supported yet.
       !serializer;

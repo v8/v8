@@ -118,8 +118,8 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 }
 
 void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
-  if (FLAG_short_builtin_calls) {
-    // Generate direct or pc-relative call.
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative call.
     __ CallBuiltin(builtin);
   } else {
     __ RecordCommentForOffHeapTrampoline(builtin);
@@ -129,8 +129,8 @@ void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
 }
 
 void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
-  if (FLAG_short_builtin_calls) {
-    // Generate direct or pc-relative jump.
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative jump.
     __ TailCallBuiltin(builtin);
   } else {
     __ RecordCommentForOffHeapTrampoline(builtin);

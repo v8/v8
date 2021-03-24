@@ -3383,7 +3383,7 @@ void Isolate::CreateAndSetEmbeddedBlob() {
 }
 
 void Isolate::MaybeRemapEmbeddedBuiltinsIntoCodeRange() {
-  if (!FLAG_short_builtin_calls || !RequiresCodeRange()) return;
+  if (!is_short_builtin_calls_enabled() || !RequiresCodeRange()) return;
 
   CHECK_NOT_NULL(embedded_blob_code_);
   CHECK_NE(embedded_blob_code_size_, 0);
@@ -3399,7 +3399,7 @@ void Isolate::TearDownEmbeddedBlob() {
   // Nothing to do in case the blob is embedded into the binary or unset.
   if (StickyEmbeddedBlobCode() == nullptr) return;
 
-  if (!FLAG_short_builtin_calls) {
+  if (!is_short_builtin_calls_enabled()) {
     CHECK_EQ(embedded_blob_code(), StickyEmbeddedBlobCode());
     CHECK_EQ(embedded_blob_data(), StickyEmbeddedBlobData());
   }
@@ -3543,6 +3543,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   heap_.SetUp();
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
   heap_.SetUpSpaces();
+
+  if (V8_SHORT_BUILTIN_CALLS_BOOL && FLAG_short_builtin_calls) {
+    // Check if the system has more than 4GB of physical memory by comaring
+    // the old space size with respective threshod value.
+    is_short_builtin_calls_enabled_ =
+        heap_.MaxOldGenerationSize() >= kShortBuiltinCallsOldSpaceSizeThreshold;
+  }
 
   // Create LocalIsolate/LocalHeap for the main thread and set state to Running.
   main_thread_local_isolate_.reset(new LocalIsolate(this, ThreadKind::kMain));

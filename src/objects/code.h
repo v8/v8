@@ -150,9 +150,10 @@ class Code : public HeapObject {
   inline Address InstructionEnd() const;
   V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
 
-  // When builtins un-embedding (FLAG_short_builtin_calls) is enabled both
-  // embedded and un-embedded builtins might be exeuted and thus two kinds of
-  // |pc|s might appear on the stack.
+  // When builtins un-embedding is enabled for the Isolate
+  // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
+  // un-embedded builtins might be exeuted and thus two kinds of |pc|s might
+  // appear on the stack.
   // Unlike the paremeterless versions of the functions above the below variants
   // ensure that the instruction start correspond to the given |pc| value.
   // Thus for off-heap trampoline Code objects the result might be the

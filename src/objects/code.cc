@@ -154,6 +154,9 @@ Address Code::OffHeapInstructionStart() const {
   // GetIsolateFromWritableObject(*this) works for both read-only and writable
   // objects here because short builtin calls feature requires pointer
   // compression.
+  // We don't have to check the Isolate::is_short_builtin_calls_enabled() value
+  // because if the short builtin calls wasn't actually enabled because of not
+  // enough memory, the FromBlob(isolate) would still be the correct one to use.
   EmbeddedData d =
       FLAG_short_builtin_calls
           ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))
@@ -170,6 +173,9 @@ Address Code::OffHeapInstructionEnd() const {
   // GetIsolateFromWritableObject(*this) works for both read-only and writable
   // objects here because short builtin calls feature requires pointer
   // compression.
+  // We don't have to check the Isolate::is_short_builtin_calls_enabled() value
+  // because if the short builtin calls wasn't actually enabled because of not
+  // enough memory, the FromBlob(isolate) would still be the correct one to use.
   EmbeddedData d =
       FLAG_short_builtin_calls
           ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))

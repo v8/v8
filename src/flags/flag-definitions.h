@@ -1540,13 +1540,15 @@ DEFINE_BOOL(experimental_flush_embedded_blob_icache, false,
 #undef FLAG
 #if V8_SHORT_BUILTIN_CALLS
 #define FLAG FLAG_FULL
+#define V8_SHORT_BUILTIN_CALLS_BOOL true
 #else
 #define FLAG FLAG_READONLY
+#define V8_SHORT_BUILTIN_CALLS_BOOL false
 #endif
 
 DEFINE_BOOL(short_builtin_calls, false,
             "Put embedded builtins code into the code range for shorter "
-            "builtin calls/jumps")
+            "builtin calls/jumps if system has >=4GB memory")
 
 #undef FLAG
 #define FLAG FLAG_FULL
