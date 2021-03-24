@@ -594,7 +594,8 @@ class LiftoffCompiler {
     }
   }
 
-  constexpr LiftoffRegList RegsUnusedByParams() {
+  // TODO(ahaas): Make this function constexpr once GCC allows it.
+  LiftoffRegList RegsUnusedByParams() {
     LiftoffRegList regs = kGpCacheRegList;
     for (auto reg : kGpParamRegisters) {
       regs.clear(reg);
