@@ -27,6 +27,16 @@ class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
   // instead of caching them.
   static const int kSlowTemplateInstantiationsCacheSize = 1 * MB;
 
+  // If the serial number is set to kDoNotCache, then we should never cache this
+  // TemplateInfo.
+  static const int kDoNotCache = -1;
+  // If the serial number is set to kUncached, it means that this TemplateInfo
+  // has not been cached yet but it can be.
+  static const int kUncached = -2;
+
+  inline bool should_cache() const;
+  inline bool is_cached() const;
+
   TQ_OBJECT_CONSTRUCTORS(TemplateInfo)
 };
 
@@ -111,10 +121,6 @@ class FunctionTemplateInfo
   // prototype_provoider_template are instantiated.
   DECL_BOOLEAN_ACCESSORS(remove_prototype)
 
-  // If set, do not attach a serial number to this FunctionTemplate and thus do
-  // not keep an instance boilerplate around.
-  DECL_BOOLEAN_ACCESSORS(do_not_cache)
-
   // If not set an access may be performed on calling the associated JSFunction.
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
 
@@ -127,8 +133,6 @@ class FunctionTemplateInfo
 
   // Dispatched behavior.
   DECL_PRINTER(FunctionTemplateInfo)
-
-  static const int kInvalidSerialNumber = 0;
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,

@@ -644,8 +644,8 @@ int Heap::NextDebuggingId() {
 }
 
 int Heap::GetNextTemplateSerialNumber() {
-  int next_serial_number = next_template_serial_number().value() + 1;
-  set_next_template_serial_number(Smi::FromInt(next_serial_number));
+  int next_serial_number = next_template_serial_number().value();
+  set_next_template_serial_number(Smi::FromInt(next_serial_number + 1));
   return next_serial_number;
 }
 

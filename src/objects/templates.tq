@@ -33,7 +33,6 @@ bitfield struct FunctionTemplateInfoFlags extends uint31 {
   needs_access_check: bool: 1 bit;
   read_only_prototype: bool: 1 bit;
   remove_prototype: bool: 1 bit;
-  do_not_cache: bool: 1 bit;
   accept_any_receiver: bool: 1 bit;
   published: bool: 1 bit;
 }
