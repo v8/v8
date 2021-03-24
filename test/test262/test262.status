@@ -578,9 +578,6 @@
   'built-ins/String/prototype/at/*': [FAIL],
   'built-ins/TypedArray/prototype/at/*': [FAIL],
 
-  # http://crbug/v8/11529
-  'built-ins/Array/prototype/sort/call-with-primitive': [FAIL],
-
   # http://crbug/v8/11530
   'built-ins/Function/internals/Call/class-ctor-realm': [FAIL],
 
