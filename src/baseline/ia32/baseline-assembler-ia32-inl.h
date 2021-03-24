@@ -90,6 +90,10 @@ MemOperand BaselineAssembler::FeedbackVectorOperand() {
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
 
+void BaselineAssembler::JumpTarget() {
+  // NOP on ia32.
+}
+
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ jmp(target, distance);
 }
