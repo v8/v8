@@ -277,6 +277,7 @@ namespace compiler {
   V(PPC_I64x2ExtMulHighI32x4S)       \
   V(PPC_I64x2ExtMulLowI32x4U)        \
   V(PPC_I64x2ExtMulHighI32x4U)       \
+  V(PPC_I64x2Abs)                    \
   V(PPC_I32x4Splat)                  \
   V(PPC_I32x4ExtractLane)            \
   V(PPC_I32x4ReplaceLane)            \

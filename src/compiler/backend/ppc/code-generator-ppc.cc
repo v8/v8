@@ -2923,6 +2923,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vadduwm(i.OutputSimd128Register(), kScratchSimd128Reg, tempFPReg1);
       break;
     }
+    case kPPC_I64x2Abs: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register src = i.InputSimd128Register(0);
+      constexpr int shift_bits = 63;
+      __ li(ip, Operand(shift_bits));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ vsrad(kScratchSimd128Reg, src, kScratchSimd128Reg);
+      __ vxor(tempFPReg1, src, kScratchSimd128Reg);
+      __ vsubudm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
+      break;
+    }
     case kPPC_I32x4Abs: {
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       Simd128Register src = i.InputSimd128Register(0);

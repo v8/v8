@@ -2181,6 +2181,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2ExtMulHighI32x4S) \
   V(I64x2ExtMulLowI32x4U)  \
   V(I64x2ExtMulHighI32x4U) \
+  V(I64x2GtS)              \
+  V(I64x2GeS)              \
   V(I32x4Add)              \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
@@ -2272,6 +2274,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Trunc)                \
   V(F32x4NearestInt)           \
   V(F32x4DemoteF64x2Zero)      \
+  V(I64x2Abs)                  \
   V(I64x2Neg)                  \
   V(I64x2SConvertI32x4Low)     \
   V(I64x2SConvertI32x4High)    \
@@ -2489,10 +2492,6 @@ void InstructionSelector::VisitS128Const(Node* node) {
          g.UseImmediate(val[2]), g.UseImmediate(val[3]));
   }
 }
-
-void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2GeS(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2Abs(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,

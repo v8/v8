@@ -200,6 +200,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I64x2ExtMulHighI32x4S:
     case kPPC_I64x2ExtMulLowI32x4U:
     case kPPC_I64x2ExtMulHighI32x4U:
+    case kPPC_I64x2Abs:
     case kPPC_I32x4Splat:
     case kPPC_I32x4ExtractLane:
     case kPPC_I32x4ReplaceLane:
