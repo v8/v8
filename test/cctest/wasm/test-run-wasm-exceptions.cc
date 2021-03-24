@@ -610,6 +610,25 @@ TEST(Regress1190291) {
   r.CallInterpreter();
 }
 
+TEST(Regress1186795) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
+  uint32_t except = r.builder().AddException(sigs.v_i());
+  BUILD(r, WASM_TRY_CATCH_T(
+               kWasmI32,
+               WASM_STMTS(
+                   WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
+                   WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
+                   WASM_TRY_UNWIND_T(
+                       kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except)),
+                       WASM_I32V(0)),
+                   WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
+                   WASM_DROP, WASM_DROP),
+               WASM_NOP, except));
+  CHECK_EQ(0, r.CallInterpreter());
+}
+
 }  // namespace test_run_wasm_exceptions
 }  // namespace wasm
 }  // namespace internal
