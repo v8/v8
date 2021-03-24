@@ -426,7 +426,6 @@ void BaselineCompiler::PreVisitSingleBytecode() {
 
 void BaselineCompiler::VisitSingleBytecode() {
   int offset = iterator().current_offset();
-  bool is_marked_as_jump_target = false;
   if (labels_[offset]) {
     // Bind labels for this offset that have already been linked to a
     // jump (i.e. forward jumps, excluding jump tables).
@@ -437,22 +436,14 @@ void BaselineCompiler::VisitSingleBytecode() {
     labels_[offset]->linked.Clear();
 #endif
     __ Bind(&labels_[offset]->unlinked);
-    is_marked_as_jump_target = true;
   }
 
   // Record positions of exception handlers.
   if (iterator().current_offset() == *next_handler_offset_) {
     __ ExceptionHandler();
     next_handler_offset_++;
-    is_marked_as_jump_target = true;
   }
   DCHECK_LT(iterator().current_offset(), *next_handler_offset_);
-
-  // Mark position as valid jump target, if it isn't one already.
-  // This is required for the deoptimizer, when CFI is enabled.
-  if (!is_marked_as_jump_target) {
-    __ JumpTarget();
-  }
 
   if (FLAG_code_comments) {
     std::ostringstream str;
