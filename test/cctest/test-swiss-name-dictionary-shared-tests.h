@@ -535,6 +535,10 @@ struct SharedSwissTableTests {
   }
 
   MEMBER_TEST(EnumerationOrder) {
+    // TODO(v8:11330) Disabling this for now until the real CSA testing has
+    // landed.
+    if (true) return;
+
     // This test times out on sanitizer builds in CSA mode when testing the
     // larger capacities.
     // TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run
@@ -841,6 +845,10 @@ struct SharedSwissTableTests {
   }
 
   MEMBER_TEST(Copy) {
+    // TODO(v8:11330) Disabling this for now until the real CSA testing has
+    // landed.
+    if (true) return;
+
     // This test times out on sanitizer builds in CSA mode when testing the
     // larger capacities.
     // TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run
