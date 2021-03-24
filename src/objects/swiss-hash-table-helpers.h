@@ -202,6 +202,11 @@ static_assert(kDeleted == -2,
 // Table implementations rely on this being 7.
 static constexpr int kH2Bits = 7;
 
+static constexpr int kNotFullMask = (1 << kH2Bits);
+static_assert(
+    kEmpty & kDeleted & kSentinel & kNotFullMask,
+    "Special markers need to have the MSB to make checking for them efficient");
+
 // Extracts H1 from the given overall hash, which means discarding the lowest 7
 // bits of the overall hash. H1 is used to determine the first group to probe.
 inline static uint32_t H1(uint32_t hash) { return (hash >> kH2Bits); }

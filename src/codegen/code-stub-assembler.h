@@ -1728,6 +1728,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint,
                                   TNode<IntPtrT> digit_index);
 
+  // Allocate a ByteArray with the given non-zero length.
+  TNode<ByteArray> AllocateNonEmptyByteArray(TNode<UintPtrT> length,
+                                             AllocationFlags flags);
+
   // Allocate a ByteArray with the given length.
   TNode<ByteArray> AllocateByteArray(TNode<UintPtrT> length,
                                      AllocationFlags flags = kNone);
@@ -3723,6 +3727,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<SwissNameDictionary> AllocateSwissNameDictionary(
       int at_least_space_for);
 
+  TNode<SwissNameDictionary> AllocateSwissNameDictionaryWithCapacity(
+      TNode<IntPtrT> capacity);
+
+  // MT stands for "minus tag".
+  TNode<IntPtrT> SwissNameDictionaryOffsetIntoDataTableMT(
+      TNode<SwissNameDictionary> dict, TNode<IntPtrT> index, int field_index);
+
+  // MT stands for "minus tag".
+  TNode<IntPtrT> SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(
+      TNode<SwissNameDictionary> dict, TNode<IntPtrT> capacity,
+      TNode<IntPtrT> index);
+
   TNode<IntPtrT> LoadSwissNameDictionaryNumberOfElements(
       TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity);
 
@@ -3743,11 +3759,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> SwissNameDictionaryUpdateCountsForDeletion(
       TNode<ByteArray> meta_table, TNode<IntPtrT> capacity);
 
+  void StoreSwissNameDictionaryCapacity(TNode<SwissNameDictionary> table,
+                                        TNode<Int32T> capacity);
+
   void StoreSwissNameDictionaryEnumToEntryMapping(
       TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
       TNode<IntPtrT> enum_index, TNode<Int32T> entry);
 
   TNode<Uint64T> LoadSwissNameDictionaryCtrlTableGroup(TNode<IntPtrT> address);
+
+  TNode<SwissNameDictionary> CopySwissNameDictionary(
+      TNode<SwissNameDictionary> original);
 
  private:
   friend class CodeStubArguments;

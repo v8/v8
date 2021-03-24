@@ -10,6 +10,102 @@ extern class SwissNameDictionary extends HeapObject {
   const capacity: int32;
   meta_table: ByteArray;
   data_table[Convert<intptr>(capacity) * 2]: JSAny|TheHole;
-  ctrl_table[Convert<intptr>(capacity) + kSwissNameDictionaryGroupWidth]: uint8;
+  ctrl_table[Convert<intptr>(capacity) + swiss_table::kGroupWidth]: uint8;
   property_details_table[Convert<intptr>(capacity)]: uint8;
+}
+
+namespace swiss_table {
+
+const kDataTableEntryCount: constexpr intptr
+    generates 'SwissNameDictionary::kDataTableEntryCount';
+
+const kMax1ByteMetaTableCapacity: constexpr int32
+    generates 'SwissNameDictionary::kMax1ByteMetaTableCapacity';
+
+const kMax2ByteMetaTableCapacity: constexpr int32
+    generates 'SwissNameDictionary::kMax2ByteMetaTableCapacity';
+
+// Counterpart for SwissNameDictionary::CapacityFor in C++.
+@export
+macro SwissNameDictionaryCapacityFor(atLeastSpaceFor: intptr): intptr {
+  if (atLeastSpaceFor <= 4) {
+    if (atLeastSpaceFor == 0) {
+      return 0;
+    } else if (atLeastSpaceFor < kSwissNameDictionaryInitialCapacity) {
+      return 4;
+    } else if (FromConstexpr<bool>(kGroupWidth == 16)) {
+      assert(atLeastSpaceFor == 4);
+      return 4;
+    } else if (FromConstexpr<bool>(kGroupWidth == 8)) {
+      assert(atLeastSpaceFor == 4);
+      return 8;
+    }
+  }
+
+  const nonNormalized = atLeastSpaceFor + atLeastSpaceFor / 7;
+  return IntPtrRoundUpToPowerOfTwo32(nonNormalized);
+}
+
+// Counterpart for SwissNameDictionary::MaxUsableCapacity in C++.
+@export
+macro SwissNameDictionaryMaxUsableCapacity(capacity: intptr): intptr {
+  assert(capacity == 0 || capacity >= kSwissNameDictionaryInitialCapacity);
+  if (FromConstexpr<bool>(kGroupWidth == 8) && capacity == 4) {
+    // If the group size is 16 we can fully utilize capacity 4: There will be
+    // enough kEmpty entries in the ctrl table.
+    return 3;
+  }
+  return capacity - capacity / 8;
+}
+
+// Counterpart for SwissNameDictionary::SizeFor in C++.
+@export
+macro SwissNameDictionarySizeFor(capacity: intptr): intptr {
+  const constant: constexpr int32 = kHeapObjectHeaderSize + 8 + kTaggedSize;
+  const dynamic: intptr =
+      capacity * FromConstexpr<intptr>(2 * kTaggedSize + 2) +
+      FromConstexpr<intptr>(kGroupWidth);
+  return constant + dynamic;
+}
+
+// Counterpart for SwissNameDictionary::MetaTableSizePerEntryFor in C++.
+@export
+macro SwissNameDictionaryMetaTableSizePerEntryFor(capacity: intptr): intptr {
+  if (capacity <= kMax1ByteMetaTableCapacity) {
+    return 1;
+  } else if (capacity <= kMax2ByteMetaTableCapacity) {
+    return 2;
+  } else {
+    return 4;
+  }
+}
+
+// Counterpart for SwissNameDictionary::MetaTableSizeFor in C++.
+@export
+macro SwissNameDictionaryMetaTableSizeFor(capacity: intptr): intptr {
+  const perEntry: intptr =
+      SwissNameDictionaryMetaTableSizePerEntryFor(capacity);
+  const maxUsable: intptr =
+      Convert<intptr>(SwissNameDictionaryMaxUsableCapacity(capacity));
+
+  return (2 + maxUsable) * perEntry;
+}
+
+//
+// Offsets. MT stands for "minus tag"
+//
+
+const kDataTableStartOffsetMT: constexpr intptr
+    generates 'SwissNameDictionary::DataTableStartOffset() - kHeapObjectTag';
+
+@export
+macro SwissNameDictionaryDataTableStartOffsetMT(): intptr {
+  return kDataTableStartOffsetMT;
+}
+
+@export
+macro SwissNameDictionaryCtrlTableStartOffsetMT(capacity: intptr): intptr {
+  return kDataTableStartOffsetMT +
+      kDataTableEntryCount * FromConstexpr<intptr>(kTaggedSize) * capacity;
+}
 }

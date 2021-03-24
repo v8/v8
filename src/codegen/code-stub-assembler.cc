@@ -3344,8 +3344,33 @@ TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
   return LoadObjectField<UintPtrT>(bigint, offset);
 }
 
+TNode<ByteArray> CodeStubAssembler::AllocateNonEmptyByteArray(
+    TNode<UintPtrT> length, AllocationFlags flags) {
+  CSA_ASSERT(this, WordNotEqual(length, IntPtrConstant(0)));
+
+  Comment("AllocateNonEmptyByteArray");
+  TVARIABLE(Object, var_result);
+
+  TNode<IntPtrT> raw_size =
+      GetArrayAllocationSize(Signed(length), UINT8_ELEMENTS,
+                             ByteArray::kHeaderSize + kObjectAlignmentMask);
+  TNode<IntPtrT> size =
+      WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+
+  TNode<HeapObject> result = Allocate(size, flags);
+
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kByteArrayMap));
+  StoreMapNoWriteBarrier(result, RootIndex::kByteArrayMap);
+  StoreObjectFieldNoWriteBarrier(result, ByteArray::kLengthOffset,
+                                 SmiTag(Signed(length)));
+
+  return CAST(result);
+}
+
 TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
                                                       AllocationFlags flags) {
+  // TODO(ishell): unify with AllocateNonEmptyByteArray().
+
   Comment("AllocateByteArray");
   TVARIABLE(Object, var_result);
 
@@ -14550,6 +14575,338 @@ TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
 TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
     int at_least_space_for) {
   return AllocateSwissNameDictionary(IntPtrConstant(at_least_space_for));
+}
+
+TNode<SwissNameDictionary>
+CodeStubAssembler::AllocateSwissNameDictionaryWithCapacity(
+    TNode<IntPtrT> capacity) {
+  Comment("[ AllocateSwissNameDictionaryWithCapacity");
+  CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
+  CSA_ASSERT(this, UintPtrGreaterThanOrEqual(
+                       capacity,
+                       IntPtrConstant(SwissNameDictionary::kInitialCapacity)));
+  CSA_ASSERT(this,
+             UintPtrLessThanOrEqual(
+                 capacity, IntPtrConstant(SwissNameDictionary::MaxCapacity())));
+
+  Comment("Size check.");
+  intptr_t capacity_constant;
+  if (ToParameterConstant(capacity, &capacity_constant)) {
+    CHECK_LE(capacity_constant, SwissNameDictionary::MaxCapacity());
+  } else {
+    Label if_out_of_memory(this, Label::kDeferred), next(this);
+    Branch(UintPtrGreaterThan(
+               capacity, IntPtrConstant(SwissNameDictionary::MaxCapacity())),
+           &if_out_of_memory, &next);
+
+    BIND(&if_out_of_memory);
+    CallRuntime(Runtime::kFatalProcessOutOfMemoryInAllocateRaw,
+                NoContextConstant());
+    Unreachable();
+
+    BIND(&next);
+  }
+
+  // TODO(v8:11330) Consider adding dedicated handling for constant capacties,
+  // similar to AllocateOrderedHashTableWithCapacity.
+
+  // We must allocate the ByteArray first. Otherwise, allocating the ByteArray
+  // may trigger GC, which may try to verify the un-initialized
+  // SwissNameDictionary.
+  Comment("Meta table allocation.");
+  TNode<IntPtrT> meta_table_payload_size =
+      SwissNameDictionaryMetaTableSizeFor(capacity);
+
+  TNode<ByteArray> meta_table =
+      AllocateNonEmptyByteArray(Unsigned(meta_table_payload_size),
+                                AllocationFlag::kAllowLargeObjectAllocation);
+
+  Comment("SwissNameDictionary allocation.");
+  TNode<IntPtrT> total_size = SwissNameDictionarySizeFor(capacity);
+
+  TNode<SwissNameDictionary> table = UncheckedCast<SwissNameDictionary>(
+      Allocate(total_size, kAllowLargeObjectAllocation));
+
+  StoreMapNoWriteBarrier(table, RootIndex::kSwissNameDictionaryMap);
+
+  Comment(
+      "Initialize the hash, capacity, meta table pointer, and number of "
+      "(deleted) elements.");
+
+  StoreSwissNameDictionaryHash(table,
+                               Uint32Constant(PropertyArray::kNoHashSentinel));
+  StoreSwissNameDictionaryCapacity(table, TruncateIntPtrToInt32(capacity));
+  StoreSwissNameDictionaryMetaTable(table, meta_table);
+
+  // Set present and deleted element count without doing branching needed for
+  // meta table access twice.
+  MetaTableAccessFunction builder = [&](MetaTableAccessor& mta) {
+    mta.Store(meta_table, SwissNameDictionary::kMetaTableElementCountFieldIndex,
+              Uint32Constant(0));
+    mta.Store(meta_table,
+              SwissNameDictionary::kMetaTableDeletedElementCountFieldIndex,
+              Uint32Constant(0));
+  };
+  GenerateMetaTableAccess(this, capacity, builder);
+
+  Comment("Initialize the ctrl table.");
+
+  TNode<IntPtrT> ctrl_table_start_offset_minus_tag =
+      SwissNameDictionaryCtrlTableStartOffsetMT(capacity);
+
+  TNode<IntPtrT> table_address_with_tag = BitcastTaggedToWord(table);
+  TNode<IntPtrT> ctrl_table_size_bytes =
+      IntPtrAdd(capacity, IntPtrConstant(SwissNameDictionary::kGroupWidth));
+  TNode<IntPtrT> ctrl_table_start_ptr =
+      IntPtrAdd(table_address_with_tag, ctrl_table_start_offset_minus_tag);
+  TNode<IntPtrT> ctrl_table_end_ptr =
+      IntPtrAdd(ctrl_table_start_ptr, ctrl_table_size_bytes);
+
+  // |ctrl_table_size_bytes| (= capacity + kGroupWidth) is divisble by four:
+  STATIC_ASSERT(SwissNameDictionary::kGroupWidth % 4 == 0);
+  STATIC_ASSERT(SwissNameDictionary::kInitialCapacity % 4 == 0);
+
+  // TODO(v8:11330) For all capacities except 4, we know that
+  // |ctrl_table_size_bytes| is divisible by 8. Consider initializing the ctrl
+  // table with WordTs in those cases. Alternatively, always initialize as many
+  // bytes as possbible with WordT and then, if necessary, the remaining 4 bytes
+  // with Word32T.
+
+  constexpr uint8_t kEmpty = swiss_table::Ctrl::kEmpty;
+  constexpr uint32_t kEmpty32 =
+      (kEmpty << 24) | (kEmpty << 16) | (kEmpty << 8) | kEmpty;
+  TNode<Int32T> empty32 = Int32Constant(kEmpty32);
+  BuildFastLoop<IntPtrT>(
+      ctrl_table_start_ptr, ctrl_table_end_ptr,
+      [=](TNode<IntPtrT> current) {
+        UnsafeStoreNoWriteBarrier(MachineRepresentation::kWord32, current,
+                                  empty32);
+      },
+      sizeof(uint32_t), IndexAdvanceMode::kPost);
+
+  Comment("Initialize the data table.");
+
+  TNode<IntPtrT> data_table_start_offset_minus_tag =
+      SwissNameDictionaryDataTableStartOffsetMT();
+  TNode<IntPtrT> data_table_ptr =
+      IntPtrAdd(table_address_with_tag, data_table_start_offset_minus_tag);
+  TNode<IntPtrT> data_table_size = IntPtrMul(
+      IntPtrConstant(SwissNameDictionary::kDataTableEntryCount * kTaggedSize),
+      capacity);
+
+  StoreFieldsNoWriteBarrier(data_table_ptr,
+                            IntPtrAdd(data_table_ptr, data_table_size),
+                            TheHoleConstant());
+
+  Comment("AllocateSwissNameDictionaryWithCapacity ]");
+
+  return table;
+}
+
+TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
+    TNode<SwissNameDictionary> original) {
+  Comment("[ CopySwissNameDictionary");
+
+  TNode<IntPtrT> capacity =
+      Signed(ChangeUint32ToWord(LoadSwissNameDictionaryCapacity(original)));
+
+  // We must allocate the ByteArray first. Otherwise, allocating the ByteArray
+  // may trigger GC, which may try to verify the un-initialized
+  // SwissNameDictionary.
+  Comment("Meta table allocation.");
+  TNode<IntPtrT> meta_table_payload_size =
+      SwissNameDictionaryMetaTableSizeFor(capacity);
+
+  TNode<ByteArray> meta_table =
+      AllocateNonEmptyByteArray(Unsigned(meta_table_payload_size),
+                                AllocationFlag::kAllowLargeObjectAllocation);
+
+  Comment("SwissNameDictionary allocation.");
+  TNode<IntPtrT> total_size = SwissNameDictionarySizeFor(capacity);
+
+  TNode<SwissNameDictionary> table = UncheckedCast<SwissNameDictionary>(
+      Allocate(total_size, kAllowLargeObjectAllocation));
+
+  StoreMapNoWriteBarrier(table, RootIndex::kSwissNameDictionaryMap);
+
+  Comment("Copy the hash and capacity.");
+
+  StoreSwissNameDictionaryHash(table, LoadSwissNameDictionaryHash(original));
+  StoreSwissNameDictionaryCapacity(table, TruncateIntPtrToInt32(capacity));
+  StoreSwissNameDictionaryMetaTable(table, meta_table);
+  // Not setting up number of (deleted elements), copying whole meta table
+  // instead.
+
+  TNode<ExternalReference> memcpy =
+      ExternalConstant(ExternalReference::libc_memcpy_function());
+
+  TNode<IntPtrT> old_table_address_with_tag = BitcastTaggedToWord(original);
+  TNode<IntPtrT> new_table_address_with_tag = BitcastTaggedToWord(table);
+
+  TNode<IntPtrT> ctrl_table_start_offset_minus_tag =
+      SwissNameDictionaryCtrlTableStartOffsetMT(capacity);
+
+  TNode<IntPtrT> ctrl_table_size_bytes =
+      IntPtrAdd(capacity, IntPtrConstant(SwissNameDictionary::kGroupWidth));
+
+  Comment("Copy the ctrl table.");
+  {
+    TNode<IntPtrT> old_ctrl_table_start_ptr = IntPtrAdd(
+        old_table_address_with_tag, ctrl_table_start_offset_minus_tag);
+    TNode<IntPtrT> new_ctrl_table_start_ptr = IntPtrAdd(
+        new_table_address_with_tag, ctrl_table_start_offset_minus_tag);
+
+    CallCFunction(
+        memcpy, MachineType::Pointer(),
+        std::make_pair(MachineType::Pointer(), new_ctrl_table_start_ptr),
+        std::make_pair(MachineType::Pointer(), old_ctrl_table_start_ptr),
+        std::make_pair(MachineType::UintPtr(), ctrl_table_size_bytes));
+  }
+
+  Comment("Copy the data table.");
+  {
+    TNode<IntPtrT> start_offset =
+        IntPtrConstant(SwissNameDictionary::DataTableStartOffset());
+    TNode<IntPtrT> data_table_size = IntPtrMul(
+        IntPtrConstant(SwissNameDictionary::kDataTableEntryCount * kTaggedSize),
+        capacity);
+
+    BuildFastLoop<IntPtrT>(
+        start_offset, IntPtrAdd(start_offset, data_table_size),
+        [=](TNode<IntPtrT> offset) {
+          TNode<Object> table_field = LoadObjectField(original, offset);
+          StoreObjectField(table, offset, table_field);
+        },
+        kTaggedSize, IndexAdvanceMode::kPost);
+  }
+
+  Comment("Copy the meta table");
+  {
+    TNode<IntPtrT> old_meta_table_address_with_tag =
+        BitcastTaggedToWord(LoadSwissNameDictionaryMetaTable(original));
+    TNode<IntPtrT> new_meta_table_address_with_tag =
+        BitcastTaggedToWord(meta_table);
+
+    TNode<IntPtrT> meta_table_size =
+        SwissNameDictionaryMetaTableSizeFor(capacity);
+
+    TNode<IntPtrT> old_data_start =
+        IntPtrAdd(old_meta_table_address_with_tag,
+                  IntPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag));
+    TNode<IntPtrT> new_data_start =
+        IntPtrAdd(new_meta_table_address_with_tag,
+                  IntPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag));
+
+    CallCFunction(memcpy, MachineType::Pointer(),
+                  std::make_pair(MachineType::Pointer(), new_data_start),
+                  std::make_pair(MachineType::Pointer(), old_data_start),
+                  std::make_pair(MachineType::UintPtr(), meta_table_size));
+  }
+
+  Comment("Copy the PropertyDetails table");
+  {
+    TNode<IntPtrT> property_details_start_offset_minus_tag =
+        SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(table, capacity,
+                                                            IntPtrConstant(0));
+
+    // Offset to property details entry
+    TVARIABLE(IntPtrT, details_table_offset,
+              property_details_start_offset_minus_tag);
+
+    TNode<IntPtrT> start = ctrl_table_start_offset_minus_tag;
+
+    VariableList in_loop_variables({&details_table_offset}, zone());
+    BuildFastLoop<IntPtrT>(
+        in_loop_variables, start, IntPtrAdd(start, ctrl_table_size_bytes),
+        [&](TNode<IntPtrT> ctrl_table_offset) {
+          TNode<Uint8T> ctrl = UncheckedCast<Uint8T>(LoadFromObject(
+              MachineType::Uint8(), original, ctrl_table_offset));
+
+          // TODO(v8:11330) Entries in the PropertyDetails table may be
+          // uninitialized if the corresponding buckets in the data/ctrl table
+          // are empty. Therefore, to avoid accessing un-initialized memory
+          // here, we need to check the ctrl table to determine whether we
+          // should copy a certain PropertyDetails entry or not.
+          // TODO(v8:11330) If this function becomes performance-critical, we
+          // may consider always initializing the PropertyDetails table entirely
+          // during allocation, to avoid the branching during copying.
+          Label done(this);
+          // |kNotFullMask| catches kEmpty and kDeleted, both of which indicate
+          // entries that we don't want to copy the PropertyDetails for.
+          GotoIf(IsSetWord32(ctrl, swiss_table::kNotFullMask), &done);
+
+          TNode<Uint8T> details = UncheckedCast<Uint8T>(LoadFromObject(
+              MachineType::Uint8(), original, details_table_offset.value()));
+
+          StoreToObject(MachineRepresentation::kWord8, table,
+                        details_table_offset.value(), details,
+                        StoreToObjectWriteBarrier::kNone);
+          Goto(&done);
+          BIND(&done);
+
+          details_table_offset = IntPtrAdd(details_table_offset.value(),
+                                           IntPtrConstant(kOneByteSize));
+        },
+        kOneByteSize, IndexAdvanceMode::kPost);
+  }
+
+  Comment("CopySwissNameDictionary ]");
+
+  return table;
+}
+
+TNode<IntPtrT> CodeStubAssembler::SwissNameDictionaryOffsetIntoDataTableMT(
+    TNode<SwissNameDictionary> dict, TNode<IntPtrT> index, int field_index) {
+  TNode<IntPtrT> data_table_start = SwissNameDictionaryDataTableStartOffsetMT();
+
+  TNode<IntPtrT> offset_within_data_table = IntPtrMul(
+      index,
+      IntPtrConstant(SwissNameDictionary::kDataTableEntryCount * kTaggedSize));
+
+  if (field_index != 0) {
+    offset_within_data_table = IntPtrAdd(
+        offset_within_data_table, IntPtrConstant(field_index * kTaggedSize));
+  }
+
+  return IntPtrAdd(data_table_start, offset_within_data_table);
+}
+
+TNode<IntPtrT>
+CodeStubAssembler::SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(
+    TNode<SwissNameDictionary> dict, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> index) {
+  CSA_ASSERT(this,
+             WordEqual(capacity, ChangeUint32ToWord(
+                                     LoadSwissNameDictionaryCapacity(dict))));
+
+  TNode<IntPtrT> data_table_start = SwissNameDictionaryDataTableStartOffsetMT();
+
+  TNode<IntPtrT> gw = IntPtrConstant(SwissNameDictionary::kGroupWidth);
+  TNode<IntPtrT> data_and_ctrl_table_size = IntPtrAdd(
+      IntPtrMul(capacity,
+                IntPtrConstant(kOneByteSize +
+                               SwissNameDictionary::kDataTableEntryCount *
+                                   kTaggedSize)),
+      gw);
+
+  TNode<IntPtrT> property_details_table_start =
+      IntPtrAdd(data_table_start, data_and_ctrl_table_size);
+
+  CSA_ASSERT(
+      this,
+      WordEqual(FieldSliceSwissNameDictionaryPropertyDetailsTable(dict).offset,
+                // Our calculation subtracted the tag, Torque's offset didn't.
+                IntPtrAdd(property_details_table_start,
+                          IntPtrConstant(kHeapObjectTag))));
+
+  TNode<IntPtrT> offset_within_details_table = index;
+  return IntPtrAdd(property_details_table_start, offset_within_details_table);
+}
+
+void CodeStubAssembler::StoreSwissNameDictionaryCapacity(
+    TNode<SwissNameDictionary> table, TNode<Int32T> capacity) {
+  StoreObjectFieldNoWriteBarrier<Word32T>(
+      table, SwissNameDictionary::CapacityOffset(), capacity);
 }
 
 TNode<Uint64T> CodeStubAssembler::LoadSwissNameDictionaryCtrlTableGroup(
