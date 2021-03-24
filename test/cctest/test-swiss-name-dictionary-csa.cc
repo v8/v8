@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "test/cctest/test-swiss-name-dictionary-infra.h"
+#include "test/cctest/test-swiss-name-dictionary-shared-tests.h"
 
 namespace v8 {
 namespace internal {
@@ -311,6 +312,13 @@ Handle<Code> CSATestRunner::create_allocate(Isolate* isolate) {
 void CSATestRunner::CheckAgainstReference() {
   CHECK(table->EqualsForTesting(*reference_));
 }
+
+// Executes the tests defined in test-swiss-name-dictionary-shared-tests.h as if
+// they were defined in this file, using the CSATestRunner. See comments in
+// test-swiss-name-dictionary-shared-tests.h and in
+// swiss-name-dictionary-infra.h for details.
+const char kCSATestFileName[] = __FILE__;
+SharedSwissTableTests<CSATestRunner, kCSATestFileName> execute_shared_tests_csa;
 
 }  // namespace test_swiss_hash_table
 }  // namespace internal

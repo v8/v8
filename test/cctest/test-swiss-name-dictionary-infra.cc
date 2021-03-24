@@ -76,6 +76,13 @@ Handle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
       int fake_hash = actual_hash;
       if (key.h1_override) {
         uint32_t override_with = key.h1_override.value().value;
+
+        // We cannot override h1 with 0 unless we also override h2 with a
+        // non-zero value. Otherwise, the overall hash may become 0 (which is
+        // forbidden) based on the (nondeterminstic) choice of h2.
+        CHECK_IMPLIES(override_with == 0,
+                      key.h2_override && key.h2_override.value().value != 0);
+
         fake_hash = (override_with << swiss_table::kH2Bits) |
                     swiss_table::H2(actual_hash);
       }
@@ -83,8 +90,14 @@ Handle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
         // Unset  7 bits belonging to H2:
         fake_hash &= ~((1 << swiss_table::kH2Bits) - 1);
 
-        DCHECK_LT(key.h2_override.value().value, 1 << swiss_table::kH2Bits);
-        fake_hash |= swiss_table::H2(key.h2_override.value().value);
+        uint8_t override_with = key.h2_override.value().value;
+
+        // Same as above, but for h2: Prevent accidentally creating 0 fake hash.
+        CHECK_IMPLIES(override_with == 0,
+                      key.h1_override && key.h1_override.value().value != 0);
+
+        CHECK_LT(key.h2_override.value().value, 1 << swiss_table::kH2Bits);
+        fake_hash |= swiss_table::H2(override_with);
       }
 
       // Ensure that just doing a shift below is correct.
@@ -96,9 +109,10 @@ Handle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
 
       // Prepare what to put into the hash field.
       uint32_t hash_field = fake_hash << Name::kHashShift;
+      CHECK_NE(hash_field, 0);
 
       key_symbol->set_raw_hash_field(hash_field);
-      DCHECK_EQ(fake_hash, key_symbol->hash());
+      CHECK_EQ(fake_hash, key_symbol->hash());
     }
 
     return key_symbol;
@@ -110,8 +124,8 @@ Handle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
     // else w.r.t. hash faking when using this key before. If so, the test case
     // would make inconsistent assumptions about how the hashes should be faked
     // and be broken.
-    DCHECK_EQ(cached_info.h1_override, key.h1_override);
-    DCHECK_EQ(cached_info.h2_override, key.h2_override);
+    CHECK_EQ(cached_info.h1_override, key.h1_override);
+    CHECK_EQ(cached_info.h2_override, key.h2_override);
 
     return cached_info.key_symbol;
   }

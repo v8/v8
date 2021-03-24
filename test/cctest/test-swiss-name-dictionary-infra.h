@@ -28,7 +28,7 @@ using IndexOpt = base::Optional<InternalIndex>;
 static const ValueOpt kNoValue;
 static const PropertyDetailsOpt kNoDetails;
 static const base::Optional<int> kNoInt;
-static const IndexOpt kNoIndex;
+static const IndexOpt kIndexUnknown;
 
 static const std::vector<int> interesting_initial_capacities = {
     4,
@@ -37,6 +37,30 @@ static const std::vector<int> interesting_initial_capacities = {
     128,
     1 << (sizeof(uint16_t) * 8),
     1 << (sizeof(uint16_t) * 8 + 1)};
+
+// Capacities for tests that may timeout on larger capacities when
+// sanitizers/CFI are enabled.
+// TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run by
+// the test suite, which will speed things up.
+#if defined(THREAD_SANITIZER) || defined(V8_ENABLE_CONTROL_FLOW_INTEGRITY)
+static const std::vector<int> capacities_for_slow_sanitizer_tests = {4, 8, 16,
+                                                                     128, 1024};
+#else
+static const std::vector<int> capacities_for_slow_sanitizer_tests =
+    interesting_initial_capacities;
+#endif
+
+// Capacities for tests that are generally slow, so that they don't use the
+// maximum capacities in debug mode.
+// TODO(v8:11330) Revisit this once the actual CSA/Torque versions are run by
+// the test suite, which will speed things up.
+#if DEBUG
+static const std::vector<int> capacities_for_slow_debug_tests = {4, 8, 16, 128,
+                                                                 1024};
+#else
+static const std::vector<int> capacities_for_slow_debug_tests =
+    interesting_initial_capacities;
+#endif
 
 extern const std::vector<PropertyDetails> distinct_property_details;
 
