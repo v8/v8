@@ -1529,6 +1529,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreHeapNumberValue(TNode<HeapNumber> object, TNode<Float64T> value);
 
   // Store a field to an object on the heap.
+  void StoreObjectField(TNode<HeapObject> object, int offset, TNode<Smi> value);
+  void StoreObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
+                        TNode<Smi> value);
   void StoreObjectField(TNode<HeapObject> object, int offset,
                         TNode<Object> value);
   void StoreObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,

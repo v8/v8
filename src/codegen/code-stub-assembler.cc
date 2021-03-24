@@ -2913,9 +2913,19 @@ void CodeStubAssembler::StoreHeapNumberValue(TNode<HeapNumber> object,
 }
 
 void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, int offset,
+                                         TNode<Smi> value) {
+  StoreObjectFieldNoWriteBarrier(object, offset, value);
+}
+
+void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
+                                         TNode<IntPtrT> offset,
+                                         TNode<Smi> value) {
+  StoreObjectFieldNoWriteBarrier(object, offset, value);
+}
+
+void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, int offset,
                                          TNode<Object> value) {
   DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
-
   OptimizedStoreField(MachineRepresentation::kTagged,
                       UncheckedCast<HeapObject>(object), offset, value);
 }
