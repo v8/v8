@@ -107,10 +107,10 @@ inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
                                  ValueKind kind) {
   switch (kind) {
     case kI32:
-    case kRef:
-    case kOptRef:
       return temps->AcquireW();
     case kI64:
+    case kRef:
+    case kOptRef:
       return temps->AcquireX();
     case kF32:
       return temps->AcquireS();
