@@ -4676,6 +4676,22 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_FP_ROUNDING(double, nearbyint)
       break;
     }
+    case XVRSPIP: {
+      VECTOR_FP_ROUNDING(float, ceilf)
+      break;
+    }
+    case XVRSPIM: {
+      VECTOR_FP_ROUNDING(float, floorf)
+      break;
+    }
+    case XVRSPIZ: {
+      VECTOR_FP_ROUNDING(float, truncf)
+      break;
+    }
+    case XVRSPI: {
+      VECTOR_FP_ROUNDING(float, nearbyintf)
+      break;
+    }
 #undef VECTOR_FP_ROUNDING
     case VSEL: {
       int vrt = instr->RTValue();
@@ -4779,6 +4795,25 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         else if (temp < kMinInt16)
           temp = kMinInt16;
         set_simd_register_by_lane<int16_t>(vrt, i, static_cast<int16_t>(temp));
+      }
+      break;
+    }
+    case VMSUMSHM: {
+      int vrt = instr->RTValue();
+      int vra = instr->RAValue();
+      int vrb = instr->RBValue();
+      int vrc = instr->RCValue();
+      FOR_EACH_LANE(i, int32_t) {
+        int16_t vra_1_val = get_simd_register_by_lane<int16_t>(vra, 2 * i);
+        int16_t vra_2_val =
+            get_simd_register_by_lane<int16_t>(vra, (2 * i) + 1);
+        int16_t vrb_1_val = get_simd_register_by_lane<int16_t>(vrb, 2 * i);
+        int16_t vrb_2_val =
+            get_simd_register_by_lane<int16_t>(vrb, (2 * i) + 1);
+        int32_t vrc_val = get_simd_register_by_lane<int32_t>(vrc, i);
+        int32_t temp1 = vra_1_val * vrb_1_val, temp2 = vra_2_val * vrb_2_val;
+        temp1 = temp1 + temp2 + vrc_val;
+        set_simd_register_by_lane<int32_t>(vrt, i, temp1);
       }
       break;
     }

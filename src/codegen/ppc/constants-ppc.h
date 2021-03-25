@@ -2912,7 +2912,11 @@ class Instruction {
       PPC_M_OPCODE_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
-
+    opcode = extcode | BitField(5, 0);
+    switch (opcode) {
+      PPC_VA_OPCODE_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
     opcode = extcode | BitField(10, 0);
     switch (opcode) {
       PPC_VX_OPCODE_LIST(OPCODE_CASES)
@@ -2963,11 +2967,6 @@ class Instruction {
     opcode = extcode | BitField(8, 1);
     switch (opcode) {
       PPC_Z23_OPCODE_LIST(OPCODE_CASES)
-      return static_cast<Opcode>(opcode);
-    }
-    opcode = extcode | BitField(5, 0);
-    switch (opcode) {
-      PPC_VA_OPCODE_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
     opcode = extcode | BitField(5, 1);
