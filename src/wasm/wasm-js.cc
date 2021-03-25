@@ -2329,6 +2329,16 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
       exception_constructor->shared().set_length(1);
       JSObject::AddProperty(isolate, webassembly, exception_name,
                             exception_constructor, DONT_ENUM);
+      // Install the constructor on the context.
+      context->set_wasm_exception_constructor(*exception_constructor);
+      SetDummyInstanceTemplate(isolate, exception_constructor);
+      JSFunction::EnsureHasInitialMap(exception_constructor);
+      Handle<JSObject> exception_proto(
+          JSObject::cast(exception_constructor->instance_prototype()), isolate);
+      Handle<Map> exception_map = isolate->factory()->NewMap(
+          i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
+      JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
+                                exception_proto);
     }
   }
 }
