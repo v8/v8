@@ -287,7 +287,7 @@ void BaselineCompiler::GenerateCode() {
   }
 }
 
-Handle<Code> BaselineCompiler::Build(Isolate* isolate) {
+MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
   CodeDesc desc;
   __ GetCode(isolate, &desc);
   // Allocate the bytecode offset table.
@@ -295,7 +295,7 @@ Handle<Code> BaselineCompiler::Build(Isolate* isolate) {
       bytecode_offset_table_builder_.ToBytecodeOffsetTable(isolate);
   return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
       .set_bytecode_offset_table(bytecode_offset_table)
-      .Build();
+      .TryBuild();
 }
 
 interpreter::Register BaselineCompiler::RegisterOperand(int operand_index) {

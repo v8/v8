@@ -687,7 +687,11 @@ bool CompileSharedWithBaseline(Isolate* isolate,
   base::TimeDelta time_taken;
   {
     ScopedTimer timer(&time_taken);
-    code = GenerateBaselineCode(isolate, shared);
+    if (!GenerateBaselineCode(isolate, shared).ToHandle(&code)) {
+      // TODO(leszeks): This can only fail because of an OOM. Do we want to
+      // report these somehow, or silently ignore them?
+      return false;
+    }
 
     Handle<HeapObject> function_data =
         handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
@@ -1402,21 +1406,17 @@ void FinalizeUnoptimizedScriptCompilation(
   }
 }
 
-bool CompileAllWithBaseline(Isolate* isolate,
+void CompileAllWithBaseline(Isolate* isolate,
                             const FinalizeUnoptimizedCompilationDataList&
-                                finalize_unoptimized_compilation_data_list,
-                            Compiler::ClearExceptionFlag flag) {
+                                finalize_unoptimized_compilation_data_list) {
   for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
     Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
     IsCompiledScope is_compiled_scope(*shared_info, isolate);
     if (!is_compiled_scope.is_compiled()) continue;
     if (!CanCompileWithBaseline(isolate, shared_info)) continue;
-    if (!CompileSharedWithBaseline(isolate, shared_info, flag,
-                                   &is_compiled_scope)) {
-      return false;
-    }
+    CompileSharedWithBaseline(isolate, shared_info, Compiler::CLEAR_EXCEPTION,
+                              &is_compiled_scope);
   }
-  return true;
 }
 
 // Create shared function info for top level and shared function infos array for
@@ -1488,13 +1488,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
       isolate, script, parse_info->flags(), parse_info->state(),
       finalize_unoptimized_compilation_data_list);
 
-  if (FLAG_always_sparkplug &&
-      !CompileAllWithBaseline(isolate,
-                              finalize_unoptimized_compilation_data_list,
-                              Compiler::ClearExceptionFlag::KEEP_EXCEPTION)) {
-    FailWithPendingException(isolate, script, parse_info,
-                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
-    return MaybeHandle<SharedFunctionInfo>();
+  if (FLAG_always_sparkplug) {
+    CompileAllWithBaseline(isolate, finalize_unoptimized_compilation_data_list);
   }
 
   return shared_info;
@@ -1954,10 +1949,8 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   FinalizeUnoptimizedCompilation(isolate, script, flags, &compile_state,
                                  finalize_unoptimized_compilation_data_list);
 
-  if (FLAG_always_sparkplug &&
-      !CompileAllWithBaseline(
-          isolate, finalize_unoptimized_compilation_data_list, flag)) {
-    return FailWithPendingException(isolate, script, &parse_info, flag);
+  if (FLAG_always_sparkplug) {
+    CompileAllWithBaseline(isolate, finalize_unoptimized_compilation_data_list);
   }
 
   DCHECK(!isolate->has_pending_exception());

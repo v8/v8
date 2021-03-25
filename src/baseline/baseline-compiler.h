@@ -54,7 +54,7 @@ class BaselineCompiler {
                             Handle<BytecodeArray> bytecode);
 
   void GenerateCode();
-  Handle<Code> Build(Isolate* isolate);
+  MaybeHandle<Code> Build(Isolate* isolate);
 
  private:
   void Prologue();

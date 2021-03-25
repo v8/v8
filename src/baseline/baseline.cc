@@ -19,17 +19,17 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> GenerateBaselineCode(Isolate* isolate,
-                                  Handle<SharedFunctionInfo> shared) {
+MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
+                                       Handle<SharedFunctionInfo> shared) {
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      RuntimeCallCounterId::kCompileBaseline);
   baseline::BaselineCompiler compiler(
       isolate, shared, handle(shared->GetBytecodeArray(isolate), isolate));
 
   compiler.GenerateCode();
-  Handle<Code> code = compiler.Build(isolate);
-  if (FLAG_print_code) {
-    code->Print();
+  MaybeHandle<Code> code = compiler.Build(isolate);
+  if (FLAG_print_code && !code.is_null()) {
+    code.ToHandleChecked()->Print();
   }
   return code;
 }
