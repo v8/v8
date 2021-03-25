@@ -2662,7 +2662,6 @@ Local<ObjectTemplate> Shell::CreateTestRunnerTemplate(Isolate* isolate) {
   // installed on the global object can be hidden with the --omit-quit flag
   // (e.g. on asan bots).
   test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
-
   return test_template;
 }
 
@@ -2718,11 +2717,6 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     test_template->Set(
         isolate, "verifySourcePositions",
         FunctionTemplate::New(isolate, TestVerifySourcePositions));
-    if (i::FLAG_turbo_fast_api_calls) {
-      test_template->Set(isolate, "fast_c_api",
-                         Shell::CreateTestFastCApiTemplate(isolate));
-    }
-
     d8_template->Set(isolate, "test", test_template);
   }
   return d8_template;

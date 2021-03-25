@@ -187,7 +187,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <tuple>
 #include <type_traits>
 
 #include "v8config.h"  // NOLINT(build/include_directory)
