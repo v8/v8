@@ -35,6 +35,7 @@
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/spaces.h"
@@ -4163,7 +4164,6 @@ TEST(BytecodeFlushEventsEagerLogging) {
 TEST(ClearUnusedWithEagerLogging) {
   ManualGCScope manual_gc;
   TestSetup test_setup;
-  LocalContext env;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
@@ -4174,18 +4174,21 @@ TEST(ClearUnusedWithEagerLogging) {
 
   {
     // Create and run a new script and function, generating 2 code objects.
+    // Do this in a new context, so that some_func isn't retained by the
+    // context's global object past this scope.
     i::HandleScope inner_scope(isolate);
+    LocalContext env;
     CompileRun(
         "function some_func() {}"
         "some_func();");
     CHECK_GT(code_map->size(), initial_size);
   }
 
-  // Perform a few GCs, ensuring that the executed code's bytecode is flushed.
-  const int kAgingThreshold = 8;
-  for (int i = 0; i < kAgingThreshold; i++) {
-    CcTest::CollectAllGarbage();
-  }
+  // Clear the compilation cache so that there are no more references to the
+  // given two functions.
+  isolate->compilation_cache()->Clear();
+
+  CcTest::CollectAllGarbage();
 
   // Verify that the CodeMap's size is unchanged post-GC.
   CHECK_EQ(code_map->size(), initial_size);
