@@ -335,7 +335,7 @@ namespace internal {
   F(SetNamedProperty, 3, 1)                                     \
   F(SetOwnPropertyIgnoreAttributes, 4, 1)                       \
   F(StoreDataPropertyInLiteral, 3, 1)                           \
-  F(ShrinkPropertyDictionary, 1, 1)                             \
+  F(ShrinkNameDictionary, 1, 1)                                 \
   F(ShrinkSwissNameDictionary, 1, 1)                            \
   F(ToFastProperties, 1, 1)                                     \
   I(ToLength, 1, 1)                                             \

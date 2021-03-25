@@ -2834,52 +2834,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns an untagged int32.
   template <class ContainerType>
   TNode<Uint32T> LoadDetailsByKeyIndex(TNode<ContainerType> container,
-                                       TNode<IntPtrT> key_index) {
-    static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
-                  "Use the non-templatized version for DescriptorArray");
-    const int kKeyToDetailsOffset =
-        (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
-        kTaggedSize;
-    return Unsigned(LoadAndUntagToWord32FixedArrayElement(container, key_index,
-                                                          kKeyToDetailsOffset));
-  }
+                                       TNode<IntPtrT> key_index);
 
   // Loads the value for the entry with the given key_index.
   // Returns a tagged value.
   template <class ContainerType>
   TNode<Object> LoadValueByKeyIndex(TNode<ContainerType> container,
-                                    TNode<IntPtrT> key_index) {
-    static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
-                  "Use the non-templatized version for DescriptorArray");
-    const int kKeyToValueOffset =
-        (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
-        kTaggedSize;
-    return LoadFixedArrayElement(container, key_index, kKeyToValueOffset);
-  }
+                                    TNode<IntPtrT> key_index);
 
   // Stores the details for the entry with the given key_index.
   // |details| must be a Smi.
   template <class ContainerType>
   void StoreDetailsByKeyIndex(TNode<ContainerType> container,
-                              TNode<IntPtrT> key_index, TNode<Smi> details) {
-    const int kKeyToDetailsOffset =
-        (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
-        kTaggedSize;
-    StoreFixedArrayElement(container, key_index, details, kKeyToDetailsOffset);
-  }
+                              TNode<IntPtrT> key_index, TNode<Smi> details);
 
   // Stores the value for the entry with the given key_index.
   template <class ContainerType>
   void StoreValueByKeyIndex(
       TNode<ContainerType> container, TNode<IntPtrT> key_index,
       TNode<Object> value,
-      WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER) {
-    const int kKeyToValueOffset =
-        (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
-        kTaggedSize;
-    StoreFixedArrayElement(container, key_index, value, write_barrier,
-                           kKeyToValueOffset);
-  }
+      WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER);
 
   // Calculate a valid size for the a hash table.
   TNode<IntPtrT> HashTableComputeCapacity(TNode<IntPtrT> at_least_space_for);

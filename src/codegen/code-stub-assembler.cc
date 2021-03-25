@@ -8029,12 +8029,127 @@ TNode<MaybeObject> CodeStubAssembler::LoadFieldTypeByDescriptorEntry(
       DescriptorArray::ToValueIndex(0) * kTaggedSize);
 }
 
+// Loads the value for the entry with the given key_index.
+// Returns a tagged value.
+template <class ContainerType>
+TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<ContainerType> container, TNode<IntPtrT> key_index) {
+  static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
+                "Use the non-templatized version for DescriptorArray");
+  const int kKeyToValueOffset =
+      (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
+      kTaggedSize;
+  return LoadFixedArrayElement(container, key_index, kKeyToValueOffset);
+}
+
+template <>
+TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index) {
+  TNode<IntPtrT> offset_minus_tag = SwissNameDictionaryOffsetIntoDataTableMT(
+      container, key_index, SwissNameDictionary::kDataTableValueEntryIndex);
+
+  return Load<Object>(container, offset_minus_tag);
+}
+
+template <class ContainerType>
+TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
+    TNode<ContainerType> container, TNode<IntPtrT> key_index) {
+  static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
+                "Use the non-templatized version for DescriptorArray");
+  const int kKeyToDetailsOffset =
+      (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
+      kTaggedSize;
+  return Unsigned(LoadAndUntagToWord32FixedArrayElement(container, key_index,
+                                                        kKeyToDetailsOffset));
+}
+
+template <>
+TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
+    TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index) {
+  TNode<IntPtrT> capacity =
+      ChangeInt32ToIntPtr(LoadSwissNameDictionaryCapacity(container));
+  return LoadSwissNameDictionaryPropertyDetails(container, capacity, key_index);
+}
+
+// Stores the details for the entry with the given key_index.
+// |details| must be a Smi.
+template <class ContainerType>
+void CodeStubAssembler::StoreDetailsByKeyIndex(TNode<ContainerType> container,
+                                               TNode<IntPtrT> key_index,
+                                               TNode<Smi> details) {
+  const int kKeyToDetailsOffset =
+      (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
+      kTaggedSize;
+  StoreFixedArrayElement(container, key_index, details, kKeyToDetailsOffset);
+}
+
+template <>
+void CodeStubAssembler::StoreDetailsByKeyIndex(
+    TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index,
+    TNode<Smi> details) {
+  TNode<IntPtrT> capacity =
+      ChangeInt32ToIntPtr(LoadSwissNameDictionaryCapacity(container));
+  TNode<Uint8T> details_byte = UncheckedCast<Uint8T>(SmiToInt32(details));
+  StoreSwissNameDictionaryPropertyDetails(container, capacity, key_index,
+                                          details_byte);
+}
+
+// Stores the value for the entry with the given key_index.
+template <class ContainerType>
+void CodeStubAssembler::StoreValueByKeyIndex(TNode<ContainerType> container,
+                                             TNode<IntPtrT> key_index,
+                                             TNode<Object> value,
+                                             WriteBarrierMode write_barrier) {
+  const int kKeyToValueOffset =
+      (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
+      kTaggedSize;
+  StoreFixedArrayElement(container, key_index, value, write_barrier,
+                         kKeyToValueOffset);
+}
+
+template <>
+void CodeStubAssembler::StoreValueByKeyIndex(
+    TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index,
+    TNode<Object> value, WriteBarrierMode write_barrier) {
+  TNode<IntPtrT> offset_minus_tag = SwissNameDictionaryOffsetIntoDataTableMT(
+      container, key_index, SwissNameDictionary::kDataTableValueEntryIndex);
+
+  StoreToObjectWriteBarrier mode;
+  switch (write_barrier) {
+    case UNSAFE_SKIP_WRITE_BARRIER:
+    case SKIP_WRITE_BARRIER:
+      mode = StoreToObjectWriteBarrier::kNone;
+      break;
+    case UPDATE_WRITE_BARRIER:
+      mode = StoreToObjectWriteBarrier::kFull;
+      break;
+    default:
+      // We shouldn't see anything else.
+      UNREACHABLE();
+  }
+  StoreToObject(MachineRepresentation::kTagged, container, offset_minus_tag,
+                value, mode);
+}
+
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::EntryToIndex<NameDictionary>(TNode<IntPtrT>, int);
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::EntryToIndex<GlobalDictionary>(TNode<IntPtrT>, int);
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::EntryToIndex<NumberDictionary>(TNode<IntPtrT>, int);
+
+template TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<NameDictionary> container, TNode<IntPtrT> key_index);
+template TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<GlobalDictionary> container, TNode<IntPtrT> key_index);
+template TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
+    TNode<NameDictionary> container, TNode<IntPtrT> key_index);
+template void CodeStubAssembler::StoreDetailsByKeyIndex(
+    TNode<NameDictionary> container, TNode<IntPtrT> key_index,
+    TNode<Smi> details);
+template void CodeStubAssembler::StoreValueByKeyIndex(
+    TNode<NameDictionary> container, TNode<IntPtrT> key_index,
+    TNode<Object> value, WriteBarrierMode write_barrier);
 
 // This must be kept in sync with HashTableBase::ComputeCapacity().
 TNode<IntPtrT> CodeStubAssembler::HashTableComputeCapacity(
@@ -8186,18 +8301,8 @@ void CodeStubAssembler::NameDictionaryLookup(
     TNode<SwissNameDictionary> dictionary, TNode<Name> unique_name,
     Label* if_found, TVariable<IntPtrT>* var_name_index, Label* if_not_found,
     LookupMode mode) {
-  Label store_found_index(this);
-
-  // TOOD(v8:11330) Dummy implementation until real version exists.
-  TNode<Smi> index =
-      CallRuntime<Smi>(Runtime::kSwissTableFindEntry, NoContextConstant(),
-                       dictionary, unique_name);
-  BranchIfSmiEqual(index, SmiConstant(SwissNameDictionary::kNotFoundSentinel),
-                   if_not_found, &store_found_index);
-
-  BIND(&store_found_index);
-  *var_name_index = SmiToIntPtr(index);
-  Goto(if_found);
+  SwissNameDictionaryFindEntry(dictionary, unique_name, if_found,
+                               var_name_index, if_not_found);
 }
 
 void CodeStubAssembler::NumberDictionaryLookup(
@@ -14566,10 +14671,14 @@ TNode<Uint32T> CodeStubAssembler::SwissNameDictionaryUpdateCountsForDeletion(
 
 TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
     TNode<IntPtrT> at_least_space_for) {
-  // TOOD(v8:11330) Dummy implementation until real version exists.
-  return CallRuntime<SwissNameDictionary>(Runtime::kSwissTableAllocate,
-                                          NoContextConstant(),
-                                          SmiFromIntPtr(at_least_space_for));
+  // Note that as AllocateNameDictionary, we return a table with initial
+  // (non-zero) capacity even if |at_least_space_for| is 0.
+
+  TNode<IntPtrT> capacity =
+      IntPtrMax(IntPtrConstant(SwissNameDictionary::kInitialCapacity),
+                SwissNameDictionaryCapacityFor(at_least_space_for));
+
+  return AllocateSwissNameDictionaryWithCapacity(capacity);
 }
 
 TNode<SwissNameDictionary> CodeStubAssembler::AllocateSwissNameDictionary(
