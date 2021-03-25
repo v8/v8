@@ -244,9 +244,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Dispatch to frame dropper trampoline if necessary.
   void MaybeDropFrames(TNode<Context> context);
 
-  // Perform OnStackReplacement.
-  void OnStackReplacement(TNode<Context> context, TNode<IntPtrT> relative_jump);
-
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   TNode<IntPtrT> BytecodeOffset();
 
