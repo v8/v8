@@ -8803,8 +8803,8 @@ void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
 
 void Isolate::GetEmbeddedCodeRange(const void** start,
                                    size_t* length_in_bytes) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::EmbeddedData d = i::EmbeddedData::FromBlob(isolate);
+  // Note, we should return the embedded code rande from the .text section here.
+  i::EmbeddedData d = i::EmbeddedData::FromBlob();
   *start = reinterpret_cast<const void*>(d.code());
   *length_in_bytes = d.code_size();
 }
