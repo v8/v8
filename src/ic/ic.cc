@@ -927,12 +927,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
               isolate(), map, holder, smi_handler,
               MaybeObjectHandle::Weak(lookup->GetPropertyCell()));
         } else {
-          if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-            // TODO(v8:11167) remove once SwissNameDictionary supported.
-            smi_handler = LoadHandler::LoadSlow(isolate());
-          } else {
-            smi_handler = LoadHandler::LoadNormal(isolate());
-          }
+          smi_handler = LoadHandler::LoadNormal(isolate());
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
           if (holder_is_lookup_start_object) return smi_handler;
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
@@ -982,12 +977,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
               isolate(), map, holder, smi_handler,
               MaybeObjectHandle::Weak(lookup->GetPropertyCell()));
         }
-        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-          // TODO(v8:11167) remove once OrderedNameDictionary supported.
-          smi_handler = LoadHandler::LoadSlow(isolate());
-        } else {
-          smi_handler = LoadHandler::LoadNormal(isolate());
-        }
+        smi_handler = LoadHandler::LoadNormal(isolate());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
         if (holder_is_lookup_start_object) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
@@ -1823,11 +1813,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                        lookup->constness() == PropertyConstness::kMutable);
 
-        // TODO(v8:11167) don't create slow hanlder once SwissNameDictionary
-        // supported.
-        Handle<Smi> handler = V8_DICT_MODE_PROTOTYPES_BOOL
-                                  ? StoreHandler::StoreSlow(isolate())
-                                  : StoreHandler::StoreNormal(isolate());
+        Handle<Smi> handler = StoreHandler::StoreNormal(isolate());
         return MaybeObjectHandle(handler);
       }
 

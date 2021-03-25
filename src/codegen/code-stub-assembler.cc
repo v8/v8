@@ -8491,6 +8491,31 @@ void CodeStubAssembler::Add(TNode<Dictionary> dictionary, TNode<Name> key,
                           enum_index);
 }
 
+template <>
+void CodeStubAssembler::Add(TNode<SwissNameDictionary> dictionary,
+                            TNode<Name> key, TNode<Object> value,
+                            Label* bailout) {
+  PropertyDetails d(kData, NONE,
+                    PropertyDetails::kConstIfDictConstnessTracking);
+
+  PropertyDetails d_dont_enum(kData, DONT_ENUM,
+                              PropertyDetails::kConstIfDictConstnessTracking);
+  TNode<Uint8T> details_byte_enum =
+      UncheckedCast<Uint8T>(Uint32Constant(d.ToByte()));
+  TNode<Uint8T> details_byte_dont_enum =
+      UncheckedCast<Uint8T>(Uint32Constant(d_dont_enum.ToByte()));
+
+  Label not_private(this);
+  TVARIABLE(Uint8T, var_details, details_byte_enum);
+
+  GotoIfNot(IsPrivateSymbol(key), &not_private);
+  var_details = details_byte_dont_enum;
+  Goto(&not_private);
+
+  BIND(&not_private);
+  SwissNameDictionaryAdd(dictionary, key, value, var_details.value(), bailout);
+}
+
 template void CodeStubAssembler::Add<NameDictionary>(TNode<NameDictionary>,
                                                      TNode<Name>, TNode<Object>,
                                                      Label*);
@@ -8505,9 +8530,10 @@ TNode<Smi> CodeStubAssembler::GetNumberOfElements(
 template <>
 TNode<Smi> CodeStubAssembler::GetNumberOfElements(
     TNode<SwissNameDictionary> dictionary) {
-  // TOOD(v8:11330) Dummy implementation until real version exists.
-  return CallRuntime<Smi>(Runtime::kSwissTableElementsCount,
-                          NoContextConstant(), dictionary);
+  TNode<IntPtrT> capacity =
+      ChangeInt32ToIntPtr(LoadSwissNameDictionaryCapacity(dictionary));
+  return SmiFromIntPtr(
+      LoadSwissNameDictionaryNumberOfElements(dictionary, capacity));
 }
 
 template TNode<Smi> CodeStubAssembler::GetNumberOfElements(
@@ -8824,13 +8850,8 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
           }
           BIND(&if_found_dict);
           {
-            if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-              // TODO(v8:11167, v8:11177) Only here due to SetDataProperties
-              // workaround.
-              GotoIf(Int32TrueConstant(), bailout);
-            }
-
-            TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
+            TNode<PropertyDictionary> dictionary =
+                CAST(var_meta_storage.value());
             TNode<IntPtrT> entry = var_entry.value();
 
             TNode<Uint32T> details = LoadDetailsByKeyIndex(dictionary, entry);
@@ -8840,7 +8861,8 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
                 &next_iteration);
 
             var_details = details;
-            var_value = LoadValueByKeyIndex<NameDictionary>(dictionary, entry);
+            var_value =
+                LoadValueByKeyIndex<PropertyDictionary>(dictionary, entry);
             Goto(&if_found);
           }
 
@@ -9029,19 +9051,11 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
   }
   BIND(&if_isslowmap);
   {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      TNode<SwissNameDictionary> dictionary = CAST(LoadSlowProperties(object));
-      *var_meta_storage = dictionary;
+    TNode<PropertyDictionary> dictionary = CAST(LoadSlowProperties(object));
+    *var_meta_storage = dictionary;
 
-      NameDictionaryLookup<SwissNameDictionary>(
-          dictionary, unique_name, if_found_dict, var_name_index, if_not_found);
-    } else {
-      TNode<NameDictionary> dictionary = CAST(LoadSlowProperties(object));
-      *var_meta_storage = dictionary;
-
-      NameDictionaryLookup<NameDictionary>(
-          dictionary, unique_name, if_found_dict, var_name_index, if_not_found);
-    }
+    NameDictionaryLookup<PropertyDictionary>(
+        dictionary, unique_name, if_found_dict, var_name_index, if_not_found);
   }
 }
 
@@ -9265,31 +9279,15 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
   Comment("] LoadPropertyFromFastObject");
 }
 
-void CodeStubAssembler::LoadPropertyFromNameDictionary(
-    TNode<NameDictionary> dictionary, TNode<IntPtrT> name_index,
+template <typename Dictionary>
+void CodeStubAssembler::LoadPropertyFromDictionary(
+    TNode<Dictionary> dictionary, TNode<IntPtrT> name_index,
     TVariable<Uint32T>* var_details, TVariable<Object>* var_value) {
   Comment("LoadPropertyFromNameDictionary");
   *var_details = LoadDetailsByKeyIndex(dictionary, name_index);
   *var_value = LoadValueByKeyIndex(dictionary, name_index);
 
   Comment("] LoadPropertyFromNameDictionary");
-}
-
-void CodeStubAssembler::LoadPropertyFromSwissNameDictionary(
-    TNode<SwissNameDictionary> dictionary, TNode<IntPtrT> name_index,
-    TVariable<Uint32T>* var_details, TVariable<Object>* var_value) {
-  Comment("[ LoadPropertyFromSwissNameDictionary");
-
-  // TOOD(v8:11330) Dummy implementation until real version exists.
-  TNode<Smi> details =
-      CallRuntime<Smi>(Runtime::kSwissTableDetailsAt, NoContextConstant(),
-                       dictionary, SmiFromIntPtr(name_index));
-  *var_details = Unsigned(SmiToInt32(details));
-  *var_value =
-      CallRuntime<Object>(Runtime::kSwissTableValueAt, NoContextConstant(),
-                          dictionary, SmiFromIntPtr(name_index));
-
-  Comment("] LoadPropertyFromSwissNameDictionary");
 }
 
 void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
@@ -9312,6 +9310,14 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
 
   Comment("] LoadPropertyFromGlobalDictionary");
 }
+
+template void CodeStubAssembler::LoadPropertyFromDictionary(
+    TNode<NameDictionary> dictionary, TNode<IntPtrT> name_index,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_value);
+
+template void CodeStubAssembler::LoadPropertyFromDictionary(
+    TNode<SwissNameDictionary> dictionary, TNode<IntPtrT> name_index,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_value);
 
 // |value| is the property backing store's contents, which is either a value or
 // an accessor pair, as specified by |details|. |holder| is a JSObject or a
@@ -9475,16 +9481,9 @@ void CodeStubAssembler::TryGetOwnProperty(
   }
   BIND(&if_found_dict);
   {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      TNode<SwissNameDictionary> dictionary = CAST(var_meta_storage.value());
-      TNode<IntPtrT> entry = var_entry.value();
-      LoadPropertyFromSwissNameDictionary(dictionary, entry, var_details,
-                                          var_value);
-    } else {
-      TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
-      TNode<IntPtrT> entry = var_entry.value();
-      LoadPropertyFromNameDictionary(dictionary, entry, var_details, var_value);
-    }
+    TNode<PropertyDictionary> dictionary = CAST(var_meta_storage.value());
+    TNode<IntPtrT> entry = var_entry.value();
+    LoadPropertyFromDictionary(dictionary, entry, var_details, var_value);
 
     Goto(&if_found);
   }
@@ -12973,11 +12972,6 @@ TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
                                               HasPropertyLookupMode mode) {
   Label call_runtime(this, Label::kDeferred), return_true(this),
       return_false(this), end(this), if_proxy(this, Label::kDeferred);
-
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once SwissNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &call_runtime);
-  }
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
       [this, &return_true](

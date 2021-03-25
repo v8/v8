@@ -521,11 +521,6 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   Label if_index(this, &var_index), if_unique_name(this), if_notunique(this),
       if_notfound(this), slow(this), if_proxy(this);
 
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once SwissNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &slow);
-  }
-
   GotoIf(TaggedIsSmi(receiver), &slow);
   TNode<Map> receiver_map = LoadMap(CAST(receiver));
   TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
@@ -556,7 +551,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     {
       InvalidateValidityCellIfPrototype(receiver_map);
 
-      TNode<NameDictionary> properties =
+      TNode<PropertyDictionary> properties =
           CAST(LoadSlowProperties(CAST(receiver)));
       DeleteDictionaryProperty(CAST(receiver), properties, var_unique.value(),
                                context, &dont_delete, &if_notfound);
@@ -991,11 +986,6 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
   Label if_notfound(this), if_proxy(this, Label::kDeferred),
       if_slow(this, Label::kDeferred);
 
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once SwissNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &if_slow);
-  }
-
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
       [=](TNode<HeapObject> receiver, TNode<HeapObject> holder,
           TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
@@ -1050,11 +1040,6 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
   auto on_non_existent = Parameter<Object>(Descriptor::kOnNonExistent);
   Label if_notfound(this), if_proxy(this, Label::kDeferred),
       if_slow(this, Label::kDeferred);
-
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once SwissNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &if_slow);
-  }
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
       [=](TNode<HeapObject> receiver, TNode<HeapObject> holder,

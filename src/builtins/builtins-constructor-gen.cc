@@ -537,7 +537,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   TNode<Map> boilerplate_map = LoadMap(boilerplate);
   CSA_ASSERT(this, IsJSObjectMap(boilerplate_map));
 
-  TVARIABLE(FixedArray, var_properties);
+  TVARIABLE(HeapObject, var_properties);
   {
     TNode<Uint32T> bit_field_3 = LoadMapBitField3(boilerplate_map);
     GotoIf(IsSetWord32<Map::Bits3::IsDeprecatedBit>(bit_field_3), call_runtime);
@@ -547,14 +547,14 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
            &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        // TODO(v8:11167) remove once SwissNameDictionary supported.
-        GotoIf(Int32TrueConstant(), call_runtime);
-      }
-
       Comment("Copy dictionary properties");
-      var_properties = CopyNameDictionary(CAST(LoadSlowProperties(boilerplate)),
-                                          call_runtime);
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        var_properties =
+            CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
+      } else {
+        var_properties = CopyNameDictionary(
+            CAST(LoadSlowProperties(boilerplate)), call_runtime);
+      }
       // Slow objects have no in-object properties.
       Goto(&done);
     }

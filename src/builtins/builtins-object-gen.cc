@@ -1033,11 +1033,6 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);
 
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once SwissNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &call_runtime);
-  }
-
   {
     Comment("Argument 1 check: prototype");
     GotoIf(IsNull(prototype), &prototype_valid);
@@ -1284,10 +1279,6 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   Label if_keyisindex(this), if_iskeyunique(this),
       call_runtime(this, Label::kDeferred),
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once SwissNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &call_runtime);
-  }
 
   TNode<Map> map = LoadMap(object);
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
@@ -1371,14 +1362,8 @@ void ObjectBuiltinsAssembler::AddToDictionaryIf(
   Label done(this);
   GotoIfNot(condition, &done);
 
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once SwissNameDictionary supported.
-    CallRuntime(Runtime::kAddDictionaryProperty, context, object,
-                HeapConstant(name), value);
-  } else {
-    Add<NameDictionary>(CAST(name_dictionary), HeapConstant(name), value,
-                        bailout);
-  }
+  Add<PropertyDictionary>(CAST(name_dictionary), HeapConstant(name), value,
+                          bailout);
   Goto(&done);
 
   BIND(&done);
@@ -1479,12 +1464,9 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     js_descriptor = js_desc;
     Goto(&return_desc);
 
-    if (!V8_DICT_MODE_PROTOTYPES_BOOL) {
-      // TODO(v8:11167) make unconditional once SwissNameDictionary supported.
-      BIND(&bailout);
-      CSA_ASSERT(this, Int32Constant(0));
-      Unreachable();
-    }
+    BIND(&bailout);
+    CSA_ASSERT(this, Int32Constant(0));
+    Unreachable();
   }
 
   BIND(&return_desc);

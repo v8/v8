@@ -529,17 +529,18 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   BIND(&normal);
   {
     Comment("load_normal");
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(holder)));
+    TNode<PropertyDictionary> properties =
+        CAST(LoadSlowProperties(CAST(holder)));
     TVARIABLE(IntPtrT, var_name_index);
     Label found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(properties, CAST(p->name()), &found,
-                                         &var_name_index, miss);
+    NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
+                                             &found, &var_name_index, miss);
     BIND(&found);
     {
       TVARIABLE(Uint32T, var_details);
       TVARIABLE(Object, var_value);
-      LoadPropertyFromNameDictionary(properties, var_name_index.value(),
-                                     &var_details, &var_value);
+      LoadPropertyFromDictionary<PropertyDictionary>(
+          properties, var_name_index.value(), &var_details, &var_value);
       TNode<Object> value = CallGetterIfAccessor(
           var_value.value(), CAST(holder), var_details.value(), p->context(),
           p->receiver(), miss);
@@ -740,11 +741,12 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
   BIND(&normal);
   {
     Comment("has_normal");
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(holder)));
+    TNode<PropertyDictionary> properties =
+        CAST(LoadSlowProperties(CAST(holder)));
     TVARIABLE(IntPtrT, var_name_index);
     Label found(this);
-    NameDictionaryLookup<NameDictionary>(properties, CAST(p->name()), &found,
-                                         &var_name_index, miss);
+    NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
+                                             &found, &var_name_index, miss);
 
     BIND(&found);
     exit_point->Return(TrueConstant());
@@ -859,11 +861,6 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
 
       BIND(&if_lookup_on_lookup_start_object);
       {
-        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-          // TODO(v8:11167) remove once SwissNameDictionary supported.
-          GotoIf(Int32TrueConstant(), miss);
-        }
-
         // Dictionary lookup on lookup start object is not necessary for
         // Load/StoreGlobalIC (which is the only case when the
         // lookup_start_object can be a JSGlobalObject) because prototype
@@ -873,12 +870,12 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
                    Word32BinaryNot(HasInstanceType(
                        CAST(p->lookup_start_object()), JS_GLOBAL_OBJECT_TYPE)));
 
-        TNode<NameDictionary> properties =
+        TNode<PropertyDictionary> properties =
             CAST(LoadSlowProperties(CAST(p->lookup_start_object())));
         TVARIABLE(IntPtrT, var_name_index);
         Label found(this, &var_name_index);
-        NameDictionaryLookup<NameDictionary>(properties, CAST(p->name()),
-                                             &found, &var_name_index, &done);
+        NameDictionaryLookup<PropertyDictionary>(
+            properties, CAST(p->name()), &found, &var_name_index, &done);
         BIND(&found);
         {
           if (on_found_on_lookup_start_object) {
@@ -905,14 +902,14 @@ void AccessorAssembler::HandleLoadICProtoHandler(
       // Code sub-handlers are not expected in LoadICs, so no |on_code_handler|.
       nullptr,
       // on_found_on_lookup_start_object
-      [=](TNode<NameDictionary> properties, TNode<IntPtrT> name_index) {
+      [=](TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index) {
         if (access_mode == LoadAccessMode::kHas) {
           exit_point->Return(TrueConstant());
         } else {
           TVARIABLE(Uint32T, var_details);
           TVARIABLE(Object, var_value);
-          LoadPropertyFromNameDictionary(properties, name_index, &var_details,
-                                         &var_value);
+          LoadPropertyFromDictionary<PropertyDictionary>(
+              properties, name_index, &var_details, &var_value);
           TNode<Object> value = CallGetterIfAccessor(
               var_value.value(), CAST(var_holder->value()), var_details.value(),
               p->context(), p->receiver(), miss);
@@ -1051,11 +1048,12 @@ void AccessorAssembler::HandleStoreICHandlerCase(
            &if_slow);
     CSA_ASSERT(this,
                Word32Equal(handler_kind, Int32Constant(StoreHandler::kNormal)));
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(holder)));
+    TNode<PropertyDictionary> properties =
+        CAST(LoadSlowProperties(CAST(holder)));
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(
+    NameDictionaryLookup<PropertyDictionary>(
         properties, CAST(p->name()), &dictionary_found, &var_name_index, miss);
     BIND(&dictionary_found);
     {
@@ -1072,8 +1070,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         GotoIf(IsPropertyDetailsConst(details), &if_constant);
       }
 
-      StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
-                                           p->value());
+      StoreValueByKeyIndex<PropertyDictionary>(
+          properties, var_name_index.value(), p->value());
       Return(p->value());
 
       if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
@@ -1552,7 +1550,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   TNode<Object> smi_handler = HandleProtoHandler<StoreHandler>(
       p, handler, on_code_handler,
       // on_found_on_lookup_start_object
-      [=](TNode<NameDictionary> properties, TNode<IntPtrT> name_index) {
+      [=](TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index) {
         TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, name_index);
         // Check that the property is a writable data property (no accessor).
         const int kTypeAndReadOnlyMask =
@@ -1561,8 +1559,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         STATIC_ASSERT(kData == 0);
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
-        StoreValueByKeyIndex<NameDictionary>(properties, name_index,
-                                             p->value());
+        StoreValueByKeyIndex<PropertyDictionary>(properties, name_index,
+                                                 p->value());
         Return(p->value());
       },
       miss, ic_mode);
@@ -1633,9 +1631,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       TNode<Map> receiver_map = LoadMap(CAST(p->receiver()));
       InvalidateValidityCellIfPrototype(receiver_map);
 
-      TNode<NameDictionary> properties =
+      TNode<PropertyDictionary> properties =
           CAST(LoadSlowProperties(CAST(p->receiver())));
-      Add<NameDictionary>(properties, CAST(p->name()), p->value(), &slow);
+      Add<PropertyDictionary>(properties, CAST(p->name()), p->value(), &slow);
       Return(p->value());
 
       BIND(&slow);
@@ -2439,26 +2437,21 @@ void AccessorAssembler::GenericPropertyLoad(
 
   BIND(&if_property_dictionary);
   {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      // TODO(v8:11167) remove once SwissNameDictionary supported.
-      GotoIf(Int32TrueConstant(), slow);
-    }
-
     Comment("dictionary property load");
     // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
     // seeing global objects here (which would need special handling).
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
-    TNode<NameDictionary> properties =
+    TNode<PropertyDictionary> properties =
         CAST(LoadSlowProperties(CAST(lookup_start_object)));
-    NameDictionaryLookup<NameDictionary>(properties, name, &dictionary_found,
-                                         &var_name_index,
-                                         &lookup_prototype_chain);
+    NameDictionaryLookup<PropertyDictionary>(properties, name,
+                                             &dictionary_found, &var_name_index,
+                                             &lookup_prototype_chain);
     BIND(&dictionary_found);
     {
-      LoadPropertyFromNameDictionary(properties, var_name_index.value(),
-                                     &var_details, &var_value);
+      LoadPropertyFromDictionary<PropertyDictionary>(
+          properties, var_name_index.value(), &var_details, &var_value);
       Goto(&if_found_on_lookup_start_object);
     }
   }

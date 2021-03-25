@@ -430,7 +430,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   using OnCodeHandler = std::function<void(TNode<Code> code_handler)>;
   using OnFoundOnLookupStartObject = std::function<void(
-      TNode<NameDictionary> properties, TNode<IntPtrT> name_index)>;
+      TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index)>;
 
   template <typename ICHandler, typename ICParameters>
   TNode<Object> HandleProtoHandler(

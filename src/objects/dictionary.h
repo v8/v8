@@ -18,6 +18,13 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_DICT_MODE_PROTOTYPES
+class SwissNameDictionary;
+using PropertyDictionary = SwissNameDictionary;
+#else
+using PropertyDictionary = NameDictionary;
+#endif
+
 template <typename T>
 class Handle;
 

@@ -2869,12 +2869,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   void SetNumberOfElements(TNode<Dictionary> dictionary,
                            TNode<Smi> num_elements_smi) {
+    // Not supposed to be used for SwissNameDictionary.
+    STATIC_ASSERT(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+
     StoreFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex,
                            num_elements_smi, SKIP_WRITE_BARRIER);
   }
 
   template <class Dictionary>
   TNode<Smi> GetNumberOfDeletedElements(TNode<Dictionary> dictionary) {
+    // Not supposed to be used for SwissNameDictionary.
+    STATIC_ASSERT(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+
     return CAST(LoadFixedArrayElement(
         dictionary, Dictionary::kNumberOfDeletedElementsIndex));
   }
@@ -2882,6 +2888,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   void SetNumberOfDeletedElements(TNode<Dictionary> dictionary,
                                   TNode<Smi> num_deleted_smi) {
+    // Not supposed to be used for SwissNameDictionary.
+    STATIC_ASSERT(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+
     StoreFixedArrayElement(dictionary,
                            Dictionary::kNumberOfDeletedElementsIndex,
                            num_deleted_smi, SKIP_WRITE_BARRIER);
@@ -2889,6 +2898,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <class Dictionary>
   TNode<Smi> GetCapacity(TNode<Dictionary> dictionary) {
+    // Not supposed to be used for SwissNameDictionary.
+    STATIC_ASSERT(!(std::is_same<Dictionary, SwissNameDictionary>::value));
+
     return CAST(
         UnsafeLoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex));
   }
@@ -3029,13 +3041,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TNode<IntPtrT> name_index, TNode<Uint32T>,
                                   TVariable<Object>* var_value);
 
-  void LoadPropertyFromNameDictionary(TNode<NameDictionary> dictionary,
-                                      TNode<IntPtrT> name_index,
-                                      TVariable<Uint32T>* var_details,
-                                      TVariable<Object>* var_value);
-  void LoadPropertyFromSwissNameDictionary(
-      TNode<SwissNameDictionary> dictionary, TNode<IntPtrT> name_index,
-      TVariable<Uint32T>* var_details, TVariable<Object>* var_value);
+  template <typename Dictionary>
+  void LoadPropertyFromDictionary(TNode<Dictionary> dictionary,
+                                  TNode<IntPtrT> name_index,
+                                  TVariable<Uint32T>* var_details,
+                                  TVariable<Object>* var_value);
   void LoadPropertyFromGlobalDictionary(TNode<GlobalDictionary> dictionary,
                                         TNode<IntPtrT> name_index,
                                         TVariable<Uint32T>* var_details,
