@@ -2714,8 +2714,8 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  MultiPop(regs.GetGpList());
   MultiPopDoubles(regs.GetFpList());
+  MultiPop(regs.GetGpList());
 }
 
 void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
