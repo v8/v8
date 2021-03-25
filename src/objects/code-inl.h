@@ -411,6 +411,26 @@ uintptr_t Code::GetBaselineEndPCForBytecodeOffset(int bytecode_offset,
                                         bytecodes);
 }
 
+uintptr_t Code::GetBaselinePCForNextExecutedBytecode(int bytecode_offset,
+                                                     BytecodeArray bytecodes) {
+  DisallowGarbageCollection no_gc;
+  CHECK_EQ(kind(), CodeKind::BASELINE);
+  baseline::BytecodeOffsetIterator offset_iterator(
+      ByteArray::cast(bytecode_offset_table()), bytecodes);
+  Handle<BytecodeArray> bytecodes_handle(
+      reinterpret_cast<Address*>(&bytecodes));
+  interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes_handle,
+                                                       bytecode_offset);
+  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
+  if (bytecode == interpreter::Bytecode::kJumpLoop) {
+    return GetBaselineStartPCForBytecodeOffset(
+        bytecode_iterator.GetJumpTargetOffset(), bytecodes);
+  } else {
+    DCHECK(!interpreter::Bytecodes::IsJump(bytecode));
+    return GetBaselineEndPCForBytecodeOffset(bytecode_offset, bytecodes);
+  }
+}
+
 void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
                             bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);

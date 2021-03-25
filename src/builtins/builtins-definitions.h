@@ -143,6 +143,7 @@ namespace internal {
   ASM(BaselineLeaveFrame, BaselineLeaveFrame)                                  \
   ASM(BaselineEnterAtBytecode, Void)                                           \
   ASM(BaselineEnterAtNextBytecode, Void)                                       \
+  ASM(InterpreterOnStackReplacement_ToBaseline, Void)                          \
                                                                                \
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, JSTrampoline)                                               \
