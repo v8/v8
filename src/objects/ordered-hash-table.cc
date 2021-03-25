@@ -680,17 +680,9 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
   memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,
          num_buckets + num_chains);
 
-  if (Heap::InYoungGeneration(*this)) {
-    MemsetTagged(RawField(DataTableStartOffset()),
-                 ReadOnlyRoots(isolate).the_hole_value(),
-                 capacity * Derived::kEntrySize);
-  } else {
-    for (int i = 0; i < capacity; i++) {
-      for (int j = 0; j < Derived::kEntrySize; j++) {
-        SetDataEntry(i, j, ReadOnlyRoots(isolate).the_hole_value());
-      }
-    }
-  }
+  MemsetTagged(RawField(DataTableStartOffset()),
+               ReadOnlyRoots(isolate).the_hole_value(),
+               capacity * Derived::kEntrySize);
 
 #ifdef DEBUG
   for (int i = 0; i < num_buckets; ++i) {
