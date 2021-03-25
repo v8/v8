@@ -5053,6 +5053,9 @@ TEST(InterpreterGenerators) {
 
 #ifndef V8_TARGET_ARCH_ARM
 TEST(InterpreterWithNativeStack) {
+  // "Always sparkplug" messes with this test.
+  if (FLAG_always_sparkplug) return;
+
   i::FLAG_interpreted_frames_native_stack = true;
 
   HandleAndZoneScope handles;

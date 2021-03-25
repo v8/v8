@@ -34,11 +34,11 @@ void ExpectSharedFunctionInfoState(SharedFunctionInfo sfi,
   HeapObject script_or_debug_info = sfi.script_or_debug_info(kAcquireLoad);
   switch (expectedState) {
     case SfiState::Compiled:
-      CHECK(function_data.IsBytecodeArray());
+      CHECK(function_data.IsBytecodeArray() || function_data.IsBaselineData());
       CHECK(script_or_debug_info.IsScript());
       break;
     case SfiState::DebugInfo:
-      CHECK(function_data.IsBytecodeArray());
+      CHECK(function_data.IsBytecodeArray() || function_data.IsBaselineData());
       CHECK(script_or_debug_info.IsDebugInfo());
       {
         DebugInfo debug_info = DebugInfo::cast(script_or_debug_info);

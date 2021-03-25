@@ -1095,6 +1095,9 @@ TEST(TestBytecodeFlushing) {
   FLAG_always_opt = false;
   i::FLAG_optimize_for_size = false;
 #endif  // V8_LITE_MODE
+#if ENABLE_SPARKPLUG
+  FLAG_always_sparkplug = false;
+#endif  // ENABLE_SPARKPLUG
   i::FLAG_flush_bytecode = true;
   i::FLAG_allow_natives_syntax = true;
 
@@ -1156,6 +1159,9 @@ HEAP_TEST(Regress10560) {
   // Disable flags that allocate a feedback vector eagerly.
   i::FLAG_opt = false;
   i::FLAG_always_opt = false;
+#if ENABLE_SPARKPLUG
+  FLAG_always_sparkplug = false;
+#endif  // ENABLE_SPARKPLUG
   i::FLAG_lazy_feedback_allocation = true;
 
   ManualGCScope manual_gc_scope;
@@ -1320,6 +1326,9 @@ TEST(Regress10774) {
 TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   FLAG_opt = true;
   FLAG_always_opt = false;
+#if ENABLE_SPARKPLUG
+  FLAG_always_sparkplug = false;
+#endif  // ENABLE_SPARKPLUG
   i::FLAG_optimize_for_size = false;
   i::FLAG_incremental_marking = true;
   i::FLAG_flush_bytecode = true;

@@ -726,9 +726,11 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
         v8::ScriptCompiler::CompileUnboundScript(isolate1, &source)
             .ToLocalChecked();
     CHECK_EQ(code_event_handler.CountLines("Function", "f1"),
-             i::FLAG_stress_background_compile ? 2 : 1);
+             1 + (i::FLAG_stress_background_compile ? 1 : 0) +
+                 (i::FLAG_always_sparkplug ? 1 : 0));
     CHECK_EQ(code_event_handler.CountLines("Function", "f2"),
-             i::FLAG_stress_background_compile ? 2 : 1);
+             1 + (i::FLAG_stress_background_compile ? 1 : 0) +
+                 (i::FLAG_always_sparkplug ? 1 : 0));
     cache = v8::ScriptCompiler::CreateCodeCache(script);
   }
   isolate1->Dispose();

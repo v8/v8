@@ -4095,6 +4095,9 @@ TEST(BytecodeFlushEventsEagerLogging) {
   FLAG_always_opt = false;
   i::FLAG_optimize_for_size = false;
 #endif  // V8_LITE_MODE
+#if ENABLE_SPARKPLUG
+  FLAG_always_sparkplug = false;
+#endif  // ENABLE_SPARKPLUG
   i::FLAG_flush_bytecode = true;
   i::FLAG_allow_natives_syntax = true;
 
