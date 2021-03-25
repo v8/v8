@@ -1072,7 +1072,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&null_proto);
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         properties =
             AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
       } else {
@@ -1420,7 +1420,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     // We want to preallocate the slots for value, writable, get, set,
     // enumerable and configurable - a total of 6
     TNode<HeapObject> properties =
-        V8_DICT_MODE_PROTOTYPES_BOOL
+        V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
             ? TNode<HeapObject>(AllocateSwissNameDictionary(6))
             : AllocateNameDictionary(6);
     TNode<JSObject> js_desc = AllocateJSObjectFromMap(map, properties);

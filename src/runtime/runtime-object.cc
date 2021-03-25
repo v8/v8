@@ -401,7 +401,7 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 
   PropertyDetails property_details(
       kData, NONE, PropertyDetails::kConstIfDictConstnessTracking);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     Handle<SwissNameDictionary> dictionary(
         receiver->property_dictionary_swiss(), isolate);
     dictionary = SwissNameDictionary::Add(isolate, dictionary, name, value,
@@ -680,7 +680,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         }
       } else if (!holder->HasFastProperties()) {
         // Attempt dictionary lookup.
-        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
           SwissNameDictionary dictionary = holder->property_dictionary_swiss();
           InternalIndex entry = dictionary.FindEntry(isolate, *key);
           if (entry.is_found() &&

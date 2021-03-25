@@ -18,7 +18,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_DICT_MODE_PROTOTYPES
+#ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
 class SwissNameDictionary;
 using PropertyDictionary = SwissNameDictionary;
 #else

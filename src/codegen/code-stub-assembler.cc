@@ -1723,7 +1723,7 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
   CSA_SLOW_ASSERT(this, IsDictionaryMap(LoadMap(object)));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   NodeGenerator<HeapObject> make_empty = [=]() -> TNode<HeapObject> {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       return EmptySwissPropertyDictionaryConstant();
     } else {
       return EmptyPropertyDictionaryConstant();
@@ -1731,7 +1731,7 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
   };
   NodeGenerator<HeapObject> cast_properties = [=] {
     TNode<HeapObject> dict = CAST(properties);
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       CSA_ASSERT(this, Word32Or(IsSwissNameDictionary(dict),
                                 IsGlobalDictionary(dict)));
     } else {
@@ -1923,7 +1923,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
          &if_property_array);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     GotoIf(
         InstanceTypeEqual(properties_instance_type, SWISS_NAME_DICTIONARY_TYPE),
         &if_swiss_property_dictionary);
@@ -1950,7 +1950,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
     var_hash = Signed(DecodeWord<PropertyArray::HashField>(length_and_hash));
     Goto(&done);
   }
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     BIND(&if_swiss_property_dictionary);
     {
       var_hash = Signed(
@@ -14064,7 +14064,7 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
     TNode<Smi> length;
     TNode<HeapObject> properties = LoadSlowProperties(receiver);
 
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       CSA_ASSERT(this, Word32Or(IsSwissNameDictionary(properties),
                                 IsGlobalDictionary(properties)));
 

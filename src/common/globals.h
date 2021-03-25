@@ -113,10 +113,10 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
 const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 
 // Determine whether dict mode prototypes feature is enabled.
-#ifdef V8_DICT_MODE_PROTOTYPES
-#define V8_DICT_MODE_PROTOTYPES_BOOL true
+#ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
+#define V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL true
 #else
-#define V8_DICT_MODE_PROTOTYPES_BOOL false
+#define V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL false
 #endif
 
 // Determine whether dict property constness tracking feature is enabled.

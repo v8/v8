@@ -670,7 +670,7 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
     }
 
     Handle<JSObject> holder = maybe_holder.ToHandleChecked();
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       SwissNameDictionary dict = holder->property_dictionary_swiss();
       *index_out = dict.FindEntry(isolate(), name);
       if (index_out->is_found()) {

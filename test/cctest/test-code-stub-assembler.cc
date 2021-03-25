@@ -1891,7 +1891,7 @@ TEST(AllocateJSObjectFromMap) {
     JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "Normalize");
     Handle<HeapObject> properties =
-        V8_DICT_MODE_PROTOTYPES_BOOL
+        V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
             ? Handle<HeapObject>(object->property_dictionary_swiss(), isolate)
             : handle(object->property_dictionary(), isolate);
     Handle<JSObject> result = Handle<JSObject>::cast(
@@ -1899,7 +1899,7 @@ TEST(AllocateJSObjectFromMap) {
                 handle(object->elements(), isolate))
             .ToHandleChecked());
     CHECK_EQ(result->map(), object->map());
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       CHECK_EQ(result->property_dictionary_swiss(),
                object->property_dictionary_swiss());
     } else {

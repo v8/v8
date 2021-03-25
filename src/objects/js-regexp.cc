@@ -65,7 +65,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   Handle<FixedArray> names(Handle<FixedArray>::cast(maybe_names));
   int num_names = names->length() >> 1;
   Handle<HeapObject> group_names;
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     group_names = isolate->factory()->NewSwissNameDictionary(num_names);
   } else {
     group_names = isolate->factory()->NewNameDictionary(num_names);
@@ -81,7 +81,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     if (!capture_indices->IsUndefined(isolate)) {
       capture_indices = Handle<JSArray>::cast(capture_indices);
     }
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       group_names = SwissNameDictionary::Add(
           isolate, Handle<SwissNameDictionary>::cast(group_names), name,
           capture_indices, PropertyDetails::Empty());

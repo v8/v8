@@ -3576,7 +3576,7 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
   }
 
   PropertyDetails details(kData, DONT_ENUM, PropertyConstness::kMutable);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     Handle<SwissNameDictionary> dict(proxy->property_dictionary_swiss(),
                                      isolate);
     Handle<SwissNameDictionary> result =

@@ -44,12 +44,12 @@ class JSReceiver : public HeapObject {
   // map.
   DECL_GETTER(property_array, PropertyArray)
 
-  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
-  // not set).
+  // Gets slow properties for non-global objects (if
+  // v8_enable_swiss_name_dictionary is not set).
   DECL_GETTER(property_dictionary, NameDictionary)
 
-  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
-  // set).
+  // Gets slow properties for non-global objects (if
+  // v8_enable_swiss_name_dictionary is set).
   DECL_GETTER(property_dictionary_swiss, SwissNameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved

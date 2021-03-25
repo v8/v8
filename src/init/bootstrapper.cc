@@ -5193,7 +5193,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
     }
 
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     // Copy all keys and values in enumeration order.
     Handle<SwissNameDictionary> properties = Handle<SwissNameDictionary>(
         from->property_dictionary_swiss(), isolate());

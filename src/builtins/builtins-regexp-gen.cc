@@ -323,7 +323,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> map = LoadSlowObjectWithNullPrototypeMap(native_context);
     TNode<HeapObject> properties;
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       properties = AllocateSwissNameDictionary(num_properties);
     } else {
       properties =

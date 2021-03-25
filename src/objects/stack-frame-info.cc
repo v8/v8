@@ -344,7 +344,7 @@ PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
       name = InferMethodNameFromDictionary(
           isolate, JSGlobalObject::cast(object).global_dictionary(kAcquireLoad),
           fun, name);
-    } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       name = InferMethodNameFromDictionary(
           isolate, object.property_dictionary_swiss(), fun, name);
     } else {

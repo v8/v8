@@ -528,7 +528,7 @@ bool InitClassPrototype(Isolate* isolate,
     // Class prototypes do not have a name accessor.
     const bool install_name_accessor = false;
 
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> properties_dictionary_template =
           Handle<SwissNameDictionary>::cast(properties_template);
       return AddDescriptorsByTemplate(
@@ -589,7 +589,7 @@ bool InitClassConstructor(
     // All class constructors have a name accessor.
     const bool install_name_accessor = true;
 
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> properties_dictionary_template =
           Handle<SwissNameDictionary>::cast(properties_template);
 

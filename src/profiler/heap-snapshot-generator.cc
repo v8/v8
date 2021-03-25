@@ -1377,7 +1377,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
       PropertyDetails details = cell.property_details();
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
     }
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     // SwissNameDictionary::IterateEntries creates a Handle, which should not
     // leak out of here.
     HandleScope scope(isolate);

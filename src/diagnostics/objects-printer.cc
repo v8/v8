@@ -315,7 +315,7 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   } else if (IsJSGlobalObject()) {
     PrintDictionaryContents(
         os, JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad));
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     PrintDictionaryContents(os, property_dictionary_swiss());
   } else {
     PrintDictionaryContents(os, property_dictionary());

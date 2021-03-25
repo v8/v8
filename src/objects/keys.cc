@@ -1003,7 +1003,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
           isolate_, mode_, this, object,
           JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad));
-    } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
           isolate_, mode_, this, object, object->property_dictionary_swiss());
     } else {
@@ -1042,7 +1042,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
           handle(JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad),
                  isolate_),
           this));
-    } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
           handle(object->property_dictionary_swiss(), isolate_), this));
     } else {
@@ -1067,7 +1067,7 @@ ExceptionStatus KeyAccumulator::CollectPrivateNames(Handle<JSReceiver> receiver,
         handle(JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad),
                isolate_),
         this));
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     RETURN_FAILURE_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
         handle(object->property_dictionary_swiss(), isolate_), this));
   } else {
@@ -1152,7 +1152,7 @@ Handle<FixedArray> KeyAccumulator::GetOwnEnumPropertyKeys(
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
         JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad));
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
         object->property_dictionary_swiss());
@@ -1186,7 +1186,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
                                                   Handle<JSProxy> proxy) {
   STACK_CHECK(isolate_, Nothing<bool>());
   if (filter_ == PRIVATE_NAMES_ONLY) {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
           handle(proxy->property_dictionary_swiss(), isolate_), this));
     } else {

@@ -604,7 +604,7 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
   DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
   DCHECK(!ObjectInYoungGeneration(roots.empty_ordered_property_dictionary()));
   if (map(isolate).is_dictionary_map()) {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       WRITE_FIELD(*this, kPropertiesOrHashOffset,
                   roots.empty_swiss_property_dictionary());
     } else {
@@ -628,7 +628,7 @@ DEF_GETTER(JSReceiver, HasFastProperties, bool) {
 DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
   DCHECK(!IsJSGlobalObject(isolate));
   DCHECK(!HasFastProperties(isolate));
-  DCHECK(!V8_DICT_MODE_PROTOTYPES_BOOL);
+  DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
   // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
   // i::GetIsolateForPtrCompr(HeapObject).
@@ -642,7 +642,7 @@ DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
 DEF_GETTER(JSReceiver, property_dictionary_swiss, SwissNameDictionary) {
   DCHECK(!IsJSGlobalObject(isolate));
   DCHECK(!HasFastProperties(isolate));
-  DCHECK(V8_DICT_MODE_PROTOTYPES_BOOL);
+  DCHECK(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
   // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
   // i::GetIsolateForPtrCompr(HeapObject).

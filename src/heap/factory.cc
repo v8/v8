@@ -1634,7 +1634,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     }
   } else {
     Handle<Object> copied_properties;
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       copied_properties = SwissNameDictionary::ShallowCopy(
           isolate(), handle(source->property_dictionary_swiss(), isolate()));
     } else {
@@ -2222,7 +2222,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
     Handle<AllocationSite> allocation_site) {
   DCHECK(map->is_dictionary_map());
   Handle<HeapObject> object_properties;
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     object_properties = NewSwissNameDictionary(capacity, allocation);
   } else {
     object_properties = NameDictionary::New(isolate(), capacity);
@@ -2236,9 +2236,10 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
 Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
     Handle<HeapObject> prototype, Handle<HeapObject> properties,
     Handle<FixedArrayBase> elements) {
-  DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
+  DCHECK_IMPLIES(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL,
                  properties->IsSwissNameDictionary());
-  DCHECK_IMPLIES(!V8_DICT_MODE_PROTOTYPES_BOOL, properties->IsNameDictionary());
+  DCHECK_IMPLIES(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL,
+                 properties->IsNameDictionary());
 
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
   if (object_map->prototype() != *prototype) {

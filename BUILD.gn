@@ -287,9 +287,9 @@ declare_args() {
   # Requires use_rtti = true
   v8_enable_precise_zone_stats = false
 
-  # Experimental feature for always keeping prototypes in dict/"slow" mode
-  # Sets -DV8_DICT_MODE_PROTOTYPES
-  v8_dict_mode_prototypes = false
+  # Experimental feature that uses SwissNameDictionary instead of NameDictionary
+  # as the backing store for all dictionary mode objects.
+  v8_enable_swiss_name_dictionary = false
 
   # If enabled then macro definitions that are used in externally visible
   # header files are placed in a separate header file v8-gn.h.
@@ -785,8 +785,8 @@ config("features") {
   if (v8_enable_short_builtin_calls) {
     defines += [ "V8_SHORT_BUILTIN_CALLS" ]
   }
-  if (v8_dict_mode_prototypes) {
-    defines += [ "V8_DICT_MODE_PROTOTYPES" ]
+  if (v8_enable_swiss_name_dictionary) {
+    defines += [ "V8_ENABLE_SWISS_NAME_DICTIONARY" ]
   }
   if (v8_enable_system_instrumentation) {
     defines += [ "V8_ENABLE_SYSTEM_INSTRUMENTATION" ]

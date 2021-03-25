@@ -202,7 +202,7 @@ class ConstantInDictionaryPrototypeChainDependency final
       CHECK(!object.HasFastProperties());
 
       ValidationResult result =
-          V8_DICT_MODE_PROTOTYPES_BOOL
+          V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
               ? try_load(object.property_dictionary_swiss())
               : try_load(object.property_dictionary());
 

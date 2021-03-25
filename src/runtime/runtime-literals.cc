@@ -132,7 +132,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
       }
     } else {
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         Handle<SwissNameDictionary> dict(
             copy->property_dictionary_swiss(isolate), isolate);
         for (InternalIndex i : dict->IterateEntries()) {

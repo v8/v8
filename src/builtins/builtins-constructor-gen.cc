@@ -327,7 +327,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   }
   BIND(&allocate_properties);
   {
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       properties =
           AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
     } else {
@@ -548,7 +548,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     BIND(&if_dictionary);
     {
       Comment("Copy dictionary properties");
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         var_properties =
             CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
       } else {
