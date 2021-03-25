@@ -350,6 +350,9 @@
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
 
+  # This test relies on TurboFan being enabled.
+  'compiler/fast-api-calls': [SKIP],
+
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
 
