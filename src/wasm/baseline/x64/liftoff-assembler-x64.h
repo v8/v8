@@ -9,6 +9,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/x64/register-x64.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/simd-shuffle.h"
@@ -3233,13 +3234,13 @@ void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  I16x8ExtMulHighS(dst.fp(), src1.fp(), src2.fp());
+  I16x8ExtMulHighS(dst.fp(), src1.fp(), src2.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  I16x8ExtMulHighU(dst.fp(), src1.fp(), src2.fp());
+  I16x8ExtMulHighU(dst.fp(), src1.fp(), src2.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
@@ -3380,16 +3381,16 @@ inline void I32x4ExtMulHelper(LiftoffAssembler* assm, XMMRegister dst,
                               bool is_signed) {
   // I32x4ExtMul requires dst == src1 if AVX is not supported.
   if (CpuFeatures::IsSupported(AVX) || dst == src1) {
-    assm->I32x4ExtMul(dst, src1, src2, low, is_signed);
+    assm->I32x4ExtMul(dst, src1, src2, kScratchDoubleReg, low, is_signed);
   } else if (dst != src2) {
     // dst != src1 && dst != src2
     assm->movaps(dst, src1);
-    assm->I32x4ExtMul(dst, dst, src2, low, is_signed);
+    assm->I32x4ExtMul(dst, dst, src2, kScratchDoubleReg, low, is_signed);
   } else {
     // dst == src2
     // Extended multiplication is commutative,
     assm->movaps(dst, src2);
-    assm->I32x4ExtMul(dst, dst, src1, low, is_signed);
+    assm->I32x4ExtMul(dst, dst, src1, kScratchDoubleReg, low, is_signed);
   }
 }
 }  // namespace liftoff
@@ -3521,27 +3522,28 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), /*low=*/true, /*is_signed=*/true);
+  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), kScratchDoubleReg, /*low=*/true,
+              /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_u(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), /*low=*/true,
+  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), kScratchDoubleReg, /*low=*/true,
               /*is_signed=*/false);
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), /*low=*/false,
+  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), kScratchDoubleReg, /*low=*/false,
               /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), /*low=*/false,
+  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), kScratchDoubleReg, /*low=*/false,
               /*is_signed=*/false);
 }
 
