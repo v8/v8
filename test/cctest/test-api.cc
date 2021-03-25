@@ -21974,7 +21974,7 @@ THREADED_TEST(FunctionNew) {
           ->shared()
           .get_api_func_data()
           .serial_number();
-  CHECK_EQ(i::TemplateInfo::kDoNotCache, serial_number);
+  CHECK_EQ(i::FunctionTemplateInfo::kInvalidSerialNumber, serial_number);
 
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
