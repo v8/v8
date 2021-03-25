@@ -472,33 +472,38 @@ void CCGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,
   ReportError("Not supported in C++ output: StoreBitField");
 }
 
+namespace {
+
+void CollectAllFields(const VisitResult& result,
+                      const Stack<std::string>& values,
+                      std::vector<std::string>& all_fields) {
+  if (!result.IsOnStack()) {
+    all_fields.push_back(result.constexpr_value());
+  } else if (auto struct_type = result.type()->StructSupertype()) {
+    for (const Field& field : (*struct_type)->fields()) {
+      CollectAllFields(ProjectStructField(result, field.name_and_type.name),
+                       values, all_fields);
+    }
+  } else {
+    DCHECK_EQ(1, result.stack_range().Size());
+    all_fields.push_back(values.Peek(result.stack_range().begin()));
+  }
+}
+
+}  // namespace
+
 // static
 void CCGenerator::EmitCCValue(VisitResult result,
                               const Stack<std::string>& values,
                               std::ostream& out) {
-  if (!result.IsOnStack()) {
-    out << result.constexpr_value();
-  } else if (auto struct_type = result.type()->StructSupertype()) {
-    out << "std::tuple_cat(";
-    bool first = true;
-    for (auto& field : (*struct_type)->fields()) {
-      if (!first) {
-        out << ", ";
-      }
-      first = false;
-      if (!field.name_and_type.type->IsStructType()) {
-        out << "std::make_tuple(";
-      }
-      EmitCCValue(ProjectStructField(result, field.name_and_type.name), values,
-                  out);
-      if (!field.name_and_type.type->IsStructType()) {
-        out << ")";
-      }
-    }
-    out << ")";
+  std::vector<std::string> all_fields;
+  CollectAllFields(result, values, all_fields);
+  if (all_fields.size() == 1) {
+    out << all_fields[0];
   } else {
-    DCHECK_EQ(1, result.stack_range().Size());
-    out << values.Peek(result.stack_range().begin());
+    out << "std::make_tuple(";
+    PrintCommaSeparatedList(out, all_fields);
+    out << ")";
   }
 }
 
