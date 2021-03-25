@@ -1189,8 +1189,8 @@ class LiftoffCompiler {
     Control* target = decoder->control_at(depth);
     DCHECK(block->is_incomplete_try());
     __ bind(&block->try_info->catch_label);
-    __ cache_state()->Split(block->try_info->catch_state);
     if (block->try_info->catch_reached) {
+      __ cache_state()->Steal(block->try_info->catch_state);
       if (depth == decoder->control_depth() - 1) {
         // Delegate to the caller, do not emit a landing pad.
         Rethrow(decoder, __ cache_state()->stack_state.back());
