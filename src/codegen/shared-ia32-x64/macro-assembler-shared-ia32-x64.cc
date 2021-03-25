@@ -204,6 +204,85 @@ void SharedTurboAssembler::I32x4UConvertI16x8High(XMMRegister dst,
   }
 }
 
+void SharedTurboAssembler::I64x2Abs(XMMRegister dst, XMMRegister src,
+                                    XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    XMMRegister tmp = dst == src ? scratch : dst;
+    vpxor(tmp, tmp, tmp);
+    vpsubq(tmp, tmp, src);
+    vblendvpd(dst, src, tmp, src);
+  } else {
+    CpuFeatureScope sse_scope(this, SSE3);
+    movshdup(scratch, src);
+    if (dst != src) {
+      movaps(dst, src);
+    }
+    psrad(scratch, 31);
+    xorps(dst, scratch);
+    psubq(dst, scratch);
+  }
+}
+
+void SharedTurboAssembler::I64x2GtS(XMMRegister dst, XMMRegister src0,
+                                    XMMRegister src1, XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpcmpgtq(dst, src0, src1);
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    CpuFeatureScope sse_scope(this, SSE4_2);
+    DCHECK_EQ(dst, src0);
+    pcmpgtq(dst, src1);
+  } else {
+    CpuFeatureScope sse_scope(this, SSE3);
+    DCHECK_NE(dst, src0);
+    DCHECK_NE(dst, src1);
+    movaps(dst, src1);
+    movaps(scratch, src0);
+    psubq(dst, src0);
+    pcmpeqd(scratch, src1);
+    andps(dst, scratch);
+    movaps(scratch, src0);
+    pcmpgtd(scratch, src1);
+    orps(dst, scratch);
+    movshdup(dst, dst);
+  }
+}
+
+void SharedTurboAssembler::I64x2GeS(XMMRegister dst, XMMRegister src0,
+                                    XMMRegister src1, XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpcmpgtq(dst, src1, src0);
+    vpcmpeqd(scratch, scratch, scratch);
+    vpxor(dst, dst, scratch);
+  } else if (CpuFeatures::IsSupported(SSE4_2)) {
+    CpuFeatureScope sse_scope(this, SSE4_2);
+    DCHECK_NE(dst, src0);
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
+    pcmpgtq(dst, src0);
+    pcmpeqd(scratch, scratch);
+    xorps(dst, scratch);
+  } else {
+    CpuFeatureScope sse_scope(this, SSE3);
+    DCHECK_NE(dst, src0);
+    DCHECK_NE(dst, src1);
+    movaps(dst, src0);
+    movaps(scratch, src1);
+    psubq(dst, src1);
+    pcmpeqd(scratch, src0);
+    andps(dst, scratch);
+    movaps(scratch, src1);
+    pcmpgtd(scratch, src0);
+    orps(dst, scratch);
+    movshdup(dst, dst);
+    pcmpeqd(scratch, scratch);
+    xorps(dst, scratch);
+  }
+}
+
 // 1. Unpack src0, src1 into even-number elements of scratch.
 // 2. Unpack src1, src0 into even-number elements of dst.
 // 3. Multiply 1. with 2.

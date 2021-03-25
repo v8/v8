@@ -727,11 +727,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
                                XMMRegister scratch, Register tmp);
   void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,
                                XMMRegister scratch, Register tmp);
-  void I64x2Abs(XMMRegister dst, XMMRegister src, XMMRegister scratch);
-  void I64x2GtS(XMMRegister dst, XMMRegister src0, XMMRegister src1,
-                XMMRegister scratch);
-  void I64x2GeS(XMMRegister dst, XMMRegister src0, XMMRegister src1,
-                XMMRegister scratch);
   void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
                                  XMMRegister tmp, Register scratch);
   void I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
