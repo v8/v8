@@ -825,8 +825,15 @@ RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
         NameDictionary::Shrink(isolate, dictionary);
     receiver->SetProperties(*new_properties);
   }
-
   return Smi::zero();
+}
+
+RUNTIME_FUNCTION(Runtime_ShrinkSwissNameDictionary) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(SwissNameDictionary, dictionary, 0);
+
+  return *SwissNameDictionary::Shrink(isolate, dictionary);
 }
 
 // ES6 section 12.9.3, operator in.

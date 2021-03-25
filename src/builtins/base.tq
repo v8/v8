@@ -1019,6 +1019,8 @@ ConstexprInt31Equal(
     constexpr InstanceType, constexpr InstanceType): constexpr bool;
 extern operator '-' macro ConstexprUint32Sub(
     constexpr InstanceType, constexpr InstanceType): constexpr int32;
+extern operator '-' macro ConstexprInt32Sub(
+    constexpr int32, constexpr int32): constexpr int32;
 
 extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
@@ -1145,7 +1147,7 @@ extern macro BitcastWordToTaggedSigned(intptr): Smi;
 extern macro BitcastWordToTaggedSigned(uintptr): Smi;
 extern macro BitcastWordToTagged(intptr): Object;
 extern macro BitcastWordToTagged(uintptr): Object;
-extern macro BitcastTaggedToWord(Tagged): intptr;
+extern macro BitcastTaggedToWord(Object): intptr;
 extern macro BitcastTaggedToWordForTagAndSmiBits(Tagged): intptr;
 
 extern macro FixedArrayMapConstant(): Map;
@@ -1839,3 +1841,7 @@ extern macro FeedbackIteratorEntrySize(): intptr;
 extern macro FeedbackIteratorHandlerOffset(): intptr;
 extern operator '[]' macro LoadWeakFixedArrayElement(
     WeakFixedArray, intptr): MaybeObject;
+
+const kNoHashSentinel:
+    constexpr int32 generates 'PropertyArray::kNoHashSentinel';
+extern macro LoadNameHash(Name): uint32;

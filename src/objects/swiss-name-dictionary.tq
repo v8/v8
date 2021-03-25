@@ -25,6 +25,47 @@ const kMax1ByteMetaTableCapacity: constexpr int32
 const kMax2ByteMetaTableCapacity: constexpr int32
     generates 'SwissNameDictionary::kMax2ByteMetaTableCapacity';
 
+const kNotFoundSentinel:
+    constexpr int32 generates 'SwissNameDictionary::kNotFoundSentinel';
+
+extern macro LoadSwissNameDictionaryNumberOfElements(
+    SwissNameDictionary, intptr): intptr;
+
+extern macro LoadSwissNameDictionaryNumberOfDeletedElements(
+    SwissNameDictionary, intptr): intptr;
+
+extern macro LoadSwissNameDictionaryKey(SwissNameDictionary, intptr): Name;
+
+extern macro StoreSwissNameDictionaryKeyAndValue(
+    SwissNameDictionary, intptr, Object, Object);
+
+extern macro SwissNameDictionarySetCtrl(
+    SwissNameDictionary, intptr, intptr, uint8);
+
+extern macro StoreSwissNameDictionaryPropertyDetails(
+    SwissNameDictionary, intptr, intptr, uint8);
+
+extern macro
+SwissNameDictionaryIncreaseElementCountOrBailout(
+    ByteArray, intptr, uint32): uint32 labels Bailout;
+
+extern macro
+StoreSwissNameDictionaryEnumToEntryMapping(
+    SwissNameDictionary, intptr, intptr, int32);
+
+extern macro
+SwissNameDictionaryUpdateCountsForDeletion(ByteArray, intptr): uint32;
+
+namespace runtime {
+extern runtime SwissTableFindEntry(NoContext, SwissNameDictionary, Name): Smi;
+
+extern runtime SwissTableAdd(
+    NoContext, SwissNameDictionary, Name, Object, Smi): SwissNameDictionary;
+
+extern runtime ShrinkSwissNameDictionary(
+    NoContext, SwissNameDictionary): SwissNameDictionary;
+}
+
 // Counterpart for SwissNameDictionary::CapacityFor in C++.
 @export
 macro SwissNameDictionaryCapacityFor(atLeastSpaceFor: intptr): intptr {
@@ -107,5 +148,193 @@ macro SwissNameDictionaryDataTableStartOffsetMT(): intptr {
 macro SwissNameDictionaryCtrlTableStartOffsetMT(capacity: intptr): intptr {
   return kDataTableStartOffsetMT +
       kDataTableEntryCount * FromConstexpr<intptr>(kTaggedSize) * capacity;
+}
+
+macro Probe(hash: uint32, mask: uint32): ProbeSequence {
+  // Mask must be a power of 2 minus 1.
+  assert(((mask + 1) & mask) == 0);
+
+  return ProbeSequence{mask: mask, offset: H1(hash) & mask, index: 0};
+}
+
+macro FindEntry<GroupLoader: type>(
+    table: SwissNameDictionary, key: Name): never labels
+Found(intptr), NotFound {
+  const hash: uint32 = LoadNameHash(key);
+  const capacity: int32 = table.capacity;
+  const nonZeroCapacity: int32 = capacity | Convert<int32>(capacity == 0);
+  const mask: uint32 = Unsigned(nonZeroCapacity - 1);
+
+  const ctrlTableStart: intptr =
+      SwissNameDictionaryCtrlTableStartOffsetMT(Convert<intptr>(capacity)) +
+      BitcastTaggedToWord(table);
+
+  let seq = Probe(hash, mask);
+  while (true) {
+    const group =
+        GroupLoader{}.LoadGroup(ctrlTableStart + Convert<intptr>(seq.offset));
+    let match = group.Match(H2(hash));
+    while (match.HasBitsSet()) {
+      const inGroupIndex = match.LowestBitSet();
+      const candidateEntry = Convert<intptr>(seq.Offset(inGroupIndex));
+      const candidateKey: Object =
+          LoadSwissNameDictionaryKey(table, candidateEntry);
+      if (TaggedEqual(key, candidateKey)) {
+        goto Found(candidateEntry);
+      }
+      match.ClearLowestSetBit();
+    }
+    if (group.MatchEmpty().HasBitsSet()) {
+      goto NotFound;
+    }
+    seq.Next();
+  }
+
+  unreachable;
+}
+
+macro FindFirstEmpty<GroupLoader: type>(
+    table: SwissNameDictionary, capacity: intptr, hash: uint32): int32 {
+  const nonZeroCapacity: int32 =
+      Convert<int32>(capacity) | Convert<int32>(capacity == 0);
+  const mask: uint32 = Unsigned(nonZeroCapacity - 1);
+
+  const ctrlTableStart: intptr =
+      SwissNameDictionaryCtrlTableStartOffsetMT(capacity) +
+      BitcastTaggedToWord(table);
+
+  let seq = Probe(hash, mask);
+  while (true) {
+    const group =
+        GroupLoader{}.LoadGroup(ctrlTableStart + Convert<intptr>(seq.offset));
+    const match = group.MatchEmpty();
+    if (match.HasBitsSet()) {
+      const inGroupIndex = match.LowestBitSet();
+      return Signed(seq.Offset(inGroupIndex));
+    }
+    seq.Next();
+  }
+
+  unreachable;
+}
+
+macro Add<GroupLoader: type>(
+    table: SwissNameDictionary, key: Name, value: Object,
+    propertyDetails: uint8)
+    labels Bailout {
+  const capacity: intptr = Convert<intptr>(table.capacity);
+  const maxUsable: uint32 =
+      Unsigned(Convert<int32>(SwissNameDictionaryMaxUsableCapacity(capacity)));
+
+  try {
+    // We read the used capacity (present + deleted elements), compare it
+    // against the max usable capacity to determine if a bailout is necessary,
+    // and in case of no bailout increase the present element count all in one
+    // go using the following macro. This way we don't have to do the branching
+    // needed for meta table accesses multiple times.
+    const used: uint32 = SwissNameDictionaryIncreaseElementCountOrBailout(
+        table.meta_table, capacity, maxUsable) otherwise Bailout;
+
+    const hash: uint32 = LoadNameHash(key);
+    const newEntry32 = FindFirstEmpty<GroupLoader>(table, capacity, hash);
+    const newEntry = Convert<intptr>(newEntry32);
+
+    StoreSwissNameDictionaryKeyAndValue(table, newEntry, key, value);
+
+    StoreSwissNameDictionaryEnumToEntryMapping(
+        table, capacity, Convert<intptr>(used), newEntry32);
+
+    const h2 = Convert<uint8>(Convert<intptr>(H2(hash)));
+    SwissNameDictionarySetCtrl(table, capacity, newEntry, h2);
+
+    StoreSwissNameDictionaryPropertyDetails(
+        table, capacity, newEntry, propertyDetails);
+  } label Bailout {
+    goto Bailout;
+  }
+}
+
+@export
+macro SwissNameDictionaryDelete(table: SwissNameDictionary, entry: intptr)
+    labels
+    Shrunk(SwissNameDictionary) {
+  const capacity = Convert<intptr>(table.capacity);
+
+  // Update present and deleted element counts at once, without needing to do
+  // the meta table access related branching more than once.
+  const newElementCount =
+      SwissNameDictionaryUpdateCountsForDeletion(table.meta_table, capacity);
+
+  StoreSwissNameDictionaryKeyAndValue(table, entry, TheHole, TheHole);
+
+  const kDeleted = FromConstexpr<uint8>(ctrl::kDeleted);
+  SwissNameDictionarySetCtrl(table, capacity, entry, kDeleted);
+
+  // Same logic for deciding when to shrink as in SwissNameDictionary::Delete.
+  if (Convert<intptr>(Signed(newElementCount)) < (capacity >> 2)) {
+    const shrunkTable = runtime::ShrinkSwissNameDictionary(kNoContext, table);
+    goto Shrunk(shrunkTable);
+  }
+}
+
+@export
+macro SwissNameDictionaryFindEntry(table: SwissNameDictionary, key: Name):
+    never labels Found(intptr), NotFound {
+  try {
+    if (kUseSIMD) {
+      // TODO(v8:11330) Not implemented in Torque, yet, doing runtime call
+      // instead.
+      const res = runtime::SwissTableFindEntry(kNoContext, table, key);
+      if (res == kNotFoundSentinel) {
+        goto NotFound;
+      } else {
+        goto Found(Convert<intptr>(res));
+      }
+    } else {
+      FindEntry<GroupPortableLoader>(table, key)
+          otherwise Found, NotFound;
+    }
+  } label Found(index: intptr) {
+    goto Found(index);
+  } label NotFound {
+    goto NotFound;
+  }
+}
+
+@export
+macro SwissNameDictionaryAdd(
+    table: SwissNameDictionary, key: Name, value: Object,
+    propertyDetails: uint8) labels Bailout {
+  try {
+    if (kUseSIMD) {
+      // TODO(v8:11330) Not implemented in Torque, yet, doing runtime call
+      // instead. However, must bailout if the runtime call would allocate a new
+      // dictionary.
+
+      // Determine if bailout needed:
+      const capacity = Convert<intptr>(table.capacity);
+      const maxUsable = SwissNameDictionaryMaxUsableCapacity(capacity);
+      // Doing two independent accesses to the meta table here (repeating the
+      // branching), rather than combining the accesses. Accepting that due to
+      // the fact that this is a slow placeholder until the SIMD version
+      // replaces it.
+      const nof = LoadSwissNameDictionaryNumberOfElements(table, capacity);
+      const nod =
+          LoadSwissNameDictionaryNumberOfDeletedElements(table, capacity);
+      const used = nof + nod;
+      if (used >= maxUsable) {
+        goto Bailout;
+      }
+      runtime::SwissTableAdd(
+          kNoContext, table, key, value,
+          Convert<Smi>(Convert<int32>(propertyDetails)));
+
+    } else {
+      Add<GroupPortableLoader>(table, key, value, propertyDetails)
+          otherwise Bailout;
+    }
+  } label Bailout {
+    goto Bailout;
+  }
 }
 }

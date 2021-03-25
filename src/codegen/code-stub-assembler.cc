@@ -14810,17 +14810,16 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
                                                             IntPtrConstant(0));
 
     // Offset to property details entry
-    TVARIABLE(IntPtrT, details_table_offset,
+    TVARIABLE(IntPtrT, details_table_offset_minus_tag,
               property_details_start_offset_minus_tag);
 
     TNode<IntPtrT> start = ctrl_table_start_offset_minus_tag;
 
-    VariableList in_loop_variables({&details_table_offset}, zone());
+    VariableList in_loop_variables({&details_table_offset_minus_tag}, zone());
     BuildFastLoop<IntPtrT>(
         in_loop_variables, start, IntPtrAdd(start, ctrl_table_size_bytes),
         [&](TNode<IntPtrT> ctrl_table_offset) {
-          TNode<Uint8T> ctrl = UncheckedCast<Uint8T>(LoadFromObject(
-              MachineType::Uint8(), original, ctrl_table_offset));
+          TNode<Uint8T> ctrl = Load<Uint8T>(original, ctrl_table_offset);
 
           // TODO(v8:11330) Entries in the PropertyDetails table may be
           // uninitialized if the corresponding buckets in the data/ctrl table
@@ -14835,17 +14834,18 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
           // entries that we don't want to copy the PropertyDetails for.
           GotoIf(IsSetWord32(ctrl, swiss_table::kNotFullMask), &done);
 
-          TNode<Uint8T> details = UncheckedCast<Uint8T>(LoadFromObject(
-              MachineType::Uint8(), original, details_table_offset.value()));
+          TNode<Uint8T> details =
+              Load<Uint8T>(original, details_table_offset_minus_tag.value());
 
           StoreToObject(MachineRepresentation::kWord8, table,
-                        details_table_offset.value(), details,
+                        details_table_offset_minus_tag.value(), details,
                         StoreToObjectWriteBarrier::kNone);
           Goto(&done);
           BIND(&done);
 
-          details_table_offset = IntPtrAdd(details_table_offset.value(),
-                                           IntPtrConstant(kOneByteSize));
+          details_table_offset_minus_tag =
+              IntPtrAdd(details_table_offset_minus_tag.value(),
+                        IntPtrConstant(kOneByteSize));
         },
         kOneByteSize, IndexAdvanceMode::kPost);
   }
@@ -14909,6 +14909,56 @@ void CodeStubAssembler::StoreSwissNameDictionaryCapacity(
       table, SwissNameDictionary::CapacityOffset(), capacity);
 }
 
+TNode<Name> CodeStubAssembler::LoadSwissNameDictionaryKey(
+    TNode<SwissNameDictionary> dict, TNode<IntPtrT> entry) {
+  TNode<IntPtrT> offset_minus_tag = SwissNameDictionaryOffsetIntoDataTableMT(
+      dict, entry, SwissNameDictionary::kDataTableKeyEntryIndex);
+
+  // TODO(v8:11330) Consider using LoadObjectField here.
+  return CAST(Load<Object>(dict, offset_minus_tag));
+}
+
+TNode<Uint8T> CodeStubAssembler::LoadSwissNameDictionaryPropertyDetails(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> entry) {
+  TNode<IntPtrT> offset_minus_tag =
+      SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(table, capacity,
+                                                          entry);
+  // TODO(v8:11330) Consider using LoadObjectField here.
+  return Load<Uint8T>(table, offset_minus_tag);
+}
+
+void CodeStubAssembler::StoreSwissNameDictionaryPropertyDetails(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> entry, TNode<Uint8T> details) {
+  TNode<IntPtrT> offset_minus_tag =
+      SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(table, capacity,
+                                                          entry);
+
+  // TODO(v8:11330) Consider using StoreObjectField here.
+  StoreToObject(MachineRepresentation::kWord8, table, offset_minus_tag, details,
+                StoreToObjectWriteBarrier::kNone);
+}
+
+void CodeStubAssembler::StoreSwissNameDictionaryKeyAndValue(
+    TNode<SwissNameDictionary> dict, TNode<IntPtrT> entry, TNode<Object> key,
+    TNode<Object> value) {
+  STATIC_ASSERT(SwissNameDictionary::kDataTableKeyEntryIndex == 0);
+  STATIC_ASSERT(SwissNameDictionary::kDataTableValueEntryIndex == 1);
+
+  // TODO(v8:11330) Consider using StoreObjectField here.
+  TNode<IntPtrT> key_offset_minus_tag =
+      SwissNameDictionaryOffsetIntoDataTableMT(
+          dict, entry, SwissNameDictionary::kDataTableKeyEntryIndex);
+  StoreToObject(MachineRepresentation::kTagged, dict, key_offset_minus_tag, key,
+                StoreToObjectWriteBarrier::kFull);
+
+  TNode<IntPtrT> value_offset_minus_tag =
+      IntPtrAdd(key_offset_minus_tag, IntPtrConstant(kTaggedSize));
+  StoreToObject(MachineRepresentation::kTagged, dict, value_offset_minus_tag,
+                value, StoreToObjectWriteBarrier::kFull);
+}
+
 TNode<Uint64T> CodeStubAssembler::LoadSwissNameDictionaryCtrlTableGroup(
     TNode<IntPtrT> address) {
   TNode<RawPtrT> ptr = ReinterpretCast<RawPtrT>(address);
@@ -14941,5 +14991,51 @@ TNode<Uint64T> CodeStubAssembler::LoadSwissNameDictionaryCtrlTableGroup(
   return result;
 #endif
 }
+
+void CodeStubAssembler::SwissNameDictionarySetCtrl(
+    TNode<SwissNameDictionary> table, TNode<IntPtrT> capacity,
+    TNode<IntPtrT> entry, TNode<Uint8T> ctrl) {
+  CSA_ASSERT(this,
+             WordEqual(capacity, ChangeUint32ToWord(
+                                     LoadSwissNameDictionaryCapacity(table))));
+  CSA_ASSERT(this, UintPtrLessThan(entry, capacity));
+
+  TNode<IntPtrT> one = IntPtrConstant(1);
+  TNode<IntPtrT> offset = SwissNameDictionaryCtrlTableStartOffsetMT(capacity);
+
+  CSA_ASSERT(this,
+             WordEqual(FieldSliceSwissNameDictionaryCtrlTable(table).offset,
+                       IntPtrAdd(offset, one)));
+
+  TNode<IntPtrT> offset_entry = IntPtrAdd(offset, entry);
+  StoreToObject(MachineRepresentation::kWord8, table, offset_entry, ctrl,
+                StoreToObjectWriteBarrier::kNone);
+
+  TNode<IntPtrT> mask = IntPtrSub(capacity, one);
+  TNode<IntPtrT> group_width = IntPtrConstant(SwissNameDictionary::kGroupWidth);
+
+  // See SwissNameDictionary::SetCtrl for description of what's going on here.
+
+  // ((entry - Group::kWidth) & mask) + 1
+  TNode<IntPtrT> copy_entry_lhs =
+      IntPtrAdd(WordAnd(IntPtrSub(entry, group_width), mask), one);
+  // ((Group::kWidth - 1) & mask)
+  TNode<IntPtrT> copy_entry_rhs = WordAnd(IntPtrSub(group_width, one), mask);
+  TNode<IntPtrT> copy_entry = IntPtrAdd(copy_entry_lhs, copy_entry_rhs);
+  TNode<IntPtrT> offset_copy_entry = IntPtrAdd(offset, copy_entry);
+
+  // |entry| < |kGroupWidth| implies |copy_entry| == |capacity| + |entry|
+  CSA_ASSERT(this, Word32Or(UintPtrGreaterThanOrEqual(entry, group_width),
+                            WordEqual(copy_entry, IntPtrAdd(capacity, entry))));
+
+  // |entry| >= |kGroupWidth| implies |copy_entry| == |entry|
+  CSA_ASSERT(this, Word32Or(UintPtrLessThan(entry, group_width),
+                            WordEqual(copy_entry, entry)));
+
+  // TODO(v8:11330): consider using StoreObjectFieldNoWriteBarrier here.
+  StoreToObject(MachineRepresentation::kWord8, table, offset_copy_entry, ctrl,
+                StoreToObjectWriteBarrier::kNone);
+}
+
 }  // namespace internal
 }  // namespace v8
