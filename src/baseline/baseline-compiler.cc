@@ -1792,15 +1792,16 @@ void BaselineCompiler::VisitCreateRegExpLiteral() {
 
 void BaselineCompiler::VisitCreateArrayLiteral() {
   uint32_t flags = Flag(2);
+  int32_t flags_raw = static_cast<int32_t>(
+      interpreter::CreateArrayLiteralFlags::FlagsBits::decode(flags));
   if (flags &
       interpreter::CreateArrayLiteralFlags::FastCloneSupportedBit::kMask) {
     CallBuiltin(Builtins::kCreateShallowArrayLiteral,
                 FeedbackVector(),          // feedback vector
                 IndexAsTagged(1),          // slot
-                Constant<HeapObject>(0));  // constant elements
+                Constant<HeapObject>(0),   // constant elements
+                Smi::FromInt(flags_raw));  // flags
   } else {
-    int32_t flags_raw = static_cast<int32_t>(
-        interpreter::CreateArrayLiteralFlags::FlagsBits::decode(flags));
     CallRuntime(Runtime::kCreateArrayLiteral,
                 FeedbackVector(),          // feedback vector
                 IndexAsTagged(1),          // slot
