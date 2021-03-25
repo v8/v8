@@ -79,7 +79,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                              GetName(InferScriptName(*script_name, *shared)),
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr);
-  DCHECK(!code->IsCode());
+  DCHECK_IMPLIES(code->IsCode(), code->kind() == CodeKind::BASELINE);
   rec->entry->FillFunctionInfo(*shared);
   rec->instruction_size = code->InstructionSize();
   weak_code_registry_.Track(rec->entry, code);
