@@ -204,6 +204,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   static constexpr int kNotFoundSentinel = -1;
 
   static const int kGroupWidth = Group::kWidth;
+  static const bool kUseSIMD = kGroupWidth == 16;
 
   class BodyDescriptor;
 

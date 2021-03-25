@@ -3768,6 +3768,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<SwissNameDictionary> CopySwissNameDictionary(
       TNode<SwissNameDictionary> original);
 
+  void SwissNameDictionaryFindEntry(TNode<SwissNameDictionary> table,
+                                    TNode<Name> key, Label* found,
+                                    TVariable<IntPtrT>* var_found_entry,
+                                    Label* not_found);
+
+  void SwissNameDictionaryAdd(TNode<SwissNameDictionary> table, TNode<Name> key,
+                              TNode<Object> value,
+                              TNode<Uint8T> property_details,
+                              Label* needs_resize);
+
  private:
   friend class CodeStubArguments;
 

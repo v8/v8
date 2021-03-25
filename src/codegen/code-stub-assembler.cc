@@ -8043,7 +8043,7 @@ TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
 }
 
 template <>
-TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+V8_EXPORT_PRIVATE TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
     TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index) {
   TNode<IntPtrT> offset_minus_tag = SwissNameDictionaryOffsetIntoDataTableMT(
       container, key_index, SwissNameDictionary::kDataTableValueEntryIndex);
@@ -8064,7 +8064,7 @@ TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
 }
 
 template <>
-TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
+V8_EXPORT_PRIVATE TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
     TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index) {
   TNode<IntPtrT> capacity =
       ChangeInt32ToIntPtr(LoadSwissNameDictionaryCapacity(container));
@@ -8084,7 +8084,7 @@ void CodeStubAssembler::StoreDetailsByKeyIndex(TNode<ContainerType> container,
 }
 
 template <>
-void CodeStubAssembler::StoreDetailsByKeyIndex(
+V8_EXPORT_PRIVATE void CodeStubAssembler::StoreDetailsByKeyIndex(
     TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index,
     TNode<Smi> details) {
   TNode<IntPtrT> capacity =
@@ -8108,7 +8108,7 @@ void CodeStubAssembler::StoreValueByKeyIndex(TNode<ContainerType> container,
 }
 
 template <>
-void CodeStubAssembler::StoreValueByKeyIndex(
+V8_EXPORT_PRIVATE void CodeStubAssembler::StoreValueByKeyIndex(
     TNode<SwissNameDictionary> container, TNode<IntPtrT> key_index,
     TNode<Object> value, WriteBarrierMode write_barrier) {
   TNode<IntPtrT> offset_minus_tag = SwissNameDictionaryOffsetIntoDataTableMT(
@@ -14480,10 +14480,10 @@ class MetaTableAccessor {
 
 #ifdef DEBUG
     int bits = mt.MemSize() * 8;
-    TNode<IntPtrT> max_value = csa.IntPtrConstant(1ULL << bits);
+    TNode<UintPtrT> max_value = csa.UintPtrConstant((1ULL << bits) - 1);
 
-    CSA_ASSERT(&csa, csa.IntPtrLessThan(
-                         csa.ChangeInt32ToIntPtr(csa.Signed(data)), max_value));
+    CSA_ASSERT(&csa, csa.UintPtrLessThanOrEqual(csa.ChangeUint32ToWord(data),
+                                                max_value));
 #endif
 
     csa.StoreToObject(mt.representation(), meta_table, offset, data,
@@ -15144,6 +15144,32 @@ void CodeStubAssembler::SwissNameDictionarySetCtrl(
   // TODO(v8:11330): consider using StoreObjectFieldNoWriteBarrier here.
   StoreToObject(MachineRepresentation::kWord8, table, offset_copy_entry, ctrl,
                 StoreToObjectWriteBarrier::kNone);
+}
+
+void CodeStubAssembler::SwissNameDictionaryFindEntry(
+    TNode<SwissNameDictionary> table, TNode<Name> key, Label* found,
+    TVariable<IntPtrT>* var_found_entry, Label* not_found) {
+  if (SwissNameDictionary::kUseSIMD) {
+    SwissNameDictionaryFindEntrySIMD(table, key, found, var_found_entry,
+                                     not_found);
+  } else {
+    SwissNameDictionaryFindEntryPortable(table, key, found, var_found_entry,
+                                         not_found);
+  }
+}
+
+void CodeStubAssembler::SwissNameDictionaryAdd(TNode<SwissNameDictionary> table,
+                                               TNode<Name> key,
+                                               TNode<Object> value,
+                                               TNode<Uint8T> property_details,
+                                               Label* needs_resize) {
+  if (SwissNameDictionary::kUseSIMD) {
+    SwissNameDictionaryAddSIMD(table, key, value, property_details,
+                               needs_resize);
+  } else {
+    SwissNameDictionaryAddPortable(table, key, value, property_details,
+                                   needs_resize);
+  }
 }
 
 }  // namespace internal

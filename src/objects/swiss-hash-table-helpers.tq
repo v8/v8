@@ -102,27 +102,4 @@ struct GroupPortableLoader {
     };
   }
 }
-
-// TODO(v8:11330) Temporary nonsense code that supresses warnings about unused
-// macros.
-@export
-macro SwissTableWarningSuppresser(): never {
-  const group = GroupPortableLoader{}.LoadGroup(0);
-  let mask = group.Match(0);
-  let seq = ProbeSequence{mask: 0, offset: 0, index: 0};
-
-  const _bla2 = group.MatchEmpty();
-
-  const _bla3 = H1(0);
-  const _bla4 = H2(0);
-
-  const _bla5 = seq.Next();
-  const _bla6 = seq.Offset(0);
-
-  const _bla7 = mask.HasBitsSet();
-  const _bla8 = mask.LowestBitSet();
-  const _bla9 = mask.ClearLowestSetBit();
-
-  unreachable;
-}
 }
