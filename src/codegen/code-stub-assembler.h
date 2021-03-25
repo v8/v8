@@ -3630,6 +3630,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   int32_t ConstexprWord32Or(int32_t a, int32_t b) { return a | b; }
+  uint32_t ConstexprWord32Shl(uint32_t a, int32_t b) { return a << b; }
 
   bool ConstexprUintPtrLessThan(uintptr_t a, uintptr_t b) { return a < b; }
 

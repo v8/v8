@@ -795,13 +795,15 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   int GetCallCount();
   void SetSpeculationMode(SpeculationMode mode);
   SpeculationMode GetSpeculationMode();
+  CallFeedbackContent GetCallFeedbackContent();
 
   // Compute the call frequency based on the call count and the invocation
   // count (taken from the type feedback vector).
   float ComputeCallFrequency();
 
   using SpeculationModeField = base::BitField<SpeculationMode, 0, 1>;
-  using CallCountField = base::BitField<uint32_t, 1, 31>;
+  using CallFeedbackContentField = base::BitField<CallFeedbackContent, 1, 1>;
+  using CallCountField = base::BitField<uint32_t, 2, 30>;
 
   // For InstanceOf ICs.
   MaybeHandle<JSObject> GetConstructorFeedback() const;

@@ -50,7 +50,8 @@ enum ContextLookupFlags {
   V(MATH_POW_INDEX, JSFunction, math_pow)                         \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,               \
     promise_internal_constructor)                                 \
-  V(PROMISE_THEN_INDEX, JSFunction, promise_then)
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                 \
+  V(FUNCTION_PROTOTYPE_APPLY_INDEX, JSFunction, function_prototype_apply)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSGlobalProxy, global_proxy_object)                    \

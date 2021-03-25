@@ -1648,8 +1648,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup the methods on the %FunctionPrototype%.
     JSObject::AddProperty(isolate_, prototype, factory->constructor_string(),
                           function_fun, DONT_ENUM);
-    SimpleInstallFunction(isolate_, prototype, "apply",
-                          Builtins::kFunctionPrototypeApply, 2, false);
+    Handle<JSFunction> function_prototype_apply =
+        SimpleInstallFunction(isolate_, prototype, "apply",
+                              Builtins::kFunctionPrototypeApply, 2, false);
+    native_context()->set_function_prototype_apply(*function_prototype_apply);
     SimpleInstallFunction(isolate_, prototype, "bind",
                           Builtins::kFastFunctionPrototypeBind, 1, false);
     SimpleInstallFunction(isolate_, prototype, "call",

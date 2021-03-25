@@ -102,7 +102,8 @@ transitioning builtin CallIteratorWithFeedback(
     feedback: Undefined|FeedbackVector): JSAny {
   // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
   const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
-  ic::CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
+  ic::CollectCallFeedback(
+      iteratorMethod, receiver, context, feedback, callSlotUnTagged);
   const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
       otherwise ThrowCalledNonCallable(iteratorMethod);
   return Call(context, iteratorCallable, receiver);

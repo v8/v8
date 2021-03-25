@@ -1365,13 +1365,18 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
   // Generates code to perform a JS call that collects type feedback.
   void JSCall(ConvertReceiverMode receiver_mode) {
     TNode<Object> function = LoadRegisterAtOperandIndex(0);
+    TNode<Object> receiver =
+        receiver_mode == ConvertReceiverMode::kNullOrUndefined
+            ? UndefinedConstant()
+            : LoadRegisterAtOperandIndex(1);
     RegListNodePair args = GetRegisterListAtOperandIndex(1);
     TNode<UintPtrT> slot_id = BytecodeOperandIdx(3);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
     // Collect the {function} feedback.
-    CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
+    CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
+                        slot_id);
 
     // Call the function and dispatch to the next handler.
     CallJSAndDispatch(function, context, args, receiver_mode);
@@ -1399,12 +1404,17 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
         kFirstArgumentOperandIndex + kReceiverAndArgOperandCount;
 
     TNode<Object> function = LoadRegisterAtOperandIndex(0);
+    TNode<Object> receiver =
+        receiver_mode == ConvertReceiverMode::kNullOrUndefined
+            ? UndefinedConstant()
+            : LoadRegisterAtOperandIndex(1);
     TNode<UintPtrT> slot_id = BytecodeOperandIdx(kSlotOperandIndex);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
     // Collect the {function} feedback.
-    CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
+    CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
+                        slot_id);
 
     switch (kReceiverAndArgOperandCount) {
       case 0:

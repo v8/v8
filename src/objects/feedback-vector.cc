@@ -1009,6 +1009,15 @@ SpeculationMode FeedbackNexus::GetSpeculationMode() {
   return SpeculationModeField::decode(value);
 }
 
+CallFeedbackContent FeedbackNexus::GetCallFeedbackContent() {
+  DCHECK(IsCallICKind(kind()));
+
+  Object call_count = GetFeedbackExtra()->cast<Object>();
+  CHECK(call_count.IsSmi());
+  uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
+  return CallFeedbackContentField::decode(value);
+}
+
 float FeedbackNexus::ComputeCallFrequency() {
   DCHECK(IsCallICKind(kind()));
 

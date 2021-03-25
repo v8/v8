@@ -828,7 +828,9 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
   }
   float frequency = nexus.ComputeCallFrequency();
   SpeculationMode mode = nexus.GetSpeculationMode();
-  return *zone()->New<CallFeedback>(target_ref, frequency, mode, nexus.kind());
+  CallFeedbackContent content = nexus.GetCallFeedbackContent();
+  return *zone()->New<CallFeedback>(target_ref, frequency, mode, content,
+                                    nexus.kind());
 }
 
 BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(

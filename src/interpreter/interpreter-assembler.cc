@@ -803,7 +803,9 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
-  CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
+  TNode<Object> receiver = LoadRegisterAtOperandIndex(1);
+  CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
+                      slot_id);
   Comment("call using CallWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), ConvertReceiverMode::kAny,

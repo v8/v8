@@ -118,6 +118,7 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   SLOPPY_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   FAST_ALIASED_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   FUNCTION_CONTEXT_MAP_INDEX: Slot<NativeContext, Map>,
+  FUNCTION_PROTOTYPE_APPLY_INDEX: Slot<NativeContext, JSFunction>,
 
   PROMISE_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   PROMISE_THEN_INDEX: Slot<NativeContext, JSFunction>,

@@ -2448,6 +2448,10 @@ Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
 Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
+  CallFeedbackRelation new_feedback_relation =
+      p.feedback_relation() == CallFeedbackRelation::kReceiver
+          ? CallFeedbackRelation::kTarget
+          : CallFeedbackRelation::kUnrelated;
   int arity = p.arity_without_implicit_args();
   ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny;
   if (arity == 0) {
@@ -2480,9 +2484,9 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
 
       // Morph the {node} to a {JSCallWithArrayLike}.
       NodeProperties::ChangeOp(
-          node, javascript()->CallWithArrayLike(
-                    p.frequency(), p.feedback(), p.speculation_mode(),
-                    CallFeedbackRelation::kUnrelated));
+          node, javascript()->CallWithArrayLike(p.frequency(), p.feedback(),
+                                                p.speculation_mode(),
+                                                new_feedback_relation));
       return Changed(node).FollowedBy(ReduceJSCallWithArrayLike(node));
     } else {
       // Check whether {arguments_list} is null.
@@ -2510,7 +2514,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
       Node* value0 = effect0 = control0 = graph()->NewNode(
           javascript()->CallWithArrayLike(p.frequency(), p.feedback(),
                                           p.speculation_mode(),
-                                          CallFeedbackRelation::kUnrelated),
+                                          new_feedback_relation),
           target, this_argument, arguments_list, n.feedback_vector(), context,
           frame_state, effect0, control0);
 
@@ -2560,7 +2564,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   NodeProperties::ChangeOp(
       node, javascript()->Call(JSCallNode::ArityForArgc(arity), p.frequency(),
                                p.feedback(), convert_mode, p.speculation_mode(),
-                               CallFeedbackRelation::kUnrelated));
+                               new_feedback_relation));
   // Try to further reduce the JSCall {node}.
   return Changed(node).FollowedBy(ReduceJSCall(node));
 }
@@ -3966,10 +3970,9 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
 
   if (IsCallWithArrayLikeOrSpread(node)) {
     NodeProperties::ChangeOp(
-        node,
-        javascript()->Call(JSCallNode::ArityForArgc(argc), frequency, feedback,
-                           ConvertReceiverMode::kAny, speculation_mode,
-                           CallFeedbackRelation::kUnrelated));
+        node, javascript()->Call(JSCallNode::ArityForArgc(argc), frequency,
+                                 feedback, ConvertReceiverMode::kAny,
+                                 speculation_mode, feedback_relation));
     return Changed(node).FollowedBy(ReduceJSCall(node));
   } else {
     NodeProperties::ChangeOp(
@@ -4201,7 +4204,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   }
 
   if (!ShouldUseCallICFeedback(target) ||
-      p.feedback_relation() != CallFeedbackRelation::kRelated ||
+      p.feedback_relation() == CallFeedbackRelation::kUnrelated ||
       !p.feedback().IsValid()) {
     return NoChange();
   }
@@ -4213,7 +4216,14 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
   }
 
-  base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
+  base::Optional<HeapObjectRef> feedback_target;
+  if (p.feedback_relation() == CallFeedbackRelation::kTarget) {
+    feedback_target = feedback.AsCall().target();
+  } else {
+    DCHECK_EQ(p.feedback_relation(), CallFeedbackRelation::kReceiver);
+    feedback_target = native_context().function_prototype_apply();
+  }
+
   if (feedback_target.has_value() && feedback_target->map().is_callable()) {
     Node* target_function = jsgraph()->Constant(*feedback_target);
 
@@ -5074,7 +5084,7 @@ Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
   DCHECK_EQ(n.ArgumentCount(), 1);  // The arraylike object.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, arraylike_index, p.frequency(), p.feedback(),
-      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kRelated);
+      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
@@ -5084,7 +5094,7 @@ Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   DCHECK_GE(n.ArgumentCount(), 1);  // At least the spread.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, spread_index, p.frequency(), p.feedback(),
-      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kRelated);
+      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
 }
 
 Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {

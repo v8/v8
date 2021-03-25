@@ -262,6 +262,8 @@ extern enum UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback }
 extern operator '==' macro UpdateFeedbackModeEqual(
     constexpr UpdateFeedbackMode, constexpr UpdateFeedbackMode): constexpr bool;
 
+extern enum CallFeedbackContent extends int32 { kTarget, kReceiver }
+
 extern enum UnicodeEncoding { UTF16, UTF32 }
 
 // Promise constants
@@ -961,6 +963,8 @@ extern operator '|' macro ConstexprWord32Or(
     constexpr int32, constexpr int32): constexpr int32;
 extern operator '^' macro Word32Xor(int32, int32): int32;
 extern operator '^' macro Word32Xor(uint32, uint32): uint32;
+extern operator '<<' macro ConstexprWord32Shl(
+    constexpr uint32, constexpr int32): uint32;
 
 extern operator '==' macro Word64Equal(int64, int64): bool;
 extern operator '==' macro Word64Equal(uint64, uint64): bool;
@@ -1295,6 +1299,9 @@ macro GetFastAliasedArgumentsMap(implicit context: Context)(): Map {
 }
 macro GetWeakCellMap(implicit context: Context)(): Map {
   return %GetClassMapConstant<WeakCell>();
+}
+macro GetPrototypeApplyFunction(implicit context: Context)(): JSFunction {
+  return *NativeContextSlot(ContextSlot::FUNCTION_PROTOTYPE_APPLY_INDEX);
 }
 
 // Call(Context, Target, Receiver, ...Args)

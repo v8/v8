@@ -347,6 +347,10 @@ class BytecodeGraphBuilder {
   // feedback. Returns kDisallowSpeculation if feedback is insufficient.
   SpeculationMode GetSpeculationMode(int slot_id) const;
 
+  // Helper function to determine the call feedback relation from the recorded
+  // type feedback. Returns kUnrelated if feedback is insufficient.
+  CallFeedbackRelation ComputeCallFeedbackRelation(int slot_id) const;
+
   // Helpers for building the implicit FunctionEntry and IterationBody
   // StackChecks.
   void BuildFunctionEntryStackCheck();
@@ -2529,9 +2533,11 @@ void BytecodeGraphBuilder::BuildCall(ConvertReceiverMode receiver_mode,
   FeedbackSource feedback = CreateFeedbackSource(slot_id);
   CallFrequency frequency = ComputeCallFrequency(slot_id);
   SpeculationMode speculation_mode = GetSpeculationMode(slot_id);
+  CallFeedbackRelation call_feedback_relation =
+      ComputeCallFeedbackRelation(slot_id);
   const Operator* op =
       javascript()->Call(arg_count, frequency, feedback, receiver_mode,
-                         speculation_mode, CallFeedbackRelation::kRelated);
+                         speculation_mode, call_feedback_relation);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
 
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
@@ -3107,6 +3113,19 @@ SpeculationMode BytecodeGraphBuilder::GetSpeculationMode(int slot_id) const {
   ProcessedFeedback const& feedback = broker()->GetFeedbackForCall(source);
   return feedback.IsInsufficient() ? SpeculationMode::kDisallowSpeculation
                                    : feedback.AsCall().speculation_mode();
+}
+
+CallFeedbackRelation BytecodeGraphBuilder::ComputeCallFeedbackRelation(
+    int slot_id) const {
+  FeedbackSlot slot = FeedbackVector::ToSlot(slot_id);
+  FeedbackSource source(feedback_vector(), slot);
+  ProcessedFeedback const& feedback = broker()->GetFeedbackForCall(source);
+  if (feedback.IsInsufficient()) return CallFeedbackRelation::kUnrelated;
+  CallFeedbackContent call_feedback_content =
+      feedback.AsCall().call_feedback_content();
+  return call_feedback_content == CallFeedbackContent::kTarget
+             ? CallFeedbackRelation::kTarget
+             : CallFeedbackRelation::kReceiver;
 }
 
 void BytecodeGraphBuilder::VisitBitwiseNot() {
