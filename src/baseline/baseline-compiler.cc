@@ -13,6 +13,7 @@
 #include <type_traits>
 
 #include "src/baseline/baseline-assembler-inl.h"
+#include "src/baseline/baseline-assembler.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins.h"
@@ -956,6 +957,7 @@ void BaselineCompiler::VisitStaDataPropertyInLiteral() {
 }
 
 void BaselineCompiler::VisitCollectTypeProfile() {
+  SaveAccumulatorScope accumulator_scope(&basm_);
   CallRuntime(Runtime::kCollectTypeProfile,
               IntAsSmi(0),                      // position
               kInterpreterAccumulatorRegister,  // value
@@ -1241,6 +1243,7 @@ void BaselineCompiler::VisitCallRuntime() {
 }
 
 void BaselineCompiler::VisitCallRuntimeForPair() {
+  SaveAccumulatorScope accumulator_scope(&basm_);
   CallRuntime(iterator().GetRuntimeIdOperand(0),
               iterator().GetRegisterListOperand(1));
   StoreRegisterPair(3, kReturnRegister0, kReturnRegister1);
@@ -2330,10 +2333,12 @@ void BaselineCompiler::VisitGetIterator() {
 }
 
 void BaselineCompiler::VisitDebugger() {
+  SaveAccumulatorScope accumulator_scope(&basm_);
   CallBuiltin(Builtins::kHandleDebuggerStatement);
 }
 
 void BaselineCompiler::VisitIncBlockCounter() {
+  SaveAccumulatorScope accumulator_scope(&basm_);
   CallBuiltin(Builtins::kIncBlockCounter, __ FunctionOperand(),
               IndexAsSmi(0));  // coverage array slot
 }
