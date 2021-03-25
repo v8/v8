@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_H_
-#define V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_H_
+#ifndef V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_SHARED_IA32_X64_H_
+#define V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_SHARED_IA32_X64_H_
 
 #include "src/base/macros.h"
 #include "src/codegen/turbo-assembler.h"
@@ -35,4 +35,4 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
 };
 }  // namespace internal
 }  // namespace v8
-#endif  // V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_H_
+#endif  // V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_SHARED_IA32_X64_H_

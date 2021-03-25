@@ -23,7 +23,7 @@
 #include "src/codegen/label.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/reloc-info.h"
-#include "src/codegen/shared-ia32-x64-macro-assembler.h"
+#include "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h"
 #include "src/codegen/turbo-assembler.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"

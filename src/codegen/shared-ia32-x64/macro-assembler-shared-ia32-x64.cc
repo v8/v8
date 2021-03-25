@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen/shared-ia32-x64-macro-assembler.h"
+#include "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h"
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
