@@ -971,7 +971,6 @@ class RuntimeCallTimer final {
   V(CompileBackgroundCompileTask)              \
   V(CompileBaseline)                           \
   V(CompileBaselineVisit)                      \
-  V(CompileBaselinePrepareHandlerOffsets)      \
   V(CompileBaselinePreVisit)                   \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \

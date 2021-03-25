@@ -236,32 +236,13 @@ BaselineCompiler::BaselineCompiler(
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(isolate->allocator(), ZONE_NAME),
-      labels_(zone_.NewArray<BaselineLabels*>(bytecode_->length())),
-      next_handler_offset_(nullptr) {
+      labels_(zone_.NewArray<BaselineLabels*>(bytecode_->length())) {
   MemsetPointer(labels_, nullptr, bytecode_->length());
 }
 
 #define __ basm_.
 
 void BaselineCompiler::GenerateCode() {
-  HandlerTable table(*bytecode_);
-  {
-    // Handler offsets are stored in a sorted array, terminated with kMaxInt.
-    // This allows the bytecode visitor to keep a cursor into this array, moving
-    // the cursor forward each time the handler offset matches the current
-    // cursor's value.
-    int num_handlers = table.NumberOfRangeEntries();
-    next_handler_offset_ = zone_.NewArray<int>(num_handlers + 1);
-    RuntimeCallTimerScope runtimeTimer(
-        stats_, RuntimeCallCounterId::kCompileBaselinePrepareHandlerOffsets);
-    for (int i = 0; i < num_handlers; ++i) {
-      int handler_offset = table.GetRangeHandler(i);
-      next_handler_offset_[i] = handler_offset;
-    }
-    std::sort(next_handler_offset_, &next_handler_offset_[num_handlers]);
-    next_handler_offset_[num_handlers] = kMaxInt;
-  }
-
   {
     RuntimeCallTimerScope runtimeTimer(
         stats_, RuntimeCallCounterId::kCompileBaselinePreVisit);
@@ -427,33 +408,21 @@ void BaselineCompiler::PreVisitSingleBytecode() {
 
 void BaselineCompiler::VisitSingleBytecode() {
   int offset = iterator().current_offset();
-  bool is_marked_as_jump_target = false;
   if (labels_[offset]) {
     // Bind labels for this offset that have already been linked to a
     // jump (i.e. forward jumps, excluding jump tables).
     for (auto&& label : labels_[offset]->linked) {
-      __ Bind(&label->label);
+      __ BindWithoutJumpTarget(&label->label);
     }
 #ifdef DEBUG
     labels_[offset]->linked.Clear();
 #endif
-    __ Bind(&labels_[offset]->unlinked);
-    is_marked_as_jump_target = true;
+    __ BindWithoutJumpTarget(&labels_[offset]->unlinked);
   }
 
-  // Record positions of exception handlers.
-  if (iterator().current_offset() == *next_handler_offset_) {
-    __ ExceptionHandler();
-    next_handler_offset_++;
-    is_marked_as_jump_target = true;
-  }
-  DCHECK_LT(iterator().current_offset(), *next_handler_offset_);
-
-  // Mark position as valid jump target, if it isn't one already.
-  // This is required for the deoptimizer, when CFI is enabled.
-  if (!is_marked_as_jump_target) {
-    __ JumpTarget();
-  }
+  // Mark position as valid jump target. This is required for the deoptimizer
+  // and exception handling, when CFI is enabled.
+  __ JumpTarget();
 
   if (FLAG_code_comments) {
     std::ostringstream str;
