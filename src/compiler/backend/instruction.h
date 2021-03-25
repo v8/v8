@@ -395,7 +395,7 @@ class ConstantOperand : public InstructionOperand {
 
 class ImmediateOperand : public InstructionOperand {
  public:
-  enum ImmediateType { INLINE, INDEXED };
+  enum ImmediateType { INLINE_INT32, INLINE_INT64, INDEXED_RPO, INDEXED_IMM };
 
   explicit ImmediateOperand(ImmediateType type, int32_t value)
       : InstructionOperand(IMMEDIATE) {
@@ -406,13 +406,18 @@ class ImmediateOperand : public InstructionOperand {
 
   ImmediateType type() const { return TypeField::decode(value_); }
 
-  int32_t inline_value() const {
-    DCHECK_EQ(INLINE, type());
+  int32_t inline_int32_value() const {
+    DCHECK_EQ(INLINE_INT32, type());
+    return static_cast<int64_t>(value_) >> ValueField::kShift;
+  }
+
+  int64_t inline_int64_value() const {
+    DCHECK_EQ(INLINE_INT64, type());
     return static_cast<int64_t>(value_) >> ValueField::kShift;
   }
 
   int32_t indexed_value() const {
-    DCHECK_EQ(INDEXED, type());
+    DCHECK(type() == INDEXED_IMM || type() == INDEXED_RPO);
     return static_cast<int64_t>(value_) >> ValueField::kShift;
   }
 
@@ -423,7 +428,7 @@ class ImmediateOperand : public InstructionOperand {
   INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE)
 
   STATIC_ASSERT(KindField::kSize == 3);
-  using TypeField = base::BitField64<ImmediateType, 3, 1>;
+  using TypeField = base::BitField64<ImmediateType, 3, 2>;
   using ValueField = base::BitField64<int32_t, 32, 32>;
 };
 
@@ -1022,6 +1027,8 @@ std::ostream& operator<<(std::ostream&, const Instruction&);
 class RpoNumber final {
  public:
   static const int kInvalidRpoNumber = -1;
+  RpoNumber() : index_(kInvalidRpoNumber) {}
+
   int ToInt() const {
     DCHECK(IsValid());
     return index_;
@@ -1091,8 +1098,15 @@ class V8_EXPORT_PRIVATE Constant final {
 
   RelocInfo::Mode rmode() const { return rmode_; }
 
+  bool FitsInInt32() const {
+    if (type() == kInt32) return true;
+    DCHECK(type() == kInt64);
+    return value_ >= std::numeric_limits<int32_t>::min() &&
+           value_ <= std::numeric_limits<int32_t>::max();
+  }
+
   int32_t ToInt32() const {
-    DCHECK(type() == kInt32 || type() == kInt64);
+    DCHECK(FitsInInt32());
     const int32_t value = static_cast<int32_t>(value_);
     DCHECK_EQ(value_, static_cast<int64_t>(value));
     return value;
@@ -1685,21 +1699,50 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   using Immediates = ZoneVector<Constant>;
   Immediates& immediates() { return immediates_; }
 
+  using RpoImmediates = ZoneVector<RpoNumber>;
+  RpoImmediates& rpo_immediates() { return rpo_immediates_; }
+
   ImmediateOperand AddImmediate(const Constant& constant) {
-    if (constant.type() == Constant::kInt32 &&
-        RelocInfo::IsNone(constant.rmode())) {
-      return ImmediateOperand(ImmediateOperand::INLINE, constant.ToInt32());
+    if (RelocInfo::IsNone(constant.rmode())) {
+      if (constant.type() == Constant::kRpoNumber) {
+        // Ideally we would inline RPO numbers into the operand, however jump-
+        // threading modifies RPO values and so we indirect through a vector
+        // of rpo_immediates to enable rewriting. We keep this seperate from the
+        // immediates vector so that we don't repeatedly push the same rpo
+        // number.
+        RpoNumber rpo_number = constant.ToRpoNumber();
+        DCHECK(!rpo_immediates().at(rpo_number.ToSize()).IsValid() ||
+               rpo_immediates().at(rpo_number.ToSize()) == rpo_number);
+        rpo_immediates()[rpo_number.ToSize()] = rpo_number;
+        return ImmediateOperand(ImmediateOperand::INDEXED_RPO,
+                                rpo_number.ToInt());
+      } else if (constant.type() == Constant::kInt32) {
+        return ImmediateOperand(ImmediateOperand::INLINE_INT32,
+                                constant.ToInt32());
+      } else if (constant.type() == Constant::kInt64 &&
+                 constant.FitsInInt32()) {
+        return ImmediateOperand(ImmediateOperand::INLINE_INT64,
+                                constant.ToInt32());
+      }
     }
     int index = static_cast<int>(immediates_.size());
     immediates_.push_back(constant);
-    return ImmediateOperand(ImmediateOperand::INDEXED, index);
+    return ImmediateOperand(ImmediateOperand::INDEXED_IMM, index);
   }
 
   Constant GetImmediate(const ImmediateOperand* op) const {
     switch (op->type()) {
-      case ImmediateOperand::INLINE:
-        return Constant(op->inline_value());
-      case ImmediateOperand::INDEXED: {
+      case ImmediateOperand::INLINE_INT32:
+        return Constant(op->inline_int32_value());
+      case ImmediateOperand::INLINE_INT64:
+        return Constant(op->inline_int64_value());
+      case ImmediateOperand::INDEXED_RPO: {
+        int index = op->indexed_value();
+        DCHECK_LE(0, index);
+        DCHECK_GT(rpo_immediates_.size(), index);
+        return Constant(rpo_immediates_[index]);
+      }
+      case ImmediateOperand::INDEXED_IMM: {
         int index = op->indexed_value();
         DCHECK_LE(0, index);
         DCHECK_GT(immediates_.size(), index);
@@ -1746,6 +1789,11 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   void RecomputeAssemblyOrderForTesting();
 
+  void IncreaseRpoForTesting(size_t rpo_count) {
+    DCHECK_GE(rpo_count, rpo_immediates().size());
+    rpo_immediates().resize(rpo_count);
+  }
+
  private:
   friend V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                                     const InstructionSequence&);
@@ -1765,6 +1813,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   SourcePositionMap source_positions_;
   ConstantMap constants_;
   Immediates immediates_;
+  RpoImmediates rpo_immediates_;
   InstructionDeque instructions_;
   int next_virtual_register_;
   ReferenceMapDeque reference_maps_;

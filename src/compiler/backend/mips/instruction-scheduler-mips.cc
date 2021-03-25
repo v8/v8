@@ -1531,7 +1531,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return ShrPairLatency();
       } else {
         // auto immediate_operand = ImmediateOperand::cast(instr->InputAt(2));
-        // return ShrPairLatency(false, immediate_operand->inline_value());
+        // return ShrPairLatency(false, immediate_operand->inline_32_value());
         return 1;
       }
     }

@@ -1062,9 +1062,9 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
-        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
-        ImmediateOperand(ImmediateOperand::INLINE, stack_slot_delta)};
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, -1),  // poison index.
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, stack_slot_delta)};
     Instruction* tail_call =
         Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
                          arraysize(callee), callee, 0, nullptr);
@@ -1151,9 +1151,10 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
-        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
-        ImmediateOperand(ImmediateOperand::INLINE, first_unused_stack_slot)};
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, -1),  // poison index.
+        ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE_INT32,
+                         first_unused_stack_slot)};
     Instruction* tail_call =
         Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
                          arraysize(callee), callee, 0, nullptr);
