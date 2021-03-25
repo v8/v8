@@ -1473,26 +1473,29 @@ void VectorPackSaturate(Simulator* sim, Instruction* instr, S min_val,
 
 template <typename T>
 T VSXFPMin(T x, T y) {
+  // Handle NaN.
+  // TODO(miladfarca): include the payload of src1.
+  if (std::isnan(x) && std::isnan(y)) return NAN;
   // Handle +0 and -0.
   if (std::signbit(x) < std::signbit(y)) return y;
   if (std::signbit(y) < std::signbit(x)) return x;
-  // fmin will handle NaN correctly.
   return std::fmin(x, y);
 }
 
 template <typename T>
 T VSXFPMax(T x, T y) {
+  // Handle NaN.
+  // TODO(miladfarca): include the payload of src1.
+  if (std::isnan(x) && std::isnan(y)) return NAN;
   // Handle +0 and -0.
   if (std::signbit(x) < std::signbit(y)) return x;
   if (std::signbit(y) < std::signbit(x)) return y;
-  // fmax will handle NaN correctly.
   return std::fmax(x, y);
 }
 
 float VMXFPMin(float x, float y) {
   // Handle NaN.
-  if (std::isnan(x)) return x;
-  if (std::isnan(y)) return y;
+  if (std::isnan(x) || std::isnan(y)) return NAN;
   // Handle +0 and -0.
   if (std::signbit(x) < std::signbit(y)) return y;
   if (std::signbit(y) < std::signbit(x)) return x;
@@ -1501,8 +1504,7 @@ float VMXFPMin(float x, float y) {
 
 float VMXFPMax(float x, float y) {
   // Handle NaN.
-  if (std::isnan(x)) return x;
-  if (std::isnan(y)) return y;
+  if (std::isnan(x) || std::isnan(y)) return NAN;
   // Handle +0 and -0.
   if (std::signbit(x) < std::signbit(y)) return x;
   if (std::signbit(y) < std::signbit(x)) return y;
