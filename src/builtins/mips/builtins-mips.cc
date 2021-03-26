@@ -3700,6 +3700,14 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
 }
 
+void Builtins::Generate_BaselineEnterAtBytecode(MacroAssembler* masm) {
+  __ break_(0xCC);
+}
+
+void Builtins::Generate_BaselineEnterAtNextBytecode(MacroAssembler* masm) {
+  __ break_(0xCC);
+}
+
 void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::INTERNAL);
