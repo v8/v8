@@ -86,13 +86,6 @@ using Shuffle = std::array<int8_t, kSimd128Size>;
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
                              TestExecutionTier execution_tier)
 
-// Generic expected value functions.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
-T Negate(T a) {
-  return -a;
-}
-
 // For signed integral types, use base::AddWithWraparound.
 template <typename T, typename = typename std::enable_if<
                           std::is_floating_point<T>::value>::type>
@@ -252,14 +245,6 @@ int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
                                 WASM_SIMD_##TYPE##_EXTRACT_LANE_U(             \
                                     lane_index, WASM_LOCAL_GET(value))),       \
           WASM_RETURN1(WASM_ZERO))
-
-#if V8_OS_AIX
-template <typename T>
-bool MightReverseSign(T float_op) {
-  return float_op == static_cast<T>(Negate) ||
-         float_op == static_cast<T>(std::abs);
-}
-#endif
 
 WASM_SIMD_TEST(S128Globals) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);

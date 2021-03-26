@@ -16,6 +16,21 @@ namespace wasm {
 
 using FloatUnOp = float (*)(float);
 
+// Generic expected value functions.
+template <typename T, typename = typename std::enable_if<
+                          std::is_floating_point<T>::value>::type>
+T Negate(T a) {
+  return -a;
+}
+
+#if V8_OS_AIX
+template <typename T>
+bool MightReverseSign(T float_op) {
+  return float_op == static_cast<T>(Negate) ||
+         float_op == static_cast<T>(std::abs);
+}
+#endif
+
 // Test some values not included in the float inputs from value_helper. These
 // tests are useful for opcodes that are synthesized during code gen, like Min
 // and Max on ia32 and x64.
