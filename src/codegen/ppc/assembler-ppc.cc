@@ -77,6 +77,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
       cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << FPR_GPR_MOV);
   }
+  // V8 PPC Simd implementations need P9 at a minimum.
+  if (cpu.part() == base::CPU::PPC_POWER9) {
+    supported_ |= (1u << SIMD);
+  }
 #endif
   if (cpu.part() == base::CPU::PPC_POWER6 ||
       cpu.part() == base::CPU::PPC_POWER7 ||
@@ -108,6 +112,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << ISELECT);
   supported_ |= (1u << VSX);
   supported_ |= (1u << MODULO);
+  supported_ |= (1u << SIMD);
 #if V8_TARGET_ARCH_PPC64
   supported_ |= (1u << FPR_GPR_MOV);
 #endif

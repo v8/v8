@@ -58,6 +58,7 @@ enum CpuFeature {
   ISELECT,
   VSX,
   MODULO,
+  SIMD,
 
 #elif V8_TARGET_ARCH_S390X
   FPU,
