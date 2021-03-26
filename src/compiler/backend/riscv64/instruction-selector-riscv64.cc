@@ -2654,7 +2654,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4AllTrue, kRiscvI32x4AllTrue)                       \
   V(I16x8AllTrue, kRiscvI16x8AllTrue)                       \
   V(I8x16AllTrue, kRiscvI8x16AllTrue)                       \
-  V(I64x2AllTrue, kRiscvI64x2AllTrue)                       \
+  V(I64x2AllTrue, kRiscvI64x2AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl)                 \
@@ -2911,8 +2911,9 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
-  bool is_swizzle;
-  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  auto param = ShuffleParameterOf(node->op());
+  bool is_swizzle = param.is_swizzle();
+  base::Memcpy(shuffle, param.imm().data(), kSimd128Size);
   uint8_t shuffle32x4[4];
   ArchOpcode opcode;
   if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),

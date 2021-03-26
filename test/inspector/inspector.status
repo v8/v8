@@ -127,6 +127,10 @@
   'debugger/wasm-step-after-trap': [SKIP],
 }],  # 'arch == riscv64'
 
+['arch == riscv64 and variant == stress_incremental_marking', {
+  'debugger/wasm-gc-breakpoints': [SKIP]
+}],  # 'arch == riscv64'
+
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.

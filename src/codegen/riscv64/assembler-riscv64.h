@@ -1231,6 +1231,16 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
 
   Register Acquire();
   bool hasAvailable() const;
+  void Include(const RegList& list) { *available_ |= list; }
+  void Exclude(const RegList& list) { *available_ &= ~list; }
+  void Include(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList list(reg1.bit() | reg2.bit());
+    Include(list);
+  }
+  void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList list(reg1.bit() | reg2.bit());
+    Exclude(list);
+  }
 
  private:
   RegList* available_;

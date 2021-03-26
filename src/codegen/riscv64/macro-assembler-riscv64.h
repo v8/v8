@@ -12,6 +12,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/riscv64/assembler-riscv64.h"
 #include "src/common/globals.h"
+#include "src/objects/tagged-index.h"
 
 namespace v8 {
 namespace internal {
@@ -187,6 +188,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     li(rd, Operand(j), mode);
   }
 
+  inline void Move(Register output, MemOperand operand) { Ld(output, operand); }
+
   void li(Register dst, Handle<HeapObject> value, LiFlags mode = OPTIMIZE_SIZE);
   void li(Register dst, ExternalReference value, LiFlags mode = OPTIMIZE_SIZE);
   void li(Register dst, const StringConstantBase* string,
@@ -223,7 +226,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
+  void LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
+                                 Register destination);
+  MemOperand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
+  void CallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return CallBuiltin(static_cast<int>(builtin));
+  }
+  void CallBuiltin(int builtin_index);
+  void TailCallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return TailCallBuiltin(static_cast<int>(builtin));
+  }
+  void TailCallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
@@ -799,7 +815,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ceil_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
 
   // Jump the register contains a smi.
-  void JumpIfSmi(Register value, Label* smi_label, Register scratch = t3);
+  void JumpIfSmi(Register value, Label* smi_label);
 
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
     Branch(dest, eq, a, Operand(b));
@@ -816,8 +832,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   static int ActivationFrameAlignment();
 
   // Calculated scaled address (rd) as rt + rs << sa
-  void CalcScaledAddress(Register rd, Register rs, Register rt, uint8_t sa,
-                         Register scratch = t3);
+  void CalcScaledAddress(Register rd, Register rs, Register rt, uint8_t sa);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
@@ -970,8 +985,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
 
-  void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
-  void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
+  void LoadWordPair(Register rd, const MemOperand& rs);
+  void StoreWordPair(Register rd, const MemOperand& rs);
 
   void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
@@ -1131,8 +1146,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // Jump if the register contains a non-smi.
-  void JumpIfNotSmi(Register value, Label* not_smi_label,
-                    Register scratch = t3);
+  void JumpIfNotSmi(Register value, Label* not_smi_label);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

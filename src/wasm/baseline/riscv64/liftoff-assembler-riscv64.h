@@ -382,12 +382,19 @@ void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
                                         int offset, int size) {
   DCHECK_LE(0, offset);
-  DCHECK(size == 4 || size == 8);
   MemOperand src{instance, offset};
-  if (size == 4) {
-    Lw(dst, src);
-  } else {
-    Ld(dst, src);
+  switch (size) {
+    case 1:
+      Lb(dst, MemOperand(src));
+      break;
+    case 4:
+      Lw(dst, MemOperand(src));
+      break;
+    case 8:
+      Ld(dst, MemOperand(src));
+      break;
+    default:
+      UNIMPLEMENTED();
   }
 }
 
@@ -411,6 +418,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          LiftoffRegList pinned) {
   STATIC_ASSERT(kTaggedSize == kInt64Size);
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  Ld(dst, src_op);
+}
+
+void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  MemOperand src_op = liftoff::GetMemOp(this, src_addr, no_reg, offset_imm);
   Ld(dst, src_op);
 }
 

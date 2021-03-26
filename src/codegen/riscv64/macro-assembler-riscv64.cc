@@ -928,9 +928,10 @@ void TurboAssembler::Dror(Register rd, Register rs, const Operand& rt) {
 }
 
 void TurboAssembler::CalcScaledAddress(Register rd, Register rt, Register rs,
-                                       uint8_t sa, Register scratch) {
+                                       uint8_t sa) {
   DCHECK(sa >= 1 && sa <= 31);
-  Register tmp = rd == rt ? scratch : rd;
+  UseScratchRegisterScope temps(this);
+  Register tmp = rd == rt ? temps.Acquire() : rd;
   DCHECK(tmp != rt);
   slli(tmp, rs, sa);
   Add64(rd, rt, tmp);
@@ -1215,8 +1216,9 @@ void TurboAssembler::Uld(Register rd, const MemOperand& rs) {
 // Load consequent 32-bit word pair in 64-bit reg. and put first word in low
 // bits,
 // second word in high bits.
-void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs,
-                                  Register scratch) {
+void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   Lwu(rd, rs);
   Lw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
   slli(scratch, scratch, 32);
@@ -1228,8 +1230,9 @@ void TurboAssembler::Usd(Register rd, const MemOperand& rs) {
 }
 
 // Do 64-bit store as two consequent 32-bit stores to unaligned address.
-void MacroAssembler::StoreWordPair(Register rd, const MemOperand& rs,
-                                   Register scratch) {
+void MacroAssembler::StoreWordPair(Register rd, const MemOperand& rs) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   Sw(rd, rs);
   srai(scratch, rd, 32);
   Sw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
@@ -3059,6 +3062,46 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   Call(builtin_index);
 }
 
+void TurboAssembler::CallBuiltin(int builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  RecordCommentForOffHeapTrampoline(builtin_index);
+  CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  EmbeddedData d = EmbeddedData::FromBlob(isolate());
+  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  if (options().short_builtin_calls) {
+    Call(entry, RelocInfo::RUNTIME_ENTRY);
+  } else {
+    Call(entry, RelocInfo::OFF_HEAP_TARGET);
+  }
+  if (FLAG_code_comments) RecordComment("]");
+}
+
+void TurboAssembler::TailCallBuiltin(int builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  RecordCommentForOffHeapTrampoline(builtin_index);
+  CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  EmbeddedData d = EmbeddedData::FromBlob(isolate());
+  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  if (options().short_builtin_calls) {
+    Jump(entry, RelocInfo::RUNTIME_ENTRY);
+  } else {
+    Jump(entry, RelocInfo::OFF_HEAP_TARGET);
+  }
+  if (FLAG_code_comments) RecordComment("]");
+}
+
+void TurboAssembler::LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
+                                               Register destination) {
+  Ld(destination, EntryFromBuiltinIndexAsOperand(builtin_index));
+}
+
+MemOperand TurboAssembler::EntryFromBuiltinIndexAsOperand(
+    Builtins::Name builtin_index) {
+  DCHECK(root_array_available());
+  return MemOperand(kRootRegister,
+                    IsolateData::builtin_entry_slot_offset(builtin_index));
+}
+
 void TurboAssembler::PatchAndJump(Address target) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
@@ -3882,19 +3925,12 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  int stack_offset = -3 * kPointerSize;
-  const int fp_offset = 1 * kPointerSize;
-  addi(sp, sp, stack_offset);
-  stack_offset = -stack_offset - kPointerSize;
-  Sd(ra, MemOperand(sp, stack_offset));
-  stack_offset -= kPointerSize;
-  Sd(fp, MemOperand(sp, stack_offset));
-  stack_offset -= kPointerSize;
-  li(scratch, Operand(StackFrame::TypeToMarker(type)));
-  Sd(scratch, MemOperand(sp, stack_offset));
-  // Adjust FP to point to saved FP.
-  DCHECK_EQ(stack_offset, 0);
-  Add64(fp, sp, Operand(fp_offset));
+  Push(ra, fp);
+  Move(fp, sp);
+  if (type != StackFrame::MANUAL) {
+    li(scratch, Operand(StackFrame::TypeToMarker(type)));
+    Push(scratch);
+  }
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
@@ -4026,7 +4062,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
     if (argument_count_is_length) {
       add(sp, sp, argument_count);
     } else {
-      CalcScaledAddress(sp, sp, argument_count, kPointerSizeLog2, scratch);
+      CalcScaledAddress(sp, sp, argument_count, kPointerSizeLog2);
     }
   }
 
@@ -4084,15 +4120,17 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
   }
 }
 
-void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
-                               Register scratch) {
+void TurboAssembler::JumpIfSmi(Register value, Label* smi_label) {
   DCHECK_EQ(0, kSmiTag);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   andi(scratch, value, kSmiTagMask);
   Branch(smi_label, eq, scratch, Operand(zero_reg));
 }
 
-void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
-                                  Register scratch) {
+void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   DCHECK_EQ(0, kSmiTag);
   andi(scratch, value, kSmiTagMask);
   Branch(not_smi_label, ne, scratch, Operand(zero_reg));

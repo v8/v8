@@ -4239,6 +4239,9 @@ v8_source_set("v8_base_without_compiler") {
     ]
   } else if (v8_current_cpu == "riscv64") {
     sources += [  ### gcmole(arch:riscv64) ###
+      "src/baseline/riscv64/baseline-assembler-riscv64-inl.h",
+      "src/baseline/riscv64/baseline-compiler-riscv64-inl.h",
+      "src/codegen/riscv64/assembler-riscv64-inl.h",
       "src/codegen/riscv64/assembler-riscv64.cc",
       "src/codegen/riscv64/constants-riscv64.cc",
       "src/codegen/riscv64/cpu-riscv64.cc",
