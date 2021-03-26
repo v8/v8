@@ -103,6 +103,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_non_stop_time_stamp_counter() const {
     return has_non_stop_time_stamp_counter_;
   }
+  bool is_running_in_vm() const { return is_running_in_vm_; }
 
   // arm features
   bool has_idiva() const { return has_idiva_; }
@@ -159,6 +160,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_jscvt_;
   bool is_fp64_mode_;
   bool has_non_stop_time_stamp_counter_;
+  bool is_running_in_vm_;
   bool has_msa_;
 };
 

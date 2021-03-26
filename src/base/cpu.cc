@@ -443,6 +443,7 @@ CPU::CPU()
       has_jscvt_(false),
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
+      is_running_in_vm_(false),
       has_msa_(false) {
   base::Memcpy(vendor_, "Unknown", 8);
 
@@ -497,6 +498,12 @@ CPU::CPU()
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
     has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
+    // "Hypervisor Present Bit: Bit 31 of ECX of CPUID leaf 0x1."
+    // See https://lwn.net/Articles/301888/
+    // This is checking for any hypervisor. Hypervisors may choose not to
+    // announce themselves. Hypervisors trap CPUID and sometimes return
+    // different results to underlying hardware.
+    is_running_in_vm_ = (cpu_info[2] & 0x80000000) != 0;
 
     if (family_ == 0x6) {
       switch (model_) {
@@ -541,6 +548,23 @@ CPU::CPU()
     has_non_stop_time_stamp_counter_ = (cpu_info[3] & (1 << 8)) != 0;
   }
 
+  // This logic is replicated from cpu.cc present in chromium.src
+  if (!has_non_stop_time_stamp_counter_ && is_running_in_vm_) {
+    int cpu_info_hv[4] = {};
+    __cpuid(cpu_info_hv, 0x40000000);
+    if (cpu_info_hv[1] == 0x7263694D &&  // Micr
+        cpu_info_hv[2] == 0x666F736F &&  // osof
+        cpu_info_hv[3] == 0x76482074) {  // t Hv
+      // If CPUID says we have a variant TSC and a hypervisor has identified
+      // itself and the hypervisor says it is Microsoft Hyper-V, then treat
+      // TSC as invariant.
+      //
+      // Microsoft Hyper-V hypervisor reports variant TSC as there are some
+      // scenarios (eg. VM live migration) where the TSC is variant, but for
+      // our purposes we can treat it as invariant.
+      has_non_stop_time_stamp_counter_ = true;
+    }
+  }
 #elif V8_HOST_ARCH_ARM
 
 #if V8_OS_LINUX
