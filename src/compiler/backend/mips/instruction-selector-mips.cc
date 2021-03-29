@@ -1121,7 +1121,7 @@ void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
 void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsFloat64InsertLowWord32, g.DefineAsRegister(node),
-       ImmediateOperand(ImmediateOperand::INLINE, 0),
+       ImmediateOperand(ImmediateOperand::INLINE_INT32, 0),
        g.UseRegister(node->InputAt(0)));
 }
 
