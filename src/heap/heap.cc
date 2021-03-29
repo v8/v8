@@ -409,11 +409,13 @@ bool Heap::CanExpandOldGeneration(size_t size) {
   return memory_allocator()->Size() + size <= MaxReserved();
 }
 
-bool Heap::CanExpandOldGenerationBackground(size_t size) {
+bool Heap::CanExpandOldGenerationBackground(LocalHeap* local_heap,
+                                            size_t size) {
   if (force_oom_) return false;
+
   // When the heap is tearing down, then GC requests from background threads
   // are not served and the threads are allowed to expand the heap to avoid OOM.
-  return gc_state() == TEAR_DOWN ||
+  return gc_state() == TEAR_DOWN || IsMainThreadParked(local_heap) ||
          memory_allocator()->Size() + size <= MaxReserved();
 }
 
@@ -1176,6 +1178,15 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
     ReduceNewSpaceSize();
   }
+
+  // Set main thread state back to Running from CollectionRequested.
+  LocalHeap* main_thread_local_heap = isolate()->main_thread_local_heap();
+
+  LocalHeap::ThreadState old_state =
+      main_thread_local_heap->state_.exchange(LocalHeap::kRunning);
+
+  CHECK(old_state == LocalHeap::kRunning ||
+        old_state == LocalHeap::kCollectionRequested);
 
   // Resume all threads waiting for the GC.
   collection_barrier_->ResumeThreadsAwaitingCollection();
@@ -1944,18 +1955,15 @@ bool Heap::CollectionRequested() {
   return collection_barrier_->CollectionRequested();
 }
 
-void Heap::RequestCollectionBackground(LocalHeap* local_heap) {
-  if (local_heap->is_main_thread()) {
-    CollectAllGarbage(current_gc_flags_,
-                      GarbageCollectionReason::kBackgroundAllocationFailure,
-                      current_gc_callback_flags_);
-  } else {
-    collection_barrier_->AwaitCollectionBackground();
-  }
+void Heap::CollectGarbageForBackground(LocalHeap* local_heap) {
+  CHECK(local_heap->is_main_thread());
+  CollectAllGarbage(current_gc_flags_,
+                    GarbageCollectionReason::kBackgroundAllocationFailure,
+                    current_gc_callback_flags_);
 }
 
 void Heap::CheckCollectionRequested() {
-  if (!collection_barrier_->CollectionRequested()) return;
+  if (!CollectionRequested()) return;
 
   CollectAllGarbage(current_gc_flags_,
                     GarbageCollectionReason::kBackgroundAllocationFailure,
@@ -2013,13 +2021,11 @@ size_t Heap::PerformGarbageCollection(
   // cycle.
   UpdateCurrentEpoch(collector);
 
-  // Stop time-to-collection timer before safepoint - we do not want to measure
-  // time for safepointing.
-  collection_barrier_->StopTimeToCollectionTimer();
-
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
   SafepointScope safepoint_scope(this);
+
+  collection_barrier_->StopTimeToCollectionTimer();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -4891,7 +4897,11 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
   // was initiated.
   if (gc_state() == TEAR_DOWN) return true;
 
-  // Ensure that retry of allocation on background thread succeeds
+  // If main thread is parked, it can't perform the GC. Fix the deadlock by
+  // allowing the allocation.
+  if (IsMainThreadParked(local_heap)) return true;
+
+  // Make it more likely that retry of allocation on background thread succeeds
   if (IsRetryOfFailedAllocation(local_heap)) return true;
 
   // Background thread requested GC, allocation should fail
@@ -4916,6 +4926,11 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
 bool Heap::IsRetryOfFailedAllocation(LocalHeap* local_heap) {
   if (!local_heap) return false;
   return local_heap->allocation_failed_;
+}
+
+bool Heap::IsMainThreadParked(LocalHeap* local_heap) {
+  if (!local_heap) return false;
+  return local_heap->main_thread_parked_;
 }
 
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
@@ -5480,7 +5495,7 @@ void Heap::StartTearDown() {
   // process the event queue anymore. Avoid this deadlock by allowing all
   // allocations after tear down was requested to make sure all background
   // threads finish.
-  collection_barrier_->ShutdownRequested();
+  collection_barrier_->NotifyShutdownRequested();
 
 #ifdef VERIFY_HEAP
   // {StartTearDown} is called fairly early during Isolate teardown, so it's

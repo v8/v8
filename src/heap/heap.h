@@ -667,8 +667,8 @@ class Heap {
   template <FindMementoMode mode>
   inline AllocationMemento FindAllocationMemento(Map map, HeapObject object);
 
-  // Requests collection and blocks until GC is finished.
-  void RequestCollectionBackground(LocalHeap* local_heap);
+  // Performs GC after background allocation failure.
+  void CollectGarbageForBackground(LocalHeap* local_heap);
 
   //
   // Support for the API.
@@ -1932,12 +1932,14 @@ class Heap {
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
   V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
-  V8_EXPORT_PRIVATE bool CanExpandOldGenerationBackground(size_t size);
+  V8_EXPORT_PRIVATE bool CanExpandOldGenerationBackground(LocalHeap* local_heap,
+                                                          size_t size);
   V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
 
   bool ShouldExpandOldGenerationOnSlowAllocation(
       LocalHeap* local_heap = nullptr);
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
+  bool IsMainThreadParked(LocalHeap* local_heap);
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
@@ -2362,6 +2364,7 @@ class Heap {
   friend class ScavengeTaskObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
+  friend class LocalHeap;
   friend class OldLargeObjectSpace;
   template <typename ConcreteVisitor, typename MarkingState>
   friend class MarkingVisitorBase;

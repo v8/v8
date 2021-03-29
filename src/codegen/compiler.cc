@@ -288,7 +288,6 @@ ScriptOriginOptions OriginOptionsForEval(Object script) {
 // Implementation of UnoptimizedCompilationJob
 
 CompilationJob::Status UnoptimizedCompilationJob::ExecuteJob() {
-  DisallowHeapAccess no_heap_access;
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
@@ -2802,7 +2801,11 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
   }
 
   // Join with background thread and finalize compilation.
-  background_compile_thread.Join();
+  {
+    ParkedScope scope(isolate->main_thread_local_isolate());
+    background_compile_thread.Join();
+  }
+
   MaybeHandle<SharedFunctionInfo> maybe_result =
       Compiler::GetSharedFunctionInfoForStreamedScript(
           isolate, source, script_details, origin_options,

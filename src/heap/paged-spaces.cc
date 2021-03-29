@@ -592,7 +592,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
   }
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
-      heap()->CanExpandOldGenerationBackground(AreaSize())) {
+      heap()->CanExpandOldGenerationBackground(local_heap, AreaSize())) {
     auto result = ExpandBackground(local_heap, max_size_in_bytes);
     if (result) {
       DCHECK_EQ(Heap::GetFillToAlign(result->first, alignment), 0);

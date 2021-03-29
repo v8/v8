@@ -184,12 +184,12 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
+  base::Optional<ParkedScope> parked_scope;
+  if (local_isolate_) parked_scope.emplace(local_isolate_);
+
   // Print AST if flag is enabled. Note, if compiling on a background thread
   // then ASTs from different functions may be intersperse when printed.
   MaybePrintAst(parse_info(), compilation_info());
-
-  base::Optional<ParkedScope> parked_scope;
-  if (local_isolate_) parked_scope.emplace(local_isolate_);
 
   generator()->GenerateBytecode(stack_limit());
 

@@ -45,18 +45,16 @@ void GlobalSafepoint::EnterSafepointScope() {
     LocalHeap::ThreadState expected = local_heap->state_relaxed();
 
     while (true) {
-      CHECK(expected == LocalHeap::ThreadState::Parked ||
-            expected == LocalHeap::ThreadState::Running);
+      CHECK(expected == LocalHeap::kParked || expected == LocalHeap::kRunning);
       LocalHeap::ThreadState new_state =
-          expected == LocalHeap::ThreadState::Parked
-              ? LocalHeap::ThreadState::ParkedSafepoint
-              : LocalHeap::ThreadState::SafepointRequested;
+          expected == LocalHeap::kParked ? LocalHeap::kParkedSafepointRequested
+                                         : LocalHeap::kSafepointRequested;
 
       if (local_heap->state_.compare_exchange_strong(expected, new_state)) {
-        if (expected == LocalHeap::ThreadState::Running) {
+        if (expected == LocalHeap::kRunning) {
           running++;
         } else {
-          CHECK_EQ(expected, LocalHeap::ThreadState::Parked);
+          CHECK_EQ(expected, LocalHeap::kParked);
         }
         break;
       }
@@ -78,16 +76,17 @@ void GlobalSafepoint::LeaveSafepointScope() {
       continue;
     }
 
-    // We transition both ParkedSafepoint and Safepoint states to Parked. While
-    // this is probably intuitive for ParkedSafepoint, this might be surprising
-    // for Safepoint though. SafepointSlowPath() will later unpark that thread
-    // again. Going through Parked means that a background thread doesn't need
-    // to be waked up before the main thread can start the next safepoint.
+    // We transition both ParkedSafepointRequested and Safepoint states to
+    // Parked. While this is probably intuitive for ParkedSafepointRequested,
+    // this might be surprising for Safepoint though. SafepointSlowPath() will
+    // later unpark that thread again. Going through Parked means that a
+    // background thread doesn't need to be waked up before the main thread can
+    // start the next safepoint.
 
     LocalHeap::ThreadState old_state =
-        local_heap->state_.exchange(LocalHeap::ThreadState::Parked);
-    CHECK(old_state == LocalHeap::ThreadState::ParkedSafepoint ||
-          old_state == LocalHeap::ThreadState::Safepoint);
+        local_heap->state_.exchange(LocalHeap::kParked);
+    CHECK(old_state == LocalHeap::kParkedSafepointRequested ||
+          old_state == LocalHeap::kSafepoint);
   }
 
   barrier_.Disarm();

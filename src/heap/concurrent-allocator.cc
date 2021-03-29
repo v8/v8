@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/marking.h"
@@ -38,21 +39,24 @@ void StressConcurrentAllocatorTask::RunInternal() {
         AllocationAlignment::kWordAligned);
     heap->CreateFillerObjectAtBackground(
         address, kSmallObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
-    local_heap.Safepoint();
 
-    address = local_heap.AllocateRawOrFail(
+    AllocationResult result = local_heap.AllocateRaw(
         kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
         AllocationAlignment::kWordAligned);
-    heap->CreateFillerObjectAtBackground(
-        address, kMediumObjectSize,
-        ClearFreedMemoryMode::kDontClearFreedMemory);
-    local_heap.Safepoint();
+    if (!result.IsRetry()) {
+      heap->CreateFillerObjectAtBackground(
+          result.ToAddress(), kMediumObjectSize,
+          ClearFreedMemoryMode::kDontClearFreedMemory);
+    }
 
-    address = local_heap.AllocateRawOrFail(
-        kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
-    heap->CreateFillerObjectAtBackground(
-        address, kLargeObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
+    result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
+                                    AllocationOrigin::kRuntime,
+                                    AllocationAlignment::kWordAligned);
+    if (!result.IsRetry()) {
+      heap->CreateFillerObjectAtBackground(
+          result.ToAddress(), kLargeObjectSize,
+          ClearFreedMemoryMode::kDontClearFreedMemory);
+    }
     local_heap.Safepoint();
   }
 
@@ -109,7 +113,6 @@ AllocationResult ConcurrentAllocator::AllocateInLabSlow(
 bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
   auto result = space_->RawRefillLabBackground(
       local_heap_, kLabSize, kMaxLabSize, kWordAligned, origin);
-
   if (!result) return false;
 
   if (local_heap_->heap()->incremental_marking()->black_allocation()) {
