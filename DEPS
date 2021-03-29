@@ -88,7 +88,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5ecd95d6f70f8b026a55a44a99c053a34b6918cd',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c835251514d8f8e65e018462daad74814ed01f78',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e0de6a88e5385ee9cd38d5e87f97456bbad8e7d2',
   'third_party/icu':
@@ -96,7 +96,7 @@ deps = {
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '6900bf4e274fdd94e3b074a65144554466cad5da',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4401ea90ed6aefafb78fc3907df1794fc79f6664',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '99a2527e919b496f3d2849c77c5bbed4bdccd5a4',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '99803d74e35962f63a775f29477882afd4d57d94',
   'buildtools/linux64': {
