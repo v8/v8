@@ -18,6 +18,14 @@
 namespace v8 {
 namespace internal {
 
+void SharedTurboAssembler::I16x8ExtMulLow(XMMRegister dst, XMMRegister src1,
+                                          XMMRegister src2, XMMRegister scratch,
+                                          bool is_signed) {
+  is_signed ? Pmovsxbw(scratch, src1) : Pmovzxbw(scratch, src1);
+  is_signed ? Pmovsxbw(dst, src2) : Pmovzxbw(dst, src2);
+  Pmullw(dst, scratch);
+}
+
 void SharedTurboAssembler::I16x8ExtMulHighS(XMMRegister dst, XMMRegister src1,
                                             XMMRegister src2,
                                             XMMRegister scratch) {

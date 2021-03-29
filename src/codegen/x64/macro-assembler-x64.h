@@ -62,78 +62,6 @@ class StackArgumentsAccessor {
 class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
  public:
   using SharedTurboAssembler::SharedTurboAssembler;
-
-  template <typename Dst, typename... Args>
-  struct AvxHelper {
-    Assembler* assm;
-    base::Optional<CpuFeature> feature = base::nullopt;
-    // Call a method where the AVX version expects the dst argument to be
-    // duplicated.
-    template <void (Assembler::*avx)(Dst, Dst, Args...),
-              void (Assembler::*no_avx)(Dst, Args...)>
-    void emit(Dst dst, Args... args) {
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope scope(assm, AVX);
-        (assm->*avx)(dst, dst, args...);
-      } else if (feature.has_value()) {
-        DCHECK(CpuFeatures::IsSupported(*feature));
-        CpuFeatureScope scope(assm, *feature);
-        (assm->*no_avx)(dst, args...);
-      } else {
-        (assm->*no_avx)(dst, args...);
-      }
-    }
-
-    // Call a method where the AVX version expects no duplicated dst argument.
-    template <void (Assembler::*avx)(Dst, Args...),
-              void (Assembler::*no_avx)(Dst, Args...)>
-    void emit(Dst dst, Args... args) {
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope scope(assm, AVX);
-        (assm->*avx)(dst, args...);
-      } else if (feature.has_value()) {
-        DCHECK(CpuFeatures::IsSupported(*feature));
-        CpuFeatureScope scope(assm, *feature);
-        (assm->*no_avx)(dst, args...);
-      } else {
-        (assm->*no_avx)(dst, args...);
-      }
-    }
-  };
-
-#define AVX_OP(macro_name, name)                                             \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this}                                            \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
-
-#define AVX_OP_SSE3(macro_name, name)                                        \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE3)}          \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
-
-#define AVX_OP_SSSE3(macro_name, name)                                       \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSSE3)}         \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
-
-#define AVX_OP_SSE4_1(macro_name, name)                                      \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE4_1)}        \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
-#define AVX_OP_SSE4_2(macro_name, name)                                      \
-  template <typename Dst, typename... Args>                                  \
-  void macro_name(Dst dst, Args... args) {                                   \
-    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE4_2)}        \
-        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
-  }
   AVX_OP(Subsd, subsd)
   AVX_OP(Divss, divss)
   AVX_OP(Divsd, divsd)
@@ -219,7 +147,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Paddusb, paddusb)
   AVX_OP(Paddusw, paddusw)
   AVX_OP(Pcmpgtd, pcmpgtd)
-  AVX_OP(Pmullw, pmullw)
   AVX_OP(Pmuludq, pmuludq)
   AVX_OP(Addpd, addpd)
   AVX_OP(Subpd, subpd)
@@ -285,10 +212,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP_SSE4_1(Pinsrq, pinsrq)
   AVX_OP_SSE4_1(Pblendw, pblendw)
   AVX_OP_SSE4_1(Ptest, ptest)
-  AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
   AVX_OP_SSE4_1(Pmovsxwd, pmovsxwd)
   AVX_OP_SSE4_1(Pmovsxdq, pmovsxdq)
-  AVX_OP_SSE4_1(Pmovzxbw, pmovzxbw)
   AVX_OP_SSE4_1(Pmovzxwd, pmovzxwd)
   AVX_OP_SSE4_1(Pmovzxdq, pmovzxdq)
   AVX_OP_SSE4_1(Pextrb, pextrb)
@@ -607,11 +532,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // These Wasm SIMD ops do not have direct lowerings on x64. These
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
-
-  // TODO(zhin): Move this into shared-ia32-x64-macro-assembler.
-  void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                      bool is_signed);
-
   void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);

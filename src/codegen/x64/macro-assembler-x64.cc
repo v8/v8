@@ -2132,14 +2132,6 @@ void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::I16x8ExtMulLow(XMMRegister dst, XMMRegister src1,
-                                    XMMRegister src2, bool is_signed) {
-  is_signed ? Pmovsxbw(kScratchDoubleReg, src1)
-            : Pmovzxbw(kScratchDoubleReg, src1);
-  is_signed ? Pmovsxbw(dst, src2) : Pmovzxbw(dst, src2);
-  Pmullw(dst, kScratchDoubleReg);
-}
-
 void TurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
                                       XMMRegister src2) {
   // k = i16x8.splat(0x8000)

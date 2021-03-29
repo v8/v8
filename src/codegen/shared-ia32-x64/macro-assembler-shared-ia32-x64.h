@@ -6,6 +6,7 @@
 #define V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_SHARED_IA32_X64_H_
 
 #include "src/base/macros.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/turbo-assembler.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -18,11 +19,91 @@
 
 namespace v8 {
 namespace internal {
+class Assembler;
 
 class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
+  template <typename Dst, typename... Args>
+  struct AvxHelper {
+    Assembler* assm;
+    base::Optional<CpuFeature> feature = base::nullopt;
+    // Call a method where the AVX version expects the dst argument to be
+    // duplicated.
+    template <void (Assembler::*avx)(Dst, Dst, Args...),
+              void (Assembler::*no_avx)(Dst, Args...)>
+    void emit(Dst dst, Args... args) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(assm, AVX);
+        (assm->*avx)(dst, dst, args...);
+      } else if (feature.has_value()) {
+        DCHECK(CpuFeatures::IsSupported(*feature));
+        CpuFeatureScope scope(assm, *feature);
+        (assm->*no_avx)(dst, args...);
+      } else {
+        (assm->*no_avx)(dst, args...);
+      }
+    }
+
+    // Call a method where the AVX version expects no duplicated dst argument.
+    template <void (Assembler::*avx)(Dst, Args...),
+              void (Assembler::*no_avx)(Dst, Args...)>
+    void emit(Dst dst, Args... args) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(assm, AVX);
+        (assm->*avx)(dst, args...);
+      } else if (feature.has_value()) {
+        DCHECK(CpuFeatures::IsSupported(*feature));
+        CpuFeatureScope scope(assm, *feature);
+        (assm->*no_avx)(dst, args...);
+      } else {
+        (assm->*no_avx)(dst, args...);
+      }
+    }
+  };
+
+#define AVX_OP(macro_name, name)                                             \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this}                                            \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
+  }
+
+#define AVX_OP_SSE3(macro_name, name)                                        \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE3)}          \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
+  }
+
+#define AVX_OP_SSSE3(macro_name, name)                                       \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSSE3)}         \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
+  }
+
+#define AVX_OP_SSE4_1(macro_name, name)                                      \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE4_1)}        \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
+  }
+
+#define AVX_OP_SSE4_2(macro_name, name)                                      \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE4_2)}        \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
+  }
+
+  AVX_OP(Pmullw, pmullw)
+  AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
+  AVX_OP_SSE4_1(Pmovzxbw, pmovzxbw)
+
+  void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                      XMMRegister scrat, bool is_signed);
   void I16x8ExtMulHighS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                         XMMRegister scratch);
   void I16x8ExtMulHighU(XMMRegister dst, XMMRegister src1, XMMRegister src2,

@@ -433,7 +433,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP3_XO(Orps, orps)
   AVX_OP3_XO(Orpd, orpd)
   AVX_OP3_XO(Andnpd, andnpd)
-  AVX_OP3_XO(Pmullw, pmullw)
   AVX_OP3_WITH_TYPE(Movhlps, movhlps, XMMRegister, XMMRegister)
   AVX_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
   AVX_OP3_WITH_TYPE(Psrlq, psrlq, XMMRegister, uint8_t)
@@ -598,10 +597,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
 
   AVX_OP2_XO_SSE4(Ptest, ptest)
-  AVX_OP2_XO_SSE4(Pmovsxbw, pmovsxbw)
   AVX_OP2_XO_SSE4(Pmovsxwd, pmovsxwd)
   AVX_OP2_XO_SSE4(Pmovsxdq, pmovsxdq)
-  AVX_OP2_XO_SSE4(Pmovzxbw, pmovzxbw)
   AVX_OP2_XO_SSE4(Pmovzxwd, pmovzxwd)
   AVX_OP2_XO_SSE4(Pmovzxdq, pmovzxdq)
 
@@ -712,8 +709,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // These Wasm SIMD ops do not have direct lowerings on IA32. These
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
-  void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                      XMMRegister scratch, bool is_signed);
   void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                         XMMRegister scratch);
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
