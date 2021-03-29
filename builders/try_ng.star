@@ -334,8 +334,8 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux_optional_rel",
-    cq_properties_trigger = {"location_regexp": [".+/[+]/assembler-ia32.h", ".+/[+]/assembler-ia32.cc"], "cancel_stale": False},
-    cq_properties_triggered = {"location_regexp": [".+/[+]/assembler-ia32.h", ".+/[+]/assembler-ia32.cc"], "cancel_stale": False},
+    cq_properties_trigger = {"location_regexp": [".+/[+]/src/codegen/ia32/assembler-ia32.h", ".+/[+]/src/codegen/ia32/assembler-ia32.cc"], "cancel_stale": False},
+    cq_properties_triggered = {"location_regexp": [".+/[+]/src/codegen/ia32/assembler-ia32.h", ".+/[+]/src/codegen/ia32/assembler-ia32.cc"], "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
