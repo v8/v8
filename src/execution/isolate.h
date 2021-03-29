@@ -465,7 +465,9 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)   \
   V(int, embedder_wrapper_type_index, -1)                                     \
   V(int, embedder_wrapper_object_index, -1)                                   \
-  V(compiler::NodeObserver*, node_observer, nullptr)
+  V(compiler::NodeObserver*, node_observer, nullptr)                          \
+  /* Used in combination with --script-run-delay-once */                      \
+  V(bool, did_run_script_delay, false)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \
   inline void set_##name(type v) { thread_local_top()->name##_ = v; } \

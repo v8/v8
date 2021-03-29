@@ -1924,6 +1924,17 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
 
+  // TODO(crbug.com/1193459): remove once ablation study is completed
+  if (i::FLAG_script_run_delay) {
+    v8::base::OS::Sleep(
+        v8::base::TimeDelta::FromMilliseconds(i::FLAG_script_run_delay));
+  }
+  if (i::FLAG_script_run_delay_once && !isolate->did_run_script_delay()) {
+    v8::base::OS::Sleep(
+        v8::base::TimeDelta::FromMilliseconds(i::FLAG_script_run_delay_once));
+    isolate->set_did_run_script_delay(true);
+  }
+
   i::Handle<i::Object> receiver = isolate->global_proxy();
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(

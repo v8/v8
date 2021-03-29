@@ -819,6 +819,9 @@ DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,
 DEFINE_BOOL(isolate_script_cache_ageing, true,
             "enable ageing of the isolate script cache.")
 
+DEFINE_INT(script_run_delay, 0, "sleep [ms] on every Script::Run")
+DEFINE_INT(script_run_delay_once, 0, "sleep [ms] on the first Script::Run")
+
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "
