@@ -35,14 +35,22 @@ struct WebSnapshotData {
 
 class WebSnapshotSerializerDeserializer {
  public:
-  bool has_error() const { return error_message_ != nullptr; }
+  inline bool has_error() const { return error_message_ != nullptr; }
   const char* error_message() const { return error_message_; }
 
   enum ValueType : uint8_t { STRING_ID, OBJECT_ID, FUNCTION_ID };
 
+  // The maximum count of items for each value type (strings, objects etc.)
+  static constexpr uint32_t kMaxItemCount =
+      static_cast<uint32_t>(FixedArray::kMaxLength);
+  // This ensures indices and lengths can be converted between uint32_t and int
+  // without problems:
+  STATIC_ASSERT(kMaxItemCount < std::numeric_limits<int32_t>::max());
+
  protected:
   explicit WebSnapshotSerializerDeserializer(Isolate* isolate)
       : isolate_(isolate) {}
+  // Not virtual, on purpose (because it doesn't need to be).
   void Throw(const char* message);
   Isolate* isolate_;
   const char* error_message_ = nullptr;
@@ -123,37 +131,48 @@ class V8_EXPORT WebSnapshotDeserializer
     : public WebSnapshotSerializerDeserializer {
  public:
   explicit WebSnapshotDeserializer(v8::Isolate* v8_isolate);
+  ~WebSnapshotDeserializer();
   bool UseWebSnapshot(const uint8_t* data, size_t buffer_size);
 
-  // For inspecting the state after taking a snapshot.
-  size_t string_count() const { return strings_.size(); }
-  size_t map_count() const { return maps_.size(); }
-  size_t context_count() const { return contexts_.size(); }
-  size_t function_count() const { return functions_.size(); }
-  size_t object_count() const { return objects_.size(); }
+  // For inspecting the state after deserializing a snapshot.
+  uint32_t string_count() const { return string_count_; }
+  uint32_t map_count() const { return map_count_; }
+  uint32_t context_count() const { return context_count_; }
+  uint32_t function_count() const { return function_count_; }
+  uint32_t object_count() const { return object_count_; }
 
  private:
   WebSnapshotDeserializer(const WebSnapshotDeserializer&) = delete;
   WebSnapshotDeserializer& operator=(const WebSnapshotDeserializer&) = delete;
 
-  void DeserializeStrings(const uint8_t* data, size_t& ix, size_t size);
-  Handle<String> ReadString(ValueDeserializer& deserializer,
-                            bool internalize = false);
-  void DeserializeMaps(const uint8_t* data, size_t& ix, size_t size);
-  void DeserializeContexts(const uint8_t* data, size_t& ix, size_t size);
+  void DeserializeStrings();
+  Handle<String> ReadString(bool internalize = false);
+  void DeserializeMaps();
+  void DeserializeContexts();
   Handle<ScopeInfo> CreateScopeInfo(uint32_t variable_count, bool has_parent);
-  void DeserializeFunctions(const uint8_t* data, size_t& ix, size_t size);
-  void DeserializeObjects(const uint8_t* data, size_t& ix, size_t size);
-  void DeserializeExports(const uint8_t* data, size_t& ix, size_t size);
-  void ReadValue(ValueDeserializer& deserializer, Handle<Object>& value,
-                 Representation& representation);
+  void DeserializeFunctions();
+  void DeserializeObjects();
+  void DeserializeExports();
+  void ReadValue(Handle<Object>& value, Representation& representation);
 
-  // TODO(v8:11525): Make these FixedArrays.
-  std::vector<Handle<String>> strings_;
-  std::vector<Handle<Map>> maps_;
-  std::vector<Handle<Context>> contexts_;
-  std::vector<Handle<JSFunction>> functions_;
-  std::vector<Handle<JSObject>> objects_;
+  // Not virtual, on purpose (because it doesn't need to be).
+  void Throw(const char* message);
+
+  Handle<FixedArray> strings_;
+  Handle<FixedArray> maps_;
+  Handle<FixedArray> contexts_;
+  Handle<FixedArray> functions_;
+  Handle<FixedArray> objects_;
+
+  uint32_t string_count_ = 0;
+  uint32_t map_count_ = 0;
+  uint32_t context_count_ = 0;
+  uint32_t function_count_ = 0;
+  uint32_t object_count_ = 0;
+
+  std::unique_ptr<ValueDeserializer> deserializer_;
+
+  bool deserialized_ = false;
 };
 
 }  // namespace internal
