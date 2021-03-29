@@ -9,12 +9,72 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
+using Int8UnOp = int8_t (*)(int8_t);
+using Int8BinOp = int8_t (*)(int8_t, int8_t);
+using Uint8BinOp = uint8_t (*)(uint8_t, uint8_t);
+using Int8CompareOp = int (*)(int8_t, int8_t);
+using Int8ShiftOp = int8_t (*)(int8_t, int);
+
+using Int16UnOp = int16_t (*)(int16_t);
+using Int16BinOp = int16_t (*)(int16_t, int16_t);
+using Uint16BinOp = uint16_t (*)(uint16_t, uint16_t);
+using Int16ShiftOp = int16_t (*)(int16_t, int);
+using Int32UnOp = int32_t (*)(int32_t);
+using Int32BinOp = int32_t (*)(int32_t, int32_t);
+using Int32ShiftOp = int32_t (*)(int32_t, int);
+using Int64UnOp = int64_t (*)(int64_t);
+using Int64BinOp = int64_t (*)(int64_t, int64_t);
+using Int64ShiftOp = int64_t (*)(int64_t, int);
 using FloatUnOp = float (*)(float);
+using FloatBinOp = float (*)(float, float);
+using FloatCompareOp = int32_t (*)(float, float);
+using DoubleUnOp = double (*)(double);
+using DoubleBinOp = double (*)(double, double);
+using DoubleCompareOp = int64_t (*)(double, double);
+
+void RunI8x16UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode opcode, Int8UnOp expected_op);
+
+template <typename T = int8_t, typename OpType = T (*)(T, T)>
+void RunI8x16BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode opcode, OpType expected_op);
+
+void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                         WasmOpcode opcode, Int8ShiftOp expected_op);
+void RunI8x16MixedRelationalOpTest(TestExecutionTier execution_tier,
+                                   LowerSimd lower_simd, WasmOpcode opcode,
+                                   Int8BinOp expected_op);
+
+void RunI16x8UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode opcode, Int16UnOp expected_op);
+template <typename T = int16_t, typename OpType = T (*)(T, T)>
+void RunI16x8BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode opcode, OpType expected_op);
+void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                         WasmOpcode opcode, Int16ShiftOp expected_op);
+void RunI16x8MixedRelationalOpTest(TestExecutionTier execution_tier,
+                                   LowerSimd lower_simd, WasmOpcode opcode,
+                                   Int16BinOp expected_op);
+
+void RunI32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode opcode, Int32UnOp expected_op);
+void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode opcode, Int32BinOp expected_op);
+void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                         WasmOpcode opcode, Int32ShiftOp expected_op);
+
+void RunI64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode opcode, Int64UnOp expected_op);
+void RunI64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode opcode, Int64BinOp expected_op);
+void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                         WasmOpcode opcode, Int64ShiftOp expected_op);
 
 // Generic expected value functions.
 template <typename T, typename = typename std::enable_if<
@@ -85,6 +145,7 @@ bool IsSameNan(float expected, float actual);
 bool IsCanonical(float actual);
 void CheckFloatResult(float x, float y, float expected, float actual,
                       bool exact = true);
+
 bool IsExtreme(double x);
 bool IsSameNan(double expected, double actual);
 bool IsCanonical(double actual);
@@ -94,6 +155,23 @@ void CheckDoubleResult(double x, double y, double expected, double actual,
 void RunF32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode opcode, FloatUnOp expected_op,
                       bool exact = true);
+
+void RunF32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode opcode, FloatBinOp expected_op);
+
+void RunF32x4CompareOpTest(TestExecutionTier execution_tier,
+                           LowerSimd lower_simd, WasmOpcode opcode,
+                           FloatCompareOp expected_op);
+
+void RunF64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode opcode, DoubleUnOp expected_op,
+                      bool exact = true);
+void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode opcode, DoubleBinOp expected_op);
+void RunF64x2CompareOpTest(TestExecutionTier execution_tier,
+                           LowerSimd lower_simd, WasmOpcode opcode,
+                           DoubleCompareOp expected_op);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
