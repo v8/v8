@@ -984,9 +984,9 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
 }
 
 void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
-  // TODO(miladfar): Implement the ppc selector for reversing SIMD bytes.
-  // Check if the input node is a Load and do a Load Reverse at once.
-  UNIMPLEMENTED();
+  PPCOperandGenerator g(this);
+  Emit(kPPC_LoadReverseSimd128RR, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitInt32Add(Node* node) {

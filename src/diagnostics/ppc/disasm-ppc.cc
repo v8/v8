@@ -1272,6 +1272,12 @@ void Decoder::DecodeExt5(Instruction* instr) {
 }
 
 void Decoder::DecodeExt6(Instruction* instr) {
+  switch (EXT6 | (instr->BitField(10, 2))) {
+    case XXBRQ: {
+      Format(instr, "xxbrq  'Xt, 'Xb");
+      return;
+    }
+  }
   switch (EXT6 | (instr->BitField(10, 1))) {
     case XXSPLTIB: {
       Format(instr, "xxspltib  'Xt, 'IMM8");

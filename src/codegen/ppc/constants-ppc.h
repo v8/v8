@@ -520,7 +520,9 @@ using Instr = uint32_t;
   /* VSX Vector Test for software Square Root Single-Precision */            \
   V(xvtsqrtsp, XVTSQRTSP, 0xF00002A8)                                        \
   /* Vector Splat Immediate Byte */                                          \
-  V(xxspltib, XXSPLTIB, 0xF00002D0)
+  V(xxspltib, XXSPLTIB, 0xF00002D0)                                          \
+  /* Vector Byte-Reverse Quadword */                                         \
+  V(xxbrq, XXBRQ, 0xF000076C)
 
 #define PPC_XX2_OPCODE_LIST(V)  \
   PPC_XX2_OPCODE_A_FORM_LIST(V) \
