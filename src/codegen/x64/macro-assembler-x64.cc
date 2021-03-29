@@ -2433,25 +2433,6 @@ void TurboAssembler::Psrld(XMMRegister dst, XMMRegister src, byte imm8) {
   }
 }
 
-void TurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
-                                XMMRegister src1, XMMRegister src2) {
-  // v128.select = v128.or(v128.and(v1, c), v128.andnot(v2, c)).
-  // pandn(x, y) = !x & y, so we have to flip the mask and input.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpandn(kScratchDoubleReg, mask, src2);
-    vpand(dst, src1, mask);
-    vpor(dst, dst, kScratchDoubleReg);
-  } else {
-    DCHECK_EQ(dst, mask);
-    // Use float ops as they are 1 byte shorter than int ops.
-    movaps(kScratchDoubleReg, mask);
-    andnps(kScratchDoubleReg, src2);
-    andps(dst, src1);
-    orps(dst, kScratchDoubleReg);
-  }
-}
-
 void TurboAssembler::Lzcntl(Register dst, Register src) {
   if (CpuFeatures::IsSupported(LZCNT)) {
     CpuFeatureScope scope(this, LZCNT);

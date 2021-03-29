@@ -650,24 +650,6 @@ void TurboAssembler::I16x8ExtMulLow(XMMRegister dst, XMMRegister src1,
   Pmullw(dst, scratch);
 }
 
-void TurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
-                                XMMRegister src1, XMMRegister src2,
-                                XMMRegister scratch) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpandn(scratch, mask, src2);
-    vpand(dst, src1, mask);
-    vpor(dst, dst, scratch);
-  } else {
-    DCHECK_EQ(dst, mask);
-    // Use float ops as they are 1 byte shorter than int ops.
-    movaps(scratch, dst);
-    andnps(scratch, src2);
-    andps(dst, src1);
-    orps(dst, scratch);
-  }
-}
-
 void TurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
                                       XMMRegister src2, XMMRegister scratch) {
   // k = i16x8.splat(0x8000)

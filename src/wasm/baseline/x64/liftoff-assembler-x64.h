@@ -2882,9 +2882,9 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
   DCHECK_NE(dst, src2);
   if (!CpuFeatures::IsSupported(AVX) && dst != mask) {
     movaps(dst.fp(), mask.fp());
-    S128Select(dst.fp(), dst.fp(), src1.fp(), src2.fp());
+    S128Select(dst.fp(), dst.fp(), src1.fp(), src2.fp(), kScratchDoubleReg);
   } else {
-    S128Select(dst.fp(), mask.fp(), src1.fp(), src2.fp());
+    S128Select(dst.fp(), mask.fp(), src1.fp(), src2.fp(), kScratchDoubleReg);
   }
 }
 

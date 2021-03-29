@@ -714,9 +714,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Defined here to allow usage on both TurboFan and Liftoff.
   void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                       XMMRegister scratch, bool is_signed);
-  // Requires dst == mask when AVX is not supported.
-  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
-                  XMMRegister src2, XMMRegister scratch);
   void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                         XMMRegister scratch);
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);

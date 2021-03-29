@@ -46,6 +46,9 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
   void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
+  // Requires dst == mask when AVX is not supported.
+  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
+                  XMMRegister src2, XMMRegister scratch);
 };
 }  // namespace internal
 }  // namespace v8

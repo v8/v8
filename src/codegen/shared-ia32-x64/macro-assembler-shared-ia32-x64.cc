@@ -350,5 +350,25 @@ void SharedTurboAssembler::I64x2UConvertI32x4High(XMMRegister dst,
   }
 }
 
+void SharedTurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
+                                      XMMRegister src1, XMMRegister src2,
+                                      XMMRegister scratch) {
+  // v128.select = v128.or(v128.and(v1, c), v128.andnot(v2, c)).
+  // pandn(x, y) = !x & y, so we have to flip the mask and input.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpandn(scratch, mask, src2);
+    vpand(dst, src1, mask);
+    vpor(dst, dst, scratch);
+  } else {
+    DCHECK_EQ(dst, mask);
+    // Use float ops as they are 1 byte shorter than int ops.
+    movaps(scratch, mask);
+    andnps(scratch, src2);
+    andps(dst, src1);
+    orps(dst, scratch);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

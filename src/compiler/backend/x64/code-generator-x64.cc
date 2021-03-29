@@ -3685,7 +3685,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64S128Select: {
       __ S128Select(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                    i.InputSimd128Register(1), i.InputSimd128Register(2));
+                    i.InputSimd128Register(1), i.InputSimd128Register(2),
+                    kScratchDoubleReg);
       break;
     }
     case kX64S128AndNot: {

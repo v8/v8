@@ -608,10 +608,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
 
-  // Requires dst == mask when AVX is not supported.
-  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
-                  XMMRegister src2);
-
   // TODO(zhin): Move this into shared-ia32-x64-macro-assembler.
   void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                       bool is_signed);
