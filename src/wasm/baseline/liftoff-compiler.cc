@@ -5049,7 +5049,8 @@ class LiftoffCompiler {
     if (elem_size_shift != 0) {
       __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
     }
-    LiftoffRegister value = __ GetUnusedRegister(kGpReg, {array}, pinned);
+    LiftoffRegister value =
+        __ GetUnusedRegister(reg_class_for(elem_kind), pinned);
     LoadObjectField(value, array.gp(), index.gp(),
                     wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
                     elem_kind, is_signed, pinned);
@@ -5061,6 +5062,8 @@ class LiftoffCompiler {
                 const Value& index_val, const Value& value_val) {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+    DCHECK_EQ(reg_class_for(imm.array_type->element_type().kind()),
+              value.reg_class());
     LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);

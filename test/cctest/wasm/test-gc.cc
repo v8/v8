@@ -609,6 +609,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   WasmGCTester tester(execution_tier);
 
   const byte type_index = tester.DefineArray(wasm::kWasmI32, true);
+  const byte fp_type_index = tester.DefineArray(wasm::kWasmF64, true);
   ValueType kRefTypes[] = {ref(type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
   ValueType kOptRefType = optref(type_index);
@@ -655,6 +656,20 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
                               WASM_RTT_CANON(type_index)),
        kExprEnd});
 
+  // Tests that fp arrays work properly.
+  // f: a = [10.0, 10.0, 10.0]; a[1] = 42.42; return static_cast<int64>(a[1]);
+  double result_value = 42.42;
+  const byte kTestFpArray = tester.DefineFunction(
+      tester.sigs.i_v(), {optref(fp_type_index)},
+      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_WITH_RTT(
+                             fp_type_index, WASM_F64(10.0), WASM_I32V(3),
+                             WASM_RTT_CANON(fp_type_index))),
+       WASM_ARRAY_SET(fp_type_index, WASM_LOCAL_GET(0), WASM_I32V(1),
+                      WASM_F64(result_value)),
+       WASM_I32_SCONVERT_F64(
+           WASM_ARRAY_GET(fp_type_index, WASM_LOCAL_GET(0), WASM_I32V(1))),
+       kExprEnd});
+
   tester.CompileModule();
 
   tester.CheckResult(kGetElem, 12, 0);
@@ -663,6 +678,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   tester.CheckHasThrown(kGetElem, 3);
   tester.CheckHasThrown(kGetElem, -1);
   tester.CheckResult(kGetLength, 42);
+  tester.CheckResult(kTestFpArray, static_cast<int32_t>(result_value));
 
   MaybeHandle<Object> h_result = tester.GetResultObject(kAllocate);
   CHECK(h_result.ToHandleChecked()->IsWasmArray());
