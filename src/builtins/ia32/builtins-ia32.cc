@@ -1263,6 +1263,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ JumpCodeObject(ecx);
 
     __ bind(&install_baseline_code);
+    __ movd(eax, xmm0);  // Recover argument count.
     GenerateTailCallToReturnedCode(masm, Runtime::kInstallBaselineCode);
   }
 
