@@ -6221,53 +6221,66 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     switch (type.kind()) {
       case wasm::kI32:
         return BuildChangeInt32ToNumber(node);
-      case wasm::kS128:
-        UNREACHABLE();
-      case wasm::kI64: {
+      case wasm::kI64:
         return BuildChangeInt64ToBigInt(node);
-      }
       case wasm::kF32:
         return BuildChangeFloat32ToNumber(node);
       case wasm::kF64:
         return BuildChangeFloat64ToNumber(node);
       case wasm::kRef:
-      case wasm::kOptRef: {
-        uint32_t representation = type.heap_representation();
-        if (representation == wasm::HeapType::kExtern ||
-            representation == wasm::HeapType::kFunc) {
-          return node;
+      case wasm::kOptRef:
+        switch (type.heap_representation()) {
+          case wasm::HeapType::kExtern:
+          case wasm::HeapType::kFunc:
+            return node;
+          case wasm::HeapType::kData:
+          case wasm::HeapType::kEq:
+          case wasm::HeapType::kI31:
+            // TODO(7748): Update this when JS interop is settled.
+            if (type.kind() == wasm::kOptRef) {
+              auto done =
+                  gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
+              // Do not wrap {null}.
+              gasm_->GotoIf(gasm_->WordEqual(node, RefNull()), &done, node);
+              gasm_->Goto(&done, BuildAllocateObjectWrapper(node));
+              gasm_->Bind(&done);
+              return done.PhiAt(0);
+            } else {
+              return BuildAllocateObjectWrapper(node);
+            }
+          case wasm::HeapType::kAny: {
+            // Only wrap {node} if it is an array/struct/i31, i.e., do not wrap
+            // functions and null.
+            // TODO(7748): Update this when JS interop is settled.
+            auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
+            gasm_->GotoIf(IsSmi(node), &done, BuildAllocateObjectWrapper(node));
+            // This includes the case where {node == null}.
+            gasm_->GotoIfNot(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &done,
+                             node);
+            gasm_->Goto(&done, BuildAllocateObjectWrapper(node));
+            gasm_->Bind(&done);
+            return done.PhiAt(0);
+          }
+          default:
+            DCHECK(type.has_index());
+            if (module_->has_signature(type.ref_index())) {
+              // Typed function
+              return node;
+            }
+            // If this is reached, then IsJSCompatibleSignature() is too
+            // permissive.
+            // TODO(7748): Figure out a JS interop story for arrays and structs.
+            UNREACHABLE();
         }
-        if (representation == wasm::HeapType::kData) {
-          // TODO(7748): Update this when JS interop is settled.
-          return BuildAllocateObjectWrapper(node);
-        }
-        if (representation == wasm::HeapType::kAny) {
-          // Only wrap {node} if it is an array or struct.
-          // TODO(7748): Update this when JS interop is settled.
-          auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-          gasm_->GotoIfNot(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &done,
-                           node);
-          Node* wrapped = BuildAllocateObjectWrapper(node);
-          gasm_->Goto(&done, wrapped);
-          gasm_->Bind(&done);
-          return done.PhiAt(0);
-        }
-        if (type.has_index() && module_->has_signature(type.ref_index())) {
-          // Typed function
-          return node;
-        }
-        // If this is reached, then IsJSCompatibleSignature() is too permissive.
-        // TODO(7748): Figure out a JS interop story for arrays and structs.
-        UNREACHABLE();
-      }
       case wasm::kRtt:
       case wasm::kRttWithDepth:
-        // TODO(7748): Figure out what to do for RTTs.
-        UNIMPLEMENTED();
       case wasm::kI8:
       case wasm::kI16:
+      case wasm::kS128:
       case wasm::kVoid:
       case wasm::kBottom:
+        // If this is reached, then IsJSCompatibleSignature() is too permissive.
+        // TODO(7748): Figure out what to do for RTTs.
         UNREACHABLE();
     }
   }
@@ -6281,9 +6294,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
   }
 
-  enum UnpackFailureBehavior : bool { kReturnInput, kReturnNull };
-
-  Node* BuildUnpackObjectWrapper(Node* input, UnpackFailureBehavior failure) {
+  // Assumes {input} has been checked for validity against the target wasm type.
+  // Returns the value of the property associated with
+  // {wasm_wrapped_object_symbol} in {input}, or {input} itself if the property
+  // is not found.
+  Node* BuildUnpackObjectWrapper(Node* input) {
     Node* obj = gasm_->CallBuiltin(
         Builtins::kWasmGetOwnProperty, Operator::kEliminatable, input,
         LOAD_ROOT(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol),
@@ -6296,8 +6311,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Diamond check(graph(), mcgraph()->common(), is_undefined,
                   BranchHint::kFalse);
     check.Chain(control());
-    return check.Phi(MachineRepresentation::kTagged,
-                     failure == kReturnInput ? input : RefNull(), obj);
+    return check.Phi(MachineRepresentation::kTagged, input, obj);
   }
 
   Node* BuildChangeInt64ToBigInt(Node* input) {
@@ -6369,21 +6383,20 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kExtern:
             return input;
           case wasm::HeapType::kAny:
-            // If this is a wrapper for arrays/structs, unpack it.
+            // If this is a wrapper for arrays/structs/i31s, unpack it.
             // TODO(7748): Update this when JS interop has settled.
-            return BuildUnpackObjectWrapper(input, kReturnInput);
+            return BuildUnpackObjectWrapper(input);
           case wasm::HeapType::kFunc:
             BuildCheckValidRefValue(input, js_context, type);
             return input;
           case wasm::HeapType::kData:
-            // TODO(7748): Update this when JS interop has settled.
-            BuildCheckValidRefValue(input, js_context, type);
-            return BuildUnpackObjectWrapper(input, kReturnNull);
           case wasm::HeapType::kEq:
           case wasm::HeapType::kI31:
-            // If this is reached, then IsJSCompatibleSignature() is too
-            // permissive.
-            UNREACHABLE();
+            // TODO(7748): Update this when JS interop has settled.
+            BuildCheckValidRefValue(input, js_context, type);
+            // This will just return {input} if the object is not wrapped, i.e.
+            // if it is null (given the check just above).
+            return BuildUnpackObjectWrapper(input);
           default:
             if (module_->has_signature(type.ref_index())) {
               BuildCheckValidRefValue(input, js_context, type);
@@ -6408,15 +6421,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         // i64 values can only come from BigInt.
         return BuildChangeBigIntToInt64(input, js_context, frame_state);
 
-      case wasm::kRtt:  // TODO(7748): Implement.
+      case wasm::kRtt:
       case wasm::kRttWithDepth:
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kBottom:
       case wasm::kVoid:
+        // If this is reached, then IsJSCompatibleSignature() is too permissive.
+        // TODO(7748): Figure out what to do for RTTs.
         UNREACHABLE();
-        break;
     }
   }
 

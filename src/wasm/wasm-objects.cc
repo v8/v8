@@ -2195,24 +2195,39 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
         case HeapType::kExtern:
         case HeapType::kAny:
           return true;
-        case HeapType::kData: {
+        case HeapType::kData:
+        case HeapType::kEq:
+        case HeapType::kI31: {
           // TODO(7748): Change this when we have a decision on the JS API for
           // structs/arrays.
           Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
           LookupIterator it(isolate, value, key,
                             LookupIterator::OWN_SKIP_INTERCEPTOR);
-          if (it.state() == LookupIterator::DATA) return true;
-          *error_message =
-              "dataref object must be null (if nullable) or wrapped with the "
-              "wasm object wrapper";
-          return false;
+          if (it.state() != LookupIterator::DATA) {
+            *error_message =
+                "eqref/dataref/i31ref object must be null (if nullable) or "
+                "wrapped with the wasm object wrapper";
+            return false;
+          }
+
+          if (expected.is_reference_to(HeapType::kEq)) return true;
+          Handle<Object> value = it.GetDataValue();
+
+          if (expected.is_reference_to(HeapType::kData)) {
+            if (value->IsSmi()) {
+              *error_message = "dataref-typed object must be a heap object";
+              return false;
+            }
+            return true;
+          } else {
+            DCHECK(expected.is_reference_to(HeapType::kI31));
+            if (!value->IsSmi()) {
+              *error_message = "i31ref-typed object cannot be a heap object";
+              return false;
+            }
+            return true;
+          }
         }
-        case HeapType::kEq:
-        case HeapType::kI31:
-          // TODO(7748): Implement when the JS API for i31ref is decided on.
-          *error_message =
-              "Assigning JS objects to eqref/i31ref not supported yet.";
-          return false;
         default:
           // Tables defined outside a module can't refer to user-defined types.
           if (module == nullptr) return false;
@@ -2271,14 +2286,26 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           // TODO(7748): Implement when the JS API for structs/arrays is decided
           // on.
           *error_message =
-              "Assigning to struct/array globals not supported yet.";
+              "passing struct/array-typed objects between Webassembly and "
+              "Javascript is not supported yet.";
           return false;
       }
     case kRtt:
+    case kRttWithDepth:
       // TODO(7748): Implement when the JS API for rtts is decided on.
-      *error_message = "Assigning to rtt globals not supported yet.";
+      *error_message =
+          "passing rtts between Webassembly and Javascript is not supported "
+          "yet.";
       return false;
-    default:
+    case kI8:
+    case kI16:
+    case kI32:
+    case kI64:
+    case kF32:
+    case kF64:
+    case kS128:
+    case kVoid:
+    case kBottom:
       UNREACHABLE();
   }
 }
