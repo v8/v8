@@ -1137,10 +1137,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            Map::kConstructorOrBackPointerOrNativeContextOffset);
   }
 
-  TNode<Simd128T> LoadSimd128(TNode<IntPtrT> ptr) {
-    return Load<Simd128T>(ptr);
-  }
-
   // Reference is the CSA-equivalent of a Torque reference value, representing
   // an inner pointer into a HeapObject.
   //

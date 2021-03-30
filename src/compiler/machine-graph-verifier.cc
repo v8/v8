@@ -272,7 +272,6 @@ class MachineRepresentationInferrer {
           case IrOpcode::kFloat64ExtractLowWord32:
           case IrOpcode::kFloat64ExtractHighWord32:
           case IrOpcode::kWord32Popcnt:
-          case IrOpcode::kI8x16BitMask:
             MACHINE_UNOP_32_LIST(LABEL)
             MACHINE_BINOP_32_LIST(LABEL) {
               representation_vector_[node->id()] =
@@ -324,8 +323,6 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kI32x4ReplaceLane:
           case IrOpcode::kI32x4Splat:
-          case IrOpcode::kI8x16Splat:
-          case IrOpcode::kI8x16Eq:
             representation_vector_[node->id()] =
                 MachineRepresentation::kSimd128;
             break;
@@ -448,7 +445,6 @@ class MachineRepresentationChecker {
           case IrOpcode::kI32x4ExtractLane:
           case IrOpcode::kI16x8ExtractLaneU:
           case IrOpcode::kI16x8ExtractLaneS:
-          case IrOpcode::kI8x16BitMask:
           case IrOpcode::kI8x16ExtractLaneU:
           case IrOpcode::kI8x16ExtractLaneS:
             CheckValueInputRepresentationIs(node, 0,
@@ -460,16 +456,8 @@ class MachineRepresentationChecker {
             CheckValueInputForInt32Op(node, 1);
             break;
           case IrOpcode::kI32x4Splat:
-          case IrOpcode::kI8x16Splat:
             CheckValueInputForInt32Op(node, 0);
             break;
-          case IrOpcode::kI8x16Eq:
-            CheckValueInputRepresentationIs(node, 0,
-                                            MachineRepresentation::kSimd128);
-            CheckValueInputRepresentationIs(node, 1,
-                                            MachineRepresentation::kSimd128);
-            break;
-
 #define LABEL(opcode) case IrOpcode::k##opcode:
           case IrOpcode::kChangeInt32ToTagged:
           case IrOpcode::kChangeUint32ToTagged:
