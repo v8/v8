@@ -270,6 +270,7 @@ class CodeAssemblerParameterizedLabel;
   V(Float64Min, Float64T, Float64T, Float64T)                           \
   V(Float64InsertLowWord32, Float64T, Float64T, Word32T)                \
   V(Float64InsertHighWord32, Float64T, Float64T, Word32T)               \
+  V(I8x16Eq, I8x16T, I8x16T, I8x16T)                                    \
   V(IntPtrAdd, WordT, WordT, WordT)                                     \
   V(IntPtrSub, WordT, WordT, WordT)                                     \
   V(IntPtrMul, WordT, WordT, WordT)                                     \
@@ -374,6 +375,8 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Word32BitwiseNot, Word32T, Word32T)                        \
   V(WordNot, WordT, WordT)                                     \
   V(Word64Not, Word64T, Word64T)                               \
+  V(I8x16BitMask, Int32T, I8x16T)                              \
+  V(I8x16Splat, I8x16T, Int32T)                                \
   V(Int32AbsWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T)    \
   V(Int64AbsWithOverflow, PAIR_TYPE(Int64T, BoolT), Int64T)    \
   V(IntPtrAbsWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT) \

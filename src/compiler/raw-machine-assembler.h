@@ -881,6 +881,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* I16x8Splat(Node* a) { return AddNode(machine()->I16x8Splat(), a); }
   Node* I8x16Splat(Node* a) { return AddNode(machine()->I8x16Splat(), a); }
 
+  Node* I8x16BitMask(Node* a) { return AddNode(machine()->I8x16BitMask(), a); }
+
+  Node* I8x16Eq(Node* a, Node* b) {
+    return AddNode(machine()->I8x16Eq(), a, b);
+  }
+
   // Stack operations.
   Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }
   Node* LoadParentFramePointer() {

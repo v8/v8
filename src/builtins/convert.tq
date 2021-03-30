@@ -335,3 +335,6 @@ Convert<PromiseState, int32>(s: int32): PromiseState {
 Convert<ScopeFlags, Smi>(s: Smi): ScopeFlags {
   return %RawDownCast<ScopeFlags>(Unsigned(SmiToInt32(s)));
 }
+Convert<I8X16, Simd128>(s: Simd128): I8X16 {
+  return %RawDownCast<I8X16>(s);
+}

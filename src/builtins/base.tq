@@ -113,6 +113,9 @@ type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
+type Simd128 generates 'TNode<Simd128T>';
+type I8X16 extends Simd128 generates 'TNode<I8x16T>';
+
 // Represents a std::function which produces the generated TNode type of T.
 // Useful for passing values to and from CSA code that uses LazyNode<T>, which
 // is a typedef for std::function<TNode<T>()>. Can be created with %MakeLazy and
@@ -917,7 +920,7 @@ extern operator '*' macro ConstexprInt31Mul(
 extern operator '-' macro Int32Sub(int16, int16): int32;
 extern operator '-' macro Int32Sub(uint16, uint16): int32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
-extern operator '-' macro UInt32Sub(uint32, uint32): uint32;
+extern operator '-' macro Uint32Sub(uint32, uint32): uint32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
 extern operator '*' macro Uint32Mul(uint32, uint32): uint32;
 extern operator '/' macro Int32Div(int32, int32): int32;
@@ -1050,6 +1053,7 @@ operator '==' macro PromiseStateEquals(
 }
 
 extern macro CountLeadingZeros64(uint64): int64;
+extern macro CountTrailingZeros32(uint32): int32;
 extern macro CountTrailingZeros64(uint64): int64;
 
 extern macro TaggedIsSmi(Object): bool;
@@ -1845,3 +1849,8 @@ extern operator '[]' macro LoadWeakFixedArrayElement(
 const kNoHashSentinel:
     constexpr int32 generates 'PropertyArray::kNoHashSentinel';
 extern macro LoadNameHash(Name): uint32;
+
+extern macro LoadSimd128(intptr): Simd128;
+extern macro I8x16BitMask(I8X16): int32;
+extern macro I8x16Eq(I8X16, I8X16): I8X16;
+extern macro I8x16Splat(int32): I8X16;
