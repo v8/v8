@@ -418,7 +418,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicLoad");
+  Load(dst, src_addr, offset_reg, offset_imm, type, pinned, nullptr, true);
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
