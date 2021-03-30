@@ -17,24 +17,24 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-TRACELOGGING_DECLARE_PROVIDER(g_v8Provider);
+TRACELOGGING_DECLARE_PROVIDER(g_v8LibProvider);
 
-TRACELOGGING_DEFINE_PROVIDER(g_v8Provider, "V8.js", (V8_ETW_GUID));
+TRACELOGGING_DEFINE_PROVIDER(g_v8LibProvider, "V8.js", (V8_ETW_GUID));
 
-Recorder::Recorder() { TraceLoggingRegister(g_v8Provider); }
+Recorder::Recorder() { TraceLoggingRegister(g_v8LibProvider); }
 
 Recorder::~Recorder() {
-  if (g_v8Provider) {
-    TraceLoggingUnregister(g_v8Provider);
+  if (g_v8LibProvider) {
+    TraceLoggingUnregister(g_v8LibProvider);
   }
 }
 
 bool Recorder::IsEnabled() {
-  return TraceLoggingProviderEnabled(g_v8Provider, 0, 0);
+  return TraceLoggingProviderEnabled(g_v8LibProvider, 0, 0);
 }
 
 bool Recorder::IsEnabled(const uint8_t level) {
-  return TraceLoggingProviderEnabled(g_v8Provider, level, 0);
+  return TraceLoggingProviderEnabled(g_v8LibProvider, level, 0);
 }
 
 void Recorder::AddEvent(TraceObject* trace_event) {
@@ -49,7 +49,7 @@ void Recorder::AddEvent(TraceObject* trace_event) {
                           trace_event->category_enabled_flag()),
                       -1, wCategoryGroupName, 4096);
 
-  TraceLoggingWrite(g_v8Provider, "", TraceLoggingValue(wName, "Event Name"),
+  TraceLoggingWrite(g_v8LibProvider, "", TraceLoggingValue(wName, "Event Name"),
                     TraceLoggingValue(trace_event->pid(), "pid"),
                     TraceLoggingValue(trace_event->tid(), "tid"),
                     TraceLoggingValue(trace_event->ts(), "ts"),

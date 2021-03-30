@@ -4055,7 +4055,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
       options.fuzzy_module_file_extensions = true;
       argv[i] = nullptr;
-#ifdef V8_ENABLE_SYSTEM_INSTRUMENTATION
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
     } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
       options.enable_system_instrumentation = true;
       options.trace_enabled = true;

@@ -41,7 +41,7 @@ declare_args() {
   v8_enable_future = false
 
   # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
-  v8_enable_system_instrumentation = false
+  v8_enable_system_instrumentation = true
 
   # Sets the GUID for the ETW provider
   v8_etw_guid = ""

@@ -4,6 +4,7 @@
 
 #include "src/diagnostics/system-jit-win.h"
 
+#include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/diagnostics/system-jit-metadata-win.h"
 #include "src/libplatform/tracing/recorder.h"
@@ -21,7 +22,8 @@ TRACELOGGING_DECLARE_PROVIDER(g_v8Provider);
 TRACELOGGING_DEFINE_PROVIDER(g_v8Provider, "V8.js", (V8_ETW_GUID));
 
 using ScriptMapType = std::unordered_set<int>;
-ScriptMapType* script_map = new ScriptMapType();
+static base::LazyInstance<ScriptMapType>::type script_map =
+    LAZY_INSTANCE_INITIALIZER;
 
 void Register() {
   DCHECK(!TraceLoggingProviderEnabled(g_v8Provider, 0, 0));
@@ -53,8 +55,8 @@ void EventHandler(const JitCodeEvent* event) {
   if (!script.IsEmpty()) {
     // if the first time seeing this source file, log the SourceLoad event
     script_id = script->GetId();
-    if (script_map->find(script_id) == script_map->end()) {
-      script_map->insert(script_id);
+    if (script_map.Pointer()->find(script_id) == script_map.Pointer()->end()) {
+      script_map.Pointer()->insert(script_id);
 
       auto script_name = script->GetScriptName();
       std::wstring wstr_name(0, L'\0');
