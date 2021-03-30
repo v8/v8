@@ -322,6 +322,9 @@ class FeedbackVector
   // The object that indicates a megamorphic state.
   static inline Handle<Symbol> MegamorphicSentinel(Isolate* isolate);
 
+  // The object that indicates a MegaDOM state.
+  static inline Handle<Symbol> MegaDOMSentinel(Isolate* isolate);
+
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
   static inline Symbol RawUninitializedSentinel(Isolate* isolate);
@@ -773,6 +776,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void ConfigurePolymorphic(
       Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
 
+  void ConfigureMegaDOM(const MaybeObjectHandle& handler);
+
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;
   ForInHint GetForInFeedback() const;
@@ -847,6 +852,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   inline MaybeObject UninitializedSentinel() const;
   inline MaybeObject MegamorphicSentinel() const;
+  inline MaybeObject MegaDOMSentinel() const;
 
   // Create an array. The caller must install it in a feedback vector slot.
   Handle<WeakFixedArray> CreateArrayOfSize(int length);

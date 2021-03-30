@@ -166,6 +166,7 @@ class ZoneForwardList;
   V(LoadHandler)                               \
   V(Map)                                       \
   V(MapCache)                                  \
+  V(MegaDomHandler)                            \
   V(Module)                                    \
   V(Microtask)                                 \
   V(Name)                                      \

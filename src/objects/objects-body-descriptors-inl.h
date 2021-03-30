@@ -15,6 +15,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"
+#include "src/objects/megadom-handler-inl.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"

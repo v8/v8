@@ -880,6 +880,8 @@ enum InlineCacheState {
   RECOMPUTE_HANDLER,
   // Multiple receiver types have been seen.
   POLYMORPHIC,
+  // Many DOM receiver types have been seen for the same accessor.
+  MEGADOM,
   // Many receiver types have been seen.
   MEGAMORPHIC,
   // A generic handler is installed and no extra typefeedback is recorded.
@@ -901,6 +903,8 @@ inline const char* InlineCacheState2String(InlineCacheState state) {
       return "POLYMORPHIC";
     case MEGAMORPHIC:
       return "MEGAMORPHIC";
+    case MEGADOM:
+      return "MEGADOM";
     case GENERIC:
       return "GENERIC";
   }

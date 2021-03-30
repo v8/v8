@@ -20,6 +20,10 @@ class CallOptimization {
                                       Map holder_map) const;
 
   bool is_constant_call() const { return !constant_function_.is_null(); }
+  bool accept_any_receiver() const { return accept_any_receiver_; }
+  bool requires_signature_check() const {
+    return !expected_receiver_type_.is_null();
+  }
 
   Handle<JSFunction> constant_function() const {
     DCHECK(is_constant_call());
@@ -56,9 +60,13 @@ class CallOptimization {
                                   Handle<JSFunction> function);
 
   Handle<JSFunction> constant_function_;
-  bool is_simple_api_call_;
   Handle<FunctionTemplateInfo> expected_receiver_type_;
   Handle<CallHandlerInfo> api_call_info_;
+
+  // TODO(gsathya): Change these to be a bitfield and do a single fast check
+  // rather than two checks.
+  bool is_simple_api_call_;
+  bool accept_any_receiver_;
 };
 }  // namespace internal
 }  // namespace v8

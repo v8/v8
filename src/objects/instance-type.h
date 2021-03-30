@@ -258,6 +258,7 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
   V(_, FunctionTemplateInfoMap, function_template_info_map,                    \
     FunctionTemplateInfo)                                                      \
   V(_, HeapNumberMap, heap_number_map, HeapNumber)                             \
+  V(_, MegaDomHandlerMap, mega_dom_handler_map, MegaDomHandler)                \
   V(_, MetaMap, meta_map, Map)                                                 \
   V(_, PreparseDataMap, preparse_data_map, PreparseData)                       \
   V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                    \
