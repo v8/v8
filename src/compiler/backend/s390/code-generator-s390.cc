@@ -730,116 +730,37 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ asm_instr(value, operand);                        \
   } while (0)
 
-#define ATOMIC_COMP_EXCHANGE(start, end, shift_amount, offset)              \
-  {                                                                         \
-    __ LoadU32(temp0, MemOperand(addr, offset));                             \
-    __ llgfr(temp1, temp0);                                                 \
-    __ RotateInsertSelectBits(temp0, old_val, Operand(start), Operand(end), \
-                              Operand(shift_amount), false);                \
-    __ RotateInsertSelectBits(temp1, new_val, Operand(start), Operand(end), \
-                              Operand(shift_amount), false);                \
-    __ CmpAndSwap(temp0, temp1, MemOperand(addr, offset));                  \
-    __ RotateInsertSelectBits(output, temp0, Operand(start + shift_amount), \
-                              Operand(end + shift_amount),                  \
-                              Operand(64 - shift_amount), true);            \
-  }
-
-#ifdef V8_TARGET_BIG_ENDIAN
-#define ATOMIC_COMP_EXCHANGE_BYTE(i)                             \
-  {                                                              \
-    constexpr int idx = (i);                                     \
-    static_assert(idx <= 3 && idx >= 0, "idx is out of range!"); \
-    constexpr int start = 32 + 8 * idx;                          \
-    constexpr int end = start + 7;                               \
-    constexpr int shift_amount = (3 - idx) * 8;                  \
-    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx);        \
-  }
-#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                         \
-  {                                                              \
-    constexpr int idx = (i);                                     \
-    static_assert(idx <= 1 && idx >= 0, "idx is out of range!"); \
-    constexpr int start = 32 + 16 * idx;                         \
-    constexpr int end = start + 15;                              \
-    constexpr int shift_amount = (1 - idx) * 16;                 \
-    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx * 2);    \
-  }
-#else
-#define ATOMIC_COMP_EXCHANGE_BYTE(i)                             \
-  {                                                              \
-    constexpr int idx = (i);                                     \
-    static_assert(idx <= 3 && idx >= 0, "idx is out of range!"); \
-    constexpr int start = 32 + 8 * (3 - idx);                    \
-    constexpr int end = start + 7;                               \
-    constexpr int shift_amount = idx * 8;                        \
-    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx);        \
-  }
-#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                         \
-  {                                                              \
-    constexpr int idx = (i);                                     \
-    static_assert(idx <= 1 && idx >= 0, "idx is out of range!"); \
-    constexpr int start = 32 + 16 * (1 - idx);                   \
-    constexpr int end = start + 15;                              \
-    constexpr int shift_amount = idx * 16;                       \
-    ATOMIC_COMP_EXCHANGE(start, end, shift_amount, -idx * 2);    \
-  }
-#endif
-
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(load_and_ext) \
-  do {                                                      \
-    Register old_val = i.InputRegister(0);                  \
-    Register new_val = i.InputRegister(1);                  \
-    Register output = i.OutputRegister();                   \
-    Register addr = kScratchReg;                            \
-    Register temp0 = r0;                                    \
-    Register temp1 = r1;                                    \
-    size_t index = 2;                                       \
-    AddressingMode mode = kMode_None;                       \
-    MemOperand op = i.MemoryOperand(&mode, &index);         \
-    Label three, two, one, done;                            \
-    __ lay(addr, op);                                       \
-    __ tmll(addr, Operand(3));                              \
-    __ b(Condition(1), &three);                             \
-    __ b(Condition(2), &two);                               \
-    __ b(Condition(4), &one);                               \
-    /* ending with 0b00 */                                  \
-    ATOMIC_COMP_EXCHANGE_BYTE(0);                           \
-    __ b(&done);                                            \
-    /* ending with 0b01 */                                  \
-    __ bind(&one);                                          \
-    ATOMIC_COMP_EXCHANGE_BYTE(1);                           \
-    __ b(&done);                                            \
-    /* ending with 0b10 */                                  \
-    __ bind(&two);                                          \
-    ATOMIC_COMP_EXCHANGE_BYTE(2);                           \
-    __ b(&done);                                            \
-    /* ending with 0b11 */                                  \
-    __ bind(&three);                                        \
-    ATOMIC_COMP_EXCHANGE_BYTE(3);                           \
-    __ bind(&done);                                         \
-    __ load_and_ext(output, output);                        \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(load_and_ext)                   \
+  do {                                                                        \
+    Register old_value = i.InputRegister(0);                                  \
+    Register new_value = i.InputRegister(1);                                  \
+    Register output = i.OutputRegister();                                     \
+    Register addr = kScratchReg;                                              \
+    Register temp0 = r0;                                                      \
+    Register temp1 = r1;                                                      \
+    size_t index = 2;                                                         \
+    AddressingMode mode = kMode_None;                                         \
+    MemOperand op = i.MemoryOperand(&mode, &index);                           \
+    __ lay(addr, op);                                                         \
+    __ AtomicCmpExchangeU8(addr, output, old_value, new_value, temp0, temp1); \
+    __ load_and_ext(output, output);                                          \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(load_and_ext) \
-  do {                                                          \
-    Register old_val = i.InputRegister(0);                      \
-    Register new_val = i.InputRegister(1);                      \
-    Register output = i.OutputRegister();                       \
-    Register addr = kScratchReg;                                \
-    Register temp0 = r0;                                        \
-    Register temp1 = r1;                                        \
-    size_t index = 2;                                           \
-    AddressingMode mode = kMode_None;                           \
-    MemOperand op = i.MemoryOperand(&mode, &index);             \
-    Label two, done;                                            \
-    __ lay(addr, op);                                           \
-    __ tmll(addr, Operand(3));                                  \
-    __ b(Condition(2), &two);                                   \
-    ATOMIC_COMP_EXCHANGE_HALFWORD(0);                           \
-    __ b(&done);                                                \
-    __ bind(&two);                                              \
-    ATOMIC_COMP_EXCHANGE_HALFWORD(1);                           \
-    __ bind(&done);                                             \
-    __ load_and_ext(output, output);                            \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(load_and_ext)                \
+  do {                                                                         \
+    Register old_value = i.InputRegister(0);                                   \
+    Register new_value = i.InputRegister(1);                                   \
+    Register output = i.OutputRegister();                                      \
+    Register addr = kScratchReg;                                               \
+    Register temp0 = r0;                                                       \
+    Register temp1 = r1;                                                       \
+    size_t index = 2;                                                          \
+    AddressingMode mode = kMode_None;                                          \
+    MemOperand op = i.MemoryOperand(&mode, &index);                            \
+    Label two, done;                                                           \
+    __ lay(addr, op);                                                          \
+    __ AtomicCmpExchangeU16(addr, output, old_value, new_value, temp0, temp1); \
+    __ load_and_ext(output, output);                                           \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD()       \

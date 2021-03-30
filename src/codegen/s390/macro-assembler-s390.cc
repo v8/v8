@@ -4761,6 +4761,110 @@ void TurboAssembler::CountTrailingZerosU64(Register dst, Register src,
   bind(&done);
 }
 
+void TurboAssembler::AtomicCmpExchangeHelper(Register addr, Register output,
+                                             Register old_value,
+                                             Register new_value, int start,
+                                             int end, int shift_amount,
+                                             int offset, Register temp0,
+                                             Register temp1) {
+  LoadU32(temp0, MemOperand(addr, offset));
+  llgfr(temp1, temp0);
+  RotateInsertSelectBits(temp0, old_value, Operand(start), Operand(end),
+                         Operand(shift_amount), false);
+  RotateInsertSelectBits(temp1, new_value, Operand(start), Operand(end),
+                         Operand(shift_amount), false);
+  CmpAndSwap(temp0, temp1, MemOperand(addr, offset));
+  RotateInsertSelectBits(output, temp0, Operand(start + shift_amount),
+                         Operand(end + shift_amount),
+                         Operand(64 - shift_amount), true);
+}
+
+void TurboAssembler::AtomicCmpExchangeU8(Register addr, Register output,
+                                         Register old_value, Register new_value,
+                                         Register temp0, Register temp1) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * idx;                                     \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = (3 - idx) * 8;                             \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx, temp0, temp1);              \
+  }
+#else
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * (3 - idx);                               \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = idx * 8;                                   \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx, temp0, temp1);              \
+  }
+#endif
+
+  Label one, two, three, done;
+  tmll(addr, Operand(3));
+  b(Condition(1), &three);
+  b(Condition(2), &two);
+  b(Condition(4), &one);
+  /* ending with 0b00 */
+  ATOMIC_COMP_EXCHANGE_BYTE(0);
+  b(&done);
+  /* ending with 0b01 */
+  bind(&one);
+  ATOMIC_COMP_EXCHANGE_BYTE(1);
+  b(&done);
+  /* ending with 0b10 */
+  bind(&two);
+  ATOMIC_COMP_EXCHANGE_BYTE(2);
+  b(&done);
+  /* ending with 0b11 */
+  bind(&three);
+  ATOMIC_COMP_EXCHANGE_BYTE(3);
+  bind(&done);
+}
+
+void TurboAssembler::AtomicCmpExchangeU16(Register addr, Register output,
+                                          Register old_value,
+                                          Register new_value, Register temp0,
+                                          Register temp1) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * idx;                                    \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = (1 - idx) * 16;                            \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx * 2, temp0, temp1);          \
+  }
+#else
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * (1 - idx);                              \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = idx * 16;                                  \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx * 2, temp0, temp1);          \
+  }
+#endif
+
+  Label two, done;
+  tmll(addr, Operand(3));
+  b(Condition(2), &two);
+  ATOMIC_COMP_EXCHANGE_HALFWORD(0);
+  b(&done);
+  bind(&two);
+  ATOMIC_COMP_EXCHANGE_HALFWORD(1);
+  bind(&done);
+}
 }  // namespace internal
 }  // namespace v8
 

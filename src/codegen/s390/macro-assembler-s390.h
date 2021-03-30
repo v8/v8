@@ -46,6 +46,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
+  void AtomicCmpExchangeHelper(Register addr, Register output,
+                               Register old_value, Register new_value,
+                               int start, int end, int shift_amount, int offset,
+                               Register temp0, Register temp1);
+  void AtomicCmpExchangeU8(Register addr, Register output, Register old_value,
+                           Register new_value, Register temp0, Register temp1);
+  void AtomicCmpExchangeU16(Register addr, Register output, Register old_value,
+                            Register new_value, Register temp0, Register temp1);
+
   void DoubleMax(DoubleRegister result_reg, DoubleRegister left_reg,
                  DoubleRegister right_reg);
   void DoubleMin(DoubleRegister result_reg, DoubleRegister left_reg,
