@@ -597,6 +597,9 @@
 
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
+
+  # https://crbug.com/v8/9337 - OOMs on TSAN
+  'compiler/regress-9017': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -1409,8 +1412,6 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
-  # https://crbug.com/v8/9337 - OOMs on TSAN
-  'compiler/regress-9017': [PASS, ['tsan', SKIP]],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
