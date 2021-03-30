@@ -2582,7 +2582,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       return 0;
     }
     if (target->is_try_catch() || target->is_try_catchall() ||
-        target->is_try_catchall()) {
+        target->is_try_unwind()) {
       this->DecodeError(
           "cannot delegate inside the catch handler of the target");
     }

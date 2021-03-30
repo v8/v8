@@ -2934,6 +2934,11 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
                  WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
                 kAppendEnd,
                 "cannot delegate inside the catch handler of the target");
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprUnwind,
+                 WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
+                kAppendEnd,
+                "cannot delegate inside the catch handler of the target");
   ExpectFailure(
       sigs.v_v(),
       {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 3),
