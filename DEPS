@@ -50,7 +50,7 @@ vars = {
   'gn_version': 'git_revision:b2e3d8622c1ce1bd853c7a11f62a739946669cdd',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:e1c81c53ccd0366e8fff438f89030043343d4d6b',
+  'luci_go': 'git_revision:e02b10c56fc68b83be5348df6a46cab27ca88fbc',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -88,15 +88,15 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c835251514d8f8e65e018462daad74814ed01f78',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f14b4de30ccf73098e7c93cbd8ee803289d6ef9a',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e0de6a88e5385ee9cd38d5e87f97456bbad8e7d2',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9781115e15ac6dc1454b2ac73c750c2e640c42ec',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'd879aac9717d15679125cfe8c26b482006f107f3',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '6900bf4e274fdd94e3b074a65144554466cad5da',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '99a2527e919b496f3d2849c77c5bbed4bdccd5a4',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5dbd89c9d9c0b0ff47cefdc2bc421b8c9a1c5a21',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '99803d74e35962f63a775f29477882afd4d57d94',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'PQ5BA4WJfsqBSdlGRVmglasbA61vdJ1sHFa_R-euwHQC'
+              'version': 'XIdHv_hBF_KHdjhj04EhFab-lOzR9RJfY6u_7egTckgC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -256,7 +256,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'fc39a8498479316b8cdc243eb258c4e065d1e2f3',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '303ff5abc4d25a0f74e3775f859ae32a2db7bdc3',
   'tools/luci-go': {
       'packages': [
         {
