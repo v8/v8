@@ -3066,10 +3066,12 @@ class LiftoffCompiler {
     for (int j = decoder->control_depth() - 1; j >= 0; j--) {
       Control* control = decoder->control_at(j);
       Control* next_control = j > 0 ? decoder->control_at(j - 1) : nullptr;
-      int end_index = next_control ? next_control->stack_depth +
-                                         next_control->num_exceptions
-                                   : __ cache_state()->stack_height();
-      bool exception = control->is_try_catch() || control->is_try_catchall();
+      int end_index = next_control
+                          ? next_control->stack_depth + __ num_locals() +
+                                next_control->num_exceptions
+                          : __ cache_state()->stack_height();
+      bool exception = control->is_try_catch() || control->is_try_catchall() ||
+                       control->is_try_unwind();
       for (; index < end_index; ++index) {
         auto& slot = stack_state[index];
         auto& value = values[index];

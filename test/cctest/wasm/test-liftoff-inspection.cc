@@ -433,7 +433,7 @@ TEST(Liftoff_debug_side_table_catch_all) {
   int ex = env.builder()->AddException(sigs.v_v());
   ValueType exception_type = ValueType::Ref(HeapType::kExtern, kNonNullable);
   auto debug_side_table = env.GenerateDebugSideTable(
-      {}, {},
+      {}, {kWasmI32},
       {WASM_TRY_CATCH_ALL_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(ex)),
                             WASM_I32V(1)),
        WASM_DROP},
@@ -443,10 +443,12 @@ TEST(Liftoff_debug_side_table_catch_all) {
   CheckDebugSideTable(
       {
           // function entry.
-          {0, {}},
+          {1, {Register(0, kWasmI32)}},
           // breakpoint.
-          {2, {Register(0, exception_type), Constant(1, kWasmI32, 1)}},
-          {0, {}},
+          {3,
+           {Stack(0, kWasmI32), Register(1, exception_type),
+            Constant(2, kWasmI32, 1)}},
+          {1, {}},
       },
       debug_side_table.get());
 }
