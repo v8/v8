@@ -757,7 +757,6 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     size_t index = 2;                                                          \
     AddressingMode mode = kMode_None;                                          \
     MemOperand op = i.MemoryOperand(&mode, &index);                            \
-    Label two, done;                                                           \
     __ lay(addr, op);                                                          \
     __ AtomicCmpExchangeU16(addr, output, old_value, new_value, temp0, temp1); \
     __ load_and_ext(output, output);                                           \
