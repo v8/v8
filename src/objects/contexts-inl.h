@@ -66,8 +66,8 @@ V8_INLINE void Context::set(int index, Object value, WriteBarrierMode mode) {
   set_elements(index, value, mode);
 }
 
-void Context::set_scope_info(ScopeInfo scope_info) {
-  set(SCOPE_INFO_INDEX, scope_info);
+void Context::set_scope_info(ScopeInfo scope_info, WriteBarrierMode mode) {
+  set(SCOPE_INFO_INDEX, scope_info, mode);
 }
 
 Object Context::synchronized_get(int index) const {
@@ -96,7 +96,9 @@ Context Context::previous() {
   DCHECK(IsBootstrappingOrValidParentContext(result, *this));
   return Context::unchecked_cast(result);
 }
-void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
+void Context::set_previous(Context context, WriteBarrierMode mode) {
+  set(PREVIOUS_INDEX, context, mode);
+}
 
 Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
 
@@ -109,9 +111,9 @@ HeapObject Context::extension() {
   return HeapObject::cast(get(EXTENSION_INDEX));
 }
 
-void Context::set_extension(HeapObject object) {
+void Context::set_extension(HeapObject object, WriteBarrierMode mode) {
   DCHECK(scope_info().HasContextExtensionSlot());
-  set(EXTENSION_INDEX, object);
+  set(EXTENSION_INDEX, object, mode);
 }
 
 NativeContext Context::native_context() const {

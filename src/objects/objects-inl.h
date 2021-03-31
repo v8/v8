@@ -855,9 +855,9 @@ String RegExpMatchInfo::LastSubject() {
   return String::cast(get(kLastSubjectIndex));
 }
 
-void RegExpMatchInfo::SetLastSubject(String value) {
+void RegExpMatchInfo::SetLastSubject(String value, WriteBarrierMode mode) {
   DCHECK_GE(length(), kLastMatchOverhead);
-  set(kLastSubjectIndex, value);
+  set(kLastSubjectIndex, value, mode);
 }
 
 Object RegExpMatchInfo::LastInput() {
@@ -865,9 +865,9 @@ Object RegExpMatchInfo::LastInput() {
   return get(kLastInputIndex);
 }
 
-void RegExpMatchInfo::SetLastInput(Object value) {
+void RegExpMatchInfo::SetLastInput(Object value, WriteBarrierMode mode) {
   DCHECK_GE(length(), kLastMatchOverhead);
-  set(kLastInputIndex, value);
+  set(kLastInputIndex, value, mode);
 }
 
 int RegExpMatchInfo::Capture(int i) {

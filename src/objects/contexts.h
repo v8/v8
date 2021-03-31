@@ -517,17 +517,20 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static const int kInvalidContext = 1;
 
   // Direct slot access.
-  inline void set_scope_info(ScopeInfo scope_info);
+  inline void set_scope_info(ScopeInfo scope_info,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Object unchecked_previous();
   inline Context previous();
-  inline void set_previous(Context context);
+  inline void set_previous(Context context,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Object next_context_link();
 
   inline bool has_extension();
   inline HeapObject extension();
-  inline void set_extension(HeapObject object);
+  inline void set_extension(HeapObject object,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   JSObject extension_object();
   JSReceiver extension_receiver();
   V8_EXPORT_PRIVATE ScopeInfo scope_info();

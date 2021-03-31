@@ -200,10 +200,10 @@ NativeContext JSFunction::native_context() {
   return context().native_context();
 }
 
-void JSFunction::set_context(HeapObject value) {
+void JSFunction::set_context(HeapObject value, WriteBarrierMode mode) {
   DCHECK(value.IsUndefined() || value.IsContext());
   WRITE_FIELD(*this, kContextOffset, value);
-  WRITE_BARRIER(*this, kContextOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kContextOffset, value, mode);
 }
 
 ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, HeapObject,

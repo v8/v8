@@ -72,6 +72,7 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
   Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(
       NewStruct(ACCESSOR_PAIR_TYPE, AllocationType::kOld));
   AccessorPair raw = *accessors;
+  DisallowGarbageCollection no_gc;
   raw.set_getter(read_only_roots().null_value(), SKIP_WRITE_BARRIER);
   raw.set_setter(read_only_roots().null_value(), SKIP_WRITE_BARRIER);
   return accessors;
@@ -396,8 +397,10 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
   Handle<ArrayBoilerplateDescription> result =
       Handle<ArrayBoilerplateDescription>::cast(
           NewStruct(ARRAY_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld));
-  result->set_elements_kind(elements_kind);
-  result->set_constant_elements(*constant_values);
+  DisallowGarbageCollection no_gc;
+  ArrayBoilerplateDescription raw = *result;
+  raw.set_elements_kind(elements_kind);
+  raw.set_constant_elements(*constant_values);
   return result;
 }
 
@@ -409,9 +412,11 @@ FactoryBase<Impl>::NewRegExpBoilerplateDescription(Handle<FixedArray> data,
   Handle<RegExpBoilerplateDescription> result =
       Handle<RegExpBoilerplateDescription>::cast(NewStruct(
           REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld));
-  result->set_data(*data);
-  result->set_source(*source);
-  result->set_flags(flags.value());
+  DisallowGarbageCollection no_gc;
+  RegExpBoilerplateDescription raw = *result;
+  raw.set_data(*data);
+  raw.set_source(*source);
+  raw.set_flags(flags.value());
   return result;
 }
 
@@ -424,8 +429,10 @@ FactoryBase<Impl>::NewTemplateObjectDescription(
   Handle<TemplateObjectDescription> result =
       Handle<TemplateObjectDescription>::cast(
           NewStruct(TEMPLATE_OBJECT_DESCRIPTION_TYPE, AllocationType::kOld));
-  result->set_raw_strings(*raw_strings);
-  result->set_cooked_strings(*cooked_strings);
+  DisallowGarbageCollection no_gc;
+  TemplateObjectDescription raw = *result;
+  raw.set_raw_strings(*raw_strings);
+  raw.set_cooked_strings(*cooked_strings);
   return result;
 }
 
@@ -434,19 +441,18 @@ Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
     int slot_count, int create_closure_slot_count, AllocationType allocation) {
   DCHECK_LE(0, slot_count);
   int size = FeedbackMetadata::SizeFor(slot_count);
-  HeapObject result = AllocateRawWithImmortalMap(
-      size, allocation, read_only_roots().feedback_metadata_map());
-  Handle<FeedbackMetadata> data(FeedbackMetadata::cast(result), isolate());
-  data->set_slot_count(slot_count);
-  data->set_create_closure_slot_count(create_closure_slot_count);
+  FeedbackMetadata result = FeedbackMetadata::cast(AllocateRawWithImmortalMap(
+      size, allocation, read_only_roots().feedback_metadata_map()));
+  result.set_slot_count(slot_count);
+  result.set_create_closure_slot_count(create_closure_slot_count);
 
   // Initialize the data section to 0.
   int data_size = size - FeedbackMetadata::kHeaderSize;
-  Address data_start = data->address() + FeedbackMetadata::kHeaderSize;
+  Address data_start = result.address() + FeedbackMetadata::kHeaderSize;
   memset(reinterpret_cast<byte*>(data_start), 0, data_size);
   // Fields have been zeroed out but not initialized, so this object will not
   // pass object verification at this point.
-  return data;
+  return handle(result, isolate());
 }
 
 template <typename Impl>
@@ -456,17 +462,14 @@ Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
 
   int size = CoverageInfo::SizeFor(slot_count);
   Map map = read_only_roots().coverage_info_map();
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, AllocationType::kOld, map);
-  Handle<CoverageInfo> info(CoverageInfo::cast(result), isolate());
-
-  info->set_slot_count(slot_count);
+  CoverageInfo info = CoverageInfo::cast(
+      AllocateRawWithImmortalMap(size, AllocationType::kOld, map));
+  info.set_slot_count(slot_count);
   for (int i = 0; i < slot_count; i++) {
     SourceRange range = slots[i];
-    info->InitializeSlot(i, range.start, range.end);
+    info.InitializeSlot(i, range.start, range.end);
   }
-
-  return info;
+  return handle(info, isolate());
 }
 
 template <typename Impl>
@@ -677,7 +680,6 @@ Handle<String> FactoryBase<Impl>::NewConsString(Handle<String> left,
 
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result.GetWriteBarrierMode(no_gc);
-
   result.set_raw_hash_field(String::kEmptyHashField);
   result.set_length(length);
   result.set_first(*left, mode);
@@ -852,6 +854,7 @@ HeapObject FactoryBase<Impl>::AllocateRawWithImmortalMap(
   // noone does so this check is sufficient.
   DCHECK(ReadOnlyHeap::Contains(map));
   HeapObject result = AllocateRaw(size, allocation, alignment);
+  DisallowGarbageCollection no_gc;
   result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   return result;
 }
@@ -885,11 +888,11 @@ FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
 
   Map map = read_only_roots().swiss_name_dictionary_map();
   int size = SwissNameDictionary::SizeFor(capacity);
-  HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
-  Handle<SwissNameDictionary> table(SwissNameDictionary::cast(result),
-                                    isolate());
-  table->Initialize(isolate(), *meta_table, capacity);
-  return table;
+  SwissNameDictionary table = SwissNameDictionary::cast(
+      AllocateRawWithImmortalMap(size, allocation, map));
+  DisallowGarbageCollection no_gc;
+  table.Initialize(isolate(), *meta_table, capacity);
+  return handle(table, isolate());
 }
 
 template <typename Impl>
