@@ -6,7 +6,6 @@
 
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate-utils.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
@@ -1287,10 +1286,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
 }
 
 bool String::HasOneBytePrefix(Vector<const char> str) {
-  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
-  return IsEqualToImpl<EqualityType::kPrefix>(
-      str, GetIsolateForPtrCompr(*this),
-      SharedStringAccessGuardIfNeeded::NotNeeded());
+  return IsEqualTo<EqualityType::kPrefix>(str);
 }
 
 namespace {
