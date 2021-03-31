@@ -2064,6 +2064,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
+    case kPPC_LoadReverseSimd128RR: {
+      __ xxbrq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kPPC_StoreWord8:
       ASSEMBLE_STORE_INTEGER(stb, stbx);
       break;
