@@ -99,6 +99,7 @@ namespace compiler {
   V(Arm64Float32Mul)                        \
   V(Arm64Float32Div)                        \
   V(Arm64Float32Abs)                        \
+  V(Arm64Float32Abd)                        \
   V(Arm64Float32Neg)                        \
   V(Arm64Float32Sqrt)                       \
   V(Arm64Float32Fnmul)                      \
@@ -114,6 +115,7 @@ namespace compiler {
   V(Arm64Float64Max)                        \
   V(Arm64Float64Min)                        \
   V(Arm64Float64Abs)                        \
+  V(Arm64Float64Abd)                        \
   V(Arm64Float64Neg)                        \
   V(Arm64Float64Sqrt)                       \
   V(Arm64Float64Fnmul)                      \

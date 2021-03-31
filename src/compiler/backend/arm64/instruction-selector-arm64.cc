@@ -1451,8 +1451,6 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(BitcastFloat64ToInt64, kArm64U64MoveFloat64)              \
   V(BitcastInt32ToFloat32, kArm64Float64MoveU64)              \
   V(BitcastInt64ToFloat64, kArm64Float64MoveU64)              \
-  V(Float32Abs, kArm64Float32Abs)                             \
-  V(Float64Abs, kArm64Float64Abs)                             \
   V(Float32Sqrt, kArm64Float32Sqrt)                           \
   V(Float64Sqrt, kArm64Float64Sqrt)                           \
   V(Float32RoundDown, kArm64Float32RoundDown)                 \
@@ -3053,6 +3051,30 @@ void InstructionSelector::VisitFloat32Mul(Node* node) {
     return;
   }
   return VisitRRR(this, kArm64Float32Mul, node);
+}
+
+void InstructionSelector::VisitFloat32Abs(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* in = node->InputAt(0);
+  if (in->opcode() == IrOpcode::kFloat32Sub && CanCover(node, in)) {
+    Emit(kArm64Float32Abd, g.DefineAsRegister(node),
+         g.UseRegister(in->InputAt(0)), g.UseRegister(in->InputAt(1)));
+    return;
+  }
+
+  return VisitRR(this, kArm64Float32Abs, node);
+}
+
+void InstructionSelector::VisitFloat64Abs(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* in = node->InputAt(0);
+  if (in->opcode() == IrOpcode::kFloat64Sub && CanCover(node, in)) {
+    Emit(kArm64Float64Abd, g.DefineAsRegister(node),
+         g.UseRegister(in->InputAt(0)), g.UseRegister(in->InputAt(1)));
+    return;
+  }
+
+  return VisitRR(this, kArm64Float64Abs, node);
 }
 
 void InstructionSelector::VisitFloat32Equal(Node* node) {

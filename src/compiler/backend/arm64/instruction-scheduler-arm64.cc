@@ -92,6 +92,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float32Mul:
     case kArm64Float32Div:
     case kArm64Float32Abs:
+    case kArm64Float32Abd:
     case kArm64Float32Neg:
     case kArm64Float32Sqrt:
     case kArm64Float32Fnmul:
@@ -106,6 +107,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float64Max:
     case kArm64Float64Min:
     case kArm64Float64Abs:
+    case kArm64Float64Abd:
     case kArm64Float64Neg:
     case kArm64Float64Sqrt:
     case kArm64Float64Fnmul:
