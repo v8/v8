@@ -75,7 +75,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Movmskps, movmskps)
   AVX_OP(Movmskpd, movmskpd)
   AVX_OP(Pmovmskb, pmovmskb)
-  AVX_OP(Movss, movss)
   AVX_OP(Movsd, movsd)
   AVX_OP(Movhlps, movhlps)
   AVX_OP(Movlps, movlps)
@@ -207,7 +206,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP_SSE4_1(Pmaxuw, pmaxuw)
   AVX_OP_SSE4_1(Pmaxud, pmaxud)
   AVX_OP_SSE4_1(Pmulld, pmulld)
-  AVX_OP_SSE4_1(Extractps, extractps)
   AVX_OP_SSE4_1(Insertps, insertps)
   AVX_OP_SSE4_1(Pinsrq, pinsrq)
   AVX_OP_SSE4_1(Pblendw, pblendw)
@@ -534,7 +532,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Defined here to allow usage on both TurboFan and Liftoff.
   void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
-  void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
   void S128Store64Lane(Operand dst, XMMRegister src, uint8_t laneidx);
 
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp);

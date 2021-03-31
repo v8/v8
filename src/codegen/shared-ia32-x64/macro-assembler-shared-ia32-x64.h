@@ -99,9 +99,12 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   }
 
   AVX_OP(Pmullw, pmullw)
+  AVX_OP(Movss, movss)
+  AVX_OP_SSE4_1(Extractps, extractps)
   AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
   AVX_OP_SSE4_1(Pmovzxbw, pmovzxbw)
 
+  void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
   void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                       XMMRegister scrat, bool is_signed);
   void I16x8ExtMulHighS(XMMRegister dst, XMMRegister src1, XMMRegister src2,

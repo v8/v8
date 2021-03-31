@@ -18,6 +18,16 @@
 namespace v8 {
 namespace internal {
 
+void SharedTurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
+                                           uint8_t laneidx) {
+  if (laneidx == 0) {
+    Movss(dst, src);
+  } else {
+    DCHECK_GE(3, laneidx);
+    Extractps(dst, src, laneidx);
+  }
+}
+
 void SharedTurboAssembler::I16x8ExtMulLow(XMMRegister dst, XMMRegister src1,
                                           XMMRegister src2, XMMRegister scratch,
                                           bool is_signed) {

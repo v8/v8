@@ -653,16 +653,6 @@ void TurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
   Pxor(dst, scratch);
 }
 
-void TurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
-                                     uint8_t laneidx) {
-  if (laneidx == 0) {
-    Movss(dst, src);
-  } else {
-    DCHECK_GE(3, laneidx);
-    Extractps(dst, src, laneidx);
-  }
-}
-
 void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
                                  XMMRegister tmp1, XMMRegister tmp2,
                                  Register scratch) {
