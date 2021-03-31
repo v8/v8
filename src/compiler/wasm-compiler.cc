@@ -84,10 +84,19 @@ MachineType assert_size(int expected_size, MachineType type) {
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), BuildLoadInstance(), \
       wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
 
-#define LOAD_INSTANCE_FIELD(name, type)                                        \
-  gasm_->LoadImmutable(                                                        \
-      assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), BuildLoadInstance(), \
-      wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
+// TODO(11510): Using LoadImmutable for tagged values causes registers to be
+// spilled and added to the safepoint table, resulting in large code size
+// regressions. A possible solution would be to not spill the register at all,
+// but rather reload the value from memory. This will require non-trivial
+// changes in the register allocator and instuction selector.
+#define LOAD_INSTANCE_FIELD(name, type)                          \
+  (CanBeTaggedOrCompressedPointer((type).representation())       \
+       ? LOAD_MUTABLE_INSTANCE_FIELD(name, type)                 \
+       : gasm_->LoadImmutable(                                   \
+             assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), \
+             BuildLoadInstance(),                                \
+             wasm::ObjectAccess::ToTagged(                       \
+                 WasmInstanceObject::k##name##Offset)))
 
 #define LOAD_ROOT(root_name, factory_name)                   \
   (use_js_isolate_and_params()                               \
