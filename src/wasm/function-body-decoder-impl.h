@@ -2585,6 +2585,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         target->is_try_unwind()) {
       this->DecodeError(
           "cannot delegate inside the catch handler of the target");
+      return 0;
     }
     FallThruTo(c);
     CALL_INTERFACE_IF_PARENT_REACHABLE(Delegate, imm.depth + 1, c);
