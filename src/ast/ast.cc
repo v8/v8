@@ -56,7 +56,6 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
 }
 
 void AstNode::Print(Isolate* isolate) {
-  AllowHandleDereference allow_deref;
   AstPrinter::PrintOut(isolate, this);
 }
 
@@ -243,7 +242,6 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
   } else if (raw_inferred_name_ != nullptr && !raw_inferred_name_->IsEmpty()) {
     cons_string = raw_inferred_name_;
   } else if (!inferred_name_.is_null()) {
-    AllowHandleDereference allow_deref;
     return inferred_name_->ToCString();
   } else {
     char* empty_str = new char[1];
