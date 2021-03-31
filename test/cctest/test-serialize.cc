@@ -1730,8 +1730,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
 
   MaybeHandle<SharedFunctionInfo> shared =
       isolate->compilation_cache()->LookupScript(
-          src, src, 0, 0, v8::ScriptOriginOptions(), isolate->native_context(),
-          LanguageMode::kSloppy);
+          src, src, 0, 0, v8::ScriptOriginOptions(), LanguageMode::kSloppy);
 
   CHECK(*shared.ToHandleChecked() == *copy);
 

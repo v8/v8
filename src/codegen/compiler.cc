@@ -2874,8 +2874,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     // First check per-isolate compilation cache.
     maybe_result = compilation_cache->LookupScript(
         source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, origin_options, isolate->native_context(),
-        language_mode);
+        script_details.column_offset, origin_options, language_mode);
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     } else if (can_consume_code_cache) {
@@ -2894,8 +2893,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         // Promote to per-isolate compilation cache.
         is_compiled_scope = inner_result->is_compiled_scope(isolate);
         DCHECK(is_compiled_scope.is_compiled());
-        compilation_cache->PutScript(source, isolate->native_context(),
-                                     language_mode, inner_result);
+        compilation_cache->PutScript(source, language_mode, inner_result);
         Handle<Script> script(Script::cast(inner_result->script()), isolate);
         maybe_result = inner_result;
       } else {
@@ -2933,8 +2931,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Handle<SharedFunctionInfo> result;
     if (use_compilation_cache && maybe_result.ToHandle(&result)) {
       DCHECK(is_compiled_scope.is_compiled());
-      compilation_cache->PutScript(source, isolate->native_context(),
-                                   language_mode, result);
+      compilation_cache->PutScript(source, language_mode, result);
     } else if (maybe_result.is_null() && natives != EXTENSION_CODE) {
       isolate->ReportPendingMessages();
     }
@@ -3064,8 +3061,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                  "V8.StreamingFinalization.CheckCache");
     maybe_result = compilation_cache->LookupScript(
         source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, origin_options, isolate->native_context(),
-        task->language_mode());
+        script_details.column_offset, origin_options, task->language_mode());
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     }
@@ -3156,8 +3152,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       // Add compiled code to the isolate cache.
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.StreamingFinalization.AddToCache");
-      compilation_cache->PutScript(source, isolate->native_context(),
-                                   task->language_mode(), result);
+      compilation_cache->PutScript(source, task->language_mode(), result);
     }
   }
 

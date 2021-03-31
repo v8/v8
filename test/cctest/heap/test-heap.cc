@@ -1473,7 +1473,6 @@ TEST(CompilationCacheCachingBehavior) {
       "};"
       "foo();";
   Handle<String> source = factory->InternalizeUtf8String(raw_source);
-  Handle<Context> native_context = isolate->native_context();
 
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -1486,7 +1485,7 @@ TEST(CompilationCacheCachingBehavior) {
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
                                         v8::ScriptOriginOptions(true, false),
-                                        native_context, language_mode);
+                                        language_mode);
     CHECK(!cached_script.is_null());
   }
 
@@ -1497,7 +1496,7 @@ TEST(CompilationCacheCachingBehavior) {
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
                                         v8::ScriptOriginOptions(true, false),
-                                        native_context, language_mode);
+                                        language_mode);
     CHECK(!cached_script.is_null());
 
     // Progress code age until it's old and ready for GC.
@@ -1517,7 +1516,7 @@ TEST(CompilationCacheCachingBehavior) {
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
                                         v8::ScriptOriginOptions(true, false),
-                                        native_context, language_mode);
+                                        language_mode);
     CHECK(cached_script.is_null());
   }
 }
