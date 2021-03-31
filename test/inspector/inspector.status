@@ -145,6 +145,9 @@
   # This test is just slow on TSan, and TSan coverage is not needed to test
   # that we do not run OOM. Thus skip it on TSan.
   'debugger/wasm-step-a-lot': [SKIP],
+
+  # BUG(v8:11610)
+  'debugger/wasm-inspect-many-registers': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
