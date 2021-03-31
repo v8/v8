@@ -28,12 +28,6 @@ const kMax2ByteMetaTableCapacity: constexpr int32
 const kNotFoundSentinel:
     constexpr int32 generates 'SwissNameDictionary::kNotFoundSentinel';
 
-extern macro LoadSwissNameDictionaryNumberOfElements(
-    SwissNameDictionary, intptr): intptr;
-
-extern macro LoadSwissNameDictionaryNumberOfDeletedElements(
-    SwissNameDictionary, intptr): intptr;
-
 extern macro LoadSwissNameDictionaryKey(SwissNameDictionary, intptr): Name;
 
 extern macro StoreSwissNameDictionaryKeyAndValue(
@@ -287,14 +281,8 @@ macro SwissNameDictionaryDelete(table: SwissNameDictionary, entry: intptr)
 @export
 macro SwissNameDictionaryFindEntrySIMD(table: SwissNameDictionary, key: Name):
     never labels Found(intptr), NotFound {
-  // TODO(v8:11330) Not implemented in Torque, yet, doing runtime call
-  // instead.
-  const res = runtime::SwissTableFindEntry(kNoContext, table, key);
-  if (res == kNotFoundSentinel) {
-    goto NotFound;
-  } else {
-    goto Found(Convert<intptr>(res));
-  }
+  FindEntry<GroupSse2Loader>(table, key)
+      otherwise Found, NotFound;
 }
 
 @export
@@ -317,26 +305,8 @@ Found(intptr),
 macro SwissNameDictionaryAddSIMD(
     table: SwissNameDictionary, key: Name, value: Object,
     propertyDetails: uint8) labels Bailout {
-  // TODO(v8:11330) Not implemented in Torque, yet, doing runtime call
-  // instead. However, must bailout if the runtime call would allocate a new
-  // dictionary.
-
-  // Determine if bailout needed:
-  const capacity = Convert<intptr>(table.capacity);
-  const maxUsable = SwissNameDictionaryMaxUsableCapacity(capacity);
-  // Doing two independent accesses to the meta table here (repeating the
-  // branching), rather than combining the accesses. Accepting that due to
-  // the fact that this is a slow placeholder until the SIMD version
-  // replaces it.
-  const nof = LoadSwissNameDictionaryNumberOfElements(table, capacity);
-  const nod = LoadSwissNameDictionaryNumberOfDeletedElements(table, capacity);
-  const used = nof + nod;
-  if (used >= maxUsable) {
-    goto Bailout;
-  }
-  runtime::SwissTableAdd(
-      kNoContext, table, key, value,
-      Convert<Smi>(Convert<int32>(propertyDetails)));
+  Add<GroupSse2Loader>(table, key, value, propertyDetails)
+      otherwise Bailout;
 }
 
 @export

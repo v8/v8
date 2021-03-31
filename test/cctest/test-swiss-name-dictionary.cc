@@ -20,6 +20,10 @@ class RuntimeTestRunner {
         initial_capacity, AllocationType::kYoung);
   }
 
+  // The runtime implementations does not depend on the CPU features and
+  // therefore always work.
+  static bool IsEnabled() { return true; }
+
   void Add(Handle<Name> key, Handle<Object> value, PropertyDetails details);
   InternalIndex FindEntry(Handle<Name> key);
   // Updates the value and property details of the given entry.

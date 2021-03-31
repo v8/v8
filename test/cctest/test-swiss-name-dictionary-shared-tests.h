@@ -141,6 +141,9 @@ struct SharedSwissTableTests {
   // Simple test for adding entries. Also uses non-Symbol keys and non-String
   // values, which is not supported by the higher-level testing infrastructure.
   MEMBER_TEST(SimpleAdd) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
       Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
       Handle<String> value1 =
@@ -173,6 +176,9 @@ struct SharedSwissTableTests {
   // non-String values, which is not supported by the higher-level testing
   // infrastructure.
   MEMBER_TEST(SimpleUpdate) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
       Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
       Handle<String> value1 =
@@ -214,6 +220,9 @@ struct SharedSwissTableTests {
   // non-String values, which is not supported by the higher-level testing
   // infrastructure.
   MEMBER_TEST(SimpleDelete) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
       Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
       Handle<String> value1 =
@@ -249,6 +258,9 @@ struct SharedSwissTableTests {
   // Adds entries that occuppy the boundaries (first and last
   // buckets) of the hash table.
   MEMBER_TEST(AddAtBoundaries) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithAllInterestingInitialCapacities([](TS& s) {
       AddAtBoundaries(s);
 
@@ -273,6 +285,9 @@ struct SharedSwissTableTests {
   // Adds entries that occuppy the boundaries of the hash table, then updates
   // their values and property details.
   MEMBER_TEST(UpdateAtBoundaries) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithAllInterestingInitialCapacities([](TS& s) {
       AddAtBoundaries(s);
 
@@ -306,6 +321,9 @@ struct SharedSwissTableTests {
   // Adds entries that occuppy the boundaries of the hash table, then updates
   // their values and property details.
   MEMBER_TEST(DeleteAtBoundaries) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     // The maximum value of {TS::boundary_indices(capacity).size()} for any
     // |capacity|.
     int count = 4;
@@ -350,6 +368,9 @@ struct SharedSwissTableTests {
   // Adds entries that occuppy the boundaries of the hash table, then add
   // further entries targeting the same buckets.
   MEMBER_TEST(OverwritePresentAtBoundaries) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithAllInterestingInitialCapacities([](TS& s) {
       AddAtBoundaries(s);
 
@@ -398,6 +419,9 @@ struct SharedSwissTableTests {
   }
 
   MEMBER_TEST(Empty) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacities({0}, [](TS& s) {
       // FindEntry on empty table succeeds.
       s.CheckKeyAbsent(Key{"some non-existing key"});
@@ -434,6 +458,9 @@ struct SharedSwissTableTests {
   // We test that hash tables get resized/rehashed correctly by repeatedly
   // adding an deleting elements.
   MEMBER_TEST(Resize1) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(0, [](TS& s) {
       // Should be at least 8 so that we capture the transition from 8 bit to 16
       // bit meta table entries:
@@ -486,6 +513,9 @@ struct SharedSwissTableTests {
 
   // Check that we resize exactly when expected.
   MEMBER_TEST(Resize2) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacities({4, 8, 16, 128}, [](TS& s) {
       int count = SwissNameDictionary::MaxUsableCapacity(s.initial_capacity);
 
@@ -503,6 +533,9 @@ struct SharedSwissTableTests {
   // table before resizing (i.e., the max load factor is 100% for those
   // particular configurations. Test that this works as intended.
   MEMBER_TEST(AtFullCapacity) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     // Determine those capacities, allowing 100% max load factor. We trust
     // MaxUsableCapacity to tell us which capacities that are (e.g., 4 and 8),
     // because we tested that function separately elsewhere.
@@ -599,6 +632,9 @@ struct SharedSwissTableTests {
 
   // Make sure that keys with colliding H1 and same H2 don't get mixed up.
   MEMBER_TEST(SameH2) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     int i = 0;
     TS::WithAllInterestingInitialCapacities([&](TS& s) {
       // Let's try a few differnet values for h1, starting at big_modulus;.
@@ -629,6 +665,9 @@ struct SharedSwissTableTests {
 
   // Check that we can delete a key and add it again.
   MEMBER_TEST(ReAddSameKey) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
       s.Add(Key{"some_key"}, "some_value", distinct_details(0));
       s.DeleteByKey(Key{"some_key"});
@@ -643,6 +682,9 @@ struct SharedSwissTableTests {
   // group and that the quadratic probing for choosing subsequent groups to
   // probe works as intended.
   MEMBER_TEST(BeyondInitialGroup) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(128, [](TS& s) {
       int h1 = 33;     // Arbitrarily chosen.
       int count = 37;  // Will lead to more than 2 groups being filled.
@@ -825,6 +867,9 @@ struct SharedSwissTableTests {
   }
 
   MEMBER_TEST(ShrinkOnDelete) {
+    // TODO(v8:11330): Remove once CSA implementation has a fallback for
+    // non-SSSE3/AVX configurations.
+    if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(32, [](TS& s) {
       // Adds key0 ... key9:
       AddMultiple(s, 10);

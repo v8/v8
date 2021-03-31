@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/cpu-features.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
@@ -14,11 +15,36 @@ namespace v8 {
 namespace internal {
 namespace test_swiss_hash_table {
 
+// The non-SIMD SwissNameDictionary implementation requires 64 bit integer
+// operations, which CSA/Torque don't offer on 32 bit platforms. Therefore, we
+// cannot run the CSA version of the tests on 32 bit platforms. The only
+// exception is IA32, where we can use SSE and don't need 64 bit integers.
+// TODO(v8:11330) The Torque SIMD implementation is not specific to SSE (like
+// the C++ one), but works on other platforms. It should be possible to create a
+// workaround where on 32 bit, non-IA32 platforms we use the "portable", non-SSE
+// implementation on the C++ side (which uses a group size of 8) and create a
+// special version of the SIMD Torque implementation that works for group size 8
+// instead of 16.
+#if V8_TARGET_ARCH_64_BIT || V8_TARGET_ARCH_IA32
+
 // Executes tests by executing CSA/Torque versions of dictionary operations.
 // See RuntimeTestRunner for description of public functions.
 class CSATestRunner {
  public:
   CSATestRunner(Isolate* isolate, int initial_capacity, KeyCache& keys);
+
+  // TODO(v8:11330): Remove once CSA implementation has a fallback for
+  // non-SSSE3/AVX configurations.
+  static bool IsEnabled() {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+    CpuFeatures::SupportedFeatures();
+    return CpuFeatures::IsSupported(CpuFeature::AVX) ||
+           CpuFeatures::IsSupported(CpuFeature::SSSE3);
+#else
+    // Other 64-bit architectures always support the required operations.
+    return true;
+#endif
+  }
 
   void Add(Handle<Name> key, Handle<Object> value, PropertyDetails details);
   InternalIndex FindEntry(Handle<Name> key);
@@ -237,6 +263,11 @@ void CSATestRunner::PrintTable() {
 }
 
 Handle<Code> CSATestRunner::create_find_entry(Isolate* isolate) {
+  // TODO(v8:11330): Remove once CSA implementation has a fallback for
+  // non-SSSE3/AVX configurations.
+  if (!IsEnabled()) {
+    return isolate->builtins()->builtin_handle(Builtins::kIllegal);
+  }
   STATIC_ASSERT(kFindEntryParams == 2);  // (table, key)
   compiler::CodeAssemblerTester asm_tester(isolate, kFindEntryParams + 1);
   CodeStubAssembler m(asm_tester.state());
@@ -304,6 +335,11 @@ Handle<Code> CSATestRunner::create_put(Isolate* isolate) {
 }
 
 Handle<Code> CSATestRunner::create_delete(Isolate* isolate) {
+  // TODO(v8:11330): Remove once CSA implementation has a fallback for
+  // non-SSSE3/AVX configurations.
+  if (!IsEnabled()) {
+    return isolate->builtins()->builtin_handle(Builtins::kIllegal);
+  }
   STATIC_ASSERT(kDeleteParams == 2);  // (table, entry)
   compiler::CodeAssemblerTester asm_tester(isolate, kDeleteParams + 1);
   CodeStubAssembler m(asm_tester.state());
@@ -324,6 +360,11 @@ Handle<Code> CSATestRunner::create_delete(Isolate* isolate) {
 }
 
 Handle<Code> CSATestRunner::create_add(Isolate* isolate) {
+  // TODO(v8:11330): Remove once CSA implementation has a fallback for
+  // non-SSSE3/AVX configurations.
+  if (!IsEnabled()) {
+    return isolate->builtins()->builtin_handle(Builtins::kIllegal);
+  }
   STATIC_ASSERT(kAddParams == 4);  // (table, key, value, details)
   compiler::CodeAssemblerTester asm_tester(isolate, kAddParams + 1);
   CodeStubAssembler m(asm_tester.state());
@@ -410,18 +451,6 @@ Handle<Code> CSATestRunner::create_copy(Isolate* isolate) {
 void CSATestRunner::CheckAgainstReference() {
   CHECK(table->EqualsForTesting(*reference_));
 }
-
-// The non-SIMD SwissNameDictionary implementation requires 64 bit integer
-// operations, which CSA/Torque don't offer on 32 bit platforms. Therefore, we
-// cannot run the CSA version of the tests on 32 bit platforms. The only
-// exception is IA32, where we can use SSE and don't need 64 bit integers.
-// TODO(v8:11330) The Torque SIMD implementation is not specific to SSE (like
-// the C++ one), but works on other platforms. It should be possible to create a
-// workaround where on 32 bit, non-IA32 platforms we use the "portable", non-SSE
-// implementation on the C++ side (which uses a group size of 8) and create a
-// special version of the SIMD Torque implementation that works for group size 8
-// instead of 16.
-#if defined(V8_TARGET_ARCH_64_BIT) || defined(V8_TARGET_ARCH_IA32)
 
 // Executes the tests defined in test-swiss-name-dictionary-shared-tests.h as if
 // they were defined in this file, using the CSATestRunner. See comments in

@@ -110,6 +110,16 @@ struct BoolT : Word32T {};
 template <class T1, class T2>
 struct PairT {};
 
+struct Simd128T : UntaggedT {
+  static const MachineRepresentation kMachineRepresentation =
+      MachineRepresentation::kSimd128;
+  static constexpr MachineType kMachineType = MachineType::Simd128();
+};
+
+struct I8x16T : Simd128T {};
+struct I16x8T : Simd128T {};
+struct I32x2T : Simd128T {};
+
 inline constexpr MachineType CommonMachineType(MachineType type1,
                                                MachineType type2) {
   return (type1 == type2) ? type1

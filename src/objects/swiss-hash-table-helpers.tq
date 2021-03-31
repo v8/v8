@@ -45,6 +45,10 @@ struct ProbeSequence {
   index: uint32;
 }
 
+macro ClearLowestSetBit<T: type>(value: T): T {
+  return value & (value - FromConstexpr<T>(1));
+}
+
 const kByteMaskShift: uint64 = 3;
 
 // Counterpart to swiss_table::BitMask<uint64_t, kWidth, 3>, as used by
@@ -61,10 +65,29 @@ struct ByteMask {
 
   // Counterpart to operator++() in C++ version.
   macro ClearLowestSetBit() {
-    this.mask = this.mask & (this.mask - FromConstexpr<uint64>(1));
+    this.mask = ClearLowestSetBit<uint64>(this.mask);
   }
 
   mask: uint64;
+}
+
+// Counterpart to swiss_table::BitMask<uint32t, kWidth, 0>, as used by
+// swiss_table::GroupSse2Impl in C++ implementation.
+struct BitMask {
+  macro HasBitsSet(): bool {
+    return this.mask != FromConstexpr<uint32>(0);
+  }
+
+  macro LowestBitSet(): int32 {
+    return Convert<int32>(CountTrailingZeros32(this.mask));
+  }
+
+  // Counterpart to operator++() in C++ version.
+  macro ClearLowestSetBit() {
+    this.mask = ClearLowestSetBit<uint32>(this.mask);
+  }
+
+  mask: uint32;
 }
 
 macro H1(hash: uint32): uint32 {
@@ -80,6 +103,7 @@ const kLsbs: constexpr uint64
 const kMsbs: constexpr uint64
     generates 'swiss_table::GroupPortableImpl::kMsbs';
 
+// Counterpart to swiss_table::GroupPortableImpl in C++.
 struct GroupPortableImpl {
   macro Match(h2: uint32): ByteMask {
     const x = Word64Xor(this.ctrl, (kLsbs * Convert<uint64>(h2)));
@@ -95,11 +119,56 @@ struct GroupPortableImpl {
   const ctrl: uint64;
 }
 
+// Counterpart to swiss_table::GroupSse2Impl in C++. Note that the name is
+// chosen for consistency, this struct is not actually SSE-specific.
+struct GroupSse2Impl {
+  macro Match(h2: uint32): BitMask {
+    // Fill 16 8-bit lanes with |h2|:
+    const searchPattern = I8x16Splat(Signed(h2));
+    // Create a 128 bit mask such that in each of the 16 8-bit lanes, the MSB
+    // indicates whether or not the corresponding lanes of |this.ctrl| and
+    // |searchPattern| have the same value:
+    const matches128 = I8x16Eq(searchPattern, this.ctrl);
+    // Turn the 128 bit mask into a 32 bit one, by turning the MSB of the i-th
+    // lane into the i-th bit in the output mask:
+    const matches32 = Unsigned(I8x16BitMask(matches128));
+    return BitMask{mask: matches32};
+  }
+
+  macro MatchEmpty(): BitMask {
+    // TODO(v8:11330) The C++ implementation in
+    // swiss_table::GroupSse2Impl::MatchEmpty utilizes a special trick that is
+    // possible due to kEmpty being -128 and allows shaving off one SSE
+    // instruction. This depends on having access to _mm_cmpeq_epi8 aka PCMPEQB,
+    // which the V8 backend currently doesn't expose.
+
+    // Fill 16 8-bit lanes with |kEmpty|:
+    const searchPattern =
+        I8x16Splat(Convert<int32>(FromConstexpr<uint8>(ctrl::kEmpty)));
+    // Create a 128 bit mask such that in each of the 16 8-bit lanes, the MSB
+    // indicates whether or not the corresponding lanes of |this.ctrl| contains
+    // |kEmpty|:
+    const matches128 = I8x16Eq(searchPattern, this.ctrl);
+    // Turn the 128 bit mask into a 32 bit one, by turning the MSB of the i-th
+    // lane into the i-th bit in the output mask:
+    const matches32 = Unsigned(I8x16BitMask(matches128));
+    return BitMask{mask: matches32};
+  }
+
+  const ctrl: I8X16;
+}
+
 struct GroupPortableLoader {
   macro LoadGroup(ctrlPtr: intptr): GroupPortableImpl {
     return GroupPortableImpl{
       ctrl: LoadSwissNameDictionaryCtrlTableGroup(ctrlPtr)
     };
+  }
+}
+
+struct GroupSse2Loader {
+  macro LoadGroup(ctrlPtr: intptr): GroupSse2Impl {
+    return GroupSse2Impl{ctrl: Convert<I8X16>(LoadSimd128(ctrlPtr))};
   }
 }
 }

@@ -349,10 +349,28 @@ struct GroupPortableImpl {
 };
 
 // Determine which Group implementation SwissNameDictionary uses.
+#if defined(V8_ENABLE_SWISS_NAME_DICTIONARY) && DEBUG
+// TODO(v8:11388) If v8_enable_swiss_name_dictionary is enabled, we are supposed
+// to use SwissNameDictionary as the dictionary backing store. If we want to use
+// the SIMD version of SwissNameDictionary, that would require us to compile SSE
+// instructions into the snapshot that exceed the minimum requirements for V8
+// SSE support. Therefore, this fails a DCHECK. However, given the experimental
+// nature of v8_enable_swiss_name_dictionary mode, we only except this to be run
+// by developers/bots, that always have the necessary instructions. This means
+// that if v8_enable_swiss_name_dictionary is enabled and debug mode isn't, we
+// ignore the DCHECK that would fail in debug mode. However, if both
+// v8_enable_swiss_name_dictionary and debug mode are enabled, we must fallback
+// to the non-SSE implementation. Given that V8 requires SSE2, there should be a
+// solution that doesn't require the workaround present here. Instead, the
+// backend should only use SSE2 when compiling the SIMD version of
+// SwissNameDictionary into the builtin.
+using Group = GroupPortableImpl;
+#else
 #if SWISS_TABLE_HAVE_SSE2
 using Group = GroupSse2Impl;
 #else
 using Group = GroupPortableImpl;
+#endif
 #endif
 
 #undef SWISS_TABLE_HAVE_SSE2
