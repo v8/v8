@@ -34,19 +34,26 @@ void StressConcurrentAllocatorTask::RunInternal() {
     // Isolate tear down started, stop allocation...
     if (heap->gc_state() == Heap::TEAR_DOWN) return;
 
-    Address address = local_heap.AllocateRawOrFail(
+    AllocationResult result = local_heap.AllocateRaw(
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
         AllocationAlignment::kWordAligned);
-    heap->CreateFillerObjectAtBackground(
-        address, kSmallObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
+    if (!result.IsRetry()) {
+      heap->CreateFillerObjectAtBackground(
+          result.ToAddress(), kSmallObjectSize,
+          ClearFreedMemoryMode::kDontClearFreedMemory);
+    } else {
+      local_heap.TryPerformCollection();
+    }
 
-    AllocationResult result = local_heap.AllocateRaw(
-        kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
+    result = local_heap.AllocateRaw(kMediumObjectSize, AllocationType::kOld,
+                                    AllocationOrigin::kRuntime,
+                                    AllocationAlignment::kWordAligned);
     if (!result.IsRetry()) {
       heap->CreateFillerObjectAtBackground(
           result.ToAddress(), kMediumObjectSize,
           ClearFreedMemoryMode::kDontClearFreedMemory);
+    } else {
+      local_heap.TryPerformCollection();
     }
 
     result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
@@ -56,6 +63,8 @@ void StressConcurrentAllocatorTask::RunInternal() {
       heap->CreateFillerObjectAtBackground(
           result.ToAddress(), kLargeObjectSize,
           ClearFreedMemoryMode::kDontClearFreedMemory);
+    } else {
+      local_heap.TryPerformCollection();
     }
     local_heap.Safepoint();
   }
