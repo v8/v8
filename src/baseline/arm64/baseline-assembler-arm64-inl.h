@@ -23,6 +23,7 @@ class BaselineAssembler::ScratchRegisterScope {
       // If we haven't opened a scratch scope yet, for the first one add a
       // couple of extra registers.
       wrapped_scope_.Include(x14, x15);
+      wrapped_scope_.Include(x19);
     }
     assembler_->scratch_register_scope_ = this;
   }

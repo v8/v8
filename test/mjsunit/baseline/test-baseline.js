@@ -268,6 +268,19 @@ for (let val of gen) {
 }
 assertEquals(4, i);
 
+// Generator with a lot of locals
+let gen_func_with_a_lot_of_locals = eval(`(function*() {
+  ${ Array(32*1024).fill().map((x,i)=>`let local_${i};`).join("\n") }
+  yield 1;
+  yield 2;
+  yield 3;
+})`);
+i = 1;
+for (let val of run(gen_func_with_a_lot_of_locals)) {
+  assertEquals(i++, val);
+}
+assertEquals(4, i);
+
 // Async await
 run(async function() {
   await 1;
