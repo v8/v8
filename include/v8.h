@@ -2007,7 +2007,8 @@ class V8_EXPORT ScriptCompiler {
    *
    * Note that when producing cached data, the source must point to NULL for
    * cached data. When consuming cached data, the cached data must have been
-   * produced by the same version of V8.
+   * produced by the same version of V8, and the embedder needs to ensure the
+   * cached data is the correct one for the given script.
    *
    * \param source Script source code.
    * \return Compiled script object (context independent; for running it must be
