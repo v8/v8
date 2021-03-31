@@ -4984,12 +4984,6 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/write-barrier.h",
   ]
 
-  if (cppgc_is_standalone) {
-    sources += [ "//base/trace_event/common/trace_event_common.h" ]
-  } else {
-    deps = [ ":v8_tracing" ]
-  }
-
   if (cppgc_enable_caged_heap) {
     sources += [
       "src/heap/cppgc/caged-heap-local-data.cc",
@@ -5009,6 +5003,12 @@ v8_source_set("cppgc_base") {
     ":v8_libbase",
     ":v8_libplatform",
   ]
+
+  if (cppgc_is_standalone && !v8_use_perfetto) {
+    sources += [ "//base/trace_event/common/trace_event_common.h" ]
+  } else {
+    public_deps += [ ":v8_tracing" ]
+  }
 }
 
 v8_source_set("cppgc_base_for_testing") {
