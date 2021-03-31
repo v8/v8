@@ -326,8 +326,15 @@ class String : public TorqueGeneratedString<String, Name> {
   // The Isolate is passed as "evidence" that this call is on the main thread,
   // and to distiguish from the LocalIsolate overload.
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
-  inline bool IsEqualTo(Vector<const Char> str,
-                        Isolate* isolate = nullptr) const;
+  inline bool IsEqualTo(Vector<const Char> str, Isolate* isolate) const;
+
+  // Check if this string matches the given vector of characters, either as a
+  // whole string or just a prefix.
+  //
+  // This is main-thread only, like the Isolate* overload, but additionally
+  // computes the IsolateRoot for IsEqualToImpl.
+  template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
+  inline bool IsEqualTo(Vector<const Char> str) const;
 
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
@@ -539,7 +546,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // Implementation of the IsEqualTo() public methods. Do not use directly.
   template <EqualityType kEqType, typename Char>
   V8_INLINE bool IsEqualToImpl(
-      Vector<const Char> str,
+      Vector<const Char> str, IsolateRoot isolate,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(
