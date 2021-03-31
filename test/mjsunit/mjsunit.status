@@ -274,6 +274,7 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
   'baseline/*': [SKIP],
+  'regress/regress-chromium-1194026': [SKIP],
 
   # Unsuitable for GC stress because coverage information is lost on GC.
   'code-coverage-ad-hoc': [SKIP],
