@@ -2801,7 +2801,7 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 #if !V8_TARGET_ARCH_ARM64
 #if !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
@@ -2813,7 +2813,7 @@ void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

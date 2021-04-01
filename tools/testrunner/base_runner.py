@@ -647,9 +647,6 @@ class BaseTestRunner(object):
                                            '--no-enable-sse4_1'])
 
     # Set no_simd_sse on architectures without Simd enabled.
-    if self.build_config.arch == 'ppc64':
-       no_simd_sse = True
-
     if self.build_config.arch == 'mips64el' or \
        self.build_config.arch == 'mipsel':
        no_simd_sse = not simd_mips

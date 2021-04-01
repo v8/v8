@@ -2147,6 +2147,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 #define SIMD_TYPES(V) \
   V(F64x2)            \
   V(F32x4)            \
+  V(I64x2)            \
   V(I32x4)            \
   V(I16x8)            \
   V(I8x16)
@@ -2344,6 +2345,7 @@ SIMD_TYPES(SIMD_VISIT_SPLAT)
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
 SIMD_VISIT_EXTRACT_LANE(F32x4, )
+SIMD_VISIT_EXTRACT_LANE(I64x2, )
 SIMD_VISIT_EXTRACT_LANE(I32x4, )
 SIMD_VISIT_EXTRACT_LANE(I16x8, U)
 SIMD_VISIT_EXTRACT_LANE(I16x8, S)
@@ -2406,6 +2408,20 @@ SIMD_SHIFT_LIST(SIMD_VISIT_SHIFT)
 SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_VISIT_BOOL
 #undef SIMD_BOOL_LIST
+
+#define SIMD_VISIT_QFMOP(Opcode)                        \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    PPCOperandGenerator g(this);                        \
+    Emit(kPPC_##Opcode, g.DefineSameAsFirst(node),      \
+         g.UseUniqueRegister(node->InputAt(0)),         \
+         g.UseUniqueRegister(node->InputAt(1)),         \
+         g.UseRegister(node->InputAt(2)));              \
+  }
+SIMD_VISIT_QFMOP(F64x2Qfma)
+SIMD_VISIT_QFMOP(F64x2Qfms)
+SIMD_VISIT_QFMOP(F32x4Qfma)
+SIMD_VISIT_QFMOP(F32x4Qfms)
+#undef SIMD_VISIT_QFMOP
 
 #define SIMD_VISIT_BITMASK(Opcode)                                        \
   void InstructionSelector::Visit##Opcode(Node* node) {                   \

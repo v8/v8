@@ -31,7 +31,8 @@ namespace test_run_wasm_relaxed_simd {
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                        \
                              TestExecutionTier execution_tier)
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_PPC64
 // Only used for qfma and qfms tests below.
 
 // FMOperation holds the params (a, b, c) for a Multiply-Add or
@@ -118,9 +119,11 @@ bool ExpectFused(TestExecutionTier tier) {
           tier == TestExecutionTier::kLiftoff);
 #endif
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
+        // V8_TARGET_ARCH_PPC64
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_PPC64
 WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
   WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
   // Set up global to hold mask output.
@@ -216,7 +219,8 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
+        // V8_TARGET_ARCH_PPC64
 
 WASM_RELAXED_SIMD_TEST(F32x4RecipApprox) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipApprox,

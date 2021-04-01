@@ -54,7 +54,9 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
-bool CpuFeatures::SupportsWasmSimd128() { return false; }
+bool CpuFeatures::SupportsWasmSimd128() {
+  return CpuFeatures::IsSupported(SIMD);
+}
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
