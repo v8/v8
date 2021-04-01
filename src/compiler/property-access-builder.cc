@@ -157,7 +157,19 @@ Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
   base::Optional<ObjectRef> value =
       holder.GetOwnDictionaryProperty(access_info.dictionary_index());
 
-  for (const Handle<Map> map : access_info.lookup_start_object_maps()) {
+  for (Handle<Map> map : access_info.lookup_start_object_maps()) {
+    // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
+    // must have different lookup start map.
+    if (!map->IsJSReceiverMap()) {
+      // Perform the implicit ToObject for primitives here.
+      // Implemented according to ES6 section 7.3.2 GetV (V, P).
+      Handle<JSFunction> constructor =
+          Map::GetConstructorFunction(
+              map, broker()->target_native_context().object())
+              .ToHandleChecked();
+      map = handle(constructor->initial_map(), isolate());
+      DCHECK(map->IsJSObjectMap());
+    }
     dependencies()->DependOnConstantInDictionaryPrototypeChain(
         MapRef{broker(), map}, NameRef{broker(), access_info.name()},
         value.value(), PropertyKind::kData);
