@@ -2488,8 +2488,17 @@ void InstructionSelector::VisitS128Const(Node* node) {
   } else if (all_ones) {
     Emit(kPPC_S128AllOnes, dst);
   } else {
-    Emit(kPPC_S128Const, dst, g.UseImmediate(val[0]), g.UseImmediate(val[1]),
-         g.UseImmediate(val[2]), g.UseImmediate(val[3]));
+    // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
+    // Which in this case is ineffective on LE.
+    Emit(kPPC_S128Const, g.DefineAsRegister(node),
+         g.UseImmediate(
+             wasm::SimdShuffle::Pack4Lanes(reinterpret_cast<uint8_t*>(val))),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
+             reinterpret_cast<uint8_t*>(val) + 4)),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
+             reinterpret_cast<uint8_t*>(val) + 8)),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
+             reinterpret_cast<uint8_t*>(val) + 12)));
   }
 }
 
