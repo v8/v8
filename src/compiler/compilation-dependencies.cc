@@ -179,9 +179,11 @@ class ConstantInDictionaryPrototypeChainDependency final
         return ValidationResult::kFoundIncorrect;
       }
       if (kind_ == PropertyKind::kAccessor) {
+        if (!dictionary_value.IsAccessorPair()) {
+          return ValidationResult::kFoundIncorrect;
+        }
         // Only supporting loading at the moment, so we only ever want the
         // getter.
-        CHECK(dictionary_value.IsAccessorPair());
         value = AccessorPair::cast(dictionary_value)
                     .get(AccessorComponent::ACCESSOR_GETTER);
       } else {
