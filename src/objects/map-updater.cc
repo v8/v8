@@ -117,6 +117,10 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   DCHECK_EQ(kInitialized, state_);
   DCHECK(descriptor.is_found());
   DCHECK(!old_map_->is_dictionary_map());
+
+  base::SharedMutexGuard<base::kExclusive> mutex_guard(
+      isolate_->map_updater_access());
+
   modified_descriptor_ = descriptor;
   new_kind_ = kData;
   new_attributes_ = attributes;
@@ -200,6 +204,10 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
 
 Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
   DCHECK_EQ(kInitialized, state_);
+
+  base::SharedMutexGuard<base::kExclusive> mutex_guard(
+      isolate_->map_updater_access());
+
   new_elements_kind_ = elements_kind;
   is_transitionable_fast_elements_kind_ =
       IsTransitionableFastElementsKind(new_elements_kind_);
@@ -216,6 +224,9 @@ Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
 Handle<Map> MapUpdater::Update() {
   DCHECK_EQ(kInitialized, state_);
   DCHECK(old_map_->is_deprecated());
+
+  base::SharedMutexGuard<base::kExclusive> mutex_guard(
+      isolate_->map_updater_access());
 
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;

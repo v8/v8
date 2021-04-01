@@ -699,6 +699,10 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, AccessMode access_mode) const {
   CHECK(name->IsUniqueName());
 
+  base::SharedMutexGuardIf<base::kShared> mutex_guard(
+      isolate()->map_updater_access(), should_lock_mutex());
+  MapUpdaterMutexDepthScope mumd_scope(this);
+
   if (access_mode == AccessMode::kHas && !map->IsJSReceiverMap()) {
     return PropertyAccessInfo::Invalid(zone());
   }
