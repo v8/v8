@@ -2487,6 +2487,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ bind(&stack_overflow);
       {
         FrameScope frame(masm, StackFrame::MANUAL);
+        __ EnterFrame(StackFrame::INTERNAL);
         __ CallRuntime(Runtime::kThrowStackOverflow);
         __ int3();
       }
