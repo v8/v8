@@ -399,6 +399,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Concurrent inlining.
+      {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
     ],
   },
   'v8_linux64_msan_rel_ng_triggered': {
@@ -1189,6 +1191,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Concurrent inlining.
+      {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
     ],
   },
   'V8 Linux64 - debug - perfetto': {
@@ -1218,6 +1222,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
+      # Concurrent inlining.
+      {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
     ],
   },
   'V8 Linux64 - gcov coverage': {

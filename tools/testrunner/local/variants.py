@@ -13,6 +13,7 @@ ALL_VARIANT_FLAGS = {
   "infra_staging": [[]],
   "interpreted_regexp": [["--regexp-interpret-all"]],
   "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
+  "concurrent_inlining":  [["--concurrent-inlining"]],
   "jitless": [["--jitless"]],
   "sparkplug": [["--sparkplug"]],
   "always_sparkplug": [[ "--always-sparkplug" ]],

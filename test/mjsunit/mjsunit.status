@@ -1449,4 +1449,9 @@
   'regress/regress-779407': [SKIP],
 }],  # variant == experimental_regexp
 
+##############################################################################
+['variant == concurrent_inlining', {
+  'concurrent-initial-prototype-change-1': [SKIP],
+}],  # variant == concurrent_inlining
+
 ]
