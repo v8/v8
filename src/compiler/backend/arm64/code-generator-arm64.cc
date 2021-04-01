@@ -405,7 +405,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
 
  private:
   void GenerateCallToTrap(TrapId trap_id) {
-    if (trap_id == TrapId::kInvalid) {
+    if (!gen_->wasm_runtime_exception_support()) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
       __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(),
