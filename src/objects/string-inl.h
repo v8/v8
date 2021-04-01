@@ -9,6 +9,7 @@
 #include "src/common/external-pointer-inl.h"
 #include "src/common/external-pointer.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-utils.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/numbers/conversions-inl.h"
@@ -403,7 +404,8 @@ class SeqSubStringKey final : public StringTableKey {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*string_));
     DisallowGarbageCollection no_gc;
     return string.IsEqualTo<String::EqualityType::kNoLengthCheck>(
-        Vector<const Char>(string_->GetChars(no_gc) + from_, length()));
+        Vector<const Char>(string_->GetChars(no_gc) + from_, length()),
+        isolate);
   }
 
   Handle<String> AsHandle(Isolate* isolate) {
@@ -454,19 +456,26 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
 template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualTo(Vector<const Char> str, Isolate* isolate) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
-  return IsEqualToImpl<kEqType>(str,
+  return IsEqualToImpl<kEqType>(str, isolate,
+                                SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+template <String::EqualityType kEqType, typename Char>
+bool String::IsEqualTo(Vector<const Char> str) const {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return IsEqualToImpl<kEqType>(str, GetIsolateForPtrCompr(*this),
                                 SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualTo(Vector<const Char> str, LocalIsolate* isolate) const {
   SharedStringAccessGuardIfNeeded access_guard(isolate);
-  return IsEqualToImpl<kEqType>(str, access_guard);
+  return IsEqualToImpl<kEqType>(str, isolate, access_guard);
 }
 
 template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualToImpl(
-    Vector<const Char> str,
+    Vector<const Char> str, IsolateRoot isolate,
     const SharedStringAccessGuardIfNeeded& access_guard) const {
   size_t len = str.size();
   switch (kEqType) {
@@ -483,60 +492,85 @@ bool String::IsEqualToImpl(
 
   DisallowGarbageCollection no_gc;
 
-  class IsEqualToDispatcher : public AllStatic {
-   public:
-    static inline bool HandleSeqOneByteString(
-        SeqOneByteString str, const Char* data, size_t len,
-        const DisallowGarbageCollection& no_gc,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      return CompareCharsEqual(str.GetChars(no_gc, access_guard), data, len);
-    }
-    static inline bool HandleSeqTwoByteString(
-        SeqTwoByteString str, const Char* data, size_t len,
-        const DisallowGarbageCollection& no_gc,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      return CompareCharsEqual(str.GetChars(no_gc, access_guard), data, len);
-    }
-    static inline bool HandleExternalOneByteString(
-        ExternalOneByteString str, const Char* data, size_t len,
-        const DisallowGarbageCollection& no_gc,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      return CompareCharsEqual(str.GetChars(), data, len);
-    }
-    static inline bool HandleExternalTwoByteString(
-        ExternalTwoByteString str, const Char* data, size_t len,
-        const DisallowGarbageCollection& no_gc,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      return CompareCharsEqual(str.GetChars(), data, len);
-    }
-    static inline bool HandleConsString(
-        ConsString str, const Char* data, size_t len,
-        const DisallowGarbageCollection& no_gc,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      UNREACHABLE();
-    }
-    static inline bool HandleSlicedString(
-        SlicedString str, const Char* data, size_t len,
-        const DisallowGarbageCollection& no_gc,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      UNREACHABLE();
-    }
-    static inline bool HandleThinString(
-        ThinString str, const Char* data, size_t len,
-        const DisallowGarbageCollection& no_gc,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      UNREACHABLE();
-    }
-    static inline bool HandleInvalidString(
-        String str, const Char* data, size_t len,
-        const DisallowGarbageCollection& no_gc,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      UNREACHABLE();
-    }
-  };
+  int slice_offset = 0;
+  String string = *this;
+  const Char* data = str.data();
+  while (true) {
+    int32_t type = string.map(isolate).instance_type();
+    switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
+      case kSeqStringTag | kOneByteStringTag:
+        return CompareCharsEqual(
+            SeqOneByteString::cast(string).GetChars(no_gc, access_guard) +
+                slice_offset,
+            data, len);
+      case kSeqStringTag | kTwoByteStringTag:
+        return CompareCharsEqual(
+            SeqTwoByteString::cast(string).GetChars(no_gc, access_guard) +
+                slice_offset,
+            data, len);
+      case kExternalStringTag | kOneByteStringTag:
+        return CompareCharsEqual(
+            ExternalOneByteString::cast(string).GetChars() + slice_offset, data,
+            len);
+      case kExternalStringTag | kTwoByteStringTag:
+        return CompareCharsEqual(
+            ExternalTwoByteString::cast(string).GetChars() + slice_offset, data,
+            len);
 
-  return StringShape(*this).DispatchToSpecificType<IsEqualToDispatcher, bool>(
-      *this, str.data(), len, no_gc, access_guard);
+      case kSlicedStringTag | kOneByteStringTag:
+      case kSlicedStringTag | kTwoByteStringTag: {
+        SlicedString slicedString = SlicedString::cast(string);
+        slice_offset += slicedString.offset();
+        string = slicedString.parent(isolate);
+        continue;
+      }
+
+      case kConsStringTag | kOneByteStringTag:
+      case kConsStringTag | kTwoByteStringTag: {
+        // The ConsString path is more complex and rare, so call out to an
+        // out-of-line handler.
+        return IsConsStringEqualToImpl<Char>(
+            ConsString::cast(string), slice_offset, str, isolate, access_guard);
+      }
+
+      case kThinStringTag | kOneByteStringTag:
+      case kThinStringTag | kTwoByteStringTag:
+        string = ThinString::cast(string).actual(isolate);
+        continue;
+
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+// static
+template <typename Char>
+bool String::IsConsStringEqualToImpl(
+    ConsString string, int slice_offset, Vector<const Char> str,
+    IsolateRoot isolate, const SharedStringAccessGuardIfNeeded& access_guard) {
+  // Already checked the len in IsEqualToImpl. Check GE rather than EQ in case
+  // this is a prefix check.
+  DCHECK_GE(string.length(), str.size());
+
+  ConsStringIterator iter(ConsString::cast(string), slice_offset);
+  Vector<const Char> remaining_str = str;
+  for (String segment = iter.Next(&slice_offset); !segment.is_null();
+       segment = iter.Next(&slice_offset)) {
+    // Compare the individual segment against the appropriate subvector of the
+    // remaining string.
+    size_t len = std::min<size_t>(segment.length(), remaining_str.size());
+    Vector<const Char> sub_str = remaining_str.SubVector(0, len);
+    if (!segment.IsEqualToImpl<EqualityType::kNoLengthCheck>(sub_str, isolate,
+                                                             access_guard)) {
+      return false;
+    }
+    remaining_str += len;
+    if (remaining_str.empty()) break;
+  }
+  DCHECK_EQ(remaining_str.data(), str.end());
+  DCHECK_EQ(remaining_str.size(), 0);
+  return true;
 }
 
 bool String::IsOneByteEqualTo(Vector<const char> str) { return IsEqualTo(str); }
