@@ -84,7 +84,7 @@ luci.builder(
     },
     execution_timeout = 7200 * time.second,
     build_numbers = True,
-    service_account = "adhoc-testing@luci-token-server-dev.iam.gserviceaccount.com",
+    service_account = "v8-ci-builder-dev@chops-service-accounts.iam.gserviceaccount.com",
     triggered_by = ["v8-trigger"],
 )
 
@@ -101,4 +101,3 @@ luci.console_view_entry(
     console_view = "dev_image",
     builder = "V8 Win64 - dev image",
 )
-
