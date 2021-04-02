@@ -701,7 +701,8 @@ void Accessors::FunctionCallerGetter(
   MaybeHandle<JSFunction> maybe_caller;
   maybe_caller = FindCaller(isolate, function);
   Handle<JSFunction> caller;
-  if (maybe_caller.ToHandle(&caller)) {
+  // We don't support caller access with correctness fuzzing.
+  if (!FLAG_correctness_fuzzer_suppressions && maybe_caller.ToHandle(&caller)) {
     result = caller;
   } else {
     result = isolate->factory()->null_value();
