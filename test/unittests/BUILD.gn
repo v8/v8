@@ -10,7 +10,7 @@ if (is_fuchsia) {
   cr_fuchsia_package("v8_unittests_pkg") {
     testonly = true
     binary = ":unittests"
-    manifest = "//build/config/fuchsia/tests-with-exec.cmx"
+    manifest = "../../gni/v8.cmx"
     package_name_override = "v8_unittests"
   }
 
