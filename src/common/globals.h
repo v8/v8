@@ -1748,13 +1748,13 @@ enum class DynamicCheckMapsStatus : uint8_t {
 };
 
 #ifdef V8_COMPRESS_POINTERS
-class PtrComprCageBase {
+class IsolateRoot {
  public:
-  explicit constexpr PtrComprCageBase(Address address) : address_(address) {}
+  explicit constexpr IsolateRoot(Address address) : address_(address) {}
   // NOLINTNEXTLINE
-  inline PtrComprCageBase(const Isolate* isolate);
+  inline IsolateRoot(const Isolate* isolate);
   // NOLINTNEXTLINE
-  inline PtrComprCageBase(const LocalIsolate* isolate);
+  inline IsolateRoot(const LocalIsolate* isolate);
 
   inline Address address() const;
 
@@ -1762,13 +1762,13 @@ class PtrComprCageBase {
   Address address_;
 };
 #else
-class PtrComprCageBase {
+class IsolateRoot {
  public:
-  PtrComprCageBase() = default;
+  IsolateRoot() = default;
   // NOLINTNEXTLINE
-  PtrComprCageBase(const Isolate* isolate) {}
+  IsolateRoot(const Isolate* isolate) {}
   // NOLINTNEXTLINE
-  PtrComprCageBase(const LocalIsolate* isolate) {}
+  IsolateRoot(const LocalIsolate* isolate) {}
 };
 #endif
 

@@ -59,8 +59,8 @@ Address IsolateAllocator::InitReservation() {
   // Reserve a |4Gb + kIsolateRootBiasPageSize| region such as that the
   // resevation address plus |kIsolateRootBiasPageSize| is 4Gb aligned.
   const size_t reservation_size =
-      kPtrComprCageReservationSize + kIsolateRootBiasPageSize;
-  const size_t base_alignment = kPtrComprCageBaseAlignment;
+      kPtrComprHeapReservationSize + kIsolateRootBiasPageSize;
+  const size_t base_alignment = kPtrComprIsolateRootAlignment;
 
   const int kMaxAttempts = 4;
   for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
@@ -137,11 +137,11 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_reservation_address) {
       GetIsolateRootBiasPageSize(platform_page_allocator);
 
   Address isolate_root = heap_reservation_address + kIsolateRootBiasPageSize;
-  CHECK(IsAligned(isolate_root, kPtrComprCageBaseAlignment));
+  CHECK(IsAligned(isolate_root, kPtrComprIsolateRootAlignment));
 
   CHECK(reservation_.InVM(
       heap_reservation_address,
-      kPtrComprCageReservationSize + kIsolateRootBiasPageSize));
+      kPtrComprHeapReservationSize + kIsolateRootBiasPageSize));
 
   // Simplify BoundedPageAllocator's life by configuring it to use same page
   // size as the Heap will use (MemoryChunk::kPageSize).
@@ -149,7 +149,7 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_reservation_address) {
                              platform_page_allocator->AllocatePageSize());
 
   page_allocator_instance_ = std::make_unique<base::BoundedPageAllocator>(
-      platform_page_allocator, isolate_root, kPtrComprCageReservationSize,
+      platform_page_allocator, isolate_root, kPtrComprHeapReservationSize,
       page_size);
   page_allocator_ = page_allocator_instance_.get();
 

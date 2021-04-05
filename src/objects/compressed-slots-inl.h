@@ -33,9 +33,9 @@ Object CompressedObjectSlot::operator*() const {
   return Object(DecompressTaggedAny(address(), value));
 }
 
-Object CompressedObjectSlot::load(PtrComprCageBase cage_base) const {
+Object CompressedObjectSlot::load(IsolateRoot isolate) const {
   Tagged_t value = *location();
-  return Object(DecompressTaggedAny(cage_base, value));
+  return Object(DecompressTaggedAny(isolate, value));
 }
 
 void CompressedObjectSlot::store(Object value) const {
@@ -52,9 +52,9 @@ Object CompressedObjectSlot::Relaxed_Load() const {
   return Object(DecompressTaggedAny(address(), value));
 }
 
-Object CompressedObjectSlot::Relaxed_Load(PtrComprCageBase cage_base) const {
+Object CompressedObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
-  return Object(DecompressTaggedAny(cage_base, value));
+  return Object(DecompressTaggedAny(isolate, value));
 }
 
 void CompressedObjectSlot::Relaxed_Store(Object value) const {
@@ -85,9 +85,9 @@ MaybeObject CompressedMaybeObjectSlot::operator*() const {
   return MaybeObject(DecompressTaggedAny(address(), value));
 }
 
-MaybeObject CompressedMaybeObjectSlot::load(PtrComprCageBase cage_base) const {
+MaybeObject CompressedMaybeObjectSlot::load(IsolateRoot isolate) const {
   Tagged_t value = *location();
-  return MaybeObject(DecompressTaggedAny(cage_base, value));
+  return MaybeObject(DecompressTaggedAny(isolate, value));
 }
 
 void CompressedMaybeObjectSlot::store(MaybeObject value) const {
@@ -99,10 +99,9 @@ MaybeObject CompressedMaybeObjectSlot::Relaxed_Load() const {
   return MaybeObject(DecompressTaggedAny(address(), value));
 }
 
-MaybeObject CompressedMaybeObjectSlot::Relaxed_Load(
-    PtrComprCageBase cage_base) const {
+MaybeObject CompressedMaybeObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
-  return MaybeObject(DecompressTaggedAny(cage_base, value));
+  return MaybeObject(DecompressTaggedAny(isolate, value));
 }
 
 void CompressedMaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
@@ -126,10 +125,9 @@ HeapObjectReference CompressedHeapObjectSlot::operator*() const {
   return HeapObjectReference(DecompressTaggedPointer(address(), value));
 }
 
-HeapObjectReference CompressedHeapObjectSlot::load(
-    PtrComprCageBase cage_base) const {
+HeapObjectReference CompressedHeapObjectSlot::load(IsolateRoot isolate) const {
   Tagged_t value = *location();
-  return HeapObjectReference(DecompressTaggedPointer(cage_base, value));
+  return HeapObjectReference(DecompressTaggedPointer(isolate, value));
 }
 
 void CompressedHeapObjectSlot::store(HeapObjectReference value) const {
@@ -150,25 +148,23 @@ void CompressedHeapObjectSlot::StoreHeapObject(HeapObject value) const {
 // OffHeapCompressedObjectSlot implementation.
 //
 
-Object OffHeapCompressedObjectSlot::load(PtrComprCageBase cage_base) const {
+Object OffHeapCompressedObjectSlot::load(IsolateRoot isolate) const {
   Tagged_t value = *location();
-  return Object(DecompressTaggedAny(cage_base, value));
+  return Object(DecompressTaggedAny(isolate, value));
 }
 
 void OffHeapCompressedObjectSlot::store(Object value) const {
   *location() = CompressTagged(value.ptr());
 }
 
-Object OffHeapCompressedObjectSlot::Relaxed_Load(
-    PtrComprCageBase cage_base) const {
+Object OffHeapCompressedObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
-  return Object(DecompressTaggedAny(cage_base, value));
+  return Object(DecompressTaggedAny(isolate, value));
 }
 
-Object OffHeapCompressedObjectSlot::Acquire_Load(
-    PtrComprCageBase cage_base) const {
+Object OffHeapCompressedObjectSlot::Acquire_Load(IsolateRoot isolate) const {
   AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location());
-  return Object(DecompressTaggedAny(cage_base, value));
+  return Object(DecompressTaggedAny(isolate, value));
 }
 
 void OffHeapCompressedObjectSlot::Relaxed_Store(Object value) const {

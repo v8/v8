@@ -323,9 +323,9 @@ int Code::SizeIncludingMetadata() const {
 }
 
 ByteArray Code::unchecked_relocation_info() const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return ByteArray::unchecked_cast(
-      TaggedField<HeapObject, kRelocationInfoOffset>::load(cage_base, *this));
+      TaggedField<HeapObject, kRelocationInfoOffset>::load(isolate, *this));
 }
 
 byte* Code::relocation_start() const {

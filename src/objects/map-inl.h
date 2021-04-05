@@ -107,14 +107,14 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
 
 DEF_GETTER(Map, GetNamedInterceptor, InterceptorInfo) {
   DCHECK(has_named_interceptor());
-  FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
-  return InterceptorInfo::cast(info.GetNamedPropertyHandler(cage_base));
+  FunctionTemplateInfo info = GetFunctionTemplateInfo(isolate);
+  return InterceptorInfo::cast(info.GetNamedPropertyHandler(isolate));
 }
 
 DEF_GETTER(Map, GetIndexedInterceptor, InterceptorInfo) {
   DCHECK(has_indexed_interceptor());
-  FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
-  return InterceptorInfo::cast(info.GetIndexedPropertyHandler(cage_base));
+  FunctionTemplateInfo info = GetFunctionTemplateInfo(isolate);
+  return InterceptorInfo::cast(info.GetIndexedPropertyHandler(isolate));
 }
 
 bool Map::IsMostGeneralFieldType(Representation representation,
@@ -657,18 +657,19 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 #endif
 }
 
-bool Map::ConcurrentIsMap(PtrComprCageBase cage_base,
-                          const Object& object) const {
-  return object.IsHeapObject() && HeapObject::cast(object).map(cage_base) ==
-                                      GetReadOnlyRoots(cage_base).meta_map();
+bool Map::ConcurrentIsMap(IsolateRoot isolate, const Object& object) const {
+  return object.IsHeapObject() && HeapObject::cast(object).map(isolate) ==
+                                      GetReadOnlyRoots(isolate).meta_map();
 }
 
 DEF_GETTER(Map, GetBackPointer, HeapObject) {
-  Object object = constructor_or_back_pointer(cage_base);
-  if (ConcurrentIsMap(cage_base, object)) {
+  Object object = constructor_or_back_pointer(isolate);
+  if (ConcurrentIsMap(isolate, object)) {
     return Map::cast(object);
   }
-  return GetReadOnlyRoots(cage_base).undefined_value();
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  return GetReadOnlyRoots(isolate).undefined_value();
 }
 
 void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
@@ -708,11 +709,11 @@ bool Map::IsPrototypeValidityCellValid() const {
 }
 
 DEF_GETTER(Map, GetConstructor, Object) {
-  Object maybe_constructor = constructor_or_back_pointer(cage_base);
+  Object maybe_constructor = constructor_or_back_pointer(isolate);
   // Follow any back pointers.
-  while (ConcurrentIsMap(cage_base, maybe_constructor)) {
+  while (ConcurrentIsMap(isolate, maybe_constructor)) {
     maybe_constructor =
-        Map::cast(maybe_constructor).constructor_or_back_pointer(cage_base);
+        Map::cast(maybe_constructor).constructor_or_back_pointer(isolate);
   }
   return maybe_constructor;
 }
@@ -729,13 +730,13 @@ Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
 }
 
 DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
-  Object constructor = GetConstructor(cage_base);
-  if (constructor.IsJSFunction(cage_base)) {
+  Object constructor = GetConstructor(isolate);
+  if (constructor.IsJSFunction(isolate)) {
     // TODO(ishell): IsApiFunction(isolate) and get_api_func_data(isolate)
-    DCHECK(JSFunction::cast(constructor).shared(cage_base).IsApiFunction());
-    return JSFunction::cast(constructor).shared(cage_base).get_api_func_data();
+    DCHECK(JSFunction::cast(constructor).shared(isolate).IsApiFunction());
+    return JSFunction::cast(constructor).shared(isolate).get_api_func_data();
   }
-  DCHECK(constructor.IsFunctionTemplateInfo(cage_base));
+  DCHECK(constructor.IsFunctionTemplateInfo(isolate));
   return FunctionTemplateInfo::cast(constructor);
 }
 
@@ -790,7 +791,7 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
 }
 
 DEF_GETTER(HeapObject, IsNormalizedMapCache, bool) {
-  if (!IsWeakFixedArray(cage_base)) return false;
+  if (!IsWeakFixedArray(isolate)) return false;
   if (WeakFixedArray::cast(*this).length() != NormalizedMapCache::kEntries) {
     return false;
   }

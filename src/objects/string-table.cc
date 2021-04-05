@@ -91,15 +91,15 @@ bool KeyIsMatch(LocalIsolate* isolate, StringTableKey* key, String string) {
 class StringTable::Data {
  public:
   static std::unique_ptr<Data> New(int capacity);
-  static std::unique_ptr<Data> Resize(PtrComprCageBase cage_base,
+  static std::unique_ptr<Data> Resize(IsolateRoot isolate,
                                       std::unique_ptr<Data> data, int capacity);
 
   OffHeapObjectSlot slot(InternalIndex index) const {
     return OffHeapObjectSlot(&elements_[index.as_uint32()]);
   }
 
-  Object Get(PtrComprCageBase cage_base, InternalIndex index) const {
-    return slot(index).Acquire_Load(cage_base);
+  Object Get(IsolateRoot isolate, InternalIndex index) const {
+    return slot(index).Acquire_Load(isolate);
   }
 
   void Set(InternalIndex index, String entry) {
@@ -139,8 +139,7 @@ class StringTable::Data {
   InternalIndex FindEntry(LocalIsolate* isolate, StringTableKey* key,
                           uint32_t hash) const;
 
-  InternalIndex FindInsertionEntry(PtrComprCageBase cage_base,
-                                   uint32_t hash) const;
+  InternalIndex FindInsertionEntry(IsolateRoot isolate, uint32_t hash) const;
 
   template <typename LocalIsolate, typename StringTableKey>
   InternalIndex FindEntryOrInsertionEntry(LocalIsolate* isolate,
@@ -158,7 +157,7 @@ class StringTable::Data {
   Data* PreviousData() { return previous_data_.get(); }
   void DropPreviousData() { previous_data_.reset(); }
 
-  void Print(PtrComprCageBase cage_base) const;
+  void Print(IsolateRoot isolate) const;
   size_t GetCurrentMemoryUsage() const;
 
  private:
@@ -225,7 +224,7 @@ std::unique_ptr<StringTable::Data> StringTable::Data::New(int capacity) {
 }
 
 std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
-    PtrComprCageBase cage_base, std::unique_ptr<Data> data, int capacity) {
+    IsolateRoot isolate, std::unique_ptr<Data> data, int capacity) {
   std::unique_ptr<Data> new_data(new (capacity) Data(capacity));
 
   DCHECK_LT(data->number_of_elements(), new_data->capacity());
@@ -235,12 +234,11 @@ std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
 
   // Rehash the elements.
   for (InternalIndex i : InternalIndex::Range(data->capacity())) {
-    Object element = data->Get(cage_base, i);
+    Object element = data->Get(isolate, i);
     if (element == empty_element() || element == deleted_element()) continue;
     String string = String::cast(element);
     uint32_t hash = string.hash();
-    InternalIndex insertion_index =
-        new_data->FindInsertionEntry(cage_base, hash);
+    InternalIndex insertion_index = new_data->FindInsertionEntry(isolate, hash);
     new_data->Set(insertion_index, string);
   }
   new_data->number_of_elements_ = data->number_of_elements();
@@ -267,7 +265,7 @@ InternalIndex StringTable::Data::FindEntry(LocalIsolate* isolate,
   }
 }
 
-InternalIndex StringTable::Data::FindInsertionEntry(PtrComprCageBase cage_base,
+InternalIndex StringTable::Data::FindInsertionEntry(IsolateRoot isolate,
                                                     uint32_t hash) const {
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
@@ -275,7 +273,7 @@ InternalIndex StringTable::Data::FindInsertionEntry(PtrComprCageBase cage_base,
        entry = NextProbe(entry, count++, capacity_)) {
     // TODO(leszeks): Consider delaying the decompression until after the
     // comparisons against empty/deleted.
-    Object element = Get(cage_base, entry);
+    Object element = Get(isolate, entry);
     if (element == empty_element() || element == deleted_element())
       return entry;
   }
@@ -316,12 +314,11 @@ void StringTable::Data::IterateElements(RootVisitor* visitor) {
   visitor->VisitRootPointers(Root::kStringTable, nullptr, first_slot, end_slot);
 }
 
-void StringTable::Data::Print(PtrComprCageBase cage_base) const {
+void StringTable::Data::Print(IsolateRoot isolate) const {
   OFStream os(stdout);
   os << "StringTable {" << std::endl;
   for (InternalIndex i : InternalIndex::Range(capacity_)) {
-    os << "  " << i.as_uint32() << ": " << Brief(Get(cage_base, i))
-       << std::endl;
+    os << "  " << i.as_uint32() << ": " << Brief(Get(isolate, i)) << std::endl;
   }
   os << "}" << std::endl;
 }
@@ -533,7 +530,7 @@ template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                StringTableInsertionKey* key);
 
-StringTable::Data* StringTable::EnsureCapacity(PtrComprCageBase cage_base,
+StringTable::Data* StringTable::EnsureCapacity(IsolateRoot isolate,
                                                int additional_elements) {
   // This call is only allowed while the write mutex is held.
   write_mutex_.AssertHeld();
@@ -563,7 +560,7 @@ StringTable::Data* StringTable::EnsureCapacity(PtrComprCageBase cage_base,
 
   if (new_capacity != -1) {
     std::unique_ptr<Data> new_data =
-        Data::Resize(cage_base, std::unique_ptr<Data>(data), new_capacity);
+        Data::Resize(isolate, std::unique_ptr<Data>(data), new_capacity);
     // `new_data` is the new owner of `data`.
     DCHECK_EQ(new_data->PreviousData(), data);
     // Release-store the new data pointer as `data_`, so that it can be
@@ -672,8 +669,8 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
       isolate, string, source, start);
 }
 
-void StringTable::Print(PtrComprCageBase cage_base) const {
-  data_.load(std::memory_order_acquire)->Print(cage_base);
+void StringTable::Print(IsolateRoot isolate) const {
+  data_.load(std::memory_order_acquire)->Print(isolate);
 }
 
 size_t StringTable::GetCurrentMemoryUsage() const {

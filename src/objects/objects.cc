@@ -5567,8 +5567,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
-                                       Derived new_table) {
+void HashTable<Derived, Shape>::Rehash(IsolateRoot isolate, Derived new_table) {
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = new_table.GetWriteBarrierMode(no_gc);
 
@@ -5576,21 +5575,21 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
 
   // Copy prefix to new array.
   for (int i = kPrefixStartIndex; i < kElementsStartIndex; i++) {
-    new_table.set(i, get(cage_base, i), mode);
+    new_table.set(i, get(isolate, i), mode);
   }
 
   // Rehash the elements.
-  ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
+  ReadOnlyRoots roots = GetReadOnlyRoots(isolate);
   for (InternalIndex i : this->IterateEntries()) {
     uint32_t from_index = EntryToIndex(i);
-    Object k = this->get(cage_base, from_index);
+    Object k = this->get(isolate, from_index);
     if (!IsKey(roots, k)) continue;
     uint32_t hash = Shape::HashForObject(roots, k);
     uint32_t insertion_index =
-        EntryToIndex(new_table.FindInsertionEntry(cage_base, roots, hash));
-    new_table.set_key(insertion_index, get(cage_base, from_index), mode);
+        EntryToIndex(new_table.FindInsertionEntry(isolate, roots, hash));
+    new_table.set_key(insertion_index, get(isolate, from_index), mode);
     for (int j = 1; j < Shape::kEntrySize; j++) {
-      new_table.set(insertion_index + j, get(cage_base, from_index + j), mode);
+      new_table.set(insertion_index + j, get(isolate, from_index + j), mode);
     }
   }
   new_table.SetNumberOfElements(NumberOfElements());
@@ -5632,10 +5631,10 @@ void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
+void HashTable<Derived, Shape>::Rehash(IsolateRoot isolate) {
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
-  ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
+  ReadOnlyRoots roots = GetReadOnlyRoots(isolate);
   uint32_t capacity = Capacity();
   bool done = false;
   for (int probe = 1; !done; probe++) {
@@ -5644,7 +5643,7 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
     done = true;
     for (InternalIndex current(0); current.raw_value() < capacity;
          /* {current} is advanced manually below, when appropriate.*/) {
-      Object current_key = KeyAt(cage_base, current);
+      Object current_key = KeyAt(isolate, current);
       if (!IsKey(roots, current_key)) {
         ++current;  // Advance to next entry.
         continue;
@@ -5654,7 +5653,7 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
         ++current;  // Advance to next entry.
         continue;
       }
-      Object target_key = KeyAt(cage_base, target);
+      Object target_key = KeyAt(isolate, target);
       if (!IsKey(roots, target_key) ||
           EntryForProbe(roots, target_key, probe, target) != target) {
         // Put the current element into the correct position.
@@ -5674,7 +5673,7 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
   HeapObject undefined = roots.undefined_value();
   Derived* self = static_cast<Derived*>(this);
   for (InternalIndex current : InternalIndex::Range(capacity)) {
-    if (KeyAt(cage_base, current) == the_hole) {
+    if (KeyAt(isolate, current) == the_hole) {
       self->set_key(EntryToIndex(current) + kEntryKeyIndex, undefined,
                     SKIP_WRITE_BARRIER);
     }
@@ -5765,14 +5764,15 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
 }
 
 template <typename Derived, typename Shape>
-InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(
-    PtrComprCageBase cage_base, ReadOnlyRoots roots, uint32_t hash) {
+InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateRoot isolate,
+                                                            ReadOnlyRoots roots,
+                                                            uint32_t hash) {
   uint32_t capacity = Capacity();
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {
-    if (!IsKey(roots, KeyAt(cage_base, entry))) return entry;
+    if (!IsKey(roots, KeyAt(isolate, entry))) return entry;
   }
 }
 
@@ -6080,14 +6080,14 @@ void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
 }
 
 template <typename Derived, typename Shape>
-Object ObjectHashTableBase<Derived, Shape>::Lookup(PtrComprCageBase cage_base,
+Object ObjectHashTableBase<Derived, Shape>::Lookup(IsolateRoot isolate,
                                                    Handle<Object> key,
                                                    int32_t hash) {
   DisallowGarbageCollection no_gc;
-  ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
+  ReadOnlyRoots roots = this->GetReadOnlyRoots(isolate);
   DCHECK(this->IsKey(roots, *key));
 
-  InternalIndex entry = this->FindEntry(cage_base, roots, key, hash);
+  InternalIndex entry = this->FindEntry(isolate, roots, key, hash);
   if (entry.is_not_found()) return roots.the_hole_value();
   return this->get(Derived::EntryToIndex(entry) + 1);
 }
@@ -6096,8 +6096,8 @@ template <typename Derived, typename Shape>
 Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
   DisallowGarbageCollection no_gc;
 
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
+  ReadOnlyRoots roots = this->GetReadOnlyRoots(isolate);
   DCHECK(this->IsKey(roots, *key));
 
   // If the object does not have an identity hash, it was never used as a key.
@@ -6105,13 +6105,13 @@ Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
   if (hash.IsUndefined(roots)) {
     return roots.the_hole_value();
   }
-  return Lookup(cage_base, key, Smi::ToInt(hash));
+  return Lookup(isolate, key, Smi::ToInt(hash));
 }
 
 template <typename Derived, typename Shape>
 Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key,
                                                    int32_t hash) {
-  return Lookup(GetPtrComprCageBase(*this), key, hash);
+  return Lookup(GetIsolateForPtrCompr(*this), key, hash);
 }
 
 template <typename Derived, typename Shape>

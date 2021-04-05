@@ -210,62 +210,63 @@ ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, HeapObject,
                   kPrototypeOrInitialMapOffset, map().has_prototype_slot())
 
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {
-  return map(cage_base).has_prototype_slot();
+  return map(isolate).has_prototype_slot();
 }
 
 DEF_GETTER(JSFunction, initial_map, Map) {
-  return Map::cast(prototype_or_initial_map(cage_base));
+  return Map::cast(prototype_or_initial_map(isolate));
 }
 
 DEF_GETTER(JSFunction, has_initial_map, bool) {
-  DCHECK(has_prototype_slot(cage_base));
-  return prototype_or_initial_map(cage_base).IsMap(cage_base);
+  DCHECK(has_prototype_slot(isolate));
+  return prototype_or_initial_map(isolate).IsMap(isolate);
 }
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {
-  DCHECK(has_prototype_slot(cage_base));
-  return has_initial_map(cage_base) ||
-         !prototype_or_initial_map(cage_base).IsTheHole(
-             GetReadOnlyRoots(cage_base));
+  DCHECK(has_prototype_slot(isolate));
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  return has_initial_map(isolate) ||
+         !prototype_or_initial_map(isolate).IsTheHole(
+             GetReadOnlyRoots(isolate));
 }
 
 DEF_GETTER(JSFunction, has_prototype, bool) {
-  DCHECK(has_prototype_slot(cage_base));
-  return map(cage_base).has_non_instance_prototype() ||
-         has_instance_prototype(cage_base);
+  DCHECK(has_prototype_slot(isolate));
+  return map(isolate).has_non_instance_prototype() ||
+         has_instance_prototype(isolate);
 }
 
 DEF_GETTER(JSFunction, has_prototype_property, bool) {
-  return (has_prototype_slot(cage_base) && IsConstructor(cage_base)) ||
-         IsGeneratorFunction(shared(cage_base).kind());
+  return (has_prototype_slot(isolate) && IsConstructor(isolate)) ||
+         IsGeneratorFunction(shared(isolate).kind());
 }
 
 DEF_GETTER(JSFunction, PrototypeRequiresRuntimeLookup, bool) {
-  return !has_prototype_property(cage_base) ||
-         map(cage_base).has_non_instance_prototype();
+  return !has_prototype_property(isolate) ||
+         map(isolate).has_non_instance_prototype();
 }
 
 DEF_GETTER(JSFunction, instance_prototype, HeapObject) {
-  DCHECK(has_instance_prototype(cage_base));
-  if (has_initial_map(cage_base))
-    return initial_map(cage_base).prototype(cage_base);
+  DCHECK(has_instance_prototype(isolate));
+  if (has_initial_map(isolate)) return initial_map(isolate).prototype(isolate);
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
-  return HeapObject::cast(prototype_or_initial_map(cage_base));
+  return HeapObject::cast(prototype_or_initial_map(isolate));
 }
 
 DEF_GETTER(JSFunction, prototype, Object) {
-  DCHECK(has_prototype(cage_base));
+  DCHECK(has_prototype(isolate));
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
-  if (map(cage_base).has_non_instance_prototype()) {
-    Object prototype = map(cage_base).GetConstructor(cage_base);
+  if (map(isolate).has_non_instance_prototype()) {
+    Object prototype = map(isolate).GetConstructor(isolate);
     // The map must have a prototype in that field, not a back pointer.
-    DCHECK(!prototype.IsMap(cage_base));
-    DCHECK(!prototype.IsFunctionTemplateInfo(cage_base));
+    DCHECK(!prototype.IsMap(isolate));
+    DCHECK(!prototype.IsFunctionTemplateInfo(isolate));
     return prototype;
   }
-  return instance_prototype(cage_base);
+  return instance_prototype(isolate);
 }
 
 bool JSFunction::is_compiled() const {

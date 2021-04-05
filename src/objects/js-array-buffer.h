@@ -300,7 +300,7 @@ class JSTypedArray
   // as Tagged_t value and an |external_pointer| value.
   // For full-pointer mode the compensation value is zero.
   static inline Address ExternalPointerCompensationForOnHeapArray(
-      PtrComprCageBase cage_base);
+      IsolateRoot isolate);
 
   //
   // Serializer/deserializer support.

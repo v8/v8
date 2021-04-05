@@ -1289,7 +1289,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
 bool String::HasOneBytePrefix(Vector<const char> str) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return IsEqualToImpl<EqualityType::kPrefix>(
-      str, GetPtrComprCageBase(*this),
+      str, GetIsolateForPtrCompr(*this),
       SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
