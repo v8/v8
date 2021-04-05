@@ -1275,7 +1275,8 @@ int TranslatedState::CreateNextTranslatedValue(
 
 Address TranslatedState::DecompressIfNeeded(intptr_t value) {
   if (COMPRESS_POINTERS_BOOL) {
-    return DecompressTaggedAny(isolate(), static_cast<uint32_t>(value));
+    return DecompressTaggedAny(isolate()->isolate_root(),
+                               static_cast<uint32_t>(value));
   } else {
     return value;
   }

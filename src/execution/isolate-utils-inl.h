@@ -13,28 +13,18 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-
-// Aliases for GetPtrComprCageBase when
-// V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE. Each Isolate has its own cage, whose
-// base address is also the Isolate root.
-V8_INLINE constexpr Address GetIsolateRootAddress(Address on_heap_addr) {
-  return GetPtrComprCageBaseAddress(on_heap_addr);
-}
-
-V8_INLINE Address GetIsolateRootAddress(PtrComprCageBase cage_base) {
-  return cage_base.address();
-}
-
+inline constexpr IsolateRoot GetIsolateForPtrComprFromOnHeapAddress(
+    Address address) {
+#ifdef V8_COMPRESS_POINTERS
+  return IsolateRoot(GetIsolateRootAddress(address));
 #else
-
-V8_INLINE Address GetIsolateRootAddress(Address on_heap_addr) { UNREACHABLE(); }
-
-V8_INLINE Address GetIsolateRootAddress(PtrComprCageBase cage_base) {
-  UNREACHABLE();
+  return IsolateRoot();
+#endif  // V8_COMPRESS_POINTERS
 }
 
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+inline IsolateRoot GetIsolateForPtrCompr(HeapObject object) {
+  return GetIsolateForPtrComprFromOnHeapAddress(object.ptr());
+}
 
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
   // Avoid using the below GetIsolateFromWritableObject because we want to be
@@ -42,7 +32,7 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 
 #if defined V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object)->heap();
-#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#elif defined V8_COMPRESS_POINTERS
   Isolate* isolate =
       Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);
@@ -57,7 +47,7 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
-#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#elif defined V8_COMPRESS_POINTERS
   Isolate* isolate =
       Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);

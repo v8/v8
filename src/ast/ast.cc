@@ -661,7 +661,7 @@ void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
           boilerplate_descriptor_kind(),
           GetMoreGeneralElementsKind(boilerplate_descriptor_kind(),
                                      boilerplate_value.OptimalElementsKind(
-                                         GetPtrComprCageBase(*elements))));
+                                         GetIsolateForPtrCompr(*elements))));
 
       FixedArray::cast(*elements).set(array_index, boilerplate_value);
     }

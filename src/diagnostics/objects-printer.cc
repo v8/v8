@@ -468,13 +468,13 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
 }
 
-void PrintEmbedderData(PtrComprCageBase cage_base, std::ostream& os,
+void PrintEmbedderData(IsolateRoot isolate, std::ostream& os,
                        EmbedderDataSlot slot) {
   DisallowGarbageCollection no_gc;
   Object value = slot.load_tagged();
   os << Brief(value);
   void* raw_pointer;
-  if (slot.ToAlignedPointer(cage_base, &raw_pointer)) {
+  if (slot.ToAlignedPointer(isolate, &raw_pointer)) {
     os << ", aligned pointer: " << raw_pointer;
   }
 }
@@ -579,11 +579,11 @@ static void JSObjectPrintBody(std::ostream& os,
   }
   int embedder_fields = obj.GetEmbedderFieldCount();
   if (embedder_fields > 0) {
-    PtrComprCageBase cage_base = GetPtrComprCageBase(obj);
+    IsolateRoot isolate = GetIsolateForPtrCompr(obj);
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
-      PrintEmbedderData(cage_base, os, EmbedderDataSlot(obj, i));
+      PrintEmbedderData(isolate, os, EmbedderDataSlot(obj, i));
     }
     os << "\n }\n";
   }
@@ -762,14 +762,14 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
 }
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
   EmbedderDataSlot start(*this, 0);
   EmbedderDataSlot end(*this, length());
   for (EmbedderDataSlot slot = start; slot < end; ++slot) {
     os << "\n    ";
-    PrintEmbedderData(cage_base, os, slot);
+    PrintEmbedderData(isolate, os, slot);
   }
   os << "\n";
 }
@@ -2747,11 +2747,12 @@ namespace {
 inline i::Object GetObjectFromRaw(void* object) {
   i::Address object_ptr = reinterpret_cast<i::Address>(object);
 #ifdef V8_COMPRESS_POINTERS
-  if (RoundDown<i::kPtrComprCageBaseAlignment>(object_ptr) == i::kNullAddress) {
+  if (RoundDown<i::kPtrComprIsolateRootAlignment>(object_ptr) ==
+      i::kNullAddress) {
     // Try to decompress pointer.
     i::Isolate* isolate = i::Isolate::Current();
-    object_ptr =
-        i::DecompressTaggedAny(isolate, static_cast<i::Tagged_t>(object_ptr));
+    object_ptr = i::DecompressTaggedAny(isolate->isolate_root(),
+                                        static_cast<i::Tagged_t>(object_ptr));
   }
 #endif
   return i::Object(object_ptr);
