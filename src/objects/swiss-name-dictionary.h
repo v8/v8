@@ -306,7 +306,8 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   inline ctrl_t GetCtrl(int entry);
 
   inline Object LoadFromDataTable(int entry, int data_offset);
-  inline Object LoadFromDataTable(IsolateRoot root, int entry, int data_offset);
+  inline Object LoadFromDataTable(PtrComprCageBase cage_base, int entry,
+                                  int data_offset);
   inline void StoreToDataTable(int entry, int data_offset, Object data);
   inline void StoreToDataTableNoBarrier(int entry, int data_offset,
                                         Object data);

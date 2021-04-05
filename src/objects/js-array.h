@@ -32,7 +32,7 @@ class JSArray : public JSObject {
   // acquire/release semantics ever become necessary, the default setter should
   // be reverted to non-atomic behavior, and setters with explicit tags
   // introduced and used when required.
-  Object length(IsolateRoot isolate, AcquireLoadTag tag) const = delete;
+  Object length(PtrComprCageBase cage_base, AcquireLoadTag tag) const = delete;
   void set_length(Object value, ReleaseStoreTag tag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 

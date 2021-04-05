@@ -325,11 +325,11 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(JSReceiver)
 
-bool JSObject::ElementsAreSafeToExamine(IsolateRoot isolate) const {
+bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  return elements(isolate) !=
-         GetReadOnlyRoots(isolate).one_pointer_filler_map();
+  return elements(cage_base) !=
+         GetReadOnlyRoots(cage_base).one_pointer_filler_map();
 }
 
 namespace {

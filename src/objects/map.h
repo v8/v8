@@ -943,7 +943,7 @@ class Map : public HeapObject {
 
   // This is the equivalent of IsMap() but avoids reading the instance type so
   // it can be used concurrently without acquire load.
-  V8_INLINE bool ConcurrentIsMap(IsolateRoot isolate,
+  V8_INLINE bool ConcurrentIsMap(PtrComprCageBase cage_base,
                                  const Object& object) const;
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
@@ -976,7 +976,8 @@ class NormalizedMapCache : public WeakFixedArray {
   DECL_VERIFIER(NormalizedMapCache)
 
  private:
-  friend bool HeapObject::IsNormalizedMapCache(IsolateRoot isolate) const;
+  friend bool HeapObject::IsNormalizedMapCache(
+      PtrComprCageBase cage_base) const;
 
   static const int kEntries = 64;
 

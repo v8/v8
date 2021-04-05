@@ -219,15 +219,15 @@ InternalIndex SwissNameDictionary::FindEntry(LocalIsolate* isolate,
 }
 
 Object SwissNameDictionary::LoadFromDataTable(int entry, int data_offset) {
-  return LoadFromDataTable(GetIsolateForPtrCompr(*this), entry, data_offset);
+  return LoadFromDataTable(GetPtrComprCageBase(*this), entry, data_offset);
 }
 
-Object SwissNameDictionary::LoadFromDataTable(IsolateRoot isolate, int entry,
-                                              int data_offset) {
+Object SwissNameDictionary::LoadFromDataTable(PtrComprCageBase cage_base,
+                                              int entry, int data_offset) {
   DCHECK_LT(static_cast<unsigned>(entry), static_cast<unsigned>(Capacity()));
   int offset = DataTableStartOffset() +
                (entry * kDataTableEntryCount + data_offset) * kTaggedSize;
-  return TaggedField<Object>::Relaxed_Load(isolate, *this, offset);
+  return TaggedField<Object>::Relaxed_Load(cage_base, *this, offset);
 }
 
 void SwissNameDictionary::StoreToDataTable(int entry, int data_offset,
