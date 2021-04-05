@@ -184,7 +184,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '6412f1c994903392c6c6a7795b33e2d77dc9abb2',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3d2081b50b203dbd2faafeb925e6791462475f68',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -256,7 +256,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'afd983d9ecb1479a206bb6b617767b4dbf7f2b6e',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e9b86a1f25c13a300aeae99c5701e9096fc741c4',
   'tools/luci-go': {
       'packages': [
         {
