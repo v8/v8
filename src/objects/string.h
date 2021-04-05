@@ -332,7 +332,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // whole string or just a prefix.
   //
   // This is main-thread only, like the Isolate* overload, but additionally
-  // computes the IsolateRoot for IsEqualToImpl.
+  // computes the PtrComprCageBase for IsEqualToImpl.
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
   inline bool IsEqualTo(Vector<const Char> str) const;
 
@@ -546,14 +546,15 @@ class String : public TorqueGeneratedString<String, Name> {
   // Implementation of the IsEqualTo() public methods. Do not use directly.
   template <EqualityType kEqType, typename Char>
   V8_INLINE bool IsEqualToImpl(
-      Vector<const Char> str, IsolateRoot isolate,
+      Vector<const Char> str, PtrComprCageBase cage_base,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // Out-of-line IsEqualToImpl for ConsString.
   template <typename Char>
   V8_NOINLINE static bool IsConsStringEqualToImpl(
       ConsString string, int slice_offset, Vector<const Char> str,
-      IsolateRoot isolate, const SharedStringAccessGuardIfNeeded& access_guard);
+      PtrComprCageBase cage_base,
+      const SharedStringAccessGuardIfNeeded& access_guard);
 
   V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(
       Isolate* isolate, Handle<ConsString> cons, AllocationType allocation);

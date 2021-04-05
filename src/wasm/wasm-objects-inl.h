@@ -59,13 +59,13 @@ CAST_ACCESSOR(WasmTypeInfo)
 CAST_ACCESSOR(WasmStruct)
 CAST_ACCESSOR(WasmArray)
 
-#define OPTIONAL_ACCESSORS(holder, name, type, offset)                \
-  DEF_GETTER(holder, has_##name, bool) {                              \
-    Object value = TaggedField<Object, offset>::load(isolate, *this); \
-    return !value.IsUndefined(GetReadOnlyRoots(isolate));             \
-  }                                                                   \
-  ACCESSORS_CHECKED2(holder, name, type, offset,                      \
-                     !value.IsUndefined(GetReadOnlyRoots(isolate)), true)
+#define OPTIONAL_ACCESSORS(holder, name, type, offset)                  \
+  DEF_GETTER(holder, has_##name, bool) {                                \
+    Object value = TaggedField<Object, offset>::load(cage_base, *this); \
+    return !value.IsUndefined(GetReadOnlyRoots(cage_base));             \
+  }                                                                     \
+  ACCESSORS_CHECKED2(holder, name, type, offset,                        \
+                     !value.IsUndefined(GetReadOnlyRoots(cage_base)), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \
   type holder::name() const {                                                 \
@@ -460,6 +460,12 @@ int WasmArray::GcSafeSizeFor(Map map, int length) {
 
 void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
 #ifdef V8_HEAP_SANDBOX
+
+  // TODO(syg): V8_HEAP_SANDBOX doesn't work with pointer cage
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#error "V8_HEAP_SANDBOX requires per-Isolate pointer compression cage"
+#endif
+
   // Due to the type-specific pointer tags for external pointers, we need to
   // allocate an entry in the table here even though it will just store nullptr.
   AllocateExternalPointerEntries(isolate);

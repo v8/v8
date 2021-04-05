@@ -319,7 +319,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // acquire/release semantics ever become necessary, the default setter should
   // be reverted to non-atomic behavior, and setters with explicit tags
   // introduced and used when required.
-  FixedArrayBase elements(IsolateRoot isolate,
+  FixedArrayBase elements(PtrComprCageBase cage_base,
                           AcquireLoadTag tag) const = delete;
   void set_elements(FixedArrayBase value, ReleaseStoreTag tag,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
@@ -652,7 +652,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
+  inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
+                                  FieldIndex index) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Object value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -742,7 +743,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(IsolateRoot isolate) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(
+      PtrComprCageBase cage_base) const;
 #endif
 
   Object SlowReverseLookup(Object value);

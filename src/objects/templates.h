@@ -92,7 +92,7 @@ class FunctionTemplateInfo
 
   // TODO(nicohartmann@, v8:11122): Let Torque generate the following accessor.
   inline HeapObject rare_data(AcquireLoadTag) const;
-  inline HeapObject rare_data(IsolateRoot isolate, AcquireLoadTag) const;
+  inline HeapObject rare_data(PtrComprCageBase cage_base, AcquireLoadTag) const;
   inline void set_rare_data(
       HeapObject value, ReleaseStoreTag,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);

@@ -4223,8 +4223,9 @@ void CppClassGenerator::GenerateFieldAccessors(
   hdr_ << "  inline " << type_name << " " << name << "("
        << (indexed ? "int i" : "") << ") const;\n";
   if (can_contain_heap_objects) {
-    hdr_ << "  inline " << type_name << " " << name << "(IsolateRoot isolate"
-         << (indexed ? ", int i" : "") << ") const;\n";
+    hdr_ << "  inline " << type_name << " " << name
+         << "(PtrComprCageBase cage_base" << (indexed ? ", int i" : "")
+         << ") const;\n";
   }
   hdr_ << "  inline void set_" << name << "(" << (indexed ? "int i, " : "")
        << type_name << " value"
@@ -4233,14 +4234,14 @@ void CppClassGenerator::GenerateFieldAccessors(
                : "")
        << ");\n\n";
 
-  // For tagged data, generate the extra getter that derives an IsolateRoot from
-  // the current object's pointer.
+  // For tagged data, generate the extra getter that derives an PtrComprCageBase
+  // from the current object's pointer.
   if (can_contain_heap_objects) {
     inl_ << "template <class D, class P>\n";
     inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "("
          << (indexed ? "int i" : "") << ") const {\n";
-    inl_ << "  IsolateRoot isolate = GetIsolateForPtrCompr(*this);\n";
-    inl_ << "  return " << gen_name_ << "::" << name << "(isolate"
+    inl_ << "  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);\n";
+    inl_ << "  return " << gen_name_ << "::" << name << "(cage_base"
          << (indexed ? ", i" : "") << ");\n";
     inl_ << "}\n";
   }
@@ -4248,7 +4249,7 @@ void CppClassGenerator::GenerateFieldAccessors(
   // Generate the getter implementation.
   inl_ << "template <class D, class P>\n";
   inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "(";
-  if (can_contain_heap_objects) inl_ << "IsolateRoot isolate";
+  if (can_contain_heap_objects) inl_ << "PtrComprCageBase cage_base";
   if (can_contain_heap_objects && indexed) inl_ << ", ";
   if (indexed) inl_ << "int i";
   inl_ << ") const {\n";
@@ -4361,10 +4362,11 @@ void CppClassGenerator::EmitLoadFieldStatement(
     bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
     const std::string load_type = is_smi ? "Smi" : type_name;
     const char* postfix = is_smi ? ".value()" : "";
-    const char* optional_isolate = is_smi ? "" : "isolate, ";
+    const char* optional_cage_base = is_smi ? "" : "cage_base, ";
 
     inl_ << "TaggedField<" << load_type << ">::" << load << "("
-         << optional_isolate << "*this, " << offset << ")" << postfix << ";\n";
+         << optional_cage_base << "*this, " << offset << ")" << postfix
+         << ";\n";
   }
 
   if (CanContainHeapObjects(field_type)) {

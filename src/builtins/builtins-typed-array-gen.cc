@@ -370,14 +370,14 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<IntPtrT> full_base = Signed(BitcastTaggedToWord(base));
     TNode<Int32T> compressed_base = TruncateIntPtrToInt32(full_base);
     // TODO(v8:9706): Add a way to directly use kRootRegister value.
-    TNode<IntPtrT> isolate_root =
+    TNode<IntPtrT> ptr_compr_cage_base =
         IntPtrSub(full_base, Signed(ChangeUint32ToWord(compressed_base)));
     // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
     DCHECK_EQ(
         isolate()->isolate_root(),
         JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));
     // See JSTypedArray::SetOnHeapDataPtr() for details.
-    offset = Unsigned(IntPtrAdd(offset, isolate_root));
+    offset = Unsigned(IntPtrAdd(offset, ptr_compr_cage_base));
   }
 
   StoreJSTypedArrayBasePointer(holder, base);

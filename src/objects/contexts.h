@@ -422,13 +422,14 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;
-  V8_INLINE Object get(IsolateRoot isolate, int index) const;
+  V8_INLINE Object get(PtrComprCageBase cage_base, int index) const;
   V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
   // Setter and getter with synchronization semantics.
   V8_INLINE Object synchronized_get(int index) const;
-  V8_INLINE Object synchronized_get(IsolateRoot isolate, int index) const;
+  V8_INLINE Object synchronized_get(PtrComprCageBase cage_base,
+                                    int index) const;
   V8_INLINE void synchronized_set(int index, Object value);
 
   static const int kScopeInfoOffset = kElementsOffset;

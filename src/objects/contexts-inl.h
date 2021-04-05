@@ -56,8 +56,8 @@ NEVER_READ_ONLY_SPACE_IMPL(Context)
 CAST_ACCESSOR(NativeContext)
 
 V8_INLINE Object Context::get(int index) const { return elements(index); }
-V8_INLINE Object Context::get(IsolateRoot isolate, int index) const {
-  return elements(isolate, index);
+V8_INLINE Object Context::get(PtrComprCageBase cage_base, int index) const {
+  return elements(cage_base, index);
 }
 V8_INLINE void Context::set(int index, Object value) {
   set_elements(index, value);
@@ -71,11 +71,11 @@ void Context::set_scope_info(ScopeInfo scope_info, WriteBarrierMode mode) {
 }
 
 Object Context::synchronized_get(int index) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return synchronized_get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return synchronized_get(cage_base, index);
 }
 
-Object Context::synchronized_get(IsolateRoot isolate, int index) const {
+Object Context::synchronized_get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(this->length()));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
@@ -243,7 +243,7 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
 
 DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
   return reinterpret_cast<MicrotaskQueue*>(ReadExternalPointerField(
-      kMicrotaskQueueOffset, isolate, kNativeContextMicrotaskQueueTag));
+      kMicrotaskQueueOffset, cage_base, kNativeContextMicrotaskQueueTag));
 }
 
 void NativeContext::AllocateExternalPointerEntries(Isolate* isolate) {

@@ -45,13 +45,13 @@ RELEASE_ACQUIRE_ACCESSORS(FunctionTemplateInfo, call_code, HeapObject,
 
 // TODO(nicohartmann@, v8:11122): Let Torque generate this accessor.
 HeapObject FunctionTemplateInfo::rare_data(AcquireLoadTag) const {
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return rare_data(isolate, kAcquireLoad);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return rare_data(cage_base, kAcquireLoad);
 }
-HeapObject FunctionTemplateInfo::rare_data(IsolateRoot isolate,
+HeapObject FunctionTemplateInfo::rare_data(PtrComprCageBase cage_base,
                                            AcquireLoadTag) const {
   HeapObject value =
-      TaggedField<HeapObject>::Acquire_Load(isolate, *this, kRareDataOffset);
+      TaggedField<HeapObject>::Acquire_Load(cage_base, *this, kRareDataOffset);
   DCHECK(value.IsUndefined() || value.IsFunctionTemplateRareData());
   return value;
 }
@@ -75,8 +75,8 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
 
 #define RARE_ACCESSORS(Name, CamelName, Type, Default)                        \
   DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Type) {                    \
-    HeapObject extra = rare_data(isolate, kAcquireLoad);                      \
-    HeapObject undefined = GetReadOnlyRoots(isolate).undefined_value();       \
+    HeapObject extra = rare_data(cage_base, kAcquireLoad);                    \
+    HeapObject undefined = GetReadOnlyRoots(cage_base).undefined_value();     \
     return extra == undefined ? Default                                       \
                               : FunctionTemplateRareData::cast(extra).Name(); \
   }                                                                           \

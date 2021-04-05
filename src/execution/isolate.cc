@@ -2861,8 +2861,8 @@ Isolate* Isolate::New() {
   // Construct Isolate object in the allocated memory.
   void* isolate_ptr = isolate_allocator->isolate_memory();
   Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
-#ifdef V8_COMPRESS_POINTERS
-  DCHECK(IsAligned(isolate->isolate_root(), kPtrComprIsolateRootAlignment));
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  DCHECK(IsAligned(isolate->isolate_root(), kPtrComprCageBaseAlignment));
 #endif
 
 #ifdef DEBUG
