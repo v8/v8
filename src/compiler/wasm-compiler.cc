@@ -4533,13 +4533,6 @@ void WasmGraphBuilder::LowerInt64(CallOrigin origin) {
   LowerInt64(CreateMachineSignature(mcgraph()->zone(), sig_, origin));
 }
 
-void WasmGraphBuilder::SimdScalarLoweringForTesting() {
-  SimdScalarLowering(
-      mcgraph(), gasm_->simplified(),
-      CreateMachineSignature(mcgraph()->zone(), sig_, kCalledFromWasm))
-      .LowerGraph();
-}
-
 void WasmGraphBuilder::SetSourcePosition(Node* node,
                                          wasm::WasmCodePosition position) {
   DCHECK_NE(position, wasm::kNoCodePosition);

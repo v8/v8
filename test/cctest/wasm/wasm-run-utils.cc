@@ -379,9 +379,6 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
           result.error().message().c_str());
   }
   builder->LowerInt64(compiler::WasmGraphBuilder::kCalledFromWasm);
-  if (!CpuFeatures::SupportsWasmSimd128()) {
-    builder->SimdScalarLoweringForTesting();
-  }
 }
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,

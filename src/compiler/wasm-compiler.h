@@ -408,8 +408,6 @@ class WasmGraphBuilder {
   V8_EXPORT_PRIVATE void LowerInt64(Signature<MachineRepresentation>* sig);
   V8_EXPORT_PRIVATE void LowerInt64(CallOrigin origin);
 
-  V8_EXPORT_PRIVATE void SimdScalarLoweringForTesting();
-
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
   Node* S128Zero();
