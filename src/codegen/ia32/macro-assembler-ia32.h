@@ -301,93 +301,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-// Instructions whose SSE and AVX take the same number and type of operands.
-#define AVX_OP3_WITH_TYPE(macro_name, name, dst_type, src1_type, src2_type) \
-  void macro_name(dst_type dst, src1_type src1, src2_type src2) {           \
-    if (CpuFeatures::IsSupported(AVX)) {                                    \
-      CpuFeatureScope scope(this, AVX);                                     \
-      v##name(dst, src1, src2);                                             \
-    } else {                                                                \
-      name(dst, src1, src2);                                                \
-    }                                                                       \
-  }
-  AVX_OP3_WITH_TYPE(Pshufhw, pshufhw, XMMRegister, Operand, uint8_t)
-  AVX_OP3_WITH_TYPE(Pshufhw, pshufhw, XMMRegister, XMMRegister, uint8_t)
-  AVX_OP3_WITH_TYPE(Pshuflw, pshuflw, XMMRegister, Operand, uint8_t)
-  AVX_OP3_WITH_TYPE(Pshuflw, pshuflw, XMMRegister, XMMRegister, uint8_t)
-  AVX_OP3_WITH_TYPE(Pshufd, pshufd, XMMRegister, Operand, uint8_t)
-  AVX_OP3_WITH_TYPE(Pshufd, pshufd, XMMRegister, XMMRegister, uint8_t)
-#undef AVX_OP3_WITH_TYPE
-
-// Same as AVX_OP3_WITH_TYPE above but with SSE scope.
-#define AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, dst_type, src1_type, \
-                                src2_type, sse_scope)                  \
-  void macro_name(dst_type dst, src1_type src1, src2_type src2) {      \
-    if (CpuFeatures::IsSupported(AVX)) {                               \
-      CpuFeatureScope scope(this, AVX);                                \
-      v##name(dst, src1, src2);                                        \
-    } else {                                                           \
-      CpuFeatureScope scope(this, sse_scope);                          \
-      name(dst, src1, src2);                                           \
-    }                                                                  \
-  }
-  AVX_OP3_WITH_TYPE_SCOPE(Pextrb, pextrb, Operand, XMMRegister, uint8_t, SSE4_1)
-  AVX_OP3_WITH_TYPE_SCOPE(Pextrb, pextrb, Register, XMMRegister, uint8_t,
-                          SSE4_1)
-  AVX_OP3_WITH_TYPE_SCOPE(Pextrw, pextrw, Operand, XMMRegister, uint8_t, SSE4_1)
-  AVX_OP3_WITH_TYPE_SCOPE(Pextrw, pextrw, Register, XMMRegister, uint8_t,
-                          SSE4_1)
-  AVX_OP3_WITH_TYPE_SCOPE(Roundps, roundps, XMMRegister, XMMRegister,
-                          RoundingMode, SSE4_1)
-  AVX_OP3_WITH_TYPE_SCOPE(Roundpd, roundpd, XMMRegister, XMMRegister,
-                          RoundingMode, SSE4_1)
-#undef AVX_OP3_WITH_TYPE_SCOPE
-
-// SSE/SSE2 instructions with AVX version.
-#define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
-  void macro_name(dst_type dst, src_type src) {                 \
-    if (CpuFeatures::IsSupported(AVX)) {                        \
-      CpuFeatureScope scope(this, AVX);                         \
-      v##name(dst, src);                                        \
-    } else {                                                    \
-      name(dst, src);                                           \
-    }                                                           \
-  }
-
-  AVX_OP2_WITH_TYPE(Movsd, movsd, Operand, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movsd, movsd, XMMRegister, Operand)
-  AVX_OP2_WITH_TYPE(Rcpps, rcpps, XMMRegister, const Operand&)
-  AVX_OP2_WITH_TYPE(Rsqrtps, rsqrtps, XMMRegister, const Operand&)
-  AVX_OP2_WITH_TYPE(Movdqu, movdqu, XMMRegister, Operand)
-  AVX_OP2_WITH_TYPE(Movdqu, movdqu, Operand, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Register)
-  AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Operand)
-  AVX_OP2_WITH_TYPE(Movd, movd, Register, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
-  AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
-  AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Cvtdq2pd, cvtdq2pd, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Cvtps2pd, cvtps2pd, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Cvtpd2ps, cvtpd2ps, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Cvttps2dq, cvttps2dq, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Sqrtps, sqrtps, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, const Operand&)
-  AVX_OP2_WITH_TYPE(Movaps, movaps, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movups, movups, XMMRegister, Operand)
-  AVX_OP2_WITH_TYPE(Movups, movups, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movups, movups, Operand, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, const Operand&)
-  AVX_OP2_WITH_TYPE(Movupd, movupd, XMMRegister, const Operand&)
-  AVX_OP2_WITH_TYPE(Pmovmskb, pmovmskb, Register, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movmskpd, movmskpd, Register, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movmskps, movmskps, Register, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movlps, movlps, Operand, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movhps, movhps, Operand, XMMRegister)
-
-#undef AVX_OP2_WITH_TYPE
-
 // Only use these macros when non-destructive source of AVX version is not
 // needed.
 #define AVX_OP3_WITH_TYPE(macro_name, name, dst_type, src_type) \
@@ -629,6 +542,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
+
+  // TODO(zhin): Remove after moving more definitions into SharedTurboAssembler.
+  void Movlps(Operand dst, XMMRegister src) {
+    SharedTurboAssembler::Movlps(dst, src);
+  }
+  void Movhps(Operand dst, XMMRegister src) {
+    SharedTurboAssembler::Movhps(dst, src);
+  }
 
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, dst, src); }
   void Pshufb(XMMRegister dst, Operand src) { Pshufb(dst, dst, src); }

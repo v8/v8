@@ -2917,21 +2917,21 @@ void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
-  Pshuflw(dst.fp(), dst.fp(), 0);
-  Pshufd(dst.fp(), dst.fp(), 0);
+  Pshuflw(dst.fp(), dst.fp(), uint8_t{0});
+  Pshufd(dst.fp(), dst.fp(), uint8_t{0});
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
-  Pshufd(dst.fp(), dst.fp(), 0);
+  Pshufd(dst.fp(), dst.fp(), uint8_t{0});
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Pinsrd(dst.fp(), src.low_gp(), 0);
   Pinsrd(dst.fp(), src.high_gp(), 1);
-  Pshufd(dst.fp(), dst.fp(), 0x44);
+  Pshufd(dst.fp(), dst.fp(), uint8_t{0x44});
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -3419,7 +3419,7 @@ void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
   uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
   mov(tmp, mask);
   Movd(liftoff::kScratchDoubleReg, tmp);
-  Pshufd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, 0);
+  Pshufd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, uint8_t{0});
   Pand(dst.fp(), liftoff::kScratchDoubleReg);
 }
 

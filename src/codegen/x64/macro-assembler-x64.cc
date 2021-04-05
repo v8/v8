@@ -739,35 +739,6 @@ void TurboAssembler::Movdqa(XMMRegister dst, XMMRegister src) {
   }
 }
 
-void TurboAssembler::Movapd(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vmovapd(dst, src);
-  } else {
-    // On SSE, movaps is 1 byte shorter than movapd, and has the same behavior.
-    movaps(dst, src);
-  }
-}
-
-template <typename Dst, typename Src>
-void TurboAssembler::Movdqu(Dst dst, Src src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vmovdqu(dst, src);
-  } else {
-    // movups is 1 byte shorter than movdqu. On most SSE systems, this incurs
-    // no delay moving between integer and floating-point domain.
-    movups(dst, src);
-  }
-}
-
-template void TurboAssembler::Movdqu<XMMRegister, Operand>(XMMRegister dst,
-                                                           Operand src);
-template void TurboAssembler::Movdqu<Operand, XMMRegister>(Operand dst,
-                                                           XMMRegister src);
-template void TurboAssembler::Movdqu<XMMRegister, XMMRegister>(XMMRegister dst,
-                                                               XMMRegister src);
-
 void TurboAssembler::Cvtss2sd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

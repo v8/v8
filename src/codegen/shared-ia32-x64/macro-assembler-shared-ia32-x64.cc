@@ -18,6 +18,17 @@
 namespace v8 {
 namespace internal {
 
+void SharedTurboAssembler::Movapd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vmovapd(dst, src);
+  } else {
+    // On SSE, movaps is 1 byte shorter than movapd, and has the same
+    // behavior.
+    movaps(dst, src);
+  }
+}
+
 void SharedTurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
                                            uint8_t laneidx) {
   if (laneidx == 0) {

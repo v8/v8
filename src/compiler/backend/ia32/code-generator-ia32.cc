@@ -2143,7 +2143,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       __ Pinsrd(dst, i.InputRegister(0), 0);
       __ Pinsrd(dst, i.InputOperand(1), 1);
-      __ Pshufd(dst, dst, 0x44);
+      __ Pshufd(dst, dst, uint8_t{0x44});
       break;
     }
     case kIA32I64x2ReplaceLaneI32Pair: {
@@ -2561,7 +2561,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
-      __ Pshufd(dst, dst, 0x0);
+      __ Pshufd(dst, dst, uint8_t{0x0});
       break;
     }
     case kIA32I32x4ExtractLane: {
@@ -2874,13 +2874,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I16x8Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
-      __ Pshuflw(dst, dst, 0x0);
-      __ Pshufd(dst, dst, 0x0);
+      __ Pshuflw(dst, dst, uint8_t{0x0});
+      __ Pshufd(dst, dst, uint8_t{0x0});
       break;
     }
     case kIA32I16x8ExtractLaneS: {
       Register dst = i.OutputRegister();
-      __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrw(dst, i.InputSimd128Register(0), i.InputUint8(1));
       __ movsx_w(dst, dst);
       break;
     }
@@ -3192,7 +3192,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16ExtractLaneS: {
       Register dst = i.OutputRegister();
-      __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
       __ movsx_b(dst, dst);
       break;
     }
@@ -3238,7 +3238,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputUint8(index + 1));
       } else {
         Register dst = i.OutputRegister();
-        __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+        __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
       }
       break;
     }
@@ -3250,7 +3250,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputUint8(index + 1));
       } else {
         Register dst = i.OutputRegister();
-        __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+        __ Pextrw(dst, i.InputSimd128Register(0), i.InputUint8(1));
       }
       break;
     }
@@ -3299,7 +3299,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
         __ mov(tmp, mask);
         __ Movd(tmp_simd, tmp);
-        __ Pshufd(tmp_simd, tmp_simd, 0);
+        __ Pshufd(tmp_simd, tmp_simd, uint8_t{0});
         __ Pand(dst, tmp_simd);
       } else {
         // Take shift value modulo 8.
@@ -3459,7 +3459,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
         __ mov(tmp, mask);
         __ Movd(tmp_simd, tmp);
-        __ Pshufd(tmp_simd, tmp_simd, 0);
+        __ Pshufd(tmp_simd, tmp_simd, uint8_t{0});
         __ Pand(dst, tmp_simd);
       } else {
         // Unpack the bytes into words, do logical shifts, and repack.
@@ -3730,12 +3730,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32S32x4Swizzle: {
       DCHECK_EQ(2, instr->InputCount());
-      __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), i.InputInt8(1));
+      __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), i.InputUint8(1));
       break;
     }
     case kIA32S32x4Shuffle: {
       DCHECK_EQ(4, instr->InputCount());  // Swizzles should be handled above.
-      int8_t shuffle = i.InputInt8(2);
+      uint8_t shuffle = i.InputUint8(2);
       DCHECK_NE(0xe4, shuffle);  // A simple blend should be handled below.
       __ Pshufd(kScratchDoubleReg, i.InputOperand(1), shuffle);
       __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), shuffle);
@@ -3747,16 +3747,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIA32S16x8HalfShuffle1: {
       XMMRegister dst = i.OutputSimd128Register();
-      __ Pshuflw(dst, i.InputOperand(0), i.InputInt8(1));
-      __ Pshufhw(dst, dst, i.InputInt8(2));
+      __ Pshuflw(dst, i.InputOperand(0), i.InputUint8(1));
+      __ Pshufhw(dst, dst, i.InputUint8(2));
       break;
     }
     case kIA32S16x8HalfShuffle2: {
       XMMRegister dst = i.OutputSimd128Register();
-      __ Pshuflw(kScratchDoubleReg, i.InputOperand(1), i.InputInt8(2));
-      __ Pshufhw(kScratchDoubleReg, kScratchDoubleReg, i.InputInt8(3));
-      __ Pshuflw(dst, i.InputOperand(0), i.InputInt8(2));
-      __ Pshufhw(dst, dst, i.InputInt8(3));
+      __ Pshuflw(kScratchDoubleReg, i.InputOperand(1), i.InputUint8(2));
+      __ Pshufhw(kScratchDoubleReg, kScratchDoubleReg, i.InputUint8(3));
+      __ Pshuflw(dst, i.InputOperand(0), i.InputUint8(2));
+      __ Pshufhw(dst, dst, i.InputUint8(3));
       __ Pblendw(dst, kScratchDoubleReg, i.InputInt8(4));
       break;
     }
@@ -3766,22 +3766,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32S16x8Dup: {
       XMMRegister dst = i.OutputSimd128Register();
       Operand src = i.InputOperand(0);
-      int8_t lane = i.InputInt8(1) & 0x7;
-      int8_t lane4 = lane & 0x3;
-      int8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
+      uint8_t lane = i.InputUint8(1) & 0x7;
+      uint8_t lane4 = lane & 0x3;
+      uint8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
       if (lane < 4) {
         __ Pshuflw(dst, src, half_dup);
-        __ Pshufd(dst, dst, 0);
+        __ Pshufd(dst, dst, uint8_t{0});
       } else {
         __ Pshufhw(dst, src, half_dup);
-        __ Pshufd(dst, dst, 0xaa);
+        __ Pshufd(dst, dst, uint8_t{0xaa});
       }
       break;
     }
     case kIA32S8x16Dup: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
-      int8_t lane = i.InputInt8(1) & 0xf;
+      uint8_t lane = i.InputUint8(1) & 0xf;
       if (CpuFeatures::IsSupported(AVX)) {
         CpuFeatureScope avx_scope(tasm(), AVX);
         if (lane < 8) {
@@ -3798,14 +3798,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       }
       lane &= 0x7;
-      int8_t lane4 = lane & 0x3;
-      int8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
+      uint8_t lane4 = lane & 0x3;
+      uint8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
       if (lane < 4) {
         __ Pshuflw(dst, dst, half_dup);
-        __ Pshufd(dst, dst, 0);
+        __ Pshufd(dst, dst, uint8_t{0});
       } else {
         __ Pshufhw(dst, dst, half_dup);
-        __ Pshufd(dst, dst, 0xaa);
+        __ Pshufd(dst, dst, uint8_t{0xaa});
       }
       break;
     }

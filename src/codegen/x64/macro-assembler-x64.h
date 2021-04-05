@@ -68,17 +68,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Orps, orps)
   AVX_OP(Xorps, xorps)
   AVX_OP(Xorpd, xorpd)
-  AVX_OP(Movd, movd)
   AVX_OP(Movq, movq)
-  AVX_OP(Movaps, movaps)
-  AVX_OP(Movups, movups)
-  AVX_OP(Movmskps, movmskps)
-  AVX_OP(Movmskpd, movmskpd)
-  AVX_OP(Pmovmskb, pmovmskb)
-  AVX_OP(Movsd, movsd)
   AVX_OP(Movhlps, movhlps)
-  AVX_OP(Movlps, movlps)
-  AVX_OP(Movhps, movhps)
   AVX_OP(Pcmpeqb, pcmpeqb)
   AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pcmpeqd, pcmpeqd)
@@ -110,9 +101,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Cmpnlepd, cmpnlepd)
   AVX_OP(Sqrtss, sqrtss)
   AVX_OP(Sqrtsd, sqrtsd)
-  AVX_OP(Sqrtps, sqrtps)
-  AVX_OP(Sqrtpd, sqrtpd)
-  AVX_OP(Cvttps2dq, cvttps2dq)
   AVX_OP(Cvttpd2dq, cvttpd2dq)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
@@ -155,18 +143,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Divpd, divpd)
   AVX_OP(Maxps, maxps)
   AVX_OP(Maxpd, maxpd)
-  AVX_OP(Cvtdq2ps, cvtdq2ps)
-  AVX_OP(Cvtdq2pd, cvtdq2pd)
-  AVX_OP(Cvtpd2ps, cvtpd2ps)
-  AVX_OP(Cvtps2pd, cvtps2pd)
-  AVX_OP(Rcpps, rcpps)
-  AVX_OP(Rsqrtps, rsqrtps)
   AVX_OP(Addps, addps)
   AVX_OP(Subps, subps)
   AVX_OP(Mulps, mulps)
   AVX_OP(Divps, divps)
-  AVX_OP(Pshuflw, pshuflw)
-  AVX_OP(Pshufhw, pshufhw)
   AVX_OP(Packsswb, packsswb)
   AVX_OP(Packuswb, packuswb)
   AVX_OP(Packssdw, packssdw)
@@ -178,7 +158,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Punpckhdq, punpckhdq)
   AVX_OP(Punpcklqdq, punpcklqdq)
   AVX_OP(Punpckhqdq, punpckhqdq)
-  AVX_OP(Pshufd, pshufd)
   AVX_OP(Cmpps, cmpps)
   AVX_OP(Cmppd, cmppd)
   AVX_OP(Movlhps, movlhps)
@@ -214,11 +193,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP_SSE4_1(Pmovsxdq, pmovsxdq)
   AVX_OP_SSE4_1(Pmovzxwd, pmovzxwd)
   AVX_OP_SSE4_1(Pmovzxdq, pmovzxdq)
-  AVX_OP_SSE4_1(Pextrb, pextrb)
-  AVX_OP_SSE4_1(Pextrw, pextrw)
   AVX_OP_SSE4_1(Pextrq, pextrq)
-  AVX_OP_SSE4_1(Roundps, roundps)
-  AVX_OP_SSE4_1(Roundpd, roundpd)
   AVX_OP_SSE4_1(Roundss, roundss)
   AVX_OP_SSE4_1(Roundsd, roundsd)
   AVX_OP_SSE4_2(Pcmpgtq, pcmpgtq)
@@ -285,12 +260,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
-  void Movapd(XMMRegister dst, XMMRegister src);
   void Movdqa(XMMRegister dst, Operand src);
   void Movdqa(XMMRegister dst, XMMRegister src);
-
-  template <typename Dst, typename Src>
-  void Movdqu(Dst dst, Src src);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
   void Cvtss2sd(XMMRegister dst, Operand src);

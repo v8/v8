@@ -25,6 +25,20 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
+  void Movapd(XMMRegister dst, XMMRegister src);
+
+  template <typename Dst, typename Src>
+  void Movdqu(Dst dst, Src src) {
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      vmovdqu(dst, src);
+    } else {
+      // movups is 1 byte shorter than movdqu. On most SSE systems, this incurs
+      // no delay moving between integer and floating-point domain.
+      movups(dst, src);
+    }
+  }
+
   template <typename Dst, typename... Args>
   struct AvxHelper {
     Assembler* assm;
@@ -98,11 +112,37 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
         .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
   }
 
-  AVX_OP(Pmullw, pmullw)
+  AVX_OP(Cvtdq2pd, cvtdq2pd)
+  AVX_OP(Cvtdq2ps, cvtdq2ps)
+  AVX_OP(Cvtps2pd, cvtps2pd)
+  AVX_OP(Cvtpd2ps, cvtpd2ps)
+  AVX_OP(Cvttps2dq, cvttps2dq)
+  AVX_OP(Movaps, movaps)
+  AVX_OP(Movd, movd)
+  AVX_OP(Movhps, movhps)
+  AVX_OP(Movlps, movlps)
+  AVX_OP(Movmskpd, movmskpd)
+  AVX_OP(Movmskps, movmskps)
   AVX_OP(Movss, movss)
+  AVX_OP(Movsd, movsd)
+  AVX_OP(Movupd, movupd)
+  AVX_OP(Movups, movups)
+  AVX_OP(Pmovmskb, pmovmskb)
+  AVX_OP(Pmullw, pmullw)
+  AVX_OP(Pshuflw, pshuflw)
+  AVX_OP(Pshufhw, pshufhw)
+  AVX_OP(Pshufd, pshufd)
+  AVX_OP(Rcpps, rcpps)
+  AVX_OP(Rsqrtps, rsqrtps)
+  AVX_OP(Sqrtps, sqrtps)
+  AVX_OP(Sqrtpd, sqrtpd)
   AVX_OP_SSE4_1(Extractps, extractps)
+  AVX_OP_SSE4_1(Pextrb, pextrb)
+  AVX_OP_SSE4_1(Pextrw, pextrw)
   AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
   AVX_OP_SSE4_1(Pmovzxbw, pmovzxbw)
+  AVX_OP_SSE4_1(Roundps, roundps)
+  AVX_OP_SSE4_1(Roundpd, roundpd)
 
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
   void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
