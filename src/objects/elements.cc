@@ -1421,10 +1421,10 @@ class DictionaryElementsAccessor
     DisallowGarbageCollection no_gc;
     NumberDictionary dict = NumberDictionary::cast(backing_store);
     if (!dict.requires_slow_elements()) return false;
-    IsolateRoot isolate = GetIsolateForPtrCompr(holder);
-    ReadOnlyRoots roots = holder.GetReadOnlyRoots(isolate);
+    PtrComprCageBase cage_base = GetPtrComprCageBase(holder);
+    ReadOnlyRoots roots = holder.GetReadOnlyRoots(cage_base);
     for (InternalIndex i : dict.IterateEntries()) {
-      Object key = dict.KeyAt(isolate, i);
+      Object key = dict.KeyAt(cage_base, i);
       if (!dict.IsKey(roots, key)) continue;
       PropertyDetails details = dict.DetailsAt(i);
       if (details.kind() == kAccessor) return true;

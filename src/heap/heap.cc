@@ -289,7 +289,7 @@ size_t Heap::MinOldGenerationSize() {
 size_t Heap::AllocatorLimitOnMaxOldGenerationSize() {
 #ifdef V8_COMPRESS_POINTERS
   // Isolate and the young generation are also allocated on the heap.
-  return kPtrComprHeapReservationSize -
+  return kPtrComprCageReservationSize -
          YoungGenerationSizeFromSemiSpaceSize(kMaxSemiSpaceSize) -
          RoundUp(sizeof(Isolate), size_t{1} << kPageSizeBits);
 #endif

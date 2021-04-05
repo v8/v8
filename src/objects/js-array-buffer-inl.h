@@ -43,7 +43,7 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 DEF_GETTER(JSArrayBuffer, backing_store, void*) {
-  Address value = ReadExternalPointerField(kBackingStoreOffset, isolate,
+  Address value = ReadExternalPointerField(kBackingStoreOffset, cage_base,
                                            kArrayBufferBackingStoreTag);
   return reinterpret_cast<void*>(value);
 }
@@ -199,7 +199,7 @@ void JSTypedArray::set_length(size_t value) {
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
-  return ReadExternalPointerField(kExternalPointerOffset, isolate,
+  return ReadExternalPointerField(kExternalPointerOffset, cage_base,
                                   kTypedArrayExternalPointerTag);
 }
 
@@ -213,9 +213,9 @@ void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
-    IsolateRoot isolate) {
+    PtrComprCageBase cage_base) {
 #ifdef V8_COMPRESS_POINTERS
-  return isolate.address();
+  return cage_base.address();
 #else
   return 0;
 #endif
@@ -321,7 +321,7 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 
 DEF_GETTER(JSDataView, data_pointer, void*) {
   return reinterpret_cast<void*>(ReadExternalPointerField(
-      kDataPointerOffset, isolate, kDataViewDataPointerTag));
+      kDataPointerOffset, cage_base, kDataViewDataPointerTag));
 }
 
 void JSDataView::AllocateExternalPointerEntries(Isolate* isolate) {

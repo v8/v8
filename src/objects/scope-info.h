@@ -293,7 +293,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // 'flags', the first field defined by ScopeInfo after the standard-size
   // HeapObject header.
   V8_EXPORT_PRIVATE Object get(int index) const;
-  Object get(IsolateRoot isolate, int index) const;
+  Object get(PtrComprCageBase cage_base, int index) const;
   // Setter that doesn't need write barrier.
   void set(int index, Smi value);
   // Setter with explicit barrier mode.
