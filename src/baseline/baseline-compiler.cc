@@ -2227,72 +2227,29 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
 
 void BaselineCompiler::VisitSuspendGenerator() {
   DCHECK_EQ(iterator().GetRegisterOperand(1), interpreter::Register(0));
-  int register_count = RegisterCount(2);
-  uint32_t suspend_id = Uint(3);
-
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register generator_object = scratch_scope.AcquireScratch();
-  Register parameters_and_registers_array = scratch_scope.AcquireScratch();
-  Register value = scratch_scope.AcquireScratch();
-
   LoadRegister(generator_object, 0);
-  __ LoadTaggedPointerField(parameters_and_registers_array, generator_object,
-                            JSGeneratorObject::kParametersAndRegistersOffset);
+  {
+    SaveAccumulatorScope accumulator_scope(&basm_);
 
-  int formal_parameter_count =
-      shared_function_info_->internal_formal_parameter_count();
-  for (int i = 0; i < formal_parameter_count; ++i) {
-    __ LoadRegister(value, interpreter::Register::FromParameterIndex(
-                               i + 1, bytecode_->parameter_count()));
-    __ StoreTaggedFieldWithWriteBarrier(parameters_and_registers_array,
-                                        FixedArray::OffsetOfElementAt(i),
-                                        value);
+    int bytecode_offset =
+        BytecodeArray::kHeaderSize + iterator().current_offset();
+    CallBuiltin(Builtins::kSuspendGeneratorBaseline, generator_object,
+                static_cast<int>(Uint(3)),  // suspend_id
+                bytecode_offset,
+                static_cast<int>(RegisterCount(2)));  // register_count
   }
-  for (int i = 0; i < register_count; ++i) {
-    __ LoadRegister(value, interpreter::Register(i));
-    __ StoreTaggedFieldWithWriteBarrier(
-        parameters_and_registers_array,
-        FixedArray::OffsetOfElementAt(formal_parameter_count + i), value);
-  }
-
-  __ LoadContext(value);
-  __ StoreTaggedFieldWithWriteBarrier(generator_object,
-                                      JSGeneratorObject::kContextOffset, value);
-
-  __ StoreTaggedSignedField(generator_object,
-                            JSGeneratorObject::kContinuationOffset,
-                            Smi::FromInt(suspend_id));
-
-  __ StoreTaggedSignedField(
-      generator_object, JSGeneratorObject::kInputOrDebugPosOffset,
-      Smi::FromInt(BytecodeArray::kHeaderSize + iterator().current_offset()));
   VisitReturn();
 }
 
 void BaselineCompiler::VisitResumeGenerator() {
   DCHECK_EQ(iterator().GetRegisterOperand(1), interpreter::Register(0));
-  int register_count = RegisterCount(2);
-
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register generator_object = scratch_scope.AcquireScratch();
-  Register parameters_and_registers_array = scratch_scope.AcquireScratch();
-  Register value = scratch_scope.AcquireScratch();
-
   LoadRegister(generator_object, 0);
-  __ LoadTaggedPointerField(parameters_and_registers_array, generator_object,
-                            JSGeneratorObject::kParametersAndRegistersOffset);
-
-  int formal_parameter_count =
-      shared_function_info_->internal_formal_parameter_count();
-  for (int i = 0; i < register_count; ++i) {
-    __ LoadTaggedAnyField(
-        value, parameters_and_registers_array,
-        FixedArray::OffsetOfElementAt(formal_parameter_count + i));
-    __ StoreRegister(interpreter::Register(i), value);
-  }
-
-  __ LoadTaggedAnyField(kInterpreterAccumulatorRegister, generator_object,
-                        JSGeneratorObject::kInputOrDebugPosOffset);
+  CallBuiltin(Builtins::kResumeGeneratorBaseline, generator_object,
+              static_cast<int>(RegisterCount(2)));  // register_count
 }
 
 void BaselineCompiler::VisitGetIterator() {

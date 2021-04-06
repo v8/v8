@@ -97,6 +97,8 @@ namespace internal {
   V(NoContext)                           \
   V(RecordWrite)                         \
   V(ResumeGenerator)                     \
+  V(SuspendGeneratorBaseline)            \
+  V(ResumeGeneratorBaseline)             \
   V(RunMicrotasks)                       \
   V(RunMicrotasksEntry)                  \
   V(SingleParameterOnStack)              \
@@ -1585,6 +1587,31 @@ class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::AnyTagged())  // kGenerator
   DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
+};
+
+class ResumeGeneratorBaselineDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kGeneratorObject, kRegisterCount)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::TaggedSigned(),  // return type
+      MachineType::AnyTagged(),     // kGeneratorObject
+      MachineType::IntPtr(),        // kRegisterCount
+  )
+  DECLARE_DESCRIPTOR(ResumeGeneratorBaselineDescriptor, CallInterfaceDescriptor)
+};
+
+class SuspendGeneratorBaselineDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kGeneratorObject, kSuspendId, kBytecodeOffset,
+                    kRegisterCount)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kGeneratorObject
+                         MachineType::IntPtr(),     // kSuspendId
+                         MachineType::IntPtr(),     // kBytecodeOffset
+                         MachineType::IntPtr(),     // kRegisterCount
+  )
+  DECLARE_DESCRIPTOR(SuspendGeneratorBaselineDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {

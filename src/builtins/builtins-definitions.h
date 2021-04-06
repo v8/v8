@@ -533,6 +533,8 @@ namespace internal {
   /* ES6 #sec-generator.prototype.throw */                                     \
   TFJ(GeneratorPrototypeThrow, kDontAdaptArgumentsSentinel)                    \
   CPP(AsyncFunctionConstructor)                                                \
+  TFC(SuspendGeneratorBaseline, SuspendGeneratorBaseline)                      \
+  TFC(ResumeGeneratorBaseline, ResumeGeneratorBaseline)                        \
                                                                                \
   /* Iterator Protocol */                                                      \
   TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
