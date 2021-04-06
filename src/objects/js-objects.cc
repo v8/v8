@@ -29,6 +29,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
@@ -3151,6 +3152,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   DCHECK(object->map().GetInObjectProperties() == map->GetInObjectProperties());
   ElementsKind obj_kind = object->map().elements_kind();
   ElementsKind map_kind = map->elements_kind();
+  Isolate* isolate = object->GetIsolate();
   if (map_kind != obj_kind) {
     ElementsKind to_kind = GetMoreGeneralElementsKind(map_kind, obj_kind);
     if (IsDictionaryElementsKind(obj_kind)) {
@@ -3161,7 +3163,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     } else {
       TransitionElementsKind(object, to_kind);
     }
-    map = Map::ReconfigureElementsKind(object->GetIsolate(), map, to_kind);
+    map = MapUpdater{isolate, map}.ReconfigureElementsKind(to_kind);
   }
   int number_of_fields = map->NumberOfFields();
   int inobject = map->GetInObjectProperties();
@@ -3171,7 +3173,6 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   // Allocate mutable double boxes if necessary. It is always necessary if we
   // have external properties, but is also necessary if we only have inobject
   // properties but don't unbox double fields.
-  Isolate* isolate = object->GetIsolate();
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
                                       isolate);

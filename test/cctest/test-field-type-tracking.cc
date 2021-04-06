@@ -14,6 +14,7 @@
 #include "src/init/v8.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/struct-inl.h"
@@ -461,6 +462,23 @@ class Expectations {
 // branch.
 //
 
+namespace {
+
+Handle<Map> ReconfigureProperty(Isolate* isolate, Handle<Map> map,
+                                InternalIndex modify_index,
+                                PropertyKind new_kind,
+                                PropertyAttributes new_attributes,
+                                Representation new_representation,
+                                Handle<FieldType> new_field_type) {
+  DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
+  MapUpdater mu(isolate, map);
+  return mu.ReconfigureToDataField(modify_index, new_attributes,
+                                   PropertyConstness::kConst,
+                                   new_representation, new_field_type);
+}
+
+}  // namespace
+
 TEST(ReconfigureAccessorToNonExistingDataField) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -482,8 +500,8 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(expectations.Check(*map));
 
   InternalIndex first(0);
-  Handle<Map> new_map = Map::ReconfigureProperty(
-      isolate, map, first, kData, NONE, Representation::None(), none_type);
+  Handle<Map> new_map = ReconfigureProperty(isolate, map, first, kData, NONE,
+                                            Representation::None(), none_type);
   // |map| did not change except marked unstable.
   CHECK(!map->is_deprecated());
   CHECK(!map->is_stable());
@@ -497,8 +515,8 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(new_map->is_stable());
   CHECK(expectations.Check(*new_map));
 
-  Handle<Map> new_map2 = Map::ReconfigureProperty(
-      isolate, map, first, kData, NONE, Representation::None(), none_type);
+  Handle<Map> new_map2 = ReconfigureProperty(isolate, map, first, kData, NONE,
+                                             Representation::None(), none_type);
   CHECK_EQ(*new_map, *new_map2);
 
   Handle<Object> value(Smi::zero(), isolate);
@@ -670,7 +688,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
   CHECK(expectations.Check(*map));
 
   if (is_detached_map) {
-    detach_point_map = Map::ReconfigureProperty(
+    detach_point_map = ReconfigureProperty(
         isolate, detach_point_map, InternalIndex(detach_property_at_index),
         kData, NONE, Representation::Double(), any_type);
     expectations.SetDataField(detach_property_at_index,
@@ -703,8 +721,8 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
 
   // Create new maps by generalizing representation of propX field.
   Handle<Map> new_map =
-      Map::ReconfigureProperty(isolate, map, InternalIndex(property_index),
-                               kData, NONE, to.representation, to.type);
+      ReconfigureProperty(isolate, map, InternalIndex(property_index), kData,
+                          NONE, to.representation, to.type);
 
   expectations.SetDataField(property_index, expected.constness,
                             expected.representation, expected.type);
@@ -978,8 +996,8 @@ TEST(GeneralizeFieldWithAccessorProperties) {
       continue;
     }
     Handle<Map> new_map =
-        Map::ReconfigureProperty(isolate, map, InternalIndex(i), kData, NONE,
-                                 Representation::Double(), any_type);
+        ReconfigureProperty(isolate, map, InternalIndex(i), kData, NONE,
+                            Representation::Double(), any_type);
     maps[i] = new_map;
 
     expectations.SetDataField(i, PropertyConstness::kMutable,
@@ -1798,7 +1816,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
   Handle<Map> new_map =
-      Map::ReconfigureElementsKind(isolate, map2, PACKED_ELEMENTS);
+      MapUpdater{isolate, map2}.ReconfigureElementsKind(PACKED_ELEMENTS);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -2064,9 +2082,8 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       map2 = handle(target, isolate);
     }
 
-    map2 = Map::ReconfigureProperty(isolate, map2, InternalIndex(kSplitProp),
-                                    kData, NONE, Representation::Double(),
-                                    any_type);
+    map2 = ReconfigureProperty(isolate, map2, InternalIndex(kSplitProp), kData,
+                               NONE, Representation::Double(), any_type);
     expectations.SetDataField(kSplitProp, PropertyConstness::kMutable,
                               Representation::Double(), any_type);
 
@@ -2163,8 +2180,8 @@ static void TestGeneralizeFieldWithSpecialTransition(
   Handle<Map> maps[kPropCount];
   for (int i = 0; i < kPropCount; i++) {
     Handle<Map> new_map =
-        Map::ReconfigureProperty(isolate, map, InternalIndex(i), kData, NONE,
-                                 to.representation, to.type);
+        ReconfigureProperty(isolate, map, InternalIndex(i), kData, NONE,
+                            to.representation, to.type);
     maps[i] = new_map;
 
     expectations.SetDataField(i, expected.constness, expected.representation,

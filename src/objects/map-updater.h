@@ -47,7 +47,7 @@ namespace internal {
 // - Otherwise, invalidate the outdated transition target from |target_map|, and
 //   replace its transition tree with a new branch for the updated descriptors.
 // - If the |old_map| had integrity level transition, create the new map for it.
-class MapUpdater {
+class V8_EXPORT_PRIVATE MapUpdater {
  public:
   MapUpdater(Isolate* isolate, Handle<Map> old_map);
 

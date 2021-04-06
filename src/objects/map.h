@@ -512,14 +512,6 @@ class Map : public HeapObject {
       Isolate* isolate, InstanceType instance_type,
       Representation* representation, Handle<FieldType>* field_type);
 
-  V8_EXPORT_PRIVATE static Handle<Map> ReconfigureProperty(
-      Isolate* isolate, Handle<Map> map, InternalIndex modify_index,
-      PropertyKind new_kind, PropertyAttributes new_attributes,
-      Representation new_representation, Handle<FieldType> new_field_type);
-
-  V8_EXPORT_PRIVATE static Handle<Map> ReconfigureElementsKind(
-      Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind);
-
   V8_EXPORT_PRIVATE static Handle<Map> PrepareForDataProperty(
       Isolate* isolate, Handle<Map> old_map, InternalIndex descriptor_number,
       PropertyConstness constness, Handle<Object> value);

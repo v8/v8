@@ -806,29 +806,6 @@ void Map::GeneralizeField(Isolate* isolate, Handle<Map> map,
   }
 }
 
-// TODO(ishell): remove.
-// static
-Handle<Map> Map::ReconfigureProperty(Isolate* isolate, Handle<Map> map,
-                                     InternalIndex modify_index,
-                                     PropertyKind new_kind,
-                                     PropertyAttributes new_attributes,
-                                     Representation new_representation,
-                                     Handle<FieldType> new_field_type) {
-  DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
-  MapUpdater mu(isolate, map);
-  return mu.ReconfigureToDataField(modify_index, new_attributes,
-                                   PropertyConstness::kConst,
-                                   new_representation, new_field_type);
-}
-
-// TODO(ishell): remove.
-// static
-Handle<Map> Map::ReconfigureElementsKind(Isolate* isolate, Handle<Map> map,
-                                         ElementsKind new_elements_kind) {
-  MapUpdater mu(isolate, map);
-  return mu.ReconfigureElementsKind(new_elements_kind);
-}
-
 namespace {
 
 Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
@@ -1324,7 +1301,7 @@ Handle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
     return Map::CopyAsElementsKind(isolate, map, to_kind, OMIT_TRANSITION);
   }
 
-  return Map::ReconfigureElementsKind(isolate, map, to_kind);
+  return MapUpdater{isolate, map}.ReconfigureElementsKind(to_kind);
 }
 
 static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
