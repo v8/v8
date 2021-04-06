@@ -359,6 +359,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   // compiled with Turbofan and which one with Liftoff.
   uint8_t tier_mask = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
+  uint8_t debug_mask = data.empty() ? 0 : data[0];
+  if (!data.empty()) data += 1;
   if (!GenerateModule(i_isolate, &zone, data, &buffer, &num_args,
                       &interpreter_args, &compiler_args)) {
     return;
@@ -377,6 +379,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     FlagScope<bool> liftoff(&FLAG_liftoff, true);
     FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
     FlagScope<int> tier_mask_scope(&FLAG_wasm_tier_mask_for_testing, tier_mask);
+    FlagScope<int> debug_mask_scope(&FLAG_wasm_debug_mask_for_testing,
+                                    debug_mask);
     compiled_module = i_isolate->wasm_engine()->SyncCompile(
         i_isolate, enabled_features, &interpreter_thrower, wire_bytes);
   }

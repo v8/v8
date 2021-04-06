@@ -909,10 +909,14 @@ DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(trace_wasm_memory, false,
             "print all memory updates performed in wasm code")
-// Fuzzers use {wasm_tier_mask_for_testing} together with {liftoff} and
-// {no_wasm_tier_up} to force some functions to be compiled with Turbofan.
+// Fuzzers use {wasm_tier_mask_for_testing} and {wasm_debug_mask_for_testing}
+// together with {liftoff} and {no_wasm_tier_up} to force some functions to be
+// compiled with Turbofan or for debug.
 DEFINE_INT(wasm_tier_mask_for_testing, 0,
            "bitmask of functions to compile with TurboFan instead of Liftoff")
+DEFINE_INT(wasm_debug_mask_for_testing, 0,
+           "bitmask of functions to compile for debugging, only applies if the "
+           "tier is Liftoff")
 
 DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
 // asm.js validation is disabled since it triggers wasm code generation.
