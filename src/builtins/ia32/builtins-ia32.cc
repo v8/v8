@@ -2737,6 +2737,15 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 }
 
 namespace {
+
+void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
+  // Overwrite the return address on the stack.
+  __ mov(Operand(esp, 0), entry_address);
+
+  // And "return" to the OSR entry point of the function.
+  __ ret(0);
+}
+
 void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -2769,12 +2778,9 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
   // Compute the target address = code_obj + header_size + osr_offset
   __ lea(eax, Operand(eax, ecx, times_1, Code::kHeaderSize - kHeapObjectTag));
 
-  // Overwrite the return address on the stack.
-  __ mov(Operand(esp, 0), eax);
-
-  // And "return" to the OSR entry point of the function.
-  __ ret(0);
+  Generate_OSREntry(masm, eax);
 }
+
 }  // namespace
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
@@ -4079,51 +4085,56 @@ namespace {
 
 // Converts an interpreter frame into a baseline frame and continues execution
 // in baseline code (baseline code has to exist on the shared function info),
-// either at the start or the end of the current bytecode.
-void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode) {
-  // Get bytecode array and bytecode offset from the stack frame.
-  __ mov(kInterpreterBytecodeArrayRegister,
-         MemOperand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ mov(kInterpreterBytecodeOffsetRegister,
-         MemOperand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
+// either at the current or next (in execution order) bytecode.
+void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
+                            bool is_osr = false) {
+  __ push(kInterpreterAccumulatorRegister);
+  Label start;
+  __ bind(&start);
 
   // Get function from the frame.
-  Register closure = esi;
+  Register closure = eax;
   __ mov(closure, MemOperand(ebp, StandardFrameConstants::kFunctionOffset));
 
-  // Replace BytecodeOffset with the feedback vector.
+  // Load the feedback vector.
   Register feedback_vector = ecx;
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
-  if (__ emit_debug_code()) {
-    __ push(kInterpreterAccumulatorRegister);
-    Register scratch = kInterpreterAccumulatorRegister;
-    __ CmpObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE, scratch);
-    __ Assert(equal, AbortReason::kExpectedFeedbackVector);
-    scratch = no_reg;
-    __ pop(kInterpreterAccumulatorRegister);
-  }
+
+  Label install_baseline_code;
+  // Check if feedback vector is valid. If not, call prepare for baseline to
+  // allocate it.
+  __ CmpObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE,
+                   kInterpreterBytecodeOffsetRegister);
+  __ j(not_equal, &install_baseline_code);
+
+  // Save BytecodeOffset from the stack frame.
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         MemOperand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
+  // Replace BytecodeOffset with the feedback vector.
   __ mov(MemOperand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
          feedback_vector);
   feedback_vector = no_reg;
 
   // Get the Code object from the shared function info.
-  Register code_obj = closure;
+  Register code_obj = esi;
   __ mov(code_obj,
          FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  closure = no_reg;
   __ mov(code_obj,
          FieldOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
   __ mov(code_obj, FieldOperand(code_obj, BaselineData::kBaselineCodeOffset));
 
   // Compute baseline pc for bytecode offset.
-  __ push(kInterpreterAccumulatorRegister);
-  ExternalReference get_baseline_pc_extref =
-      next_bytecode
-          ? ExternalReference::baseline_end_pc_for_bytecode_offset()
-          : ExternalReference::baseline_start_pc_for_bytecode_offset();
+  ExternalReference get_baseline_pc_extref;
+  if (next_bytecode || is_osr) {
+    get_baseline_pc_extref =
+        ExternalReference::baseline_pc_for_next_executed_bytecode();
+  } else {
+    get_baseline_pc_extref =
+        ExternalReference::baseline_pc_for_bytecode_offset();
+  }
   Register get_baseline_pc = ecx;
   __ LoadAddress(get_baseline_pc, get_baseline_pc_extref);
 
@@ -4133,33 +4144,20 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode) {
   // TODO(pthier): Investigate if it is feasible to handle this special case
   // in TurboFan instead of here.
   Label valid_bytecode_offset, function_entry_bytecode;
-  __ cmp(kInterpreterBytecodeOffsetRegister,
-         Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag +
-                   kFunctionEntryBytecodeOffset));
-  __ j(equal, &function_entry_bytecode);
-  __ bind(&valid_bytecode_offset);
-
-  // In the case we advance the BC, check if the current bytecode is JumpLoop.
-  // If it is, re-execute it instead of continuing at the next bytecode.
-  if (next_bytecode) {
-    Label not_jump_loop;
-    __ push(kInterpreterBytecodeOffsetRegister);
-    Register bytecode = kInterpreterBytecodeOffsetRegister;
-    __ movzx_b(bytecode,
-               Operand(kInterpreterBytecodeArrayRegister,
-                       kInterpreterBytecodeOffsetRegister, times_1, 0));
-    __ cmpb(bytecode,
-            Immediate(static_cast<int>(interpreter::Bytecode::kJumpLoop)));
-    __ j(not_equal, &not_jump_loop, Label::kNear);
-    __ LoadAddress(get_baseline_pc,
-                   ExternalReference::baseline_start_pc_for_bytecode_offset());
-    __ bind(&not_jump_loop);
-    __ pop(kInterpreterBytecodeOffsetRegister);
+  if (!is_osr) {
+    __ cmp(kInterpreterBytecodeOffsetRegister,
+           Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag +
+                     kFunctionEntryBytecodeOffset));
+    __ j(equal, &function_entry_bytecode);
   }
 
   __ sub(kInterpreterBytecodeOffsetRegister,
          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
 
+  __ bind(&valid_bytecode_offset);
+  // Get bytecode array from the stack frame.
+  __ mov(kInterpreterBytecodeArrayRegister,
+         MemOperand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ PrepareCallCFunction(3, eax);
@@ -4174,17 +4172,39 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode) {
          FieldOperand(code_obj, kReturnRegister0, times_1, Code::kHeaderSize));
   __ pop(kInterpreterAccumulatorRegister);
 
-  __ jmp(code_obj);
+  if (is_osr) {
+    // Reset the OSR loop nesting depth to disarm back edges.
+    // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
+    // Sparkplug here.
+    __ mov_w(FieldOperand(kInterpreterBytecodeArrayRegister,
+                          BytecodeArray::kOsrNestingLevelOffset),
+             Immediate(0));
+    Generate_OSREntry(masm, code_obj);
+  } else {
+    __ jmp(code_obj);
+  }
   __ Trap();  // Unreachable.
 
-  __ bind(&function_entry_bytecode);
-  // If the bytecode offset is kFunctionEntryOffset, get the start address of
-  // the first bytecode.
-  __ mov(kInterpreterBytecodeOffsetRegister,
-         Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ LoadAddress(get_baseline_pc,
-                 ExternalReference::baseline_start_pc_for_bytecode_offset());
-  __ jmp(&valid_bytecode_offset);
+  if (!is_osr) {
+    __ bind(&function_entry_bytecode);
+    // If the bytecode offset is kFunctionEntryOffset, get the start address of
+    // the first bytecode.
+    __ mov(kInterpreterBytecodeOffsetRegister, Immediate(0));
+    if (next_bytecode) {
+      __ LoadAddress(get_baseline_pc,
+                     ExternalReference::baseline_pc_for_bytecode_offset());
+    }
+    __ jmp(&valid_bytecode_offset);
+  }
+
+  __ bind(&install_baseline_code);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(closure);
+    __ CallRuntime(Runtime::kInstallBaselineCode, 1);
+  }
+  // Retry from the start after installing baseline code.
+  __ jmp(&start);
 }
 
 }  // namespace
@@ -4195,6 +4215,11 @@ void Builtins::Generate_BaselineEnterAtBytecode(MacroAssembler* masm) {
 
 void Builtins::Generate_BaselineEnterAtNextBytecode(MacroAssembler* masm) {
   Generate_BaselineEntry(masm, true);
+}
+
+void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
+    MacroAssembler* masm) {
+  Generate_BaselineEntry(masm, false, true);
 }
 
 void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {

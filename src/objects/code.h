@@ -412,6 +412,14 @@ class Code : public HeapObject {
   inline uintptr_t GetBaselineEndPCForBytecodeOffset(int bytecode_offset,
                                                      BytecodeArray bytecodes);
 
+  // Returns the PC of the next bytecode in execution order.
+  // If the bytecode at the given offset is JumpLoop, the PC of the jump target
+  // is returned. Other jumps are not allowed.
+  // For other bytecodes this is equivalent to
+  // GetBaselineEndPCForBytecodeOffset.
+  inline uintptr_t GetBaselinePCForNextExecutedBytecode(
+      int bytecode_offset, BytecodeArray bytecodes);
+
   inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc,
                                             BytecodeArray bytecodes);
 
