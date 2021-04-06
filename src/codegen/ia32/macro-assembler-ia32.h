@@ -468,52 +468,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP3_WITH_MOVE(Pmaddwd, pmaddwd, XMMRegister, Operand)
 #undef AVX_OP3_WITH_MOVE
 
-// Non-SSE2 instructions.
-#define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
-                                sse_scope)                            \
-  void macro_name(dst_type dst, src_type src) {                       \
-    if (CpuFeatures::IsSupported(AVX)) {                              \
-      CpuFeatureScope scope(this, AVX);                               \
-      v##name(dst, src);                                              \
-      return;                                                         \
-    }                                                                 \
-    if (CpuFeatures::IsSupported(sse_scope)) {                        \
-      CpuFeatureScope scope(this, sse_scope);                         \
-      name(dst, src);                                                 \
-      return;                                                         \
-    }                                                                 \
-    UNREACHABLE();                                                    \
-  }
-#define AVX_OP2_XO_SSE3(macro_name, name)                                   \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE3) \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE3)
-  AVX_OP2_XO_SSE3(Movddup, movddup)
-  AVX_OP2_WITH_TYPE_SCOPE(Movshdup, movshdup, XMMRegister, XMMRegister, SSE3)
-
-#undef AVX_OP2_XO_SSE3
-
-#define AVX_OP2_XO_SSSE3(macro_name, name)                                   \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSSE3) \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSSE3)
-  AVX_OP2_XO_SSSE3(Pabsb, pabsb)
-  AVX_OP2_XO_SSSE3(Pabsw, pabsw)
-  AVX_OP2_XO_SSSE3(Pabsd, pabsd)
-
-#undef AVX_OP2_XO_SSE3
-
-#define AVX_OP2_XO_SSE4(macro_name, name)                                     \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE4_1) \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
-
-  AVX_OP2_XO_SSE4(Ptest, ptest)
-  AVX_OP2_XO_SSE4(Pmovsxwd, pmovsxwd)
-  AVX_OP2_XO_SSE4(Pmovsxdq, pmovsxdq)
-  AVX_OP2_XO_SSE4(Pmovzxwd, pmovzxwd)
-  AVX_OP2_XO_SSE4(Pmovzxdq, pmovzxdq)
-
-#undef AVX_OP2_WITH_TYPE_SCOPE
-#undef AVX_OP2_XO_SSE4
-
 #define AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
                                 sse_scope)                            \
   void macro_name(dst_type dst, dst_type src1, src_type src2) {       \
