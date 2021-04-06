@@ -3441,6 +3441,12 @@ void Builtins::Generate_BaselineEnterAtNextBytecode(MacroAssembler* masm) {
   __ bkpt(0);
 }
 
+void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
+    MacroAssembler* masm) {
+  // Implement on this platform, https://crrev.com/c/2800112.
+  __ bkpt(0);
+}
+
 void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::INTERNAL);
