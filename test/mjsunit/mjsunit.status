@@ -351,6 +351,9 @@
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
 
+  # This test relies on TurboFan being enabled.
+  'compiler/fast-api-calls': [SKIP],
+
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
 
@@ -1315,6 +1318,13 @@
   'compiler/number-abs': [SKIP],
   'compiler/number-toboolean': [SKIP],
 }],  # variant == assert_types
+
+##############################################################################
+['variant == stress_snapshot', {
+  # This test initializes an embedder object that never needs to be serialized
+  # to the snapshot, so we don't have a SerializeInternalFieldsCallback for it.
+  'compiler/fast-api-calls': [SKIP],
+}],  # variant == stress_snapshot
 
 ##############################################################################
 ['variant == stress_snapshot and arch != x64', {
