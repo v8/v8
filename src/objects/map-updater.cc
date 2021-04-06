@@ -143,11 +143,20 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   if (old_details.constness() == PropertyConstness::kConst &&
       old_details.location() == kField &&
       old_details.attributes() != new_attributes_) {
+    // Ensure we'll be updating constness of the up-to-date version of old_map_.
+    Handle<Map> old_map = UpdateMapNoLock(isolate_, old_map_);
+    PropertyDetails details =
+        old_map->instance_descriptors(isolate_).GetDetails(descriptor);
     Handle<FieldType> field_type(
-        old_descriptors_->GetFieldType(modified_descriptor_), isolate_);
-    Map::GeneralizeField(isolate_, old_map_, descriptor,
-                         PropertyConstness::kMutable,
-                         old_details.representation(), field_type);
+        old_map->instance_descriptors(isolate_).GetFieldType(descriptor),
+        isolate_);
+    Map::GeneralizeField(isolate_, old_map, descriptor,
+                         PropertyConstness::kMutable, details.representation(),
+                         field_type);
+    DCHECK_EQ(PropertyConstness::kMutable,
+              old_map->instance_descriptors(isolate_)
+                  .GetDetails(descriptor)
+                  .constness());
     // The old_map_'s property must become mutable.
     // Note, that the {old_map_} and {old_descriptors_} are not expected to be
     // updated by the generalization if the map is already deprecated.
@@ -221,12 +230,25 @@ Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
   return result_map_;
 }
 
-Handle<Map> MapUpdater::Update() {
-  DCHECK_EQ(kInitialized, state_);
-  DCHECK(old_map_->is_deprecated());
+// static
+Handle<Map> MapUpdater::UpdateMapNoLock(Isolate* isolate, Handle<Map> map) {
+  if (!map->is_deprecated()) return map;
+  // TODO(ishell): support fast map updating if we enable it.
+  CHECK(!FLAG_fast_map_update);
+  MapUpdater mu(isolate, map);
+  // Update map without locking the Isolate::map_updater_access mutex.
+  return mu.UpdateImpl();
+}
 
+Handle<Map> MapUpdater::Update() {
   base::SharedMutexGuard<base::kExclusive> mutex_guard(
       isolate_->map_updater_access());
+  return UpdateImpl();
+}
+
+Handle<Map> MapUpdater::UpdateImpl() {
+  DCHECK_EQ(kInitialized, state_);
+  DCHECK(old_map_->is_deprecated());
 
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;

@@ -76,6 +76,16 @@ class V8_EXPORT_PRIVATE MapUpdater {
     kEnd
   };
 
+  // Updates map to the most up-to-date non-deprecated version.
+  static inline Handle<Map> UpdateMapNoLock(Isolate* isolate,
+                                            Handle<Map> old_map);
+
+  // Prepares for updating deprecated map to most up-to-date non-deprecated
+  // version and performs the steps 1-6.
+  // Unlike the Update() entry point it doesn't lock the map_updater_access
+  // mutex.
+  Handle<Map> UpdateImpl();
+
   // Try to reconfigure property in-place without rebuilding transition tree
   // and creating new maps. See implementation for details.
   State TryReconfigureToDataFieldInplace();
