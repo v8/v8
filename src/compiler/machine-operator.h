@@ -104,7 +104,8 @@ V8_EXPORT_PRIVATE LoadLaneParameters const& LoadLaneParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
-// correct write barrier.
+// correct write barrier, and needs to state whether it is storing into the
+// header word, so that the value can be packed, if necessary.
 class StoreRepresentation final {
  public:
   StoreRepresentation(MachineRepresentation representation,

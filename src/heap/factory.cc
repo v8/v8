@@ -2218,13 +2218,9 @@ void Factory::InitializeJSObjectBody(JSObject obj, Map map, int start_offset) {
   // In case of Array subclassing the |map| could already be transitioned
   // to different elements kind from the initial map on which we track slack.
   bool in_progress = map.IsInobjectSlackTrackingInProgress();
-  Object filler;
-  if (in_progress) {
-    filler = *one_pointer_filler_map();
-  } else {
-    filler = *undefined_value();
-  }
-  obj.InitializeBody(map, start_offset, *undefined_value(), filler);
+  obj.InitializeBody(map, start_offset, in_progress,
+                     ReadOnlyRoots(isolate()).one_pointer_filler_map_word(),
+                     *undefined_value());
   if (in_progress) {
     map.FindRootMap(isolate()).InobjectSlackTrackingStep(isolate());
   }

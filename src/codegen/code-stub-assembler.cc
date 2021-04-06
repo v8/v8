@@ -1619,6 +1619,8 @@ TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
     TNode<HeapObject> object, int offset) {
+  // Please use LoadMap(object) instead.
+  DCHECK_NE(offset, HeapObject::kMapOffset);
   if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     offset += 4;
@@ -1631,6 +1633,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
 
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(
     TNode<HeapObject> object, int offset) {
+  // Please use LoadMap(object) instead.
+  DCHECK_NE(offset, HeapObject::kMapOffset);
   if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
     offset += 4;
@@ -1656,7 +1660,15 @@ TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(TNode<HeapObject> object) {
-  return LoadObjectField<Map>(object, HeapObject::kMapOffset);
+  TNode<Map> map = LoadObjectField<Map>(object, HeapObject::kMapOffset);
+#ifdef V8_MAP_PACKING
+  // Check the loaded map is unpacked. i.e. the lowest two bits != 0b10
+  CSA_ASSERT(this,
+             WordNotEqual(WordAnd(BitcastTaggedToWord(map),
+                                  IntPtrConstant(Internals::kMapWordXorMask)),
+                          IntPtrConstant(Internals::kMapWordSignature)));
+#endif
+  return map;
 }
 
 TNode<Uint16T> CodeStubAssembler::LoadInstanceType(TNode<HeapObject> object) {
@@ -2031,6 +2043,13 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
   BIND(&inner_if_strong);
   *extracted = CAST(maybe_object);
   Goto(if_strong);
+}
+
+void CodeStubAssembler::AssertHasValidMap(TNode<HeapObject> object) {
+#ifdef V8_MAP_PACKING
+  // Test if the map is an unpacked and valid map
+  CSA_ASSERT(this, IsMap(LoadMap(object)));
+#endif
 }
 
 TNode<BoolT> CodeStubAssembler::IsStrong(TNode<MaybeObject> value) {
@@ -2943,12 +2962,14 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
 
 void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, TNode<Object> value) {
+  DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
   OptimizedStoreFieldUnsafeNoWriteBarrier(MachineRepresentation::kTagged,
                                           object, offset, value);
 }
 
 void CodeStubAssembler::StoreMap(TNode<HeapObject> object, TNode<Map> map) {
   OptimizedStoreMap(object, map);
+  AssertHasValidMap(object);
 }
 
 void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
@@ -2958,16 +2979,19 @@ void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
 
 void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
                                                TNode<Map> map) {
-  OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation::kTaggedPointer,
-                                          object, HeapObject::kMapOffset, map);
+  OptimizedStoreMap(object, map);
+  AssertHasValidMap(object);
 }
 
 void CodeStubAssembler::StoreObjectFieldRoot(TNode<HeapObject> object,
                                              int offset, RootIndex root_index) {
-  if (RootsTable::IsImmortalImmovable(root_index)) {
-    StoreObjectFieldNoWriteBarrier(object, offset, LoadRoot(root_index));
+  TNode<Object> root = LoadRoot(root_index);
+  if (offset == HeapObject::kMapOffset) {
+    StoreMap(object, CAST(root));
+  } else if (RootsTable::IsImmortalImmovable(root_index)) {
+    StoreObjectFieldNoWriteBarrier(object, offset, root);
   } else {
-    StoreObjectField(object, offset, LoadRoot(root_index));
+    StoreObjectField(object, offset, root);
   }
 }
 
@@ -11102,9 +11126,12 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   // Memento map check.
   BIND(&map_check);
   {
-    TNode<Object> memento_map = LoadObjectField(object, kMementoMapOffset);
-    Branch(TaggedEqual(memento_map, AllocationMementoMapConstant()),
-           memento_found, &no_memento_found);
+    TNode<AnyTaggedT> maybe_mapword =
+        LoadObjectField(object, kMementoMapOffset);
+    TNode<AnyTaggedT> memento_mapword =
+        LoadRootMapWord(RootIndex::kAllocationMementoMap);
+    Branch(TaggedEqual(maybe_mapword, memento_mapword), memento_found,
+           &no_memento_found);
   }
   BIND(&no_memento_found);
   Comment("] TrapAllocationMemento");
@@ -11323,7 +11350,12 @@ void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
   CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
   start_offset = IntPtrAdd(start_offset, IntPtrConstant(-kHeapObjectTag));
   end_offset = IntPtrAdd(end_offset, IntPtrConstant(-kHeapObjectTag));
-  TNode<Object> root_value = LoadRoot(root_index);
+  TNode<AnyTaggedT> root_value;
+  if (root_index == RootIndex::kOnePointerFillerMap) {
+    root_value = LoadRootMapWord(root_index);
+  } else {
+    root_value = LoadRoot(root_index);
+  }
   BuildFastLoop<IntPtrT>(
       end_offset, start_offset,
       [=](TNode<IntPtrT> current) {

@@ -323,6 +323,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
     j(less, dest);
   }
 
+#ifdef V8_MAP_PACKING
+  void UnpackMapWord(Register r);
+#endif
+
   void LoadMap(Register destination, Register object);
 
   void Move(Register dst, Smi source);

@@ -585,6 +585,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return value ? Int32TrueConstant() : Int32FalseConstant();
   }
 
+  bool IsMapOffsetConstant(Node* node);
+
   bool TryToInt32Constant(TNode<IntegralT> node, int32_t* out_value);
   bool TryToInt64Constant(TNode<IntegralT> node, int64_t* out_value);
   bool TryToIntPtrConstant(TNode<IntegralT> node, intptr_t* out_value);
@@ -789,8 +791,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* LoadFromObject(MachineType type, TNode<Object> object,
                        TNode<IntPtrT> offset);
 
+#ifdef V8_MAP_PACKING
+  Node* PackMapWord(Node* value);
+#endif
+
   // Load a value from the root array.
+  // If map packing is enabled, LoadRoot for a root map returns the unpacked map
+  // word (i.e., the map). Use LoadRootMapWord to obtain the packed map word
+  // instead.
   TNode<Object> LoadRoot(RootIndex root_index);
+  TNode<AnyTaggedT> LoadRootMapWord(RootIndex root_index);
 
   template <typename Type>
   TNode<Type> UnalignedLoad(TNode<RawPtrT> base, TNode<IntPtrT> offset) {

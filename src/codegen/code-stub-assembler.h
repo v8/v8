@@ -1088,7 +1088,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   // Load a field from an object on the heap.
   template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value,
+                         std::is_convertible<TNode<T>, TNode<Object>>::value &&
+                             std::is_base_of<T, Map>::value,
+                         int>::type = 0>
+  TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
+    const MachineType machine_type = offset == HeapObject::kMapOffset
+                                         ? MachineType::MapInHeader()
+                                         : MachineTypeOf<T>::value;
+    return CAST(LoadFromObject(machine_type, object,
+                               IntPtrConstant(offset - kHeapObjectTag)));
+  }
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<Object>>::value &&
+                             !std::is_base_of<T, Map>::value,
                          int>::type = 0>
   TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
     return CAST(LoadFromObject(MachineTypeOf<T>::value, object,
@@ -1163,6 +1175,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
+    if (IsMapOffsetConstant(reference.offset)) {
+      TNode<Map> map = LoadMap(CAST(reference.object));
+      DCHECK((std::is_base_of<T, Map>::value));
+      return ReinterpretCast<T>(map);
+    }
+
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     CSA_ASSERT(this, TaggedIsNotSmi(reference.object));
@@ -1175,6 +1193,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                     std::is_same<T, MaybeObject>::value,
                 int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
+    DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     return UncheckedCast<T>(
@@ -1185,6 +1204,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              std::is_same<T, MaybeObject>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
+    if (IsMapOffsetConstant(reference.offset)) {
+      DCHECK((std::is_base_of<T, Map>::value));
+      return StoreMap(CAST(reference.object), ReinterpretCast<Map>(value));
+    }
     MachineRepresentation rep = MachineRepresentationOf<T>::value;
     StoreToObjectWriteBarrier write_barrier = StoreToObjectWriteBarrier::kFull;
     if (std::is_same<T, Smi>::value) {
@@ -1201,6 +1224,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
+    DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     StoreToObject(MachineRepresentationOf<T>::value, reference.object, offset,
@@ -3884,6 +3908,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CodeAssembler::LoadRoot(root_index);
   }
 
+  TNode<AnyTaggedT> LoadRootMapWord(RootIndex root_index) {
+    return CodeAssembler::LoadRootMapWord(root_index);
+  }
+
   template <typename TIndex>
   void StoreFixedArrayOrPropertyArrayElement(
       TNode<UnionT<FixedArray, PropertyArray>> array, TNode<TIndex> index,
@@ -3922,6 +3950,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void TryPlainPrimitiveNonNumberToNumber(TNode<HeapObject> input,
                                           TVariable<Number>* var_result,
                                           Label* if_bailout);
+
+  void AssertHasValidMap(TNode<HeapObject> object);
 
   template <typename TValue>
   void EmitElementStoreTypedArray(TNode<JSTypedArray> typed_array,

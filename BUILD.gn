@@ -300,6 +300,9 @@ declare_args() {
   # meaning that they are not switched to fast mode.
   # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
   v8_dict_property_const_tracking = false
+
+  # Enable map packing & unpacking (sets -dV8_MAP_PACKING).
+  v8_enable_map_packing = false
 }
 
 # Derived defaults.
@@ -330,7 +333,7 @@ if (v8_enable_snapshot_native_code_counters == "") {
 }
 if (v8_enable_pointer_compression == "") {
   v8_enable_pointer_compression =
-      v8_current_cpu == "arm64" || v8_current_cpu == "x64"
+      (v8_current_cpu == "arm64" || v8_current_cpu == "x64")
 }
 if (v8_enable_pointer_compression_shared_cage == "") {
   v8_enable_pointer_compression_shared_cage = false
@@ -403,6 +406,12 @@ if (v8_enable_shared_ro_heap && v8_enable_pointer_compression) {
       is_linux || is_chromeos || is_android,
       "Sharing read-only heap with pointer compression is only supported on Linux or Android")
 }
+
+assert(!v8_enable_map_packing || !v8_enable_pointer_compression,
+       "Map packing does not support pointer compression")
+
+assert(!v8_enable_map_packing || v8_current_cpu == "x64",
+       "Map packing is only supported on x64")
 
 assert(
     !v8_enable_pointer_compression_shared_cage || !v8_enable_shared_ro_heap,
@@ -566,6 +575,7 @@ external_v8_defines = [
   "V8_IMMINENT_DEPRECATION_WARNINGS",
   "V8_NO_ARGUMENTS_ADAPTOR",
   "V8_USE_PERFETTO",
+  "V8_MAP_PACKING",
 ]
 
 enabled_external_v8_defines = []
@@ -598,6 +608,9 @@ if (v8_imminent_deprecation_warnings) {
 }
 if (v8_use_perfetto) {
   enabled_external_v8_defines += [ "V8_USE_PERFETTO" ]
+}
+if (v8_enable_map_packing) {
+  enabled_external_v8_defines += [ "V8_MAP_PACKING" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines

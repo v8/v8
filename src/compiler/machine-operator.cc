@@ -610,6 +610,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Pointer)                 \
   V(TaggedSigned)            \
   V(TaggedPointer)           \
+  V(MapInHeader)             \
   V(AnyTagged)               \
   V(CompressedPointer)       \
   V(AnyCompressed)
@@ -622,6 +623,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(kWord16)                           \
   V(kWord32)                           \
   V(kWord64)                           \
+  V(kMapWord)                          \
   V(kTaggedSigned)                     \
   V(kTaggedPointer)                    \
   V(kTagged)                           \
@@ -1332,6 +1334,7 @@ OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
+  DCHECK(!rep.IsMapWord());
 #define LOAD(Type)                  \
   if (rep == MachineType::Type()) { \
     return &cache_.kLoad##Type;     \
@@ -1491,6 +1494,7 @@ const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
 }
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
+  DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
   switch (store_rep.representation()) {
 #define STORE(kRep)                                              \
   case MachineRepresentation::kRep:                              \

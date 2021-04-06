@@ -649,11 +649,26 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
   return MaybeObjectSlot(field_address(byte_offset));
 }
 
-MapWord MapWord::FromMap(const Map map) { return MapWord(map.ptr()); }
+MapWord MapWord::FromMap(const Map map) {
+  DCHECK(map.is_null() || !MapWord::IsPacked(map.ptr()));
+#ifdef V8_MAP_PACKING
+  return MapWord(Pack(map.ptr()));
+#else
+  return MapWord(map.ptr());
+#endif
+}
 
-Map MapWord::ToMap() const { return Map::unchecked_cast(Object(value_)); }
+Map MapWord::ToMap() const {
+#ifdef V8_MAP_PACKING
+  return Map::unchecked_cast(Object(Unpack(value_)));
+#else
+  return Map::unchecked_cast(Object(value_));
+#endif
+}
 
-bool MapWord::IsForwardingAddress() const { return HAS_SMI_TAG(value_); }
+bool MapWord::IsForwardingAddress() const {
+  return (value_ & kForwardingTagMask) == kForwardingTag;
+}
 
 MapWord MapWord::FromForwardingAddress(HeapObject object) {
   return MapWord(object.ptr() - kHeapObjectTag);
@@ -745,7 +760,8 @@ void HeapObject::set_map_no_write_barrier(Map value) {
 }
 
 void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
-  set_map_word(MapWord::FromMap(value));
+  MapWord mapword = MapWord::FromMap(value);
+  set_map_word(mapword);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
@@ -761,19 +777,19 @@ ObjectSlot HeapObject::map_slot() const {
 }
 
 DEF_GETTER(HeapObject, map_word, MapWord) {
-  return MapField::Relaxed_Load(cage_base, *this);
+  return MapField::Relaxed_Load_Map_Word(cage_base, *this);
 }
 
 void HeapObject::set_map_word(MapWord map_word) {
-  MapField::Relaxed_Store(*this, map_word);
+  MapField::Relaxed_Store_Map_Word(*this, map_word);
 }
 
 DEF_GETTER(HeapObject, synchronized_map_word, MapWord) {
-  return MapField::Acquire_Load(cage_base, *this);
+  return MapField::Acquire_Load_No_Unpack(cage_base, *this);
 }
 
 void HeapObject::synchronized_set_map_word(MapWord map_word) {
-  MapField::Release_Store(*this, map_word);
+  MapField::Release_Store_Map_Word(*this, map_word);
 }
 
 bool HeapObject::release_compare_and_swap_map_word(MapWord old_map_word,

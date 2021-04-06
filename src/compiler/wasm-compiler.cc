@@ -291,10 +291,6 @@ class WasmGraphAssembler : public GraphAssembler {
 
   // Maps and their contents.
 
-  Node* LoadMap(Node* heap_object) {
-    return LoadFromObject(MachineType::TaggedPointer(), heap_object,
-                          wasm::ObjectAccess::ToTagged(HeapObject::kMapOffset));
-  }
   Node* LoadInstanceType(Node* map) {
     return LoadFromObject(
         MachineType::Uint16(), map,
@@ -6682,9 +6678,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kF64: {
         auto done = gasm_->MakeLabel();
         gasm_->GotoIf(IsSmi(input), &done);
-        Node* map = gasm_->LoadFromObject(
-            MachineType::TaggedPointer(), input,
-            wasm::ObjectAccess::ToTagged(HeapObject::kMapOffset));
+        Node* map = gasm_->LoadMap(input);
         Node* heap_number_map = LOAD_ROOT(HeapNumberMap, heap_number_map);
         Node* is_heap_number = gasm_->WordEqual(heap_number_map, map);
         gasm_->GotoIf(is_heap_number, &done);

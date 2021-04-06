@@ -777,6 +777,23 @@ class MapWord {
 
   inline Address ptr() { return value_; }
 
+#ifdef V8_MAP_PACKING
+  static constexpr Address Pack(Address map) {
+    return map ^ Internals::kMapWordXorMask;
+  }
+  static constexpr Address Unpack(Address mapword) {
+    // TODO(wenyuzhao): Clear header metadata.
+    return mapword ^ Internals::kMapWordXorMask;
+  }
+  static constexpr bool IsPacked(Address mapword) {
+    return (static_cast<intptr_t>(mapword) & Internals::kMapWordXorMask) ==
+               Internals::kMapWordSignature &&
+           (0xffffffff00000000 & static_cast<intptr_t>(mapword)) != 0;
+  }
+#else
+  static constexpr bool IsPacked(Address) { return false; }
+#endif
+
  private:
   // HeapObject calls the private constructor and directly reads the value.
   friend class HeapObject;

@@ -545,6 +545,8 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kNone:
         return false;
+      case MachineRepresentation::kMapWord:
+        break;
     }
     UNREACHABLE();
   }

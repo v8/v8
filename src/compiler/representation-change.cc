@@ -234,6 +234,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return node;
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -507,7 +508,8 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       break;
   }
   if (output_rep == MachineRepresentation::kTaggedSigned ||
-      output_rep == MachineRepresentation::kTaggedPointer) {
+      output_rep == MachineRepresentation::kTaggedPointer ||
+      output_rep == MachineRepresentation::kMapWord) {
     // this is a no-op.
     return node;
   }

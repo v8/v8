@@ -151,6 +151,12 @@ struct MaybeBoolFlag {
 #define COMPRESS_POINTERS_BOOL false
 #endif
 
+#ifdef V8_MAP_PACKING
+#define V8_MAP_PACKING_BOOL true
+#else
+#define V8_MAP_PACKING_BOOL false
+#endif
+
 #ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 #define COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL true
 #else

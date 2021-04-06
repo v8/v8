@@ -225,6 +225,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       mode = kNoImmediate;
       break;
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
 
