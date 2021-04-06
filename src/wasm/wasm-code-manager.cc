@@ -2239,6 +2239,19 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   code->IncRef();
 }
 
+Builtins::Name RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId stub_id) {
+#define RUNTIME_STUB_NAME(Name) Builtins::k##Name,
+#define RUNTIME_STUB_NAME_TRAP(Name) Builtins::kThrowWasm##Name,
+  constexpr Builtins::Name builtin_names[] = {
+      WASM_RUNTIME_STUB_LIST(RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP)};
+#undef RUNTIME_STUB_NAME
+#undef RUNTIME_STUB_NAME_TRAP
+  STATIC_ASSERT(arraysize(builtin_names) == WasmCode::kRuntimeStubCount);
+
+  DCHECK_GT(arraysize(builtin_names), stub_id);
+  return builtin_names[stub_id];
+}
+
 const char* GetRuntimeStubName(WasmCode::RuntimeStubId stub_id) {
 #define RUNTIME_STUB_NAME(Name) #Name,
 #define RUNTIME_STUB_NAME_TRAP(Name) "ThrowWasm" #Name,

@@ -20,7 +20,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
-#include "src/builtins/builtins-definitions.h"
+#include "src/builtins/builtins.h"
 #include "src/handles/handles.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
@@ -996,6 +996,7 @@ class GlobalWasmCodeRef {
   const std::shared_ptr<NativeModule> native_module_;
 };
 
+Builtins::Name RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId);
 const char* GetRuntimeStubName(WasmCode::RuntimeStubId);
 
 }  // namespace wasm

@@ -1099,19 +1099,14 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_TAGGED_PTR_INSTANCE_FIELD(context_reg.gp(), NativeContext, pinned);
 
-    auto sig = MakeSig::Returns(kPointerKind)
-                   .Params(kPointerKind, kPointerKind, kPointerKind);
     LiftoffAssembler::VarState tag_symbol(kPointerKind, tag_symbol_reg, 0);
     LiftoffAssembler::VarState context(kPointerKind, context_reg, 0);
 
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmGetOwnPropertyDescriptor>(
-            compilation_zone_);
-    __ PrepareBuiltinCall(&sig, call_descriptor,
-                          {exception, tag_symbol, context});
-    DEBUG_CODE_COMMENT("Call builtin");
-    __ CallRuntimeStub(WasmCode::RuntimeStubId::kWasmGetOwnProperty);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmGetOwnProperty,
+                    MakeSig::Returns(kPointerKind)
+                        .Params(kPointerKind, kPointerKind, kPointerKind),
+                    {exception, tag_symbol, context}, kNoSourcePosition);
+
     return LiftoffRegister(kReturnRegister0);
   }
 
@@ -1172,16 +1167,8 @@ class LiftoffCompiler {
   void Rethrow(FullDecoder* decoder,
                const LiftoffAssembler::VarState& exception) {
     DCHECK_EQ(exception.kind(), kRef);
-    DEBUG_CODE_COMMENT("call WasmRethrow builtin");
-    compiler::CallDescriptor* rethrow_descriptor =
-        GetBuiltinCallDescriptor<WasmRethrowDescriptor>(compilation_zone_);
-
-    auto rethrow_sig = MakeSig::Params(kPointerKind);
-    __ PrepareBuiltinCall(&rethrow_sig, rethrow_descriptor, {exception});
-    source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(decoder->position()), true);
-    __ CallRuntimeStub(WasmCode::kWasmRethrow);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmRethrow, MakeSig::Params(kPointerKind),
+                    {exception}, decoder->position());
   }
 
   void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
@@ -2034,16 +2021,11 @@ class LiftoffCompiler {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    WasmCode::RuntimeStubId target = WasmCode::kWasmRefFunc;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmRefFuncDescriptor>(compilation_zone_);
-    auto sig = MakeSig::Returns(kRef).Params(kI32);
     LiftoffRegister func_index_reg = __ GetUnusedRegister(kGpReg, {});
     __ LoadConstant(func_index_reg, WasmValue(function_index));
     LiftoffAssembler::VarState func_index_var(kI32, func_index_reg, 0);
-    __ PrepareBuiltinCall(&sig, call_descriptor, {func_index_var});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmRefFunc, MakeSig::Returns(kRef).Params(kI32),
+                    {func_index_var}, decoder->position());
     __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
   }
 
@@ -2327,17 +2309,10 @@ class LiftoffCompiler {
 
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.back();
 
-    WasmCode::RuntimeStubId target = WasmCode::kWasmTableGet;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmTableGetDescriptor>(compilation_zone_);
-
     ValueKind result_kind = env_->module->tables[imm.index].type.kind();
-    ValueKind sig_kinds[] = {result_kind, kI32, kI32};
-    ValueKindSig sig(1, 2, sig_kinds);
-
-    __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, index});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmTableGet,
+                    MakeSig::Returns(result_kind).Params(kI32, kI32),
+                    {table_index, index}, decoder->position());
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(1);
@@ -2359,17 +2334,11 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
 
-    WasmCode::RuntimeStubId target = WasmCode::kWasmTableSet;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmTableSetDescriptor>(compilation_zone_);
-
     ValueKind table_kind = env_->module->tables[imm.index].type.kind();
-    ValueKind sig_kinds[] = {kI32, kI32, table_kind};
-    ValueKindSig sig(0, 3, sig_kinds);
 
-    __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, index, value});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmTableSet,
+                    MakeSig::Params(kI32, kI32, table_kind),
+                    {table_index, index, value}, decoder->position());
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(2);
@@ -4131,24 +4100,14 @@ class LiftoffCompiler {
     __ LoadConstant(encoded_size_reg, WasmValue(encoded_size));
 
     // Call the WasmAllocateFixedArray builtin to create the values array.
-    DEBUG_CODE_COMMENT("call WasmAllocateFixedArray builtin");
-    compiler::CallDescriptor* create_values_descriptor =
-        GetBuiltinCallDescriptor<WasmAllocateFixedArrayDescriptor>(
-            compilation_zone_);
-
-    auto create_values_sig =
-        MakeSig::Returns(kPointerKind).Params(kPointerKind);
-
-    __ PrepareBuiltinCall(&create_values_sig, create_values_descriptor,
-                          {LiftoffAssembler::VarState{
-                              kSmiKind, LiftoffRegister{encoded_size_reg}, 0}});
-    __ CallRuntimeStub(WasmCode::kWasmAllocateFixedArray);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmAllocateFixedArray,
+                    MakeSig::Returns(kPointerKind).Params(kPointerKind),
+                    {LiftoffAssembler::VarState{
+                        kSmiKind, LiftoffRegister{encoded_size_reg}, 0}},
+                    decoder->position());
 
     // The FixedArray for the exception values is now in the first gp return
     // register.
-    DCHECK_EQ(kReturnRegister0.code(),
-              create_values_descriptor->GetReturnLocation(0).AsRegister());
     LiftoffRegister values_array{kReturnRegister0};
     pinned.set(values_array);
 
@@ -4174,20 +4133,12 @@ class LiftoffCompiler {
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), {});
 
     // Finally, call WasmThrow.
-    DEBUG_CODE_COMMENT("call WasmThrow builtin");
-    compiler::CallDescriptor* throw_descriptor =
-        GetBuiltinCallDescriptor<WasmThrowDescriptor>(compilation_zone_);
+    CallRuntimeStub(WasmCode::kWasmThrow,
+                    MakeSig::Params(kPointerKind, kPointerKind),
+                    {LiftoffAssembler::VarState{kPointerKind, exception_tag, 0},
+                     LiftoffAssembler::VarState{kPointerKind, values_array, 0}},
+                    decoder->position());
 
-    auto throw_sig = MakeSig::Params(kPointerKind, kPointerKind);
-
-    __ PrepareBuiltinCall(
-        &throw_sig, throw_descriptor,
-        {LiftoffAssembler::VarState{kPointerKind, exception_tag, 0},
-         LiftoffAssembler::VarState{kPointerKind, values_array, 0}});
-    source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(decoder->position()), true);
-    __ CallRuntimeStub(WasmCode::kWasmThrow);
-    DefineSafepoint();
     EmitLandingPad(decoder);
   }
 
@@ -4344,16 +4295,29 @@ class LiftoffCompiler {
 #endif
   }
 
-  template <typename BuiltinDescriptor>
-  compiler::CallDescriptor* GetBuiltinCallDescriptor(Zone* zone) {
-    BuiltinDescriptor interface_descriptor;
-    return compiler::Linkage::GetStubCallDescriptor(
-        zone,                                           // zone
+  void CallRuntimeStub(WasmCode::RuntimeStubId stub_id, const ValueKindSig& sig,
+                       std::initializer_list<LiftoffAssembler::VarState> params,
+                       int position) {
+    DEBUG_CODE_COMMENT(
+        // NOLINTNEXTLINE(whitespace/braces)
+        (std::string{"call builtin: "} + GetRuntimeStubName(stub_id)).c_str());
+    auto interface_descriptor = Builtins::CallInterfaceDescriptorFor(
+        RuntimeStubIdToBuiltinName(stub_id));
+    auto* call_descriptor = compiler::Linkage::GetStubCallDescriptor(
+        compilation_zone_,                              // zone
         interface_descriptor,                           // descriptor
         interface_descriptor.GetStackParameterCount(),  // stack parameter count
         compiler::CallDescriptor::kNoFlags,             // flags
         compiler::Operator::kNoProperties,              // properties
         StubCallMode::kCallWasmRuntimeStub);            // stub call mode
+
+    __ PrepareBuiltinCall(&sig, call_descriptor, params);
+    if (position != kNoSourcePosition) {
+      source_position_table_builder_.AddPosition(
+          __ pc_offset(), SourcePosition(position), true);
+    }
+    __ CallRuntimeStub(stub_id);
+    DefineSafepoint();
   }
 
   void AtomicWait(FullDecoder* decoder, ValueKind kind,
@@ -4389,41 +4353,15 @@ class LiftoffCompiler {
     // above in {AddMemoryMasking}.
     index.MakeRegister(LiftoffRegister(index_plus_offset));
 
-    WasmCode::RuntimeStubId target;
-    compiler::CallDescriptor* call_descriptor;
-    if (kind == kI32) {
-      if (kNeedI64RegPair) {
-        target = WasmCode::kWasmI32AtomicWait32;
-        call_descriptor =
-            GetBuiltinCallDescriptor<WasmI32AtomicWait32Descriptor>(
-                compilation_zone_);
-      } else {
-        target = WasmCode::kWasmI32AtomicWait64;
-        call_descriptor =
-            GetBuiltinCallDescriptor<WasmI32AtomicWait64Descriptor>(
-                compilation_zone_);
-      }
-    } else {
-      if (kNeedI64RegPair) {
-        target = WasmCode::kWasmI64AtomicWait32;
-        call_descriptor =
-            GetBuiltinCallDescriptor<WasmI64AtomicWait32Descriptor>(
-                compilation_zone_);
-      } else {
-        target = WasmCode::kWasmI64AtomicWait64;
-        call_descriptor =
-            GetBuiltinCallDescriptor<WasmI64AtomicWait64Descriptor>(
-                compilation_zone_);
-      }
-    }
+    static constexpr WasmCode::RuntimeStubId kTargets[2][2]{
+        // 64 bit systems (kNeedI64RegPair == false):
+        {WasmCode::kWasmI64AtomicWait64, WasmCode::kWasmI32AtomicWait64},
+        // 32 bit systems (kNeedI64RegPair == true):
+        {WasmCode::kWasmI64AtomicWait32, WasmCode::kWasmI32AtomicWait32}};
+    auto target = kTargets[kNeedI64RegPair][kind == kI32];
 
-    ValueKind sig_kinds[] = {kPointerKind, kind, kI64};
-    ValueKindSig sig(0, 3, sig_kinds);
-
-    __ PrepareBuiltinCall(&sig, call_descriptor,
-                          {index, expected_value, timeout});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(target, MakeSig::Params(kPointerKind, kind, kI64),
+                    {index, expected_value, timeout}, decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(3);
 
@@ -4453,17 +4391,13 @@ class LiftoffCompiler {
       __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
     }
 
-    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kI32);
-    auto call_descriptor =
-        GetBuiltinCallDescriptor<WasmAtomicNotifyDescriptor>(compilation_zone_);
-
     LiftoffAssembler::VarState count = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
     index.MakeRegister(LiftoffRegister(index_plus_offset));
 
-    __ PrepareBuiltinCall(&sig, call_descriptor, {index, count});
-    __ CallRuntimeStub(WasmCode::kWasmAtomicNotify);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmAtomicNotify,
+                    MakeSig::Returns(kI32).Params(kPointerKind, kI32),
+                    {index, count}, decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(2);
 
@@ -4715,16 +4649,10 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
     LiftoffAssembler::VarState dst = __ cache_state()->stack_state.end()[-3];
 
-    WasmCode::RuntimeStubId target = WasmCode::kWasmTableInit;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmTableInitDescriptor>(compilation_zone_);
-
-    auto sig = MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind);
-
-    __ PrepareBuiltinCall(&sig, call_descriptor,
-                          {dst, src, size, table_index, segment_index});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmTableInit,
+                    MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind),
+                    {dst, src, size, table_index, segment_index},
+                    decoder->position());
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(3);
@@ -4771,16 +4699,10 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
     LiftoffAssembler::VarState dst = __ cache_state()->stack_state.end()[-3];
 
-    WasmCode::RuntimeStubId target = WasmCode::kWasmTableCopy;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmTableCopyDescriptor>(compilation_zone_);
-
-    auto sig = MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind);
-
-    __ PrepareBuiltinCall(&sig, call_descriptor,
-                          {dst, src, size, table_dst_index, table_src_index});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmTableCopy,
+                    MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind),
+                    {dst, src, size, table_dst_index, table_src_index},
+                    decoder->position());
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(3);
@@ -4800,15 +4722,10 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState delta = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
 
-    WasmCode::RuntimeStubId target = WasmCode::kWasmTableGrow;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmTableGrowDescriptor>(compilation_zone_);
-
-    auto sig = MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kTaggedKind);
-
-    __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, delta, value});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(
+        WasmCode::kWasmTableGrow,
+        MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kTaggedKind),
+        {table_index, delta, value}, decoder->position());
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(2);
@@ -4858,16 +4775,9 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
     LiftoffAssembler::VarState start = __ cache_state()->stack_state.end()[-3];
 
-    WasmCode::RuntimeStubId target = WasmCode::kWasmTableFill;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmTableFillDescriptor>(compilation_zone_);
-
-    auto sig = MakeSig::Params(kSmiKind, kI32, kI32, kTaggedKind);
-
-    __ PrepareBuiltinCall(&sig, call_descriptor,
-                          {table_index, start, count, value});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmTableFill,
+                    MakeSig::Params(kSmiKind, kI32, kI32, kTaggedKind),
+                    {table_index, start, count, value}, decoder->position());
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(3);
@@ -4878,16 +4788,11 @@ class LiftoffCompiler {
   void StructNew(FullDecoder* decoder,
                  const StructIndexImmediate<validate>& imm, const Value& rtt,
                  bool initial_values_on_stack) {
-    WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateStructWithRtt;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmAllocateStructWithRttDescriptor>(
-            compilation_zone_);
-    auto sig = MakeSig::Returns(kRef).Params(rtt.type.kind());
     LiftoffAssembler::VarState rtt_value =
         __ cache_state()->stack_state.end()[-1];
-    __ PrepareBuiltinCall(&sig, call_descriptor, {rtt_value});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(WasmCode::kWasmAllocateStructWithRtt,
+                    MakeSig::Returns(kRef).Params(rtt.type.kind()), {rtt_value},
+                    decoder->position());
     // Drop the RTT.
     __ cache_state()->stack_state.pop_back(1);
 
@@ -4968,12 +4873,6 @@ class LiftoffCompiler {
     int elem_size = element_size_bytes(elem_kind);
     // Allocate the array.
     {
-      WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateArrayWithRtt;
-      compiler::CallDescriptor* call_descriptor =
-          GetBuiltinCallDescriptor<WasmAllocateArrayWithRttDescriptor>(
-              compilation_zone_);
-      ValueKind sig_kinds[] = {kRef, rtt_kind, kI32, kI32};
-      ValueKindSig sig(1, 3, sig_kinds);
       LiftoffAssembler::VarState rtt_var =
           __ cache_state()->stack_state.end()[-1];
       LiftoffAssembler::VarState length_var =
@@ -4981,10 +4880,11 @@ class LiftoffCompiler {
       LiftoffRegister elem_size_reg = __ GetUnusedRegister(kGpReg, {});
       __ LoadConstant(elem_size_reg, WasmValue(elem_size));
       LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
-      __ PrepareBuiltinCall(&sig, call_descriptor,
-                            {rtt_var, length_var, elem_size_var});
-      __ CallRuntimeStub(target);
-      DefineSafepoint();
+
+      CallRuntimeStub(WasmCode::kWasmAllocateArrayWithRtt,
+                      MakeSig::Returns(kRef).Params(rtt_kind, kI32, kI32),
+                      {rtt_var, length_var, elem_size_var},
+                      decoder->position());
       // Drop the RTT.
       __ cache_state()->stack_state.pop_back(1);
     }
@@ -5143,19 +5043,15 @@ class LiftoffCompiler {
               Value* result) {
     ValueKind parent_value_kind = parent.type.kind();
     ValueKind rtt_value_kind = kRttWithDepth;
-    WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateRtt;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmAllocateRttDescriptor>(compilation_zone_);
-    ValueKind sig_kinds[] = {rtt_value_kind, kI32, parent_value_kind};
-    ValueKindSig sig(1, 2, sig_kinds);
     LiftoffAssembler::VarState parent_var =
         __ cache_state()->stack_state.end()[-1];
     LiftoffRegister type_reg = __ GetUnusedRegister(kGpReg, {});
     __ LoadConstant(type_reg, WasmValue(type_index));
     LiftoffAssembler::VarState type_var(kI32, type_reg, 0);
-    __ PrepareBuiltinCall(&sig, call_descriptor, {type_var, parent_var});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
+    CallRuntimeStub(
+        WasmCode::kWasmAllocateRtt,
+        MakeSig::Returns(rtt_value_kind).Params(kI32, parent_value_kind),
+        {type_var, parent_var}, decoder->position());
     // Drop the parent RTT.
     __ cache_state()->stack_state.pop_back(1);
     __ PushRegister(rtt_value_kind, LiftoffRegister(kReturnRegister0));
@@ -5237,17 +5133,11 @@ class LiftoffCompiler {
       // Preserve {obj_reg} across the call.
       LiftoffRegList saved_regs = LiftoffRegList::ForRegs(obj_reg);
       __ PushRegisters(saved_regs);
-      WasmCode::RuntimeStubId target = WasmCode::kWasmSubtypeCheck;
-      compiler::CallDescriptor* call_descriptor =
-          GetBuiltinCallDescriptor<WasmSubtypeCheckDescriptor>(
-              compilation_zone_);
-      ValueKind sig_kinds[] = {kI32, kOptRef, rtt.type.kind()};
-      ValueKindSig sig(1, 2, sig_kinds);
       LiftoffAssembler::VarState rtt_state(kPointerKind, rtt_reg, 0);
       LiftoffAssembler::VarState tmp1_state(kPointerKind, tmp1, 0);
-      __ PrepareBuiltinCall(&sig, call_descriptor, {tmp1_state, rtt_state});
-      __ CallRuntimeStub(target);
-      DefineSafepoint();
+      CallRuntimeStub(WasmCode::kWasmSubtypeCheck,
+                      MakeSig::Returns(kI32).Params(kOptRef, rtt.type.kind()),
+                      {tmp1_state, rtt_state}, decoder->position());
       __ PopRegisters(saved_regs);
       __ Move(tmp1.gp(), kReturnRegister0, kI32);
       __ emit_i32_cond_jumpi(kEqual, no_match, tmp1.gp(), 0);
@@ -5889,20 +5779,14 @@ class LiftoffCompiler {
       LiftoffRegList saved_regs = LiftoffRegList::ForRegs(func_data);
       __ PushRegisters(saved_regs);
 
-      WasmCode::RuntimeStubId builtin = WasmCode::kWasmAllocatePair;
-      compiler::CallDescriptor* builtin_call_descriptor =
-          GetBuiltinCallDescriptor<WasmAllocatePairDescriptor>(
-              compilation_zone_);
-      auto builtin_sig = MakeSig::Returns(kOptRef).Params(kOptRef, kOptRef);
       LiftoffRegister current_instance = instance;
       __ FillInstanceInto(current_instance.gp());
       LiftoffAssembler::VarState instance_var(kOptRef, current_instance, 0);
       LiftoffAssembler::VarState callable_var(kOptRef, callable, 0);
-      __ PrepareBuiltinCall(&builtin_sig, builtin_call_descriptor,
-                            {instance_var, callable_var});
 
-      __ CallRuntimeStub(builtin);
-      DefineSafepoint();
+      CallRuntimeStub(WasmCode::kWasmAllocatePair,
+                      MakeSig::Returns(kOptRef).Params(kOptRef, kOptRef),
+                      {instance_var, callable_var}, decoder->position());
       if (instance.gp() != kReturnRegister0) {
         __ Move(instance.gp(), kReturnRegister0, kPointerKind);
       }
