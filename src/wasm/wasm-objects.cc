@@ -2229,8 +2229,12 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           }
         }
         default:
-          // Tables defined outside a module can't refer to user-defined types.
-          if (module == nullptr) return false;
+          if (module == nullptr) {
+            *error_message =
+                "an object defined in JavaScript cannot be compatible with a "
+                "type defined in a Webassembly module";
+            return false;
+          }
           DCHECK(module->has_type(expected.ref_index()));
           if (module->has_signature(expected.ref_index())) {
             if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
