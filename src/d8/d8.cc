@@ -1814,12 +1814,14 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::TestVerifySourcePositions(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  if (args.Length() != 1 || !args[0]->IsFunction()) {
+  // Check if the argument is a valid function.
+  if (args.Length() != 1 ||
+      !i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*args[0]))
+           ->IsJSFunctionOrBoundFunction()) {
     Throw(isolate, "Expected function as single argument.");
     return;
   }
   Local<Value> arg_fun = args[0];
-  while (arg_fun->IsProxy()) arg_fun = arg_fun.As<Proxy>()->GetTarget();
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);

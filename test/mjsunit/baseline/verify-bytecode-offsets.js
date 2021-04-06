@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-sparkplug
+// Flags: --always-sparkplug --allow-natives-syntax
 
 // This test mainly exists to make ClusterFuzz aware of
 // d8.test.verifySourcePositions.
@@ -30,4 +30,6 @@ foo(obj, obj);
 
 d8.test.verifySourcePositions(foo);
 
-d8.test.verifySourcePositions(new Proxy(foo, {}));
+// Make sure invalid calls throw.
+assertThrows(() => {d8.test.verifySourcePositions(new Proxy(foo, {}))});
+assertThrows(() => {d8.test.verifySourcePositions(%GetUndetectable())});
