@@ -567,7 +567,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   DebugScope debug_scope(isolate->debug());
 
   // Check for instrumentation breakpoint.
-  DCHECK_EQ(script->break_on_entry(), instance->break_on_entry());
+  DCHECK_EQ(script->break_on_entry(), !!instance->break_on_entry());
   if (script->break_on_entry()) {
     MaybeHandle<FixedArray> maybe_on_entry_breakpoints =
         WasmScript::CheckBreakPoints(isolate, script,
