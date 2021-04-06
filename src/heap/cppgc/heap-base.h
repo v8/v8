@@ -174,6 +174,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   void SetInAtomicPauseForTesting(bool value) { in_atomic_pause_ = value; }
 
+  virtual void StartIncrementalGarbageCollectionForTesting() = 0;
+  virtual void FinalizeIncrementalGarbageCollectionForTesting(
+      EmbedderStackState) = 0;
+
  protected:
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(

@@ -78,6 +78,9 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void ReportBufferedAllocationSizeIfPossible();
 
+  void StartIncrementalGarbageCollectionForTesting() final;
+  void FinalizeIncrementalGarbageCollectionForTesting(EmbedderStackState) final;
+
   Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
   TraceFlags current_flags_ = TraceFlags::kNoFlags;
@@ -89,7 +92,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   v8::WrapperDescriptor wrapper_descriptor_;
 
-  bool in_detached_testing_mode = false;
+  bool in_detached_testing_mode_ = false;
+  bool force_incremental_marking_for_testing_ = false;
 };
 
 }  // namespace internal

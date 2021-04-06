@@ -175,5 +175,17 @@ TEST_F(UnifiedHeapDetachedTest, StandAloneCppGC) {
   }
 }
 
+TEST_F(UnifiedHeapDetachedTest, StandaloneTestingHeap) {
+  // Perform garbage collection through the StandaloneTestingHeap API.
+  auto cpp_heap = v8::CppHeap::Create(
+      V8::GetCurrentPlatform(),
+      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  cpp_heap->EnableDetachedGarbageCollectionsForTesting();
+  cppgc::testing::StandaloneTestingHeap heap(cpp_heap->GetHeapHandle());
+  heap.StartGarbageCollection();
+  heap.PerformMarkingStep(cppgc::EmbedderStackState::kNoHeapPointers);
+  heap.FinalizeGarbageCollection(cppgc::EmbedderStackState::kNoHeapPointers);
+}
+
 }  // namespace internal
 }  // namespace v8

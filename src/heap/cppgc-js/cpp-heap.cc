@@ -107,8 +107,9 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner() final {
     // If no Isolate has been set, there's no task runner to leverage for
-    // foreground tasks.
-    if (!isolate_) return nullptr;
+    // foreground tasks. In detached mode the original platform handles the
+    // task runner retrieval.
+    if (!isolate_ && !is_in_detached_mode_) return nullptr;
 
     return platform_->GetForegroundTaskRunner(isolate_);
   }
@@ -123,10 +124,12 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
   }
 
   void SetIsolate(v8::Isolate* isolate) { isolate_ = isolate; }
+  void EnableDetachedModeForTesting() { is_in_detached_mode_ = true; }
 
  private:
   v8::Platform* platform_;
   v8::Isolate* isolate_ = nullptr;
+  bool is_in_detached_mode_ = false;
 };
 
 class UnifiedHeapConcurrentMarker
@@ -235,7 +238,7 @@ void CppHeap::Terminate() {
 }
 
 void CppHeap::AttachIsolate(Isolate* isolate) {
-  CHECK(!in_detached_testing_mode);
+  CHECK(!in_detached_testing_mode_);
   CHECK_NULL(isolate_);
   isolate_ = isolate;
   static_cast<CppgcPlatformAdapter*>(platform())
@@ -290,15 +293,17 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      flags & TraceFlags::kForced
+      ((current_flags_ & TraceFlags::kForced) &&
+       !force_incremental_marking_for_testing_)
           ? UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic
           : UnifiedHeapMarker::MarkingConfig::MarkingType::
                 kIncrementalAndConcurrent,
       flags & TraceFlags::kForced
           ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
           : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
-  DCHECK_IMPLIES(!isolate_, cppgc::Heap::MarkingType::kAtomic ==
-                                marking_config.marking_type);
+  DCHECK_IMPLIES(!isolate_, (cppgc::Heap::MarkingType::kAtomic ==
+                             marking_config.marking_type) ||
+                                force_incremental_marking_for_testing_);
   if ((flags == TraceFlags::kReduceMemory) || (flags == TraceFlags::kForced)) {
     // Only enable compaction when in a memory reduction garbage collection as
     // it may significantly increase the final garbage collection pause.
@@ -438,7 +443,7 @@ void CppHeap::CollectGarbageForTesting(
   } else {
     // Perform an atomic GC, with starting incremental/concurrent marking and
     // immediately finalizing the garbage collection.
-    TracePrologue(TraceFlags::kForced);
+    if (!IsMarking()) TracePrologue(TraceFlags::kForced);
     EnterFinalPause(stack_state);
     AdvanceTracing(std::numeric_limits<double>::infinity());
     TraceSummary trace_summary;
@@ -448,10 +453,32 @@ void CppHeap::CollectGarbageForTesting(
 }
 
 void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
-  CHECK(!in_detached_testing_mode);
+  CHECK(!in_detached_testing_mode_);
   CHECK_NULL(isolate_);
   no_gc_scope_--;
-  in_detached_testing_mode = true;
+  in_detached_testing_mode_ = true;
+  static_cast<CppgcPlatformAdapter*>(platform())
+      ->EnableDetachedModeForTesting();
+}
+
+void CppHeap::StartIncrementalGarbageCollectionForTesting() {
+  DCHECK(!in_no_gc_scope());
+  DCHECK_NULL(isolate_);
+  if (IsMarking()) return;
+  force_incremental_marking_for_testing_ = true;
+  TracePrologue(TraceFlags::kForced);
+  force_incremental_marking_for_testing_ = false;
+}
+
+void CppHeap::FinalizeIncrementalGarbageCollectionForTesting(
+    EmbedderStackState stack_state) {
+  DCHECK(!in_no_gc_scope());
+  DCHECK_NULL(isolate_);
+  DCHECK(IsMarking());
+  if (IsMarking()) {
+    CollectGarbageForTesting(stack_state);
+  }
+  sweeper_.FinishIfRunning();
 }
 
 }  // namespace internal

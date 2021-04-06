@@ -209,5 +209,22 @@ void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
   FinalizeGarbageCollection(stack_state);
 }
 
+void Heap::StartIncrementalGarbageCollectionForTesting() {
+  DCHECK(!IsMarking());
+  DCHECK(!in_no_gc_scope());
+  StartGarbageCollection({Config::CollectionType::kMajor,
+                          Config::StackState::kNoHeapPointers,
+                          Config::MarkingType::kIncrementalAndConcurrent,
+                          Config::SweepingType::kIncrementalAndConcurrent});
+}
+
+void Heap::FinalizeIncrementalGarbageCollectionForTesting(
+    EmbedderStackState stack_state) {
+  DCHECK(!in_no_gc_scope());
+  DCHECK(IsMarking());
+  FinalizeGarbageCollection(stack_state);
+  sweeper_.FinishIfRunning();
+}
+
 }  // namespace internal
 }  // namespace cppgc
