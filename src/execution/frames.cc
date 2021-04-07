@@ -518,7 +518,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
          holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
   unsigned pc_offset = holder.GetOffsetFromInstructionStart(isolate_, old_pc);
   Object code = holder;
-  v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&code));
+  v->VisitRootPointer(Root::kStackRoots, nullptr, FullObjectSlot(&code));
   if (code == holder) return;
   holder = Code::unchecked_cast(code);
   Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
@@ -1055,7 +1055,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 
   // Visit the rest of the parameters if they are tagged.
   if (has_tagged_outgoing_params) {
-    v->VisitRootPointers(Root::kTop, nullptr, parameters_base,
+    v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }
 
@@ -1081,7 +1081,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
             DecompressTaggedPointer(isolate(), compressed_value);
       }
 #endif
-      v->VisitRootPointer(Root::kTop, nullptr, spill_slot);
+      v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
     }
   }
 
@@ -1094,7 +1094,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     FullObjectSlot tagged_parameter_limit =
         tagged_parameter_base + tagged_parameter_slots;
 
-    v->VisitRootPointers(Root::kTop, nullptr, tagged_parameter_base,
+    v->VisitRootPointers(Root::kStackRoots, nullptr, tagged_parameter_base,
                          tagged_parameter_limit);
   }
 
@@ -1112,7 +1112,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     // untagged, we don't need to visit it.
     frame_header_base += 1;
   }
-  v->VisitRootPointers(Root::kTop, nullptr, frame_header_base,
+  v->VisitRootPointers(Root::kStackRoots, nullptr, frame_header_base,
                        frame_header_limit);
 }
 
@@ -1989,7 +1989,7 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
         fp() +
         WasmDebugBreakFrameConstants::GetPushedGpRegisterOffset(reg_code)));
 
-    v->VisitRootPointer(Root::kTop, nullptr, spill_slot);
+    v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
   }
 }
 
@@ -2031,7 +2031,8 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slot_limit(
       &Memory<Address>(sp() + scan_count * kSystemPointerSize));
-  v->VisitRootPointers(Root::kTop, nullptr, spill_slot_base, spill_slot_limit);
+  v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
+                       spill_slot_limit);
 }
 
 WasmInstanceObject WasmCompileLazyFrame::wasm_instance() const {
@@ -2047,8 +2048,8 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   const int header_size = WasmCompileLazyFrameConstants::kFixedFrameSizeFromFp;
   FullObjectSlot base(&Memory<Address>(sp()));
   FullObjectSlot limit(&Memory<Address>(fp() - header_size));
-  v->VisitRootPointers(Root::kTop, nullptr, base, limit);
-  v->VisitRootPointer(Root::kTop, nullptr, wasm_instance_slot());
+  v->VisitRootPointers(Root::kStackRoots, nullptr, base, limit);
+  v->VisitRootPointer(Root::kStackRoots, nullptr, wasm_instance_slot());
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2192,14 +2193,14 @@ void CommonFrame::IterateExpressions(RootVisitor* v) const {
   FullObjectSlot base(&Memory<Address>(sp()));
   FullObjectSlot limit(&Memory<Address>(fp() + last_object_offset) + 1);
   if (StackFrame::IsTypeMarker(marker)) {
-    v->VisitRootPointers(Root::kTop, nullptr, base, limit);
+    v->VisitRootPointers(Root::kStackRoots, nullptr, base, limit);
   } else {
     // The frame contains the actual argument count (intptr) that should not be
     // visited.
     FullObjectSlot argc(
         &Memory<Address>(fp() + StandardFrameConstants::kArgCOffset));
-    v->VisitRootPointers(Root::kTop, nullptr, base, argc);
-    v->VisitRootPointers(Root::kTop, nullptr, argc + 1, limit);
+    v->VisitRootPointers(Root::kStackRoots, nullptr, base, argc);
+    v->VisitRootPointers(Root::kStackRoots, nullptr, argc + 1, limit);
   }
 }
 

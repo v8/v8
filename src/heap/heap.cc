@@ -4485,7 +4485,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
 
     if (!options.contains(SkipRoot::kStack)) {
       IterateStackRoots(v);
-      v->Synchronize(VisitorSynchronization::kTop);
+      v->Synchronize(VisitorSynchronization::kStackRoots);
     }
 
     // Iterate over local handles in handle scopes.
