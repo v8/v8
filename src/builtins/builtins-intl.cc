@@ -246,7 +246,7 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
 
 /**
  * Common code shared between DateTimeFormatConstructor and
- * NumberFormatConstrutor
+ * NumberFormatConstructor
  */
 template <class T>
 Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
