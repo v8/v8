@@ -99,7 +99,25 @@ int LiftoffAssembler::PrepareStackFrame() {
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
-  bailout(kUnsupportedArchitecture, "PrepareTailCall");
+  Register scratch = r1;
+  // Push the return address and frame pointer to complete the stack frame.
+  lay(sp, MemOperand(sp, -2 * kSystemPointerSize));
+  LoadU64(scratch, MemOperand(fp, kSystemPointerSize));
+  StoreU64(scratch, MemOperand(sp, kSystemPointerSize));
+  LoadU64(scratch, MemOperand(fp));
+  StoreU64(scratch, MemOperand(sp));
+
+  // Shift the whole frame upwards.
+  int slot_count = num_callee_stack_params + 2;
+  for (int i = slot_count - 1; i >= 0; --i) {
+    LoadU64(scratch, MemOperand(sp, i * kSystemPointerSize));
+    StoreU64(scratch,
+             MemOperand(fp, (i - stack_param_delta) * kSystemPointerSize));
+  }
+
+  // Set the new stack and frame pointer.
+  lay(sp, MemOperand(fp, -stack_param_delta * kSystemPointerSize));
+  Pop(r14, fp);
 }
 
 void LiftoffAssembler::AlignFrameSize() {}
