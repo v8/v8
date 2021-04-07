@@ -2997,12 +2997,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_V128AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
       Register dst = i.OutputRegister();
+      constexpr uint8_t fxm = 0x2;  // field mask.
       constexpr int bit_number = 24;
       __ li(r0, Operand(0));
       __ li(ip, Operand(1));
       // Check if both lanes are 0, if so then return false.
       __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
-      __ mtcr(r0);  // Clear cr.
+      __ mtcrf(r0, fxm);  // Clear cr6.
       __ vcmpequd(kScratchSimd128Reg, src, kScratchSimd128Reg, SetRC);
       __ isel(dst, r0, ip, bit_number);
       break;
@@ -3010,12 +3011,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #define SIMD_ALL_TRUE(opcode)                                          \
   Simd128Register src = i.InputSimd128Register(0);                     \
   Register dst = i.OutputRegister();                                   \
+  constexpr uint8_t fxm = 0x2; /* field mask. */                       \
   constexpr int bit_number = 24;                                       \
   __ li(r0, Operand(0));                                               \
   __ li(ip, Operand(1));                                               \
   /* Check if all lanes > 0, if not then return false.*/               \
   __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg); \
-  __ mtcr(r0); /* Clear cr.*/                                          \
+  __ mtcrf(r0, fxm); /* Clear cr6.*/                                   \
   __ opcode(kScratchSimd128Reg, src, kScratchSimd128Reg, SetRC);       \
   __ isel(dst, ip, r0, bit_number);
     case kPPC_I64x2AllTrue: {

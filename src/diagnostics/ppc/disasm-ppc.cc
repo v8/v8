@@ -265,6 +265,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 6;
     }
+    case 'F': {  // FXM
+      uint8_t value = instr->Bits(19, 12);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      return 3;
+    }
     case 'U': {  // UIM
       int32_t value = instr->Bits(20, 16);
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
@@ -1071,7 +1076,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case MTCRF: {
-      Format(instr, "mtcr    'rs");
+      Format(instr, "mtcrf   'FXM, 'rs");
       return;
     }
 #endif

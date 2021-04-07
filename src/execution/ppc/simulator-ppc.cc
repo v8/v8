@@ -3880,12 +3880,25 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       return;
     }
     case MTCRF: {
-      // This only simulates mtcr.
       int rs = instr->RSValue();
+      uint32_t rs_val = static_cast<int32_t>(get_register(rs));
       uint8_t fxm = instr->Bits(19, 12);
-      DCHECK_EQ(fxm, 0xFF);
-      USE(fxm);
-      condition_reg_ = static_cast<int32_t>(get_register(rs));
+      uint8_t bit_mask = 0x80;
+      const int field_bit_count = 4;
+      const int max_field_index = 7;
+      uint32_t result = 0;
+      for (int i = 0; i <= max_field_index; i++) {
+        result <<= field_bit_count;
+        uint32_t source = condition_reg_;
+        if ((bit_mask & fxm) != 0) {
+          // take it from rs.
+          source = rs_val;
+        }
+        result |= ((source << i * field_bit_count) >> i * field_bit_count) >>
+                  (max_field_index - i) * field_bit_count;
+        bit_mask >>= 1;
+      }
+      condition_reg_ = result;
       break;
     }
     // Vector instructions.

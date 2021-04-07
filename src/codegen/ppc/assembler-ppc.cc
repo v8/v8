@@ -1484,8 +1484,7 @@ void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
 
 void Assembler::mfcr(Register dst) { emit(EXT2 | MFCR | dst.code() * B21); }
 
-void Assembler::mtcr(Register src) {
-  uint8_t FXM = 0xFF;
+void Assembler::mtcrf(Register src, uint8_t FXM) {
   emit(MTCRF | src.code() * B21 | FXM * B12);
 }
 #if V8_TARGET_ARCH_PPC64
