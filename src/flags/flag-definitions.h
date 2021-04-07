@@ -1610,6 +1610,7 @@ DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
 DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
+DEFINE_BOOL(trace_regexp_graph, false, "trace the regexp graph")
 
 DEFINE_BOOL(enable_experimental_regexp_engine, false,
             "recognize regexps with 'l' flag, run them on experimental engine")

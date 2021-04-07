@@ -821,6 +821,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     return false;
   }
 
+  if (FLAG_trace_regexp_graph) DotPrinter::DotPrint("Start", data->node);
+
   // Create the correct assembler for the architecture.
   std::unique_ptr<RegExpMacroAssembler> macro_assembler;
   if (data->compilation_target == RegExpCompilationTarget::kNative) {
