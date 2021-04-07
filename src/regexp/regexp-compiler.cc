@@ -3533,14 +3533,23 @@ class EatsAtLeastPropagator : public AllStatic {
   }
 
   static void VisitAction(ActionNode* that) {
-    // POSITIVE_SUBMATCH_SUCCESS rewinds input, so we must not consider
-    // successor nodes for eats_at_least. SET_REGISTER_FOR_LOOP indicates a loop
-    // entry point, which means the loop body will run at least the minimum
-    // number of times before the continuation case can run. Otherwise the
-    // current node eats at least as much as its successor.
+    // - BEGIN_SUBMATCH and POSITIVE_SUBMATCH_SUCCESS wrap lookarounds.
+    // Lookarounds rewind input, so their eats_at_least value must not
+    // propagate to surroundings.
+    // TODO(jgruber): Instead of resetting EAL to 0 at lookaround boundaries,
+    // analysis should instead skip over the lookaround and look at whatever
+    // follows the lookaround. A simple solution would be to store a pointer to
+    // the associated POSITIVE_SUBMATCH_SUCCESS node in the BEGIN_SUBMATCH
+    // node, and use that during analysis.
+    // - SET_REGISTER_FOR_LOOP indicates a loop entry point, which means the
+    // loop body will run at least the minimum number of times before the
+    // continuation case can run. Otherwise the current node eats at least as
+    // much as its successor.
     switch (that->action_type()) {
+      case ActionNode::BEGIN_SUBMATCH:
       case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
-        break;  // Was already initialized to zero.
+        DCHECK(that->eats_at_least_info()->IsZero());
+        break;
       case ActionNode::SET_REGISTER_FOR_LOOP:
         that->set_eats_at_least_info(
             that->on_success()->EatsAtLeastFromLoopEntry());
