@@ -9,6 +9,8 @@
 // --always-opt is disabled because we rely on particular feedback for
 // optimizing to the fastest path.
 // Flags: --no-always-opt
+
+assertThrows(() => d8.test.fast_c_api());
 const fast_c_api = new d8.test.fast_c_api();
 
 // ----------- add_all -----------
