@@ -1435,9 +1435,11 @@ EatsAtLeastInfo LoopChoiceNode::EatsAtLeastFromLoopEntry() {
   DCHECK_EQ(alternatives_->length(), 2);  // There's just loop and continue.
 
   if (read_backward()) {
-    // Can't do anything special for a backward loop, so return the basic values
-    // that we got during analysis.
-    return *eats_at_least_info();
+    // The eats_at_least value is not used if reading backward. The
+    // EatsAtLeastPropagator should've zeroed it as well.
+    DCHECK_EQ(eats_at_least_info()->eats_at_least_from_possibly_start, 0);
+    DCHECK_EQ(eats_at_least_info()->eats_at_least_from_not_start, 0);
+    return {};
   }
 
   // Figure out how much the loop body itself eats, not including anything in
@@ -3560,7 +3562,10 @@ class EatsAtLeastPropagator : public AllStatic {
   }
 
   static void VisitLoopChoiceContinueNode(LoopChoiceNode* that) {
-    that->set_eats_at_least_info(*that->continue_node()->eats_at_least_info());
+    if (!that->read_backward()) {
+      that->set_eats_at_least_info(
+          *that->continue_node()->eats_at_least_info());
+    }
   }
 
   static void VisitLoopChoiceLoopNode(LoopChoiceNode* that) {}
