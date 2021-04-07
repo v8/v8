@@ -1815,19 +1815,21 @@ void Shell::TestVerifySourcePositions(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   // Check if the argument is a valid function.
-  if (args.Length() != 1 ||
-      !i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*args[0]))
-           ->IsJSFunctionOrBoundFunction()) {
+  if (args.Length() != 1) {
     Throw(isolate, "Expected function as single argument.");
     return;
   }
-  Local<Value> arg_fun = args[0];
+  auto arg_handle = Utils::OpenHandle(*args[0]);
+  if (!arg_handle->IsHeapObject() || !i::Handle<i::HeapObject>::cast(arg_handle)
+                                          ->IsJSFunctionOrBoundFunction()) {
+    Throw(isolate, "Expected function as single argument.");
+    return;
+  }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
 
-  auto callable = i::Handle<i::JSFunctionOrBoundFunction>::cast(
-      Utils::OpenHandle(*arg_fun));
+  auto callable = i::Handle<i::JSFunctionOrBoundFunction>::cast(arg_handle);
   while (callable->IsJSBoundFunction()) {
     auto bound_function = i::Handle<i::JSBoundFunction>::cast(callable);
     auto bound_target = bound_function->bound_target_function();

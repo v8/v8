@@ -31,5 +31,7 @@ foo(obj, obj);
 d8.test.verifySourcePositions(foo);
 
 // Make sure invalid calls throw.
+assertThrows(() => {d8.test.verifySourcePositions(0)});
+assertThrows(() => {d8.test.verifySourcePositions(obj)});
 assertThrows(() => {d8.test.verifySourcePositions(new Proxy(foo, {}))});
 assertThrows(() => {d8.test.verifySourcePositions(%GetUndetectable())});
