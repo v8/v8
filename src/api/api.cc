@@ -1920,25 +1920,43 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   ENTER_V8(isolate, context, Script, Run, MaybeLocal<Value>(),
            InternalEscapableScope);
   i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
-  i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
+  i::AggregatingHistogramTimerScope histogram_timer(
+      isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
 
   // TODO(crbug.com/1193459): remove once ablation study is completed
-  if (i::FLAG_script_run_delay) {
-    v8::base::OS::Sleep(
-        v8::base::TimeDelta::FromMilliseconds(i::FLAG_script_run_delay));
+  base::ElapsedTimer timer;
+  base::TimeDelta delta;
+  if (i::FLAG_script_delay) {
+    delta = v8::base::TimeDelta::FromMillisecondsD(i::FLAG_script_delay);
   }
-  if (i::FLAG_script_run_delay_once && !isolate->did_run_script_delay()) {
-    v8::base::OS::Sleep(
-        v8::base::TimeDelta::FromMilliseconds(i::FLAG_script_run_delay_once));
+  if (i::FLAG_script_delay_once && !isolate->did_run_script_delay()) {
+    delta = v8::base::TimeDelta::FromMillisecondsD(i::FLAG_script_delay_once);
     isolate->set_did_run_script_delay(true);
+  }
+  if (i::FLAG_script_delay_fraction > 0.0) {
+    timer.Start();
+  } else if (delta.InMicroseconds() > 0) {
+    timer.Start();
+    while (timer.Elapsed() < delta) {
+      // Busy wait.
+    }
   }
 
   i::Handle<i::Object> receiver = isolate->global_proxy();
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
       i::Execution::Call(isolate, fun, receiver, 0, nullptr), &result);
+
+  if (i::FLAG_script_delay_fraction > 0.0) {
+    delta = v8::base::TimeDelta::FromMillisecondsD(
+        timer.Elapsed().InMillisecondsF() * i::FLAG_script_delay_fraction);
+    timer.Restart();
+    while (timer.Elapsed() < delta) {
+      // Busy wait.
+    }
+  }
 
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);

@@ -829,8 +829,11 @@ DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,
 DEFINE_BOOL(isolate_script_cache_ageing, true,
             "enable ageing of the isolate script cache.")
 
-DEFINE_INT(script_run_delay, 0, "sleep [ms] on every Script::Run")
-DEFINE_INT(script_run_delay_once, 0, "sleep [ms] on the first Script::Run")
+DEFINE_FLOAT(script_delay, 0, "busy wait [ms] on every Script::Run")
+DEFINE_FLOAT(script_delay_once, 0, "busy wait [ms] on the first Script::Run")
+DEFINE_FLOAT(script_delay_fraction, 0.0,
+             "busy wait after each Script::Run by the given fraction of the "
+             "run's duration")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,
