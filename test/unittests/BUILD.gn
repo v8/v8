@@ -311,7 +311,6 @@ v8_source_set("unittests_sources") {
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/index-generator-unittest.cc",
-    "heap/item-parallel-job-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-factory-unittest.cc",
     "heap/local-heap-unittest.cc",
