@@ -116,11 +116,10 @@ class WasmGraphBuildingInterface {
   void StartFunction(FullDecoder* decoder) {
     // The first '+ 1' is needed by TF Start node, the second '+ 1' is for the
     // instance parameter.
-    TFNode* start = builder_->Start(
-        static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
+    builder_->Start(static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
     uint32_t num_locals = decoder->num_locals();
     SsaEnv* ssa_env = decoder->zone()->New<SsaEnv>(
-        decoder->zone(), SsaEnv::kReached, start, start, num_locals);
+        decoder->zone(), SsaEnv::kReached, effect(), control(), num_locals);
     SetEnv(ssa_env);
 
     // Initialize local variables. Parameters are shifted by 1 because of the

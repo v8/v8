@@ -79,9 +79,9 @@ MachineType assert_size(int expected_size, MachineType type) {
   (WasmInstanceObject::k##name##OffsetEnd - \
    WasmInstanceObject::k##name##Offset + 1)  // NOLINT(whitespace/indent)
 
-#define LOAD_MUTABLE_INSTANCE_FIELD(name, type)                                \
-  gasm_->LoadFromObject(                                                       \
-      assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), BuildLoadInstance(), \
+#define LOAD_MUTABLE_INSTANCE_FIELD(name, type)                          \
+  gasm_->LoadFromObject(                                                 \
+      assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstance(), \
       wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
 
 // TODO(11510): Using LoadImmutable for tagged values causes registers to be
@@ -94,7 +94,7 @@ MachineType assert_size(int expected_size, MachineType type) {
        ? LOAD_MUTABLE_INSTANCE_FIELD(name, type)                 \
        : gasm_->LoadImmutable(                                   \
              assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), \
-             BuildLoadInstance(),                                \
+             GetInstance(),                                      \
              wasm::ObjectAccess::ToTagged(                       \
                  WasmInstanceObject::k##name##Offset)))
 
@@ -487,14 +487,22 @@ WasmGraphBuilder::WasmGraphBuilder(
 // available.
 WasmGraphBuilder::~WasmGraphBuilder() = default;
 
-Node* WasmGraphBuilder::Start(unsigned params) {
+void WasmGraphBuilder::Start(unsigned params) {
   Node* start = graph()->NewNode(mcgraph()->common()->Start(params));
   graph()->SetStart(start);
+  SetEffectControl(start);
+  // Initialize parameter nodes.
   parameters_ = zone_->NewArray<Node*>(params);
   for (unsigned i = 0; i < params; i++) {
     parameters_[i] = nullptr;
   }
-  return start;
+  // Initialize instance node.
+  instance_node_ =
+      use_js_isolate_and_params()
+          ? gasm_->LoadExportedFunctionInstance(
+                gasm_->LoadFunctionDataFromJSFunction(
+                    Param(Linkage::kJSCallClosureParamIndex, "%closure")))
+          : Param(wasm::kWasmInstanceParameterIndex);
 }
 
 Node* WasmGraphBuilder::Param(int index, const char* debug_name) {
@@ -620,15 +628,7 @@ Node* WasmGraphBuilder::NoContextConstant() {
   return mcgraph()->IntPtrConstant(0);
 }
 
-Node* WasmGraphBuilder::BuildLoadInstance() {
-  if (use_js_isolate_and_params()) {
-    Node* js_closure = Param(Linkage::kJSCallClosureParamIndex, "%closure");
-    return gasm_->LoadExportedFunctionInstance(
-        gasm_->LoadFunctionDataFromJSFunction(js_closure));
-  } else {
-    return Param(wasm::kWasmInstanceParameterIndex);
-  }
-}
+Node* WasmGraphBuilder::GetInstance() { return instance_node_.get(); }
 
 Node* WasmGraphBuilder::BuildLoadIsolateRoot() {
   if (use_js_isolate_and_params()) {
@@ -2845,7 +2845,7 @@ Node* WasmGraphBuilder::BuildCallNode(const wasm::FunctionSig* sig,
                                       Node* instance_node, const Operator* op,
                                       Node* frame_state) {
   if (instance_node == nullptr) {
-    instance_node = BuildLoadInstance();
+    instance_node = GetInstance();
   }
   needs_stack_check_ = true;
   const size_t params = sig->parameter_count();
@@ -3234,7 +3234,7 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
     // every call.
     Node* function_instance_node =
         gasm_->CallBuiltin(Builtins::kWasmAllocatePair, Operator::kEliminatable,
-                           BuildLoadInstance(), callable);
+                           GetInstance(), callable);
 
     gasm_->Goto(&end_label, call_target, function_instance_node);
   }
@@ -5444,7 +5444,7 @@ void WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
       gasm_->ExternalConstant(ExternalReference::wasm_memory_init());
 
   Node* stack_slot = StoreArgsInStackSlot(
-      {{MachineType::PointerRepresentation(), BuildLoadInstance()},
+      {{MachineType::PointerRepresentation(), GetInstance()},
        {MachineRepresentation::kWord32, dst},
        {MachineRepresentation::kWord32, src},
        {MachineRepresentation::kWord32,
@@ -5496,7 +5496,7 @@ void WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
       gasm_->ExternalConstant(ExternalReference::wasm_memory_copy());
 
   Node* stack_slot = StoreArgsInStackSlot(
-      {{MachineType::PointerRepresentation(), BuildLoadInstance()},
+      {{MachineType::PointerRepresentation(), GetInstance()},
        {MachineRepresentation::kWord32, dst},
        {MachineRepresentation::kWord32, src},
        {MachineRepresentation::kWord32, size}});
@@ -5513,7 +5513,7 @@ void WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
       gasm_->ExternalConstant(ExternalReference::wasm_memory_fill());
 
   Node* stack_slot = StoreArgsInStackSlot(
-      {{MachineType::PointerRepresentation(), BuildLoadInstance()},
+      {{MachineType::PointerRepresentation(), GetInstance()},
        {MachineRepresentation::kWord32, dst},
        {MachineRepresentation::kWord32, value},
        {MachineRepresentation::kWord32, size}});
@@ -6364,7 +6364,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                wasm::ValueType type) {
     // Make sure ValueType fits in a Smi.
     STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-    Node* inputs[] = {BuildLoadInstance(), input,
+    Node* inputs[] = {GetInstance(), input,
                       mcgraph()->IntPtrConstant(
                           IntToSmi(static_cast<int>(type.raw_bit_field())))};
 
@@ -6721,7 +6721,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     const int wasm_param_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the JS parameter nodes.
-    SetEffectControl(Start(wasm_param_count + 5));
+    Start(wasm_param_count + 5);
 
     // Create the js_closure and js_context parameters.
     Node* js_closure = Param(Linkage::kJSCallClosureParamIndex, "%closure");
@@ -6840,7 +6840,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
-    SetEffectControl(Start(wasm_count + 4));
+    Start(wasm_count + 4);
 
     Node* native_context =
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer());
@@ -7096,7 +7096,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Build the start and the parameter nodes.
     int param_count = 1 /* closure */ + 1 /* receiver */ + wasm_count +
                       1 /* new.target */ + 1 /* #arg */ + 1 /* context */;
-    SetEffectControl(Start(param_count));
+    Start(param_count);
     Node* closure = Param(Linkage::kJSCallClosureParamIndex);
     Node* context = Param(Linkage::GetJSCallContextParamIndex(wasm_count + 1));
 
@@ -7166,7 +7166,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   void BuildCWasmEntry() {
     // +1 offset for first parameter index being -1.
-    SetEffectControl(Start(CWasmEntryParameters::kNumParameters + 1));
+    Start(CWasmEntryParameters::kNumParameters + 1);
 
     Node* code_entry = Param(CWasmEntryParameters::kCodeEntry);
     Node* object_ref = Param(CWasmEntryParameters::kObjectRef);
@@ -7504,8 +7504,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
                            source_positions);
 
   // Set up the graph start.
-  Node* start = builder.Start(static_cast<int>(sig->parameter_count() + 1 + 1));
-  builder.SetEffectControl(start);
+  builder.Start(static_cast<int>(sig->parameter_count() + 1 + 1));
 
   // Generate either a unop or a binop.
   Node* node = nullptr;
@@ -7623,8 +7622,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
   int param_count = static_cast<int>(sig->parameter_count()) +
                     1 /* offset for first parameter index being -1 */ +
                     1 /* Wasm instance */ + 1 /* kExtraCallableParam */;
-  Node* start = builder.Start(param_count);
-  builder.SetEffectControl(start);
+  builder.Start(param_count);
   builder.BuildCapiCallWrapper(address);
 
   // Run the compiler pipeline to generate machine code.

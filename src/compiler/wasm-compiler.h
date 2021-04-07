@@ -229,7 +229,7 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   // Operations independent of {control} or {effect}.
   //-----------------------------------------------------------------------
-  Node* Start(unsigned params);
+  void Start(unsigned params);
   Node* Param(int index, const char* debug_name = nullptr);
   Node* Loop(Node* entry);
   void TerminateLoop(Node* effect, Node* control);
@@ -518,7 +518,7 @@ class WasmGraphBuilder {
 
   Node* NoContextConstant();
 
-  Node* BuildLoadInstance();
+  Node* GetInstance();
   Node* BuildLoadIsolateRoot();
 
   // MemBuffer is only called with valid offsets (after bounds checking), so the
@@ -748,6 +748,7 @@ class WasmGraphBuilder {
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
   Isolate* const isolate_;
+  SetOncePointer<Node> instance_node_;
 
   std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
   CallDescriptor* i32_atomic_wait_descriptor_ = nullptr;
