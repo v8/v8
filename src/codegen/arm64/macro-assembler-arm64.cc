@@ -1929,12 +1929,14 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   RecordCommentForOffHeapTrampoline(builtin_index);
   CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-  EmbeddedData d = EmbeddedData::FromBlob(isolate());
-  Address entry = d.InstructionStartOfBuiltin(builtin_index);
   if (options().short_builtin_calls) {
+    EmbeddedData d = EmbeddedData::FromBlob(isolate());
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
     Call(entry, RelocInfo::RUNTIME_ENTRY);
 
   } else {
+    EmbeddedData d = EmbeddedData::FromBlob();
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
     UseScratchRegisterScope temps(this);
     Register scratch = temps.AcquireX();
     Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -1947,12 +1949,14 @@ void TurboAssembler::TailCallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   RecordCommentForOffHeapTrampoline(builtin_index);
   CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-  EmbeddedData d = EmbeddedData::FromBlob(isolate());
-  Address entry = d.InstructionStartOfBuiltin(builtin_index);
   if (options().short_builtin_calls) {
+    EmbeddedData d = EmbeddedData::FromBlob(isolate());
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
     Jump(entry, RelocInfo::RUNTIME_ENTRY);
 
   } else {
+    EmbeddedData d = EmbeddedData::FromBlob();
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
     // The control flow integrity (CFI) feature allows us to "sign" code entry
     // points as a target for calls, jumps or both. Arm64 has special
     // instructions for this purpose, so-called "landing pads" (see
