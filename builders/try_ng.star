@@ -332,10 +332,18 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
+optional_rel_cq_properties = {
+    "location_regexp": [
+        ".+/[+]/src/codegen/ia32/(macro-)?assembler-ia32.(h|cc)",
+        ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)"
+    ],
+    "cancel_stale": False
+}
+
 try_ng_pair(
     name = "v8_linux_optional_rel",
-    cq_properties_trigger = {"location_regexp": [".+/[+]/src/codegen/ia32/(macro-)?assembler-ia32.h", ".+/[+]/src/codegen/ia32/(macro-)?assembler-ia32.cc"], "cancel_stale": False},
-    cq_properties_triggered = {"location_regexp": [".+/[+]/src/codegen/ia32/(macro-)?assembler-ia32.h", ".+/[+]/src/codegen/ia32/(macro-)?assembler-ia32.cc"], "cancel_stale": False},
+    cq_properties_trigger = optional_rel_cq_properties,
+    cq_properties_triggered = optional_rel_cq_properties,
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
