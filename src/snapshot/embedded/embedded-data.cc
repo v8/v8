@@ -137,6 +137,9 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
   // in the binary) and what we are currently setting up here (where the blob is
   // on the native heap).
   std::memcpy(allocated_code_bytes, d.code(), d.code_size());
+  if (FLAG_experimental_flush_embedded_blob_icache) {
+    FlushInstructionCache(allocated_code_bytes, d.code_size());
+  }
   CHECK(SetPermissions(page_allocator, allocated_code_bytes,
                        allocation_code_size, PageAllocator::kReadExecute));
 
