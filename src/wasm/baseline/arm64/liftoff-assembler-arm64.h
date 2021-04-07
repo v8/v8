@@ -128,7 +128,7 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,
                            Register offset, T offset_imm) {
   if (offset.is_valid()) {
-    if (offset_imm == 0) return MemOperand(addr.X(), offset.X());
+    if (offset_imm == 0) return MemOperand(addr.X(), offset.W(), UXTW);
     Register tmp = temps->AcquireX();
     DCHECK_GE(kMaxUInt32, offset_imm);
     assm->Add(tmp, offset.X(), offset_imm);
