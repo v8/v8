@@ -51,24 +51,24 @@ class FastCApiObject {
     HandleScope handle_scope(isolate);
 
     double sum = 0;
-    if (args.Length() > 1) {
+    if (args.Length() > 1 && args[1]->IsInt32()) {
       sum += args[1]->Int32Value(isolate->GetCurrentContext()).FromJust();
     }
-    if (args.Length() > 2) {
+    if (args.Length() > 2 && args[2]->IsUint32()) {
       sum += args[2]->Uint32Value(isolate->GetCurrentContext()).FromJust();
     }
-    if (args.Length() > 3) {
+    if (args.Length() > 3 && args[3]->IsNumber()) {
       sum += args[3]->IntegerValue(isolate->GetCurrentContext()).FromJust();
     }
-    if (args.Length() > 4) {
+    if (args.Length() > 4 && args[4]->IsNumber()) {
       sum += args[4]->IntegerValue(isolate->GetCurrentContext()).FromJust();
     }
-    if (args.Length() > 5) {
+    if (args.Length() > 5 && args[5]->IsNumber()) {
       sum += args[5]->NumberValue(isolate->GetCurrentContext()).FromJust();
     } else {
       sum += std::numeric_limits<double>::quiet_NaN();
     }
-    if (args.Length() > 6) {
+    if (args.Length() > 6 && args[6]->IsNumber()) {
       sum += args[6]->NumberValue(isolate->GetCurrentContext()).FromJust();
     } else {
       sum += std::numeric_limits<double>::quiet_NaN();
@@ -101,10 +101,10 @@ class FastCApiObject {
     HandleScope handle_scope(isolate);
 
     double sum = 0;
-    if (args.Length() > 1) {
+    if (args.Length() > 1 && args[1]->IsInt32()) {
       sum += args[1]->Int32Value(isolate->GetCurrentContext()).FromJust();
     }
-    if (args.Length() > 2) {
+    if (args.Length() > 2 && args[2]->IsUint32()) {
       sum += args[2]->Uint32Value(isolate->GetCurrentContext()).FromJust();
     }
 

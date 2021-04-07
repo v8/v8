@@ -132,6 +132,19 @@ fast_c_api.reset_counts();
 assertEquals(Math.round(-42 + 3.14), add_32bit_int_mismatch(false, -42, 3.14));
 assertEquals(1, fast_c_api.fast_call_count());
 
+// Test that passing arguments non-convertible to number falls down the slow path.
+fast_c_api.reset_counts();
+assertEquals(0, add_32bit_int_mismatch(false, -4294967296, Symbol()));
+assertEquals(1, fast_c_api.slow_call_count());
+assertEquals(0, fast_c_api.fast_call_count());
+assertUnoptimized(add_32bit_int_mismatch);
+
+// Optimize again.
+%PrepareFunctionForOptimization(add_32bit_int_mismatch);
+%OptimizeFunctionOnNextCall(add_32bit_int_mismatch);
+assertEquals(add_32bit_int_result, add_32bit_int_mismatch(false, -42, 45));
+assertOptimized(add_32bit_int_mismatch);
+
 // Test that passing too few argument falls down the slow path,
 // because it's an argument type mismatch (undefined vs. int).
 fast_c_api.reset_counts();
