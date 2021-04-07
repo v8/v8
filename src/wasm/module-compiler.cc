@@ -3342,6 +3342,8 @@ void CompilationStateImpl::WaitForCompilationEvent(
       return done_->load(std::memory_order_relaxed);
     }
 
+    bool IsJoiningThread() const override { return true; }
+
     void NotifyConcurrencyIncrease() override { UNIMPLEMENTED(); }
 
     uint8_t GetTaskId() override { return kMainTaskId; }
