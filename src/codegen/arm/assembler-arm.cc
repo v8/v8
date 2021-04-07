@@ -241,9 +241,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Additional tuning options.
 
   // ARM Cortex-A9 and Cortex-A5 have 32 byte cachelines.
-  if (cpu.implementer() == base::CPU::ARM &&
-      (cpu.part() == base::CPU::ARM_CORTEX_A5 ||
-       cpu.part() == base::CPU::ARM_CORTEX_A9)) {
+  if (cpu.implementer() == base::CPU::kArm &&
+      (cpu.part() == base::CPU::kArmCortexA5 ||
+       cpu.part() == base::CPU::kArmCortexA9)) {
     dcache_line_size_ = 32;
   }
 #endif

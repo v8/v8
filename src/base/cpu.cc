@@ -413,8 +413,8 @@ CPU::CPU()
       architecture_(0),
       variant_(-1),
       part_(0),
-      icache_line_size_(UNKNOWN_CACHE_LINE_SIZE),
-      dcache_line_size_(UNKNOWN_CACHE_LINE_SIZE),
+      icache_line_size_(kUnknownCacheLineSize),
+      dcache_line_size_(kUnknownCacheLineSize),
       has_fpu_(false),
       has_cmov_(false),
       has_sahf_(false),
@@ -805,40 +805,40 @@ CPU::CPU()
   part_ = -1;
   if (auxv_cpu_type) {
     if (strcmp(auxv_cpu_type, "power9") == 0) {
-      part_ = PPC_POWER9;
+      part_ = kPPCPower9;
     } else if (strcmp(auxv_cpu_type, "power8") == 0) {
-      part_ = PPC_POWER8;
+      part_ = kPPCPower8;
     } else if (strcmp(auxv_cpu_type, "power7") == 0) {
-      part_ = PPC_POWER7;
+      part_ = kPPCPower7;
     } else if (strcmp(auxv_cpu_type, "power6") == 0) {
-      part_ = PPC_POWER6;
+      part_ = kPPCPower6;
     } else if (strcmp(auxv_cpu_type, "power5") == 0) {
-      part_ = PPC_POWER5;
+      part_ = kPPCPower5;
     } else if (strcmp(auxv_cpu_type, "ppc970") == 0) {
-      part_ = PPC_G5;
+      part_ = kPPCG5;
     } else if (strcmp(auxv_cpu_type, "ppc7450") == 0) {
-      part_ = PPC_G4;
+      part_ = kPPCG4;
     } else if (strcmp(auxv_cpu_type, "pa6t") == 0) {
-      part_ = PPC_PA6T;
+      part_ = kPPCPA6T;
     }
   }
 
 #elif V8_OS_AIX
   switch (_system_configuration.implementation) {
     case POWER_9:
-      part_ = PPC_POWER9;
+      part_ = kPPCPower9;
       break;
     case POWER_8:
-      part_ = PPC_POWER8;
+      part_ = kPPCPower8;
       break;
     case POWER_7:
-      part_ = PPC_POWER7;
+      part_ = kPPCPower7;
       break;
     case POWER_6:
-      part_ = PPC_POWER6;
+      part_ = kPPCPower6;
       break;
     case POWER_5:
-      part_ = PPC_POWER5;
+      part_ = kPPCPower5;
       break;
   }
 #endif  // V8_OS_AIX
