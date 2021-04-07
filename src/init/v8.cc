@@ -31,7 +31,7 @@
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
 #include "src/diagnostics/system-jit-win.h"
 #endif
 
@@ -175,7 +175,7 @@ void V8::InitializePlatform(v8::Platform* platform) {
   platform_ = platform;
   v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
   v8::tracing::TracingCategoryObserver::SetUp();
-#if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
   if (FLAG_enable_system_instrumentation) {
     // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
     v8::internal::ETWJITInterface::Register();
@@ -185,7 +185,7 @@ void V8::InitializePlatform(v8::Platform* platform) {
 
 void V8::ShutdownPlatform() {
   CHECK(platform_);
-#if defined(V8_TARGET_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
   if (FLAG_enable_system_instrumentation) {
     v8::internal::ETWJITInterface::Unregister();
   }
