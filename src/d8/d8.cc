@@ -2722,7 +2722,11 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     test_template->Set(
         isolate, "verifySourcePositions",
         FunctionTemplate::New(isolate, TestVerifySourcePositions));
-    if (i::FLAG_turbo_fast_api_calls) {
+    // Correctness fuzzing will attempt to compare results of tests with and
+    // without turbo_fast_api_calls, so we don't expose the fast_c_api
+    // constructor when --correctness_fuzzer_suppressions is on.
+    if (i::FLAG_turbo_fast_api_calls &&
+        !i::FLAG_correctness_fuzzer_suppressions) {
       test_template->Set(isolate, "fast_c_api",
                          Shell::CreateTestFastCApiTemplate(isolate));
     }
