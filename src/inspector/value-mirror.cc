@@ -1321,6 +1321,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       }
     }
     if (accessorPropertiesOnly && !isAccessorProperty) continue;
+    if (name == "__proto__") shouldSkipProto = true;
     auto mirror = PropertyMirror{name,
                                  writable,
                                  configurable,
