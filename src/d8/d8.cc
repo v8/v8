@@ -4069,12 +4069,18 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
       options.fuzzy_module_file_extensions = true;
       argv[i] = nullptr;
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#if defined(V8_OS_WIN) || defined(V8_OS_MACOSX)
     } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
       options.enable_system_instrumentation = true;
       options.trace_enabled = true;
+#if defined(V8_OS_WIN)
+      // Guard this bc the flag has a lot of overhead and is not currently used
+      // by macos
       i::FLAG_interpreted_frames_native_stack = true;
+#endif
       argv[i] = nullptr;
+#endif
 #endif
     }
   }
