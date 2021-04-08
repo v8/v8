@@ -1404,6 +1404,11 @@ static void InstallError(
     int error_function_length = 1, int in_object_properties = 2) {
   Factory* factory = isolate->factory();
 
+  if (FLAG_harmony_error_cause) {
+    error_function_length += 1;
+    in_object_properties += 1;
+  }
+
   // Most Error objects consist of a message and a stack trace.
   // Reserve two in-object properties for these.
   const int kErrorObjectSize =
@@ -1411,7 +1416,6 @@ static void InstallError(
   Handle<JSFunction> error_fun = InstallFunction(
       isolate, global, name, JS_ERROR_TYPE, kErrorObjectSize,
       in_object_properties, factory->the_hole_value(), error_constructor);
-  error_fun->shared().DontAdaptArguments();
   error_fun->shared().set_length(error_function_length);
 
   if (context_index == Context::ERROR_FUNCTION_INDEX) {
@@ -1430,6 +1434,11 @@ static void InstallError(
                           DONT_ENUM);
     JSObject::AddProperty(isolate, prototype, factory->message_string(),
                           factory->empty_string(), DONT_ENUM);
+
+    if (FLAG_harmony_error_cause) {
+      JSObject::AddProperty(isolate, prototype, factory->cause_string(),
+                            factory->undefined_value(), DONT_ENUM);
+    }
 
     if (context_index == Context::ERROR_FUNCTION_INDEX) {
       Handle<JSFunction> to_string_fun =
@@ -4325,6 +4334,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_top_level_await)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_brand_checks)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_error_cause)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)

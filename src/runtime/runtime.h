@@ -383,8 +383,8 @@ namespace internal {
   F(ResolvePromise, 2, 1)                \
   F(PromiseRejectAfterResolved, 2, 1)    \
   F(PromiseResolveAfterResolved, 2, 1)   \
-  F(ConstructAggregateErrorHelper, 3, 1) \
-  F(ConstructInternalAggregateErrorHelper, -1 /* <= 4*/, 1)
+  F(ConstructAggregateErrorHelper, 4, 1) \
+  F(ConstructInternalAggregateErrorHelper, -1 /* <= 5*/, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F, I) \
   F(CheckProxyGetSetTrapResult, 2, 1)  \

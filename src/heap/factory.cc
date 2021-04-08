@@ -1892,7 +1892,7 @@ Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
 
   Handle<Object> no_caller;
   return ErrorUtils::Construct(isolate(), constructor, constructor, message,
-                               SKIP_NONE, no_caller,
+                               undefined_value(), SKIP_NONE, no_caller,
                                ErrorUtils::StackTraceCollection::kDetailed)
       .ToHandleChecked();
 }

@@ -227,6 +227,8 @@ enum class ErrorTag : uint8_t {
   kUriErrorPrototype = 'U',
   // Followed by message: string.
   kMessage = 'm',
+  // Followed by a JS object: cause.
+  kCause = 'c',
   // Followed by stack: string.
   kStack = 's',
   // The end of this error information.
@@ -935,6 +937,9 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
   Maybe<bool> message_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate_, error, isolate_->factory()->message_string(), &message_desc);
   MAYBE_RETURN(message_found, Nothing<bool>());
+  PropertyDescriptor cause_desc;
+  Maybe<bool> cause_found = JSReceiver::GetOwnPropertyDescriptor(
+      isolate_, error, isolate_->factory()->cause_string(), &cause_desc);
 
   WriteTag(SerializationTag::kError);
 
@@ -972,6 +977,15 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
     }
     WriteVarint(static_cast<uint8_t>(ErrorTag::kMessage));
     WriteString(message);
+  }
+
+  if (cause_found.FromJust() &&
+      PropertyDescriptor::IsDataDescriptor(&cause_desc)) {
+    Handle<Object> cause = cause_desc.value();
+    WriteVarint(static_cast<uint8_t>(ErrorTag::kCause));
+    if (!WriteObject(cause).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
   }
 
   if (!Object::GetProperty(isolate_, error, isolate_->factory()->stack_string())
@@ -1875,6 +1889,7 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 
 MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   Handle<Object> message = isolate_->factory()->undefined_value();
+  Handle<Object> options = isolate_->factory()->undefined_value();
   Handle<Object> stack = isolate_->factory()->undefined_value();
   Handle<Object> no_caller;
   auto constructor = isolate_->error_function();
@@ -1912,6 +1927,20 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
         message = message_string;
         break;
       }
+      case ErrorTag::kCause: {
+        Handle<Object> cause;
+        if (!ReadObject().ToHandle(&cause)) {
+          return MaybeHandle<JSObject>();
+        }
+        options = isolate_->factory()->NewJSObject(isolate_->object_function());
+        if (JSObject::DefinePropertyOrElementIgnoreAttributes(
+                Handle<JSObject>::cast(options),
+                isolate_->factory()->cause_string(), cause, DONT_ENUM)
+                .is_null()) {
+          return MaybeHandle<JSObject>();
+        }
+        break;
+      }
       case ErrorTag::kStack: {
         Handle<String> stack_string;
         if (!ReadString().ToHandle(&stack_string)) {
@@ -1930,7 +1959,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
 
   Handle<Object> error;
   if (!ErrorUtils::Construct(isolate_, constructor, constructor, message,
-                             SKIP_NONE, no_caller,
+                             options, SKIP_NONE, no_caller,
                              ErrorUtils::StackTraceCollection::kNone)
            .ToHandle(&error)) {
     return MaybeHandle<Object>();

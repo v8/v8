@@ -152,6 +152,7 @@
   V(_, CompileError_string, "CompileError")                          \
   V(_, callee_string, "callee")                                      \
   V(_, caller_string, "caller")                                      \
+  V(_, cause_string, "cause")                                        \
   V(_, character_string, "character")                                \
   V(_, closure_string, "(closure)")                                  \
   V(_, code_string, "code")                                          \

@@ -283,7 +283,8 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                              \
   V(harmony_relative_indexing_methods, "harmony relative indexing methods") \
-  V(harmony_class_static_blocks, "harmony static initializer blocks")
+  V(harmony_class_static_blocks, "harmony static initializer blocks")       \
+  V(harmony_error_cause, "harmony error cause property")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)               \
