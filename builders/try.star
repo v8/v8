@@ -64,6 +64,15 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_gcov_coverage",
+    bucket = "try",
+    cq_properties = {"includable_only": "true", "cancel_stale": False},
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    properties = {"enable_swarming": False, "clobber": True, "coverage": "gcov"},
+    use_goma = GOMA.NO,
+)
+
+try_builder(
     name = "v8_linux64_header_includes_dbg",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
