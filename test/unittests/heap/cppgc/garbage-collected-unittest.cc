@@ -156,5 +156,86 @@ TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallbackForMixin) {
   EXPECT_EQ(1u, MixinWithPostConstructionCallback::cb_callcount);
 }
 
+namespace {
+
+int GetDummyValue() {
+  static std::mutex mutex;
+  static int ret = 43;
+  // Global lock access to avoid reordering.
+  std::lock_guard<std::mutex> guard(mutex);
+  return ret;
+}
+
+class CheckObjectInConstructionBeforeInitializerList final
+    : public GarbageCollected<CheckObjectInConstructionBeforeInitializerList> {
+ public:
+  CheckObjectInConstructionBeforeInitializerList()
+      : in_construction_before_initializer_list_(
+            HeapObjectHeader::FromPayload(this).IsInConstruction()),
+        unused_int_(GetDummyValue()) {
+    EXPECT_TRUE(in_construction_before_initializer_list_);
+    EXPECT_TRUE(HeapObjectHeader::FromPayload(this).IsInConstruction());
+  }
+
+  void Trace(Visitor*) const {}
+
+ private:
+  bool in_construction_before_initializer_list_;
+  int unused_int_;
+};
+
+class CheckMixinInConstructionBeforeInitializerList
+    : public GarbageCollectedMixin {
+ public:
+  explicit CheckMixinInConstructionBeforeInitializerList(void* payload_start)
+      : in_construction_before_initializer_list_(
+            HeapObjectHeader::FromPayload(payload_start).IsInConstruction()),
+        unused_int_(GetDummyValue()) {
+    EXPECT_TRUE(in_construction_before_initializer_list_);
+    EXPECT_TRUE(
+        HeapObjectHeader::FromPayload(payload_start).IsInConstruction());
+  }
+
+  void Trace(Visitor*) const override {}
+
+ private:
+  bool in_construction_before_initializer_list_;
+  int unused_int_;
+};
+
+class UnmanagedMixinForcingVTable {
+ protected:
+  virtual void ForceVTable() {}
+};
+
+class CheckGCedWithMixinInConstructionBeforeInitializerList
+    : public GarbageCollected<
+          CheckGCedWithMixinInConstructionBeforeInitializerList>,
+      public UnmanagedMixinForcingVTable,
+      public CheckMixinInConstructionBeforeInitializerList {
+ public:
+  CheckGCedWithMixinInConstructionBeforeInitializerList()
+      : CheckMixinInConstructionBeforeInitializerList(this) {
+    // Ensure that compiler indeed generated an inner object.
+    CHECK_NE(
+        this,
+        static_cast<void*>(
+            static_cast<CheckMixinInConstructionBeforeInitializerList*>(this)));
+  }
+};
+
+}  // namespace
+
+TEST_F(GarbageCollectedTestWithHeap, GarbageCollectedInConstructionDuringCtor) {
+  MakeGarbageCollected<CheckObjectInConstructionBeforeInitializerList>(
+      GetAllocationHandle());
+}
+
+TEST_F(GarbageCollectedTestWithHeap,
+       GarbageCollectedMixinInConstructionDuringCtor) {
+  MakeGarbageCollected<CheckGCedWithMixinInConstructionBeforeInitializerList>(
+      GetAllocationHandle());
+}
+
 }  // namespace internal
 }  // namespace cppgc
