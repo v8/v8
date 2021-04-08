@@ -3701,10 +3701,18 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_BaselineEnterAtBytecode(MacroAssembler* masm) {
+  // Implement on this platform, https://crrev.com/c/2695591.
   __ break_(0xCC);
 }
 
 void Builtins::Generate_BaselineEnterAtNextBytecode(MacroAssembler* masm) {
+  // Implement on this platform, https://crrev.com/c/2695591.
+  __ break_(0xCC);
+}
+
+void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
+    MacroAssembler* masm) {
+  // Implement on this platform, https://crrev.com/c/2800112.
   __ break_(0xCC);
 }
 
