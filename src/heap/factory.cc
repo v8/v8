@@ -1378,23 +1378,29 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
 #if V8_ENABLE_WEBASSEMBLY
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
                                               Handle<Map> opt_parent) {
+  // We pretenure WasmTypeInfo objects because they are refererenced by Maps,
+  // which are assumed to be long-lived. The supertypes list is constant
+  // after initialization, so we pretenure that too.
+  // The subtypes list, however, is expected to grow (and hence be replaced),
+  // so we don't pretenure it.
   Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
   Handle<FixedArray> supertypes;
   if (opt_parent.is_null()) {
     supertypes = NewUninitializedFixedArray(0);
   } else {
-    supertypes = CopyFixedArrayAndGrow(
-        handle(opt_parent->wasm_type_info().supertypes(), isolate()), 1);
+    supertypes = CopyArrayAndGrow(
+        handle(opt_parent->wasm_type_info().supertypes(), isolate()), 1,
+        AllocationType::kOld);
     supertypes->set(supertypes->length() - 1, *opt_parent);
   }
   Map map = *wasm_type_info_map();
   WasmTypeInfo result = WasmTypeInfo::cast(AllocateRawWithImmortalMap(
-      map.instance_size(), AllocationType::kYoung, map));
+      map.instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), type_address);
   result.set_supertypes(*supertypes, SKIP_WRITE_BARRIER);
-  result.set_subtypes(*subtypes, SKIP_WRITE_BARRIER);
+  result.set_subtypes(*subtypes);
   return handle(result, isolate());
 }
 
