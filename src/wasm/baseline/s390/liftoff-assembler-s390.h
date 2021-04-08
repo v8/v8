@@ -665,7 +665,85 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAnd");
+  Register tmp1 =
+      GetUnusedRegister(
+          kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result))
+          .gp();
+  Register tmp2 =
+      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg,
+                                                        value, result, tmp1))
+          .gp();
+
+  lay(ip,
+      MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm));
+
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8: {
+      Label do_again;
+      bind(&do_again);
+      LoadU8(tmp1, MemOperand(ip));
+      AndP(tmp2, tmp1, value.gp());
+      AtomicCmpExchangeU8(ip, result.gp(), tmp1, tmp2, r0, r1);
+      b(Condition(4), &do_again);
+      LoadU8(result.gp(), result.gp());
+      break;
+    }
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16: {
+      Label do_again;
+      bind(&do_again);
+      LoadU16(tmp1, MemOperand(ip));
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(tmp2, tmp1);
+      ShiftRightU32(tmp2, tmp2, Operand(16));
+      AndP(tmp2, tmp2, value.gp());
+      lrvr(tmp2, tmp2);
+      ShiftRightU32(tmp2, tmp2, Operand(16));
+#else
+      AndP(tmp2, tmp1, value.gp());
+#endif
+      AtomicCmpExchangeU16(ip, result.gp(), tmp1, tmp2, r0, r1);
+      b(Condition(4), &do_again);
+      LoadU16(result.gp(), result.gp());
+      break;
+    }
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32: {
+      Label do_again;
+      bind(&do_again);
+      LoadU32(tmp1, MemOperand(ip));
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(tmp2, tmp1);
+      AndP(tmp2, tmp2, value.gp());
+      lrvr(tmp2, tmp2);
+#else
+      AndP(tmp2, tmp1, value.gp());
+#endif
+      CmpAndSwap(tmp1, tmp2, MemOperand(ip));
+      b(Condition(4), &do_again);
+      LoadU32(result.gp(), tmp1);
+      break;
+    }
+    case StoreType::kI64Store: {
+      Label do_again;
+      bind(&do_again);
+      LoadU64(tmp1, MemOperand(ip));
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvgr(tmp2, tmp1);
+      AndP(tmp2, tmp2, value.gp());
+      lrvgr(tmp2, tmp2);
+#else
+      AndP(tmp2, tmp1, value.gp());
+#endif
+      CmpAndSwap64(tmp1, tmp2, MemOperand(ip));
+      b(Condition(4), &do_again);
+      mov(result.gp(), tmp1);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
