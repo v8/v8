@@ -1407,16 +1407,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
 
-  {
-    UseScratchRegisterScope temps(masm_);
-    Register scratch = temps.AcquireX();
-
-    EmbeddedData d = EmbeddedData::FromBlob(isolate());
-    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
-
-    __ Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-    __ Call(scratch);
-  }
+  __ CallBuiltin(Builtins::kDirectCEntry);
 
   // The input string may have been moved in memory, we need to reload it.
   __ Peek(input_start(), kSystemPointerSize);
