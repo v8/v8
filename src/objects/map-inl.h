@@ -117,11 +117,18 @@ DEF_GETTER(Map, GetIndexedInterceptor, InterceptorInfo) {
   return InterceptorInfo::cast(info.GetIndexedPropertyHandler(cage_base));
 }
 
+// static
 bool Map::IsMostGeneralFieldType(Representation representation,
                                  FieldType field_type) {
   return !representation.IsHeapObject() || field_type.IsAny();
 }
 
+// static
+bool Map::FieldTypeIsCleared(Representation rep, FieldType type) {
+  return type.IsNone() && rep.IsHeapObject();
+}
+
+// static
 bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
   return instance_type == JS_ARRAY_TYPE ||
          instance_type == JS_PRIMITIVE_WRAPPER_TYPE ||

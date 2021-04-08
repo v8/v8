@@ -59,23 +59,6 @@ MaybeHandle<JSFunction> Map::GetConstructorFunction(
   return MaybeHandle<JSFunction>();
 }
 
-void Map::PrintReconfiguration(Isolate* isolate, FILE* file,
-                               InternalIndex modify_index, PropertyKind kind,
-                               PropertyAttributes attributes) {
-  OFStream os(file);
-  os << "[reconfiguring]";
-  Name name = instance_descriptors(isolate).GetKey(modify_index);
-  if (name.IsString()) {
-    String::cast(name).PrintOn(file);
-  } else {
-    os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
-  }
-  os << ": " << (kind == kData ? "kData" : "ACCESSORS") << ", attrs: ";
-  os << attributes << " [";
-  JavaScriptFrame::PrintTop(isolate, file, false, true);
-  os << "]\n";
-}
-
 Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
   Map map;
   switch (type) {
@@ -386,51 +369,6 @@ VisitorId Map::GetVisitorId(Map map) {
   }
 }
 
-void Map::PrintGeneralization(
-    Isolate* isolate, FILE* file, const char* reason,
-    InternalIndex modify_index, int split, int descriptors,
-    bool descriptor_to_field, Representation old_representation,
-    Representation new_representation, PropertyConstness old_constness,
-    PropertyConstness new_constness, MaybeHandle<FieldType> old_field_type,
-    MaybeHandle<Object> old_value, MaybeHandle<FieldType> new_field_type,
-    MaybeHandle<Object> new_value) {
-  OFStream os(file);
-  os << "[generalizing]";
-  Name name = instance_descriptors(isolate).GetKey(modify_index);
-  if (name.IsString()) {
-    String::cast(name).PrintOn(file);
-  } else {
-    os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
-  }
-  os << ":";
-  if (descriptor_to_field) {
-    os << "c";
-  } else {
-    os << old_representation.Mnemonic() << "{";
-    if (old_field_type.is_null()) {
-      os << Brief(*(old_value.ToHandleChecked()));
-    } else {
-      old_field_type.ToHandleChecked()->PrintTo(os);
-    }
-    os << ";" << old_constness << "}";
-  }
-  os << "->" << new_representation.Mnemonic() << "{";
-  if (new_field_type.is_null()) {
-    os << Brief(*(new_value.ToHandleChecked()));
-  } else {
-    new_field_type.ToHandleChecked()->PrintTo(os);
-  }
-  os << ";" << new_constness << "} (";
-  if (strlen(reason) > 0) {
-    os << reason;
-  } else {
-    os << "+" << (descriptors - split) << " maps";
-  }
-  os << ") [";
-  JavaScriptFrame::PrintTop(isolate, file, false, true);
-  os << "]\n";
-}
-
 // static
 MaybeObjectHandle Map::WrapFieldType(Isolate* isolate, Handle<FieldType> type) {
   if (type->IsClass()) {
@@ -661,151 +599,6 @@ Map Map::FindFieldOwner(Isolate* isolate, InternalIndex descriptor) const {
   return result;
 }
 
-void Map::UpdateFieldType(Isolate* isolate, InternalIndex descriptor,
-                          Handle<Name> name, PropertyConstness new_constness,
-                          Representation new_representation,
-                          const MaybeObjectHandle& new_wrapped_type) {
-  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeak());
-  // We store raw pointers in the queue, so no allocations are allowed.
-  DisallowGarbageCollection no_gc;
-  PropertyDetails details =
-      instance_descriptors(isolate).GetDetails(descriptor);
-  if (details.location() != kField) return;
-  DCHECK_EQ(kData, details.kind());
-
-  if (new_constness != details.constness() && is_prototype_map()) {
-    JSObject::InvalidatePrototypeChains(*this);
-  }
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  ZoneQueue<Map> backlog(&zone);
-  backlog.push(*this);
-
-  while (!backlog.empty()) {
-    Map current = backlog.front();
-    backlog.pop();
-
-    TransitionsAccessor transitions(isolate, current, &no_gc);
-    int num_transitions = transitions.NumberOfTransitions();
-    for (int i = 0; i < num_transitions; ++i) {
-      Map target = transitions.GetTarget(i);
-      backlog.push(target);
-    }
-    DescriptorArray descriptors = current.instance_descriptors(isolate);
-    PropertyDetails details = descriptors.GetDetails(descriptor);
-
-    // It is allowed to change representation here only from None
-    // to something or from Smi or HeapObject to Tagged.
-    DCHECK(details.representation().Equals(new_representation) ||
-           details.representation().CanBeInPlaceChangedTo(new_representation));
-
-    // Skip if already updated the shared descriptor.
-    if (new_constness != details.constness() ||
-        !new_representation.Equals(details.representation()) ||
-        descriptors.GetFieldType(descriptor) != *new_wrapped_type.object()) {
-      Descriptor d = Descriptor::DataField(
-          name, descriptors.GetFieldIndex(descriptor), details.attributes(),
-          new_constness, new_representation, new_wrapped_type);
-      descriptors.Replace(descriptor, &d);
-    }
-  }
-}
-
-bool FieldTypeIsCleared(Representation rep, FieldType type) {
-  return type.IsNone() && rep.IsHeapObject();
-}
-
-// static
-Handle<FieldType> Map::GeneralizeFieldType(Representation rep1,
-                                           Handle<FieldType> type1,
-                                           Representation rep2,
-                                           Handle<FieldType> type2,
-                                           Isolate* isolate) {
-  // Cleared field types need special treatment. They represent lost knowledge,
-  // so we must be conservative, so their generalization with any other type
-  // is "Any".
-  if (FieldTypeIsCleared(rep1, *type1) || FieldTypeIsCleared(rep2, *type2)) {
-    return FieldType::Any(isolate);
-  }
-  if (type1->NowIs(type2)) return type2;
-  if (type2->NowIs(type1)) return type1;
-  return FieldType::Any(isolate);
-}
-
-// static
-void Map::GeneralizeField(Isolate* isolate, Handle<Map> map,
-                          InternalIndex modify_index,
-                          PropertyConstness new_constness,
-                          Representation new_representation,
-                          Handle<FieldType> new_field_type) {
-  // Check if we actually need to generalize the field type at all.
-  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(isolate),
-                                          isolate);
-  PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-  PropertyConstness old_constness = old_details.constness();
-  Representation old_representation = old_details.representation();
-  Handle<FieldType> old_field_type(old_descriptors->GetFieldType(modify_index),
-                                   isolate);
-
-  // Return if the current map is general enough to hold requested constness and
-  // representation/field type.
-  if (IsGeneralizableTo(new_constness, old_constness) &&
-      old_representation.Equals(new_representation) &&
-      !FieldTypeIsCleared(new_representation, *new_field_type) &&
-      // Checking old_field_type for being cleared is not necessary because
-      // the NowIs check below would fail anyway in that case.
-      new_field_type->NowIs(old_field_type)) {
-    DCHECK(GeneralizeFieldType(old_representation, old_field_type,
-                               new_representation, new_field_type, isolate)
-               ->NowIs(old_field_type));
-    return;
-  }
-
-  // Determine the field owner.
-  Handle<Map> field_owner(map->FindFieldOwner(isolate, modify_index), isolate);
-  Handle<DescriptorArray> descriptors(
-      field_owner->instance_descriptors(isolate), isolate);
-  DCHECK_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
-
-  new_field_type =
-      Map::GeneralizeFieldType(old_representation, old_field_type,
-                               new_representation, new_field_type, isolate);
-
-  new_constness = GeneralizeConstness(old_constness, new_constness);
-
-  PropertyDetails details = descriptors->GetDetails(modify_index);
-  Handle<Name> name(descriptors->GetKey(modify_index), isolate);
-
-  MaybeObjectHandle wrapped_type(WrapFieldType(isolate, new_field_type));
-  field_owner->UpdateFieldType(isolate, modify_index, name, new_constness,
-                               new_representation, wrapped_type);
-
-  if (new_constness != old_constness) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldConstGroup);
-  }
-
-  if (!new_field_type->Equals(*old_field_type)) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldTypeGroup);
-  }
-
-  if (!new_representation.Equals(old_representation)) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldRepresentationGroup);
-  }
-
-  if (FLAG_trace_generalization) {
-    map->PrintGeneralization(
-        isolate, stdout, "field type generalization", modify_index,
-        map->NumberOfOwnDescriptors(), map->NumberOfOwnDescriptors(), false,
-        details.representation(),
-        descriptors->GetDetails(modify_index).representation(), old_constness,
-        new_constness, old_field_type, MaybeHandle<Object>(), new_field_type,
-        MaybeHandle<Object>());
-  }
-}
-
 namespace {
 
 Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
@@ -831,7 +624,7 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
     PropertyDetails old_details = old_descriptors.GetDetails(i);
     if (old_details.location() == kField && old_details.kind() == kData) {
       FieldType old_type = old_descriptors.GetFieldType(i);
-      if (FieldTypeIsCleared(old_details.representation(), old_type)) {
+      if (Map::FieldTypeIsCleared(old_details.representation(), old_type)) {
         return Map();
       }
     }
@@ -2154,33 +1947,6 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
   }
 
   return result;
-}
-
-Handle<Map> Map::ReconfigureExistingProperty(Isolate* isolate, Handle<Map> map,
-                                             InternalIndex descriptor,
-                                             PropertyKind kind,
-                                             PropertyAttributes attributes,
-                                             PropertyConstness constness) {
-  // Dictionaries have to be reconfigured in-place.
-  DCHECK(!map->is_dictionary_map());
-
-  if (!map->GetBackPointer().IsMap()) {
-    // There is no benefit from reconstructing transition tree for maps without
-    // back pointers, normalize and try to hit the map cache instead.
-    return Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES,
-                          "Normalize_AttributesMismatchProtoMap");
-  }
-
-  if (FLAG_trace_generalization) {
-    map->PrintReconfiguration(isolate, stdout, descriptor, kind, attributes);
-  }
-
-  MapUpdater mu(isolate, map);
-  DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
-  Handle<Map> new_map = mu.ReconfigureToDataField(
-      descriptor, attributes, constness, Representation::None(),
-      FieldType::None(isolate));
-  return new_map;
 }
 
 Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,

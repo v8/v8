@@ -16,6 +16,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
@@ -139,9 +140,9 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       details.location() == kField) {
     Handle<FieldType> field_type(descriptors->GetFieldType(descriptor),
                                  isolate);
-    Map::GeneralizeField(isolate, receiver_map, descriptor,
-                         PropertyConstness::kMutable, details.representation(),
-                         field_type);
+    MapUpdater::GeneralizeField(isolate, receiver_map, descriptor,
+                                PropertyConstness::kMutable,
+                                details.representation(), field_type);
     DCHECK_EQ(PropertyConstness::kMutable,
               descriptors->GetDetails(descriptor).constness());
   }

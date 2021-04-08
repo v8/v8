@@ -22,6 +22,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball-inl.h"
@@ -2101,9 +2102,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
                    .NowContains(value)) {
             Handle<FieldType> value_type =
                 value->OptimalType(isolate_, expected_representation);
-            Map::GeneralizeField(isolate_, target, descriptor,
-                                 details.constness(), expected_representation,
-                                 value_type);
+            MapUpdater::GeneralizeField(isolate_, target, descriptor,
+                                        details.constness(),
+                                        expected_representation, value_type);
           }
           DCHECK(target->instance_descriptors(isolate_)
                      .GetFieldType(descriptor)
