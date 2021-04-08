@@ -3273,8 +3273,10 @@ EVALUATE(VML) {
     j = lane_size;                                                         \
   }                                                                        \
   for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {              \
-    input_type src0 = get_simd_register_by_lane<input_type>(r2, i);        \
-    input_type src1 = get_simd_register_by_lane<input_type>(r3, i);        \
+    result_type src0 = static_cast<result_type>(                           \
+        get_simd_register_by_lane<input_type>(r2, i));                     \
+    result_type src1 = static_cast<result_type>(                           \
+        get_simd_register_by_lane<input_type>(r3, i));                     \
     set_simd_register_by_lane<result_type>(r1, k, src0 * src1);            \
   }
 #define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd, sign)                    \
