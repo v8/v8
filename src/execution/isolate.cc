@@ -4118,23 +4118,19 @@ void Isolate::FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
   }
 }
 
-void Isolate::UpdatePromiseHookProtector() {
-  if (Protectors::IsPromiseHookIntact(this)) {
+void Isolate::PromiseHookStateUpdated() {
+  bool promise_hook_or_async_event_delegate =
+      promise_hook_ || async_event_delegate_;
+  bool promise_hook_or_debug_is_active_or_async_event_delegate =
+      promise_hook_or_async_event_delegate || debug()->is_active();
+  if (promise_hook_or_debug_is_active_or_async_event_delegate &&
+      Protectors::IsPromiseHookIntact(this)) {
     HandleScope scope(this);
     Protectors::InvalidatePromiseHook(this);
   }
-}
-
-void Isolate::PromiseHookStateUpdated() {
-  promise_hook_flags_ =
-    (promise_hook_flags_ & PromiseHookFields::HasContextPromiseHook::kMask) |
-    PromiseHookFields::HasIsolatePromiseHook::encode(promise_hook_) |
-    PromiseHookFields::HasAsyncEventDelegate::encode(async_event_delegate_) |
-    PromiseHookFields::IsDebugActive::encode(debug()->is_active());
-
-  if (promise_hook_flags_ != 0) {
-    UpdatePromiseHookProtector();
-  }
+  promise_hook_or_async_event_delegate_ = promise_hook_or_async_event_delegate;
+  promise_hook_or_debug_is_active_or_async_event_delegate_ =
+      promise_hook_or_debug_is_active_or_async_event_delegate;
 }
 
 namespace {
@@ -4434,30 +4430,17 @@ void Isolate::SetPromiseHook(PromiseHook hook) {
   PromiseHookStateUpdated();
 }
 
-void Isolate::RunAllPromiseHooks(PromiseHookType type,
-                                 Handle<JSPromise> promise,
-                                 Handle<Object> parent) {
-  if (HasContextPromiseHooks()) {
-    native_context()->RunPromiseHook(type, promise, parent);
-  }
-  if (HasIsolatePromiseHooks() || HasAsyncEventDelegate()) {
-    RunPromiseHook(type, promise, parent);
-  }
-}
-
 void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                              Handle<Object> parent) {
   RunPromiseHookForAsyncEventDelegate(type, promise);
-  if (!HasIsolatePromiseHooks()) return;
-  DCHECK(promise_hook_ != nullptr);
+  if (promise_hook_ == nullptr) return;
   promise_hook_(type, v8::Utils::PromiseToLocal(promise),
                 v8::Utils::ToLocal(parent));
 }
 
 void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                                                   Handle<JSPromise> promise) {
-  if (!HasAsyncEventDelegate()) return;
-  DCHECK(async_event_delegate_ != nullptr);
+  if (!async_event_delegate_) return;
   switch (type) {
     case PromiseHookType::kResolve:
       return;

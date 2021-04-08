@@ -2687,8 +2687,7 @@ TEST(IsPromiseHookEnabled) {
   CodeStubAssembler m(asm_tester.state());
 
   m.Return(
-      m.SelectBooleanConstant(
-          m.IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate()));
+      m.SelectBooleanConstant(m.IsPromiseHookEnabledOrHasAsyncEventDelegate()));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result =
