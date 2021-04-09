@@ -1037,7 +1037,7 @@ void TurboAssembler::InitializeRootRegister() {
   ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
   Mov(kRootRegister, Operand(isolate_root));
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  Mov(kPointerCageBaseRegister, Operand(isolate_root));
+  Mov(kPtrComprCageBaseRegister, Operand(isolate_root));
 #endif
 }
 

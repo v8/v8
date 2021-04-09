@@ -639,7 +639,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Initialize the pointer cage base register.
-    __ Mov(kPointerCageBaseRegister, x0);
+    __ Mov(kPtrComprCageBaseRegister, x0);
 #endif
   }
 
@@ -925,7 +925,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Don't initialize the reserved registers.
     // x26 : root register (kRootRegister).
     // x27 : context pointer (cp).
-    // x28 : pointer cage base register (kPointerCageBaseRegister).
+    // x28 : pointer cage base register (kPtrComprCageBaseRegister).
     // x29 : frame pointer (fp).
 
     Handle<Code> builtin = is_construct

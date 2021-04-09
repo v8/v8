@@ -26,7 +26,7 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
 #ifdef DEBUG
     CHECK_NE(registers[i], kRootRegister);
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-    CHECK_NE(registers[i], kPointerCageBaseRegister);
+    CHECK_NE(registers[i], kPtrComprCageBaseRegister);
 #endif
     // Check for duplicated registers.
     for (int j = i + 1; j < register_parameter_count; j++) {

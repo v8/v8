@@ -969,7 +969,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   topmost->GetRegisterValues()->SetRegister(kRootRegister.code(),
                                             isolate()->isolate_root());
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  topmost->GetRegisterValues()->SetRegister(kPointerCageBaseRegister.code(),
+  topmost->GetRegisterValues()->SetRegister(kPtrComprCageBaseRegister.code(),
                                             isolate()->isolate_root());
 #endif
 

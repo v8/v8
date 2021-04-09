@@ -236,9 +236,9 @@ constexpr Register kScratchRegister = r10;
 constexpr XMMRegister kScratchDoubleReg = xmm15;
 constexpr Register kRootRegister = r13;  // callee save
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-constexpr Register kPointerCageBaseRegister = r14;  // callee save
+constexpr Register kPtrComprCageBaseRegister = r14;  // callee save
 #else
-constexpr Register kPointerCageBaseRegister = kRootRegister;
+constexpr Register kPtrComprCageBaseRegister = kRootRegister;
 #endif
 
 constexpr Register kOffHeapTrampolineRegister = kScratchRegister;

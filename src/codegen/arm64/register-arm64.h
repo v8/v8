@@ -477,9 +477,9 @@ ALIAS_REGISTER(Register, kRootRegister, x26);
 ALIAS_REGISTER(Register, rr, x26);
 // Pointer cage base register.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-ALIAS_REGISTER(Register, kPointerCageBaseRegister, x28);
+ALIAS_REGISTER(Register, kPtrComprCageBaseRegister, x28);
 #else
-ALIAS_REGISTER(Register, kPointerCageBaseRegister, kRootRegister);
+ALIAS_REGISTER(Register, kPtrComprCageBaseRegister, kRootRegister);
 #endif
 // Context pointer register.
 ALIAS_REGISTER(Register, cp, x27);

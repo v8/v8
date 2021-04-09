@@ -384,7 +384,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Initialize the pointer cage base register.
     // TODO(syg): Actually make a cage.
-    __ movq(kPointerCageBaseRegister, arg_reg_1);
+    __ movq(kPtrComprCageBaseRegister, arg_reg_1);
 #endif
   }
 

@@ -288,7 +288,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Operand field_operand) {
   RecordComment("[ DecompressTaggedPointer");
   movl(destination, field_operand);
-  addq(destination, kPointerCageBaseRegister);
+  addq(destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 
@@ -296,7 +296,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Register source) {
   RecordComment("[ DecompressTaggedPointer");
   movl(destination, source);
-  addq(destination, kPointerCageBaseRegister);
+  addq(destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 
@@ -304,7 +304,7 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
                                          Operand field_operand) {
   RecordComment("[ DecompressAnyTagged");
   movl(destination, field_operand);
-  addq(destination, kPointerCageBaseRegister);
+  addq(destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 

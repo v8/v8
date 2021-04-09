@@ -575,7 +575,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     Move(kRootRegister, isolate_root);
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-    Move(kPointerCageBaseRegister, isolate_root);
+    Move(kPtrComprCageBaseRegister, isolate_root);
 #endif
   }
 
