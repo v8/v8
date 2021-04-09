@@ -611,8 +611,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Call(wasm_code, constant.rmode());
       } else {
-        __ Add64(kScratchReg, i.InputRegister(0), 0);
-        __ Call(kScratchReg);
+        __ Add64(t6, i.InputRegister(0), 0);
+        __ Call(t6);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
