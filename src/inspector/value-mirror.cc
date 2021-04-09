@@ -1216,6 +1216,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       return false;
     }
   }
+  bool shouldSkipProto = internalType == V8InternalValueType::kScopeList;
 
   bool formatAccessorsAsProperties =
       clientFor(context)->formatAccessorsAsProperties(object);
@@ -1303,7 +1304,8 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
           bool isSymbolDescription =
               object->IsSymbol() && name == "description";
           if (isSymbolDescription ||
-              (getterIsNativeFunction && formatAccessorsAsProperties &&
+              (name != "__proto__" && getterIsNativeFunction &&
+               formatAccessorsAsProperties &&
                !doesAttributeHaveObservableSideEffectOnGet(context, object,
                                                            v8Name))) {
             v8::TryCatch tryCatch(isolate);
@@ -1319,6 +1321,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       }
     }
     if (accessorPropertiesOnly && !isAccessorProperty) continue;
+    if (name == "__proto__") shouldSkipProto = true;
     auto mirror = PropertyMirror{name,
                                  writable,
                                  configurable,
@@ -1335,6 +1338,16 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     if (!iterator->Advance().FromMaybe(false)) {
       CHECK(tryCatch.HasCaught());
       return false;
+    }
+  }
+  if (!shouldSkipProto && ownProperties && !object->IsProxy() &&
+      !accessorPropertiesOnly) {
+    v8::Local<v8::Value> prototype = object->GetPrototype();
+    if (prototype->IsObject()) {
+      accumulator->Add(PropertyMirror{String16("__proto__"), true, true, false,
+                                      true, false,
+                                      ValueMirror::create(context, prototype),
+                                      nullptr, nullptr, nullptr, nullptr});
     }
   }
   return true;

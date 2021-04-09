@@ -4,17 +4,6 @@ Running test: testObject
 {
     id : <messageId>
     result : {
-        internalProperties : [
-            [0] : {
-                name : [[Prototype]]
-                value : {
-                    className : Object
-                    description : Object
-                    objectId : <objectId>
-                    type : object
-                }
-            }
-        ]
         result : [
             [0] : {
                 configurable : true
@@ -28,23 +17,25 @@ Running test: testObject
                 }
                 writable : true
             }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        internalProperties : [
-            [0] : {
-                name : [[Prototype]]
+            [1] : {
+                configurable : true
+                enumerable : false
+                isOwn : true
+                name : __proto__
                 value : {
                     className : Object
                     description : Object
                     objectId : <objectId>
                     type : object
                 }
+                writable : true
             }
         ]
+    }
+}
+{
+    id : <messageId>
+    result : {
         result : [
             [0] : {
                 configurable : false
@@ -128,6 +119,19 @@ Running test: testObject
                     value : 239
                 }
                 writable : false
+            }
+            [6] : {
+                configurable : true
+                enumerable : false
+                isOwn : true
+                name : __proto__
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                writable : true
             }
         ]
     }

@@ -1050,57 +1050,78 @@ std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
   return std::make_unique<DebugWasmScopeIterator>(frame);
 }
 
-Handle<ArrayList> AddWasmInstanceObjectInternalProperties(
-    Isolate* isolate, Handle<ArrayList> result,
+Handle<JSArray> GetWasmInstanceObjectInternalProperties(
     Handle<WasmInstanceObject> instance) {
-  result = ArrayList::Add(
-      isolate, result,
-      isolate->factory()->NewStringFromAsciiChecked("[[Module]]"),
-      handle(instance->module_object(), isolate));
+  Isolate* isolate = instance->GetIsolate();
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2 * 5);
+  int length = 0;
+
+  Handle<String> module_str =
+      isolate->factory()->NewStringFromAsciiChecked("[[Module]]");
+  Handle<Object> module_obj = handle(instance->module_object(), isolate);
+  result->set(length++, *module_str);
+  result->set(length++, *module_obj);
 
   if (FunctionsProxy::Count(isolate, instance) != 0) {
-    result = ArrayList::Add(
-        isolate, result,
-        isolate->factory()->NewStringFromAsciiChecked("[[Functions]]"),
-        GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance));
+    Handle<String> functions_str =
+        isolate->factory()->NewStringFromAsciiChecked("[[Functions]]");
+    Handle<Object> functions_obj =
+        GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
+    result->set(length++, *functions_str);
+    result->set(length++, *functions_obj);
   }
 
   if (GlobalsProxy::Count(isolate, instance) != 0) {
-    result = ArrayList::Add(
-        isolate, result,
-        isolate->factory()->NewStringFromAsciiChecked("[[Globals]]"),
-        GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance));
+    Handle<String> globals_str =
+        isolate->factory()->NewStringFromAsciiChecked("[[Globals]]");
+    Handle<Object> globals_obj =
+        GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
+    result->set(length++, *globals_str);
+    result->set(length++, *globals_obj);
   }
 
   if (MemoriesProxy::Count(isolate, instance) != 0) {
-    result = ArrayList::Add(
-        isolate, result,
-        isolate->factory()->NewStringFromAsciiChecked("[[Memories]]"),
-        GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance));
+    Handle<String> memories_str =
+        isolate->factory()->NewStringFromAsciiChecked("[[Memories]]");
+    Handle<Object> memories_obj =
+        GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance);
+    result->set(length++, *memories_str);
+    result->set(length++, *memories_obj);
   }
 
   if (TablesProxy::Count(isolate, instance) != 0) {
-    result = ArrayList::Add(
-        isolate, result,
-        isolate->factory()->NewStringFromAsciiChecked("[[Tables]]"),
-        GetOrCreateInstanceProxy<TablesProxy>(isolate, instance));
+    Handle<String> tables_str =
+        isolate->factory()->NewStringFromAsciiChecked("[[Tables]]");
+    Handle<Object> tables_obj =
+        GetOrCreateInstanceProxy<TablesProxy>(isolate, instance);
+    result->set(length++, *tables_str);
+    result->set(length++, *tables_obj);
   }
 
-  return result;
+  return isolate->factory()->NewJSArrayWithElements(result, PACKED_ELEMENTS,
+                                                    length);
 }
 
-Handle<ArrayList> AddWasmModuleObjectInternalProperties(
-    Isolate* isolate, Handle<ArrayList> result,
+Handle<JSArray> GetWasmModuleObjectInternalProperties(
     Handle<WasmModuleObject> module_object) {
-  result = ArrayList::Add(
-      isolate, result,
-      isolate->factory()->NewStringFromStaticChars("[[Exports]]"),
-      wasm::GetExports(isolate, module_object));
-  result = ArrayList::Add(
-      isolate, result,
-      isolate->factory()->NewStringFromStaticChars("[[Imports]]"),
-      wasm::GetImports(isolate, module_object));
-  return result;
+  Isolate* isolate = module_object->GetIsolate();
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2 * 2);
+  int length = 0;
+
+  Handle<String> exports_str =
+      isolate->factory()->NewStringFromStaticChars("[[Exports]]");
+  Handle<JSArray> exports_obj = wasm::GetExports(isolate, module_object);
+  result->set(length++, *exports_str);
+  result->set(length++, *exports_obj);
+
+  Handle<String> imports_str =
+      isolate->factory()->NewStringFromStaticChars("[[Imports]]");
+  Handle<JSArray> imports_obj = wasm::GetImports(isolate, module_object);
+  result->set(length++, *imports_str);
+  result->set(length++, *imports_obj);
+
+  return isolate->factory()->NewJSArrayWithElements(result, PACKED_ELEMENTS,
+                                                    length);
 }
 
 }  // namespace internal
