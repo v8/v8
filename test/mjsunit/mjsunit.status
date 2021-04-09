@@ -324,9 +324,6 @@
 
   # BUG(v8:11240)
   'regress/regress-v8-9267-1': [SKIP],
-
-  # TODO(mslekova): Make independent from GC timing.
-  'compiler/fast-api-calls': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
