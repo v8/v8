@@ -139,6 +139,7 @@
       'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan',
       'V8 Clusterfuzz Linux64 ASAN arm64 - debug builder':
           'debug_simulate_arm64_asan',
+      'V8 Clusterfuzz Linux - debug builder': 'debug_x86',
       'V8 Clusterfuzz Linux ASAN arm - debug builder':
           'debug_simulate_arm_asan',
       'V8 Clusterfuzz Linux64 CFI - release builder':
