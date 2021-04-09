@@ -42,8 +42,6 @@ v8_shared_library("v8windbg") {
     "src/cur-isolate.h",
     "src/js-stack.cc",
     "src/js-stack.h",
-    "src/list-chunks.cc",
-    "src/list-chunks.h",
     "src/local-variables.cc",
     "src/local-variables.h",
     "src/object-inspection.cc",
