@@ -530,7 +530,6 @@ class WasmGraphBuilder {
   Node* CheckBoundsAndAlignment(int8_t access_size, Node* index,
                                 uint64_t offset, wasm::WasmCodePosition);
 
-  Node* Uint32ToUintptr(Node*);
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
   Node* BuildChangeEndiannessStore(Node* node, MachineRepresentation rep,
@@ -631,6 +630,7 @@ class WasmGraphBuilder {
   Node* BuildTruncateIntPtrToInt32(Node* value);
   Node* BuildChangeInt32ToIntPtr(Node* value);
   Node* BuildChangeIntPtrToInt64(Node* value);
+  Node* BuildChangeUint32ToUintPtr(Node*);
   Node* BuildChangeInt32ToSmi(Node* value);
   Node* BuildChangeUint31ToSmi(Node* value);
   Node* BuildSmiShiftBitsConstant();
