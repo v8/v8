@@ -325,9 +325,9 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
   patching_assembler.Add64(sp, sp, Operand(-frame_size));
 }
 
-void LiftoffAssembler::FinishCode() {}
+void LiftoffAssembler::FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
 
-void LiftoffAssembler::AbortCompilation() {}
+void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {

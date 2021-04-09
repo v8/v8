@@ -160,6 +160,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   virtual ~Assembler() { CHECK(constpool_.IsEmpty()); }
 
+  void AbortedCodeGeneration() { constpool_.Clear(); }
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
@@ -873,6 +874,34 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
+  using BlockPoolsScope = BlockTrampolinePoolScope;
+
+  void RecordConstPool(int size);
+
+  void ForceConstantPoolEmissionWithoutJump() {
+    constpool_.Check(Emission::kForced, Jump::kOmitted);
+  }
+  void ForceConstantPoolEmissionWithJump() {
+    constpool_.Check(Emission::kForced, Jump::kRequired);
+  }
+  // Check if the const pool needs to be emitted while pretending that {margin}
+  // more bytes of instructions have already been emitted.
+  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
+  }
+
+  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
+  }
+
+  void RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
+    constpool_.RecordEntry(data, rmode);
+  }
+
+  void RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
+    constpool_.RecordEntry(data, rmode);
+  }
+
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
   // aside from offset, another value like offset + 4 should fit into int16.
@@ -956,34 +985,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
       CheckTrampolinePool();
     }
-  }
-
-  using BlockPoolsScope = BlockTrampolinePoolScope;
-
-  void RecordConstPool(int size);
-
-  void ForceConstantPoolEmissionWithoutJump() {
-    constpool_.Check(Emission::kForced, Jump::kOmitted);
-  }
-  void ForceConstantPoolEmissionWithJump() {
-    constpool_.Check(Emission::kForced, Jump::kRequired);
-  }
-  // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted.
-  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
-  }
-
-  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
-  }
-
-  void RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
-  }
-
-  void RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
   }
 
  private:
