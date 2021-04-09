@@ -388,10 +388,10 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-instance.exports.main(42)
+instance.exports.main(42)#
 
 Scope:
-at (anonymous) (1:31):
+at (anonymous) (0:25):
  - scope (global):
    -- skipped globals
 
