@@ -1486,7 +1486,6 @@ icu::LocaleMatcher BuildLocaleMatcher(
       builder.addSupportedLocale(l);
     }
   }
-
   return builder.build(*status);
 }
 
@@ -1533,23 +1532,12 @@ std::string BestFitMatcher(Isolate* isolate,
                            const std::set<std::string>& available_locales,
                            const std::vector<std::string>& requested_locales) {
   UErrorCode status = U_ZERO_ERROR;
-  icu::LocaleMatcher matcher =
-      BuildLocaleMatcher(isolate, available_locales, &status);
-  DCHECK(U_SUCCESS(status));
-
   Iterator iter(requested_locales.cbegin(), requested_locales.cend());
-  std::string bestfit =
-      matcher.getBestMatch(iter, status)->toLanguageTag<std::string>(status);
-  if (U_FAILURE(status)) {
-    return DefaultLocale(isolate);
-  }
-  // We need to return the extensions with it.
-  for (auto it = requested_locales.begin(); it != requested_locales.end();
-       ++it) {
-    if (it->find(bestfit) == 0) {
-      return *it;
-    }
-  }
+  std::string bestfit = BuildLocaleMatcher(isolate, available_locales, &status)
+                            .getBestMatchResult(iter, status)
+                            .makeResolvedLocale(status)
+                            .toLanguageTag<std::string>(status);
+  DCHECK(U_SUCCESS(status));
   return bestfit;
 }
 
@@ -1561,23 +1549,20 @@ std::vector<std::string> BestFitSupportedLocales(
   UErrorCode status = U_ZERO_ERROR;
   icu::LocaleMatcher matcher =
       BuildLocaleMatcher(isolate, available_locales, &status);
-  DCHECK(U_SUCCESS(status));
-
-  std::string default_locale = DefaultLocale(isolate);
   std::vector<std::string> result;
-  for (auto it = requested_locales.cbegin(); it != requested_locales.cend();
-       it++) {
-    if (*it == default_locale) {
-      result.push_back(*it);
-    } else {
+  if (U_SUCCESS(status)) {
+    for (auto it = requested_locales.cbegin(); it != requested_locales.cend();
+         it++) {
       status = U_ZERO_ERROR;
       icu::Locale desired = icu::Locale::forLanguageTag(it->c_str(), status);
-      std::string bestfit = matcher.getBestMatch(desired, status)
-                                ->toLanguageTag<std::string>(status);
-      // We need to return the extensions with it.
-      if (U_SUCCESS(status) && it->find(bestfit) == 0) {
-        result.push_back(*it);
-      }
+      icu::LocaleMatcher::Result matched =
+          matcher.getBestMatchResult(desired, status);
+      if (U_FAILURE(status)) continue;
+      if (matched.getSupportedIndex() < 0) continue;
+      std::string bestfit =
+          matched.makeResolvedLocale(status).toLanguageTag<std::string>(status);
+      if (U_FAILURE(status)) continue;
+      result.push_back(bestfit);
     }
   }
   return result;
