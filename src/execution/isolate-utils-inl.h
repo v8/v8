@@ -86,6 +86,17 @@ V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
 #endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
+// Use this function instead of Internals::GetIsolateForHeapSandbox for internal
+// code, as this function is fully inlinable.
+V8_INLINE static Isolate* GetIsolateForHeapSandbox(HeapObject object) {
+#ifdef V8_HEAP_SANDBOX
+  return GetIsolateFromWritableObject(object);
+#else
+  // Not used in non-sandbox mode.
+  return nullptr;
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8
 

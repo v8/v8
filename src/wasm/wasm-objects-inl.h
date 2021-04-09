@@ -460,12 +460,6 @@ int WasmArray::GcSafeSizeFor(Map map, int length) {
 
 void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
 #ifdef V8_HEAP_SANDBOX
-
-  // TODO(syg): V8_HEAP_SANDBOX doesn't work with pointer cage
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-#error "V8_HEAP_SANDBOX requires per-Isolate pointer compression cage"
-#endif
-
   // Due to the type-specific pointer tags for external pointers, we need to
   // allocate an entry in the table here even though it will just store nullptr.
   AllocateExternalPointerEntries(isolate);

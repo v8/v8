@@ -631,10 +631,9 @@ void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
   i::InitExternalPointerField(field_address(offset), isolate, value, tag);
 }
 
-Address Object::ReadExternalPointerField(size_t offset,
-                                         PtrComprCageBase isolate_root,
+Address Object::ReadExternalPointerField(size_t offset, Isolate* isolate,
                                          ExternalPointerTag tag) const {
-  return i::ReadExternalPointerField(field_address(offset), isolate_root, tag);
+  return i::ReadExternalPointerField(field_address(offset), isolate, tag);
 }
 
 void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,

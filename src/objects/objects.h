@@ -673,8 +673,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void InitExternalPointerField(size_t offset, Isolate* isolate);
   inline void InitExternalPointerField(size_t offset, Isolate* isolate,
                                        Address value, ExternalPointerTag tag);
-  inline Address ReadExternalPointerField(size_t offset,
-                                          PtrComprCageBase isolate_root,
+  inline Address ReadExternalPointerField(size_t offset, Isolate* isolate,
                                           ExternalPointerTag tag) const;
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
                                         Address value, ExternalPointerTag tag);

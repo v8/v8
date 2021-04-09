@@ -12,19 +12,12 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE Address DecodeExternalPointer(PtrComprCageBase isolate_root,
+V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
                                         ExternalPointer_t encoded_pointer,
                                         ExternalPointerTag tag) {
   STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
 #ifdef V8_HEAP_SANDBOX
-
-  // TODO(syg): V8_HEAP_SANDBOX doesn't work with pointer cage
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-#error "V8_HEAP_SANDBOX requires per-Isolate pointer compression cage"
-#endif
-
   uint32_t index = static_cast<uint32_t>(encoded_pointer);
-  const Isolate* isolate = Isolate::FromRootAddress(isolate_root.address());
   return isolate->external_pointer_table().get(index) ^ tag;
 #else
   return encoded_pointer;
@@ -68,7 +61,7 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 }
 
 V8_INLINE Address ReadExternalPointerField(Address field_address,
-                                           PtrComprCageBase cage_base,
+                                           const Isolate* isolate,
                                            ExternalPointerTag tag) {
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
   constexpr bool v8_pointer_compression_unaligned =
@@ -79,7 +72,7 @@ V8_INLINE Address ReadExternalPointerField(Address field_address,
   } else {
     encoded_value = base::Memory<ExternalPointer_t>(field_address);
   }
-  return DecodeExternalPointer(cage_base, encoded_value, tag);
+  return DecodeExternalPointer(isolate, encoded_value, tag);
 }
 
 V8_INLINE void WriteExternalPointerField(Address field_address,
