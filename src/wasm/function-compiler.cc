@@ -4,6 +4,7 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/base/platform/time.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -183,6 +184,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   }
 
   WasmCompilationResult result;
+  base::ThreadTicks thread_ticks = base::ThreadTicks::IsSupported()
+                                       ? base::ThreadTicks::Now()
+                                       : base::ThreadTicks();
 
   switch (tier_) {
     case ExecutionTier::kNone:
@@ -221,6 +225,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
           wasm_engine, env, func_body, func_index_, counters, detected);
       result.for_debugging = for_debugging_;
       break;
+  }
+
+  if (!thread_ticks.IsNull()) {
+    result.cpu_duration =
+        (base::ThreadTicks::Now() - thread_ticks).InMicroseconds();
   }
 
   return result;
@@ -269,6 +278,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
       isolate->wasm_engine(), &env,
       native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(), detected);
+  native_module->UpdateCPUDuration(result);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
     native_module->PublishCode(

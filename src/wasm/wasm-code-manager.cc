@@ -1498,6 +1498,21 @@ void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
   }
 }
 
+void NativeModule::UpdateCPUDuration(WasmCompilationResult& result) {
+  if (result.for_debugging != ForDebugging::kNoDebugging) return;
+  DCHECK_NE(std::numeric_limits<size_t>::max(), result.cpu_duration);
+  if (result.requested_tier == ExecutionTier::kLiftoff) {
+    liftoff_cpu_duration_.fetch_add(result.cpu_duration,
+                                    std::memory_order::memory_order_relaxed);
+  } else if (result.requested_tier == ExecutionTier::kTurbofan) {
+    turbofan_cpu_duration_.fetch_add(result.cpu_duration,
+                                     std::memory_order::memory_order_relaxed);
+  }
+#ifdef DEBUG
+  result.cpu_duration = std::numeric_limits<size_t>::max();
+#endif
+}
+
 void NativeModule::TransferNewOwnedCodeLocked() const {
   // The caller holds the allocation mutex.
   DCHECK(!allocation_mutex_.TryLock());
