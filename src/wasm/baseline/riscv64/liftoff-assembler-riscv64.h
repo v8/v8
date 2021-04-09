@@ -452,7 +452,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   JumpIfSmi(src.gp(), &exit);
   CheckPageFlag(src.gp(), scratch,
                 MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
-  Add64(scratch, dst_addr, offset_imm);
+  Add64(scratch, dst_op.rm(), dst_op.offset());
   CallRecordWriteStub(dst_addr, scratch, EMIT_REMEMBERED_SET, kSaveFPRegs,
                       wasm::WasmCode::kRecordWrite);
   bind(&exit);

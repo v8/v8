@@ -854,10 +854,6 @@
 
 }],  # 'arch == riscv64'
 
-['arch == riscv64 and variant == stress_incremental_marking', {
-  # https://github.com/v8-riscv/v8/issues/414
-  'wasm/externref-globals-liftoff': [SKIP],
-}], #'arch == riscv64 and variant == stress-incremental-marking'
 
 ##############################################################################
 ['system == macos', {
