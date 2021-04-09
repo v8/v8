@@ -75,7 +75,6 @@ struct WasmCompilationResult {
   ExecutionTier result_tier;
   Kind kind = kFunction;
   ForDebugging for_debugging = kNoDebugging;
-  size_t cpu_duration = 0;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {

@@ -631,8 +631,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t liftoff_bailout_count() const { return liftoff_bailout_count_.load(); }
   size_t liftoff_code_size() const { return liftoff_code_size_.load(); }
   size_t turbofan_code_size() const { return turbofan_code_size_.load(); }
-  size_t liftoff_cpu_duration() const { return liftoff_cpu_duration_.load(); }
-  size_t turbofan_cpu_duration() const { return turbofan_cpu_duration_.load(); }
   WasmEngine* engine() const { return engine_; }
 
   bool HasWireBytes() const {
@@ -640,8 +638,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return wire_bytes && !wire_bytes->empty();
   }
   void SetWireBytes(OwnedVector<const uint8_t> wire_bytes);
-
-  void UpdateCPUDuration(WasmCompilationResult& result);
 
   WasmCode* Lookup(Address) const;
 
@@ -857,8 +853,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<size_t> liftoff_bailout_count_{0};
   std::atomic<size_t> liftoff_code_size_{0};
   std::atomic<size_t> turbofan_code_size_{0};
-  std::atomic<size_t> liftoff_cpu_duration_{0};
-  std::atomic<size_t> turbofan_cpu_duration_{0};
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

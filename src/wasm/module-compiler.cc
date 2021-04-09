@@ -1126,7 +1126,6 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
       isolate->wasm_engine(), &env, compilation_state->GetWireBytesStorage(),
       counters, &detected_features);
   compilation_state->OnCompilationStopped(detected_features);
-  native_module->UpdateCPUDuration(result);
 
   // During lazy compilation, we can only get compilation errors when
   // {--wasm-lazy-validation} is enabled. Otherwise, the module was fully
@@ -1310,8 +1309,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
       // (synchronized): Publish the compilation result and get the next unit.
       BackgroundCompileScope compile_scope(native_module);
       if (compile_scope.cancelled()) return kYield;
-      compile_scope.native_module()->UpdateCPUDuration(
-          results_to_publish.back());
 
       if (!results_to_publish.back().succeeded()) {
         compile_scope.compilation_state()->SetError();
@@ -1488,6 +1485,7 @@ class CompilationTimeCallback {
         histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
       }
 
+      // TODO(sartang@microsoft.com): Remove wall_clock_time_in_us field
       v8::metrics::WasmModuleCompiled event{
           (compile_mode_ != kSynchronous),         // async
           (compile_mode_ == kStreaming),           // streamed
@@ -1497,10 +1495,8 @@ class CompilationTimeCallback {
           true,                                    // success
           native_module->liftoff_code_size(),      // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),               // wall_clock_duration_in_us
-          FLAG_liftoff                             // cpu_time_duration_in_us
-              ? native_module->liftoff_cpu_duration()
-              : native_module->turbofan_cpu_duration()};
+          duration.InMicroseconds()                // wall_clock_duration_in_us
+      };
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
     if (event == CompilationEvent::kFinishedTopTierCompilation) {
@@ -1508,10 +1504,9 @@ class CompilationTimeCallback {
       histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
 
       v8::metrics::WasmModuleTieredUp event{
-          FLAG_wasm_lazy_compilation,             // lazy
-          native_module->turbofan_code_size(),    // code_size_in_bytes
-          duration.InMicroseconds(),              // wall_clock_duration_in_us
-          native_module->turbofan_cpu_duration()  // cpu_time_duration_in_us
+          FLAG_wasm_lazy_compilation,           // lazy
+          native_module->turbofan_code_size(),  // code_size_in_bytes
+          duration.InMicroseconds()             // wall_clock_duration_in_us
       };
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
@@ -1525,10 +1520,8 @@ class CompilationTimeCallback {
           false,                                   // success
           native_module->liftoff_code_size(),      // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),               // wall_clock_duration_in_us
-          FLAG_liftoff                             // cpu_time_duration_in_us
-              ? native_module->liftoff_cpu_duration()
-              : native_module->turbofan_cpu_duration()};
+          duration.InMicroseconds()                // wall_clock_duration_in_us
+      };
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
   }
@@ -1926,12 +1919,10 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
           is_after_deserialization,                 // deserialized
           wasm_lazy_compilation_,                   // lazy
           !compilation_state->failed(),             // success
-          native_module_->turbofan_code_size(),     // code_size_in_bytes
+          native_module_->liftoff_code_size(),      // code_size_in_bytes
           native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),                // wall_clock_duration_in_us
-          FLAG_liftoff                              // cpu_time_duration_in_us
-              ? native_module_->liftoff_cpu_duration()
-              : native_module_->turbofan_cpu_duration()};
+          duration.InMicroseconds()                 // wall_clock_duration_in_us
+      };
       isolate_->metrics_recorder()->DelayMainThreadEvent(event, context_id_);
     }
   }

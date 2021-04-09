@@ -558,7 +558,6 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
       isolate()->counters(), &unused_detected_features);
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(result)));
-  native_module->UpdateCPUDuration(result);
   DCHECK_NOT_NULL(code);
   DisallowGarbageCollection no_gc;
   Script script = builder_->instance_object()->module_object().script();
