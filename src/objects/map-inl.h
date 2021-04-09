@@ -90,19 +90,21 @@ BIT_FIELD_ACCESSORS(Map, bit_field2, is_immutable_proto,
                     Map::Bits2::IsImmutablePrototypeBit)
 
 // |bit_field3| fields.
-BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, owns_descriptors,
                     Map::Bits3::OwnsDescriptorsBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::Bits3::IsDeprecatedBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_in_retained_map_list,
+BIT_FIELD_ACCESSORS(Map, release_acquire_bit_field3, is_deprecated,
+                    Map::Bits3::IsDeprecatedBit)
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_in_retained_map_list,
                     Map::Bits3::IsInRetainedMapListBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_prototype_map,
+BIT_FIELD_ACCESSORS(Map, release_acquire_bit_field3, is_prototype_map,
                     Map::Bits3::IsPrototypeMapBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_migration_target,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_migration_target,
                     Map::Bits3::IsMigrationTargetBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_extensible,
+                    Map::Bits3::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
                     Map::Bits3::MayHaveInterestingSymbolsBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
                     Map::Bits3::ConstructionCounterBits)
 
 DEF_GETTER(Map, GetNamedInterceptor, InterceptorInfo) {
@@ -199,14 +201,15 @@ InternalIndex Map::LastAdded() const {
 }
 
 int Map::NumberOfOwnDescriptors() const {
-  return Bits3::NumberOfOwnDescriptorsBits::decode(bit_field3());
+  return Bits3::NumberOfOwnDescriptorsBits::decode(
+      release_acquire_bit_field3());
 }
 
 void Map::SetNumberOfOwnDescriptors(int number) {
   DCHECK_LE(number, instance_descriptors().number_of_descriptors());
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
-  set_bit_field3(
+  set_release_acquire_bit_field3(
       Bits3::NumberOfOwnDescriptorsBits::update(bit_field3(), number));
 }
 
@@ -224,7 +227,7 @@ void Map::SetEnumLength(int length) {
     CHECK_LE(static_cast<unsigned>(length),
              static_cast<unsigned>(kMaxNumberOfDescriptors));
   }
-  set_bit_field3(Bits3::EnumLengthBits::update(bit_field3(), length));
+  set_relaxed_bit_field3(Bits3::EnumLengthBits::update(bit_field3(), length));
 }
 
 FixedArrayBase Map::GetInitialElements() const {
@@ -471,6 +474,30 @@ void Map::set_bit_field2(byte value) {
   WriteField<byte>(kBitField2Offset, value);
 }
 
+uint32_t Map::bit_field3() const {
+  return ReadField<uint32_t>(kBitField3Offset);
+}
+
+void Map::set_bit_field3(uint32_t value) {
+  WriteField<uint32_t>(kBitField3Offset, value);
+}
+
+uint32_t Map::relaxed_bit_field3() const {
+  return RELAXED_READ_UINT32_FIELD(*this, kBitField3Offset);
+}
+
+void Map::set_relaxed_bit_field3(uint32_t value) {
+  RELAXED_WRITE_UINT32_FIELD(*this, kBitField3Offset, value);
+}
+
+uint32_t Map::release_acquire_bit_field3() const {
+  return ACQUIRE_READ_UINT32_FIELD(*this, kBitField3Offset);
+}
+
+void Map::set_release_acquire_bit_field3(uint32_t value) {
+  RELEASE_WRITE_UINT32_FIELD(*this, kBitField3Offset, value);
+}
+
 bool Map::is_abandoned_prototype_map() const {
   return is_prototype_map() && !owns_descriptors();
 }
@@ -554,15 +581,16 @@ void Map::set_is_dictionary_map(bool value) {
 }
 
 bool Map::is_dictionary_map() const {
-  return Bits3::IsDictionaryMapBit::decode(bit_field3());
+  return Bits3::IsDictionaryMapBit::decode(relaxed_bit_field3());
 }
 
 void Map::mark_unstable() {
-  set_bit_field3(Bits3::IsUnstableBit::update(bit_field3(), true));
+  set_release_acquire_bit_field3(
+      Bits3::IsUnstableBit::update(bit_field3(), true));
 }
 
 bool Map::is_stable() const {
-  return !Bits3::IsUnstableBit::decode(bit_field3());
+  return !Bits3::IsUnstableBit::decode(release_acquire_bit_field3());
 }
 
 bool Map::CanBeDeprecated() const {
@@ -617,14 +645,6 @@ void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
 void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors) {
   SetInstanceDescriptors(isolate, descriptors,
                          descriptors.number_of_descriptors());
-}
-
-void Map::set_bit_field3(uint32_t bits) {
-  RELEASE_WRITE_UINT32_FIELD(*this, kBitField3Offset, bits);
-}
-
-uint32_t Map::bit_field3() const {
-  return ACQUIRE_READ_UINT32_FIELD(*this, kBitField3Offset);
 }
 
 void Map::clear_padding() {

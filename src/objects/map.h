@@ -267,6 +267,8 @@ class Map : public HeapObject {
   // Bit field 3.
   //
   DECL_PRIMITIVE_ACCESSORS(bit_field3, uint32_t)
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field3, uint32_t)
+  DECL_PRIMITIVE_ACCESSORS(release_acquire_bit_field3, uint32_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.

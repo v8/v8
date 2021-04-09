@@ -1340,7 +1340,8 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
       // is set to false when it was already false).
       bit_field_(object->relaxed_bit_field()),
       bit_field2_(object->bit_field2()),
-      bit_field3_(object->bit_field3()),
+      // Similar to the bit_field comment above.
+      bit_field3_(object->relaxed_bit_field3()),
       can_be_deprecated_(object->NumberOfOwnDescriptors() > 0
                              ? object->CanBeDeprecated()
                              : false),

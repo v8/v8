@@ -1224,7 +1224,8 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
   if (!map->is_dictionary_map()) {
     new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, false);
   }
-  result->set_bit_field3(new_bit_field3);
+  // Same as bit_field comment above.
+  result->set_relaxed_bit_field3(new_bit_field3);
   result->clear_padding();
   return result;
 }
