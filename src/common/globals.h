@@ -101,10 +101,11 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
 
 // Determine whether the short builtin calls optimization is enabled.
 #ifdef V8_SHORT_BUILTIN_CALLS
-#ifndef V8_COMPRESS_POINTERS
+#ifndef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 // TODO(11527): Fix this by passing Isolate* to Code::OffHeapInstructionStart()
 // and friends.
-#error Short builtin calls feature requires pointer compression
+#error Short builtin calls feature require pointer compression with per- \
+       Isolate cage
 #endif
 #endif
 
@@ -1757,6 +1758,10 @@ class PtrComprCageBase {
   inline PtrComprCageBase(const LocalIsolate* isolate);
 
   inline Address address() const;
+
+  bool operator==(const PtrComprCageBase& other) const {
+    return address_ == other.address_;
+  }
 
  private:
   Address address_;

@@ -14,6 +14,7 @@
 #include "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-data.h"
 #include "src/objects/contexts.h"
 #include "src/objects/tagged-index.h"
 
@@ -579,7 +580,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     Move(kRootRegister, isolate_root);
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-    Move(kPtrComprCageBaseRegister, isolate_root);
+    LoadRootRelative(kPtrComprCageBaseRegister,
+                     IsolateData::cage_base_offset());
 #endif
   }
 

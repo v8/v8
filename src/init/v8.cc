@@ -151,6 +151,7 @@ void V8::InitializeOncePerProcessImpl() {
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();
 #endif
+  PtrComprCage::InitializeOncePerProcess();
   Isolate::InitializeOncePerProcess();
 
 #if defined(USE_SIMULATOR)

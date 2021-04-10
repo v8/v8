@@ -967,7 +967,7 @@ void Deoptimizer::DoComputeOutputFrames() {
                                             isolate()->isolate_root());
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   topmost->GetRegisterValues()->SetRegister(kPtrComprCageBaseRegister.code(),
-                                            isolate()->isolate_root());
+                                            isolate()->cage_base());
 #endif
 
   // Print some helpful diagnostic information.

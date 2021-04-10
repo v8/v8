@@ -374,7 +374,7 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
         IntPtrSub(full_base, Signed(ChangeUint32ToWord(compressed_base)));
     // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
     DCHECK_EQ(
-        isolate()->isolate_root(),
+        isolate()->cage_base(),
         JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));
     // See JSTypedArray::SetOnHeapDataPtr() for details.
     offset = Unsigned(IntPtrAdd(offset, ptr_compr_cage_base));

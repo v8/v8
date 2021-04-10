@@ -53,6 +53,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/ic/stub-cache.h"
 #include "src/init/bootstrapper.h"
+#include "src/init/ptr-compr-cage.h"
 #include "src/init/setup-isolate.h"
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
@@ -2887,6 +2888,7 @@ Isolate* Isolate::New() {
   Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
 #ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   DCHECK(IsAligned(isolate->isolate_root(), kPtrComprCageBaseAlignment));
+  DCHECK_EQ(isolate->isolate_root(), isolate->cage_base());
 #endif
 
 #ifdef DEBUG
@@ -2947,7 +2949,7 @@ v8::PageAllocator* Isolate::page_allocator() {
 }
 
 Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
-    : isolate_data_(this),
+    : isolate_data_(this, isolate_allocator->GetPtrComprCageBaseAddress()),
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
@@ -3002,6 +3004,8 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.fast_c_call_caller_pc_)),
            Internals::kIsolateFastCCallCallerPcOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.cage_base_)),
+           Internals::kIsolateCageBaseOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_)),

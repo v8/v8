@@ -1021,6 +1021,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const IsolateData* isolate_data() const { return &isolate_data_; }
   IsolateData* isolate_data() { return &isolate_data_; }
 
+  // When pointer compression is on, this is the base address of the pointer
+  // compression cage, and the kPtrComprCageBaseRegister is set to this
+  // value. When pointer compression is off, this is always kNullAddress.
+  Address cage_base() const {
+    DCHECK_IMPLIES(!COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL &&
+                       !COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL,
+                   isolate_data()->cage_base() == kNullAddress);
+    return isolate_data()->cage_base();
+  }
+
   // Generated code can embed this address to get access to the isolate-specific
   // data (for example, roots, external references, builtins, etc.).
   // The kRootRegister is set to this value.

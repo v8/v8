@@ -383,9 +383,10 @@ if (v8_multi_arch_build &&
   v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression
 }
 if (v8_enable_short_builtin_calls &&
-    (!v8_enable_pointer_compression || v8_control_flow_integrity)) {
-  # Disable short calls when pointer compression is not enabled.
-  # Or when CFI is enabled (until the CFI-related issues are fixed).
+    (!v8_enable_pointer_compression ||
+     v8_enable_pointer_compression_shared_cage || v8_control_flow_integrity)) {
+  # Disable short calls when pointer compression in a per-Isolate cage is not
+  # enabled. Or when CFI is enabled (until the CFI-related issues are fixed).
   v8_enable_short_builtin_calls = false
 }
 if (v8_enable_shared_ro_heap == "") {
@@ -585,11 +586,11 @@ if (v8_enable_v8_checks) {
 }
 if (v8_enable_pointer_compression) {
   enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS" ]
-}
-if (v8_enable_pointer_compression_shared_cage) {
-  enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS_IN_SHARED_CAGE" ]
-} else if (v8_enable_pointer_compression) {
-  enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE" ]
+  if (v8_enable_pointer_compression_shared_cage) {
+    enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS_IN_SHARED_CAGE" ]
+  } else {
+    enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE" ]
+  }
 }
 if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
   enabled_external_v8_defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
@@ -1915,6 +1916,8 @@ action("v8_dump_build_config") {
     "v8_enable_lite_mode=$v8_enable_lite_mode",
     "v8_enable_runtime_call_stats=$v8_enable_runtime_call_stats",
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
+    "v8_enable_pointer_compression_shared_cage=" +
+        "$v8_enable_pointer_compression_shared_cage",
     "v8_enable_webassembly=$v8_enable_webassembly",
     "v8_control_flow_integrity=$v8_control_flow_integrity",
     "v8_target_cpu=\"$v8_target_cpu\"",
@@ -2665,6 +2668,7 @@ v8_header_set("v8_internal_headers") {
     "src/init/heap-symbols.h",
     "src/init/icu_util.h",
     "src/init/isolate-allocator.h",
+    "src/init/ptr-compr-cage.h",
     "src/init/setup-isolate.h",
     "src/init/startup-data-util.h",
     "src/init/v8.h",
@@ -3752,6 +3756,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/init/bootstrapper.cc",
     "src/init/icu_util.cc",
     "src/init/isolate-allocator.cc",
+    "src/init/ptr-compr-cage.cc",
     "src/init/startup-data-util.cc",
     "src/init/v8.cc",
     "src/interpreter/bytecode-array-builder.cc",
