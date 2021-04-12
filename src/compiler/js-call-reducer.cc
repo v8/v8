@@ -4048,7 +4048,9 @@ bool ShouldUseCallICFeedback(Node* node) {
   } else if (m.IsPhi()) {
     // Protect against endless loops here.
     Node* control = NodeProperties::GetControlInput(node);
-    if (control->opcode() == IrOpcode::kLoop) return false;
+    if (control->opcode() == IrOpcode::kLoop ||
+        control->opcode() == IrOpcode::kDead)
+      return false;
     // Check if {node} is a Phi of nodes which shouldn't
     // use CallIC feedback (not looking through loops).
     int const value_input_count = m.node()->op()->ValueInputCount();
