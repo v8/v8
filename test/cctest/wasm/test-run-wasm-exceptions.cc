@@ -629,6 +629,18 @@ TEST(Regress1186795) {
   CHECK_EQ(0, r.CallInterpreter());
 }
 
+TEST(Regress1197408) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kInterpreter);
+  int sig_id = r.builder().AddSignature(sigs.i_iii());
+  BUILD(r, WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), kExprTry,
+                      sig_id, kExprTry, sig_id, kExprCallFunction, 0,
+                      kExprDelegate, 0, kExprDelegate, 0));
+  CHECK_EQ(0, r.CallInterpreter(0, 0, 0));
+}
+
 }  // namespace test_run_wasm_exceptions
 }  // namespace wasm
 }  // namespace internal

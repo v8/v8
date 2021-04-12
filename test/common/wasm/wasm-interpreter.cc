@@ -903,7 +903,7 @@ class SideTable : public ZoneObject {
           CLabel* end_label = CLabel::New(&control_transfer_zone,
                                           target_stack_height, imm.out_arity());
           CLabel* catch_label =
-              CLabel::New(&control_transfer_zone, stack_height, 0);
+              CLabel::New(&control_transfer_zone, target_stack_height, 0);
           control_stack.emplace_back(i.pc(), end_label, catch_label,
                                      imm.out_arity());
           exception_stack.push_back(control_stack.size() - 1);
