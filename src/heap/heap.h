@@ -696,7 +696,7 @@ class Heap {
 
   GlobalSafepoint* safepoint() { return safepoint_.get(); }
 
-  V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
+  V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs() const;
 
   void VerifyNewSpaceTop();
 
@@ -857,6 +857,7 @@ class Heap {
   }
 
   inline Isolate* isolate();
+  inline const Isolate* isolate() const;
 
   MarkCompactCollector* mark_compact_collector() {
     return mark_compact_collector_.get();
@@ -1074,17 +1075,19 @@ class Heap {
   void CompleteSweepingFull();
   void CompleteSweepingYoung(GarbageCollector collector);
 
-  IncrementalMarking* incremental_marking() {
+  IncrementalMarking* incremental_marking() const {
     return incremental_marking_.get();
   }
 
-  MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
+  MarkingBarrier* marking_barrier() const { return marking_barrier_.get(); }
 
   // ===========================================================================
   // Concurrent marking API. ===================================================
   // ===========================================================================
 
-  ConcurrentMarking* concurrent_marking() { return concurrent_marking_.get(); }
+  ConcurrentMarking* concurrent_marking() const {
+    return concurrent_marking_.get();
+  }
 
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.

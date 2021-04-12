@@ -3681,7 +3681,7 @@ void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
   }
 }
 
-double Heap::MonotonicallyIncreasingTimeInMs() {
+double Heap::MonotonicallyIncreasingTimeInMs() const {
   return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
          static_cast<double>(base::Time::kMillisecondsPerSecond);
 }

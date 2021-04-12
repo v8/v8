@@ -2944,7 +2944,7 @@ void Isolate::SetUpFromReadOnlyArtifacts(
   heap_.SetUpFromReadOnlyHeap(read_only_heap_);
 }
 
-v8::PageAllocator* Isolate::page_allocator() {
+v8::PageAllocator* Isolate::page_allocator() const {
   return isolate_allocator_->page_allocator();
 }
 
