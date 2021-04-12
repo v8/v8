@@ -953,7 +953,6 @@
   'deopt-recursive-lazy-once': [SKIP],
   'deopt-recursive-soft-once': [SKIP],
   'code-coverage-block-opt': [SKIP],
-  'compiler/fast-api-calls': [SKIP],
   'compiler/serializer-apply': [SKIP],
   'compiler/serializer-call': [SKIP],
   'compiler/serializer-dead-after-jump': [SKIP],

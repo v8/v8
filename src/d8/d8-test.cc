@@ -51,10 +51,10 @@ class FastCApiObject {
     HandleScope handle_scope(isolate);
 
     double sum = 0;
-    if (args.Length() > 1 && args[1]->IsInt32()) {
+    if (args.Length() > 1 && args[1]->IsNumber()) {
       sum += args[1]->Int32Value(isolate->GetCurrentContext()).FromJust();
     }
-    if (args.Length() > 2 && args[2]->IsUint32()) {
+    if (args.Length() > 2 && args[2]->IsNumber()) {
       sum += args[2]->Uint32Value(isolate->GetCurrentContext()).FromJust();
     }
     if (args.Length() > 3 && args[3]->IsNumber()) {
@@ -101,10 +101,10 @@ class FastCApiObject {
     HandleScope handle_scope(isolate);
 
     double sum = 0;
-    if (args.Length() > 1 && args[1]->IsInt32()) {
+    if (args.Length() > 1 && args[1]->IsNumber()) {
       sum += args[1]->Int32Value(isolate->GetCurrentContext()).FromJust();
     }
-    if (args.Length() > 2 && args[2]->IsUint32()) {
+    if (args.Length() > 2 && args[2]->IsNumber()) {
       sum += args[2]->Uint32Value(isolate->GetCurrentContext()).FromJust();
     }
 
