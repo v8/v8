@@ -238,7 +238,10 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
 
 // Format (serialized function):
 // - 0 if there's no context, 1 + context id otherwise
-// - String id (source string)
+// - String id (source snippet)
+// - Start position in the source snippet
+// - Length in the source snippet
+// TODO(v8:11525): Investigate whether the length is really needed.
 void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
                                               uint32_t& id) {
   if (InsertIntoIndexMap(function_ids_, function, id)) {
@@ -251,7 +254,7 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
   }
 
   Handle<Context> context(function->context(), isolate_);
-  if (context->IsNativeContext()) {
+  if (context->IsNativeContext() || context->IsScriptContext()) {
     function_serializer_.WriteUint32(0);
   } else {
     DCHECK(context->IsFunctionContext());
@@ -260,20 +263,19 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
     function_serializer_.WriteUint32(context_id + 1);
   }
 
-  // TODO(v8:11525): For inner functions which occur inside a serialized
-  // function, create a "substring" type, so that we don't need to serialize the
-  // same content twice.
+  // TODO(v8:11525): Don't write the full source but instead, a set of minimal
+  // snippets which cover the serialized functions.
   Handle<String> full_source(
       String::cast(Script::cast(function->shared().script()).source()),
       isolate_);
-  int start = function->shared().StartPosition();
-  int end = function->shared().EndPosition();
-  Handle<String> source =
-      isolate_->factory()->NewSubString(full_source, start, end);
   uint32_t source_id = 0;
-  SerializeString(source, source_id);
+  SerializeString(full_source, source_id);
   function_serializer_.WriteUint32(source_id);
 
+  int start = function->shared().StartPosition();
+  function_serializer_.WriteUint32(start);
+  int end = function->shared().EndPosition();
+  function_serializer_.WriteUint32(end - start);
   // TODO(v8:11525): Serialize .prototype.
   // TODO(v8:11525): Support properties in functions.
 }
@@ -297,7 +299,8 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context,
   }
 
   uint32_t parent_context_id = 0;
-  if (!context->previous().IsNativeContext()) {
+  if (!context->previous().IsNativeContext() &&
+      !context->previous().IsScriptContext()) {
     SerializeContext(handle(context->previous(), isolate_), parent_context_id);
     ++parent_context_id;
   }
@@ -669,8 +672,21 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     Throw("Web snapshot: Malformed function table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  STATIC_ASSERT(kMaxItemCount + 1 <= FixedArray::kMaxLength);
   functions_ = isolate_->factory()->NewFixedArray(function_count_);
+
+  Handle<Script> script =
+      isolate_->factory()->NewScript(isolate_->factory()->empty_string());
+  script->set_type(Script::TYPE_WEB_SNAPSHOT);
+  // Overallocate the array for SharedFunctionInfos; functions which we
+  // deserialize soon will create more SharedFunctionInfos when called.
+  Handle<WeakFixedArray> infos(isolate_->factory()->NewWeakFixedArray(
+      WeakArrayList::CapacityForLength(function_count_ + 1),
+      AllocationType::kOld));
+  script->set_shared_function_infos(*infos);
+  Handle<ObjectHashTable> shared_function_info_table =
+      ObjectHashTable::New(isolate_, function_count_);
+
   for (uint32_t i = 0; i < function_count_; ++i) {
     uint32_t context_id;
     // Note: > (not >= on purpose, we will subtract 1).
@@ -681,10 +697,24 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     }
 
     Handle<String> source = ReadString(false);
+    if (i == 0) {
+      script->set_source(*source);
+    } else {
+      // TODO(v8:11525): Support multiple source snippets.
+      DCHECK_EQ(script->source(), *source);
+    }
+
+    uint32_t start_position;
+    uint32_t length;
+    if (!deserializer_->ReadUint32(&start_position) ||
+        !deserializer_->ReadUint32(&length)) {
+      Throw("Web snapshot: Malformed function");
+      return;
+    }
 
     // TODO(v8:11525): Support other function kinds.
     // TODO(v8:11525): Support (exported) top level functions.
-    Handle<Script> script = isolate_->factory()->NewScript(source);
+
     // TODO(v8:11525): Deduplicate the SFIs for inner functions the user creates
     // post-deserialization (by calling the outer function, if it's also in the
     // snapshot) against the ones we create here.
@@ -692,18 +722,24 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
         isolate_->factory()->NewSharedFunctionInfo(
             isolate_->factory()->empty_string(), MaybeHandle<Code>(),
             Builtins::kCompileLazy, FunctionKind::kNormalFunction);
-    shared->set_function_literal_id(1);
+    shared->set_script(*script);
+    // Index 0 is reserved for top-level shared function info (which web
+    // snapshot scripts don't have).
+    const int shared_function_info_index = i + 1;
+    shared->set_function_literal_id(shared_function_info_index);
     // TODO(v8:11525): Decide how to handle language modes.
     shared->set_language_mode(LanguageMode::kStrict);
     shared->set_uncompiled_data(
         *isolate_->factory()->NewUncompiledDataWithoutPreparseData(
-            ReadOnlyRoots(isolate_).empty_string_handle(), 0,
-            source->length()));
-    shared->set_script(*script);
-    Handle<WeakFixedArray> infos(
-        isolate_->factory()->NewWeakFixedArray(3, AllocationType::kOld));
-    infos->Set(1, HeapObjectReference::Weak(*shared));
-    script->set_shared_function_infos(*infos);
+            ReadOnlyRoots(isolate_).empty_string_handle(), start_position,
+            start_position + length));
+    shared->set_allows_lazy_compilation(true);
+    infos->Set(shared_function_info_index, HeapObjectReference::Weak(*shared));
+
+    shared_function_info_table = ObjectHashTable::Put(
+        shared_function_info_table,
+        handle(Smi::FromInt(start_position), isolate_),
+        handle(Smi::FromInt(shared_function_info_index), isolate_));
 
     Handle<JSFunction> function =
         Factory::JSFunctionBuilder(isolate_, shared, isolate_->native_context())
@@ -718,6 +754,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     }
     functions_->set(i, *function);
   }
+  script->set_shared_function_info_table(*shared_function_info_table);
 }
 
 void WebSnapshotDeserializer::DeserializeObjects() {

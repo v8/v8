@@ -1608,7 +1608,9 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     }
 
     if (!triedTopLevelCompile && !candidateSubsumesRange &&
-        script->shared_function_infos().length() > 0) {
+        script->shared_function_info_count() > 0) {
+      DCHECK_LE(script->shared_function_info_count(),
+                script->shared_function_infos().length());
       MaybeObject maybeToplevel = script->shared_function_infos().Get(0);
       HeapObject heap_object;
       const bool topLevelInfoExists =

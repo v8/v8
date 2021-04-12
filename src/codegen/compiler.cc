@@ -611,8 +611,10 @@ void EnsureSharedFunctionInfosArrayOnScript(Handle<Script> script,
                                             ParseInfo* parse_info,
                                             LocalIsolate* isolate) {
   DCHECK(parse_info->flags().is_toplevel());
-  if (script->shared_function_infos().length() > 0) {
-    DCHECK_EQ(script->shared_function_infos().length(),
+  if (script->shared_function_info_count() > 0) {
+    DCHECK_LE(script->shared_function_info_count(),
+              script->shared_function_infos().length());
+    DCHECK_EQ(script->shared_function_info_count(),
               parse_info->max_function_literal_id() + 1);
     return;
   }
@@ -1389,8 +1391,7 @@ void FinalizeUnoptimizedScriptCompilation(
       FunctionLiteral* literal = it.first;
       CompilerDispatcher::JobId job_id = it.second;
       MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
-          script->FindSharedFunctionInfo(isolate,
-                                         literal->function_literal_id());
+          Script::FindSharedFunctionInfo(script, isolate, literal);
       Handle<SharedFunctionInfo> shared_for_task;
       if (maybe_shared_for_task.ToHandle(&shared_for_task)) {
         dispatcher->RegisterSharedFunctionInfo(job_id, *shared_for_task);
@@ -3170,8 +3171,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   MaybeHandle<SharedFunctionInfo> maybe_existing;
 
   // Find any previously allocated shared function info for the given literal.
-  maybe_existing =
-      script->FindSharedFunctionInfo(isolate, literal->function_literal_id());
+  maybe_existing = Script::FindSharedFunctionInfo(script, isolate, literal);
 
   // If we found an existing shared function info, return it.
   Handle<SharedFunctionInfo> existing;

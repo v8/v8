@@ -833,14 +833,23 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
                         Scope::DeserializationMode::kIncludingVariables);
   DCHECK_EQ(factory()->zone(), info->zone());
 
+  Handle<Script> script = handle(Script::cast(shared_info->script()), isolate);
   if (shared_info->is_wrapped()) {
-    maybe_wrapped_arguments_ = handle(
-        Script::cast(shared_info->script()).wrapped_arguments(), isolate);
+    maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }
 
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
   int function_literal_id = shared_info->function_literal_id();
+  if V8_UNLIKELY (script->type() == Script::TYPE_WEB_SNAPSHOT) {
+    // Function literal IDs for inner functions haven't been allocated when
+    // deserializing. Put the inner function SFIs to the end of the list;
+    // they'll be deduplicated later (if the corresponding SFIs exist already)
+    // in Script::FindSharedFunctionInfo. (-1 here because function_literal_id
+    // is the parent's id. The inner function will get ids starting from
+    // function_literal_id + 1.)
+    function_literal_id = script->shared_function_info_count() - 1;
+  }
 
   // Initialize parser state.
   Handle<String> name(shared_info->Name(), isolate);
@@ -865,9 +874,10 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   if (result != nullptr) {
     Handle<String> inferred_name(shared_info->inferred_name(), isolate);
     result->set_inferred_name(inferred_name);
+    // Fix the function_literal_id in case we changed it earlier.
+    result->set_function_literal_id(shared_info->function_literal_id());
   }
   PostProcessParseResult(isolate, info, result);
-
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     // We should already be internalized by now, so the debug name will be

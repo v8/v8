@@ -1685,7 +1685,13 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
-  for (int i = 0; i < shared_function_infos().length(); ++i) {
+  if V8_UNLIKELY (type() == Script::TYPE_WEB_SNAPSHOT) {
+    CHECK_LE(shared_function_info_count(), shared_function_infos().length());
+  } else {
+    // No overallocating shared_function_infos.
+    CHECK_EQ(shared_function_info_count(), shared_function_infos().length());
+  }
+  for (int i = 0; i < shared_function_info_count(); ++i) {
     MaybeObject maybe_object = shared_function_infos().Get(i);
     HeapObject heap_object;
     CHECK(maybe_object->IsWeak() || maybe_object->IsCleared() ||

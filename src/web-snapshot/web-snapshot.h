@@ -42,7 +42,7 @@ class WebSnapshotSerializerDeserializer {
 
   // The maximum count of items for each value type (strings, objects etc.)
   static constexpr uint32_t kMaxItemCount =
-      static_cast<uint32_t>(FixedArray::kMaxLength);
+      static_cast<uint32_t>(FixedArray::kMaxLength - 1);
   // This ensures indices and lengths can be converted between uint32_t and int
   // without problems:
   STATIC_ASSERT(kMaxItemCount < std::numeric_limits<int32_t>::max());
