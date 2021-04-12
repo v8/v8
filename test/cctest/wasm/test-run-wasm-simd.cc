@@ -2226,6 +2226,30 @@ WASM_SIMD_TEST(I8x16Swizzle) {
       CHECK_EQ(ReadLittleEndianValue<uint8_t>(&dst[i]), si.expected[i]);
     }
   }
+
+  {
+    // We have an optimization for constant indices, test this case.
+    for (SwizzleTestArgs si : swizzle_test_vector) {
+      WasmRunner<int32_t> r(execution_tier, lower_simd);
+      uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
+      uint8_t* src0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
+      BUILD(r,
+            WASM_GLOBAL_SET(
+                0, WASM_SIMD_BINOP(kExprI8x16Swizzle, WASM_GLOBAL_GET(1),
+                                   WASM_SIMD_CONSTANT(si.indices))),
+            WASM_ONE);
+
+      for (int i = 0; i < kSimd128Size; i++) {
+        WriteLittleEndianValue<uint8_t>(&src0[i], si.input[i]);
+      }
+
+      CHECK_EQ(1, r.Call());
+
+      for (int i = 0; i < kSimd128Size; i++) {
+        CHECK_EQ(ReadLittleEndianValue<uint8_t>(&dst[i]), si.expected[i]);
+      }
+    }
+  }
 }
 
 // Combine 3 shuffles a, b, and c by applying both a and b and then applying c

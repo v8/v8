@@ -2355,7 +2355,7 @@ void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
   if (omit_add) {
     // We have determined that the indices are immediates, and they are either
     // within bounds, or the top bit is set, so we can omit the add.
-    Pshufb(dst, src, kScratchDoubleReg);
+    Pshufb(dst, src, mask);
     return;
   }
 
