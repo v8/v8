@@ -783,6 +783,7 @@ class NodeOriginsWrapper final : public Reducer {
 
 class V8_NODISCARD PipelineRunScope {
  public:
+#ifdef V8_RUNTIME_CALL_STATS
   PipelineRunScope(
       PipelineData* data, const char* phase_name,
       RuntimeCallCounterId runtime_call_counter_id,
@@ -794,6 +795,14 @@ class V8_NODISCARD PipelineRunScope {
                                  runtime_call_counter_id, counter_mode) {
     DCHECK_NOT_NULL(phase_name);
   }
+#else   // V8_RUNTIME_CALL_STATS
+  PipelineRunScope(PipelineData* data, const char* phase_name)
+      : phase_scope_(data->pipeline_statistics(), phase_name),
+        zone_scope_(data->zone_stats(), phase_name),
+        origin_scope_(data->node_origins(), phase_name) {
+    DCHECK_NOT_NULL(phase_name);
+  }
+#endif  // V8_RUNTIME_CALL_STATS
 
   Zone* zone() { return zone_scope_.zone(); }
 
@@ -801,7 +810,9 @@ class V8_NODISCARD PipelineRunScope {
   PhaseScope phase_scope_;
   ZoneStats::Scope zone_scope_;
   NodeOriginTable::PhaseScope origin_scope_;
+#ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallTimerScope runtime_call_timer_scope;
+#endif  // V8_RUNTIME_CALL_STATS
 };
 
 // LocalIsolateScope encapsulates the phase where persistent handles are
@@ -1262,8 +1273,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   // Ensure that the RuntimeCallStats table of main thread is available for
   // phases happening during PrepareJob.
   PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
-  RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
   MaybeHandle<Code> maybe_code = pipeline_.FinalizeCode();
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
@@ -1309,17 +1319,26 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
 
 template <typename Phase, typename... Args>
 void PipelineImpl::Run(Args&&... args) {
+#ifdef V8_RUNTIME_CALL_STATS
   PipelineRunScope scope(this->data_, Phase::phase_name(),
                          Phase::kRuntimeCallCounterId, Phase::kCounterMode);
+#else
+  PipelineRunScope scope(this->data_, Phase::phase_name());
+#endif
   Phase phase;
   phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
 }
 
+#ifdef V8_RUNTIME_CALL_STATS
 #define DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, Mode)        \
   static const char* phase_name() { return "V8.TF" #Name; }     \
   static constexpr RuntimeCallCounterId kRuntimeCallCounterId = \
       RuntimeCallCounterId::kOptimize##Name;                    \
   static constexpr RuntimeCallStats::CounterMode kCounterMode = Mode;
+#else  // V8_RUNTIME_CALL_STATS
+#define DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, Mode) \
+  static const char* phase_name() { return "V8.TF" #Name; }
+#endif  // V8_RUNTIME_CALL_STATS
 
 #define DECL_PIPELINE_PHASE_CONSTANTS(Name) \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, RuntimeCallStats::kThreadSpecific)
@@ -2966,8 +2985,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                     should_optimize_jumps ? &jump_opt : nullptr, options,
                     profile_data);
   PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
-  RuntimeCallTimerScope timer_scope(isolate,
-                                    RuntimeCallCounterId::kOptimizeCode);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {

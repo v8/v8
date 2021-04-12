@@ -42,6 +42,7 @@
 #include "src/heap/worklist.h"
 #include "src/ic/stub-cache.h"
 #include "src/init/v8.h"
+#include "src/logging/tracing-flags.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
@@ -51,6 +52,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/tasks/cancelable-task.h"
+#include "src/tracing/tracing-category-observer.h"
 #include "src/utils/utils-inl.h"
 
 namespace v8 {

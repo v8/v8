@@ -39,9 +39,8 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
   Heap* heap = incremental_marking_->heap();
   VMState<GC> state(heap->isolate());
-  RuntimeCallTimerScope runtime_timer(
-      heap->isolate(),
-      RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
+  RCS_SCOPE(heap->isolate(),
+            RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_->AdvanceOnAllocation();
   // AdvanceIncrementalMarkingOnAllocation can start incremental marking.
   incremental_marking_->EnsureBlackAllocated(addr, size);

@@ -186,8 +186,7 @@ void MessageHandler::ReportMessageNoExceptions(
           FUNCTION_CAST<v8::MessageCallback>(callback_obj.foreign_address());
       Handle<Object> callback_data(listener.get(1), isolate);
       {
-        RuntimeCallTimerScope timer(
-            isolate, RuntimeCallCounterId::kMessageListenerCallback);
+        RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
         callback(api_message_obj, callback_data->IsUndefined(isolate)

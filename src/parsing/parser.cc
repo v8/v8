@@ -522,10 +522,9 @@ void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_, flags().is_eval()
-                               ? RuntimeCallCounterId::kParseEval
-                               : RuntimeCallCounterId::kParseProgram);
+  RCS_SCOPE(runtime_call_stats_, flags().is_eval()
+                                     ? RuntimeCallCounterId::kParseEval
+                                     : RuntimeCallCounterId::kParseProgram);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
@@ -704,9 +703,8 @@ void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
   if (isolate) info->ast_value_factory()->Internalize(isolate);
 
   {
-    RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
-                                       RuntimeCallCounterId::kCompileAnalyse,
-                                       RuntimeCallStats::kThreadSpecific);
+    RCS_SCOPE(info->runtime_call_stats(), RuntimeCallCounterId::kCompileAnalyse,
+              RuntimeCallStats::kThreadSpecific);
     if (!Rewriter::Rewrite(info) || !DeclarationScope::Analyze(info)) {
       // Null out the literal to indicate that something failed.
       info->set_literal(nullptr);
@@ -819,8 +817,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
-  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
-                                      RuntimeCallCounterId::kParseFunction);
+  RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
@@ -2569,9 +2566,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   const bool is_lazy_top_level_function = is_lazy && is_top_level;
   const bool is_lazy_inner_function = is_lazy && !is_top_level;
 
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_, RuntimeCallCounterId::kParseFunctionLiteral,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseFunctionLiteral,
+            RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
@@ -2662,14 +2658,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         reinterpret_cast<const char*>(function_name->raw_data()),
         function_name->byte_length(), function_name->is_one_byte());
   }
-  if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled()) &&
-      did_preparse_successfully) {
-    if (runtime_call_stats_) {
-      runtime_call_stats_->CorrectCurrentCounterId(
-          RuntimeCallCounterId::kPreParseWithVariableResolution,
-          RuntimeCallStats::kThreadSpecific);
-    }
+#ifdef V8_RUNTIME_CALL_STATS
+  if (did_preparse_successfully && runtime_call_stats_ &&
+      V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {
+    runtime_call_stats_->CorrectCurrentCounterId(
+        RuntimeCallCounterId::kPreParseWithVariableResolution,
+        RuntimeCallStats::kThreadSpecific);
   }
+#endif  // V8_RUNTIME_CALL_STATS
 
   // Validate function name. We can do this only after parsing the function,
   // since the function can declare itself strict.
@@ -3274,8 +3270,7 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
 
 void Parser::ParseOnBackground(ParseInfo* info, int start_position,
                                int end_position, int function_literal_id) {
-  RuntimeCallTimerScope runtimeTimer(
-      runtime_call_stats_, RuntimeCallCounterId::kParseBackgroundProgram);
+  RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseBackgroundProgram);
   parsing_on_main_thread_ = false;
 
   DCHECK_NULL(info->literal());

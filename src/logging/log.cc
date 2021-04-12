@@ -1728,12 +1728,14 @@ bool Logger::EnsureLogScriptSource(Script script) {
 }
 
 void Logger::RuntimeCallTimerEvent() {
+#ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallStats* stats = isolate_->counters()->runtime_call_stats();
   RuntimeCallCounter* counter = stats->current_counter();
   if (counter == nullptr) return;
   MSG_BUILDER();
   msg << "active-runtime-timer" << kNext << counter->name();
   msg.WriteToLogFile();
+#endif  // V8_RUNTIME_CALL_STATS
 }
 
 void Logger::TickEvent(TickSample* sample, bool overflow) {

@@ -246,8 +246,7 @@ BaselineCompiler::BaselineCompiler(
 
 void BaselineCompiler::GenerateCode() {
   {
-    RuntimeCallTimerScope runtimeTimer(
-        stats_, RuntimeCallCounterId::kCompileBaselinePreVisit);
+    RCS_SCOPE(stats_, RuntimeCallCounterId::kCompileBaselinePreVisit);
     for (; !iterator_.done(); iterator_.Advance()) {
       PreVisitSingleBytecode();
     }
@@ -259,8 +258,7 @@ void BaselineCompiler::GenerateCode() {
   __ CodeEntry();
 
   {
-    RuntimeCallTimerScope runtimeTimer(
-        stats_, RuntimeCallCounterId::kCompileBaselineVisit);
+    RCS_SCOPE(stats_, RuntimeCallCounterId::kCompileBaselineVisit);
     Prologue();
     AddPosition();
     for (; !iterator_.done(); iterator_.Advance()) {

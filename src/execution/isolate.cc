@@ -1471,8 +1471,7 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 }
 
 void Isolate::InvokeApiInterruptCallbacks() {
-  RuntimeCallTimerScope runtimeTimer(
-      this, RuntimeCallCounterId::kInvokeApiInterruptCallbacks);
+  RCS_SCOPE(this, RuntimeCallCounterId::kInvokeApiInterruptCallbacks);
   // Note: callback below should be called outside of execution access lock.
   while (true) {
     InterruptEntry entry;
@@ -3869,6 +3868,7 @@ void Isolate::DumpAndResetStats() {
     wasm_engine()->DumpAndResetTurboStatistics();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+#if V8_RUNTIME_CALL_STATS
   if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     counters()->worker_thread_runtime_call_stats()->AddToMainTable(
@@ -3876,6 +3876,7 @@ void Isolate::DumpAndResetStats() {
     counters()->runtime_call_stats()->Print();
     counters()->runtime_call_stats()->Reset();
   }
+#endif  // V8_RUNTIME_CALL_STATS
   if (BasicBlockProfiler::Get()->HasData(this)) {
     StdoutStream out;
     BasicBlockProfiler::Get()->Print(out, this);

@@ -64,6 +64,7 @@
 #include "src/objects/transitions.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/snapshot.h"
+#include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"

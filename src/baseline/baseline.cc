@@ -23,8 +23,7 @@ namespace internal {
 
 MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared) {
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kCompileBaseline);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileBaseline);
   baseline::BaselineCompiler compiler(
       isolate, shared, handle(shared->GetBytecodeArray(isolate), isolate));
 

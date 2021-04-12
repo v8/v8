@@ -41,7 +41,6 @@
 #include "src/heap/read-only-heap.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
-#include "src/logging/counters-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/allocation-site-inl.h"
@@ -1321,7 +1320,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(Map map) {
-  RuntimeCallTimerScope timer(
+  RCS_SCOPE(
       LocalHeap::Current() == nullptr
           ? GetIsolate()->counters()->runtime_call_stats()
           : LocalIsolate::FromHeap(LocalHeap::Current())->runtime_call_stats(),

@@ -115,7 +115,7 @@ namespace internal {
   }
 
 void Object::ObjectVerify(Isolate* isolate) {
-  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kObjectVerify);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kObjectVerify);
   if (IsSmi()) {
     Smi::cast(*this).SmiVerify(isolate);
   } else {

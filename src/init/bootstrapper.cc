@@ -5310,7 +5310,7 @@ Genesis::Genesis(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
-  RuntimeCallTimerScope rcs_timer(isolate, RuntimeCallCounterId::kGenesis);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kGenesis);
   result_ = Handle<Context>::null();
   global_proxy_ = Handle<JSGlobalProxy>::null();
 

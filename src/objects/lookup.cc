@@ -689,10 +689,10 @@ void LookupIterator::Delete() {
   } else {
     DCHECK(!name()->IsPrivateName(isolate_));
     bool is_prototype_map = holder->map(isolate_).is_prototype_map();
-    RuntimeCallTimerScope stats_scope(
-        isolate_, is_prototype_map
-                      ? RuntimeCallCounterId::kPrototypeObject_DeleteProperty
-                      : RuntimeCallCounterId::kObject_DeleteProperty);
+    RCS_SCOPE(isolate_,
+              is_prototype_map
+                  ? RuntimeCallCounterId::kPrototypeObject_DeleteProperty
+                  : RuntimeCallCounterId::kObject_DeleteProperty);
 
     PropertyNormalizationMode mode =
         is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;

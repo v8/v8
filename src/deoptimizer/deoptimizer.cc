@@ -380,8 +380,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
 }
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kDeoptimizeCode);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   TraceDeoptAll(isolate);
@@ -399,8 +398,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 }
 
 void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kDeoptimizeCode);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   TraceDeoptMarked(isolate);
@@ -427,8 +425,7 @@ void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
 
 void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
   Isolate* isolate = function.GetIsolate();
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kDeoptimizeCode);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   function.ResetIfBytecodeFlushed();

@@ -944,10 +944,12 @@ int64_t GetNextRandomInt64(v8::Isolate* v8_isolate) {
 
 void EnumerateRuntimeCallCounters(v8::Isolate* v8_isolate,
                                   RuntimeCallCounterCallback callback) {
+#ifdef V8_RUNTIME_CALL_STATS
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   if (isolate->counters()) {
     isolate->counters()->runtime_call_stats()->EnumerateCounters(callback);
   }
+#endif  // V8_RUNTIME_CALL_STATS
 }
 
 int GetDebuggingId(v8::Local<v8::Function> function) {

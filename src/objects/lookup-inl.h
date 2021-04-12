@@ -209,7 +209,7 @@ bool LookupIterator::IsCacheableTransition() {
 // static
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                      Handle<Name> name) {
-  RuntimeCallTimerScope scope(isolate, RuntimeCallCounterId::kUpdateProtector);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
 
   // This list must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!

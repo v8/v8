@@ -1038,6 +1038,10 @@ config("toolchain") {
     defines += [ "ENABLE_VERIFY_CSA" ]
   }
 
+  if (v8_enable_runtime_call_stats) {
+    defines += [ "V8_RUNTIME_CALL_STATS" ]
+  }
+
   if (!v8_untrusted_code_mitigations) {
     defines += [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ]
   }
@@ -1896,6 +1900,7 @@ action("v8_dump_build_config") {
     "v8_enable_verify_predictable=$v8_enable_verify_predictable",
     "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
+    "v8_enable_runtime_call_stats=$v8_enable_runtime_call_stats",
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
     "v8_enable_webassembly=$v8_enable_webassembly",
     "v8_control_flow_integrity=$v8_control_flow_integrity",
@@ -2679,13 +2684,13 @@ v8_header_set("v8_internal_headers") {
     "src/libsampler/sampler.h",
     "src/logging/code-events.h",
     "src/logging/counters-definitions.h",
-    "src/logging/counters-inl.h",
     "src/logging/counters.h",
     "src/logging/local-logger.h",
     "src/logging/log-inl.h",
     "src/logging/log-utils.h",
     "src/logging/log.h",
     "src/logging/metrics.h",
+    "src/logging/runtime-call-stats.h",
     "src/logging/tracing-flags.h",
     "src/numbers/bignum-dtoa.h",
     "src/numbers/bignum.h",
@@ -3763,6 +3768,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/logging/log-utils.cc",
     "src/logging/log.cc",
     "src/logging/metrics.cc",
+    "src/logging/runtime-call-stats.cc",
     "src/logging/tracing-flags.cc",
     "src/numbers/bignum-dtoa.cc",
     "src/numbers/bignum.cc",

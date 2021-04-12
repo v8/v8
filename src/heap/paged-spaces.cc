@@ -832,8 +832,8 @@ void PagedSpace::PrepareForMarkCompact() {
 
 bool PagedSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
-  RuntimeCallTimerScope runtime_timer(
-      heap()->isolate(), RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
+  RCS_SCOPE(heap()->isolate(),
+            RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   return RawRefillLabMain(size_in_bytes, origin);
 }
 

@@ -1403,8 +1403,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   if (gc_reason == GarbageCollectionReason::kLastResort) {
     InvokeNearHeapLimitCallback();
   }
-  RuntimeCallTimerScope runtime_timer(
-      isolate(), RuntimeCallCounterId::kGC_Custom_AllAvailableGarbage);
+  RCS_SCOPE(isolate(), RuntimeCallCounterId::kGC_Custom_AllAvailableGarbage);
 
   // The optimizing compiler may be unnecessarily holding on to memory.
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
@@ -2214,8 +2213,7 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
 }
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
-  RuntimeCallTimerScope runtime_timer(
-      isolate(), RuntimeCallCounterId::kGCPrologueCallback);
+  RCS_SCOPE(isolate(), RuntimeCallCounterId::kGCPrologueCallback);
   for (const GCCallbackTuple& info : gc_prologue_callbacks_) {
     if (gc_type & info.gc_type) {
       v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
@@ -2225,8 +2223,7 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
 }
 
 void Heap::CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags) {
-  RuntimeCallTimerScope runtime_timer(
-      isolate(), RuntimeCallCounterId::kGCEpilogueCallback);
+  RCS_SCOPE(isolate(), RuntimeCallCounterId::kGCEpilogueCallback);
   for (const GCCallbackTuple& info : gc_epilogue_callbacks_) {
     if (gc_type & info.gc_type) {
       v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());

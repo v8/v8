@@ -387,6 +387,10 @@ v8_source_set("unittests_sources") {
     "zone/zone-unittest.cc",
   ]
 
+  if (v8_enable_runtime_call_stats) {
+    sources += [ "logging/runtime-call-stats-unittest.cc" ]
+  }
+
   if (v8_enable_webassembly) {
     sources += [
       "../../test/common/wasm/wasm-macro-gen.h",

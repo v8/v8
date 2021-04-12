@@ -945,11 +945,9 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
 V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
     Handle<JSFunction> function, BytecodeOffset osr_offset,
     CodeKind code_kind) {
-  RuntimeCallTimerScope runtimeTimer(
-      function->GetIsolate(),
-      RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
-  Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
   Isolate* isolate = function->GetIsolate();
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   DisallowGarbageCollection no_gc;
   Code code;
   if (osr_offset.IsNone() && function->has_feedback_vector()) {
@@ -1056,8 +1054,7 @@ bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
 bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
                          OptimizedCompilationInfo* compilation_info) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeNonConcurrent");
 
@@ -1113,8 +1110,7 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
   }
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kOptimizeConcurrentPrepare);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeConcurrentPrepare);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeConcurrentPrepare");
 
@@ -1252,8 +1248,7 @@ MaybeHandle<Code> GetOptimizedCode(
 
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kOptimizeCode);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   DCHECK(!isolate->has_pending_exception());
@@ -1441,10 +1436,9 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
 
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
-  RuntimeCallTimerScope runtimeTimer(
-      isolate, parse_info->flags().is_eval()
-                   ? RuntimeCallCounterId::kCompileEval
-                   : RuntimeCallCounterId::kCompileScript);
+  RCS_SCOPE(isolate, parse_info->flags().is_eval()
+                         ? RuntimeCallCounterId::kCompileEval
+                         : RuntimeCallCounterId::kCompileScript);
   VMState<BYTECODE_COMPILER> state(isolate);
   if (parse_info->literal() == nullptr &&
       !parsing::ParseProgram(parse_info, script, maybe_outer_scope_info,
@@ -1495,6 +1489,7 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   return shared_info;
 }
 
+#ifdef V8_RUNTIME_CALL_STATS
 RuntimeCallCounterId RuntimeCallCounterIdForCompileBackground(
     ParseInfo* parse_info) {
   if (parse_info->flags().is_toplevel()) {
@@ -1505,6 +1500,7 @@ RuntimeCallCounterId RuntimeCallCounterIdForCompileBackground(
   }
   return RuntimeCallCounterId::kCompileBackgroundFunction;
 }
+#endif  // V8_RUNTIME_CALL_STATS
 
 MaybeHandle<SharedFunctionInfo> CompileAndFinalizeOnBackgroundThread(
     ParseInfo* parse_info, AccountingAllocator* allocator,
@@ -1515,9 +1511,8 @@ MaybeHandle<SharedFunctionInfo> CompileAndFinalizeOnBackgroundThread(
     IsCompiledScope* is_compiled_scope) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
-  RuntimeCallTimerScope runtimeTimer(
-      parse_info->runtime_call_stats(),
-      RuntimeCallCounterIdForCompileBackground(parse_info));
+  RCS_SCOPE(parse_info->runtime_call_stats(),
+            RuntimeCallCounterIdForCompileBackground(parse_info));
 
   Handle<SharedFunctionInfo> shared_info =
       CreateTopLevelSharedFunctionInfo(parse_info, script, isolate);
@@ -1542,9 +1537,8 @@ void CompileOnBackgroundThread(ParseInfo* parse_info,
   DisallowHeapAccess no_heap_access;
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
-  RuntimeCallTimerScope runtimeTimer(
-      parse_info->runtime_call_stats(),
-      RuntimeCallCounterIdForCompileBackground(parse_info));
+  RCS_SCOPE(parse_info->runtime_call_stats(),
+            RuntimeCallCounterIdForCompileBackground(parse_info));
 
   // Generate the unoptimized bytecode or asm-js data.
   DCHECK(jobs->empty());
@@ -1661,8 +1655,8 @@ class V8_NODISCARD OffThreadParseInfoScope {
       ParseInfo* parse_info,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats, int stack_size)
       : parse_info_(parse_info),
-        original_runtime_call_stats_(parse_info_->runtime_call_stats()),
         original_stack_limit_(parse_info_->stack_limit()),
+        original_runtime_call_stats_(parse_info_->runtime_call_stats()),
         worker_thread_scope_(worker_thread_runtime_stats) {
     parse_info_->SetPerThreadState(GetCurrentStackPosition() - stack_size * KB,
                                    worker_thread_scope_.Get());
@@ -1679,8 +1673,8 @@ class V8_NODISCARD OffThreadParseInfoScope {
 
  private:
   ParseInfo* parse_info_;
-  RuntimeCallStats* original_runtime_call_stats_;
   uintptr_t original_stack_limit_;
+  RuntimeCallStats* original_runtime_call_stats_;
   WorkerThreadRuntimeCallStatsScope worker_thread_scope_;
 };
 
@@ -1693,9 +1687,8 @@ void BackgroundCompileTask::Run() {
       stack_size_);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "BackgroundCompileTask::Run");
-  RuntimeCallTimerScope runtimeTimer(
-      info_->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileBackgroundCompileTask);
+  RCS_SCOPE(info_->runtime_call_stats(),
+            RuntimeCallCounterId::kCompileBackgroundCompileTask);
 
   // Update the character stream's runtime call stats.
   info_->character_stream()->set_runtime_call_stats(
@@ -1818,8 +1811,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   DCHECK(!isolate->has_pending_exception());
   VMState<BYTECODE_COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
-  RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kCompileCollectSourcePositions);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileCollectSourcePositions);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CollectSourcePositions");
   HistogramTimerScope timer(isolate->counters()->collect_source_positions());
@@ -1895,8 +1887,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   VMState<BYTECODE_COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kCompileFunction);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
@@ -2059,8 +2050,8 @@ bool Compiler::FinalizeBackgroundCompileTask(
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.FinalizeBackgroundCompileTask");
-  RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kCompileFinalizeBackgroundCompileTask);
+  RCS_SCOPE(isolate,
+            RuntimeCallCounterId::kCompileFinalizeBackgroundCompileTask);
   HandleScope scope(isolate);
   ParseInfo* parse_info = task->info();
   DCHECK(!parse_info->flags().is_toplevel());
@@ -2282,8 +2273,7 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate, Handle<Context> context,
 
   // Callback set. Let it decide if code generation is allowed.
   VMState<EXTERNAL> state(isolate);
-  RuntimeCallTimerScope timer(
-      isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   AllowCodeGenerationFromStringsCallback callback =
       isolate->allow_code_gen_callback();
   return callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(source));
@@ -2302,8 +2292,7 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
   // Callback set. Run it, and use the return value as source, or block
   // execution if it's not set.
   VMState<EXTERNAL> state(isolate);
-  RuntimeCallTimerScope timer(
-      isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   ModifyCodeGenerationFromStringsResult result =
       isolate->modify_code_gen_callback()
           ? isolate->modify_code_gen_callback()(v8::Utils::ToLocal(context),
@@ -2882,8 +2871,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       compile_timer.set_consuming_code_cache();
       // Then check cached code provided by embedder.
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
-      RuntimeCallTimerScope runtimeTimer(
-          isolate, RuntimeCallCounterId::kCompileDeserialize);
+      RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.CompileDeserialize");
       Handle<SharedFunctionInfo> inner_result;
@@ -2971,8 +2959,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     compile_timer.set_consuming_code_cache();
     // Then check cached code provided by embedder.
     HistogramTimerScope timer(isolate->counters()->compile_deserialize());
-    RuntimeCallTimerScope runtimeTimer(
-        isolate, RuntimeCallCounterId::kCompileDeserialize);
+    RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.CompileDeserialize");
     maybe_result = CodeSerializer::Deserialize(isolate, cached_data, source,
@@ -3075,8 +3062,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
     Handle<Script> script;
     if (FLAG_finalize_streaming_on_background && !origin_options.IsModule()) {
-      RuntimeCallTimerScope runtimeTimerScope(
-          isolate, RuntimeCallCounterId::kCompilePublishBackgroundFinalization);
+      RCS_SCOPE(isolate,
+                RuntimeCallCounterId::kCompilePublishBackgroundFinalization);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.OffThreadFinalization.Publish");
 
@@ -3233,8 +3220,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kOptimizeConcurrentFinalize);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeConcurrentFinalize);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeConcurrentFinalize");
 

@@ -10,7 +10,6 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/init/bootstrapper.h"
-#include "src/logging/counters-inl.h"
 #include "src/logging/log.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/descriptor-array.h"
@@ -1868,11 +1867,10 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                           PropertyAttributes attributes,
                                           PropertyConstness constness,
                                           StoreOrigin store_origin) {
-  RuntimeCallTimerScope stats_scope(
-      isolate,
-      map->IsDetached(isolate)
-          ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
-          : RuntimeCallCounterId::kMap_TransitionToDataProperty);
+  RCS_SCOPE(isolate,
+            map->IsDetached(isolate)
+                ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
+                : RuntimeCallCounterId::kMap_TransitionToDataProperty);
 
   DCHECK(name->IsUniqueName());
   DCHECK(!map->is_dictionary_map());
@@ -1955,7 +1953,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                               Handle<Object> getter,
                                               Handle<Object> setter,
                                               PropertyAttributes attributes) {
-  RuntimeCallTimerScope stats_scope(
+  RCS_SCOPE(
       isolate,
       map->IsDetached(isolate)
           ? RuntimeCallCounterId::kPrototypeMap_TransitionToAccessorProperty
@@ -2349,8 +2347,7 @@ bool Map::IsPrototypeChainInvalidated(Map map) {
 void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
                        Handle<HeapObject> prototype,
                        bool enable_prototype_setup_mode) {
-  RuntimeCallTimerScope stats_scope(isolate,
-                                    RuntimeCallCounterId::kMap_SetPrototype);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kMap_SetPrototype);
 
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);

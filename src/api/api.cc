@@ -10044,8 +10044,7 @@ void InvokeAccessorGetterCallback(
     v8::AccessorNameGetterCallback getter) {
   // Leaving JavaScript.
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kAccessorGetterCallback);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorGetterCallback);
   Address getter_address = reinterpret_cast<Address>(getter);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, getter_address);
@@ -10055,7 +10054,7 @@ void InvokeAccessorGetterCallback(
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback) {
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   Address callback_address = reinterpret_cast<Address>(callback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, callback_address);
@@ -10067,8 +10066,8 @@ void InvokeFinalizationRegistryCleanupFromTask(
     Handle<JSFinalizationRegistry> finalization_registry,
     Handle<Object> callback) {
   Isolate* isolate = finalization_registry->native_context().GetIsolate();
-  RuntimeCallTimerScope timer(
-      isolate, RuntimeCallCounterId::kFinalizationRegistryCleanupFromTask);
+  RCS_SCOPE(isolate,
+            RuntimeCallCounterId::kFinalizationRegistryCleanupFromTask);
   // Do not use ENTER_V8 because this is always called from a running
   // FinalizationRegistryCleanupTask within V8 and we should not log it as an
   // API call. This method is implemented here to avoid duplication of the

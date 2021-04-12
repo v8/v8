@@ -244,7 +244,7 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
                                                  const InvokeParams& params) {
-  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kInvoke);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kInvoke);
   DCHECK(!params.receiver->IsJSGlobalObject());
   DCHECK_LE(params.argc, FixedArray::kMaxLength);
 
@@ -368,7 +368,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       Address func = params.target->ptr();
       Address recv = params.receiver->ptr();
       Address** argv = reinterpret_cast<Address**>(params.argv);
-      RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+      RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
       value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
                                      orig_func, func, recv, params.argc, argv));
     } else {
@@ -383,7 +383,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       JSEntryFunction stub_entry =
           JSEntryFunction::FromAddress(isolate, code->InstructionStart());
 
-      RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+      RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
       value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
                                      params.microtask_queue));
     }
@@ -552,7 +552,7 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
   trap_handler::SetThreadInWasm();
 
   {
-    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+    RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
     STATIC_ASSERT(compiler::CWasmEntryParameters::kCodeEntry == 0);
     STATIC_ASSERT(compiler::CWasmEntryParameters::kObjectRef == 1);
     STATIC_ASSERT(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);

@@ -4436,12 +4436,11 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
     const FormalParametersT& formal_parameters) {
-  const RuntimeCallCounterId counters[2] = {
-      RuntimeCallCounterId::kParseArrowFunctionLiteral,
-      RuntimeCallCounterId::kPreParseArrowFunctionLiteral};
-  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
-                                      counters[Impl::IsPreParser()],
-                                      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(runtime_call_stats_,
+            Impl::IsPreParser()
+                ? RuntimeCallCounterId::kPreParseArrowFunctionLiteral
+                : RuntimeCallCounterId::kParseArrowFunctionLiteral,
+            RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
