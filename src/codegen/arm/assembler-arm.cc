@@ -841,7 +841,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     //      orr dst, dst, #target8_2 << 16
 
     uint32_t target24 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-    DCHECK(is_uint24(target24));
+    CHECK(is_uint24(target24));
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
@@ -897,7 +897,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     instr &= ~kImm24Mask;
   }
   int imm24 = imm26 >> 2;
-  DCHECK(is_int24(imm24));
+  CHECK(is_int24(imm24));
   instr_at_put(pos, instr | (imm24 & kImm24Mask));
 }
 
@@ -2258,7 +2258,7 @@ void Assembler::bkpt(uint32_t imm16) {
 }
 
 void Assembler::svc(uint32_t imm24, Condition cond) {
-  DCHECK(is_uint24(imm24));
+  CHECK(is_uint24(imm24));
   emit(cond | 15 * B24 | imm24);
 }
 
