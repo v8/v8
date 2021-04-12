@@ -224,8 +224,8 @@ void InstructionSelector::VisitLoad(Node* node) {
       // Vectors do not support MRI mode, only MRR is available.
       mode = kNoImmediate;
       break;
+    case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
-    case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
 
@@ -357,6 +357,7 @@ void InstructionSelector::VisitStore(Node* node) {
         // Vectors do not support MRI mode, only MRR is available.
         mode = kNoImmediate;
         break;
+      case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }

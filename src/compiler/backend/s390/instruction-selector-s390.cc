@@ -320,6 +320,7 @@ ArchOpcode SelectLoadOpcode(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kS390_LoadSimd128;
       break;
+    case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
     default:
       UNREACHABLE();
@@ -798,6 +799,7 @@ static void VisitGeneralStore(
           value = value->InputAt(0);
         }
         break;
+      case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
