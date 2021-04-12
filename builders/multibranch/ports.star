@@ -16,14 +16,14 @@ in_category(
         ),
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 Arm"], "builder_group": "client.v8.ports", "target_arch": "arm", "binary_size_tracking": {"category": "linux_arm32", "binary": "d8"}},
+        properties = {"$build/v8": {"use_cas": False}, "triggers": ["V8 Arm"], "builder_group": "client.v8.ports", "target_arch": "arm", "binary_size_tracking": {"category": "linux_arm32", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder(
         name = "V8 Arm - debug builder",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 Arm - debug", "V8 Arm GC Stress"], "target_arch": "arm", "builder_group": "client.v8.ports"},
+        properties = {"$build/v8": {"use_cas": False}, "triggers": ["V8 Arm - debug", "V8 Arm GC Stress"], "target_arch": "arm", "builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder(
