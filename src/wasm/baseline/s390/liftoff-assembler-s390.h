@@ -2124,7 +2124,9 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
 
 void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
                                       SmiCheckMode mode) {
-  bailout(kUnsupportedArchitecture, "emit_smi_check");
+  TestIfSmi(obj);
+  Condition condition = mode == kJumpOnSmi ? eq : ne;
+  b(condition, target);  // branch if SMI
 }
 
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
