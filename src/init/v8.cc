@@ -164,6 +164,8 @@ void V8::InitializeOncePerProcessImpl() {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  ExternalReferenceTable::InitializeOncePerProcess();
 }
 
 void V8::InitializeOncePerProcess() {

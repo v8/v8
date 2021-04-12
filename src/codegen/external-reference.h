@@ -342,10 +342,11 @@ class ExternalReference {
     PROFILING_GETTER_CALL
   };
 
-  static constexpr int kExternalReferenceCount =
 #define COUNT_EXTERNAL_REFERENCE(name, desc) +1
-      EXTERNAL_REFERENCE_LIST(COUNT_EXTERNAL_REFERENCE)
-          EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(COUNT_EXTERNAL_REFERENCE);
+  static constexpr int kExternalReferenceCountIsolateIndependent =
+      EXTERNAL_REFERENCE_LIST(COUNT_EXTERNAL_REFERENCE);
+  static constexpr int kExternalReferenceCountIsolateDependent =
+      EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(COUNT_EXTERNAL_REFERENCE);
 #undef COUNT_EXTERNAL_REFERENCE
 
   ExternalReference() : address_(kNullAddress) {}
