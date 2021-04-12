@@ -15,6 +15,7 @@
 #include "src/codegen/tnode.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
+#include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
@@ -2677,6 +2678,15 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   static constexpr int kBoundThis = 1;
   static constexpr int kReceiverContextEffectAndControl = 4;
   int const arity = n.ArgumentCount();
+
+  if (arity > 0) {
+    MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+    AllocationBuilder ab(jsgraph(), effect, control);
+    if (!ab.CanAllocateArray(arity, fixed_array_map)) {
+      return NoChange();
+    }
+  }
+
   int const arity_with_bound_this = std::max(arity, kBoundThis);
   int const input_count =
       arity_with_bound_this + kReceiverContextEffectAndControl;

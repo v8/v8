@@ -777,9 +777,7 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
   // Create the register file.
   MapRef fixed_array_map(broker(), factory()->fixed_array_map());
   AllocationBuilder ab(jsgraph(), effect, control);
-  if (!ab.CanAllocateArray(register_count, fixed_array_map)) {
-    return NoChange();
-  }
+  CHECK(ab.CanAllocateArray(register_count, fixed_array_map));
   ab.AllocateArray(register_count, fixed_array_map);
   for (int i = 0; i < register_count; ++i) {
     ab.Store(AccessBuilder::ForFixedArraySlot(i),
@@ -892,9 +890,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
   if (arity > 0) {
     MapRef fixed_array_map(broker(), factory()->fixed_array_map());
     AllocationBuilder ab(jsgraph(), effect, control);
-    if (!ab.CanAllocateArray(arity, fixed_array_map)) {
-      return NoChange();
-    }
+    CHECK(ab.CanAllocateArray(arity, fixed_array_map));
     ab.AllocateArray(arity, fixed_array_map);
     for (int i = 0; i < arity; ++i) {
       ab.Store(AccessBuilder::ForFixedArraySlot(i),
