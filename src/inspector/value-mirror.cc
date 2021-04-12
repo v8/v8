@@ -165,10 +165,11 @@ String16 abbreviateString(const String16& value, AbbreviateMode mode) {
 
 String16 descriptionForSymbol(v8::Local<v8::Context> context,
                               v8::Local<v8::Symbol> symbol) {
-  return String16::concat("Symbol(",
-                          toProtocolStringWithTypeCheck(context->GetIsolate(),
-                                                        symbol->Description()),
-                          ")");
+  v8::Isolate* isolate = context->GetIsolate();
+  return String16::concat(
+      "Symbol(",
+      toProtocolStringWithTypeCheck(isolate, symbol->Description(isolate)),
+      ")");
 }
 
 String16 descriptionForBigInt(v8::Local<v8::Context> context,

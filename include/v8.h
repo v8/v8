@@ -3626,7 +3626,9 @@ class V8_EXPORT Symbol : public Name {
   /**
    * Returns the description string of the symbol, or undefined if none.
    */
+  V8_DEPRECATE_SOON("Use Symbol::Description(isolate)")
   Local<Value> Description() const;
+  Local<Value> Description(Isolate* isolate) const;
 
   V8_DEPRECATED("Use Symbol::Description()")
   Local<Value> Name() const { return Description(); }
