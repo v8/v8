@@ -452,7 +452,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
                 InstructionCode opcode, ImmediateMode operand_mode,
                 FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
-  InstructionOperand inputs[4];
+  InstructionOperand inputs[5];
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;

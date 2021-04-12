@@ -2985,14 +2985,20 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
   MachineRepresentation rep =
     LocationOperand::cast(instr->OutputAt(0))->representation();
   Condition cc = FlagsConditionToCondition(condition);
-  DCHECK_EQ(instr->InputCount(), 4);
+  // We don't now how many inputs were consumed by the condition, so we have to
+  // calculate the indices of the last two inputs.
+  DCHECK_GE(instr->InputCount(), 2);
+  size_t true_value_index = instr->InputCount() - 2;
+  size_t false_value_index = instr->InputCount() - 1;
   if (rep == MachineRepresentation::kFloat32) {
-    __ Fcsel(i.OutputFloat32Register(), i.InputFloat32Register(2),
-             i.InputFloat32Register(3), cc);
+    __ Fcsel(i.OutputFloat32Register(),
+             i.InputFloat32Register(true_value_index),
+             i.InputFloat32Register(false_value_index), cc);
   } else {
     DCHECK_EQ(rep, MachineRepresentation::kFloat64);
-    __ Fcsel(i.OutputFloat64Register(), i.InputFloat64Register(2),
-             i.InputFloat64Register(3), cc);
+    __ Fcsel(i.OutputFloat64Register(),
+             i.InputFloat64Register(true_value_index),
+             i.InputFloat64Register(false_value_index), cc);
   }
 }
 
