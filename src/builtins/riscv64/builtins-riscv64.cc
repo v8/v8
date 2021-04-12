@@ -1773,8 +1773,6 @@ namespace {
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
                        Operand offset = Operand(int64_t(0))) {
-  // Pop the return address to this function's caller from the return stack
-  // buffer, since we'll never return to it.
   __ Add64(ra, entry_address, offset);
   // And "return" to the OSR entry point of the function.
   __ Ret();
