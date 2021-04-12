@@ -913,7 +913,7 @@ void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
                                   XMMRegister mask, XMMRegister scratch,
                                   Register tmp, bool omit_add) {
   if (omit_add) {
-    Pshufb(dst, src, scratch);
+    Pshufb(dst, src, mask);
     return;
   }
 
