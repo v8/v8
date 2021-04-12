@@ -194,6 +194,8 @@
 
 namespace v8 {
 
+class Isolate;
+
 class CTypeInfo {
  public:
   enum class Type : uint8_t {
@@ -321,6 +323,14 @@ struct ApiObject {
  * \endcode
  */
 struct FastApiCallbackOptions {
+  /**
+   * Creates a new instance of FastApiCallbackOptions for testing purpose.  The
+   * returned instance may be filled with mock data.
+   */
+  static FastApiCallbackOptions CreateForTesting(Isolate* isolate) {
+    return {false, {0}};
+  }
+
   /**
    * If the callback wants to signal an error condition or to perform an
    * allocation, it must set options.fallback to true and do an early return
