@@ -299,11 +299,12 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
 
 #if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_RISCV64)
+    defined(V8_TARGET_ARCH_MIPS64)
   return RelocIterator(*this, kModeMask).done();
 #elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||    \
-    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_IA32)
+    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_IA32) ||   \
+    defined(V8_TARGET_ARCH_RISCV64)
   for (RelocIterator it(*this, kModeMask); !it.done(); it.next()) {
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. They are later

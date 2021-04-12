@@ -216,7 +216,8 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
 
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||  \
-    defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_S390)
+    defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_S390) || \
+    defined(V8_TARGET_ARCH_RISCV64)
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. This fixes up the
     // relative jumps to the right offsets in the snapshot.

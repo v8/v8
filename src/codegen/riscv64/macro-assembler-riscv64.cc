@@ -2952,9 +2952,20 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   bool target_is_isolate_independent_builtin =
       isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
       Builtins::IsIsolateIndependent(builtin_index);
-
-  if (root_array_available_ && options().isolate_independent_code &&
-      target_is_isolate_independent_builtin) {
+  if (target_is_isolate_independent_builtin &&
+      options().use_pc_relative_calls_and_jumps) {
+    int32_t code_target_index = AddCodeTarget(code);
+    Label skip;
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    if (cond != al) {
+      Branch(&skip, NegateCondition(cond), rs, rt);
+    }
+    RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
+    GenPCRelativeJump(t6, code_target_index);
+    bind(&skip);
+    return;
+  } else if (root_array_available_ && options().isolate_independent_code &&
+             target_is_isolate_independent_builtin) {
     int offset = code->builtin_index() * kSystemPointerSize +
                  IsolateData::builtin_entry_table_offset();
     Ld(t6, MemOperand(kRootRegister, offset));
@@ -3020,8 +3031,22 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   bool target_is_isolate_independent_builtin =
       isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
       Builtins::IsIsolateIndependent(builtin_index);
-  if (root_array_available_ && options().isolate_independent_code &&
-      target_is_isolate_independent_builtin) {
+  if (target_is_isolate_independent_builtin &&
+      options().use_pc_relative_calls_and_jumps) {
+    int32_t code_target_index = AddCodeTarget(code);
+    Label skip;
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    RecordCommentForOffHeapTrampoline(builtin_index);
+    if (cond != al) {
+      Branch(&skip, NegateCondition(cond), rs, rt);
+    }
+    RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
+    GenPCRelativeJumpAndLink(t6, code_target_index);
+    bind(&skip);
+    RecordComment("]");
+    return;
+  } else if (root_array_available_ && options().isolate_independent_code &&
+             target_is_isolate_independent_builtin) {
     int offset = code->builtin_index() * kSystemPointerSize +
                  IsolateData::builtin_entry_table_offset();
     LoadRootRelative(t6, offset);
@@ -3158,16 +3183,28 @@ void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
   }
 }
 
+void TurboAssembler::GenPCRelativeJump(Register rd, int64_t imm32) {
+  DCHECK(is_int32(imm32));
+  int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
+  int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
+  auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
+  jr(rd, Lo12);     // jump PC + Hi20 + Lo12
+}
+
+void TurboAssembler::GenPCRelativeJumpAndLink(Register rd, int64_t imm32) {
+  DCHECK(is_int32(imm32));
+  int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
+  int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
+  auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
+  jalr(rd, Lo12);   // jump PC + Hi20 + Lo12
+}
+
 void TurboAssembler::BranchLong(Label* L) {
   // Generate position independent long branch.
   BlockTrampolinePoolScope block_trampoline_pool(this);
   int64_t imm64;
   imm64 = branch_long_offset(L);
-  DCHECK(is_int32(imm64));
-  int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
-  auipc(t6, Hi20);  // Read PC + Hi20 into scratch.
-  jr(t6, Lo12);     // jump PC + Hi20 + Lo12
+  GenPCRelativeJump(t6, imm64);
   EmitConstPoolWithJumpIfNeeded();
 }
 
@@ -3176,11 +3213,7 @@ void TurboAssembler::BranchAndLinkLong(Label* L) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   int64_t imm64;
   imm64 = branch_long_offset(L);
-  DCHECK(is_int32(imm64));
-  int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
-  auipc(t6, Hi20);  // Read PC + Hi20 into scratch.
-  jalr(t6, Lo12);   // jump PC + Hi20 + Lo12 and read PC + 4 to ra
+  GenPCRelativeJumpAndLink(t6, imm64);
 }
 
 void TurboAssembler::DropAndRet(int drop) {
