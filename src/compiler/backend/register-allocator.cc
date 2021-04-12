@@ -3958,7 +3958,8 @@ void LinearScanAllocator::FindFreeRegistersForRange(
       // interesting to this range anyway.
       // TODO(mtrofin): extend to aliased ranges, too.
       if ((kSimpleFPAliasing || !check_fp_aliasing()) &&
-          positions[cur_reg] <= cur_inactive->NextStart()) {
+          (positions[cur_reg] <= cur_inactive->NextStart() ||
+           range->End() <= cur_inactive->NextStart())) {
         break;
       }
       LifetimePosition next_intersection =
