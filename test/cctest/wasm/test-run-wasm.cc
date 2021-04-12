@@ -114,21 +114,18 @@ static void RunInt32AddTest(TestExecutionTier execution_tier, const byte* code,
 }
 
 WASM_EXEC_TEST(Int32Add_P2) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))};
   RunInt32AddTest(execution_tier, code, sizeof(code));
 }
 
 WASM_EXEC_TEST(Int32Add_block1) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_BLOCK_X(1, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprI32Add};
   RunInt32AddTest(execution_tier, code, sizeof(code));
 }
 
 WASM_EXEC_TEST(Int32Add_block2) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_BLOCK_X(1, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), kExprBr, DEPTH_0),
       kExprI32Add};
@@ -136,7 +133,6 @@ WASM_EXEC_TEST(Int32Add_block2) {
 }
 
 WASM_EXEC_TEST(Int32Add_multi_if) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
       WASM_IF_ELSE_X(1, WASM_LOCAL_GET(0),
                      WASM_SEQ(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
@@ -2741,7 +2737,6 @@ WASM_EXEC_TEST(AddCall) {
 }
 
 WASM_EXEC_TEST(MultiReturnSub) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
 
   ValueType storage[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32};
@@ -2763,7 +2758,6 @@ WASM_EXEC_TEST(MultiReturnSub) {
 
 template <typename T>
 void RunMultiReturnSelect(TestExecutionTier execution_tier, const T* inputs) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   ValueType type = ValueType::For(MachineTypeForC<T>());
   ValueType storage[] = {type, type, type, type, type, type};
   const size_t kNumReturns = 2;
@@ -3117,7 +3111,6 @@ WASM_EXEC_TEST(Regress_EnsureArguments) {
 }
 
 WASM_EXEC_TEST(Regress_PushControl) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int32_t> r(execution_tier);
   BUILD(r, WASM_I32V(42),
         WASM_IF(WASM_I32V(0), WASM_UNREACHABLE, kExprIf, kVoidCode, kExprEnd));
@@ -3854,7 +3847,6 @@ TEST(Liftoff_tier_up) {
 }
 
 TEST(Regression_1085507) {
-  EXPERIMENTAL_FLAG_SCOPE(mv);
   WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
   TestSignatures sigs;
   uint32_t sig_v_i = r.builder().AddSignature(sigs.v_i());

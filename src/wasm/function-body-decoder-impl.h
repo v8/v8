@@ -539,13 +539,6 @@ struct BlockTypeImmediate {
       type = value_type_reader::read_value_type<validate>(decoder, pc, &length,
                                                           module, enabled);
     } else {
-      if (!VALIDATE(enabled.has_mv())) {
-        DecodeError<validate>(decoder, pc,
-                              "invalid block type %" PRId64
-                              ", enable with --experimental-wasm-mv",
-                              block_type);
-        return;
-      }
       type = kWasmBottom;
       sig_index = static_cast<uint32_t>(block_type);
     }
@@ -1184,9 +1177,7 @@ class WasmDecoder : public Decoder {
         module_(module),
         enabled_(enabled),
         detected_(detected),
-        sig_(sig) {
-    if (sig_ && sig_->return_count() > 1) detected_->Add(kFeature_mv);
-  }
+        sig_(sig) {}
 
   Zone* zone() const { return local_types_.get_allocator().zone(); }
 
@@ -1433,9 +1424,6 @@ class WasmDecoder : public Decoder {
   inline bool Complete(CallFunctionImmediate<validate>& imm) {
     if (!VALIDATE(imm.index < module_->functions.size())) return false;
     imm.sig = module_->functions[imm.index].sig;
-    if (imm.sig->return_count() > 1) {
-      this->detected_->Add(kFeature_mv);
-    }
     return true;
   }
 
@@ -1450,9 +1438,6 @@ class WasmDecoder : public Decoder {
   inline bool Complete(CallIndirectImmediate<validate>& imm) {
     if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
     imm.sig = module_->signature(imm.sig_index);
-    if (imm.sig->return_count() > 1) {
-      this->detected_->Add(kFeature_mv);
-    }
     return true;
   }
 
@@ -1573,9 +1558,6 @@ class WasmDecoder : public Decoder {
     if (imm.type != kWasmBottom) return true;
     if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
     imm.sig = module_->signature(imm.sig_index);
-    if (imm.sig->return_count() > 1) {
-      this->detected_->Add(kFeature_mv);
-    }
     return true;
   }
 

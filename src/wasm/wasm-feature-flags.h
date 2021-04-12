@@ -76,13 +76,6 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Multi-value proposal. */                                                  \
-  /* https://github.com/WebAssembly/multi-value */                             \
-  /* V8 side owner: thibaudm */                                                \
-  /* Shipped in v8.6. */                                                       \
-  /* ITS: https://groups.google.com/g/v8-users/c/pv2E4yFWeF0 */                \
-  V(mv, "multi-value support", true)                                           \
-                                                                               \
   /* Fixed-width SIMD operations. */                                           \
   /* https://github.com/webassembly/simd */                                    \
   /* V8 side owner: gdeepti, zhin */                                           \

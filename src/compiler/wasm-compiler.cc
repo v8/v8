@@ -6568,7 +6568,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildCallAllocateJSArray(Node* array_length, Node* context) {
     // Since we don't check that args will fit in an array,
     // we make sure this is true based on statically known limits.
-    STATIC_ASSERT(wasm::kV8MaxWasmFunctionMultiReturns <=
+    STATIC_ASSERT(wasm::kV8MaxWasmFunctionReturns <=
                   JSArray::kInitialMaxFastElementArray);
     return gasm_->CallBuiltin(Builtins::kWasmAllocateJSArray,
                               Operator::kEliminatable, array_length, context);
@@ -7055,7 +7055,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     SetEffectControl(
         return_value,
         graph()->NewNode(mcgraph()->common()->IfTrue(), exception_branch));
-    DCHECK_LT(sig_->return_count(), wasm::kV8MaxWasmFunctionMultiReturns);
+    DCHECK_LT(sig_->return_count(), wasm::kV8MaxWasmFunctionReturns);
     size_t return_count = sig_->return_count();
     if (return_count == 0) {
       Return(Int32Constant(0));

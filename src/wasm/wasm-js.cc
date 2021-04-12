@@ -1475,9 +1475,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 0 contains results without 'length'");
     return;
   }
-  if (results_len > (enabled_features.has_mv()
-                         ? i::wasm::kV8MaxWasmFunctionMultiReturns
-                         : i::wasm::kV8MaxWasmFunctionReturns)) {
+  if (results_len > i::wasm::kV8MaxWasmFunctionReturns) {
     thrower.TypeError("Argument 0 contains too many results");
     return;
   }

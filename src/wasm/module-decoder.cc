@@ -1911,10 +1911,8 @@ class ModuleDecoderImpl : public Decoder {
     std::vector<ValueType> returns;
 
     // Parse return types.
-    const size_t max_return_count = enabled_features_.has_mv()
-                                        ? kV8MaxWasmFunctionMultiReturns
-                                        : kV8MaxWasmFunctionReturns;
-    uint32_t return_count = consume_count("return count", max_return_count);
+    uint32_t return_count =
+        consume_count("return count", kV8MaxWasmFunctionReturns);
     if (failed()) return nullptr;
     for (uint32_t i = 0; ok() && i < return_count; ++i) {
       returns.push_back(consume_value_type());
