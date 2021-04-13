@@ -43,8 +43,8 @@ class WasmGCTester {
             &v8::internal::FLAG_liftoff_only,
             execution_tier == TestExecutionTier::kLiftoff ? true : false),
         flag_tierup(&v8::internal::FLAG_wasm_tier_up, false),
-        zone(&allocator, ZONE_NAME),
-        builder_(&zone),
+        zone_(&allocator, ZONE_NAME),
+        builder_(&zone_),
         isolate_(CcTest::InitIsolateOnce()),
         scope(isolate_),
         thrower(isolate_, "Test wasm GC") {
@@ -82,7 +82,7 @@ class WasmGCTester {
   }
 
   byte DefineStruct(std::initializer_list<F> fields) {
-    StructType::Builder type_builder(&zone,
+    StructType::Builder type_builder(&zone_,
                                      static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
@@ -91,7 +91,8 @@ class WasmGCTester {
   }
 
   byte DefineArray(ValueType element_type, bool mutability) {
-    return builder_.AddArrayType(zone.New<ArrayType>(element_type, mutability));
+    return builder_.AddArrayType(
+        zone_.New<ArrayType>(element_type, mutability));
   }
 
   byte DefineSignature(FunctionSig* sig) { return builder_.AddSignature(sig); }
@@ -101,7 +102,7 @@ class WasmGCTester {
   }
 
   void CompileModule() {
-    ZoneBuffer buffer(&zone);
+    ZoneBuffer buffer(&zone_);
     builder_.WriteTo(&buffer);
     MaybeHandle<WasmInstanceObject> maybe_instance =
         testing::CompileAndInstantiateForTesting(
@@ -174,6 +175,7 @@ class WasmGCTester {
   Handle<WasmInstanceObject> instance() { return instance_; }
   Isolate* isolate() { return isolate_; }
   WasmModuleBuilder* builder() { return &builder_; }
+  Zone* zone() { return &zone_; }
 
   TestSignatures sigs;
 
@@ -186,7 +188,7 @@ class WasmGCTester {
   const FlagScope<bool> flag_tierup;
 
   v8::internal::AccountingAllocator allocator;
-  Zone zone;
+  Zone zone_;
   WasmModuleBuilder builder_;
 
   Isolate* const isolate_;
@@ -1484,19 +1486,101 @@ WASM_COMPILED_EXEC_TEST(GlobalInitReferencingGlobal) {
   tester.CheckResult(func, 42);
 }
 
-WASM_COMPILED_EXEC_TEST(IndirectNullSetManually) {
+WASM_COMPILED_EXEC_TEST(GCTables) {
   WasmGCTester tester(execution_tier);
-  byte sig_index = tester.DefineSignature(tester.sigs.i_i());
-  tester.DefineTable(ValueType::Ref(sig_index, kNullable), 1, 1);
-  byte func_index = tester.DefineFunction(
-      tester.sigs.i_i(), {},
-      {WASM_TABLE_SET(0, WASM_I32V(0), WASM_REF_NULL(sig_index)),
-       WASM_CALL_INDIRECT(sig_index, WASM_I32V(0), WASM_LOCAL_GET(0)),
-       kExprEnd});
+
+  byte super_struct = tester.DefineStruct({F(kWasmI32, false)});
+  byte sub_struct =
+      tester.DefineStruct({F(kWasmI32, false), F(kWasmI32, true)});
+  FunctionSig* super_sig =
+      FunctionSig::Build(tester.zone(), {kWasmI32}, {optref(sub_struct)});
+  byte super_sig_index = tester.DefineSignature(super_sig);
+  FunctionSig* sub_sig =
+      FunctionSig::Build(tester.zone(), {kWasmI32}, {optref(super_struct)});
+  byte sub_sig_index = tester.DefineSignature(sub_sig);
+
+  tester.DefineTable(optref(super_sig_index), 10, 10);
+
+  byte super_func = tester.DefineFunction(
+      super_sig, {},
+      {WASM_I32_ADD(WASM_STRUCT_GET(sub_struct, 0, WASM_LOCAL_GET(0)),
+                    WASM_STRUCT_GET(sub_struct, 1, WASM_LOCAL_GET(0))),
+       WASM_END});
+
+  byte sub_func = tester.DefineFunction(
+      sub_sig, {},
+      {WASM_STRUCT_GET(super_struct, 0, WASM_LOCAL_GET(0)), WASM_END});
+
+  byte setup_func = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_TABLE_SET(0, WASM_I32V(0), WASM_REF_NULL(super_sig_index)),
+       WASM_TABLE_SET(0, WASM_I32V(1), WASM_REF_FUNC(super_func)),
+       WASM_TABLE_SET(0, WASM_I32V(2), WASM_REF_FUNC(sub_func)), WASM_I32V(0),
+       WASM_END});
+
+  byte super_struct_producer = tester.DefineFunction(
+      FunctionSig::Build(tester.zone(), {ref(super_struct)}, {}), {},
+      {WASM_STRUCT_NEW_WITH_RTT(super_struct, WASM_I32V(-5),
+                                WASM_RTT_CANON(super_struct)),
+       WASM_END});
+  byte sub_struct_producer = tester.DefineFunction(
+      FunctionSig::Build(tester.zone(), {ref(sub_struct)}, {}), {},
+      {WASM_STRUCT_NEW_WITH_RTT(sub_struct, WASM_I32V(7), WASM_I32V(11),
+                                WASM_RTT_CANON(sub_struct)),
+       WASM_END});
+
+  // Calling a null entry should trap.
+  byte call_null = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(super_sig_index,
+                          WASM_CALL_FUNCTION0(sub_struct_producer),
+                          WASM_I32V(0)),
+       WASM_END});
+  // Calling with a signature identical to the type of the table should work,
+  // provided the entry has the same signature.
+  byte call_same_type = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(super_sig_index,
+                          WASM_CALL_FUNCTION0(sub_struct_producer),
+                          WASM_I32V(1)),
+       WASM_END});
+  // Calling with a signature that is a subtype of the type of the table should
+  // work, provided the entry has the same signature.
+  byte call_subtype = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(sub_sig_index,
+                          WASM_CALL_FUNCTION0(super_struct_producer),
+                          WASM_I32V(2)),
+       WASM_END});
+  // Calling with a signature that is mismatched to that of the entry should
+  // trap.
+  byte call_type_mismatch = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(super_sig_index,
+                          WASM_CALL_FUNCTION0(sub_struct_producer),
+                          WASM_I32V(2)),
+       WASM_END});
+  // Getting a table element and then calling it with call_ref should work.
+  byte table_get_and_call_ref = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_REF(WASM_TABLE_GET(0, WASM_I32V(2)),
+                     WASM_CALL_FUNCTION0(sub_struct_producer)),
+       WASM_END});
+
+  // Only here so these functions count as "declared".
+  tester.AddGlobal(optref(super_sig_index), false,
+                   WasmInitExpr::RefFuncConst(super_func));
+  tester.AddGlobal(optref(sub_sig_index), false,
+                   WasmInitExpr::RefFuncConst(sub_func));
 
   tester.CompileModule();
 
-  tester.CheckHasThrown(func_index, 42);
+  tester.CheckResult(setup_func, 0);
+  tester.CheckHasThrown(call_null);
+  tester.CheckResult(call_same_type, 18);
+  tester.CheckResult(call_subtype, -5);
+  tester.CheckHasThrown(call_type_mismatch);
+  tester.CheckResult(table_get_and_call_ref, 7);
 }
 
 WASM_COMPILED_EXEC_TEST(JsAccess) {

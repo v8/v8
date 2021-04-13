@@ -3074,12 +3074,13 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
   const wasm::ValueType table_type = env_->module->tables[table_index].type;
   // Check that the table entry is not null and that the type of the function is
-  // a subtype of the function type declared at the call site. In the absence of
-  // function subtyping, the latter can only happen if the table type is (ref
-  // null? func). Also, subtyping reduces to normalized signature equality
-  // checking.
-  // TODO(7748): Expand this with function subtyping once we have that.
+  // **identical with** the function type declared at the call site (no
+  // subtyping of functions is allowed).
+  // Note: Since null entries are identified by having ift_sig_id (-1), we only
+  // need one comparison.
+  // TODO(9495): Change this if we should do full function subtyping instead.
   const bool needs_signature_check =
+      FLAG_experimental_wasm_gc ||
       table_type.is_reference_to(wasm::HeapType::kFunc) ||
       table_type.is_nullable();
   if (needs_signature_check) {
@@ -3088,19 +3089,10 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
     Node* loaded_sig = gasm_->LoadFromObject(MachineType::Int32(), ift_sig_ids,
                                              int32_scaled_key);
-
-    if (table_type.is_reference_to(wasm::HeapType::kFunc)) {
-      int32_t expected_sig_id = env_->module->canonicalized_type_ids[sig_index];
-      Node* sig_match =
-          gasm_->Word32Equal(loaded_sig, Int32Constant(expected_sig_id));
-      TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
-    } else {
-      // If the table entries are nullable, we still have to check that the
-      // entry is initialized.
-      Node* function_is_null =
-          gasm_->Word32Equal(loaded_sig, Int32Constant(-1));
-      TrapIfTrue(wasm::kTrapNullDereference, function_is_null, position);
-    }
+    int32_t expected_sig_id = env_->module->canonicalized_type_ids[sig_index];
+    Node* sig_match =
+        gasm_->Word32Equal(loaded_sig, Int32Constant(expected_sig_id));
+    TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
   }
 
   Node* key_intptr = BuildChangeUint32ToUintPtr(key);

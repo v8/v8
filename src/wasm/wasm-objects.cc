@@ -454,21 +454,19 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     case wasm::HeapType::kEq:
     case wasm::HeapType::kData:
     case wasm::HeapType::kI31:
-      // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
-      // JS.
-      UNIMPLEMENTED();
+      // TODO(7748): Implement once we have struct/arrays/i31ref tables.
+      UNREACHABLE();
     case wasm::HeapType::kBottom:
       UNREACHABLE();
     default:
       DCHECK(!table->instance().IsUndefined());
-      if (WasmInstanceObject::cast(table->instance())
-              .module()
-              ->has_signature(entry_index)) {
-        SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
-        return;
-      }
-      // TODO(7748): Implement once we have a story for struct/arrays in JS.
-      UNIMPLEMENTED();
+      // TODO(7748): Relax this once we have struct/array/i31ref tables.
+      DCHECK_EQ(WasmInstanceObject::cast(table->instance())
+                    .module()
+                    ->type_kinds[table->type().ref_index()],
+                wasm::kWasmFunctionTypeCode);
+      SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
+      return;
   }
 }
 
@@ -2256,7 +2254,8 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
 
             if (WasmJSFunction::IsWasmJSFunction(*value)) {
               // Since a WasmJSFunction cannot refer to indexed types (definable
-              // only in a module), we do not need to use EquivalentTypes().
+              // only in a module), we do not need full function subtyping.
+              // TODO(manoskouk): Change this if wasm types can be exported.
               if (!WasmJSFunction::cast(*value).MatchesSignature(
                       module->signature(expected.ref_index()))) {
                 *error_message =
@@ -2268,11 +2267,12 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
             }
 
             if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
+              // Since a WasmCapiFunction cannot refer to indexed types
+              // (definable only in a module), we do not need full function
+              // subtyping.
+              // TODO(manoskouk): Change this if wasm types can be exported.
               if (!WasmCapiFunction::cast(*value).MatchesSignature(
                       module->signature(expected.ref_index()))) {
-                // Since a WasmCapiFunction cannot refer to indexed types
-                // (definable in a module), we don't need to invoke
-                // IsEquivalentType();
                 *error_message =
                     "assigned WasmCapiFunction has to be a subtype of the "
                     "expected type";

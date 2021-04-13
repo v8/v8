@@ -258,14 +258,46 @@ bool ArrayIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
   }
 }
 
-// TODO(7748): Expand this with function subtyping when it is introduced.
 bool FunctionIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
                          const WasmModule* sub_module,
                          const WasmModule* super_module) {
-  return FunctionEquivalentIndices(subtype_index, supertype_index, sub_module,
-                                   super_module);
-}
+  if (!FLAG_experimental_wasm_gc) {
+    return FunctionEquivalentIndices(subtype_index, supertype_index, sub_module,
+                                     super_module);
+  }
+  const FunctionSig* sub_func = sub_module->types[subtype_index].function_sig;
+  const FunctionSig* super_func =
+      super_module->types[supertype_index].function_sig;
 
+  if (sub_func->parameter_count() != super_func->parameter_count() ||
+      sub_func->return_count() != super_func->return_count()) {
+    return false;
+  }
+
+  TypeJudgementCache::instance()->cache_subtype(subtype_index, supertype_index,
+                                                sub_module, super_module);
+
+  for (uint32_t i = 0; i < sub_func->parameter_count(); i++) {
+    // Contravariance for params.
+    if (!IsSubtypeOf(super_func->parameters()[i], sub_func->parameters()[i],
+                     super_module, sub_module)) {
+      TypeJudgementCache::instance()->uncache_subtype(
+          subtype_index, supertype_index, sub_module, super_module);
+      return false;
+    }
+  }
+  for (uint32_t i = 0; i < sub_func->return_count(); i++) {
+    // Covariance for returns.
+    if (!IsSubtypeOf(sub_func->returns()[i], super_func->returns()[i],
+                     sub_module, super_module)) {
+      TypeJudgementCache::instance()->uncache_subtype(
+          subtype_index, supertype_index, sub_module, super_module);
+      return false;
+    }
+  }
+
+  return true;
+}
 }  // namespace
 
 V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(

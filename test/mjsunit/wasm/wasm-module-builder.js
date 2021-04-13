@@ -831,7 +831,7 @@ let kTrapMsgs = [
   'remainder by zero',
   'float unrepresentable in integer range',
   'table index is out of bounds',
-  'function signature mismatch',
+  'null function or function signature mismatch',
   'operation does not support unaligned accesses',
   'data segment has been dropped',
   'element segment has been dropped',

@@ -1442,6 +1442,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, CallIndirectImmediate<validate>& imm) {
+    // Validate immediate table index.
     if (!VALIDATE(imm.table_index < module_->tables.size())) {
       DecodeError(pc, "call_indirect: table index immediate out of bounds");
       return false;
@@ -1453,10 +1454,13 @@ class WasmDecoder : public Decoder {
           imm.table_index);
       return false;
     }
+
+    // Validate immediate signature index.
     if (!Complete(imm)) {
       DecodeError(pc, "invalid signature index: #%u", imm.sig_index);
       return false;
     }
+
     // Check that the dynamic signature for this call is a subtype of the static
     // type of the table the function is defined in.
     ValueType immediate_type = ValueType::Ref(imm.sig_index, kNonNullable);
@@ -1465,6 +1469,7 @@ class WasmDecoder : public Decoder {
                   "call_indirect: Immediate signature #%u is not a subtype of "
                   "immediate table #%u",
                   imm.sig_index, imm.table_index);
+      return false;
     }
     return true;
   }
@@ -4359,7 +4364,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               CALL_INTERFACE_IF_OK_AND_REACHABLE(Drop);
               CALL_INTERFACE_IF_OK_AND_REACHABLE(AssertNull, obj, &value);
             } else {
-              // TODO(manoskouk): Change the trap label.
               CALL_INTERFACE_IF_OK_AND_REACHABLE(Trap,
                                                  TrapReason::kTrapIllegalCast);
               EndControl();
