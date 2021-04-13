@@ -315,8 +315,8 @@ Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
 }
 
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
-  PrototypeInfo result = PrototypeInfo::cast(
-      NewStructInternal(PROTOTYPE_INFO_TYPE, AllocationType::kOld));
+  auto result = NewStructInternal<PrototypeInfo>(PROTOTYPE_INFO_TYPE,
+                                                 AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   result.set_prototype_users(Smi::zero());
   result.set_registry_slot(PrototypeInfo::UNREGISTERED);
@@ -327,8 +327,8 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 
 Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
                                         Handle<FixedArray> indices) {
-  EnumCache result =
-      EnumCache::cast(NewStructInternal(ENUM_CACHE_TYPE, AllocationType::kOld));
+  auto result =
+      NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   result.set_keys(*keys);
   result.set_indices(*indices);
@@ -337,7 +337,7 @@ Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
 
 Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
                                   AllocationType allocation) {
-  Tuple2 result = Tuple2::cast(NewStructInternal(TUPLE2_TYPE, allocation));
+  auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation);
   DisallowGarbageCollection no_gc;
   result.set_value1(*value1);
   result.set_value2(*value2);
@@ -346,8 +346,8 @@ Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
 
 Handle<BaselineData> Factory::NewBaselineData(
     Handle<Code> code, Handle<HeapObject> function_data) {
-  BaselineData baseline_data = BaselineData::cast(
-      NewStructInternal(BASELINE_DATA_TYPE, AllocationType::kOld));
+  auto baseline_data =
+      NewStructInternal<BaselineData>(BASELINE_DATA_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   baseline_data.set_baseline_code(*code);
   baseline_data.set_data(*function_data);
@@ -559,9 +559,8 @@ Handle<NameDictionary> Factory::NewNameDictionary(int at_least_space_for) {
 }
 
 Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
-  PropertyDescriptorObject object =
-      PropertyDescriptorObject::cast(NewStructInternal(
-          PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung));
+  auto object = NewStructInternal<PropertyDescriptorObject>(
+      PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   object.set_flags(0);
   Oddball the_hole = read_only_roots().the_hole_value();
@@ -1267,15 +1266,15 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
 
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {
-  AliasedArgumentsEntry entry = AliasedArgumentsEntry::cast(
-      NewStructInternal(ALIASED_ARGUMENTS_ENTRY_TYPE, AllocationType::kYoung));
+  auto entry = NewStructInternal<AliasedArgumentsEntry>(
+      ALIASED_ARGUMENTS_ENTRY_TYPE, AllocationType::kYoung);
   entry.set_aliased_context_slot(aliased_context_slot);
   return handle(entry, isolate());
 }
 
 Handle<AccessorInfo> Factory::NewAccessorInfo() {
-  AccessorInfo info = AccessorInfo::cast(
-      NewStructInternal(ACCESSOR_INFO_TYPE, AllocationType::kOld));
+  auto info =
+      NewStructInternal<AccessorInfo>(ACCESSOR_INFO_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   info.set_name(*empty_string(), SKIP_WRITE_BARRIER);
   info.set_flags(0);  // Must clear the flags, it was initialized as undefined.
@@ -1332,8 +1331,8 @@ Handle<Script> Factory::CloneScript(Handle<Script> script) {
 Handle<CallableTask> Factory::NewCallableTask(Handle<JSReceiver> callable,
                                               Handle<Context> context) {
   DCHECK(callable->IsCallable());
-  CallableTask microtask = CallableTask::cast(
-      NewStructInternal(CALLABLE_TASK_TYPE, AllocationType::kYoung));
+  auto microtask = NewStructInternal<CallableTask>(CALLABLE_TASK_TYPE,
+                                                   AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   microtask.set_callable(*callable, SKIP_WRITE_BARRIER);
   microtask.set_context(*context, SKIP_WRITE_BARRIER);
@@ -1342,8 +1341,8 @@ Handle<CallableTask> Factory::NewCallableTask(Handle<JSReceiver> callable,
 
 Handle<CallbackTask> Factory::NewCallbackTask(Handle<Foreign> callback,
                                               Handle<Foreign> data) {
-  CallbackTask microtask = CallbackTask::cast(
-      NewStructInternal(CALLBACK_TASK_TYPE, AllocationType::kYoung));
+  auto microtask = NewStructInternal<CallbackTask>(CALLBACK_TASK_TYPE,
+                                                   AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   microtask.set_callback(*callback, SKIP_WRITE_BARRIER);
   microtask.set_data(*data, SKIP_WRITE_BARRIER);
@@ -1354,9 +1353,8 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
     Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> thenable,
     Handle<JSReceiver> then, Handle<Context> context) {
   DCHECK(then->IsCallable());
-  PromiseResolveThenableJobTask microtask =
-      PromiseResolveThenableJobTask::cast(NewStructInternal(
-          PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, AllocationType::kYoung));
+  auto microtask = NewStructInternal<PromiseResolveThenableJobTask>(
+      PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   microtask.set_promise_to_resolve(*promise_to_resolve, SKIP_WRITE_BARRIER);
   microtask.set_thenable(*thenable, SKIP_WRITE_BARRIER);
@@ -3018,8 +3016,8 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   DCHECK(!shared->HasDebugInfo());
 
-  DebugInfo debug_info =
-      DebugInfo::cast(NewStructInternal(DEBUG_INFO_TYPE, AllocationType::kOld));
+  auto debug_info =
+      NewStructInternal<DebugInfo>(DEBUG_INFO_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo raw_shared = *shared;
   debug_info.set_flags(DebugInfo::kNone);
@@ -3041,8 +3039,8 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 }
 
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
-  BreakPointInfo new_break_point_info = BreakPointInfo::cast(
-      NewStructInternal(BREAK_POINT_INFO_TYPE, AllocationType::kOld));
+  auto new_break_point_info = NewStructInternal<BreakPointInfo>(
+      BREAK_POINT_INFO_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   new_break_point_info.set_source_position(source_position);
   new_break_point_info.set_break_points(*undefined_value(), SKIP_WRITE_BARRIER);
@@ -3050,8 +3048,8 @@ Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
 }
 
 Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
-  BreakPoint new_break_point = BreakPoint::cast(
-      NewStructInternal(BREAK_POINT_TYPE, AllocationType::kOld));
+  auto new_break_point =
+      NewStructInternal<BreakPoint>(BREAK_POINT_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   new_break_point.set_id(id);
   new_break_point.set_condition(*condition);
@@ -3062,8 +3060,8 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     Handle<Object> receiver_or_instance, Handle<Object> function,
     Handle<HeapObject> code_object, int code_offset_or_source_position,
     int flags, Handle<FixedArray> parameters) {
-  StackFrameInfo info = StackFrameInfo::cast(
-      NewStructInternal(STACK_FRAME_INFO_TYPE, AllocationType::kYoung));
+  auto info = NewStructInternal<StackFrameInfo>(STACK_FRAME_INFO_TYPE,
+                                                AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   info.set_receiver_or_instance(*receiver_or_instance, SKIP_WRITE_BARRIER);
   info.set_function(*function, SKIP_WRITE_BARRIER);
