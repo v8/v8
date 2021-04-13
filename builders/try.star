@@ -48,6 +48,7 @@ try_builder(
     name = "v8_ios_simulator",
     bucket = "try",
     dimensions = {"os": "Mac-10.15"},
+    execution_timeout = 3600,
     properties = {"$depot_tools/osx_sdk": {"sdk_version": "12a7209"}, "target_platform": "ios"},
     use_goma = GOMA.DEFAULT,
 )
