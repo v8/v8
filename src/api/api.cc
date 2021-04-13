@@ -6276,6 +6276,11 @@ metrics::Recorder::ContextId metrics::Recorder::GetContextId(
       handle(i_context->native_context(), isolate));
 }
 
+metrics::LongTaskStats metrics::LongTaskStats::Get(v8::Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return *i_isolate->GetCurrentLongTaskStats();
+}
+
 namespace {
 i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
                                             i::FixedArray list, size_t index) {
