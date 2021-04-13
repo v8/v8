@@ -3504,10 +3504,10 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Movaps(tmp1.fp(), lhs.fp());
   Movaps(tmp2.fp(), rhs.fp());
   // Multiply high dword of each qword of left with right.
-  Psrlq(tmp1.fp(), 32);
+  Psrlq(tmp1.fp(), byte{32});
   Pmuludq(tmp1.fp(), rhs.fp());
   // Multiply high dword of each qword of right with left.
-  Psrlq(tmp2.fp(), 32);
+  Psrlq(tmp2.fp(), byte{32});
   Pmuludq(tmp2.fp(), lhs.fp());
   Paddq(tmp2.fp(), tmp1.fp());
   Psllq(tmp2.fp(), 32);
@@ -3729,11 +3729,11 @@ void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   if (dst.fp() == src.fp()) {
     Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-    Psrlq(kScratchDoubleReg, static_cast<byte>(1));
+    Psrlq(kScratchDoubleReg, byte{1});
     Andpd(dst.fp(), kScratchDoubleReg);
   } else {
     Pcmpeqd(dst.fp(), dst.fp());
-    Psrlq(dst.fp(), static_cast<byte>(1));
+    Psrlq(dst.fp(), byte{1});
     Andpd(dst.fp(), src.fp());
   }
 }
@@ -3832,7 +3832,7 @@ void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
   // Canonicalize NaNs by quieting and clearing the payload.
   Cmppd(dst.fp(), kScratchDoubleReg, int8_t{3});
   Orpd(kScratchDoubleReg, dst.fp());
-  Psrlq(dst.fp(), 13);
+  Psrlq(dst.fp(), byte{13});
   Andnpd(dst.fp(), kScratchDoubleReg);
 }
 
@@ -3863,7 +3863,7 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
   Subpd(kScratchDoubleReg, dst.fp());
   // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
   Cmppd(dst.fp(), kScratchDoubleReg, int8_t{3});
-  Psrlq(dst.fp(), 13);
+  Psrlq(dst.fp(), byte{13});
   Andnpd(dst.fp(), kScratchDoubleReg);
 }
 

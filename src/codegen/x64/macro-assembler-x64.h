@@ -66,14 +66,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Subsd, subsd)
   AVX_OP(Divss, divss)
   AVX_OP(Divsd, divsd)
-  AVX_OP(Orps, orps)
-  AVX_OP(Xorps, xorps)
-  AVX_OP(Xorpd, xorpd)
-  AVX_OP(Movq, movq)
-  AVX_OP(Movhlps, movhlps)
-  AVX_OP(Pcmpeqb, pcmpeqb)
-  AVX_OP(Pcmpeqw, pcmpeqw)
-  AVX_OP(Pcmpeqd, pcmpeqd)
   AVX_OP(Pcmpgtb, pcmpgtb)
   AVX_OP(Pcmpgtw, pcmpgtw)
   AVX_OP(Pmaxsw, pmaxsw)
@@ -83,11 +75,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Addss, addss)
   AVX_OP(Addsd, addsd)
   AVX_OP(Mulsd, mulsd)
-  AVX_OP(Andps, andps)
   AVX_OP(Andnps, andnps)
-  AVX_OP(Andpd, andpd)
-  AVX_OP(Andnpd, andnpd)
-  AVX_OP(Orpd, orpd)
   AVX_OP(Cmpeqps, cmpeqps)
   AVX_OP(Cmpltps, cmpltps)
   AVX_OP(Cmpleps, cmpleps)
@@ -100,18 +88,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Cmpneqpd, cmpneqpd)
   AVX_OP(Cmpnltpd, cmpnltpd)
   AVX_OP(Cmpnlepd, cmpnlepd)
-  AVX_OP(Sqrtss, sqrtss)
-  AVX_OP(Sqrtsd, sqrtsd)
   AVX_OP(Cvttpd2dq, cvttpd2dq)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
-  AVX_OP(Pand, pand)
-  AVX_OP(Por, por)
-  AVX_OP(Pxor, pxor)
-  AVX_OP(Psubb, psubb)
-  AVX_OP(Psubw, psubw)
-  AVX_OP(Psubd, psubd)
-  AVX_OP(Psubq, psubq)
   AVX_OP(Psubsb, psubsb)
   AVX_OP(Psubsw, psubsw)
   AVX_OP(Psubusb, psubusb)
@@ -119,21 +98,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Pslld, pslld)
   AVX_OP(Pavgb, pavgb)
   AVX_OP(Pavgw, pavgw)
-  AVX_OP(Psraw, psraw)
   AVX_OP(Psrad, psrad)
   AVX_OP(Psllw, psllw)
   AVX_OP(Psllq, psllq)
   AVX_OP(Psrlw, psrlw)
   AVX_OP(Psrld, psrld)
-  AVX_OP(Psrlq, psrlq)
   AVX_OP(Paddb, paddb)
   AVX_OP(Paddw, paddw)
   AVX_OP(Paddd, paddd)
   AVX_OP(Paddq, paddq)
   AVX_OP(Paddsb, paddsb)
   AVX_OP(Paddsw, paddsw)
-  AVX_OP(Paddusb, paddusb)
-  AVX_OP(Paddusw, paddusw)
   AVX_OP(Pcmpgtd, pcmpgtd)
   AVX_OP(Pmuludq, pmuludq)
   AVX_OP(Addpd, addpd)
@@ -148,17 +123,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Subps, subps)
   AVX_OP(Mulps, mulps)
   AVX_OP(Divps, divps)
-  AVX_OP(Packsswb, packsswb)
-  AVX_OP(Packuswb, packuswb)
-  AVX_OP(Packssdw, packssdw)
-  AVX_OP(Punpcklbw, punpcklbw)
-  AVX_OP(Punpcklwd, punpcklwd)
-  AVX_OP(Punpckldq, punpckldq)
-  AVX_OP(Punpckhbw, punpckhbw)
-  AVX_OP(Punpckhwd, punpckhwd)
-  AVX_OP(Punpckhdq, punpckhdq)
-  AVX_OP(Punpcklqdq, punpcklqdq)
-  AVX_OP(Punpckhqdq, punpckhqdq)
+  AVX_OP(Pcmpeqb, pcmpeqb)
+  AVX_OP(Pcmpeqw, pcmpeqw)
+  AVX_OP(Pcmpeqd, pcmpeqd)
   AVX_OP(Cmpps, cmpps)
   AVX_OP(Cmppd, cmppd)
   AVX_OP(Movlhps, movlhps)
@@ -190,6 +157,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP_SSE4_2(Pcmpgtq, pcmpgtq)
 
 #undef AVX_OP
+
+  // Define movq here instead of using AVX_OP. movq is defined using templates
+  // and there is a function template `void movq(P1)`, while technically
+  // impossible, will be selected when deducing the arguments for AvxHelper.
+  void Movq(XMMRegister dst, Register src);
+  void Movq(Register dst, XMMRegister src);
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -474,8 +447,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 
   void Psllq(XMMRegister dst, int imm8) { Psllq(dst, static_cast<byte>(imm8)); }
   void Psllq(XMMRegister dst, byte imm8);
-  void Psrlq(XMMRegister dst, int imm8) { Psrlq(dst, static_cast<byte>(imm8)); }
-  void Psrlq(XMMRegister dst, byte imm8);
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);
 

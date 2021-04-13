@@ -1478,7 +1478,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
       __ Pcmpeqd(tmp, tmp);
-      __ Psrlq(tmp, 33);
+      __ Psrlq(tmp, byte{33});
       __ Andps(i.OutputDoubleRegister(), tmp);
       break;
     }
@@ -2441,7 +2441,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Canonicalize NaNs by quieting and clearing the payload.
       __ Cmppd(dst, kScratchDoubleReg, int8_t{3});
       __ Orpd(kScratchDoubleReg, dst);
-      __ Psrlq(dst, 13);
+      __ Psrlq(dst, byte{13});
       __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
@@ -2462,7 +2462,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Subpd(kScratchDoubleReg, dst);
       // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
       __ Cmppd(dst, kScratchDoubleReg, int8_t{3});
-      __ Psrlq(dst, 13);
+      __ Psrlq(dst, byte{13});
       __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
@@ -2843,11 +2843,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movdqa(tmp2, right);
 
       // Multiply high dword of each qword of left with right.
-      __ Psrlq(tmp1, 32);
+      __ Psrlq(tmp1, byte{32});
       __ Pmuludq(tmp1, right);
 
       // Multiply high dword of each qword of right with left.
-      __ Psrlq(tmp2, 32);
+      __ Psrlq(tmp2, byte{32});
       __ Pmuludq(tmp2, left);
 
       __ Paddq(tmp2, tmp1);

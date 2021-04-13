@@ -1978,7 +1978,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Canonicalize NaNs by quieting and clearing the payload.
       __ Cmpunordpd(dst, dst, tmp);
       __ Orpd(tmp, dst);
-      __ Psrlq(dst, 13);
+      __ Psrlq(dst, byte{13});
       __ Andnpd(dst, tmp);
       break;
     }
@@ -2000,7 +2000,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Subpd(tmp, tmp, dst);
       // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
       __ Cmpunordpd(dst, dst, tmp);
-      __ Psrlq(dst, 13);
+      __ Psrlq(dst, byte{13});
       __ Andnpd(dst, tmp);
       break;
     }
@@ -2210,11 +2210,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movaps(tmp2, right);
 
       // Multiply high dword of each qword of left with right.
-      __ Psrlq(tmp1, 32);
+      __ Psrlq(tmp1, byte{32});
       __ Pmuludq(tmp1, tmp1, right);
 
       // Multiply high dword of each qword of right with left.
-      __ Psrlq(tmp2, 32);
+      __ Psrlq(tmp2, byte{32});
       __ Pmuludq(tmp2, tmp2, left);
 
       __ Paddq(tmp2, tmp2, tmp1);

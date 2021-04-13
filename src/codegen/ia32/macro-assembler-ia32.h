@@ -301,53 +301,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-// Only use these macros when non-destructive source of AVX version is not
-// needed.
-#define AVX_OP3_WITH_TYPE(macro_name, name, dst_type, src_type) \
-  void macro_name(dst_type dst, src_type src) {                 \
-    if (CpuFeatures::IsSupported(AVX)) {                        \
-      CpuFeatureScope scope(this, AVX);                         \
-      v##name(dst, dst, src);                                   \
-    } else {                                                    \
-      name(dst, src);                                           \
-    }                                                           \
-  }
-#define AVX_OP3_XO(macro_name, name)                            \
-  AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
-  AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
-
-  AVX_OP3_XO(Packsswb, packsswb)
-  AVX_OP3_XO(Packuswb, packuswb)
-  AVX_OP3_XO(Paddusb, paddusb)
-  AVX_OP3_XO(Pand, pand)
-  AVX_OP3_XO(Pcmpeqb, pcmpeqb)
-  AVX_OP3_XO(Pcmpeqw, pcmpeqw)
-  AVX_OP3_XO(Pcmpeqd, pcmpeqd)
-  AVX_OP3_XO(Por, por)
-  AVX_OP3_XO(Psubb, psubb)
-  AVX_OP3_XO(Psubw, psubw)
-  AVX_OP3_XO(Psubd, psubd)
-  AVX_OP3_XO(Psubq, psubq)
-  AVX_OP3_XO(Punpcklbw, punpcklbw)
-  AVX_OP3_XO(Punpckhbw, punpckhbw)
-  AVX_OP3_XO(Punpckldq, punpckldq)
-  AVX_OP3_XO(Punpcklqdq, punpcklqdq)
-  AVX_OP3_XO(Pxor, pxor)
-  AVX_OP3_XO(Andps, andps)
-  AVX_OP3_XO(Andpd, andpd)
-  AVX_OP3_XO(Xorps, xorps)
-  AVX_OP3_XO(Xorpd, xorpd)
-  AVX_OP3_XO(Sqrtss, sqrtss)
-  AVX_OP3_XO(Sqrtsd, sqrtsd)
-  AVX_OP3_XO(Orps, orps)
-  AVX_OP3_XO(Orpd, orpd)
-  AVX_OP3_XO(Andnpd, andnpd)
-  AVX_OP3_WITH_TYPE(Movhlps, movhlps, XMMRegister, XMMRegister)
-  AVX_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
-  AVX_OP3_WITH_TYPE(Psrlq, psrlq, XMMRegister, uint8_t)
-
-#undef AVX_OP3_XO
-#undef AVX_OP3_WITH_TYPE
+  // Defined here because some callers take a pointer to member functions.
+  AVX_OP(Pcmpeqb, pcmpeqb)
+  AVX_OP(Pcmpeqw, pcmpeqw)
+  AVX_OP(Pcmpeqd, pcmpeqd)
 
 // Same as AVX_OP3_WITH_TYPE but supports a CpuFeatureScope
 #define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
@@ -413,26 +370,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_PACKED_OP3(Psllq, psllq)
   AVX_PACKED_OP3(Psrlw, psrlw)
   AVX_PACKED_OP3(Psrld, psrld)
-  AVX_PACKED_OP3(Psrlq, psrlq)
-  AVX_PACKED_OP3(Psraw, psraw)
   AVX_PACKED_OP3(Psrad, psrad)
   AVX_PACKED_OP3(Paddd, paddd)
   AVX_PACKED_OP3(Paddq, paddq)
-  AVX_PACKED_OP3(Psubd, psubd)
-  AVX_PACKED_OP3(Psubq, psubq)
   AVX_PACKED_OP3(Pmuludq, pmuludq)
   AVX_PACKED_OP3(Pavgb, pavgb)
   AVX_PACKED_OP3(Pavgw, pavgw)
-  AVX_PACKED_OP3(Pand, pand)
   AVX_PACKED_OP3(Pminub, pminub)
   AVX_PACKED_OP3(Pmaxub, pmaxub)
   AVX_PACKED_OP3(Paddusb, paddusb)
   AVX_PACKED_OP3(Psubusb, psubusb)
   AVX_PACKED_OP3(Pcmpgtb, pcmpgtb)
-  AVX_PACKED_OP3(Pcmpeqb, pcmpeqb)
   AVX_PACKED_OP3(Paddb, paddb)
   AVX_PACKED_OP3(Paddsb, paddsb)
-  AVX_PACKED_OP3(Psubb, psubb)
   AVX_PACKED_OP3(Psubsb, psubsb)
 
 #undef AVX_PACKED_OP3
@@ -442,8 +392,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_PACKED_OP3_WITH_TYPE(Psllq, psllq, XMMRegister, uint8_t)
   AVX_PACKED_OP3_WITH_TYPE(Psrlw, psrlw, XMMRegister, uint8_t)
   AVX_PACKED_OP3_WITH_TYPE(Psrld, psrld, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psrlq, psrlq, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
   AVX_PACKED_OP3_WITH_TYPE(Psrad, psrad, XMMRegister, uint8_t)
 
 #undef AVX_PACKED_OP3_WITH_TYPE
