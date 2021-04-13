@@ -4037,6 +4037,12 @@ void InstructionSelector::VisitI8x16Popcnt(Node* node) {
   VisitRR(this, code, node);
 }
 
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  continuation_outputs_.push_back(g->DefineAsRegister(node));
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

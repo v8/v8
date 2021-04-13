@@ -734,6 +734,8 @@
   V(Float64ExtractHighWord32)            \
   V(Float64InsertLowWord32)              \
   V(Float64InsertHighWord32)             \
+  V(Word32Select)                        \
+  V(Word64Select)                        \
   V(Float32Select)                       \
   V(Float64Select)                       \
   V(TaggedPoisonOnSpeculation)           \

@@ -1877,11 +1877,15 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
   DCHECK_EQ(IrOpcode::kLoad, left->opcode());
   X64OperandGenerator g(selector);
   size_t input_count = 0;
-  InstructionOperand inputs[4];
+  InstructionOperand inputs[6];
   AddressingMode addressing_mode =
       g.GetEffectiveAddressMemoryOperand(left, inputs, &input_count);
   opcode |= AddressingModeField::encode(addressing_mode);
   inputs[input_count++] = right;
+  if (cont->IsSelect()) {
+    inputs[input_count++] = g.UseRegister(cont->false_value());
+    inputs[input_count++] = g.Use(cont->true_value());
+  }
 
   selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
 }
@@ -1890,6 +1894,14 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont) {
+  if (cont->IsSelect()) {
+    X64OperandGenerator g(selector);
+    InstructionOperand inputs[] = {left, right,
+                                   g.UseRegister(cont->false_value()),
+                                   g.Use(cont->true_value())};
+    selector->EmitWithContinuation(opcode, 0, nullptr, 4, inputs, cont);
+    return;
+  }
   selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
@@ -3712,13 +3724,22 @@ void InstructionSelector::VisitI64x2Abs(Node* node) {
   }
 }
 
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  continuation_outputs_.push_back(
+      g->DefineSameAsInput(node, first_input_index));
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kWord32ShiftIsSafe |
       MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord64Ctz |
-      MachineOperatorBuilder::kWord32Rol | MachineOperatorBuilder::kWord64Rol;
+      MachineOperatorBuilder::kWord32Rol | MachineOperatorBuilder::kWord64Rol |
+      MachineOperatorBuilder::kWord32Select |
+      MachineOperatorBuilder::kWord64Select;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt |
              MachineOperatorBuilder::kWord64Popcnt;

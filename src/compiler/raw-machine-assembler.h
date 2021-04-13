@@ -574,6 +574,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* Word32Ctz(Node* a) { return AddNode(machine()->Word32Ctz().op(), a); }
   Node* Word64Ctz(Node* a) { return AddNode(machine()->Word64Ctz().op(), a); }
+
+  Node* Word32Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Word32Select().op(), condition, b, c);
+  }
+
+  Node* Word64Select(Node* condition, Node* b, Node* c) {
+    return AddNode(machine()->Word64Select().op(), condition, b, c);
+  }
+
   Node* StackPointerGreaterThan(Node* value) {
     return AddNode(
         machine()->StackPointerGreaterThan(StackCheckKind::kCodeStubAssembler),

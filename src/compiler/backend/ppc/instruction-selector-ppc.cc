@@ -2644,6 +2644,12 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   Emit(opcode | AddressingModeField::encode(kMode_MRR), 0, nullptr, 4, inputs);
 }
 
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  UNREACHABLE();
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

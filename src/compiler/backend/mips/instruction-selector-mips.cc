@@ -2503,6 +2503,12 @@ void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitUniqueRRR(this, kMipsF64x2Pmax, node);
 }
 
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  UNREACHABLE();
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

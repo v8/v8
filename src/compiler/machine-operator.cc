@@ -583,6 +583,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Float64RoundTiesAway, Operator::kNoProperties, 1, 0, 1) \
   V(Float32RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
   V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
+  V(Word32Select, Operator::kNoProperties, 3, 0, 1)         \
+  V(Word64Select, Operator::kNoProperties, 3, 0, 1)         \
   V(Float32Select, Operator::kNoProperties, 3, 0, 1)        \
   V(Float64Select, Operator::kNoProperties, 3, 0, 1)
 

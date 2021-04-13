@@ -278,6 +278,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord32Rol = 1u << 22,
     kWord64Rol = 1u << 23,
     kSatConversionIsSafe = 1u << 24,
+    kWord32Select = 1u << 25,
+    kWord64Select = 1u << 26,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
@@ -285,7 +287,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
         kWord32ReverseBits | kWord64ReverseBits | kInt32AbsWithOverflow |
         kInt64AbsWithOverflow | kWord32Rol | kWord64Rol | kSatConversionIsSafe |
-        kFloat32Select | kFloat64Select
+        kFloat32Select | kFloat64Select | kWord32Select | kWord64Select
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -581,7 +583,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const OptionalOperator Float32RoundTiesEven();
   const OptionalOperator Float64RoundTiesEven();
 
-  // Floating point conditional selects.
+  // Conditional selects. Input 1 is the condition, Input 2 is the result value
+  // if the condition is {true}, Input 3 is the result value if the condition is
+  // false.
+  const OptionalOperator Word32Select();
+  const OptionalOperator Word64Select();
   const OptionalOperator Float32Select();
   const OptionalOperator Float64Select();
 

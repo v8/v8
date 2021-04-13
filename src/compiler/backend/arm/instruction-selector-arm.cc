@@ -3173,6 +3173,12 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
        g.UseFixed(node->InputAt(0), q0));
 }
 
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  UNREACHABLE();
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

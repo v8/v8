@@ -308,6 +308,8 @@ const OptionalOperatorEntry kOptionalOperators[] = {
     OPTIONAL_ENTRY(Float64RoundTiesAway, 1, 0, 1),  // --
     OPTIONAL_ENTRY(Float64Select, 3, 0, 1),         // --
     OPTIONAL_ENTRY(Float32Select, 3, 0, 1),         // --
+    OPTIONAL_ENTRY(Word32Select, 3, 0, 1),          // --
+    OPTIONAL_ENTRY(Word64Select, 3, 0, 1),          // --
 #undef OPTIONAL_ENTRY
 };
 

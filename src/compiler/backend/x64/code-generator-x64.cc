@@ -4451,7 +4451,26 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 
 void CodeGenerator::AssembleArchSelect(Instruction* instr,
                                        FlagsCondition condition) {
-  UNIMPLEMENTED();
+  X64OperandConverter i(this, instr);
+  MachineRepresentation rep =
+      LocationOperand::cast(instr->OutputAt(0))->representation();
+  Condition cc = FlagsConditionToCondition(condition);
+  DCHECK_EQ(i.OutputRegister(), i.InputRegister(instr->InputCount() - 2));
+  size_t last_input = instr->InputCount() - 1;
+  if (rep == MachineRepresentation::kWord32) {
+    if (HasRegisterInput(instr, last_input)) {
+      __ cmovl(cc, i.OutputRegister(), i.InputRegister(last_input));
+    } else {
+      __ cmovl(cc, i.OutputRegister(), i.InputOperand(last_input));
+    }
+  } else {
+    DCHECK_EQ(rep, MachineRepresentation::kWord64);
+    if (HasRegisterInput(instr, last_input)) {
+      __ cmovq(cc, i.OutputRegister(), i.InputRegister(last_input));
+    } else {
+      __ cmovq(cc, i.OutputRegister(), i.InputOperand(last_input));
+    }
+  }
 }
 
 namespace {

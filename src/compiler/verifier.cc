@@ -1791,6 +1791,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kFloat64ExtractHighWord32:
     case IrOpcode::kFloat64InsertLowWord32:
     case IrOpcode::kFloat64InsertHighWord32:
+    case IrOpcode::kWord32Select:
+    case IrOpcode::kWord64Select:
     case IrOpcode::kFloat32Select:
     case IrOpcode::kFloat64Select:
     case IrOpcode::kInt32PairAdd:

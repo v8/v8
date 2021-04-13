@@ -3016,6 +3016,12 @@ VISIT_EXT_MUL(I16x8, I8x16S)
 VISIT_EXT_MUL(I16x8, I8x16U)
 #undef VISIT_EXT_MUL
 
+void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
+                                                        int first_input_index,
+                                                        Node* node) {
+  UNREACHABLE();
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

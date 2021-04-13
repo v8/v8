@@ -1310,6 +1310,14 @@ Node* WasmGraphBuilder::Select(Node *cond, Node* true_node,
     return mcgraph()->graph()->NewNode(m->Float64Select().op(), cond,
                                        true_node, false_node);
   }
+  if (kind == wasm::kI32 && m->Word32Select().IsSupported()) {
+    return mcgraph()->graph()->NewNode(m->Word32Select().op(), cond, true_node,
+                                       false_node);
+  }
+  if (kind == wasm::kI64 && m->Word64Select().IsSupported()) {
+    return mcgraph()->graph()->NewNode(m->Word64Select().op(), cond, true_node,
+                                       false_node);
+  }
   // Default to control-flow.
   Node* controls[2];
   BranchNoHint(cond, &controls[0], &controls[1]);
