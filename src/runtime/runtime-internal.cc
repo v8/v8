@@ -7,6 +7,7 @@
 #include "src/api/api.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
+#include "src/baseline/baseline-osr-inl.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
 #include "src/common/message-template.h"
@@ -342,23 +343,13 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
     // a non zero invocation count so we can inline functions.
     function->feedback_vector().set_invocation_count(1);
     if (FLAG_sparkplug) {
-      if (Compiler::CompileBaseline(isolate, function,
-                                    Compiler::CLEAR_EXCEPTION,
-                                    &is_compiled_scope)) {
-        if (FLAG_use_osr) {
-          JavaScriptFrameIterator it(isolate);
-          DCHECK(it.frame()->is_unoptimized());
-          UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
-          if (FLAG_trace_osr) {
-            CodeTracer::Scope scope(isolate->GetCodeTracer());
-            PrintF(
-                scope.file(),
-                "[OSR - Entry at OSR bytecode offset %d into baseline code]\n",
-                frame->GetBytecodeOffset());
-          }
-          frame->GetBytecodeArray().set_osr_loop_nesting_level(
-              AbstractCode::kMaxLoopNestingMarker);
-        }
+      if (V8_LIKELY(FLAG_use_osr)) {
+        JavaScriptFrameIterator it(isolate);
+        DCHECK(it.frame()->is_unoptimized());
+        UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+        OSRInterpreterFrameToBaseline(isolate, function, frame);
+      } else {
+        OSRInterpreterFrameToBaseline(isolate, function, nullptr);
       }
     }
     return ReadOnlyRoots(isolate).undefined_value();

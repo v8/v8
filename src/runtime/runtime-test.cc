@@ -4,6 +4,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/mutex.h"
+#include "src/baseline/baseline-osr-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
@@ -470,6 +471,37 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_BaselineOsr) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0 || args.length() == 1);
+
+  Handle<JSFunction> function;
+
+  // The optional parameter determines the frame being targeted.
+  int stack_depth = 0;
+  if (args.length() == 1) {
+    if (!args[0].IsSmi()) return CrashUnlessFuzzing(isolate);
+    stack_depth = args.smi_at(0);
+  }
+
+  // Find the JavaScript function on the top of the stack.
+  JavaScriptFrameIterator it(isolate);
+  while (!it.done() && stack_depth--) it.Advance();
+  if (!it.done()) function = handle(it.frame()->function(), isolate);
+  if (function.is_null()) return CrashUnlessFuzzing(isolate);
+  if (!FLAG_sparkplug || !FLAG_use_osr) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  if (!it.frame()->is_unoptimized()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+  OSRInterpreterFrameToBaseline(isolate, function, frame);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -576,6 +608,11 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     if (frame->is_optimized()) {
       status |=
           static_cast<int>(OptimizationStatus::kTopmostFrameIsTurboFanned);
+    } else if (frame->is_interpreted()) {
+      status |=
+          static_cast<int>(OptimizationStatus::kTopmostFrameIsInterpreted);
+    } else if (frame->is_baseline()) {
+      status |= static_cast<int>(OptimizationStatus::kTopmostFrameIsBaseline);
     }
   }
 

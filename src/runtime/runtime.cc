@@ -220,6 +220,7 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kIsBeingInterpreted:
       return !FLAG_allow_natives_for_differential_fuzzing;
     case Runtime::kCompileBaseline:
+    case Runtime::kBaselineOsr:
       return FLAG_sparkplug;
     default:
       return false;
