@@ -1127,6 +1127,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvCmp:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
+    case kRiscvCmpZero:
+      // Pseudo-instruction used for cmpzero/branch. No opcode emitted here.
+      break;
     case kRiscvMov:
       // TODO(plind): Should we combine mov/li like this, or use separate instr?
       //    - Also see x64 ASSEMBLE_BINOP & RegisterOrOperandType
@@ -1907,6 +1910,9 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   } else if (instr->arch_opcode() == kRiscvCmp) {
     cc = FlagsConditionToConditionCmp(condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
+  } else if (instr->arch_opcode() == kRiscvCmpZero) {
+    cc = FlagsConditionToConditionCmp(condition);
+    __ Branch(tlabel, cc, i.InputRegister(0), Operand(zero_reg));
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     cc = FlagsConditionToConditionCmp(condition);
     Register lhs_register = sp;
@@ -1958,6 +1964,12 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
   switch (instr->arch_opcode()) {
     case kRiscvCmp: {
       __ CompareI(kScratchReg, i.InputRegister(0), i.InputOperand(1),
+                  FlagsConditionToConditionCmp(condition));
+      __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister, kScratchReg);
+    }
+      return;
+    case kRiscvCmpZero: {
+      __ CompareI(kScratchReg, i.InputRegister(0), Operand(zero_reg),
                   FlagsConditionToConditionCmp(condition));
       __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister, kScratchReg);
     }
@@ -2219,6 +2231,58 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       case Ugreater:
       case Uless_equal: {
         Register left = i.InputRegister(1);
+        Operand right = i.InputOperand(0);
+        __ Sltu(result, left, right);
+        if (cc == Uless_equal) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      default:
+        UNREACHABLE();
+    }
+    return;
+  } else if (instr->arch_opcode() == kRiscvCmpZero) {
+    cc = FlagsConditionToConditionCmp(condition);
+    switch (cc) {
+      case eq: {
+        Register left = i.InputRegister(0);
+        __ Sltu(result, left, 1);
+        break;
+      }
+      case ne: {
+        Register left = i.InputRegister(0);
+        __ Sltu(result, zero_reg, left);
+        break;
+      }
+      case lt:
+      case ge: {
+        Register left = i.InputRegister(0);
+        Operand right = Operand(zero_reg);
+        __ Slt(result, left, right);
+        if (cc == ge) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case gt:
+      case le: {
+        Operand left = i.InputOperand(0);
+        __ Slt(result, zero_reg, left);
+        if (cc == le) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case Uless:
+      case Ugreater_equal: {
+        Register left = i.InputRegister(0);
+        Operand right = Operand(zero_reg);
+        __ Sltu(result, left, right);
+        if (cc == Ugreater_equal) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case Ugreater:
+      case Uless_equal: {
+        Register left = zero_reg;
         Operand right = i.InputOperand(0);
         __ Sltu(result, left, right);
         if (cc == Uless_equal) {

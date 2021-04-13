@@ -32,6 +32,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvCeilWS:
     case kRiscvClz32:
     case kRiscvCmp:
+    case kRiscvCmpZero:
     case kRiscvCmpD:
     case kRiscvCmpS:
     case kRiscvCtz32:
