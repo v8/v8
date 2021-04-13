@@ -4071,34 +4071,56 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
                                            v8::Local<Name> key,
                                            v8::Local<Value> value) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Object, CreateDataProperty, Nothing<bool>(),
-           i::HandleScope);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
 
-  Maybe<bool> result = i::JSReceiver::CreateDataProperty(
-      isolate, self, key_obj, value_obj, Just(i::kDontThrow));
-  has_pending_exception = result.IsNothing();
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return result;
+  i::LookupIterator::Key lookup_key(isolate, key_obj);
+  i::LookupIterator it(isolate, self, lookup_key, i::LookupIterator::OWN);
+  if (self->IsJSProxy()) {
+    ENTER_V8(isolate, context, Object, CreateDataProperty, Nothing<bool>(),
+             i::HandleScope);
+    Maybe<bool> result =
+        i::JSReceiver::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
+    has_pending_exception = result.IsNothing();
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return result;
+  } else {
+    ENTER_V8_NO_SCRIPT(isolate, context, Object, CreateDataProperty,
+                       Nothing<bool>(), i::HandleScope);
+    Maybe<bool> result =
+        i::JSObject::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
+    has_pending_exception = result.IsNothing();
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return result;
+  }
 }
 
 Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
                                            uint32_t index,
                                            v8::Local<Value> value) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Object, CreateDataProperty, Nothing<bool>(),
-           i::HandleScope);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
 
   i::LookupIterator it(isolate, self, index, self, i::LookupIterator::OWN);
-  Maybe<bool> result =
-      i::JSReceiver::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
-  has_pending_exception = result.IsNothing();
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return result;
+  if (self->IsJSProxy()) {
+    ENTER_V8(isolate, context, Object, CreateDataProperty, Nothing<bool>(),
+             i::HandleScope);
+    Maybe<bool> result =
+        i::JSReceiver::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
+    has_pending_exception = result.IsNothing();
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return result;
+  } else {
+    ENTER_V8_NO_SCRIPT(isolate, context, Object, CreateDataProperty,
+                       Nothing<bool>(), i::HandleScope);
+    Maybe<bool> result =
+        i::JSObject::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
+    has_pending_exception = result.IsNothing();
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return result;
+  }
 }
 
 struct v8::PropertyDescriptor::PrivateData {
