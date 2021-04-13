@@ -2883,7 +2883,6 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         is_compiled_scope = inner_result->is_compiled_scope(isolate);
         DCHECK(is_compiled_scope.is_compiled());
         compilation_cache->PutScript(source, language_mode, inner_result);
-        Handle<Script> script(Script::cast(inner_result->script()), isolate);
         maybe_result = inner_result;
       } else {
         // Deserializer failed. Fall through to compile.
