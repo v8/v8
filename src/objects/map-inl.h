@@ -98,10 +98,10 @@ BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_in_retained_map_list,
                     Map::Bits3::IsInRetainedMapListBit)
 BIT_FIELD_ACCESSORS(Map, release_acquire_bit_field3, is_prototype_map,
                     Map::Bits3::IsPrototypeMapBit)
-BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_migration_target,
-                    Map::Bits3::IsMigrationTargetBit)
-BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_extensible,
-                    Map::Bits3::IsExtensibleBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field3, bit_field3, is_migration_target,
+                     Map::Bits3::IsMigrationTargetBit)
+BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field3, bit_field3, is_extensible,
+                     Map::Bits3::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
                     Map::Bits3::MayHaveInterestingSymbolsBit)
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
@@ -324,15 +324,23 @@ Handle<Map> Map::AddMissingTransitionsForTesting(
   return AddMissingTransitions(isolate, split_map, descriptors);
 }
 
-// TODO(solanes, v8:7790, v8:11353): Make the instance_type accessors non-atomic
-// when TSAN sees the map's store synchronization.
 InstanceType Map::instance_type() const {
-  return static_cast<InstanceType>(
-      RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
+  if (V8_CONCURRENT_MARKING_BOOL) {
+    // TODO(solanes, v8:7790, v8:11353): Make this and the setter non-atomic
+    // when TSAN sees the map's store synchronization.
+    return static_cast<InstanceType>(
+        RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
+  } else {
+    return static_cast<InstanceType>(ReadField<uint16_t>(kInstanceTypeOffset));
+  }
 }
 
 void Map::set_instance_type(InstanceType value) {
-  RELAXED_WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
+  if (V8_CONCURRENT_MARKING_BOOL) {
+    RELAXED_WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
+  } else {
+    WriteField<uint16_t>(kInstanceTypeOffset, value);
+  }
 }
 
 int Map::UnusedPropertyFields() const {
@@ -457,7 +465,13 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
 byte Map::bit_field() const { return ReadField<byte>(kBitFieldOffset); }
 
 void Map::set_bit_field(byte value) {
-  WriteField<byte>(kBitFieldOffset, value);
+  if (V8_CONCURRENT_MARKING_BOOL) {
+    // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
+    // map's store synchronization.
+    set_relaxed_bit_field(value);
+  } else {
+    WriteField<byte>(kBitFieldOffset, value);
+  }
 }
 
 byte Map::relaxed_bit_field() const {
@@ -475,11 +489,21 @@ void Map::set_bit_field2(byte value) {
 }
 
 uint32_t Map::bit_field3() const {
-  return ReadField<uint32_t>(kBitField3Offset);
+  if (V8_CONCURRENT_MARKING_BOOL) {
+    // TODO(solanes, v8:7790, v8:11353): Make this and the setter non-atomic
+    // when TSAN sees the map's store synchronization.
+    return relaxed_bit_field3();
+  } else {
+    return ReadField<uint32_t>(kBitField3Offset);
+  }
 }
 
 void Map::set_bit_field3(uint32_t value) {
-  WriteField<uint32_t>(kBitField3Offset, value);
+  if (V8_CONCURRENT_MARKING_BOOL) {
+    set_relaxed_bit_field3(value);
+  } else {
+    WriteField<uint32_t>(kBitField3Offset, value);
+  }
 }
 
 uint32_t Map::relaxed_bit_field3() const {

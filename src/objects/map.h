@@ -244,7 +244,12 @@ class Map : public HeapObject {
   //
   // Bit field.
   //
+  // The setter in this pair calls the relaxed setter if concurrent marking is
+  // on, or performs the write non-atomically if it's off. The read is always
+  // non-atomically. This is done to have wider TSAN coverage on the cases where
+  // it's possible.
   DECL_PRIMITIVE_ACCESSORS(bit_field, byte)
+
   // Atomic accessors, used for allowlisting legitimate concurrent accesses.
   DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
 
@@ -266,7 +271,11 @@ class Map : public HeapObject {
   //
   // Bit field 3.
   //
+  // {bit_field3} calls the relaxed accessors if concurrent marking is on, or
+  // performs the read/write non-atomically if it's off. This is done to have
+  // wider TSAN coverage on the cases where it's possible.
   DECL_PRIMITIVE_ACCESSORS(bit_field3, uint32_t)
+
   DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field3, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(release_acquire_bit_field3, uint32_t)
 
