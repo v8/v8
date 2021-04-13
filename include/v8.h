@@ -4773,17 +4773,6 @@ class V8_EXPORT Function : public Object {
   Local<Value> GetDebugName() const;
 
   /**
-   * User-defined name assigned to the "displayName" property of this function.
-   * Used to facilitate debugging and profiling of JavaScript code.
-   */
-  V8_DEPRECATED(
-      "Use v8::Object::Get() instead to look up \"displayName\". "
-      "V8 and DevTools no longer use \"displayName\" in stack "
-      "traces, but the standard \"name\" property. "
-      "See http://crbug.com/1177685.")
-  Local<Value> GetDisplayName() const;
-
-  /**
    * Returns zero based line number of function body and
    * kLineOffsetNotFound if no information available.
    */

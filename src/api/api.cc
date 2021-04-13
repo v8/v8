@@ -5043,25 +5043,6 @@ Local<Value> Function::GetDebugName() const {
   return Utils::ToLocal(i::Handle<i::Object>(*name, self->GetIsolate()));
 }
 
-Local<Value> Function::GetDisplayName() const {
-  auto self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  if (!self->IsJSFunction()) {
-    return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
-  }
-  auto func = i::Handle<i::JSFunction>::cast(self);
-  i::Handle<i::String> property_name =
-      isolate->factory()->InternalizeString(i::StaticCharVector("displayName"));
-  i::Handle<i::Object> value =
-      i::JSReceiver::GetDataProperty(func, property_name);
-  if (value->IsString()) {
-    i::Handle<i::String> name = i::Handle<i::String>::cast(value);
-    if (name->length() > 0) return Utils::ToLocal(name);
-  }
-  return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
-}
-
 ScriptOrigin Function::GetScriptOrigin() const {
   auto self = Utils::OpenHandle(this);
   auto isolate = reinterpret_cast<v8::Isolate*>(self->GetIsolate());
