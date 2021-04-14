@@ -170,10 +170,8 @@ thread_local FastCApiObject kFastCApiObject;
 // TODO(mslekova): Rename the fast_c_api helper to FastCAPI.
 void CreateObject(const FunctionCallbackInfo<Value>& info) {
   if (!info.IsConstructCall()) {
-    info.GetIsolate()->ThrowException(
-        v8::Exception::Error(String::NewFromUtf8Literal(
-            info.GetIsolate(),
-            "FastCAPI helper must be constructed with new.")));
+    info.GetIsolate()->ThrowError(
+        "FastCAPI helper must be constructed with new.");
     return;
   }
   Local<Object> api_object = info.Holder();

@@ -34,8 +34,8 @@ void WebSnapshotSerializerDeserializer::Throw(const char* message) {
   error_message_ = message;
   if (!isolate_->has_pending_exception()) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-    v8_isolate->ThrowException(v8::Exception::Error(
-        v8::String::NewFromUtf8(v8_isolate, message).ToLocalChecked()));
+    v8_isolate->ThrowError(
+        v8::String::NewFromUtf8(v8_isolate, message).ToLocalChecked());
   }
 }
 
