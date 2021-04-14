@@ -573,11 +573,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # https://bugs.chromium.org/p/chromium/issues/detail?id=1159764
-  'built-ins/Array/prototype/at/*': [FAIL],
-  'built-ins/String/prototype/at/*': [FAIL],
-  'built-ins/TypedArray/prototype/at/*': [FAIL],
-
   # http://crbug/v8/11530
   'built-ins/Function/internals/Call/class-ctor-realm': [FAIL],
 

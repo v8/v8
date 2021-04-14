@@ -286,7 +286,6 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                              \
-  V(harmony_relative_indexing_methods, "harmony relative indexing methods") \
   V(harmony_class_static_blocks, "harmony static initializer blocks")       \
   V(harmony_error_cause, "harmony error cause property")
 
@@ -302,7 +301,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_atomics, "harmony atomics")                           \
   V(harmony_regexp_match_indices, "harmony regexp match indices") \
   V(harmony_private_brand_checks, "harmony private brand checks") \
-  V(harmony_top_level_await, "harmony top level await")
+  V(harmony_top_level_await, "harmony top level await")           \
+  V(harmony_relative_indexing_methods, "harmony relative indexing methods")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)             \
