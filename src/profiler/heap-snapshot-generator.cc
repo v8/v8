@@ -183,9 +183,11 @@ const char* HeapEntry::TypeAsString() const {
   }
 }
 
-HeapSnapshot::HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots)
+HeapSnapshot::HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots,
+                           bool capture_numeric_value)
     : profiler_(profiler),
-      treat_global_objects_as_roots_(global_objects_as_roots) {
+      treat_global_objects_as_roots_(global_objects_as_roots),
+      capture_numeric_value_(capture_numeric_value) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
   STATIC_ASSERT(kSystemPointerSize != 4 || sizeof(HeapGraphEdge) == 12);
@@ -387,8 +389,7 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
     return entry_info.id;
   }
   entry->value = reinterpret_cast<void*>(entries_.size());
-  SnapshotObjectId id = next_id_;
-  next_id_ += kObjectIdStep;
+  SnapshotObjectId id = get_next_id();
   entries_.push_back(EntryInfo(id, addr, size, accessed));
   DCHECK(static_cast<uint32_t>(entries_.size()) > entries_map_.occupancy());
   return id;
@@ -553,6 +554,16 @@ HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
   return AddEntry(HeapObject::cast(Object(reinterpret_cast<Address>(ptr))));
 }
 
+HeapEntry* V8HeapExplorer::AllocateEntry(Smi smi) {
+  SnapshotObjectId id = heap_object_map_->get_next_id();
+  HeapEntry* entry =
+      snapshot_->AddEntry(HeapEntry::kHeapNumber, "smi number", id, 0, 0);
+  // XXX: Smis do not appear in CombinedHeapObjectIterator, so we need to
+  // extract the references here
+  ExtractNumberReference(entry, smi);
+  return entry;
+}
+
 void V8HeapExplorer::ExtractLocation(HeapEntry* entry, HeapObject object) {
   if (object.IsJSFunction()) {
     JSFunction func = JSFunction::cast(object);
@@ -638,7 +649,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
              object.IsByteArray()) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object.IsHeapNumber()) {
-    return AddEntry(object, HeapEntry::kHeapNumber, "number");
+    return AddEntry(object, HeapEntry::kHeapNumber, "heap number");
   }
   return AddEntry(object, HeapEntry::kHidden, GetSystemEntryName(object));
 }
@@ -837,6 +848,10 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
     ExtractEphemeronHashTableReferences(entry, EphemeronHashTable::cast(obj));
   } else if (obj.IsFixedArray()) {
     ExtractFixedArrayReferences(entry, FixedArray::cast(obj));
+  } else if (obj.IsHeapNumber()) {
+    if (snapshot_->capture_numeric_value()) {
+      ExtractNumberReference(entry, obj);
+    }
   }
 }
 
@@ -1253,6 +1268,11 @@ class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
                                HeapEntry::kNative, "system / JSArrayBufferData",
                                size_);
   }
+  HeapEntry* AllocateEntry(Smi smi) override {
+    DCHECK(false);
+    return nullptr;
+  }
+
  private:
   size_t size_;
   V8HeapExplorer* explorer_;
@@ -1296,6 +1316,30 @@ void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
     DCHECK(!HasWeakHeapObjectTag(array.get(i)));
     SetInternalReference(entry, i, array.get(i), array.OffsetOfElementAt(i));
   }
+}
+
+void V8HeapExplorer::ExtractNumberReference(HeapEntry* entry, Object number) {
+  DCHECK(number.IsNumber());
+
+  // Must be large enough to fit any double, int, or size_t.
+  char arr[32];
+  Vector<char> buffer(arr, arraysize(arr));
+
+  const char* string;
+  if (number.IsSmi()) {
+    int int_value = Smi::ToInt(number);
+    string = IntToCString(int_value, buffer);
+  } else {
+    double double_value = HeapNumber::cast(number).value();
+    string = DoubleToCString(double_value, buffer);
+  }
+
+  const char* name = names_->GetCopy(string);
+
+  SnapshotObjectId id = heap_object_map_->get_next_id();
+  HeapEntry* child_entry =
+      snapshot_->AddEntry(HeapEntry::kString, name, id, 0, 0);
+  entry->SetNamedReference(HeapGraphEdge::kInternal, "value", child_entry);
 }
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
@@ -1352,8 +1396,10 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
       PropertyDetails details = descs.GetDetails(i);
       switch (details.location()) {
         case kField: {
-          Representation r = details.representation();
-          if (r.IsSmi() || r.IsDouble()) break;
+          if (!snapshot_->capture_numeric_value()) {
+            Representation r = details.representation();
+            if (r.IsSmi() || r.IsDouble()) break;
+          }
 
           Name k = descs.GetKey(i);
           FieldIndex field_index = FieldIndex::ForDescriptor(js_obj.map(), i);
@@ -1483,9 +1529,15 @@ String V8HeapExplorer::GetConstructorName(JSObject object) {
 }
 
 HeapEntry* V8HeapExplorer::GetEntry(Object obj) {
-  return obj.IsHeapObject() ? generator_->FindOrAddEntry(
-                                  reinterpret_cast<void*>(obj.ptr()), this)
-                            : nullptr;
+  if (obj.IsHeapObject()) {
+    return generator_->FindOrAddEntry(reinterpret_cast<void*>(obj.ptr()), this);
+  }
+
+  DCHECK(obj.IsSmi());
+  if (!snapshot_->capture_numeric_value()) {
+    return nullptr;
+  }
+  return generator_->FindOrAddEntry(Smi::cast(obj), this);
 }
 
 class RootsReferencesExtractor : public RootVisitor {
@@ -1657,23 +1709,25 @@ void V8HeapExplorer::SetElementReference(HeapEntry* parent_entry, int index,
 void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry,
                                           const char* reference_name,
                                           Object child_obj, int field_offset) {
-  HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry == nullptr) return;
-  if (IsEssentialObject(child_obj)) {
-    parent_entry->SetNamedReference(HeapGraphEdge::kInternal, reference_name,
-                                    child_entry);
+  if (!IsEssentialObject(child_obj)) {
+    return;
   }
+  HeapEntry* child_entry = GetEntry(child_obj);
+  DCHECK_NOT_NULL(child_entry);
+  parent_entry->SetNamedReference(HeapGraphEdge::kInternal, reference_name,
+                                  child_entry);
   MarkVisitedField(field_offset);
 }
 
 void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry, int index,
                                           Object child_obj, int field_offset) {
-  HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry == nullptr) return;
-  if (IsEssentialObject(child_obj)) {
-    parent_entry->SetNamedReference(HeapGraphEdge::kInternal,
-                                    names_->GetName(index), child_entry);
+  if (!IsEssentialObject(child_obj)) {
+    return;
   }
+  HeapEntry* child_entry = GetEntry(child_obj);
+  DCHECK_NOT_NULL(child_entry);
+  parent_entry->SetNamedReference(HeapGraphEdge::kInternal,
+                                  names_->GetName(index), child_entry);
   MarkVisitedField(field_offset);
 }
 
@@ -1682,9 +1736,12 @@ void V8HeapExplorer::SetHiddenReference(HeapObject parent_obj,
                                         Object child_obj, int field_offset) {
   DCHECK_EQ(parent_entry, GetEntry(parent_obj));
   DCHECK(!MapWord::IsPacked(child_obj.ptr()));
+  if (!IsEssentialObject(child_obj)) {
+    return;
+  }
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != nullptr && IsEssentialObject(child_obj) &&
-      IsEssentialHiddenReference(parent_obj, field_offset)) {
+  DCHECK_NOT_NULL(child_entry);
+  if (IsEssentialHiddenReference(parent_obj, field_offset)) {
     parent_entry->SetIndexedReference(HeapGraphEdge::kHidden, index,
                                       child_entry);
   }
@@ -1693,23 +1750,25 @@ void V8HeapExplorer::SetHiddenReference(HeapObject parent_obj,
 void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry,
                                       const char* reference_name,
                                       Object child_obj, int field_offset) {
-  HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry == nullptr) return;
-  if (IsEssentialObject(child_obj)) {
-    parent_entry->SetNamedReference(HeapGraphEdge::kWeak, reference_name,
-                                    child_entry);
+  if (!IsEssentialObject(child_obj)) {
+    return;
   }
+  HeapEntry* child_entry = GetEntry(child_obj);
+  DCHECK_NOT_NULL(child_entry);
+  parent_entry->SetNamedReference(HeapGraphEdge::kWeak, reference_name,
+                                  child_entry);
   MarkVisitedField(field_offset);
 }
 
 void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
                                       Object child_obj, int field_offset) {
-  HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry == nullptr) return;
-  if (IsEssentialObject(child_obj)) {
-    parent_entry->SetNamedReference(
-        HeapGraphEdge::kWeak, names_->GetFormatted("%d", index), child_entry);
+  if (!IsEssentialObject(child_obj)) {
+    return;
   }
+  HeapEntry* child_entry = GetEntry(child_obj);
+  DCHECK_NOT_NULL(child_entry);
+  parent_entry->SetNamedReference(
+      HeapGraphEdge::kWeak, names_->GetFormatted("%d", index), child_entry);
   MarkVisitedField(field_offset);
 }
 
@@ -1767,6 +1826,13 @@ void V8HeapExplorer::SetGcRootsReference(Root root) {
 
 void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
                                            bool is_weak, Object child_obj) {
+  if (child_obj.IsSmi()) {
+    // TODO(arenevier): if we handle smis here, the snapshot gets 2 to 3 times
+    // slower on large heaps. According to perf, The bulk of the extra works
+    // happens in TemplateHashMapImpl::Probe method, when tyring to get
+    // names->GetFormatted("%d / %s", index, description)
+    return;
+  }
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == nullptr) return;
   const char* name = GetStrongGcSubrootName(child_obj);
@@ -1944,6 +2010,7 @@ class EmbedderGraphEntriesAllocator : public HeapEntriesAllocator {
         names_(snapshot_->profiler()->names()),
         heap_object_map_(snapshot_->profiler()->heap_object_map()) {}
   HeapEntry* AllocateEntry(HeapThing ptr) override;
+  HeapEntry* AllocateEntry(Smi smi) override;
 
  private:
   HeapSnapshot* snapshot_;
@@ -1992,6 +2059,11 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
                                          id, static_cast<int>(size), 0);
   heap_entry->set_detachedness(node->GetDetachedness());
   return heap_entry;
+}
+
+HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(Smi smi) {
+  DCHECK(false);
+  return nullptr;
 }
 
 NativeObjectsExplorer::NativeObjectsExplorer(
