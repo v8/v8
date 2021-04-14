@@ -4327,7 +4327,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ addi(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
     if (parameter_slots > 1) {
       Label skip;
-      __ cmpi(argc_reg, Operand(parameter_slots));
+      __ Cmpi(argc_reg, Operand(parameter_slots), r0);
       __ bgt(&skip);
       __ mov(argc_reg, Operand(parameter_slots));
       __ bind(&skip);
