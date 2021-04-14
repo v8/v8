@@ -234,8 +234,9 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
     // on the heap, so we establish a base line.
     size_t base_level = initial_object_payload_size;
     bool test_pages_allocated = !base_level;
-    if (test_pages_allocated)
+    if (test_pages_allocated) {
       EXPECT_EQ(0ul, heap->stats_collector()->allocated_memory_size());
+    }
 
     // This allocates objects on the general heap which should add a page of
     // memory.
@@ -272,8 +273,9 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
   size_t total = 0;
   size_t base_level = ObjectSizeCounter().GetSize(&heap->raw_heap());
   bool test_pages_allocated = !base_level;
-  if (test_pages_allocated)
+  if (test_pages_allocated) {
     EXPECT_EQ(0ul, heap->stats_collector()->allocated_memory_size());
+  }
 
   size_t big = 1008;
   Persistent<DynamicallySizedObject> big_area =
