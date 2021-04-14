@@ -4,7 +4,7 @@
 
 load("//lib/lib.star", "GOMA", "v8_builder")
 
-def perf_builder(in_category, triggers_proxy=True, **kwargs):
+def perf_builder(in_category, triggers_proxy=False, **kwargs):
     kwargs["close_tree"] = True
     properties = {"triggers_proxy": triggers_proxy, "builder_group": "client.v8.perf"}
     extra_properties = kwargs.pop("properties", {})
@@ -25,7 +25,6 @@ def perf_builder(in_category, triggers_proxy=True, **kwargs):
 
 perf_builder(
     name = "V8 Arm - builder - perf",
-    triggers_proxy = False,
     properties = {"target_arch": "arm"},
     in_category = "Arm",
 )
@@ -44,7 +43,6 @@ perf_builder(
 
 perf_builder(
     name = "V8 Android Arm64 - builder - perf",
-    triggers_proxy = False,
     properties = {"target_arch": "arm", "target_platform": "android"},
     in_category = "Arm64",
 )
