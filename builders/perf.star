@@ -44,6 +44,7 @@ perf_builder(
 
 perf_builder(
     name = "V8 Android Arm64 - builder - perf",
+    triggers_proxy = False,
     properties = {"target_arch": "arm", "target_platform": "android"},
     in_category = "Arm64",
 )
