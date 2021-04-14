@@ -3068,11 +3068,11 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   popq(rbp);
 }
 
-#ifdef V8_TARGET_OS_WIN
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
 void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
-  // In windows, we cannot increment the stack size by more than one page
-  // (minimum page size is 4KB) without accessing at least one byte on the
-  // page. Check this:
+  // On Windows and on macOS, we cannot increment the stack size by more than
+  // one page (minimum page size is 4KB) without accessing at least one byte on
+  // the page. Check this:
   // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
   Label check_offset;
   Label touch_next_page;

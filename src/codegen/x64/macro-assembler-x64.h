@@ -527,7 +527,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 // stack check, do it before calling this function because this function may
 // write into the newly allocated space. It may also overwrite the given
 // register's value, in the version that takes a register.
-#ifdef V8_TARGET_OS_WIN
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
   void AllocateStackSpace(Register bytes_scratch);
   void AllocateStackSpace(int bytes);
 #else

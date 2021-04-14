@@ -2063,6 +2063,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 }
 
 // static
+// TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
   // ----------- S t a t e -------------

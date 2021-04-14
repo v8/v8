@@ -118,7 +118,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static bool IsAddressableThroughRootRegister(
       Isolate* isolate, const ExternalReference& reference);
 
-#ifdef V8_TARGET_OS_WIN
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
   // Minimum page size. We must touch memory once per page when expanding the
   // stack, to avoid access violations.
   static constexpr int kStackPageSize = 4 * KB;
