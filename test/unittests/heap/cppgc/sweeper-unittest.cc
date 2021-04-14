@@ -326,5 +326,24 @@ TEST_F(SweeperTest, LazySweepingDuringAllocation) {
   EXPECT_NE(new_object1, new_object2);
 }
 
+TEST_F(SweeperTest, LazySweepingNormalPages) {
+  using GCedObject = GCed<sizeof(size_t)>;
+  EXPECT_EQ(0u, g_destructor_callcount);
+  PreciseGC();
+  EXPECT_EQ(0u, g_destructor_callcount);
+  MakeGarbageCollected<GCedObject>(GetAllocationHandle());
+  static constexpr Heap::Config config = {
+      Heap::Config::CollectionType::kMajor,
+      Heap::Config::StackState::kNoHeapPointers,
+      Heap::Config::MarkingType::kAtomic,
+      Heap::Config::SweepingType::kIncrementalAndConcurrent};
+  Heap::From(GetHeap())->CollectGarbage(config);
+  EXPECT_EQ(0u, g_destructor_callcount);
+  MakeGarbageCollected<GCedObject>(GetAllocationHandle());
+  EXPECT_EQ(1u, g_destructor_callcount);
+  PreciseGC();
+  EXPECT_EQ(2u, g_destructor_callcount);
+}
+
 }  // namespace internal
 }  // namespace cppgc

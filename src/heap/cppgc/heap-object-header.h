@@ -219,6 +219,7 @@ void HeapObjectHeader::SetSize(size_t size) {
 
 template <AccessMode mode>
 size_t HeapObjectHeader::ObjectSize() const {
+  DCHECK_GT(GetSize<mode>(), sizeof(HeapObjectHeader));
   return GetSize<mode>() - sizeof(HeapObjectHeader);
 }
 

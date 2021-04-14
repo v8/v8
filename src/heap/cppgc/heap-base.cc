@@ -35,13 +35,10 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 
  private:
   static size_t ObjectSize(const HeapObjectHeader* header) {
-    const size_t size =
-        header->IsLargeObject()
-            ? static_cast<const LargePage*>(BasePage::FromPayload(header))
-                  ->PayloadSize()
-            : header->GetSize();
-    DCHECK_GE(size, sizeof(HeapObjectHeader));
-    return size - sizeof(HeapObjectHeader);
+    return header->IsLargeObject()
+               ? static_cast<const LargePage*>(BasePage::FromPayload(header))
+                     ->ObjectSize()
+               : header->ObjectSize();
   }
 
   bool VisitHeapObjectHeader(HeapObjectHeader* header) {

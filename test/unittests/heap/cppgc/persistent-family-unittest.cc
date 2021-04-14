@@ -12,6 +12,7 @@
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/source-location.h"
 #include "include/cppgc/type-traits.h"
+#include "src/base/logging.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/visitor.h"
@@ -108,7 +109,7 @@ class RootVisitor final : public VisitorBase {
   std::vector<std::pair<WeakCallback, const void*>> weak_callbacks_;
 };
 
-class PersistentTest : public testing::TestSupportingAllocationOnly {};
+class PersistentTest : public testing::TestWithHeap {};
 
 }  // namespace
 
@@ -926,6 +927,72 @@ TEST_F(PersistentTest, EmptyPersistentConstructDestructWithoutCompleteType) {
 TEST_F(PersistentTest, Lock) {
   subtle::WeakCrossThreadPersistent<GCed> weak;
   auto strong = weak.Lock();
+}
+
+namespace {
+
+class TraceCounter final : public GarbageCollected<TraceCounter> {
+ public:
+  TraceCounter() : nested_(nullptr) {}
+  explicit TraceCounter(TraceCounter* nested) : nested_(nested) {}
+
+  void Trace(cppgc::Visitor* visitor) const {
+    visitor->Trace(nested_);
+    trace_calls_++;
+  }
+
+  TraceCounter* nested() const { return nested_; }
+  size_t trace_calls() const { return trace_calls_; }
+
+ private:
+  Member<TraceCounter> nested_;
+  mutable size_t trace_calls_ = 0;
+};
+
+class DestructionCounter final : public GarbageCollected<DestructionCounter> {
+ public:
+  static size_t destructor_calls_;
+
+  ~DestructionCounter() { destructor_calls_++; }
+
+  void Trace(cppgc::Visitor*) const {}
+};
+size_t DestructionCounter::destructor_calls_;
+
+}  // namespace
+
+TEST_F(PersistentTest, PersistentRetainsObject) {
+  Persistent<TraceCounter> trace_counter =
+      MakeGarbageCollected<TraceCounter>(GetAllocationHandle());
+  EXPECT_EQ(0u, trace_counter->trace_calls());
+  PreciseGC();
+  size_t saved_trace_count = trace_counter->trace_calls();
+  EXPECT_LT(0u, saved_trace_count);
+
+  Persistent<TraceCounter> class_with_member =
+      MakeGarbageCollected<TraceCounter>(
+          GetAllocationHandle(),
+          MakeGarbageCollected<TraceCounter>(GetAllocationHandle()));
+  EXPECT_EQ(0u, class_with_member->nested()->trace_calls());
+  PreciseGC();
+  EXPECT_LT(0u, class_with_member->nested()->trace_calls());
+  EXPECT_LT(saved_trace_count, trace_counter->trace_calls());
+  USE(trace_counter);
+  USE(class_with_member);
+}
+
+TEST_F(PersistentTest, ObjectReclaimedAfterClearedPersistent) {
+  {
+    DestructionCounter::destructor_calls_ = 0;
+    Persistent<DestructionCounter> finalized =
+        MakeGarbageCollected<DestructionCounter>(GetAllocationHandle());
+    EXPECT_EQ(0u, DestructionCounter::destructor_calls_);
+    PreciseGC();
+    EXPECT_EQ(0u, DestructionCounter::destructor_calls_);
+    USE(finalized);
+  }
+  PreciseGC();
+  EXPECT_EQ(1u, DestructionCounter::destructor_calls_);
 }
 
 }  // namespace internal
