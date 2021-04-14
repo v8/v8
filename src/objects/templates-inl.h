@@ -34,7 +34,6 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
                ReadOnlyPrototypeBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
                RemovePrototypeBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache, DoNotCacheBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, published, PublishedBit::kShift)
@@ -103,6 +102,11 @@ RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
 RARE_ACCESSORS(c_function, CFunction, Object, Smi(0))
 RARE_ACCESSORS(c_signature, CSignature, Object, Smi(0))
 #undef RARE_ACCESSORS
+
+bool TemplateInfo::should_cache() const {
+  return serial_number() != kDoNotCache;
+}
+bool TemplateInfo::is_cached() const { return serial_number() > kUncached; }
 
 bool FunctionTemplateInfo::instantiated() {
   return shared_function_info().IsSharedFunctionInfo();

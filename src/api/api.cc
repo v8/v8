@@ -1093,9 +1093,13 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
 
 // --- T e m p l a t e ---
 
-static void InitializeTemplate(i::TemplateInfo that, int type) {
+static void InitializeTemplate(i::TemplateInfo that, int type,
+                               bool do_not_cache) {
   that.set_number_of_properties(0);
   that.set_tag(type);
+  int serial_number =
+      do_not_cache ? i::TemplateInfo::kDoNotCache : i::TemplateInfo::kUncached;
+  that.set_serial_number(serial_number);
 }
 
 void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
@@ -1105,15 +1109,18 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   auto value_obj = Utils::OpenHandle(*value);
+
   Utils::ApiCheck(!value_obj->IsJSReceiver() || value_obj->IsTemplateInfo(),
                   "v8::Template::Set",
                   "Invalid value, must be a primitive or a Template");
+
+  // The template cache only performs shallow clones, if we set an
+  // ObjectTemplate as a property value then we can not cache the receiver
+  // template.
   if (value_obj->IsObjectTemplateInfo()) {
-    templ->set_serial_number(0);
-    if (templ->IsFunctionTemplateInfo()) {
-      i::Handle<i::FunctionTemplateInfo>::cast(templ)->set_do_not_cache(true);
-    }
+    templ->set_serial_number(i::TemplateInfo::kDoNotCache);
   }
+
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  value_obj,
                                  static_cast<i::PropertyAttributes>(attribute));
@@ -1145,8 +1152,9 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
 }
 
 // --- F u n c t i o n   T e m p l a t e ---
-static void InitializeFunctionTemplate(i::FunctionTemplateInfo info) {
-  InitializeTemplate(info, Consts::FUNCTION_TEMPLATE);
+static void InitializeFunctionTemplate(i::FunctionTemplateInfo info,
+                                       bool do_not_cache) {
+  InitializeTemplate(info, Consts::FUNCTION_TEMPLATE, do_not_cache);
   info.set_flag(0);
 }
 
@@ -1219,14 +1227,8 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     // Disallow GC until all fields of obj have acceptable types.
     i::DisallowGarbageCollection no_gc;
     i::FunctionTemplateInfo raw = *obj;
-    InitializeFunctionTemplate(raw);
+    InitializeFunctionTemplate(raw, do_not_cache);
     raw.set_length(length);
-    raw.set_do_not_cache(do_not_cache);
-    int next_serial_number = i::FunctionTemplateInfo::kInvalidSerialNumber;
-    if (!do_not_cache) {
-      next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
-    }
-    raw.set_serial_number(next_serial_number);
     raw.set_undetectable(false);
     raw.set_needs_access_check(false);
     raw.set_accept_any_receiver(true);
@@ -1442,13 +1444,8 @@ static Local<ObjectTemplate> ObjectTemplateNew(
     // Disallow GC until all fields of obj have acceptable types.
     i::DisallowGarbageCollection no_gc;
     i::ObjectTemplateInfo raw = *obj;
-    InitializeTemplate(raw, Consts::OBJECT_TEMPLATE);
+    InitializeTemplate(raw, Consts::OBJECT_TEMPLATE, do_not_cache);
     raw.set_data(0);
-    int next_serial_number = 0;
-    if (!do_not_cache) {
-      next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
-    }
-    raw.set_serial_number(next_serial_number);
     if (!constructor.IsEmpty()) {
       raw.set_constructor(*Utils::OpenHandle(*constructor));
     }
