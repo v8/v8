@@ -8012,10 +8012,6 @@ v8::Local<v8::Context> Isolate::GetIncumbentContext() {
   return Utils::ToLocal(context);
 }
 
-v8::Local<Value> Isolate::ThrowError(v8::Local<v8::String> message) {
-  return ThrowException(v8::Exception::Error(message));
-}
-
 v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_DO_NOT_USE(isolate);
