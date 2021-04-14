@@ -50,6 +50,12 @@ try_builder(
     dimensions = {"os": "Mac-10.15"},
     execution_timeout = 3600,
     properties = {"$depot_tools/osx_sdk": {"sdk_version": "12a7209"}, "target_platform": "ios"},
+    caches = [
+        swarming.cache(
+            path = "osx_sdk",
+            name = "osx_sdk",
+        ),
+    ],
     use_goma = GOMA.DEFAULT,
 )
 
