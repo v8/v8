@@ -1885,16 +1885,6 @@ void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::Unpcklps(XMMRegister dst, XMMRegister src1, Operand src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vunpcklps(dst, src1, src2);
-  } else {
-    DCHECK_EQ(dst, src1);
-    unpcklps(dst, src2);
-  }
-}
-
 void TurboAssembler::Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                             byte imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -2037,26 +2027,6 @@ void TurboAssembler::Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2,
                             uint8_t imm8) {
   PinsrHelper(this, &Assembler::vpinsrq, &Assembler::pinsrq, dst, src1, src2,
               imm8, base::Optional<CpuFeature>(SSE4_1));
-}
-
-void TurboAssembler::Psllq(XMMRegister dst, byte imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsllq(dst, dst, imm8);
-  } else {
-    DCHECK(!IsEnabled(AVX));
-    psllq(dst, imm8);
-  }
-}
-
-void TurboAssembler::Pslld(XMMRegister dst, byte imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpslld(dst, dst, imm8);
-  } else {
-    DCHECK(!IsEnabled(AVX));
-    pslld(dst, imm8);
-  }
 }
 
 void TurboAssembler::Pblendvb(XMMRegister dst, XMMRegister src1,
@@ -2394,21 +2364,6 @@ void TurboAssembler::Abspd(XMMRegister dst) {
 void TurboAssembler::Negpd(XMMRegister dst) {
   Xorps(dst, ExternalReferenceAsOperand(
                  ExternalReference::address_of_double_neg_constant()));
-}
-
-void TurboAssembler::Psrld(XMMRegister dst, byte imm8) {
-  Psrld(dst, dst, imm8);
-}
-
-void TurboAssembler::Psrld(XMMRegister dst, XMMRegister src, byte imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsrld(dst, src, imm8);
-  } else {
-    DCHECK(!IsEnabled(AVX));
-    DCHECK_EQ(dst, src);
-    psrld(dst, imm8);
-  }
 }
 
 void TurboAssembler::Lzcntl(Register dst, Register src) {

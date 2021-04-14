@@ -2181,7 +2181,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       // Set up a mask [0x80000000,0,0x80000000,0].
       __ Pcmpeqb(tmp2, tmp2);
-      __ Psllq(tmp2, tmp2, 63);
+      __ Psllq(tmp2, tmp2, byte{63});
 
       __ Psrlq(tmp2, tmp2, tmp);
       __ Psrlq(dst, src, tmp);
@@ -2218,7 +2218,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmuludq(tmp2, tmp2, left);
 
       __ Paddq(tmp2, tmp2, tmp1);
-      __ Psllq(tmp2, tmp2, 32);
+      __ Psllq(tmp2, tmp2, byte{32});
 
       __ Pmuludq(dst, left, right);
       __ Paddq(dst, dst, tmp2);
@@ -2357,10 +2357,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       __ Pxor(kScratchDoubleReg, kScratchDoubleReg);      // zeros
-      __ Pblendw(kScratchDoubleReg, src, 0x55);           // get lo 16 bits
+      __ Pblendw(kScratchDoubleReg, src, uint8_t{0x55});  // get lo 16 bits
       __ Psubd(dst, src, kScratchDoubleReg);              // get hi 16 bits
       __ Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // convert lo exactly
-      __ Psrld(dst, dst, 1);    // divide by 2 to get in unsigned range
+      __ Psrld(dst, dst, byte{1});  // divide by 2 to get in unsigned range
       __ Cvtdq2ps(dst, dst);    // convert hi exactly
       __ Addps(dst, dst, dst);  // double hi, exactly
       __ Addps(dst, dst, kScratchDoubleReg);  // add hi and lo, may round.
@@ -2371,11 +2371,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Psrld(kScratchDoubleReg, kScratchDoubleReg, 1);
+        __ Psrld(kScratchDoubleReg, kScratchDoubleReg, byte{1});
         __ Andps(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
-        __ Psrld(dst, dst, 1);
+        __ Psrld(dst, dst, byte{1});
         __ Andps(dst, src);
       }
       break;
@@ -2385,11 +2385,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ Pslld(kScratchDoubleReg, kScratchDoubleReg, 31);
+        __ Pslld(kScratchDoubleReg, kScratchDoubleReg, byte{31});
         __ Xorps(dst, kScratchDoubleReg);
       } else {
         __ Pcmpeqd(dst, dst);
-        __ Pslld(dst, dst, 31);
+        __ Pslld(dst, dst, byte{31});
         __ Xorps(dst, src);
       }
       break;
@@ -2580,7 +2580,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cvttps2dq(dst, dst);
       // Set top bit if >=0 is now < 0
       __ Pand(kScratchDoubleReg, dst);
-      __ Psrad(kScratchDoubleReg, kScratchDoubleReg, 31);
+      __ Psrad(kScratchDoubleReg, kScratchDoubleReg, byte{31});
       // Set positive overflow lanes to 0x7FFFFFFF
       __ Pxor(dst, kScratchDoubleReg);
       break;
@@ -3739,7 +3739,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_NE(0xe4, shuffle);  // A simple blend should be handled below.
       __ Pshufd(kScratchDoubleReg, i.InputOperand(1), shuffle);
       __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), shuffle);
-      __ Pblendw(i.OutputSimd128Register(), kScratchDoubleReg, i.InputInt8(3));
+      __ Pblendw(i.OutputSimd128Register(), kScratchDoubleReg, i.InputUint8(3));
       break;
     }
     case kIA32S16x8Blend:
@@ -3757,7 +3757,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufhw(kScratchDoubleReg, kScratchDoubleReg, i.InputUint8(3));
       __ Pshuflw(dst, i.InputOperand(0), i.InputUint8(2));
       __ Pshufhw(dst, dst, i.InputUint8(3));
-      __ Pblendw(dst, kScratchDoubleReg, i.InputInt8(4));
+      __ Pblendw(dst, kScratchDoubleReg, i.InputUint8(4));
       break;
     }
     case kIA32S8x16Alignr:

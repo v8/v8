@@ -66,91 +66,43 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Subsd, subsd)
   AVX_OP(Divss, divss)
   AVX_OP(Divsd, divsd)
-  AVX_OP(Pcmpgtb, pcmpgtb)
   AVX_OP(Pcmpgtw, pcmpgtw)
   AVX_OP(Pmaxsw, pmaxsw)
-  AVX_OP(Pmaxub, pmaxub)
   AVX_OP(Pminsw, pminsw)
-  AVX_OP(Pminub, pminub)
   AVX_OP(Addss, addss)
   AVX_OP(Addsd, addsd)
   AVX_OP(Mulsd, mulsd)
-  AVX_OP(Andnps, andnps)
   AVX_OP(Cmpeqps, cmpeqps)
   AVX_OP(Cmpltps, cmpltps)
-  AVX_OP(Cmpleps, cmpleps)
   AVX_OP(Cmpneqps, cmpneqps)
   AVX_OP(Cmpnltps, cmpnltps)
   AVX_OP(Cmpnleps, cmpnleps)
-  AVX_OP(Cmpeqpd, cmpeqpd)
-  AVX_OP(Cmpltpd, cmpltpd)
-  AVX_OP(Cmplepd, cmplepd)
-  AVX_OP(Cmpneqpd, cmpneqpd)
   AVX_OP(Cmpnltpd, cmpnltpd)
   AVX_OP(Cmpnlepd, cmpnlepd)
   AVX_OP(Cvttpd2dq, cvttpd2dq)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
-  AVX_OP(Psubsb, psubsb)
   AVX_OP(Psubsw, psubsw)
-  AVX_OP(Psubusb, psubusb)
   AVX_OP(Psubusw, psubusw)
-  AVX_OP(Pslld, pslld)
-  AVX_OP(Pavgb, pavgb)
-  AVX_OP(Pavgw, pavgw)
-  AVX_OP(Psrad, psrad)
-  AVX_OP(Psllw, psllw)
-  AVX_OP(Psllq, psllq)
-  AVX_OP(Psrlw, psrlw)
-  AVX_OP(Psrld, psrld)
-  AVX_OP(Paddb, paddb)
-  AVX_OP(Paddw, paddw)
-  AVX_OP(Paddd, paddd)
-  AVX_OP(Paddq, paddq)
-  AVX_OP(Paddsb, paddsb)
   AVX_OP(Paddsw, paddsw)
   AVX_OP(Pcmpgtd, pcmpgtd)
-  AVX_OP(Pmuludq, pmuludq)
-  AVX_OP(Addpd, addpd)
-  AVX_OP(Subpd, subpd)
-  AVX_OP(Mulpd, mulpd)
-  AVX_OP(Minps, minps)
-  AVX_OP(Minpd, minpd)
-  AVX_OP(Divpd, divpd)
-  AVX_OP(Maxps, maxps)
-  AVX_OP(Maxpd, maxpd)
-  AVX_OP(Addps, addps)
-  AVX_OP(Subps, subps)
-  AVX_OP(Mulps, mulps)
-  AVX_OP(Divps, divps)
   AVX_OP(Pcmpeqb, pcmpeqb)
   AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pcmpeqd, pcmpeqd)
-  AVX_OP(Cmpps, cmpps)
-  AVX_OP(Cmppd, cmppd)
   AVX_OP(Movlhps, movlhps)
-  AVX_OP_SSE3(Haddps, haddps)
   AVX_OP_SSSE3(Phaddd, phaddd)
   AVX_OP_SSSE3(Phaddw, phaddw)
   AVX_OP_SSSE3(Pshufb, pshufb)
-  AVX_OP_SSSE3(Psignb, psignb)
-  AVX_OP_SSSE3(Psignw, psignw)
-  AVX_OP_SSSE3(Psignd, psignd)
-  AVX_OP_SSSE3(Palignr, palignr)
   AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
   AVX_OP_SSE4_1(Packusdw, packusdw)
-  AVX_OP_SSE4_1(Pminsb, pminsb)
   AVX_OP_SSE4_1(Pminsd, pminsd)
   AVX_OP_SSE4_1(Pminuw, pminuw)
   AVX_OP_SSE4_1(Pminud, pminud)
-  AVX_OP_SSE4_1(Pmaxsb, pmaxsb)
-  AVX_OP_SSE4_1(Pmaxsd, pmaxsd)
   AVX_OP_SSE4_1(Pmaxuw, pmaxuw)
   AVX_OP_SSE4_1(Pmaxud, pmaxud)
   AVX_OP_SSE4_1(Pmulld, pmulld)
   AVX_OP_SSE4_1(Insertps, insertps)
   AVX_OP_SSE4_1(Pinsrq, pinsrq)
-  AVX_OP_SSE4_1(Pblendw, pblendw)
   AVX_OP_SSE4_1(Pextrq, pextrq)
   AVX_OP_SSE4_1(Roundss, roundss)
   AVX_OP_SSE4_1(Roundsd, roundsd)
@@ -427,7 +379,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
-  void Unpcklps(XMMRegister dst, XMMRegister src1, Operand src2);
   // Shufps that will mov src1 into dst if AVX is not supported.
   void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8);
 
@@ -444,14 +395,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Pinsrd(XMMRegister dst, Operand src2, uint8_t imm8);
   void Pinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8);
   void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
-
-  void Psllq(XMMRegister dst, int imm8) { Psllq(dst, static_cast<byte>(imm8)); }
-  void Psllq(XMMRegister dst, byte imm8);
-  void Pslld(XMMRegister dst, byte imm8);
-  void Psrld(XMMRegister dst, byte imm8);
-
-  // Supports both AVX (dst != src1) and SSE (checks that dst == src1).
-  void Psrld(XMMRegister dst, XMMRegister src, byte imm8);
 
   void Pblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 XMMRegister mask);

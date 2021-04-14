@@ -1486,7 +1486,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
       __ Pcmpeqd(tmp, tmp);
-      __ Psllq(tmp, 31);
+      __ Psllq(tmp, byte{31});
       __ Xorps(i.OutputDoubleRegister(), tmp);
       break;
     }
@@ -2439,7 +2439,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // propagate -0's and NaNs, which may be non-canonical.
       __ Orpd(kScratchDoubleReg, dst);
       // Canonicalize NaNs by quieting and clearing the payload.
-      __ Cmppd(dst, kScratchDoubleReg, int8_t{3});
+      __ Cmpunordpd(dst, kScratchDoubleReg);
       __ Orpd(kScratchDoubleReg, dst);
       __ Psrlq(dst, byte{13});
       __ Andnpd(dst, kScratchDoubleReg);
@@ -2461,7 +2461,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Propagate sign discrepancy and (subtle) quiet NaNs.
       __ Subpd(kScratchDoubleReg, dst);
       // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ Cmppd(dst, kScratchDoubleReg, int8_t{3});
+      __ Cmpunordpd(dst, kScratchDoubleReg);
       __ Psrlq(dst, byte{13});
       __ Andnpd(dst, kScratchDoubleReg);
       break;
@@ -2671,7 +2671,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // propagate -0's and NaNs, which may be non-canonical.
       __ Orps(kScratchDoubleReg, dst);
       // Canonicalize NaNs by quieting and clearing the payload.
-      __ Cmpps(dst, kScratchDoubleReg, int8_t{3});
+      __ Cmpunordps(dst, kScratchDoubleReg);
       __ Orps(kScratchDoubleReg, dst);
       __ Psrld(dst, byte{10});
       __ Andnps(dst, kScratchDoubleReg);
@@ -2693,7 +2693,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Propagate sign discrepancy and (subtle) quiet NaNs.
       __ Subps(kScratchDoubleReg, dst);
       // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ Cmpps(dst, kScratchDoubleReg, int8_t{3});
+      __ Cmpunordps(dst, kScratchDoubleReg);
       __ Psrld(dst, byte{10});
       __ Andnps(dst, kScratchDoubleReg);
       break;
@@ -2851,7 +2851,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmuludq(tmp2, left);
 
       __ Paddq(tmp2, tmp1);
-      __ Psllq(tmp2, 32);
+      __ Psllq(tmp2, byte{32});
 
       __ Pmuludq(left, right);
       __ Paddq(left, tmp2);  // left == dst

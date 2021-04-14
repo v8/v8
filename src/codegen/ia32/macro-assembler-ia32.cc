@@ -1852,34 +1852,6 @@ void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src, Operand mask) {
   pshufb(dst, mask);
 }
 
-void TurboAssembler::Pblendw(XMMRegister dst, Operand src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpblendw(dst, dst, src, imm8);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pblendw(dst, src, imm8);
-    return;
-  }
-  FATAL("no AVX or SSE4.1 support");
-}
-
-void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpalignr(dst, dst, src, imm8);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSSE3)) {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    palignr(dst, src, imm8);
-    return;
-  }
-  FATAL("no AVX or SSE3 support");
-}
-
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   if (imm8 == 0) {
     Movd(dst, src);

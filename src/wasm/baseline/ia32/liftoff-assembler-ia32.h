@@ -3896,7 +3896,7 @@ void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
 
   // Set up a mask [0x80000000,0,0x80000000,0].
   Pcmpeqb(tmp, tmp);
-  Psllq(tmp, tmp, 63);
+  Psllq(tmp, tmp, byte{63});
 
   Psrlq(tmp, tmp, shift);
   if (CpuFeatures::IsSupported(AVX)) {
@@ -3919,7 +3919,7 @@ void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
 
   // Set up a mask [0x80000000,0,0x80000000,0].
   Pcmpeqb(tmp, tmp);
-  Psllq(tmp, tmp, 63);
+  Psllq(tmp, tmp, byte{63});
 
   Psrlq(tmp, tmp, byte{shift});
   liftoff::EmitSimdShiftOpImm<&Assembler::vpsrlq, &Assembler::psrlq, 6>(
@@ -3969,7 +3969,7 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Psrlq(tmp2.fp(), byte{32});
   Pmuludq(tmp2.fp(), tmp2.fp(), lhs.fp());
   Paddq(tmp2.fp(), tmp2.fp(), tmp1.fp());
-  Psllq(tmp2.fp(), tmp2.fp(), 32);
+  Psllq(tmp2.fp(), tmp2.fp(), byte{32});
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmuludq, &Assembler::pmuludq>(
       this, dst, lhs, rhs);
   Paddq(dst.fp(), dst.fp(), tmp2.fp());
@@ -4032,11 +4032,11 @@ void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   if (dst.fp() == src.fp()) {
     Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Psrld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, 1);
+    Psrld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{1});
     Andps(dst.fp(), liftoff::kScratchDoubleReg);
   } else {
     Pcmpeqd(dst.fp(), dst.fp());
-    Psrld(dst.fp(), dst.fp(), 1);
+    Psrld(dst.fp(), dst.fp(), byte{1});
     Andps(dst.fp(), src.fp());
   }
 }
@@ -4045,11 +4045,11 @@ void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   if (dst.fp() == src.fp()) {
     Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Pslld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, 31);
+    Pslld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{31});
     Xorps(dst.fp(), liftoff::kScratchDoubleReg);
   } else {
     Pcmpeqd(dst.fp(), dst.fp());
-    Pslld(dst.fp(), dst.fp(), 31);
+    Pslld(dst.fp(), dst.fp(), byte{31});
     Xorps(dst.fp(), src.fp());
   }
 }
@@ -4201,11 +4201,11 @@ void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   if (dst.fp() == src.fp()) {
     Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Psllq(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, 63);
+    Psllq(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{63});
     Xorpd(dst.fp(), liftoff::kScratchDoubleReg);
   } else {
     Pcmpeqd(dst.fp(), dst.fp());
-    Psllq(dst.fp(), dst.fp(), 63);
+    Psllq(dst.fp(), dst.fp(), byte{63});
     Xorpd(dst.fp(), src.fp());
   }
 }

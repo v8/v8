@@ -305,96 +305,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP(Pcmpeqb, pcmpeqb)
   AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pcmpeqd, pcmpeqd)
-
-// Same as AVX_OP3_WITH_TYPE but supports a CpuFeatureScope
-#define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
-                                sse_scope)                            \
-  void macro_name(dst_type dst, src_type src) {                       \
-    if (CpuFeatures::IsSupported(AVX)) {                              \
-      CpuFeatureScope scope(this, AVX);                               \
-      v##name(dst, dst, src);                                         \
-    } else if (CpuFeatures::IsSupported(sse_scope)) {                 \
-      CpuFeatureScope scope(this, sse_scope);                         \
-      name(dst, src);                                                 \
-    }                                                                 \
-  }
-#define AVX_OP2_XO(macro_name, name, sse_scope)                       \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, \
-                          sse_scope)                                  \
-  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, sse_scope)
-  AVX_OP2_XO(Psignb, psignb, SSSE3)
-  AVX_OP2_XO(Psignw, psignw, SSSE3)
-  AVX_OP2_XO(Psignd, psignd, SSSE3)
-  AVX_OP2_XO(Pcmpeqq, pcmpeqq, SSE4_1)
-#undef AVX_OP2_XO
-#undef AVX_OP2_WITH_TYPE_SCOPE
-
-// Only use this macro when dst and src1 is the same in SSE case.
-#define AVX_PACKED_OP3_WITH_TYPE(macro_name, name, dst_type, src_type) \
-  void macro_name(dst_type dst, dst_type src1, src_type src2) {        \
-    if (CpuFeatures::IsSupported(AVX)) {                               \
-      CpuFeatureScope scope(this, AVX);                                \
-      v##name(dst, src1, src2);                                        \
-    } else {                                                           \
-      DCHECK_EQ(dst, src1);                                            \
-      name(dst, src2);                                                 \
-    }                                                                  \
-  }
-#define AVX_PACKED_OP3(macro_name, name)                               \
-  AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
-  AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
-
-  AVX_PACKED_OP3(Unpcklps, unpcklps)
-  AVX_PACKED_OP3(Andnps, andnps)
-  AVX_PACKED_OP3(Addps, addps)
-  AVX_PACKED_OP3(Addpd, addpd)
-  AVX_PACKED_OP3(Subps, subps)
-  AVX_PACKED_OP3(Subpd, subpd)
-  AVX_PACKED_OP3(Mulps, mulps)
-  AVX_PACKED_OP3(Mulpd, mulpd)
-  AVX_PACKED_OP3(Divps, divps)
-  AVX_PACKED_OP3(Divpd, divpd)
-  AVX_PACKED_OP3(Cmpeqpd, cmpeqpd)
-  AVX_PACKED_OP3(Cmpneqpd, cmpneqpd)
-  AVX_PACKED_OP3(Cmpltpd, cmpltpd)
-  AVX_PACKED_OP3(Cmpleps, cmpleps)
-  AVX_PACKED_OP3(Cmplepd, cmplepd)
-  AVX_PACKED_OP3(Minps, minps)
-  AVX_PACKED_OP3(Minpd, minpd)
-  AVX_PACKED_OP3(Maxps, maxps)
-  AVX_PACKED_OP3(Maxpd, maxpd)
-  AVX_PACKED_OP3(Cmpunordps, cmpunordps)
-  AVX_PACKED_OP3(Cmpunordpd, cmpunordpd)
-  AVX_PACKED_OP3(Psllw, psllw)
-  AVX_PACKED_OP3(Pslld, pslld)
-  AVX_PACKED_OP3(Psllq, psllq)
-  AVX_PACKED_OP3(Psrlw, psrlw)
-  AVX_PACKED_OP3(Psrld, psrld)
-  AVX_PACKED_OP3(Psrad, psrad)
-  AVX_PACKED_OP3(Paddd, paddd)
-  AVX_PACKED_OP3(Paddq, paddq)
-  AVX_PACKED_OP3(Pmuludq, pmuludq)
-  AVX_PACKED_OP3(Pavgb, pavgb)
-  AVX_PACKED_OP3(Pavgw, pavgw)
-  AVX_PACKED_OP3(Pminub, pminub)
-  AVX_PACKED_OP3(Pmaxub, pmaxub)
-  AVX_PACKED_OP3(Paddusb, paddusb)
-  AVX_PACKED_OP3(Psubusb, psubusb)
-  AVX_PACKED_OP3(Pcmpgtb, pcmpgtb)
-  AVX_PACKED_OP3(Paddb, paddb)
-  AVX_PACKED_OP3(Paddsb, paddsb)
-  AVX_PACKED_OP3(Psubsb, psubsb)
-
-#undef AVX_PACKED_OP3
-
-  AVX_PACKED_OP3_WITH_TYPE(Psllw, psllw, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Pslld, pslld, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psllq, psllq, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psrlw, psrlw, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psrld, psrld, XMMRegister, uint8_t)
-  AVX_PACKED_OP3_WITH_TYPE(Psrad, psrad, XMMRegister, uint8_t)
-
-#undef AVX_PACKED_OP3_WITH_TYPE
+  AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
 
 // Macro for instructions that have 2 operands for AVX version and 1 operand for
 // SSE version. Will move src1 to dst if dst != src1.
@@ -416,35 +327,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   AVX_OP3_WITH_MOVE(Pmaddwd, pmaddwd, XMMRegister, Operand)
 #undef AVX_OP3_WITH_MOVE
 
-#define AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
-                                sse_scope)                            \
-  void macro_name(dst_type dst, dst_type src1, src_type src2) {       \
-    if (CpuFeatures::IsSupported(AVX)) {                              \
-      CpuFeatureScope scope(this, AVX);                               \
-      v##name(dst, src1, src2);                                       \
-      return;                                                         \
-    }                                                                 \
-    if (CpuFeatures::IsSupported(sse_scope)) {                        \
-      CpuFeatureScope scope(this, sse_scope);                         \
-      DCHECK_EQ(dst, src1);                                           \
-      name(dst, src2);                                                \
-      return;                                                         \
-    }                                                                 \
-    UNREACHABLE();                                                    \
-  }
-#define AVX_OP3_XO_SSE4(macro_name, name)                                     \
-  AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE4_1) \
-  AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
-
-  AVX_OP3_WITH_TYPE_SCOPE(Haddps, haddps, XMMRegister, Operand, SSE3)
-  AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
-  AVX_OP3_XO_SSE4(Pminsb, pminsb)
-  AVX_OP3_XO_SSE4(Pmaxsb, pmaxsb)
-  AVX_OP3_XO_SSE4(Pcmpeqq, pcmpeqq)
-
-#undef AVX_OP3_XO_SSE4
-#undef AVX_OP3_WITH_TYPE_SCOPE
-
   // TODO(zhin): Remove after moving more definitions into SharedTurboAssembler.
   void Movlps(Operand dst, XMMRegister src) {
     SharedTurboAssembler::Movlps(dst, src);
@@ -460,16 +342,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
     Pshufb(dst, src, Operand(mask));
   }
   void Pshufb(XMMRegister dst, XMMRegister src, Operand mask);
-
-  void Pblendw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    Pblendw(dst, Operand(src), imm8);
-  }
-  void Pblendw(XMMRegister dst, Operand src, uint8_t imm8);
-
-  void Palignr(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    Palignr(dst, Operand(src), imm8);
-  }
-  void Palignr(XMMRegister dst, Operand src, uint8_t imm8);
 
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
   void Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
