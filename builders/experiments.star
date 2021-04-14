@@ -176,12 +176,6 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
-    caches = [
-        swarming.cache(
-            path = "osx_sdk",
-            name = "osx_sdk",
-        ),
-    ],
     use_goma = GOMA.DEFAULT,
     # infra will be notified until this builder is not broken anymore
     notifies = ["infra"],

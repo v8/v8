@@ -18,7 +18,7 @@ v8_builder(
     name = "V8 iOS - sim",
     bucket = "ci.br.beta",
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "builder_group": "client.v8"},
+    properties = {"$depot_tools/osx_sdk": {"sdk_version": "12a7209"}, "target_platform": "ios", "builder_group": "client.v8"},
     caches = [
         swarming.cache(
             path = "osx_sdk",

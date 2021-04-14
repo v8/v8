@@ -337,24 +337,12 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "mac64", "binary": "d8"}},
-        caches = [
-            swarming.cache(
-                path = "osx_sdk",
-                name = "osx_sdk",
-            ),
-        ],
     ),
     main_multibranch_builder(
         name = "V8 Mac64 - debug",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
-        caches = [
-            swarming.cache(
-                path = "osx_sdk",
-                name = "osx_sdk",
-            ),
-        ],
     ),
 )
 
@@ -377,12 +365,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
-        caches = [
-            swarming.cache(
-                path = "osx_sdk",
-                name = "osx_sdk",
-            ),
-        ],
     ),
 )
 
@@ -451,12 +433,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
-        caches = [
-            swarming.cache(
-                path = "osx_sdk",
-                name = "osx_sdk",
-            ),
-        ],
     ),
     main_multibranch_builder(
         name = "V8 Win64 ASAN",

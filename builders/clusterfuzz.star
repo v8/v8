@@ -50,12 +50,6 @@ in_category(
         ),
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "default_targets": ["v8_clusterfuzz"]},
-        caches = [
-            swarming.cache(
-                path = "osx_sdk",
-                name = "osx_sdk",
-            ),
-        ],
         use_goma = GOMA.DEFAULT,
     ),
     clusterfuzz_builder(
@@ -68,12 +62,6 @@ in_category(
         ),
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "default_targets": ["v8_clusterfuzz"]},
-        caches = [
-            swarming.cache(
-                path = "osx_sdk",
-                name = "osx_sdk",
-            ),
-        ],
         use_goma = GOMA.DEFAULT,
     ),
 )

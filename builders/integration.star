@@ -27,12 +27,6 @@ in_category(
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        caches = [
-            swarming.cache(
-                path = "osx_sdk",
-                name = "osx_sdk",
-            ),
-        ],
         use_goma = GOMA.DEFAULT,
         notifies = ["beta/stable notifier"],
     ),
@@ -139,12 +133,6 @@ in_category(
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        caches = [
-            swarming.cache(
-                path = "osx_sdk",
-                name = "osx_sdk",
-            ),
-        ],
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
