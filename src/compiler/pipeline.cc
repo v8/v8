@@ -1385,7 +1385,7 @@ struct InliningPhase {
     if (data->info()->bailout_on_uninitialized()) {
       call_reducer_flags |= JSCallReducer::kBailoutOnUninitialized;
     }
-    if (FLAG_turbo_inline_js_wasm_calls && data->info()->inlining()) {
+    if (data->info()->inline_js_wasm_calls() && data->info()->inlining()) {
       call_reducer_flags |= JSCallReducer::kInlineJSToWasmCalls;
     }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(), data->broker(),
@@ -2746,7 +2746,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
-    DCHECK(FLAG_turbo_inline_js_wasm_calls);
+    DCHECK(data->info()->inline_js_wasm_calls());
     Run<WasmInliningPhase>();
     RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
   }

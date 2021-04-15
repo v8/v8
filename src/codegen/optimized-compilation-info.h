@@ -71,7 +71,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(TraceHeapBroker, trace_heap_broker, 17)                          \
   V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18) \
   V(ConcurrentInlining, concurrent_inlining, 19)                     \
-  V(DiscardResultForTesting, discard_result_for_testing, 20)
+  V(DiscardResultForTesting, discard_result_for_testing, 20)         \
+  V(InlineJSWasmCalls, inline_js_wasm_calls, 21)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,

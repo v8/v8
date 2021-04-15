@@ -3442,8 +3442,8 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 #if V8_ENABLE_WEBASSEMBLY
 
 namespace {
+
 bool CanInlineJSToWasmCall(const wasm::FunctionSig* wasm_signature) {
-  DCHECK(FLAG_turbo_inline_js_wasm_calls);
   if (wasm_signature->return_count() > 1) {
     return false;
   }
@@ -3460,10 +3460,13 @@ bool CanInlineJSToWasmCall(const wasm::FunctionSig* wasm_signature) {
 
   return true;
 }
+
 }  // namespace
 
 Reduction JSCallReducer::ReduceCallWasmFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DCHECK(flags() & kInlineJSToWasmCalls);
+
   JSCallNode n(node);
   const CallParameters& p = n.Parameters();
 

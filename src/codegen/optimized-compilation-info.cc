@@ -84,6 +84,7 @@ bool OptimizedCompilationInfo::FlagGetIsValid(Flag flag) const {
 
 void OptimizedCompilationInfo::ConfigureFlags() {
   if (FLAG_untrusted_code_mitigations) set_untrusted_code_mitigations();
+  if (FLAG_turbo_inline_js_wasm_calls) set_inline_js_wasm_calls();
 
   switch (code_kind_) {
     case CodeKind::TURBOFAN:

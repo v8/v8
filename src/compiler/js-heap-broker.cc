@@ -2308,8 +2308,8 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
     // owner map if it is different than the current map. This is because
     // {instance_descriptors_} gets set on SerializeOwnDescriptor and otherwise
     // we risk the field owner having a null {instance_descriptors_}.
-    Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
-                                        isolate);
+    Handle<DescriptorArray> descriptors = broker->CanonicalPersistentHandle(
+        map->instance_descriptors(kAcquireLoad));
     if (descriptors->GetDetails(descriptor_index).location() == kField) {
       Handle<Map> owner(map->FindFieldOwner(isolate, descriptor_index),
                         isolate);

@@ -427,8 +427,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     Handle<Map> receiver_map, Handle<Map> map, MaybeHandle<JSObject> holder,
     InternalIndex descriptor, AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate()),
-                                      isolate());
+  Handle<DescriptorArray> descriptors = broker()->CanonicalPersistentHandle(
+      map->instance_descriptors(kAcquireLoad));
   PropertyDetails const details = descriptors->GetDetails(descriptor);
   int index = descriptors->GetFieldIndex(descriptor);
   Representation details_representation = details.representation();

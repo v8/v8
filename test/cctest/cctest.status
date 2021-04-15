@@ -710,6 +710,7 @@
   # crbug.com/v8/11513: Flakily failing due to the additional compile task.
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, FAIL],
   'test-heap/LeakNativeContextViaMapProto': [PASS, FAIL],
+  'test-heap/NewSpaceObjectsInOptimizedCode': [PASS, FAIL],
   'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [PASS, FAIL],
 }], # variant == stress_concurrent_inlining
 
