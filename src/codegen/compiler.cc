@@ -1177,10 +1177,19 @@ Handle<Code> ContinuationForConcurrentOptimization(
   return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
 }
 
+enum class GetOptimizedCodeResultHandling {
+  // Default behavior, i.e. install the result, insert into caches, etc.
+  kDefault,
+  // Used only for stress testing. The compilation result should be discarded.
+  kDiscardForTesting,
+};
+
 MaybeHandle<Code> GetOptimizedCode(
     Handle<JSFunction> function, ConcurrencyMode mode, CodeKind code_kind,
     BytecodeOffset osr_offset = BytecodeOffset::None(),
-    JavaScriptFrame* osr_frame = nullptr) {
+    JavaScriptFrame* osr_frame = nullptr,
+    GetOptimizedCodeResultHandling result_handling =
+        GetOptimizedCodeResultHandling::kDefault) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
   Isolate* isolate = function->GetIsolate();
@@ -1262,6 +1271,10 @@ MaybeHandle<Code> GetOptimizedCode(
                                             has_script, osr_offset, osr_frame));
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
+  if (result_handling == GetOptimizedCodeResultHandling::kDiscardForTesting) {
+    compilation_info->set_discard_result_for_testing();
+  }
+
   // Prepare the job and launch concurrent compilation, or compile now.
   if (mode == ConcurrencyMode::kConcurrent) {
     if (GetOptimizedCodeLater(std::move(job), isolate, compilation_info,
@@ -1278,6 +1291,20 @@ MaybeHandle<Code> GetOptimizedCode(
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
   return {};
+}
+
+// When --stress-concurrent-inlining is enabled, spawn concurrent jobs in
+// addition to non-concurrent compiles to increase coverage in mjsunit tests
+// (where most interesting compiles are non-concurrent). The result of the
+// compilation is thrown out.
+void SpawnDuplicateConcurrentJobForStressTesting(Handle<JSFunction> function,
+                                                 ConcurrencyMode mode,
+                                                 CodeKind code_kind) {
+  DCHECK(FLAG_stress_concurrent_inlining && FLAG_concurrent_recompilation &&
+         mode == ConcurrencyMode::kNotConcurrent);
+  USE(GetOptimizedCode(function, ConcurrencyMode::kConcurrent, code_kind,
+                       BytecodeOffset::None(), nullptr,
+                       GetOptimizedCodeResultHandling::kDiscardForTesting));
 }
 
 bool FailAndClearPendingException(Isolate* isolate) {
@@ -1552,6 +1579,7 @@ void CompileOnBackgroundThread(ParseInfo* parse_info,
   // Character stream shouldn't be used again.
   parse_info->ResetCharacterStream();
 }
+
 }  // namespace
 
 CompilationHandleScope::~CompilationHandleScope() {
@@ -1992,9 +2020,17 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
     CompilerTracer::TraceOptimizeForAlwaysOpt(isolate, function,
                                               CodeKindForTopTier());
 
+    const CodeKind code_kind = CodeKindForTopTier();
+    const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
+
+    if (FLAG_stress_concurrent_inlining && FLAG_concurrent_recompilation &&
+        concurrency_mode == ConcurrencyMode::kNotConcurrent) {
+      SpawnDuplicateConcurrentJobForStressTesting(function, concurrency_mode,
+                                                  code_kind);
+    }
+
     Handle<Code> maybe_code;
-    if (GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent,
-                         CodeKindForTopTier())
+    if (GetOptimizedCode(function, concurrency_mode, code_kind)
             .ToHandle(&maybe_code)) {
       code = maybe_code;
     }
@@ -2090,6 +2126,11 @@ bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
   DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  if (FLAG_stress_concurrent_inlining && FLAG_concurrent_recompilation &&
+      mode == ConcurrencyMode::kNotConcurrent) {
+    SpawnDuplicateConcurrentJobForStressTesting(function, mode, code_kind);
+  }
 
   Handle<Code> code;
   if (!GetOptimizedCode(function, mode, code_kind).ToHandle(&code)) {
@@ -3226,9 +3267,10 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 
   CodeKind code_kind = compilation_info->code_kind();
+  const bool use_result = !compilation_info->discard_result_for_testing();
   const bool should_install_code_on_function =
       !CodeKindIsNativeContextIndependentJSFunction(code_kind);
-  if (should_install_code_on_function) {
+  if (V8_LIKELY(should_install_code_on_function && use_result)) {
     // Reset profiler ticks, function is no longer considered hot.
     compilation_info->closure()->feedback_vector().set_profiler_ticks(0);
   }
@@ -3248,12 +3290,14 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
                                   isolate);
       job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
                                      isolate);
-      InsertCodeIntoOptimizedCodeCache(compilation_info);
-      InsertCodeIntoCompilationCache(isolate, compilation_info);
-      CompilerTracer::TraceCompletedJob(isolate, compilation_info);
-      if (should_install_code_on_function) {
-        compilation_info->closure()->set_code(*compilation_info->code(),
-                                              kReleaseStore);
+      if (V8_LIKELY(use_result)) {
+        InsertCodeIntoOptimizedCodeCache(compilation_info);
+        InsertCodeIntoCompilationCache(isolate, compilation_info);
+        CompilerTracer::TraceCompletedJob(isolate, compilation_info);
+        if (should_install_code_on_function) {
+          compilation_info->closure()->set_code(*compilation_info->code(),
+                                                kReleaseStore);
+        }
       }
       return CompilationJob::SUCCEEDED;
     }
@@ -3261,11 +3305,13 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
 
   DCHECK_EQ(job->state(), CompilationJob::State::kFailed);
   CompilerTracer::TraceAbortedJob(isolate, compilation_info);
-  compilation_info->closure()->set_code(shared->GetCode(), kReleaseStore);
-  // Clear the InOptimizationQueue marker, if it exists.
-  if (!CodeKindIsNativeContextIndependentJSFunction(code_kind) &&
-      compilation_info->closure()->IsInOptimizationQueue()) {
-    compilation_info->closure()->ClearOptimizationMarker();
+  if (V8_LIKELY(use_result)) {
+    compilation_info->closure()->set_code(shared->GetCode(), kReleaseStore);
+    // Clear the InOptimizationQueue marker, if it exists.
+    if (!CodeKindIsNativeContextIndependentJSFunction(code_kind) &&
+        compilation_info->closure()->IsInOptimizationQueue()) {
+      compilation_info->closure()->ClearOptimizationMarker();
+    }
   }
   return CompilationJob::FAILED;
 }

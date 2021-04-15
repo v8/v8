@@ -185,6 +185,7 @@ void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
 }
 
 void OptimizingCompileDispatcher::Stop() {
+  HandleScope handle_scope(isolate_);
   FlushQueues(BlockingBehavior::kBlock, false);
   // At this point the optimizing compiler thread's event loop has stopped.
   // There is no need for a mutex when reading input_queue_length_.
