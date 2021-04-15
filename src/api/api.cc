@@ -9478,7 +9478,21 @@ CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
                                          MaybeLocal<Context> filter_context)
     : mode_(mode),
       max_samples_(max_samples),
-      sampling_interval_us_(sampling_interval_us) {}
+      sampling_interval_us_(sampling_interval_us) {
+  if (!filter_context.IsEmpty()) {
+    Local<Context> local_filter_context = filter_context.ToLocalChecked();
+    filter_context_.Reset(local_filter_context->GetIsolate(),
+                          local_filter_context);
+    filter_context_.SetWeak();
+  }
+}
+
+void* CpuProfilingOptions::raw_filter_context() const {
+  return reinterpret_cast<void*>(
+      i::Context::cast(*Utils::OpenPersistent(filter_context_))
+          .native_context()
+          .address());
+}
 
 void CpuProfiler::Dispose() { delete reinterpret_cast<i::CpuProfiler*>(this); }
 
