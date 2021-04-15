@@ -696,6 +696,12 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin(isolate, name);
 
+    for (int i = 1; i < options.repeat_compile; ++i) {
+      HandleScope handle_scope(isolate);
+      if (CompileString<Script>(isolate, context, source, origin).IsEmpty()) {
+        return false;
+      }
+    }
     Local<Script> script;
     if (!CompileString<Script>(isolate, context, source, origin)
              .ToLocal(&script)) {
@@ -709,6 +715,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
           ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
+    }
+    if (options.compile_only) {
+      return true;
     }
     maybe_result = script->Run(realm);
     if (options.code_cache_options ==
@@ -4057,6 +4066,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
       options.web_snapshot_config = argv[i] + 22;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--compile-only") == 0) {
+      options.compile_only = true;
+      argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--repeat-compile=", 17) == 0) {
+      options.repeat_compile = atoi(argv[i] + 17);
       argv[i] = nullptr;
 #ifdef V8_FUZZILLI
     } else if (strcmp(argv[i], "--no-fuzzilli-enable-builtins-coverage") == 0) {

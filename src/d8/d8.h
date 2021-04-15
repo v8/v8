@@ -403,6 +403,8 @@ class ShellOptions {
       "enable-system-instrumentation", false};
   DisallowReassignment<const char*> web_snapshot_config = {
       "web-snapshot-config", nullptr};
+  DisallowReassignment<bool> compile_only = {"compile-only", false};
+  DisallowReassignment<int> repeat_compile = {"repeat-compile", 1};
 };
 
 class Shell : public i::AllStatic {
