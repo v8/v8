@@ -1869,6 +1869,28 @@ void TurboAssembler::RoundHelper(FPURegister dst, FPURegister src,
       fmv_s(dst, src);
     }
   }
+  {
+    Label not_NaN;
+    UseScratchRegisterScope temps2(this);
+    Register scratch = temps2.Acquire();
+    // According to the wasm spec
+    // (https://webassembly.github.io/spec/core/exec/numerics.html#aux-nans)
+    // if input is canonical NaN, then output is canonical NaN, and if input is
+    // any other NaN, then output is any NaN with most significant bit of
+    // payload is 1. In RISC-V, feq_d will set scratch to 0 if src is a NaN. If
+    // src is not a NaN, branch to the label and do nothing, but if it is,
+    // fmin_d will set dst to the canonical NaN.
+    if (std::is_same<F, double>::value) {
+      feq_d(scratch, src, src);
+      bnez(scratch, &not_NaN);
+      fmin_d(dst, src, src);
+    } else {
+      feq_s(scratch, src, src);
+      bnez(scratch, &not_NaN);
+      fmin_s(dst, src, src);
+    }
+    bind(&not_NaN);
+  }
 
   // If real exponent (i.e., t6 - kFloatExponentBias) is greater than
   // kFloat32MantissaBits, it means the floating-point value has no fractional
@@ -3372,16 +3394,10 @@ void MacroAssembler::PopStackHandler() {
 
 void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
                                         const DoubleRegister src) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Label NotNaN;
-
-  fmv_d(dst, src);
-  feq_d(scratch, src, src);
-  bne(scratch, zero_reg, &NotNaN);
-  RV_li(scratch, 0x7ff8000000000000ULL);  // This is the canonical NaN
-  fmv_d_x(dst, scratch);
-  bind(&NotNaN);
+  // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
+  // become quiet NaNs. We use fsub rather than fadd because fsub preserves -0.0
+  // inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
+  fsub_d(dst, src, kDoubleRegZero);
 }
 
 void TurboAssembler::MovFromFloatResult(const DoubleRegister dst) {

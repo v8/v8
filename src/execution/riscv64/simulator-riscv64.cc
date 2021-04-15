@@ -1066,7 +1066,7 @@ T Simulator::FMaxMinHelper(T a, T b, MaxMinKind kind) {
 
   T result = 0;
   if (std::isnan(a) && std::isnan(b)) {
-    result = a;
+    result = std::numeric_limits<float>::quiet_NaN();
   } else if (std::isnan(a)) {
     result = b;
   } else if (std::isnan(b)) {

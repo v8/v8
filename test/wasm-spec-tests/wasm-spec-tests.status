@@ -104,19 +104,6 @@
   'proposals/multi-value/conversions': [SKIP],
   'proposals/reference-types/conversions': [SKIP],
 
-  'f32': [SKIP],
-  'f64': [SKIP],
-  'proposals/multi-value/f64': [SKIP],
-  'proposals/JS-BigInt-integration/f64': [SKIP],
-  'proposals/JS-BigInt-integration/f32': [SKIP],
-  'proposals/bulk-memory-operations/f32': [SKIP],
-  'proposals/bulk-memory-operations/f64': [SKIP],
-  'proposals/js-types/f32': [SKIP],
-  'proposals/js-types/f64': [SKIP],
-  'proposals/multi-value/f32': [SKIP],
-  'proposals/reference-types/f32': [SKIP],
-  'proposals/reference-types/f64': [SKIP],
-
    # the following all fail w/ symptons captured in issue #166
    'float_exprs': [SKIP],
    'proposals/tail-call/conversions': [SKIP],
