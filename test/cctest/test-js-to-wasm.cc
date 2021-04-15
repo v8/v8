@@ -591,23 +591,25 @@ class FastJSWasmCallTester {
 
   v8::Local<v8::Value> CompileRunWithJSWasmCallNodeObserver(
       const std::string& js_code) {
+    // Note: Make sure to not capture stack locations (e.g. `this`) here since
+    // these lambdas are executed on another thread.
+    const auto test_mode = test_mode_;
     compiler::ModificationObserver js_wasm_call_observer(
         [](const compiler::Node* node) {
           CHECK_EQ(compiler::IrOpcode::kJSCall, node->opcode());
         },
-        [this](const compiler::Node* node,
-               const compiler::ObservableNodeState& old_state)
+        [test_mode](const compiler::Node* node,
+                    const compiler::ObservableNodeState& old_state)
             -> compiler::NodeObserver::Observation {
           if (old_state.opcode() != node->opcode()) {
             CHECK_EQ(compiler::IrOpcode::kJSCall, old_state.opcode());
 
             // JS-to-Wasm inlining is disabled when targeting 32 bits if the
             // Wasm function signature contains an I64.
-            if (test_mode_ == kJSToWasmInliningEnabled) {
-              CHECK_EQ(compiler::IrOpcode::kJSWasmCall, node->opcode());
-            } else {
-              CHECK_EQ(compiler::IrOpcode::kCall, node->opcode());
-            }
+            CHECK_EQ(test_mode == kJSToWasmInliningEnabled
+                         ? compiler::IrOpcode::kJSWasmCall
+                         : compiler::IrOpcode::kCall,
+                     node->opcode());
 
             return compiler::NodeObserver::Observation::kStop;
           }
