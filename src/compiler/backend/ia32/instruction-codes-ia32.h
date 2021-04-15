@@ -118,8 +118,7 @@ namespace compiler {
   V(IA32Peek)                      \
   V(IA32F64x2Splat)                \
   V(F64x2ExtractLane)              \
-  V(SSEF64x2ReplaceLane)           \
-  V(AVXF64x2ReplaceLane)           \
+  V(F64x2ReplaceLane)              \
   V(IA32F64x2Sqrt)                 \
   V(IA32F64x2Add)                  \
   V(IA32F64x2Sub)                  \

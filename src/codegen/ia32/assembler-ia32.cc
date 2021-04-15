@@ -2488,6 +2488,13 @@ void Assembler::movhlps(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movlhps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x16);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::movlps(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
@@ -2977,6 +2984,10 @@ void Assembler::vshufpd(XMMRegister dst, XMMRegister src1, Operand src2,
 
 void Assembler::vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
   vinstr(0x12, dst, src1, src2, kNone, k0F, kWIG);
+}
+
+void Assembler::vmovlhps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+  vinstr(0x16, dst, src1, src2, kNone, k0F, kWIG);
 }
 
 void Assembler::vmovlps(XMMRegister dst, XMMRegister src1, Operand src2) {

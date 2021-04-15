@@ -2394,6 +2394,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                           i.InputUint8(1));
       break;
     }
+    case kX64F64x2ReplaceLane: {
+      __ F64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputDoubleRegister(2), i.InputInt8(1));
+      break;
+    }
     case kX64F64x2Sqrt: {
       __ Sqrtpd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
