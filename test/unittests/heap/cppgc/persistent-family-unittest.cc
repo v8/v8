@@ -933,19 +933,13 @@ namespace {
 
 class TraceCounter final : public GarbageCollected<TraceCounter> {
  public:
-  TraceCounter() : nested_(nullptr) {}
-  explicit TraceCounter(TraceCounter* nested) : nested_(nested) {}
-
   void Trace(cppgc::Visitor* visitor) const {
-    visitor->Trace(nested_);
     trace_calls_++;
   }
 
-  TraceCounter* nested() const { return nested_; }
   size_t trace_calls() const { return trace_calls_; }
 
  private:
-  Member<TraceCounter> nested_;
   mutable size_t trace_calls_ = 0;
 };
 
@@ -964,21 +958,14 @@ size_t DestructionCounter::destructor_calls_;
 TEST_F(PersistentTest, PersistentRetainsObject) {
   Persistent<TraceCounter> trace_counter =
       MakeGarbageCollected<TraceCounter>(GetAllocationHandle());
+  WeakPersistent<TraceCounter> weak_trace_counter(trace_counter.Get());
   EXPECT_EQ(0u, trace_counter->trace_calls());
   PreciseGC();
   size_t saved_trace_count = trace_counter->trace_calls();
   EXPECT_LT(0u, saved_trace_count);
-
-  Persistent<TraceCounter> class_with_member =
-      MakeGarbageCollected<TraceCounter>(
-          GetAllocationHandle(),
-          MakeGarbageCollected<TraceCounter>(GetAllocationHandle()));
-  EXPECT_EQ(0u, class_with_member->nested()->trace_calls());
   PreciseGC();
-  EXPECT_LT(0u, class_with_member->nested()->trace_calls());
   EXPECT_LT(saved_trace_count, trace_counter->trace_calls());
-  USE(trace_counter);
-  USE(class_with_member);
+  EXPECT_TRUE(weak_trace_counter);
 }
 
 TEST_F(PersistentTest, ObjectReclaimedAfterClearedPersistent) {

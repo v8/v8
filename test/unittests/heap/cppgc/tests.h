@@ -76,6 +76,12 @@ class TestWithHeap : public TestWithPlatform {
         "Testing", cppgc::Heap::StackState::kNoHeapPointers);
   }
 
+  void ConservativeGC() {
+    heap_->ForceGarbageCollectionSlow(
+        ::testing::UnitTest::GetInstance()->current_test_info()->name(),
+        "Testing", cppgc::Heap::StackState::kMayContainHeapPointers);
+  }
+
   cppgc::Heap* GetHeap() const { return heap_.get(); }
 
   cppgc::AllocationHandle& GetAllocationHandle() const {

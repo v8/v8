@@ -356,10 +356,6 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
       MarkingConfig::CollectionType::kMajor,
       MarkingConfig::StackState::kNoHeapPointers,
       MarkingConfig::MarkingType::kIncremental};
-  static constexpr MarkingConfig IncrementalConservativeMarkingConfig = {
-      MarkingConfig::CollectionType::kMajor,
-      MarkingConfig::StackState::kMayContainHeapPointers,
-      MarkingConfig::MarkingType::kIncremental};
 
   void FinishSteps(MarkingConfig::StackState stack_state) {
     while (!SingleStep(stack_state)) {
@@ -391,8 +387,6 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
 
 constexpr IncrementalMarkingTest::MarkingConfig
     IncrementalMarkingTest::IncrementalPreciseMarkingConfig;
-constexpr IncrementalMarkingTest::MarkingConfig
-    IncrementalMarkingTest::IncrementalConservativeMarkingConfig;
 
 TEST_F(IncrementalMarkingTest, RootIsMarkedAfterMarkingStarted) {
   Persistent<GCed> root = MakeGarbageCollected<GCed>(GetAllocationHandle());

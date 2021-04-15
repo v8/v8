@@ -94,32 +94,36 @@ TEST_F(GCHeapTest, ObjectPayloadSize) {
   static constexpr size_t kObjectSizes[] = {1, 32, 64, 128,
                                             2 * kLargeObjectSizeThreshold};
 
-  Heap::From(GetHeap())->CollectGarbage(
-      GarbageCollector::Config::ConservativeAtomicConfig());
+  EXPECT_EQ(0u, Heap::From(GetHeap())->ObjectPayloadSize());
 
-  subtle::NoGarbageCollectionScope no_gc(*Heap::From(GetHeap()));
+  {
+    subtle::NoGarbageCollectionScope no_gc(*Heap::From(GetHeap()));
 
-  for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
-    MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[1]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[2]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[3]>>(GetAllocationHandle());
-    MakeGarbageCollected<GCed<kObjectSizes[4]>>(GetAllocationHandle());
+    for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
+      MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetAllocationHandle());
+      MakeGarbageCollected<GCed<kObjectSizes[1]>>(GetAllocationHandle());
+      MakeGarbageCollected<GCed<kObjectSizes[2]>>(GetAllocationHandle());
+      MakeGarbageCollected<GCed<kObjectSizes[3]>>(GetAllocationHandle());
+      MakeGarbageCollected<GCed<kObjectSizes[4]>>(GetAllocationHandle());
+    }
+
+    size_t aligned_object_sizes[arraysize(kObjectSizes)];
+    std::transform(std::cbegin(kObjectSizes), std::cend(kObjectSizes),
+                   std::begin(aligned_object_sizes), [](size_t size) {
+                     return RoundUp(size, kAllocationGranularity);
+                   });
+    const size_t expected_size = std::accumulate(
+        std::cbegin(aligned_object_sizes), std::cend(aligned_object_sizes), 0u,
+        [](size_t acc, size_t size) {
+          return acc + kNumberOfObjectsPerArena * size;
+        });
+    // TODO(chromium:1056170): Change to EXPECT_EQ when proper sweeping is
+    // implemented.
+    EXPECT_LE(expected_size, Heap::From(GetHeap())->ObjectPayloadSize());
   }
 
-  size_t aligned_object_sizes[arraysize(kObjectSizes)];
-  std::transform(std::cbegin(kObjectSizes), std::cend(kObjectSizes),
-                 std::begin(aligned_object_sizes), [](size_t size) {
-                   return RoundUp(size, kAllocationGranularity);
-                 });
-  const size_t expected_size = std::accumulate(
-      std::cbegin(aligned_object_sizes), std::cend(aligned_object_sizes), 0u,
-      [](size_t acc, size_t size) {
-        return acc + kNumberOfObjectsPerArena * size;
-      });
-  // TODO(chromium:1056170): Change to EXPECT_EQ when proper sweeping is
-  // implemented.
-  EXPECT_LE(expected_size, Heap::From(GetHeap())->ObjectPayloadSize());
+  PreciseGC();
+  EXPECT_EQ(0u, Heap::From(GetHeap())->ObjectPayloadSize());
 }
 
 TEST_F(GCHeapTest, AllocateWithAdditionalBytes) {
