@@ -332,6 +332,8 @@ void LiftoffAssembler::SpillInstance(Register instance) {
   mov(liftoff::GetInstanceOperand(), instance);
 }
 
+void LiftoffAssembler::ResetOSRTarget() {}
+
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   mov(dst, liftoff::GetInstanceOperand());
 }
@@ -4909,6 +4911,8 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(esp, Immediate(size));
 }
+
+void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());

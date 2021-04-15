@@ -742,6 +742,7 @@ class LiftoffCompiler {
     // Store the instance parameter to a special stack slot.
     __ SpillInstance(kWasmInstanceRegister);
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
+    if (for_debugging_) __ ResetOSRTarget();
 
     // Process parameters.
     if (num_params) DEBUG_CODE_COMMENT("process parameters");
@@ -909,6 +910,9 @@ class LiftoffCompiler {
       ool->debug_sidetable_entry_builder->set_pc_offset(__ pc_offset());
     }
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check);
+    if (is_stack_check) {
+      MaybeOSR();
+    }
     if (!ool->regs_to_save.is_empty()) __ PopRegisters(ool->regs_to_save);
     if (is_stack_check) {
       if (V8_UNLIKELY(ool->spilled_registers != nullptr)) {
@@ -1046,6 +1050,7 @@ class LiftoffCompiler {
     DefineSafepointWithCalleeSavedRegisters();
     RegisterDebugSideTableEntry(decoder,
                                 DebugSideTableBuilder::kAllowRegisters);
+    MaybeOSR();
   }
 
   void PushControl(Control* block) {
@@ -1181,6 +1186,7 @@ class LiftoffCompiler {
       if (depth == decoder->control_depth() - 1) {
         // Delegate to the caller, do not emit a landing pad.
         Rethrow(decoder, __ cache_state()->stack_state.back());
+        MaybeOSR();
       } else {
         DCHECK(target->is_incomplete_try());
         if (!target->try_info->catch_reached) {
@@ -1201,7 +1207,9 @@ class LiftoffCompiler {
     int index = try_block->try_info->catch_state.stack_height() - 1;
     auto& exception = __ cache_state()->stack_state[index];
     Rethrow(decoder, exception);
-    EmitLandingPad(decoder);
+    int pc_offset = __ pc_offset();
+    MaybeOSR();
+    EmitLandingPad(decoder, pc_offset);
   }
 
   void CatchAll(FullDecoder* decoder, Control* block) {
@@ -4057,10 +4065,9 @@ class LiftoffCompiler {
     DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(exception));
   }
 
-  void EmitLandingPad(FullDecoder* decoder) {
+  void EmitLandingPad(FullDecoder* decoder, int handler_offset) {
     if (current_catch_ == -1) return;
     MovableLabel handler;
-    int handler_offset = __ pc_offset();
 
     // If we return from the throwing code normally, just skip over the handler.
     Label skip_handler;
@@ -4105,6 +4112,7 @@ class LiftoffCompiler {
                     {LiftoffAssembler::VarState{
                         kSmiKind, LiftoffRegister{encoded_size_reg}, 0}},
                     decoder->position());
+    MaybeOSR();
 
     // The FixedArray for the exception values is now in the first gp return
     // register.
@@ -4139,7 +4147,9 @@ class LiftoffCompiler {
                      LiftoffAssembler::VarState{kPointerKind, values_array, 0}},
                     decoder->position());
 
-    EmitLandingPad(decoder);
+    int pc_offset = __ pc_offset();
+    MaybeOSR();
+    EmitLandingPad(decoder, pc_offset);
   }
 
   void AtomicStoreMem(FullDecoder* decoder, StoreType type,
@@ -5429,6 +5439,7 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallIndirect(sig, call_descriptor, target);
+        FinishCall(decoder, sig, call_descriptor);
       }
     } else {
       // A direct call within this module just gets the current instance.
@@ -5446,14 +5457,8 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallNativeWasmCode(addr);
+        FinishCall(decoder, sig, call_descriptor);
       }
-    }
-
-    if (!tail_call) {
-      DefineSafepoint();
-      RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
-      EmitLandingPad(decoder);
-      __ FinishCall(sig, call_descriptor);
     }
   }
 
@@ -5619,10 +5624,7 @@ class LiftoffCompiler {
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(sig, call_descriptor, target);
 
-      DefineSafepoint();
-      RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
-      EmitLandingPad(decoder);
-      __ FinishCall(sig, call_descriptor);
+      FinishCall(decoder, sig, call_descriptor);
     }
   }
 
@@ -5820,10 +5822,7 @@ class LiftoffCompiler {
           __ pc_offset(), SourcePosition(decoder->position()), true);
       __ CallIndirect(sig, call_descriptor, target_reg);
 
-      DefineSafepoint();
-      RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
-      EmitLandingPad(decoder);
-      __ FinishCall(sig, call_descriptor);
+      FinishCall(decoder, sig, call_descriptor);
     }
   }
 
@@ -5946,6 +5945,22 @@ class LiftoffCompiler {
     __ emit_i32_subi(tmp.gp(), tmp.gp(), WASM_ARRAY_TYPE);
     __ emit_i32_cond_jumpi(kUnsignedGreaterThan, not_data_ref, tmp.gp(),
                            WASM_STRUCT_TYPE - WASM_ARRAY_TYPE);
+  }
+
+  void MaybeOSR() {
+    if (V8_UNLIKELY(for_debugging_)) {
+      __ MaybeOSR();
+    }
+  }
+
+  void FinishCall(FullDecoder* decoder, ValueKindSig* sig,
+                  compiler::CallDescriptor* call_descriptor) {
+    DefineSafepoint();
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    int pc_offset = __ pc_offset();
+    MaybeOSR();
+    EmitLandingPad(decoder, pc_offset);
+    __ FinishCall(sig, call_descriptor);
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;

@@ -3529,6 +3529,13 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ jmp(&compile_wrapper_done);
 }
 
+void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
+  MemOperand OSRTargetSlot(rbp, -wasm::kOSRTargetOffset);
+  __ movq(kScratchRegister, OSRTargetSlot);
+  __ movq(OSRTargetSlot, Immediate(0));
+  __ jmp(kScratchRegister);
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,

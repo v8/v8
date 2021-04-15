@@ -1281,6 +1281,18 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
     StackFrame* const frame = it.frame();
     if (frame->type() != StackFrame::WASM) continue;
     live_wasm_code.insert(WasmFrame::cast(frame)->wasm_code());
+#if V8_TARGET_ARCH_X64
+    if (WasmFrame::cast(frame)->wasm_code()->for_debugging()) {
+      Address osr_target = base::Memory<Address>(WasmFrame::cast(frame)->fp() -
+                                                 kOSRTargetOffset);
+      if (osr_target) {
+        WasmCode* osr_code =
+            isolate->wasm_engine()->code_manager()->LookupCode(osr_target);
+        DCHECK_NOT_NULL(osr_code);
+        live_wasm_code.insert(osr_code);
+      }
+    }
+#endif
   }
 
   CheckNoArchivedThreads(isolate);

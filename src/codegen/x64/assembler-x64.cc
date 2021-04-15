@@ -1414,12 +1414,13 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
 }
 
 void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
+  DCHECK(RelocInfo::IsWasmStubCall(rmode));
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
   emit(0x0F);
   emit(0x80 | cc);
-  emit_runtime_entry(entry, rmode);
+  RecordRelocInfo(rmode);
+  emitl(static_cast<int32_t>(entry));
 }
 
 void Assembler::j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode) {

@@ -863,6 +863,7 @@ namespace internal {
   IF_WASM(ASM, GenericJSToWasmWrapper, Dummy)                                  \
   IF_WASM(ASM, WasmCompileLazy, Dummy)                                         \
   IF_WASM(ASM, WasmDebugBreak, Dummy)                                          \
+  IF_WASM(ASM, WasmOnStackReplace, Dummy)                                      \
   IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \
   IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToNumber)                       \
   IF_WASM(TFC, WasmI32AtomicWait32, WasmI32AtomicWait32)                       \

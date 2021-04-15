@@ -70,6 +70,8 @@ inline Operand GetStackSlot(int offset) { return Operand(rbp, -offset); }
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
+inline Operand GetOSRTargetSlot() { return GetStackSlot(kOSRTargetOffset); }
+
 inline Operand GetMemOp(LiftoffAssembler* assm, Register addr, Register offset,
                         uintptr_t offset_imm) {
   if (is_uint31(offset_imm)) {
@@ -249,7 +251,7 @@ void LiftoffAssembler::AbortCompilation() {}
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kInstanceOffset;
+  return kOSRTargetOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
@@ -320,6 +322,10 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
 
 void LiftoffAssembler::SpillInstance(Register instance) {
   movq(liftoff::GetInstanceOperand(), instance);
+}
+
+void LiftoffAssembler::ResetOSRTarget() {
+  movq(liftoff::GetOSRTargetSlot(), Immediate(0));
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
@@ -4422,6 +4428,12 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   addq(rsp, Immediate(size));
+}
+
+void LiftoffAssembler::MaybeOSR() {
+  cmpq(liftoff::GetOSRTargetSlot(), Immediate(0));
+  j(not_equal, static_cast<Address>(WasmCode::kWasmOnStackReplace),
+    RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {
