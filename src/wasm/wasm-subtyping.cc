@@ -435,13 +435,6 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
                            module2);
 }
 
-ValueType CommonSubtype(ValueType a, ValueType b, const WasmModule* module) {
-  if (a == b) return a;
-  if (IsSubtypeOf(a, b, module)) return a;
-  if (IsSubtypeOf(b, a, module)) return b;
-  return kWasmBottom;
-}
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

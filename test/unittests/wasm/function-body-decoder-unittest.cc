@@ -2644,6 +2644,29 @@ TEST_F(FunctionBodyDecoderTest, BrTable2b) {
                       WASM_I32V_2(67), 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
+TEST_F(FunctionBodyDecoderTest, BrTableSubtyping) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  byte supertype1 = builder.AddStruct({F(kWasmI8, true), F(kWasmI16, false)});
+  byte supertype2 = builder.AddStruct({F(kWasmI8, true)});
+  byte subtype = builder.AddStruct(
+      {F(kWasmI8, true), F(kWasmI16, false), F(kWasmI32, true)});
+  module = builder.module();
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_R(
+           wasm::ValueType::Ref(supertype1, kNonNullable),
+           WASM_BLOCK_R(
+               wasm::ValueType::Ref(supertype2, kNonNullable),
+               WASM_STRUCT_NEW_DEFAULT(subtype, WASM_RTT_CANON(subtype)),
+               WASM_BR_TABLE(WASM_I32V(5), 1, BR_TARGET(0), BR_TARGET(1))),
+           WASM_UNREACHABLE),
+       WASM_DROP});
+}
+
 TEST_F(FunctionBodyDecoderTest, BrTable_off_end) {
   static byte code[] = {B1(WASM_BR_TABLE(WASM_LOCAL_GET(0), 0, BR_TARGET(0)))};
   for (size_t len = 1; len < sizeof(code); len++) {

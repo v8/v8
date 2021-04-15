@@ -93,12 +93,6 @@ V8_INLINE bool IsHeapSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
                      ValueType::Ref(supertype_index, kNonNullable), module);
 }
 
-// Returns the weakest type that is a subtype of both a and b
-// (which is currently always one of a, b, or kWasmBottom).
-// TODO(manoskouk): Update this once we have settled on a type system for
-// reference types.
-ValueType CommonSubtype(ValueType a, ValueType b, const WasmModule* module);
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
