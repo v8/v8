@@ -126,26 +126,16 @@ class BaselineCompiler {
                        Label::Distance distance = Label::kFar);
 
   // Call helpers.
-  template <typename... Args>
-  void CallBuiltin(Builtins::Name builtin, Args... args);
+  template <Builtins::Name kBuiltin, typename... Args>
+  void CallBuiltin(Args... args);
   template <typename... Args>
   void CallRuntime(Runtime::FunctionId function, Args... args);
 
-  template <typename... Args>
-  void TailCallBuiltin(Builtins::Name builtin, Args... args);
+  template <Builtins::Name kBuiltin, typename... Args>
+  void TailCallBuiltin(Args... args);
 
-  void BuildBinop(
-      Builtins::Name builtin_name, bool fast_path = false,
-      bool check_overflow = false,
-      std::function<void(Register, Register)> instruction = [](Register,
-                                                               Register) {});
-  void BuildUnop(Builtins::Name builtin_name);
-  void BuildCompare(Builtins::Name builtin_name);
-  void BuildBinopWithConstant(Builtins::Name builtin_name);
-
-  template <typename... Args>
-  void BuildCall(ConvertReceiverMode mode, uint32_t slot, uint32_t arg_count,
-                 Args... args);
+  template <ConvertReceiverMode kMode, typename... Args>
+  void BuildCall(uint32_t slot, uint32_t arg_count, Args... args);
 
 #ifdef V8_TRACE_UNOPTIMIZED
   void TraceBytecode(Runtime::FunctionId function_id);

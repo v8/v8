@@ -19,7 +19,7 @@
 #include "src/codegen/external-reference.h"
 #include "src/codegen/ia32/assembler-ia32.h"
 #include "src/codegen/ia32/register-ia32.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/label.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register.h"

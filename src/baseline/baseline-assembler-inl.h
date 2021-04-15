@@ -14,6 +14,7 @@
 #include <unordered_map>
 
 #include "src/baseline/baseline-assembler.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/js-function.h"

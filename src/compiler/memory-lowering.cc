@@ -4,7 +4,7 @@
 
 #include "src/compiler/memory-lowering.h"
 
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/external-pointer.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
