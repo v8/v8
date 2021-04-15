@@ -1533,44 +1533,37 @@ template("run_torque") {
 
     destination_folder = "$target_gen_dir/torque-generated$suffix"
 
-    files = [
-      "$target_gen_dir/torque-generated/bit-fields.h",
-      "$target_gen_dir/torque-generated/builtin-definitions.h",
-      "$target_gen_dir/torque-generated/class-debug-readers.cc",
-      "$target_gen_dir/torque-generated/class-debug-readers.h",
-      "$target_gen_dir/torque-generated/class-forward-declarations.h",
-      "$target_gen_dir/torque-generated/class-verifiers.cc",
-      "$target_gen_dir/torque-generated/class-verifiers.h",
-      "$target_gen_dir/torque-generated/csa-types.h",
-      "$target_gen_dir/torque-generated/debug-macros.cc",
-      "$target_gen_dir/torque-generated/debug-macros.h",
-      "$target_gen_dir/torque-generated/enum-verifiers.cc",
-      "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
-      "$target_gen_dir/torque-generated/exported-macros-assembler.h",
-      "$target_gen_dir/torque-generated/factory.cc",
-      "$target_gen_dir/torque-generated/factory.inc",
-      "$target_gen_dir/torque-generated/field-offsets.h",
-      "$target_gen_dir/torque-generated/instance-types.h",
-      "$target_gen_dir/torque-generated/interface-descriptors.inc",
-      "$target_gen_dir/torque-generated/objects-body-descriptors-inl.inc",
-      "$target_gen_dir/torque-generated/objects-printer.cc",
+    outputs = [
+      "$destination_folder/bit-fields.h",
+      "$destination_folder/builtin-definitions.h",
+      "$destination_folder/class-debug-readers.cc",
+      "$destination_folder/class-debug-readers.h",
+      "$destination_folder/class-forward-declarations.h",
+      "$destination_folder/class-verifiers.cc",
+      "$destination_folder/class-verifiers.h",
+      "$destination_folder/csa-types.h",
+      "$destination_folder/debug-macros.cc",
+      "$destination_folder/debug-macros.h",
+      "$destination_folder/enum-verifiers.cc",
+      "$destination_folder/exported-macros-assembler.cc",
+      "$destination_folder/exported-macros-assembler.h",
+      "$destination_folder/factory.cc",
+      "$destination_folder/factory.inc",
+      "$destination_folder/field-offsets.h",
+      "$destination_folder/instance-types.h",
+      "$destination_folder/interface-descriptors.inc",
+      "$destination_folder/objects-body-descriptors-inl.inc",
+      "$destination_folder/objects-printer.cc",
     ]
-
-    outputs = []
-    foreach(file, files) {
-      outputs += [ string_replace(file,
-                                  "$target_gen_dir/torque-generated",
-                                  destination_folder) ]
-    }
 
     foreach(file, torque_files) {
       filetq = string_replace(file, ".tq", "-tq")
       outputs += [
-        "$target_gen_dir/torque-generated/$filetq-csa.cc",
-        "$target_gen_dir/torque-generated/$filetq-csa.h",
-        "$target_gen_dir/torque-generated/$filetq-inl.inc",
-        "$target_gen_dir/torque-generated/$filetq.cc",
-        "$target_gen_dir/torque-generated/$filetq.inc",
+        "$destination_folder/$filetq-csa.cc",
+        "$destination_folder/$filetq-csa.h",
+        "$destination_folder/$filetq-inl.inc",
+        "$destination_folder/$filetq.cc",
+        "$destination_folder/$filetq.inc",
       ]
     }
 
