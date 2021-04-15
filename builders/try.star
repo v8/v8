@@ -184,6 +184,15 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux_vtunejit",
+    bucket = "try",
+    cq_properties = {"cancel_stale": False, "includable_only": "true"},
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    gclient_vars = [GCLIENT_VARS.ITTAPI],
+    use_goma = GOMA.DEFAULT,
+)
+
+try_builder(
     name = "v8_mac_arm64_compile_rel",
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
