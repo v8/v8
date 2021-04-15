@@ -3630,9 +3630,6 @@ class V8_EXPORT Symbol : public Name {
   Local<Value> Description() const;
   Local<Value> Description(Isolate* isolate) const;
 
-  V8_DEPRECATED("Use Symbol::Description()")
-  Local<Value> Name() const { return Description(); }
-
   /**
    * Create a symbol. If description is not empty, it will be used as the
    * description.
