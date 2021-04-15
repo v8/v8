@@ -29,6 +29,24 @@ void SharedTurboAssembler::Movapd(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void SharedTurboAssembler::F64x2ExtractLane(DoubleRegister dst, XMMRegister src,
+                                            uint8_t lane) {
+  if (lane == 0) {
+    if (dst != src) {
+      Movaps(dst, src);
+    }
+  } else {
+    DCHECK_EQ(1, lane);
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      // Pass src as operand to avoid false-dependency on dst.
+      vmovhlps(dst, src, src);
+    } else {
+      movhlps(dst, src);
+    }
+  }
+}
+
 void SharedTurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
                                            uint8_t laneidx) {
   if (laneidx == 0) {

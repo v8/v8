@@ -1866,38 +1866,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F64x2Splat: {
-      XMMRegister dst = i.OutputDoubleRegister();
-      XMMRegister src = i.InputDoubleRegister(0);
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vshufpd(i.OutputSimd128Register(), src, src, 0x0);
-      } else {
-        DCHECK_EQ(dst, src);
-        __ shufpd(dst, src, 0x0);
-      }
+      __ Movddup(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;
     }
-    case kSSEF64x2ExtractLane: {
-      DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      XMMRegister dst = i.OutputDoubleRegister();
-      int8_t lane = i.InputInt8(1);
-      if (lane != 0) {
-        DCHECK_EQ(lane, 1);
-        __ shufpd(dst, dst, lane);
-      }
-      break;
-    }
-    case kAVXF64x2ExtractLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister dst = i.OutputDoubleRegister();
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t lane = i.InputInt8(1);
-      if (lane == 0) {
-        if (dst != src) __ vmovapd(dst, src);
-      } else {
-        DCHECK_EQ(lane, 1);
-        __ vshufpd(dst, src, src, lane);
-      }
+    case kF64x2ExtractLane: {
+      __ F64x2ExtractLane(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                          i.InputUint8(1));
       break;
     }
     case kSSEF64x2ReplaceLane: {
