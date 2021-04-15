@@ -64,8 +64,6 @@ bool OptimizedCompilationInfo::FlagSetIsValid(Flag flag) const {
   switch (flag) {
     case kPoisonRegisterArguments:
       return untrusted_code_mitigations();
-    case kFunctionContextSpecializing:
-      return !IsNativeContextIndependent();
     default:
       return true;
   }
@@ -94,7 +92,6 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       }
       V8_FALLTHROUGH;
     case CodeKind::TURBOPROP:
-    case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
       set_called_with_code_start_register();
       set_switch_jump_table();
       if (FLAG_turbo_splitting) set_splitting();

@@ -72,7 +72,8 @@ class BytecodeGraphBuilder {
 
   CodeKind code_kind() const { return code_kind_; }
   bool native_context_independent() const {
-    return CodeKindIsNativeContextIndependentJSFunction(code_kind_);
+    // TODO(jgruber,v8:8888): Remove dependent code.
+    return false;
   }
   bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
   bool generate_full_feedback_collection() const {

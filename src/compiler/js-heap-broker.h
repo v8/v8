@@ -106,7 +106,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
   bool is_isolate_bootstrapping() const { return is_isolate_bootstrapping_; }
   bool is_native_context_independent() const {
-    return code_kind_ == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+    // TODO(jgruber,v8:8888): Remove dependent code.
+    return false;
   }
   bool generate_full_feedback_collection() const {
     // NCI code currently collects full feedback.

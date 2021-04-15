@@ -913,8 +913,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
   const bool print_code =
       FLAG_print_code ||
       (info->IsOptimizing() && FLAG_print_opt_code &&
-       info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)) ||
-      (info->IsNativeContextIndependent() && FLAG_print_nci_code);
+       info->shared_info()->PassesFilter(FLAG_print_opt_code_filter));
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
@@ -1170,14 +1169,13 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }
 
-  if (!FLAG_always_opt && !compilation_info()->IsNativeContextIndependent()) {
+  if (!FLAG_always_opt) {
     compilation_info()->set_bailout_on_uninitialized();
   }
   if (FLAG_turbo_loop_peeling) {
     compilation_info()->set_loop_peeling();
   }
-  if (FLAG_turbo_inlining && !compilation_info()->IsTurboprop() &&
-      !compilation_info()->IsNativeContextIndependent()) {
+  if (FLAG_turbo_inlining && !compilation_info()->IsTurboprop()) {
     compilation_info()->set_inlining();
   }
 
@@ -1199,13 +1197,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   // Determine whether to specialize the code for the function's context.
   // We can't do this in the case of OSR, because we want to cache the
   // generated code on the native context keyed on SharedFunctionInfo.
-  // We also can't do this for native context independent code (yet).
   // TODO(mythria): Check if it is better to key the OSR cache on JSFunction and
   // allow context specialization for OSR code.
   if (compilation_info()->closure()->raw_feedback_cell().map() ==
           ReadOnlyRoots(isolate).one_closure_cell_map() &&
       !compilation_info()->is_osr() &&
-      !compilation_info()->IsNativeContextIndependent() &&
       !compilation_info()->IsTurboprop()) {
     compilation_info()->set_function_context_specializing();
     data_.ChooseSpecializationContext();
@@ -1421,10 +1417,8 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
-    if (!data->info()->IsNativeContextIndependent()) {
-      AddReducer(data, &graph_reducer, &native_context_specialization);
-      AddReducer(data, &graph_reducer, &context_specialization);
-    }
+    AddReducer(data, &graph_reducer, &native_context_specialization);
+    AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &call_reducer);
     if (data->info()->inlining()) {
@@ -1598,9 +1592,7 @@ struct TypedLoweringPhase {
                                          data->machine(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
 
-    if (!data->info()->IsNativeContextIndependent()) {
-      AddReducer(data, &graph_reducer, &create_lowering);
-    }
+    AddReducer(data, &graph_reducer, &create_lowering);
     AddReducer(data, &graph_reducer, &constant_folding_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &typed_optimization);

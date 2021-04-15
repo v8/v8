@@ -610,7 +610,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           }
           return BUILTIN;
         case CodeKind::TURBOFAN:
-        case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
         case CodeKind::TURBOPROP:
           return OPTIMIZED;
         case CodeKind::BASELINE:
