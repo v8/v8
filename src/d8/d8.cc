@@ -333,11 +333,6 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
 v8::Platform* g_default_platform;
 std::unique_ptr<v8::Platform> g_platform;
 
-static Local<Value> Throw(Isolate* isolate, const char* message) {
-  return isolate->ThrowException(v8::Exception::Error(
-      String::NewFromUtf8(isolate, message).ToLocalChecked()));
-}
-
 static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
                                      Local<Context> context,
                                      Local<v8::Object> object,
@@ -355,13 +350,13 @@ static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
 std::shared_ptr<Worker> GetWorkerFromInternalField(Isolate* isolate,
                                                    Local<Object> object) {
   if (object->InternalFieldCount() != 1) {
-    Throw(isolate, "this is not a Worker");
+    isolate->ThrowError("this is not a Worker");
     return nullptr;
   }
 
   i::Handle<i::Object> handle = Utils::OpenHandle(*object->GetInternalField(0));
   if (handle->IsSmi()) {
-    Throw(isolate, "Worker is defunct because main thread is terminating");
+    isolate->ThrowError("Worker is defunct because main thread is terminating");
     return nullptr;
   }
   auto managed = i::Handle<i::Managed<Worker>>::cast(handle);
@@ -737,7 +732,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     if (options.web_snapshot_config) {
       std::vector<std::string> exports;
       if (!ReadLines(options.web_snapshot_config, exports)) {
-        Throw(isolate, "Web snapshots: unable to read config");
+        isolate->ThrowError("Web snapshots: unable to read config");
         CHECK(try_catch.HasCaught());
         ReportException(isolate, &try_catch);
         return false;
@@ -974,7 +969,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       CHECK(specifier_it != d->module_to_specifier_map.end());
       msg += "\n    imported by " + specifier_it->second;
     }
-    Throw(isolate, msg.c_str());
+    isolate->ThrowError(
+        v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
     return MaybeLocal<Module>();
   }
   ScriptOrigin origin(
@@ -1033,7 +1029,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
             context, import_assertions, true);
 
     if (request_module_type == ModuleType::kInvalid) {
-      Throw(isolate, "Invalid module type was asserted");
+      isolate->ThrowError("Invalid module type was asserted");
       return MaybeLocal<Module>();
     }
 
@@ -1220,7 +1216,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   try_catch.SetVerbose(true);
 
   if (module_type == ModuleType::kInvalid) {
-    Throw(isolate, "Invalid module type was asserted");
+    isolate->ThrowError("Invalid module type was asserted");
     CHECK(try_catch.HasCaught());
     resolver->Reject(realm, try_catch.Exception()).ToChecked();
     return;
@@ -1367,7 +1363,7 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   std::unique_ptr<uint8_t[]> snapshot_data(
       reinterpret_cast<uint8_t*>(ReadChars(absolute_path.c_str(), &length)));
   if (length == 0) {
-    Throw(isolate, "Error reading the web snapshot");
+    isolate->ThrowError("Error reading the web snapshot");
     DCHECK(try_catch.HasCaught());
     ReportException(isolate, &try_catch);
     return false;
@@ -1509,14 +1505,14 @@ int PerIsolateData::RealmFind(Local<Context> context) {
 int PerIsolateData::RealmIndexOrThrow(
     const v8::FunctionCallbackInfo<v8::Value>& args, int arg_offset) {
   if (args.Length() < arg_offset || !args[arg_offset]->IsNumber()) {
-    Throw(args.GetIsolate(), "Invalid argument");
+    args.GetIsolate()->ThrowError("Invalid argument");
     return -1;
   }
   int index = args[arg_offset]
                   ->Int32Value(args.GetIsolate()->GetCurrentContext())
                   .FromMaybe(-1);
   if (index < 0 || index >= realm_count_ || realms_[index].IsEmpty()) {
-    Throw(args.GetIsolate(), "Invalid realm index");
+    args.GetIsolate()->ThrowError("Invalid realm index");
     return -1;
   }
   return index;
@@ -1574,7 +1570,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   if (args.Length() < 1 || !args[0]->IsObject()) {
-    Throw(args.GetIsolate(), "Invalid argument");
+    args.GetIsolate()->ThrowError("Invalid argument");
     return;
   }
   Local<Object> object =
@@ -1586,7 +1582,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<Context> creation_context;
   if (!object->GetCreationContext().ToLocal(&creation_context)) {
-    Throw(args.GetIsolate(), "object doesn't have creation context");
+    args.GetIsolate()->ThrowError("object doesn't have creation context");
     return;
   }
   int index = data->RealmFind(creation_context);
@@ -1670,7 +1666,7 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    Throw(args.GetIsolate(), "Invalid realm index");
+    args.GetIsolate()->ThrowError("Invalid realm index");
     return;
   }
 
@@ -1699,7 +1695,7 @@ void Shell::RealmDetachGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    Throw(args.GetIsolate(), "Invalid realm index");
+    args.GetIsolate()->ThrowError("Invalid realm index");
     return;
   }
 
@@ -1716,7 +1712,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   if (index == 0 || index == data->realm_current_ ||
       index == data->realm_switch_) {
-    Throw(args.GetIsolate(), "Invalid realm index");
+    args.GetIsolate()->ThrowError("Invalid realm index");
     return;
   }
   DisposeRealm(args, index);
@@ -1738,7 +1734,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int index = data->RealmIndexOrThrow(args, 0);
   if (index == -1) return;
   if (args.Length() < 2 || !args[1]->IsString()) {
-    Throw(args.GetIsolate(), "Invalid argument");
+    args.GetIsolate()->ThrowError("Invalid argument");
     return;
   }
   ScriptOrigin origin(isolate,
@@ -1789,18 +1785,18 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   std::string file_name = i_isolate->logger()->file_name();
   if (!i::Log::IsLoggingToTemporaryFile(file_name)) {
-    Throw(isolate, "Only capturing from temporary files is supported.");
+    isolate->ThrowError("Only capturing from temporary files is supported.");
     return;
   }
   if (!i_isolate->logger()->is_logging()) {
-    Throw(isolate, "Logging not enabled.");
+    isolate->ThrowError("Logging not enabled.");
     return;
   }
 
   std::string raw_log;
   FILE* log_file = i_isolate->logger()->TearDownAndGetLogFile();
   if (!log_file) {
-    Throw(isolate, "Log file does not exist.");
+    isolate->ThrowError("Log file does not exist.");
     return;
   }
 
@@ -1809,7 +1805,7 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   base::Fclose(log_file);
 
   if (!exists) {
-    Throw(isolate, "Unable to read log file.");
+    isolate->ThrowError("Unable to read log file.");
     return;
   }
   Local<String> result =
@@ -1825,13 +1821,13 @@ void Shell::TestVerifySourcePositions(
   Isolate* isolate = args.GetIsolate();
   // Check if the argument is a valid function.
   if (args.Length() != 1) {
-    Throw(isolate, "Expected function as single argument.");
+    isolate->ThrowError("Expected function as single argument.");
     return;
   }
   auto arg_handle = Utils::OpenHandle(*args[0]);
   if (!arg_handle->IsHeapObject() || !i::Handle<i::HeapObject>::cast(arg_handle)
                                           ->IsJSFunctionOrBoundFunction()) {
-    Throw(isolate, "Expected function as single argument.");
+    isolate->ThrowError("Expected function as single argument.");
     return;
   }
 
@@ -1848,7 +1844,7 @@ void Shell::TestVerifySourcePositions(
 
   i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(callable);
   if (!function->shared().HasBytecodeArray()) {
-    Throw(isolate, "Function has no BytecodeArray attached.");
+    isolate->ThrowError("Function has no BytecodeArray attached.");
     return;
   }
   i::Handle<i::BytecodeArray> bytecodes =
@@ -1874,7 +1870,7 @@ void Shell::TestVerifySourcePositions(
     if (has_baseline) {
       if (offset_iterator->current_bytecode_offset() !=
           bytecode_iterator.current_offset()) {
-        Throw(isolate, "Baseline bytecode offset mismatch.");
+        isolate->ThrowError("Baseline bytecode offset mismatch.");
         return;
       }
       // Check that we map every address to this bytecode correctly.
@@ -1886,7 +1882,8 @@ void Shell::TestVerifySourcePositions(
         pc_lookup.AdvanceToPCOffset(pc);
         if (pc_lookup.current_bytecode_offset() !=
             bytecode_iterator.current_offset()) {
-          Throw(isolate, "Baseline bytecode offset mismatch for PC lookup.");
+          isolate->ThrowError(
+              "Baseline bytecode offset mismatch for PC lookup.");
           return;
         }
       }
@@ -1894,14 +1891,14 @@ void Shell::TestVerifySourcePositions(
     bytecode_iterator.Advance();
     if (has_baseline && !bytecode_iterator.done()) {
       if (offset_iterator->done()) {
-        Throw(isolate, "Missing bytecode(s) in baseline offset mapping.");
+        isolate->ThrowError("Missing bytecode(s) in baseline offset mapping.");
         return;
       }
       offset_iterator->Advance();
     }
   }
   if (has_baseline && !offset_iterator->done()) {
-    Throw(isolate, "Excess offsets in baseline offset mapping.");
+    isolate->ThrowError("Excess offsets in baseline offset mapping.");
     return;
   }
 }
@@ -1987,7 +1984,7 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value file(args.GetIsolate(), args[0]);
   if (*file == nullptr) {
-    Throw(args.GetIsolate(), "Error loading file");
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
   if (args.Length() == 2) {
@@ -1999,7 +1996,7 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<String> source = ReadFile(args.GetIsolate(), *file);
   if (source.IsEmpty()) {
-    Throw(args.GetIsolate(), "Error loading file");
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
   args.GetReturnValue().Set(source);
@@ -2047,12 +2044,12 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     HandleScope handle_scope(args.GetIsolate());
     String::Utf8Value file(args.GetIsolate(), args[i]);
     if (*file == nullptr) {
-      Throw(args.GetIsolate(), "Error loading file");
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     Local<String> source = ReadFile(args.GetIsolate(), *file);
     if (source.IsEmpty()) {
-      Throw(args.GetIsolate(), "Error loading file");
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     if (!ExecuteString(
@@ -2061,7 +2058,7 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
             kNoPrintResult,
             options.quiet_load ? kNoReportExceptions : kReportExceptions,
             kNoProcessMessageQueue)) {
-      Throw(args.GetIsolate(), "Error executing file");
+      args.GetIsolate()->ThrowError("Error executing file");
       return;
     }
   }
@@ -2124,7 +2121,7 @@ bool FunctionAndArgumentsToString(Local<Function> function,
       function->FunctionProtoToString(context);
   Local<String> function_string;
   if (!maybe_function_string.ToLocal(&function_string)) {
-    Throw(isolate, "Failed to convert function to string");
+    isolate->ThrowError("Failed to convert function to string");
     return false;
   }
   *source = String::NewFromUtf8Literal(isolate, "(");
@@ -2133,7 +2130,7 @@ bool FunctionAndArgumentsToString(Local<Function> function,
   *source = String::Concat(isolate, *source, middle);
   if (!arguments.IsEmpty() && !arguments->IsUndefined()) {
     if (!arguments->IsArray()) {
-      Throw(isolate, "'arguments' must be an array");
+      isolate->ThrowError("'arguments' must be an array");
       return false;
     }
     Local<String> comma = String::NewFromUtf8Literal(isolate, ",");
@@ -2145,12 +2142,12 @@ bool FunctionAndArgumentsToString(Local<Function> function,
       MaybeLocal<Value> maybe_argument = array->Get(context, i);
       Local<Value> argument;
       if (!maybe_argument.ToLocal(&argument)) {
-        Throw(isolate, "Failed to get argument");
+        isolate->ThrowError("Failed to get argument");
         return false;
       }
       Local<String> argument_string;
       if (!JSON::Stringify(context, argument).ToLocal(&argument_string)) {
-        Throw(isolate, "Failed to convert argument to string");
+        isolate->ThrowError("Failed to convert argument to string");
         return false;
       }
       *source = String::Concat(isolate, *source, argument_string);
@@ -2165,7 +2162,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
   if (args.Length() < 1 || (!args[0]->IsString() && !args[0]->IsFunction())) {
-    Throw(isolate, "1st argument must be a string or a function");
+    isolate->ThrowError("1st argument must be a string or a function");
     return;
   }
 
@@ -2179,7 +2176,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<Value> arguments;
     ReadWorkerTypeAndArguments(args, &worker_type, &arguments);
     if (worker_type != WorkerType::kFunction) {
-      Throw(isolate, "Invalid or missing worker type");
+      isolate->ThrowError("Invalid or missing worker type");
       return;
     }
 
@@ -2198,7 +2195,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
       load_from_file = false;
     } else if (worker_type != WorkerType::kNone &&
                worker_type != WorkerType::kClassic) {
-      Throw(isolate, "Invalid worker type");
+      isolate->ThrowError("Invalid worker type");
       return;
     }
 
@@ -2206,7 +2203,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
       String::Utf8Value filename(isolate, args[0]);
       source = ReadFile(isolate, *filename);
       if (source.IsEmpty()) {
-        Throw(args.GetIsolate(), "Error loading worker script");
+        args.GetIsolate()->ThrowError("Error loading worker script");
         return;
       }
     } else {
@@ -2215,7 +2212,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   if (!args.IsConstructCall()) {
-    Throw(isolate, "Worker must be constructed with new");
+    isolate->ThrowError("Worker must be constructed with new");
     return;
   }
 
@@ -2232,7 +2229,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     String::Utf8Value script(isolate, source);
     if (!*script) {
-      Throw(isolate, "Can't get worker script");
+      isolate->ThrowError("Can't get worker script");
       return;
     }
 
@@ -2246,7 +2243,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
         i_isolate, kWorkerSizeEstimate, worker);
     args.Holder()->SetInternalField(0, Utils::ToLocal(managed));
     if (!Worker::StartWorkerThread(std::move(worker))) {
-      Throw(isolate, "Can't start thread");
+      isolate->ThrowError("Can't start thread");
       return;
     }
   }
@@ -2257,7 +2254,7 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope handle_scope(isolate);
 
   if (args.Length() < 1) {
-    Throw(isolate, "Invalid argument");
+    isolate->ThrowError("Invalid argument");
     return;
   }
 
@@ -3196,13 +3193,13 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value filename(isolate, args[0]);
   int length;
   if (*filename == nullptr) {
-    Throw(isolate, "Error loading file");
+    isolate->ThrowError("Error loading file");
     return;
   }
 
   uint8_t* data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
   if (data == nullptr) {
-    Throw(isolate, "Error reading file");
+    isolate->ThrowError("Error reading file");
     return;
   }
   std::unique_ptr<v8::BackingStore> backing_store =
@@ -3869,7 +3866,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope handle_scope(isolate);
 
   if (args.Length() < 1) {
-    Throw(isolate, "Invalid argument");
+    isolate->ThrowError("Invalid argument");
     return;
   }
 
@@ -4447,7 +4444,8 @@ class Serializer : public ValueSerializer::Delegate {
         Local<Value> element;
         if (transfer_array->Get(context, i).ToLocal(&element)) {
           if (!element->IsArrayBuffer()) {
-            Throw(isolate_, "Transfer array elements must be an ArrayBuffer");
+            isolate_->ThrowError(
+                "Transfer array elements must be an ArrayBuffer");
             return Nothing<bool>();
           }
 
@@ -4455,8 +4453,8 @@ class Serializer : public ValueSerializer::Delegate {
 
           if (std::find(array_buffers_.begin(), array_buffers_.end(),
                         array_buffer) != array_buffers_.end()) {
-            Throw(isolate_,
-                  "ArrayBuffer occurs in the transfer array more than once");
+            isolate_->ThrowError(
+                "ArrayBuffer occurs in the transfer array more than once");
             return Nothing<bool>();
           }
 
@@ -4471,7 +4469,7 @@ class Serializer : public ValueSerializer::Delegate {
     } else if (transfer->IsUndefined()) {
       return Just(true);
     } else {
-      Throw(isolate_, "Transfer list must be an Array or undefined");
+      isolate_->ThrowError("Transfer list must be an Array or undefined");
       return Nothing<bool>();
     }
   }
@@ -4481,7 +4479,7 @@ class Serializer : public ValueSerializer::Delegate {
       Local<ArrayBuffer> array_buffer =
           Local<ArrayBuffer>::New(isolate_, global_array_buffer);
       if (!array_buffer->IsDetachable()) {
-        Throw(isolate_, "ArrayBuffer could not be transferred");
+        isolate_->ThrowError("ArrayBuffer could not be transferred");
         return Nothing<bool>();
       }
 

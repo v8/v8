@@ -171,7 +171,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     std::string filename(*str, str.length());
     *chars = v8::internal::ReadFile(filename.c_str(), &exists);
     if (!exists) {
-      isolate->ThrowException(ToV8String(isolate, "Error reading file"));
+      isolate->ThrowError("Error reading file");
       return false;
     }
     return true;
@@ -632,14 +632,14 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
   static void AccessorGetter(v8::Local<v8::String> property,
                              const v8::PropertyCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
-    isolate->ThrowException(ToV8String(isolate, "Getter is called"));
+    isolate->ThrowError("Getter is called");
   }
 
   static void AccessorSetter(v8::Local<v8::String> property,
                              v8::Local<v8::Value> value,
                              const v8::PropertyCallbackInfo<void>& info) {
     v8::Isolate* isolate = info.GetIsolate();
-    isolate->ThrowException(ToV8String(isolate, "Setter is called"));
+    isolate->ThrowError("Setter is called");
   }
 
   static void StoreCurrentStackTrace(

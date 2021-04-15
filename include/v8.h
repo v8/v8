@@ -8870,6 +8870,17 @@ class V8_EXPORT Isolate {
   Local<Context> GetIncumbentContext();
 
   /**
+   * Schedules a v8::Exception::Error with the given message.
+   * See ThrowException for more details. Templatized to provide compile-time
+   * errors in case of too long strings (see v8::String::NewFromUtf8Literal).
+   */
+  template <int N>
+  Local<Value> ThrowError(const char (&message)[N]) {
+    return ThrowError(String::NewFromUtf8Literal(this, message));
+  }
+  Local<Value> ThrowError(Local<String> message);
+
+  /**
    * Schedules an exception to be thrown when returning to JavaScript.  When an
    * exception has been scheduled it is illegal to invoke any JavaScript
    * operation; the caller must return immediately and only after the exception
