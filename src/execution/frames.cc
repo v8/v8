@@ -1059,12 +1059,14 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   }
 
   // Visit pointer spill slots and locals.
-  uint8_t* safepoint_bits = safepoint_entry.bits();
-  for (unsigned index = 0; index < stack_slots; index++) {
-    int byte_index = index >> kBitsPerByteLog2;
-    int bit_index = index & (kBitsPerByte - 1);
-    if ((safepoint_bits[byte_index] & (1U << bit_index)) != 0) {
-      FullObjectSlot spill_slot = parameters_limit + index;
+  DCHECK_GE((stack_slots + kBitsPerByte) / kBitsPerByte,
+            safepoint_entry.entry_size());
+  int slot_offset = 0;
+  for (uint8_t bits : safepoint_entry.iterate_bits()) {
+    while (bits) {
+      int bit = base::bits::CountTrailingZeros(bits);
+      bits &= ~(1 << bit);
+      FullObjectSlot spill_slot = parameters_limit + slot_offset + bit;
 #ifdef V8_COMPRESS_POINTERS
       // Spill slots may contain compressed values in which case the upper
       // 32-bits will contain zeros. In order to simplify handling of such
@@ -1082,6 +1084,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 #endif
       v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
     }
+    slot_offset += kBitsPerByte;
   }
 
   // Visit tagged parameters that have been passed to the function of this

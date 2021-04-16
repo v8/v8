@@ -20,20 +20,18 @@ namespace internal {
 
 SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
     : SafepointTable(code.InstructionStart(isolate, pc),
-                     code.SafepointTableAddress(), code.stack_slots(), true) {}
+                     code.SafepointTableAddress(), true) {}
 
 #if V8_ENABLE_WEBASSEMBLY
 SafepointTable::SafepointTable(const wasm::WasmCode* code)
     : SafepointTable(code->instruction_start(),
                      code->instruction_start() + code->safepoint_table_offset(),
-                     code->stack_slots(), false) {}
+                     false) {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 SafepointTable::SafepointTable(Address instruction_start,
-                               Address safepoint_table_address,
-                               uint32_t stack_slots, bool has_deopt)
+                               Address safepoint_table_address, bool has_deopt)
     : instruction_start_(instruction_start),
-      stack_slots_(stack_slots),
       has_deopt_(has_deopt),
       safepoint_table_address_(safepoint_table_address),
       length_(ReadLength(safepoint_table_address)),
@@ -69,27 +67,18 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   UNREACHABLE();
 }
 
-void SafepointTable::PrintEntry(unsigned index,
-                                std::ostream& os) const {  // NOLINT
+void SafepointTable::PrintEntry(unsigned index, std::ostream& os) const {
   disasm::NameConverter converter;
   SafepointEntry entry = GetEntry(index);
   uint8_t* bits = entry.bits();
 
   // Print the stack slot bits.
   if (entry_size_ > 0) {
-    const int first = 0;
-    int last = entry_size_ - 1;
-    for (int i = first; i < last; i++) PrintBits(os, bits[i], kBitsPerByte);
-    int last_bits = stack_slots_ - ((last - first) * kBitsPerByte);
-    PrintBits(os, bits[last], last_bits);
-  }
-}
-
-void SafepointTable::PrintBits(std::ostream& os,  // NOLINT
-                               uint8_t byte, int digits) {
-  DCHECK(digits >= 0 && digits <= kBitsPerByte);
-  for (int i = 0; i < digits; i++) {
-    os << (((byte & (1 << i)) == 0) ? "0" : "1");
+    for (uint32_t i = 0; i < entry_size_; ++i) {
+      for (int bit = 0; bit < kBitsPerByte; ++bit) {
+        os << ((bits[i] & (1 << bit)) ? "1" : "0");
+      }
+    }
   }
 }
 
