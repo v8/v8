@@ -712,6 +712,8 @@
   'test-heap/LeakNativeContextVia*': [PASS, FAIL],
   'test-heap/NewSpaceObjectsInOptimizedCode': [PASS, FAIL],
   'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [PASS, FAIL],
+  # crbug.com/v8/11650: Flakily failing after increased coverage.
+  'test-js-to-wasm/*': [PASS, FAIL],
 }], # variant == stress_concurrent_inlining
 
 ]
