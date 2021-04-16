@@ -228,24 +228,6 @@ def _builder_is_not_supported(bucket_name, first_branch_version):
         return int(branch_version) < int(builder_first_version)
     return False
 
-def perf_builder(**kwargs):
-    properties = {"triggers_proxy": True, "build_config": "Release", "builder_group": "client.v8.perf"}
-    extra_properties = kwargs.pop("properties", None)
-    if extra_properties:
-        properties.update(extra_properties)
-    v8_builder(
-        bucket = "ci",
-        triggered_by = ["v8-trigger"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
-        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = properties,
-        use_goma = GOMA.DEFAULT,
-        **kwargs
-    )
-
 def fix_args(defaults, **kwargs):
     args = dict(kwargs)
     overridable_keys = [

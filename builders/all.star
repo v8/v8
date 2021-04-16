@@ -10,9 +10,6 @@ exec("/clusterfuzz.star")
 exec("/experiments.star")
 exec("/integration.star")
 exec("/official.star")
-exec("/perf.star")
-
-exec("/others.star")
 
 exec("/try_ng.star")
 exec("/try.star")
