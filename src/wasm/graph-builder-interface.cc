@@ -29,7 +29,7 @@ namespace {
 // It maintains a control state that tracks whether the environment
 // is reachable, has reached a control end, or has been merged.
 struct SsaEnv : public ZoneObject {
-  enum State { kControlEnd, kUnreachable, kReached, kMerged };
+  enum State { kUnreachable, kReached, kMerged };
 
   State state;
   TFNode* control;
@@ -50,11 +50,11 @@ struct SsaEnv : public ZoneObject {
                                        effect(other.effect),
                                        instance_cache(other.instance_cache),
                                        locals(std::move(other.locals)) {
-    other.Kill(kUnreachable);
+    other.Kill();
   }
 
-  void Kill(State new_state = kControlEnd) {
-    state = new_state;
+  void Kill() {
+    state = kUnreachable;
     for (TFNode*& local : locals) {
       local = nullptr;
     }
@@ -296,8 +296,6 @@ class WasmGraphBuildingInterface {
     // Now continue with the merged environment.
     SetEnv(block->end_env);
   }
-
-  void EndControl(FullDecoder* decoder, Control* block) { ssa_env_->Kill(); }
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
@@ -1122,9 +1120,6 @@ class WasmGraphBuildingInterface {
           case SsaEnv::kMerged:
             state = 'M';
             break;
-          case SsaEnv::kControlEnd:
-            state = 'E';
-            break;
         }
       }
       PrintF("{set_env = %p, state = %c", env, state);
@@ -1219,7 +1214,9 @@ class WasmGraphBuildingInterface {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
 
     SsaEnv* target = c->end_env;
+    // This has to be computed before calling Goto().
     const bool first = target->state == SsaEnv::kUnreachable;
+
     Goto(decoder, target);
 
     if (merge->arity == 0) return;
@@ -1327,7 +1324,6 @@ class WasmGraphBuildingInterface {
       default:
         UNREACHABLE();
     }
-    return ssa_env_->Kill();
   }
 
   // Create a complete copy of {from}.
@@ -1355,11 +1351,6 @@ class WasmGraphBuildingInterface {
     from->locals.resize(result->locals.size());
     result->state = SsaEnv::kReached;
     return result;
-  }
-
-  // Create an unreachable environment.
-  SsaEnv* UnreachableEnv(Zone* zone) {
-    return zone->New<SsaEnv>(zone, SsaEnv::kUnreachable, nullptr, nullptr, 0);
   }
 
   void DoCall(FullDecoder* decoder, CallMode call_mode, uint32_t table_index,

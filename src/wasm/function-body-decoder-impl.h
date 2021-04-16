@@ -958,8 +958,8 @@ enum Reachability : uint8_t {
 template <typename Value, Decoder::ValidateFlag validate>
 struct ControlBase : public PcForErrors<validate> {
   ControlKind kind = kControlBlock;
-  uint32_t locals_count = 0;
-  uint32_t stack_depth = 0;  // stack height at the beginning of the construct.
+  uint32_t locals_count = 0;  // Additional locals introduced in this 'let'.
+  uint32_t stack_depth = 0;   // Stack height at the beginning of the construct.
   Reachability reachability = kReachable;
 
   // Values merged into the start or end of this control construct.
@@ -1030,7 +1030,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(If, const Value& cond, Control* if_block)                                  \
   F(FallThruTo, Control* c)                                                    \
   F(PopControl, Control* block)                                                \
-  F(EndControl, Control* block)                                                \
   /* Instructions: */                                                          \
   F(UnOp, WasmOpcode opcode, const Value& value, Value* result)                \
   F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,              \
@@ -2530,7 +2529,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("catch after unwind for try");
       return 0;
     }
-    FallThruTo(c);
+    FallThrough();
     c->kind = kControlTryCatch;
     // TODO(jkummerow): Consider moving the stack manipulation after the
     // INTERFACE call for consistency.
@@ -2571,11 +2570,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           "cannot delegate inside the catch handler of the target");
       return 0;
     }
-    FallThruTo(c);
+    FallThrough();
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Delegate, imm.depth + 1, c);
-    current_code_reachable_and_ok_ = this->ok() && control_.back().reachable();
     EndControl();
-    PopControl(c);
+    PopControl();
     return 1 + imm.length;
   }
 
@@ -2595,7 +2593,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->error("cannot have catch-all after unwind");
       return 0;
     }
-    FallThruTo(c);
+    FallThrough();
     c->kind = kControlTryCatchAll;
     c->reachability = control_at(1)->innerReachability();
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
@@ -2617,7 +2615,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->error("catch, catch-all or unwind already present for try");
       return 0;
     }
-    FallThruTo(c);
+    FallThrough();
     c->kind = kControlTryUnwind;
     c->reachability = control_at(1)->innerReachability();
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
@@ -2751,27 +2749,24 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(End) {
     DCHECK(!control_.empty());
     Control* c = &control_.back();
-    if (!VALIDATE(!c->is_incomplete_try())) {
-      this->DecodeError("missing catch or catch-all in try");
-      return 0;
-    }
-    if (c->is_onearmed_if()) {
-      if (!VALIDATE(c->end_merge.arity == c->start_merge.arity)) {
-        this->DecodeError(
-            c->pc(), "start-arity and end-arity of one-armed if must match");
-        return 0;
-      }
-      if (!TypeCheckOneArmedIf(c)) return 0;
-    }
     if (c->is_try_catch()) {
       // Emulate catch-all + re-throw.
-      FallThruTo(c);
+      FallThrough();
       c->reachability = control_at(1)->innerReachability();
       CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
       current_code_reachable_and_ok_ =
           this->ok() && control_.back().reachable();
       CALL_INTERFACE_IF_OK_AND_REACHABLE(Rethrow, c);
       EndControl();
+      PopControl();
+      return 1;
+    }
+    if (!VALIDATE(!c->is_incomplete_try())) {
+      this->DecodeError("missing catch or catch-all in try");
+      return 0;
+    }
+    if (c->is_onearmed_if()) {
+      if (!VALIDATE(TypeCheckOneArmedIf(c))) return 0;
     }
     if (c->is_try_unwind()) {
       // Unwind implicitly rethrows at the end.
@@ -2800,7 +2795,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       control_.clear();
       return 1;
     }
-    PopControl(c);
+    PopControl();
     return 1;
   }
 
@@ -3513,7 +3508,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Control* current = &control_.back();
     DCHECK_LE(stack_ + current->stack_depth, stack_end_);
     stack_end_ = stack_ + current->stack_depth;
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(EndControl, current);
     current->reachability = kUnreachable;
     current_code_reachable_and_ok_ = false;
   }
@@ -3629,11 +3623,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return &control_.back();
   }
 
-  void PopControl(Control* c) {
+  void PopControl() {
     // This cannot be the outermost control block.
     DCHECK_LT(1, control_.size());
+    Control* c = &control_.back();
+    DCHECK_LE(stack_ + c->stack_depth, stack_end_);
 
-    DCHECK_EQ(c, &control_.back());
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(PopControl, c);
 
     // A loop just leaves the values on the stack.
@@ -4790,8 +4785,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   int startrel(const byte* ptr) { return static_cast<int>(ptr - this->start_); }
 
-  void FallThruTo(Control* c) {
-    DCHECK_EQ(c, &control_.back());
+  void FallThrough() {
+    Control* c = &control_.back();
     DCHECK_NE(c->kind, kControlLoop);
     if (!TypeCheckFallThru()) return;
     CALL_INTERFACE_IF_OK_AND_REACHABLE(FallThruTo, c);
@@ -4821,17 +4816,20 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckOneArmedIf(Control* c) {
     static_assert(validate, "Call this function only within VALIDATE");
     DCHECK(c->is_onearmed_if());
-    DCHECK_EQ(c->start_merge.arity, c->end_merge.arity);
+    if (c->end_merge.arity != c->start_merge.arity) {
+      this->DecodeError(c->pc(),
+                        "start-arity and end-arity of one-armed if must match");
+      return false;
+    }
     for (uint32_t i = 0; i < c->start_merge.arity; ++i) {
       Value& start = c->start_merge[i];
       Value& end = c->end_merge[i];
-      if (!VALIDATE(IsSubtypeOf(start.type, end.type, this->module_))) {
+      if (!IsSubtypeOf(start.type, end.type, this->module_)) {
         this->DecodeError("type error in merge[%u] (expected %s, got %s)", i,
                           end.type.name().c_str(), start.type.name().c_str());
         return false;
       }
     }
-
     return true;
   }
 

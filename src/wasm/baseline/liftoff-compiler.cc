@@ -1348,8 +1348,6 @@ class LiftoffCompiler {
     if (!c->label.get()->is_bound()) __ bind(c->label.get());
   }
 
-  void EndControl(FullDecoder* decoder, Control* c) {}
-
   void GenerateCCall(const LiftoffRegister* result_regs,
                      const ValueKindSig* sig, ValueKind out_argument_kind,
                      const LiftoffRegister* arg_regs,
