@@ -2733,8 +2733,10 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     // constructor when --correctness_fuzzer_suppressions is on.
     if (i::FLAG_turbo_fast_api_calls &&
         !i::FLAG_correctness_fuzzer_suppressions) {
-      test_template->Set(isolate, "fast_c_api",
+      test_template->Set(isolate, "FastCAPI",
                          Shell::CreateTestFastCApiTemplate(isolate));
+      test_template->Set(isolate, "LeafInterfaceType",
+                         Shell::CreateLeafInterfaceTypeTemplate(isolate));
     }
 
     d8_template->Set(isolate, "test", test_template);

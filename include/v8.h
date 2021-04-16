@@ -6590,6 +6590,15 @@ class V8_EXPORT FunctionTemplate : public Template {
    */
   bool HasInstance(Local<Value> object);
 
+  /**
+   * Returns true if the given value is an API object that was constructed by an
+   * instance of this function template (without checking for inheriting
+   * function templates).
+   *
+   * This is an experimental feature and may still change significantly.
+   */
+  bool IsLeafTemplateForApiObject(Value* value) const;
+
   V8_INLINE static FunctionTemplate* Cast(Data* data);
 
  private:

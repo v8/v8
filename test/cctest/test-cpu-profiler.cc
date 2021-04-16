@@ -3934,17 +3934,17 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
 namespace {
 
 struct FastApiReceiver {
-  static void FastCallback(v8::ApiObject receiver, int argument,
+  static void FastCallback(v8::Value* receiver, int argument,
                            v8::FastApiCallbackOptions& options) {
     // TODO(mslekova): The fallback is not used by the test. Replace this
     // with a CHECK.
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    v8::Object* receiver_obj = v8::Object::Cast(receiver);
     if (!IsValidUnwrapObject(receiver_obj)) {
       options.fallback = 1;
       return;
     }
     FastApiReceiver* receiver_ptr =
-        GetInternalField<FastApiReceiver, kV8WrapperObjectIndex>(receiver_obj);
+        GetInternalField<FastApiReceiver>(receiver_obj);
 
     receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
 
@@ -3960,8 +3960,7 @@ struct FastApiReceiver {
       info.GetIsolate()->ThrowError("Called with a non-object.");
       return;
     }
-    FastApiReceiver* receiver =
-        GetInternalField<FastApiReceiver, kV8WrapperObjectIndex>(receiver_obj);
+    FastApiReceiver* receiver = GetInternalField<FastApiReceiver>(receiver_obj);
 
     receiver->result_ |= ApiCheckerResult::kSlowCalled;
   }
