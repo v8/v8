@@ -1304,7 +1304,8 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
           bool isSymbolDescription =
               object->IsSymbol() && name == "description";
           if (isSymbolDescription ||
-              (getterIsNativeFunction && formatAccessorsAsProperties &&
+              (name != "__proto__" && getterIsNativeFunction &&
+               formatAccessorsAsProperties &&
                !doesAttributeHaveObservableSideEffectOnGet(context, object,
                                                            v8Name))) {
             v8::TryCatch tryCatch(isolate);
