@@ -1390,7 +1390,7 @@ class Heap {
   // which the size of the allocatable space per V8 page may depend on the OS
   // page size at runtime. You may use kMaxRegularHeapObjectSize as a constant
   // instead if you know the allocation isn't in the code spaces.
-  V8_EXPORT_PRIVATE static constexpr int MaxRegularHeapObjectSize(
+  V8_EXPORT_PRIVATE static int MaxRegularHeapObjectSize(
       AllocationType allocation);
 
   // ===========================================================================

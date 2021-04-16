@@ -85,15 +85,6 @@ BytecodeFlushMode Heap::GetBytecodeFlushMode(Isolate* isolate) {
   return BytecodeFlushMode::kDoNotFlushBytecode;
 }
 
-// static
-constexpr int Heap::MaxRegularHeapObjectSize(AllocationType allocation) {
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-      (allocation == AllocationType::kCode)) {
-    return MemoryChunkLayout::MaxRegularCodeObjectSize();
-  }
-  return kMaxRegularHeapObjectSize;
-}
-
 Isolate* Heap::isolate() {
   return reinterpret_cast<Isolate*>(
       reinterpret_cast<intptr_t>(this) -

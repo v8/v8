@@ -25,9 +25,16 @@ class AllocationBuilder final {
         control_(control) {}
 
   // Primitive allocation of static size.
-  inline void Allocate(int size,
-                       AllocationType allocation = AllocationType::kYoung,
-                       Type type = Type::Any());
+  void Allocate(int size, AllocationType allocation = AllocationType::kYoung,
+                Type type = Type::Any()) {
+    DCHECK_LE(size, Heap::MaxRegularHeapObjectSize(allocation));
+    effect_ = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect_);
+    allocation_ =
+        graph()->NewNode(simplified()->Allocate(type, allocation),
+                         jsgraph()->Constant(size), effect_, control_);
+    effect_ = allocation_;
+  }
 
   // Primitive store into a field.
   void Store(const FieldAccess& access, Node* value) {
