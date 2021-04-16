@@ -1308,13 +1308,13 @@ InstanceType HeapObjectData::GetMapInstanceType() const {
 namespace {
 bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
-  Handle<Name> length_string = isolate->factory()->length_string();
   DescriptorArray descriptors =
       jsarray_map->instance_descriptors(isolate, kRelaxedLoad);
-  // TODO(jkummerow): We could skip the search and hardcode number == 0.
-  InternalIndex number = descriptors.Search(*length_string, *jsarray_map);
-  DCHECK(number.is_found());
-  return descriptors.GetDetails(number).IsReadOnly();
+  static_assert(
+      JSArray::kLengthOffset == JSObject::kHeaderSize,
+      "The length should be the first property on the descriptor array");
+  InternalIndex offset(0);
+  return descriptors.GetDetails(offset).IsReadOnly();
 }
 
 bool SupportsFastArrayIteration(Isolate* isolate, Handle<Map> map) {
