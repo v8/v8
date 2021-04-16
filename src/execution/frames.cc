@@ -228,8 +228,8 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
   Builtins::Name builtin_index = InstructionStream::TryLookupCode(isolate, pc);
   if (builtin_index != Builtins::kNoBuiltinId &&
       (builtin_index == Builtins::kInterpreterEntryTrampoline ||
-       builtin_index == Builtins::kInterpreterEnterBytecodeAdvance ||
-       builtin_index == Builtins::kInterpreterEnterBytecodeDispatch ||
+       builtin_index == Builtins::kInterpreterEnterAtBytecode ||
+       builtin_index == Builtins::kInterpreterEnterAtNextBytecode ||
        builtin_index == Builtins::kBaselineEnterAtBytecode ||
        builtin_index == Builtins::kBaselineEnterAtNextBytecode)) {
     return true;

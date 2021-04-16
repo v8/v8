@@ -1861,7 +1861,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Br(x17);
 }
 
-void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterEnterAtNextBytecode(MacroAssembler* masm) {
   // Get bytecode array and bytecode offset from the stack frame.
   __ ldr(kInterpreterBytecodeArrayRegister,
          MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
@@ -1905,7 +1905,7 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
   __ Abort(AbortReason::kInvalidBytecodeAdvance);
 }
 
-void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
   Generate_InterpreterEnterBytecode(masm);
 }
 
@@ -3255,7 +3255,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Compute the handler entry address and jump to it. We use x17 here for the
   // jump target, as this jump can occasionally end up at the start of
-  // InterpreterEnterBytecodeDispatch, which when CFI is enabled starts with
+  // InterpreterEnterAtBytecode, which when CFI is enabled starts with
   // a "BTI c".
   UseScratchRegisterScope temps(masm);
   temps.Exclude(x17);

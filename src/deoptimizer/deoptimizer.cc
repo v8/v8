@@ -996,8 +996,8 @@ Builtins::Name DispatchBuiltinFor(bool is_baseline, bool advance_bc) {
     return advance_bc ? Builtins::kBaselineEnterAtNextBytecode
                       : Builtins::kBaselineEnterAtBytecode;
   } else {
-    return advance_bc ? Builtins::kInterpreterEnterBytecodeAdvance
-                      : Builtins::kInterpreterEnterBytecodeDispatch;
+    return advance_bc ? Builtins::kInterpreterEnterAtNextBytecode
+                      : Builtins::kInterpreterEnterAtBytecode;
   }
 }
 

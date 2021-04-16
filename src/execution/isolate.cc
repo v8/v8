@@ -1910,7 +1910,7 @@ Object Isolate::UnwindAndFindHandler() {
               static_cast<int>(offset));
 
           Code code =
-              builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+              builtins()->builtin(Builtins::kInterpreterEnterAtBytecode);
           return FoundHandler(context, code.InstructionStart(), 0,
                               code.constant_pool(), return_sp, frame->fp());
         }
