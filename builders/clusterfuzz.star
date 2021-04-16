@@ -129,6 +129,18 @@ in_category(
         use_goma = GOMA.DEFAULT,
     ),
     clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux - debug builder",
+        bucket = "ci",
+        triggered_by = ["v8-trigger"],
+        triggering_policy = scheduler.policy(
+            kind = scheduler.GREEDY_BATCHING_KIND,
+            max_batch_size = 1,
+        ),
+        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+        properties = {"triggers": ["V8 NumFuzz - debug"], "builder_group": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "default_targets": ["v8_clusterfuzz"], "target_bits": 32},
+        use_goma = GOMA.DEFAULT,
+    ),
+    clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux ASAN arm - debug builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
