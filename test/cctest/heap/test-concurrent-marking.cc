@@ -112,6 +112,12 @@ TEST(ConcurrentMarkingMarkedBytes) {
   Handle<FixedArray> root = isolate->factory()->NewFixedArray(1000000);
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
+
+  // Store array in Global such that it is part of the root set when
+  // starting incremental marking.
+  v8::Global<Value> global_root(CcTest::isolate(),
+                                Utils::ToLocal(Handle<Object>::cast(root)));
+
   heap::SimulateIncrementalMarking(heap, false);
   heap->concurrent_marking()->Join();
   CHECK_GE(heap->concurrent_marking()->TotalMarkedBytes(), root->Size());

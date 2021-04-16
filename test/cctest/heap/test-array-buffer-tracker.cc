@@ -269,6 +269,10 @@ TEST(ArrayBuffer_LivePromotion) {
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
     }
+    // Store array in Global such that it is part of the root set when
+    // starting incremental marking.
+    v8::Global<Value> global_root(CcTest::isolate(),
+                                  Utils::ToLocal(Handle<Object>::cast(root)));
     heap::SimulateIncrementalMarking(heap, true);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
     heap::GcAndSweep(heap, NEW_SPACE);

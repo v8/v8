@@ -176,6 +176,7 @@ enum class SkipRoot {
   kGlobalHandles,
   kOldGeneration,
   kStack,
+  kMainThreadHandles,
   kUnserializable,
   kWeak
 };

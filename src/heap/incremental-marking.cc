@@ -318,7 +318,9 @@ void IncrementalMarking::MarkRoots() {
 
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateRoots(
-      &visitor, base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kWeak});
+      &visitor,
+      base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
+                              SkipRoot::kWeak});
 }
 
 bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
