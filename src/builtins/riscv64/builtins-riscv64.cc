@@ -2932,6 +2932,10 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ Trap();
 }
 
+void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
+  // Only needed on x64.
+  __ Trap();
+}
 namespace {
 
 int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
