@@ -980,13 +980,16 @@ bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
   DCHECK_GE(max_depth, 0);
   DCHECK_GE(*max_properties, 0);
 
-  Isolate* const isolate = boilerplate->GetIsolate();
-
-  // Make sure the boilerplate map is not deprecated.
-  if (!JSObject::TryMigrateInstance(isolate, boilerplate)) return false;
-
   // Check for too deep nesting.
   if (max_depth == 0) return false;
+
+  Isolate* const isolate = boilerplate->GetIsolate();
+
+  // If the boilerplate map has been deprecated, bailout of fast literal
+  // optimization.  The map could be deprecated at some point after the line
+  // below, but it's not a correctness issue -- it only means the literal isn't
+  // created with the most up to date map(s).
+  if (boilerplate->map().is_deprecated()) return false;
 
   // Check the elements.
   Handle<FixedArrayBase> elements(boilerplate->elements(), isolate);
@@ -2349,7 +2352,6 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
   // We only serialize boilerplates that pass the IsInlinableFastLiteral
   // check, so we only do a check on the depth here.
   CHECK_GT(depth, 0);
-  CHECK(!boilerplate->map().is_deprecated());
 
   // Serialize the elements.
   Isolate* const isolate = broker->isolate();
