@@ -496,8 +496,8 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_win_rel",
-    cq_properties_trigger = {"cancel_stale": False},
-    cq_properties_triggered = {"cancel_stale": False},
+    cq_properties_trigger = {"cancel_stale": False, "includable_only": "true",},
+    cq_properties_triggered = {"cancel_stale": False, "includable_only": "true",},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_goma = GOMA.ATS,
 )
