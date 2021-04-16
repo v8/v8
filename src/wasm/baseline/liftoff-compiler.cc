@@ -10,7 +10,7 @@
 #include "src/codegen/assembler-inl.h"
 // TODO(clemensb): Remove dependences on compiler stuff.
 #include "src/codegen/external-reference.h"
-#include "src/codegen/interface-descriptors-inl.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/linkage.h"

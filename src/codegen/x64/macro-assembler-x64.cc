@@ -12,7 +12,6 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference-table.h"
-#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/string-constants.h"

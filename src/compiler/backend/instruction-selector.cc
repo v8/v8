@@ -9,7 +9,6 @@
 #include "src/base/iterator.h"
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
