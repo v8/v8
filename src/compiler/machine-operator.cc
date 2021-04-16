@@ -1881,7 +1881,8 @@ std::ostream& operator<<(std::ostream& os, S128ImmediateParameter const& p) {
 }
 
 S128ImmediateParameter const& S128ImmediateParameterOf(Operator const* op) {
-  DCHECK(IrOpcode::kS128Const == op->opcode());
+  DCHECK(IrOpcode::kI8x16Shuffle == op->opcode() ||
+         IrOpcode::kS128Const == op->opcode());
   return OpParameter<S128ImmediateParameter>(op);
 }
 
@@ -1891,33 +1892,11 @@ const Operator* MachineOperatorBuilder::S128Const(const uint8_t value[16]) {
       S128ImmediateParameter(value));
 }
 
-ShuffleParameter const& ShuffleParameterOf(Operator const* op) {
-  DCHECK(IrOpcode::kI8x16Shuffle == op->opcode());
-  return OpParameter<ShuffleParameter>(op);
-}
-
-bool operator==(ShuffleParameter const& lhs, ShuffleParameter const& rhs) {
-  return (lhs.imm() == rhs.imm()) && (lhs.is_swizzle() == rhs.is_swizzle());
-}
-
-bool operator!=(ShuffleParameter const& lhs, ShuffleParameter const& rhs) {
-  return !(lhs == rhs);
-}
-
-size_t hash_value(ShuffleParameter const& p) {
-  return base::hash_combine(p.imm(), p.is_swizzle());
-}
-
-std::ostream& operator<<(std::ostream& os, ShuffleParameter const& p) {
-  os << p.imm() << "  (is_swizzle: " << p.is_swizzle() << ")";
-  return os;
-}
-
-const Operator* MachineOperatorBuilder::I8x16Shuffle(const uint8_t shuffle[16],
-                                                     bool is_swizzle) {
-  return zone_->New<Operator1<ShuffleParameter>>(
-      IrOpcode::kI8x16Shuffle, Operator::kPure, "I8x16Shuffle", 2, 0, 0, 1, 0,
-      0, ShuffleParameter(shuffle, is_swizzle));
+const Operator* MachineOperatorBuilder::I8x16Shuffle(
+    const uint8_t shuffle[16]) {
+  return zone_->New<Operator1<S128ImmediateParameter>>(
+      IrOpcode::kI8x16Shuffle, Operator::kPure, "Shuffle", 2, 0, 0, 1, 0, 0,
+      S128ImmediateParameter(shuffle));
 }
 
 StackCheckKind StackCheckKindOf(Operator const* op) {

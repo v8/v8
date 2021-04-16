@@ -1976,7 +1976,6 @@ struct ArchShuffle {
   uint8_t shuffle[kSimd128Size];
   ArchOpcode arch_opcode;
   size_t input_count;
-  bool inputs_are_swapped = false;
 };
 
 static constexpr ArchShuffle kArchShuffles[] = {
@@ -2088,19 +2087,16 @@ static constexpr ArchShuffle kArchShuffles[] = {
         {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2},
         kX64S8x16Alignr,
         3,
-        true,
     },
     {
         {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1},
         kX64S8x16Alignr,
         3,
-        true,
     },
     {
         {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17},
         kX64S8x16Alignr,
         3,
-        true,
     },
     // These are matched by TryMatch32x4Shuffle && is_swizzle.
     {
@@ -2195,35 +2191,14 @@ TEST_P(InstructionSelectorSIMDArchShuffleTest, SIMDArchShuffle) {
     StreamBuilder m(this, type, type, type);
     auto param = GetParam();
     auto shuffle = param.shuffle;
-
-    // The shuffle constants defined in the test cases are not canonicalized.
-    bool needs_swap;
-    bool inputs_equal = false;
-    bool is_swizzle;
-    wasm::SimdShuffle::CanonicalizeShuffle(inputs_equal, shuffle, &needs_swap,
-                                           &is_swizzle);
-
-    const Operator* op = m.machine()->I8x16Shuffle(shuffle, is_swizzle);
-    Node* const p0 = m.Parameter(0);
-    Node* const p1 = m.Parameter(1);
-    Node* n = m.AddNode(op, p0, p1);
+    const Operator* op = m.machine()->I8x16Shuffle(shuffle);
+    Node* n = m.AddNode(op, m.Parameter(0), m.Parameter(1));
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(param.arch_opcode, s[0]->arch_opcode());
     ASSERT_EQ(param.input_count, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
-    if (param.inputs_are_swapped) {
-      ASSERT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
-      if (!is_swizzle) {
-        ASSERT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(0)));
-      }
-    } else {
-      ASSERT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-      if (!is_swizzle) {
-        ASSERT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
-      }
-    }
   }
 }
 
