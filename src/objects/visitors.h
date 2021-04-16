@@ -39,6 +39,8 @@ class CodeDataContainer;
   V(kReadOnlyObjectCache, "(Read-only object cache)") \
   V(kWeakCollections, "(Weak collections)")           \
   V(kWrapperTracing, "(Wrapper tracing)")             \
+  V(kWriteBarrier, "(Write barrier)")                 \
+  V(kRetainMaps, "(Retain maps)")                     \
   V(kUnknown, "(Unknown)")
 
 class VisitorSynchronization : public AllStatic {
