@@ -75,11 +75,7 @@ HEAP_TEST(WriteBarrier_MarkingExtension) {
   CHECK(collector->marking_state()->IsWhite(host));
   CHECK(!extension->IsMarked());
   WriteBarrier::Marking(host, extension);
-  // Concurrent marking barrier should mark this object.
   CHECK_EQ(V8_CONCURRENT_MARKING_BOOL, extension->IsMarked());
-  // Keep object alive using the global handle.
-  v8::Global<ArrayBuffer> global_host(CcTest::isolate(),
-                                      Utils::ToLocal(handle(host, isolate)));
   heap::SimulateIncrementalMarking(CcTest::heap(), true);
   CHECK(collector->marking_state()->IsBlack(host));
   CHECK(extension->IsMarked());
