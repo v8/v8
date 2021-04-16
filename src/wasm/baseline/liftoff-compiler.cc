@@ -1077,10 +1077,10 @@ class LiftoffCompiler {
     // Save the current cache state for the merge when jumping to this loop.
     loop->label_state.Split(*__ cache_state());
 
+    PushControl(loop);
+
     // Execute a stack check in the loop header.
     StackCheck(decoder, decoder->position());
-
-    PushControl(loop);
   }
 
   void Try(FullDecoder* decoder, Control* block) {

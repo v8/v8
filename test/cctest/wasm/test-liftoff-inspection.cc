@@ -453,6 +453,29 @@ TEST(Liftoff_debug_side_table_catch_all) {
       debug_side_table.get());
 }
 
+TEST(Regress1199526) {
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  LiftoffCompileEnvironment env;
+  ValueType exception_type = ValueType::Ref(HeapType::kExtern, kNonNullable);
+  auto debug_side_table = env.GenerateDebugSideTable(
+      {}, {},
+      {kExprTry, kVoidCode, kExprCallFunction, 0, kExprCatchAll, kExprLoop,
+       kVoidCode, kExprEnd, kExprEnd},
+      {});
+  CheckDebugSideTable(
+      {
+          // function entry.
+          {0, {}},
+          // break on entry.
+          {0, {}},
+          // function call.
+          {0, {}},
+          // loop stack check.
+          {1, {Stack(0, exception_type)}},
+      },
+      debug_side_table.get());
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
