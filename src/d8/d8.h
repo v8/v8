@@ -635,8 +635,6 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateRealmTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateD8Template(Isolate* isolate);
   static Local<FunctionTemplate> CreateTestFastCApiTemplate(Isolate* isolate);
-  static Local<FunctionTemplate> CreateLeafInterfaceTypeTemplate(
-      Isolate* isolate);
 
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& args, int index,
