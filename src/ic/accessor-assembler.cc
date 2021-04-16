@@ -8,6 +8,7 @@
 #include "src/base/optional.h"
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
@@ -1507,7 +1508,6 @@ void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
       LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(setter)));
 
-  Callable callable = CodeFactory::Call(isolate());
   Return(Call(p->context(), setter, p->receiver(), p->value()));
 }
 

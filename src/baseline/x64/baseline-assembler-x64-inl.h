@@ -7,7 +7,6 @@
 
 #include "src/base/macros.h"
 #include "src/baseline/baseline-assembler.h"
-#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/x64/register-x64.h"
 
 namespace v8 {

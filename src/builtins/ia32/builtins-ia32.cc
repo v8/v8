@@ -8,6 +8,7 @@
 #include "src/base/bits-iterator.h"
 #include "src/base/iterator.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register-configuration.h"
@@ -1458,7 +1459,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   // and edi are used as scratch registers.
   Generate_InterpreterPushZeroAndArgsAndReturnAddress(
       masm, eax, ecx, edx, edi,
-      InterpreterPushArgsThenConstructDescriptor::kStackArgumentsCount,
+      InterpreterPushArgsThenConstructDescriptor::GetStackParameterCount(),
       &stack_overflow);
 
   // Call the appropriate constructor. eax and ecx already contain intended

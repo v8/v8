@@ -6,6 +6,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
@@ -187,13 +188,14 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code code) {
       return false;
   }
 
+  if (CallInterfaceDescriptor::ContextRegister() ==
+      kOffHeapTrampolineRegister) {
+    return true;
+  }
+
   Callable callable = Builtins::CallableFor(
       isolate, static_cast<Builtins::Name>(code.builtin_index()));
   CallInterfaceDescriptor descriptor = callable.descriptor();
-
-  if (descriptor.ContextRegister() == kOffHeapTrampolineRegister) {
-    return true;
-  }
 
   for (int i = 0; i < descriptor.GetRegisterParameterCount(); i++) {
     Register reg = descriptor.GetRegisterParameter(i);

@@ -11,6 +11,7 @@
 #include "src/builtins/builtins-string-gen.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
@@ -2024,7 +2025,7 @@ TEST(PopAndReturnFromTFCBuiltinWithStackParameters) {
   // least one argument passed on stack.
   using Descriptor = FlatMapIntoArrayDescriptor;
   Descriptor descriptor;
-  CHECK_LT(0, descriptor.GetStackParameterCount());
+  CHECK_LT(0, Descriptor::GetStackParameterCount());
 
   CodeAssemblerTester asm_tester(isolate, Descriptor());
   {

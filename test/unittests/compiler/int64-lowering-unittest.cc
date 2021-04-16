@@ -4,7 +4,7 @@
 
 #include "src/compiler/int64-lowering.h"
 
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/signature.h"
 #include "src/compiler/common-operator.h"
@@ -1063,20 +1063,20 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
 
   CallDescriptor* bigint_to_i64_call_descriptor =
       Linkage::GetStubCallDescriptor(
-          zone(),                   // zone
-          BigIntToI64Descriptor(),  // descriptor
-          BigIntToI64Descriptor()
-              .GetStackParameterCount(),   // stack parameter count
-          CallDescriptor::kNoFlags,        // flags
-          Operator::kNoProperties,         // properties
-          StubCallMode::kCallCodeObject);  // stub call mode
+          zone(),                                           // zone
+          BigIntToI64Descriptor(),                          // descriptor
+          BigIntToI64Descriptor::GetStackParameterCount(),  // stack parameter
+                                                            // count
+          CallDescriptor::kNoFlags,                         // flags
+          Operator::kNoProperties,                          // properties
+          StubCallMode::kCallCodeObject);                   // stub call mode
 
   CallDescriptor* bigint_to_i32_pair_call_descriptor =
       Linkage::GetStubCallDescriptor(
           zone(),                       // zone
           BigIntToI32PairDescriptor(),  // descriptor
-          BigIntToI32PairDescriptor()
-              .GetStackParameterCount(),   // stack parameter count
+          BigIntToI32PairDescriptor::
+              GetStackParameterCount(),    // stack parameter count
           CallDescriptor::kNoFlags,        // flags
           Operator::kNoProperties,         // properties
           StubCallMode::kCallCodeObject);  // stub call mode
@@ -1109,20 +1109,20 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseI64ToBigInt) {
 
   CallDescriptor* i64_to_bigint_call_descriptor =
       Linkage::GetStubCallDescriptor(
-          zone(),                   // zone
-          I64ToBigIntDescriptor(),  // descriptor
-          I64ToBigIntDescriptor()
-              .GetStackParameterCount(),   // stack parameter count
-          CallDescriptor::kNoFlags,        // flags
-          Operator::kNoProperties,         // properties
-          StubCallMode::kCallCodeObject);  // stub call mode
+          zone(),                                           // zone
+          I64ToBigIntDescriptor(),                          // descriptor
+          I64ToBigIntDescriptor::GetStackParameterCount(),  // stack parameter
+                                                            // count
+          CallDescriptor::kNoFlags,                         // flags
+          Operator::kNoProperties,                          // properties
+          StubCallMode::kCallCodeObject);                   // stub call mode
 
   CallDescriptor* i32_pair_to_bigint_call_descriptor =
       Linkage::GetStubCallDescriptor(
           zone(),                       // zone
           I32PairToBigIntDescriptor(),  // descriptor
-          I32PairToBigIntDescriptor()
-              .GetStackParameterCount(),   // stack parameter count
+          I32PairToBigIntDescriptor::
+              GetStackParameterCount(),    // stack parameter count
           CallDescriptor::kNoFlags,        // flags
           Operator::kNoProperties,         // properties
           StubCallMode::kCallCodeObject);  // stub call mode
