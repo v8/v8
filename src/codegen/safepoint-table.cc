@@ -111,6 +111,7 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   RemoveDuplicates();
+  TrimEntries(&bits_per_entry);
 
   // Make sure the safepoint table is properly aligned. Pad with nops.
   assembler->Align(Code::kMetadataAlignment);
@@ -157,6 +158,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 
     // Run through the indexes and build a bitmap.
     for (int idx : *indexes) {
+      DCHECK_GT(bits_per_entry, idx);
       int index = bits_per_entry - 1 - idx;
       int byte_index = index >> kBitsPerByteLog2;
       int bit_index = index & (kBitsPerByte - 1);
@@ -190,6 +192,28 @@ void SafepointTableBuilder::RemoveDuplicates() {
   // entry, and set the pc to kMaxUInt32.
   deoptimization_info_.Rewind(1);
   deoptimization_info_.front().pc = kMaxUInt32;
+}
+
+void SafepointTableBuilder::TrimEntries(int* bits_per_entry) {
+  int min_index = *bits_per_entry;
+  if (min_index == 0) return;  // Early exit: nothing to trim.
+
+  for (auto& info : deoptimization_info_) {
+    for (int idx : *info.stack_indexes) {
+      DCHECK_GT(*bits_per_entry, idx);  // Validity check.
+      if (idx >= min_index) continue;
+      if (idx == 0) return;  // Early exit: nothing to trim.
+      min_index = idx;
+    }
+  }
+
+  DCHECK_LT(0, min_index);
+  *bits_per_entry -= min_index;
+  for (auto& info : deoptimization_info_) {
+    for (int& idx : *info.stack_indexes) {
+      idx -= min_index;
+    }
+  }
 }
 
 bool SafepointTableBuilder::IsIdenticalExceptForPc(

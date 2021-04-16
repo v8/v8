@@ -263,6 +263,10 @@ class SafepointTableBuilder {
   // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
   void RemoveDuplicates();
 
+  // Try to trim entries by removing trailing zeros (and shrinking
+  // {bits_per_entry}).
+  void TrimEntries(int* bits_per_entry);
+
   ZoneChunkList<DeoptimizationInfo> deoptimization_info_;
 
   unsigned offset_;
