@@ -978,6 +978,10 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
           if (p->initializer() != nullptr) {
             reindexer.Reindex(p->initializer());
           }
+          if (reindexer.HasStackOverflow()) {
+            set_stack_overflow();
+            return nullptr;
+          }
         }
         ResetFunctionLiteralId();
         SkipFunctionLiterals(function_literal_id - 1);
