@@ -418,6 +418,8 @@ void LiftoffAssembler::SpillInstance(Register instance) {
   Sd(instance, liftoff::GetInstanceOperand());
 }
 
+void LiftoffAssembler::ResetOSRTarget() {}
+
 void LiftoffAssembler::FillInstanceInto(Register dst) {
   Ld(dst, liftoff::GetInstanceOperand());
 }
@@ -3165,6 +3167,8 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   Daddu(sp, sp, size);
 }
+
+void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());

@@ -2456,6 +2456,12 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ Trap();
 }
+
+void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
+  // Only needed on x64.
+  __ Trap();
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
