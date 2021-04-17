@@ -313,6 +313,8 @@ TEST(WeakReferenceWriteBarrier) {
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
   CHECK(InCorrectGeneration(*lh));
 
+  v8::Global<Value> global_lh(CcTest::isolate(), Utils::ToLocal(lh));
+
   {
     HandleScope inner_scope(isolate);
 

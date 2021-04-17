@@ -4493,8 +4493,10 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     // Iterate over local handles in handle scopes.
     FixStaleLeftTrimmedHandlesVisitor left_trim_visitor(this);
 #ifndef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
-    isolate_->handle_scope_implementer()->Iterate(v);
+    if (!options.contains(SkipRoot::kMainThreadHandles)) {
+      isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
+      isolate_->handle_scope_implementer()->Iterate(v);
+    }
 #endif
 
     safepoint_->Iterate(&left_trim_visitor);

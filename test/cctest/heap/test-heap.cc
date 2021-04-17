@@ -2304,6 +2304,11 @@ TEST(InstanceOfStubWriteBarrier) {
   v8::HandleScope outer_scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
+  // Store native context in global as well to make it part of the root set when
+  // starting incremental marking. This will ensure that function will be part
+  // of the transitive closure during incremental marking.
+  v8::Global<v8::Context> global_ctx(CcTest::isolate(), ctx);
+
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun(
@@ -5218,6 +5223,10 @@ void CheckMapRetainingFor(int n) {
   Handle<Context> context = Utils::OpenHandle(*ctx);
   CHECK(context->IsNativeContext());
   Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
+  // This global is used to visit the object's constructor alive when starting
+  // incremental marking. The native context keeps the constructor alive. The
+  // constructor needs to be alive to retain the map.
+  v8::Global<v8::Context> global_ctxt(CcTest::isolate(), ctx);
 
   ctx->Enter();
   Handle<WeakFixedArray> array_with_map =
@@ -5702,11 +5711,17 @@ TEST(Regress598319) {
           get().set(i, *tmp);
         }
       }
+      global_root.Reset(CcTest::isolate(),
+                        Utils::ToLocal(Handle<Object>::cast(root)));
     }
 
     FixedArray get() { return FixedArray::cast(root->get(0)); }
 
     Handle<FixedArray> root;
+
+    // Store array in global as well to make it part of the root set when
+    // starting incremental marking.
+    v8::Global<Value> global_root;
   } arr(isolate, kNumberOfObjects);
 
   CHECK_EQ(arr.get().length(), kNumberOfObjects);
