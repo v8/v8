@@ -23,7 +23,10 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
@@ -323,8 +326,6 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
   Label skip;
 
   if (cond != al) b(NegateCondition(cond), &skip);
-
-  DCHECK(rmode == RelocInfo::CODE_TARGET || rmode == RelocInfo::RUNTIME_ENTRY);
 
   mov(ip, Operand(target, rmode));
   b(ip);
@@ -1598,7 +1599,8 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   bind(&stack_overflow);
   {
-    FrameScope frame(this, StackFrame::MANUAL);
+    FrameScope frame(this,
+                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     CallRuntime(Runtime::kThrowStackOverflow);
     bkpt(0);
   }
@@ -1837,8 +1839,13 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   lay(sp, MemOperand(sp, -kDoubleSize));
   StoreF64(double_input, MemOperand(sp));
 
+#if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+#else
+  // For balance.
+  if (false) {
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }
@@ -2001,7 +2008,7 @@ void TurboAssembler::LoadMap(Register destination, Register object) {
                          FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
-void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   LoadTaggedPointerField(
       dst, FieldMemOperand(
@@ -3782,14 +3789,14 @@ void TurboAssembler::StoreU16LE(Register src, const MemOperand& mem,
 
 void TurboAssembler::StoreF64LE(DoubleRegister src, const MemOperand& opnd,
                                 Register scratch) {
-  DCHECK(!is_int20(opnd.offset()));
+  DCHECK(is_uint12(opnd.offset()));
   lgdr(scratch, src);
   strvg(scratch, opnd);
 }
 
 void TurboAssembler::StoreF32LE(DoubleRegister src, const MemOperand& opnd,
                                 Register scratch) {
-  DCHECK(!is_int20(opnd.offset()));
+  DCHECK(is_uint12(opnd.offset()));
   lgdr(scratch, src);
   ShiftRightU64(scratch, scratch, Operand(32));
   strv(scratch, opnd);
@@ -4654,7 +4661,8 @@ void TurboAssembler::CallCodeObject(Register code_object) {
   Call(code_object);
 }
 
-void TurboAssembler::JumpCodeObject(Register code_object) {
+void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
+  DCHECK_EQ(JumpMode::kJump, jump_mode);
   LoadCodeObjectEntry(code_object, code_object);
   Jump(code_object);
 }
@@ -4696,6 +4704,274 @@ void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
 
 void TurboAssembler::Trap() { stop(); }
 void TurboAssembler::DebugBreak() { stop(); }
+
+void TurboAssembler::CountLeadingZerosU32(Register dst, Register src,
+                                          Register scratch_pair) {
+  llgfr(dst, src);
+  flogr(scratch_pair,
+        dst);  // will modify a register pair scratch and scratch + 1
+  AddS32(dst, scratch_pair, Operand(-32));
+}
+
+void TurboAssembler::CountLeadingZerosU64(Register dst, Register src,
+                                          Register scratch_pair) {
+  flogr(scratch_pair,
+        src);  // will modify a register pair scratch and scratch + 1
+  mov(dst, scratch_pair);
+}
+
+void TurboAssembler::CountTrailingZerosU32(Register dst, Register src,
+                                           Register scratch_pair) {
+  Register scratch0 = scratch_pair;
+  Register scratch1 = Register::from_code(scratch_pair.code() + 1);
+  DCHECK(!AreAliased(dst, scratch0, scratch1));
+  DCHECK(!AreAliased(src, scratch0, scratch1));
+
+  Label done;
+  // Check if src is all zeros.
+  ltr(scratch1, src);
+  mov(dst, Operand(32));
+  beq(&done);
+  llgfr(scratch1, scratch1);
+  lcgr(scratch0, scratch1);
+  ngr(scratch1, scratch0);
+  flogr(scratch0, scratch1);
+  mov(dst, Operand(63));
+  SubS64(dst, scratch0);
+  bind(&done);
+}
+
+void TurboAssembler::CountTrailingZerosU64(Register dst, Register src,
+                                           Register scratch_pair) {
+  Register scratch0 = scratch_pair;
+  Register scratch1 = Register::from_code(scratch_pair.code() + 1);
+  DCHECK(!AreAliased(dst, scratch0, scratch1));
+  DCHECK(!AreAliased(src, scratch0, scratch1));
+
+  Label done;
+  // Check if src is all zeros.
+  ltgr(scratch1, src);
+  mov(dst, Operand(64));
+  beq(&done);
+  lcgr(scratch0, scratch1);
+  ngr(scratch0, scratch1);
+  flogr(scratch0, scratch0);
+  mov(dst, Operand(63));
+  SubS64(dst, scratch0);
+  bind(&done);
+}
+
+void TurboAssembler::AtomicCmpExchangeHelper(Register addr, Register output,
+                                             Register old_value,
+                                             Register new_value, int start,
+                                             int end, int shift_amount,
+                                             int offset, Register temp0,
+                                             Register temp1) {
+  LoadU32(temp0, MemOperand(addr, offset));
+  llgfr(temp1, temp0);
+  RotateInsertSelectBits(temp0, old_value, Operand(start), Operand(end),
+                         Operand(shift_amount), false);
+  RotateInsertSelectBits(temp1, new_value, Operand(start), Operand(end),
+                         Operand(shift_amount), false);
+  CmpAndSwap(temp0, temp1, MemOperand(addr, offset));
+  RotateInsertSelectBits(output, temp0, Operand(start + shift_amount),
+                         Operand(end + shift_amount),
+                         Operand(64 - shift_amount), true);
+}
+
+void TurboAssembler::AtomicCmpExchangeU8(Register addr, Register output,
+                                         Register old_value, Register new_value,
+                                         Register temp0, Register temp1) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * idx;                                     \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = (3 - idx) * 8;                             \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx, temp0, temp1);              \
+  }
+#else
+#define ATOMIC_COMP_EXCHANGE_BYTE(i)                                        \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 8 * (3 - idx);                               \
+    constexpr int end = start + 7;                                          \
+    constexpr int shift_amount = idx * 8;                                   \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx, temp0, temp1);              \
+  }
+#endif
+
+  Label one, two, three, done;
+  tmll(addr, Operand(3));
+  b(Condition(1), &three);
+  b(Condition(2), &two);
+  b(Condition(4), &one);
+  /* ending with 0b00 */
+  ATOMIC_COMP_EXCHANGE_BYTE(0);
+  b(&done);
+  /* ending with 0b01 */
+  bind(&one);
+  ATOMIC_COMP_EXCHANGE_BYTE(1);
+  b(&done);
+  /* ending with 0b10 */
+  bind(&two);
+  ATOMIC_COMP_EXCHANGE_BYTE(2);
+  b(&done);
+  /* ending with 0b11 */
+  bind(&three);
+  ATOMIC_COMP_EXCHANGE_BYTE(3);
+  bind(&done);
+}
+
+void TurboAssembler::AtomicCmpExchangeU16(Register addr, Register output,
+                                          Register old_value,
+                                          Register new_value, Register temp0,
+                                          Register temp1) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * idx;                                    \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = (1 - idx) * 16;                            \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx * 2, temp0, temp1);          \
+  }
+#else
+#define ATOMIC_COMP_EXCHANGE_HALFWORD(i)                                    \
+  {                                                                         \
+    constexpr int idx = (i);                                                \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");            \
+    constexpr int start = 32 + 16 * (1 - idx);                              \
+    constexpr int end = start + 15;                                         \
+    constexpr int shift_amount = idx * 16;                                  \
+    AtomicCmpExchangeHelper(addr, output, old_value, new_value, start, end, \
+                            shift_amount, -idx * 2, temp0, temp1);          \
+  }
+#endif
+
+  Label two, done;
+  tmll(addr, Operand(3));
+  b(Condition(2), &two);
+  ATOMIC_COMP_EXCHANGE_HALFWORD(0);
+  b(&done);
+  bind(&two);
+  ATOMIC_COMP_EXCHANGE_HALFWORD(1);
+  bind(&done);
+}
+
+void TurboAssembler::AtomicExchangeHelper(Register addr, Register value,
+                                          Register output, int start, int end,
+                                          int shift_amount, int offset,
+                                          Register scratch) {
+  Label do_cs;
+  LoadU32(output, MemOperand(addr, offset));
+  bind(&do_cs);
+  llgfr(scratch, output);
+  RotateInsertSelectBits(scratch, value, Operand(start), Operand(end),
+                         Operand(shift_amount), false);
+  csy(output, scratch, MemOperand(addr, offset));
+  bne(&do_cs, Label::kNear);
+  srl(output, Operand(shift_amount));
+}
+
+void TurboAssembler::AtomicExchangeU8(Register addr, Register value,
+                                      Register output, Register scratch) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_EXCHANGE_BYTE(i)                                               \
+  {                                                                           \
+    constexpr int idx = (i);                                                  \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");              \
+    constexpr int start = 32 + 8 * idx;                                       \
+    constexpr int end = start + 7;                                            \
+    constexpr int shift_amount = (3 - idx) * 8;                               \
+    AtomicExchangeHelper(addr, value, output, start, end, shift_amount, -idx, \
+                         scratch);                                            \
+  }
+#else
+#define ATOMIC_EXCHANGE_BYTE(i)                                               \
+  {                                                                           \
+    constexpr int idx = (i);                                                  \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!");              \
+    constexpr int start = 32 + 8 * (3 - idx);                                 \
+    constexpr int end = start + 7;                                            \
+    constexpr int shift_amount = idx * 8;                                     \
+    AtomicExchangeHelper(addr, value, output, start, end, shift_amount, -idx, \
+                         scratch);                                            \
+  }
+#endif
+  Label three, two, one, done;
+  tmll(addr, Operand(3));
+  b(Condition(1), &three);
+  b(Condition(2), &two);
+  b(Condition(4), &one);
+
+  // end with 0b00
+  ATOMIC_EXCHANGE_BYTE(0);
+  b(&done);
+
+  // ending with 0b01
+  bind(&one);
+  ATOMIC_EXCHANGE_BYTE(1);
+  b(&done);
+
+  // ending with 0b10
+  bind(&two);
+  ATOMIC_EXCHANGE_BYTE(2);
+  b(&done);
+
+  // ending with 0b11
+  bind(&three);
+  ATOMIC_EXCHANGE_BYTE(3);
+
+  bind(&done);
+}
+
+void TurboAssembler::AtomicExchangeU16(Register addr, Register value,
+                                       Register output, Register scratch) {
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_EXCHANGE_HALFWORD(i)                                     \
+  {                                                                     \
+    constexpr int idx = (i);                                            \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");        \
+    constexpr int start = 32 + 16 * idx;                                \
+    constexpr int end = start + 15;                                     \
+    constexpr int shift_amount = (1 - idx) * 16;                        \
+    AtomicExchangeHelper(addr, value, output, start, end, shift_amount, \
+                         -idx * 2, scratch);                            \
+  }
+#else
+#define ATOMIC_EXCHANGE_HALFWORD(i)                                     \
+  {                                                                     \
+    constexpr int idx = (i);                                            \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!");        \
+    constexpr int start = 32 + 16 * (1 - idx);                          \
+    constexpr int end = start + 15;                                     \
+    constexpr int shift_amount = idx * 16;                              \
+    AtomicExchangeHelper(addr, value, output, start, end, shift_amount, \
+                         -idx * 2, scratch);                            \
+  }
+#endif
+  Label two, done;
+  tmll(addr, Operand(3));
+  b(Condition(2), &two);
+
+  // end with 0b00
+  ATOMIC_EXCHANGE_HALFWORD(0);
+  b(&done);
+
+  // ending with 0b10
+  bind(&two);
+  ATOMIC_EXCHANGE_HALFWORD(1);
+
+  bind(&done);
+}
 
 }  // namespace internal
 }  // namespace v8

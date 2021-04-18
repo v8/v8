@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/api/api.h"
+#include "src/baseline/baseline.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/frame-constants.h"
 #include "src/heap/memory-chunk.h"
@@ -311,6 +313,9 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   Label incremental_wb(this);
   Label exit(this);
 
+  // In this method we limit the allocatable registers so we have to use
+  // UncheckedParameter. Parameter does not work because the checked cast needs
+  // more registers.
   auto remembered_set = UncheckedParameter<Smi>(Descriptor::kRememberedSet);
   Branch(ShouldEmitRememberSet(remembered_set), &generational_wb,
          &incremental_wb);
@@ -332,8 +337,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     BIND(&test_old_to_young_flags);
     {
       // TODO(ishell): do a new-space range check instead.
-      TNode<IntPtrT> value =
-          BitcastTaggedToWord(Load(MachineType::TaggedPointer(), slot));
+      TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
 
       // TODO(albertnetymk): Try to cache the page flag for value and object,
       // instead of calling IsPageFlagSet each time.
@@ -342,7 +346,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       GotoIfNot(value_is_young, &incremental_wb);
 
       TNode<IntPtrT> object =
-          BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
       TNode<BoolT> object_is_young =
           IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
       Branch(object_is_young, &incremental_wb, &store_buffer_incremental_wb);
@@ -352,7 +356,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     {
       auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
       TNode<IntPtrT> object =
-          BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
       InsertIntoRememberedSetAndGoto(object, slot, fp_mode, &exit);
     }
 
@@ -360,7 +364,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     {
       auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
       TNode<IntPtrT> object =
-          BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
       InsertIntoRememberedSetAndGoto(object, slot, fp_mode, &incremental_wb);
     }
   }
@@ -370,8 +374,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     Label call_incremental_wb(this);
 
     auto slot = UncheckedParameter<IntPtrT>(Descriptor::kSlot);
-    TNode<IntPtrT> value =
-        BitcastTaggedToWord(Load(MachineType::TaggedPointer(), slot));
+    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
@@ -383,7 +386,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
               &exit);
 
     TNode<IntPtrT> object =
-        BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+        BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
     Branch(
         IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
         &exit, &call_incremental_wb);
@@ -394,7 +397,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
           ExternalReference::write_barrier_marking_from_code_function());
       auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
       TNode<IntPtrT> object =
-          BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+          BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
       CallCFunction2WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT>(
           function, object, slot, fp_mode, &exit);
     }
@@ -412,9 +415,12 @@ TF_BUILTIN(EphemeronKeyBarrier, RecordWriteCodeStubAssembler) {
       ExternalReference::ephemeron_key_write_barrier_function());
   TNode<ExternalReference> isolate_constant =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
+  // In this method we limit the allocatable registers so we have to use
+  // UncheckedParameter. Parameter does not work because the checked cast needs
+  // more registers.
   auto address = UncheckedParameter<IntPtrT>(Descriptor::kSlotAddress);
   TNode<IntPtrT> object =
-      BitcastTaggedToWord(UntypedParameter(Descriptor::kObject));
+      BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kObject));
   TNode<Smi> fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
   CallCFunction3WithCallerSavedRegistersMode<Int32T, IntPtrT, IntPtrT,
                                              ExternalReference>(
@@ -430,20 +436,10 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
   explicit DeletePropertyBaseAssembler(compiler::CodeAssemblerState* state)
       : AccessorAssembler(state) {}
 
-  void DeleteDictionaryProperty(TNode<Object> receiver,
+  void DictionarySpecificDelete(TNode<JSReceiver> receiver,
                                 TNode<NameDictionary> properties,
-                                TNode<Name> name, TNode<Context> context,
-                                Label* dont_delete, Label* notfound) {
-    TVARIABLE(IntPtrT, var_name_index);
-    Label dictionary_found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(properties, name, &dictionary_found,
-                                         &var_name_index, notfound);
-
-    BIND(&dictionary_found);
-    TNode<IntPtrT> key_index = var_name_index.value();
-    TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, key_index);
-    GotoIf(IsSetWord32(details, PropertyDetails::kAttributesDontDeleteMask),
-           dont_delete);
+                                TNode<IntPtrT> key_index,
+                                TNode<Context> context) {
     // Overwrite the entry itself (see NameDictionary::SetEntry).
     TNode<Oddball> filler = TheHoleConstant();
     DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kTheHoleValue));
@@ -467,9 +463,49 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
     TNode<Smi> capacity = GetCapacity<NameDictionary>(properties);
     GotoIf(SmiGreaterThan(new_nof, SmiShr(capacity, 2)), &shrinking_done);
     GotoIf(SmiLessThan(new_nof, SmiConstant(16)), &shrinking_done);
-    CallRuntime(Runtime::kShrinkPropertyDictionary, context, receiver);
+
+    TNode<NameDictionary> new_properties =
+        CAST(CallRuntime(Runtime::kShrinkNameDictionary, context, properties));
+
+    StoreJSReceiverPropertiesOrHash(receiver, new_properties);
+
     Goto(&shrinking_done);
     BIND(&shrinking_done);
+  }
+
+  void DictionarySpecificDelete(TNode<JSReceiver> receiver,
+                                TNode<SwissNameDictionary> properties,
+                                TNode<IntPtrT> key_index,
+                                TNode<Context> context) {
+    Label shrunk(this), done(this);
+    TVARIABLE(SwissNameDictionary, shrunk_table);
+
+    SwissNameDictionaryDelete(properties, key_index, &shrunk, &shrunk_table);
+    Goto(&done);
+    BIND(&shrunk);
+    StoreJSReceiverPropertiesOrHash(receiver, shrunk_table.value());
+    Goto(&done);
+
+    BIND(&done);
+  }
+
+  template <typename Dictionary>
+  void DeleteDictionaryProperty(TNode<JSReceiver> receiver,
+                                TNode<Dictionary> properties, TNode<Name> name,
+                                TNode<Context> context, Label* dont_delete,
+                                Label* notfound) {
+    TVARIABLE(IntPtrT, var_name_index);
+    Label dictionary_found(this, &var_name_index);
+    NameDictionaryLookup<Dictionary>(properties, name, &dictionary_found,
+                                     &var_name_index, notfound);
+
+    BIND(&dictionary_found);
+    TNode<IntPtrT> key_index = var_name_index.value();
+    TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, key_index);
+    GotoIf(IsSetWord32(details, PropertyDetails::kAttributesDontDeleteMask),
+           dont_delete);
+
+    DictionarySpecificDelete(receiver, properties, key_index, context);
 
     Return(TrueConstant());
   }
@@ -485,11 +521,6 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   TVARIABLE(Name, var_unique);
   Label if_index(this, &var_index), if_unique_name(this), if_notunique(this),
       if_notfound(this), slow(this), if_proxy(this);
-
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &slow);
-  }
 
   GotoIf(TaggedIsSmi(receiver), &slow);
   TNode<Map> receiver_map = LoadMap(CAST(receiver));
@@ -521,9 +552,9 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     {
       InvalidateValidityCellIfPrototype(receiver_map);
 
-      TNode<NameDictionary> properties =
+      TNode<PropertyDictionary> properties =
           CAST(LoadSlowProperties(CAST(receiver)));
-      DeleteDictionaryProperty(receiver, properties, var_unique.value(),
+      DeleteDictionaryProperty(CAST(receiver), properties, var_unique.value(),
                                context, &dont_delete, &if_notfound);
     }
 
@@ -685,6 +716,20 @@ TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
 
   BIND(&if_runtime);
   TailCallRuntime(Runtime::kForInEnumerate, context, receiver);
+}
+
+TF_BUILTIN(ForInPrepare, CodeStubAssembler) {
+  // The {enumerator} is either a Map or a FixedArray.
+  auto enumerator = Parameter<HeapObject>(Descriptor::kEnumerator);
+  auto index = Parameter<TaggedIndex>(Descriptor::kVectorIndex);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  TNode<UintPtrT> vector_index = Unsigned(TaggedIndexToIntPtr(index));
+
+  TNode<FixedArray> cache_array;
+  TNode<Smi> cache_length;
+  ForInPrepare(enumerator, vector_index, feedback_vector, &cache_array,
+               &cache_length, UpdateFeedbackMode::kGuaranteedFeedback);
+  Return(cache_array, cache_length);
 }
 
 TF_BUILTIN(ForInFilter, CodeStubAssembler) {
@@ -909,6 +954,29 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
 }
 #endif  // V8_TARGET_ARCH_IA32
 
+// TODO(v8:11421): Remove #if once baseline compiler is ported to other
+// architectures.
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
+void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
+  EmitReturnBaseline(masm);
+}
+#else
+// Stub out implementations of arch-specific baseline builtins.
+void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_TailCallOptimizedCodeSlot(MacroAssembler* masm) {
+  masm->Trap();
+}
+#endif
+
 // ES6 [[Get]] operation.
 TF_BUILTIN(GetProperty, CodeStubAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);
@@ -918,11 +986,6 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
   // object, key, OnNonExistent::kReturnUndefined).
   Label if_notfound(this), if_proxy(this, Label::kDeferred),
       if_slow(this, Label::kDeferred);
-
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &if_slow);
-  }
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
       [=](TNode<HeapObject> receiver, TNode<HeapObject> holder,
@@ -978,11 +1041,6 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
   auto on_non_existent = Parameter<Object>(Descriptor::kOnNonExistent);
   Label if_notfound(this), if_proxy(this, Label::kDeferred),
       if_slow(this, Label::kDeferred);
-
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    // TODO(v8:11167) remove once OrderedNameDictionary supported.
-    GotoIf(Int32TrueConstant(), &if_slow);
-  }
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
       [=](TNode<HeapObject> receiver, TNode<HeapObject> holder,

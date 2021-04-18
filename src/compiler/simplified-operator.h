@@ -127,6 +127,13 @@ struct FieldAccess {
 #endif
   {
     DCHECK_GE(offset, 0);
+    DCHECK_IMPLIES(
+        machine_type.IsMapWord(),
+        offset == HeapObject::kMapOffset && base_is_tagged != kUntaggedBase);
+    DCHECK_IMPLIES(machine_type.IsMapWord(),
+                   (write_barrier_kind == kMapWriteBarrier ||
+                    write_barrier_kind == kNoWriteBarrier ||
+                    write_barrier_kind == kAssertNoWriteBarrier));
   }
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
@@ -1133,15 +1140,12 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
   static constexpr int kExtraInputCount =
       kFastTargetInputCount + kFastReceiverInputCount;
 
-  static constexpr int kHasOptionsInputCount = 1;
   static constexpr int kArityInputCount = 1;
   static constexpr int kNewTargetInputCount = 1;
   static constexpr int kHolderInputCount = 1;
   static constexpr int kContextAndFrameStateInputCount = 2;
   static constexpr int kEffectAndControlInputCount = 2;
-  static constexpr int kFastCallExtraInputCount = kFastTargetInputCount +
-                                                  kHasOptionsInputCount +
-                                                  kEffectAndControlInputCount;
+  int FastCallExtraInputCount() const;
   static constexpr int kSlowCallExtraInputCount =
       kSlowTargetInputCount + kArityInputCount + kNewTargetInputCount +
       kSlowReceiverInputCount + kHolderInputCount +

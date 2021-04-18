@@ -117,7 +117,7 @@ namespace {
 
 template <typename Dictionary>
 Handle<Name> KeyToName(Isolate* isolate, Handle<Object> key) {
-  STATIC_ASSERT((std::is_same<Dictionary, OrderedNameDictionary>::value ||
+  STATIC_ASSERT((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));
   DCHECK(key->IsName());
   return Handle<Name>::cast(key);
@@ -190,8 +190,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
     Isolate* isolate, Handle<Dictionary> dictionary_template) {
   Handle<Map> dictionary_map(dictionary_template->map(), isolate);
   Handle<Dictionary> dictionary =
-      Handle<Dictionary>::cast(isolate->factory()->CopyFixedArrayWithMap(
-          dictionary_template, dictionary_map));
+      Dictionary::ShallowCopy(isolate, dictionary_template);
   // Clone all AccessorPairs in the dictionary.
   for (InternalIndex i : dictionary->IterateEntries()) {
     Object value = dictionary->ValueAt(i);
@@ -366,8 +365,7 @@ bool AddDescriptorsByTemplate(
 
   UpdateProtectors(isolate, receiver, descriptors_template);
 
-  map->InitializeDescriptors(isolate, *descriptors,
-                             LayoutDescriptor::FastPointerLayout());
+  map->InitializeDescriptors(isolate, *descriptors);
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
                                             args)) {
@@ -530,9 +528,9 @@ bool InitClassPrototype(Isolate* isolate,
     // Class prototypes do not have a name accessor.
     const bool install_name_accessor = false;
 
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      Handle<OrderedNameDictionary> properties_dictionary_template =
-          Handle<OrderedNameDictionary>::cast(properties_template);
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      Handle<SwissNameDictionary> properties_dictionary_template =
+          Handle<SwissNameDictionary>::cast(properties_template);
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
           elements_dictionary_template, computed_properties, prototype,
@@ -583,8 +581,7 @@ bool InitClassConstructor(
   } else {
     map->set_is_dictionary_map(true);
     map->InitializeDescriptors(isolate,
-                               ReadOnlyRoots(isolate).empty_descriptor_array(),
-                               LayoutDescriptor::FastPointerLayout());
+                               ReadOnlyRoots(isolate).empty_descriptor_array());
     map->set_is_migration_target(false);
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
@@ -592,9 +589,9 @@ bool InitClassConstructor(
     // All class constructors have a name accessor.
     const bool install_name_accessor = true;
 
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      Handle<OrderedNameDictionary> properties_dictionary_template =
-          Handle<OrderedNameDictionary>::cast(properties_template);
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      Handle<SwissNameDictionary> properties_dictionary_template =
+          Handle<SwissNameDictionary>::cast(properties_template);
 
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,

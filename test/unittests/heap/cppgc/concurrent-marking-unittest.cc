@@ -37,7 +37,7 @@ class ConcurrentMarkingTest : public testing::TestWithHeap {
     Heap* heap = Heap::From(GetHeap());
     heap->DisableHeapGrowingForTesting();
     heap->StartIncrementalGarbageCollection(ConcurrentPreciseConfig);
-    heap->marker()->DisableIncrementalMarkingForTesting();
+    heap->marker()->SetMainThreadMarkingDisabledForTesting(true);
   }
 
   bool SingleStep(Config::StackState stack_state) {
@@ -46,13 +46,10 @@ class ConcurrentMarkingTest : public testing::TestWithHeap {
     return marker->IncrementalMarkingStepForTesting(stack_state);
   }
 
-  void FinishSteps(Config::StackState stack_state) {
-    while (!SingleStep(stack_state)) {
-    }
-  }
-
   void FinishGC() {
-    Heap::From(GetHeap())->FinalizeIncrementalGarbageCollectionIfRunning(
+    Heap* heap = Heap::From(GetHeap());
+    heap->marker()->SetMainThreadMarkingDisabledForTesting(false);
+    heap->FinalizeIncrementalGarbageCollectionIfRunning(
         ConcurrentPreciseConfig);
   }
 };
@@ -112,7 +109,7 @@ TEST_F(ConcurrentMarkingTest, MarkingObjects) {
       *last_object = MakeGarbageCollected<GCed>(GetAllocationHandle());
       last_object = &(*last_object)->child_;
     }
-    // Use SignleStep to re-post concurrent jobs.
+    // Use SingleStep to re-post concurrent jobs.
     SingleStep(Config::StackState::kNoHeapPointers);
   }
   FinishGC();
@@ -131,7 +128,7 @@ TEST_F(ConcurrentMarkingTest, MarkingInConstructionObjects) {
             last_object = &(*last_object)->child_;
           });
     }
-    // Use SignleStep to re-post concurrent jobs.
+    // Use SingleStep to re-post concurrent jobs.
     SingleStep(Config::StackState::kNoHeapPointers);
   }
   FinishGC();
@@ -147,7 +144,7 @@ TEST_F(ConcurrentMarkingTest, MarkingMixinObjects) {
       *last_object = MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
       last_object = &(*last_object)->child_;
     }
-    // Use SignleStep to re-post concurrent jobs.
+    // Use SingleStep to re-post concurrent jobs.
     SingleStep(Config::StackState::kNoHeapPointers);
   }
   FinishGC();

@@ -175,7 +175,7 @@ class NoWriteBarrierTest : public testing::TestWithHeap {};
 TEST_F(WriteBarrierTest, EnableDisableIncrementalMarking) {
   {
     IncrementalMarkingScope scope(marker());
-    EXPECT_TRUE(ProcessHeap::IsAnyIncrementalOrConcurrentMarking());
+    EXPECT_TRUE(WriteBarrier::IsAnyIncrementalOrConcurrentMarking());
   }
 }
 
@@ -387,7 +387,7 @@ struct InlinedObject {
   Member<GCed> ref;
 };
 
-class GCedWithInlinedArray : public GarbageCollected<GCed> {
+class GCedWithInlinedArray : public GarbageCollected<GCedWithInlinedArray> {
  public:
   static constexpr size_t kNumReferences = 4;
 

@@ -6,6 +6,7 @@
 #include "src/wasm/wasm-debug.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
@@ -88,6 +89,8 @@ class LiftoffCompileEnvironment {
 
     return debug_side_table_via_compilation;
   }
+
+  TestingModuleBuilder* builder() { return &wasm_runner_.builder(); }
 
  private:
   static void CheckTableEquals(const DebugSideTable& a,
@@ -177,8 +180,8 @@ struct DebugSideTableEntry {
   // Check for equality, but ignore exact register and stack offset.
   static bool CheckValueEquals(const DebugSideTable::Entry::Value& a,
                                const DebugSideTable::Entry::Value& b) {
-    return a.index == b.index && a.type == b.type && a.kind == b.kind &&
-           (a.kind != DebugSideTable::Entry::kConstant ||
+    return a.index == b.index && a.type == b.type && a.storage == b.storage &&
+           (a.storage != DebugSideTable::Entry::kConstant ||
             a.i32_const == b.i32_const);
   }
 };
@@ -190,7 +193,7 @@ std::ostream& operator<<(std::ostream& out, const DebugSideTableEntry& entry) {
   const char* comma = "";
   for (auto& v : entry.changed_values) {
     out << comma << v.index << ":" << v.type.name() << " ";
-    switch (v.kind) {
+    switch (v.storage) {
       case DebugSideTable::Entry::kConstant:
         out << "const:" << v.i32_const;
         break;
@@ -218,7 +221,7 @@ DebugSideTable::Entry::Value Constant(int index, ValueType type,
   DebugSideTable::Entry::Value value;
   value.index = index;
   value.type = type;
-  value.kind = DebugSideTable::Entry::kConstant;
+  value.storage = DebugSideTable::Entry::kConstant;
   value.i32_const = constant;
   return value;
 }
@@ -226,14 +229,14 @@ DebugSideTable::Entry::Value Register(int index, ValueType type) {
   DebugSideTable::Entry::Value value;
   value.index = index;
   value.type = type;
-  value.kind = DebugSideTable::Entry::kRegister;
+  value.storage = DebugSideTable::Entry::kRegister;
   return value;
 }
 DebugSideTable::Entry::Value Stack(int index, ValueType type) {
   DebugSideTable::Entry::Value value;
   value.index = index;
   value.type = type;
-  value.kind = DebugSideTable::Entry::kStack;
+  value.storage = DebugSideTable::Entry::kStack;
   return value;
 }
 
@@ -419,6 +422,56 @@ TEST(Liftoff_breakpoint_simple) {
           {4, {Register(2, kWasmI32), Register(3, kWasmI32)}},
           // OOL stack check, locals spilled, stack empty.
           {2, {Stack(0, kWasmI32), Stack(1, kWasmI32)}},
+      },
+      debug_side_table.get());
+}
+
+TEST(Liftoff_debug_side_table_catch_all) {
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  LiftoffCompileEnvironment env;
+  TestSignatures sigs;
+  int ex = env.builder()->AddException(sigs.v_v());
+  ValueType exception_type = ValueType::Ref(HeapType::kExtern, kNonNullable);
+  auto debug_side_table = env.GenerateDebugSideTable(
+      {}, {kWasmI32},
+      {WASM_TRY_CATCH_ALL_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(ex)),
+                            WASM_I32V(1)),
+       WASM_DROP},
+      {
+          18  // Break at the end of the try block.
+      });
+  CheckDebugSideTable(
+      {
+          // function entry.
+          {1, {Register(0, kWasmI32)}},
+          // breakpoint.
+          {3,
+           {Stack(0, kWasmI32), Register(1, exception_type),
+            Constant(2, kWasmI32, 1)}},
+          {1, {}},
+      },
+      debug_side_table.get());
+}
+
+TEST(Regress1199526) {
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  LiftoffCompileEnvironment env;
+  ValueType exception_type = ValueType::Ref(HeapType::kExtern, kNonNullable);
+  auto debug_side_table = env.GenerateDebugSideTable(
+      {}, {},
+      {kExprTry, kVoidCode, kExprCallFunction, 0, kExprCatchAll, kExprLoop,
+       kVoidCode, kExprEnd, kExprEnd},
+      {});
+  CheckDebugSideTable(
+      {
+          // function entry.
+          {0, {}},
+          // break on entry.
+          {0, {}},
+          // function call.
+          {0, {}},
+          // loop stack check.
+          {1, {Stack(0, exception_type)}},
       },
       debug_side_table.get());
 }

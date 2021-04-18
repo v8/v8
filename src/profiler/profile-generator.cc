@@ -134,7 +134,7 @@ CodeEntry* CodeEntry::root_entry() {
 }
 
 uint32_t CodeEntry::GetHash() const {
-  uint32_t hash = ComputeUnseededHash(tag());
+  uint32_t hash = 0;
   if (script_id_ != v8::UnboundScript::kNoScriptId) {
     hash ^= ComputeUnseededHash(static_cast<uint32_t>(script_id_));
     hash ^= ComputeUnseededHash(static_cast<uint32_t>(position_));
@@ -314,7 +314,6 @@ CpuProfileNode::SourceType ProfileNode::source_type() const {
     case CodeEventListener::SCRIPT_TAG:
     case CodeEventListener::LAZY_COMPILE_TAG:
     case CodeEventListener::FUNCTION_TAG:
-    case CodeEventListener::INTERPRETED_FUNCTION_TAG:
       return CpuProfileNode::kScript;
     case CodeEventListener::BUILTIN_TAG:
     case CodeEventListener::HANDLER_TAG:
@@ -539,9 +538,11 @@ using v8::tracing::TracedValue;
 std::atomic<uint32_t> CpuProfile::last_id_;
 
 CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
-                       CpuProfilingOptions options)
+                       CpuProfilingOptions options,
+                       std::unique_ptr<DiscardedSamplesDelegate> delegate)
     : title_(title),
       options_(options),
+      delegate_(std::move(delegate)),
       start_time_(base::TimeTicks::HighResolutionNow()),
       top_down_(profiler->isolate()),
       profiler_(profiler),
@@ -588,8 +589,19 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
       (options_.max_samples() == CpuProfilingOptions::kNoSampleLimit ||
        samples_.size() < options_.max_samples());
 
-  if (should_record_sample)
+  if (should_record_sample) {
     samples_.push_back({top_frame_node, timestamp, src_line});
+  }
+
+  if (!should_record_sample && delegate_ != nullptr) {
+    const auto task_runner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+        reinterpret_cast<v8::Isolate*>(profiler_->isolate()));
+
+    task_runner->PostTask(std::make_unique<CpuProfileMaxSamplesCallbackTask>(
+        std::move(delegate_)));
+    // std::move ensures that the delegate_ will be null on the next sample,
+    // so we don't post a task multiple times.
+  }
 
   const int kSamplesFlushCount = 100;
   const int kNodesFlushCount = 10;
@@ -742,8 +754,24 @@ void CodeMap::Clear() {
 }
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
-  ClearCodesInRange(addr, addr + size);
   code_map_.emplace(addr, CodeEntryMapInfo{entry, size});
+  entry->set_instruction_start(addr);
+}
+
+bool CodeMap::RemoveCode(CodeEntry* entry) {
+  auto range = code_map_.equal_range(entry->instruction_start());
+  for (auto i = range.first; i != range.second; ++i) {
+    if (i->second.entry == entry) {
+      if (!entry->used()) {
+        DeleteCodeEntry(entry);
+      } else {
+        used_entries_.push_back(entry);
+      }
+      code_map_.erase(i);
+      return true;
+    }
+  }
+  return false;
 }
 
 void CodeMap::ClearCodesInRange(Address start, Address end) {
@@ -764,6 +792,9 @@ void CodeMap::ClearCodesInRange(Address start, Address end) {
 }
 
 CodeEntry* CodeMap::FindEntry(Address addr, Address* out_instruction_start) {
+  // Note that an address may correspond to multiple CodeEntry objects. An
+  // arbitrary selection is made (as per multimap spec) in the event of a
+  // collision.
   auto it = code_map_.upper_bound(addr);
   if (it == code_map_.begin()) return nullptr;
   --it;
@@ -777,13 +808,25 @@ CodeEntry* CodeMap::FindEntry(Address addr, Address* out_instruction_start) {
 
 void CodeMap::MoveCode(Address from, Address to) {
   if (from == to) return;
-  auto it = code_map_.find(from);
-  if (it == code_map_.end()) return;
-  CodeEntryMapInfo info = it->second;
-  code_map_.erase(it);
-  DCHECK(from + info.size <= to || to + info.size <= from);
-  ClearCodesInRange(to, to + info.size);
-  code_map_.emplace(to, info);
+
+  auto range = code_map_.equal_range(from);
+  // Instead of iterating until |range.second|, iterate the number of elements.
+  // This is because the |range.second| may no longer be the element past the
+  // end of the equal elements range after insertions.
+  size_t distance = std::distance(range.first, range.second);
+  auto it = range.first;
+  while (distance--) {
+    CodeEntryMapInfo& info = it->second;
+    DCHECK(info.entry);
+    DCHECK_EQ(info.entry->instruction_start(), from);
+    info.entry->set_instruction_start(to);
+
+    DCHECK(from + info.size <= to || to + info.size <= from);
+    code_map_.emplace(to, info);
+    it++;
+  }
+
+  code_map_.erase(range.first, it);
 }
 
 void CodeMap::DeleteCodeEntry(CodeEntry* entry) {
@@ -802,7 +845,8 @@ CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
     : profiler_(nullptr), current_profiles_semaphore_(1) {}
 
 CpuProfilingStatus CpuProfilesCollection::StartProfiling(
-    const char* title, CpuProfilingOptions options) {
+    const char* title, CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   current_profiles_semaphore_.Wait();
 
   if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
@@ -818,7 +862,9 @@ CpuProfilingStatus CpuProfilesCollection::StartProfiling(
       return CpuProfilingStatus::kAlreadyStarted;
     }
   }
-  current_profiles_.emplace_back(new CpuProfile(profiler_, title, options));
+
+  current_profiles_.emplace_back(
+      new CpuProfile(profiler_, title, options, std::move(delegate)));
   current_profiles_semaphore_.Signal();
   return CpuProfilingStatus::kStarted;
 }

@@ -60,10 +60,14 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/templates.h"
 #include "src/snapshot/snapshot.h"
-#include "src/wasm/wasm-js.h"
 #include "src/zone/zone-hashmap.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-js.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -445,7 +449,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   if (!IsResumableFunction(info->kind()) && prototype->IsTheHole(isolate)) {
     prototype = factory->NewFunctionPrototype(result);
   }
-  JSFunction::SetInitialMap(result, initial_map, prototype);
+  JSFunction::SetInitialMap(isolate, result, initial_map, prototype);
 
   return result;
 }
@@ -962,12 +966,14 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
     Handle<JSFunction> call_async_module_fulfilled =
         SimpleCreateFunction(isolate(), factory()->empty_string(),
                              Builtins::kCallAsyncModuleFulfilled, 1, false);
+    call_async_module_fulfilled->shared().set_native(false);
     native_context()->set_call_async_module_fulfilled(
         *call_async_module_fulfilled);
 
     Handle<JSFunction> call_async_module_rejected =
         SimpleCreateFunction(isolate(), factory()->empty_string(),
                              Builtins::kCallAsyncModuleRejected, 1, false);
+    call_async_module_rejected->shared().set_native(false);
     native_context()->set_call_async_module_rejected(
         *call_async_module_rejected);
   }
@@ -1171,7 +1177,7 @@ namespace {
 void ReplaceAccessors(Isolate* isolate, Handle<Map> map, Handle<String> name,
                       PropertyAttributes attributes,
                       Handle<AccessorPair> accessor_pair) {
-  DescriptorArray descriptors = map->instance_descriptors(kRelaxedLoad);
+  DescriptorArray descriptors = map->instance_descriptors(isolate);
   InternalIndex entry = descriptors.SearchWithCache(isolate, *name, *map);
   Descriptor d = Descriptor::AccessorConstant(name, accessor_pair, attributes);
   descriptors.Replace(entry, &d);
@@ -1398,6 +1404,11 @@ static void InstallError(
     int error_function_length = 1, int in_object_properties = 2) {
   Factory* factory = isolate->factory();
 
+  if (FLAG_harmony_error_cause) {
+    error_function_length += 1;
+    in_object_properties += 1;
+  }
+
   // Most Error objects consist of a message and a stack trace.
   // Reserve two in-object properties for these.
   const int kErrorObjectSize =
@@ -1405,7 +1416,6 @@ static void InstallError(
   Handle<JSFunction> error_fun = InstallFunction(
       isolate, global, name, JS_ERROR_TYPE, kErrorObjectSize,
       in_object_properties, factory->the_hole_value(), error_constructor);
-  error_fun->shared().DontAdaptArguments();
   error_fun->shared().set_length(error_function_length);
 
   if (context_index == Context::ERROR_FUNCTION_INDEX) {
@@ -1424,6 +1434,11 @@ static void InstallError(
                           DONT_ENUM);
     JSObject::AddProperty(isolate, prototype, factory->message_string(),
                           factory->empty_string(), DONT_ENUM);
+
+    if (FLAG_harmony_error_cause) {
+      JSObject::AddProperty(isolate, prototype, factory->cause_string(),
+                            factory->undefined_value(), DONT_ENUM);
+    }
 
     if (context_index == Context::ERROR_FUNCTION_INDEX) {
       Handle<JSFunction> to_string_fun =
@@ -2067,6 +2082,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeRepeat, 1, true);
     SimpleInstallFunction(isolate_, prototype, "replace",
                           Builtins::kStringPrototypeReplace, 2, true);
+    SimpleInstallFunction(isolate(), prototype, "replaceAll",
+                          Builtins::kStringPrototypeReplaceAll, 2, true);
     SimpleInstallFunction(isolate_, prototype, "search",
                           Builtins::kStringPrototypeSearch, 1, true);
     SimpleInstallFunction(isolate_, prototype, "slice",
@@ -2603,12 +2620,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_regexp_last_match_info(*last_match_info);
 
     // Install the species protector cell.
-    {
-      Handle<PropertyCell> cell =
-          factory->NewPropertyCell(factory->empty_string());
-      cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-      native_context()->set_regexp_species_protector(*cell);
-    }
+    Handle<PropertyCell> cell = factory->NewProtector();
+    native_context()->set_regexp_species_protector(*cell);
 
     DCHECK(regexp_fun->HasFastProperties());
   }
@@ -3297,6 +3310,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kAtomicsIsLockFree, 1, true);
     SimpleInstallFunction(isolate_, atomics_object, "wait",
                           Builtins::kAtomicsWait, 4, true);
+    SimpleInstallFunction(isolate(), atomics_object, "waitAsync",
+                          Builtins::kAtomicsWaitAsync, 4, true);
     SimpleInstallFunction(isolate_, atomics_object, "notify",
                           Builtins::kAtomicsNotify, 3, true);
   }
@@ -3856,6 +3871,61 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_bound_function_with_constructor_map(*map);
   }
 
+  {  // -- F i n a l i z a t i o n R e g i s t r y
+    Handle<JSFunction> finalization_registry_fun = InstallFunction(
+        isolate_, global, factory->FinalizationRegistry_string(),
+        JS_FINALIZATION_REGISTRY_TYPE, JSFinalizationRegistry::kHeaderSize, 0,
+        factory->the_hole_value(), Builtins::kFinalizationRegistryConstructor);
+    InstallWithIntrinsicDefaultProto(
+        isolate_, finalization_registry_fun,
+        Context::JS_FINALIZATION_REGISTRY_FUNCTION_INDEX);
+
+    finalization_registry_fun->shared().DontAdaptArguments();
+    finalization_registry_fun->shared().set_length(1);
+
+    Handle<JSObject> finalization_registry_prototype(
+        JSObject::cast(finalization_registry_fun->instance_prototype()),
+        isolate());
+
+    InstallToStringTag(isolate_, finalization_registry_prototype,
+                       factory->FinalizationRegistry_string());
+
+    SimpleInstallFunction(isolate_, finalization_registry_prototype, "register",
+                          Builtins::kFinalizationRegistryRegister, 2, false);
+
+    SimpleInstallFunction(isolate_, finalization_registry_prototype,
+                          "unregister",
+                          Builtins::kFinalizationRegistryUnregister, 1, false);
+
+    // The cleanupSome function is created but not exposed, as it is used
+    // internally by InvokeFinalizationRegistryCleanupFromTask.
+    //
+    // It is exposed by FLAG_harmony_weak_refs_with_cleanup_some.
+    Handle<JSFunction> cleanup_some_fun = SimpleCreateFunction(
+        isolate_, factory->InternalizeUtf8String("cleanupSome"),
+        Builtins::kFinalizationRegistryPrototypeCleanupSome, 0, false);
+    native_context()->set_finalization_registry_cleanup_some(*cleanup_some_fun);
+  }
+
+  {  // -- W e a k R e f
+    Handle<JSFunction> weak_ref_fun = InstallFunction(
+        isolate_, global, "WeakRef", JS_WEAK_REF_TYPE, JSWeakRef::kHeaderSize,
+        0, factory->the_hole_value(), Builtins::kWeakRefConstructor);
+    InstallWithIntrinsicDefaultProto(isolate_, weak_ref_fun,
+                                     Context::JS_WEAK_REF_FUNCTION_INDEX);
+
+    weak_ref_fun->shared().DontAdaptArguments();
+    weak_ref_fun->shared().set_length(1);
+
+    Handle<JSObject> weak_ref_prototype(
+        JSObject::cast(weak_ref_fun->instance_prototype()), isolate());
+
+    InstallToStringTag(isolate_, weak_ref_prototype, factory->WeakRef_string());
+
+    SimpleInstallFunction(isolate_, weak_ref_prototype, "deref",
+                          Builtins::kWeakRefDeref, 0, true);
+  }
+
   {  // --- sloppy arguments map
     Handle<String> arguments_string = factory->Arguments_string();
     Handle<JSFunction> function = CreateFunctionForBuiltinWithPrototype(
@@ -4316,21 +4386,18 @@ void Genesis::InitializeCallSiteBuiltins() {
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_sequence)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_top_level_await)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_logical_assignment)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_brand_checks)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_error_cause)
 
 #ifdef V8_INTL_SUPPORT
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_displaynames_date_types)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_dateformat_day_period)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
-
-void Genesis::InitializeGlobal_harmony_atomics_waitasync() {
-  if (!FLAG_harmony_atomics_waitasync) return;
-  SimpleInstallFunction(isolate(), isolate()->atomics_object(), "waitAsync",
-                        Builtins::kAtomicsWaitAsync, 4, true);
-}
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   if (!FLAG_harmony_sharedarraybuffer) return;
@@ -4351,75 +4418,8 @@ void Genesis::InitializeGlobal_harmony_atomics() {
   InstallToStringTag(isolate_, isolate()->atomics_object(), "Atomics");
 }
 
-void Genesis::InitializeGlobal_harmony_weak_refs() {
-  if (!FLAG_harmony_weak_refs) return;
-
-  Factory* factory = isolate()->factory();
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-
-  {
-    // Create %FinalizationRegistry%
-    Handle<JSFunction> finalization_registry_fun = InstallFunction(
-        isolate(), global, factory->FinalizationRegistry_string(),
-        JS_FINALIZATION_REGISTRY_TYPE, JSFinalizationRegistry::kHeaderSize, 0,
-        factory->the_hole_value(), Builtins::kFinalizationRegistryConstructor);
-    InstallWithIntrinsicDefaultProto(
-        isolate(), finalization_registry_fun,
-        Context::JS_FINALIZATION_REGISTRY_FUNCTION_INDEX);
-
-    finalization_registry_fun->shared().DontAdaptArguments();
-    finalization_registry_fun->shared().set_length(1);
-
-    Handle<JSObject> finalization_registry_prototype(
-        JSObject::cast(finalization_registry_fun->instance_prototype()),
-        isolate());
-
-    InstallToStringTag(isolate(), finalization_registry_prototype,
-                       factory->FinalizationRegistry_string());
-
-    SimpleInstallFunction(isolate(), finalization_registry_prototype,
-                          "register", Builtins::kFinalizationRegistryRegister,
-                          2, false);
-
-    SimpleInstallFunction(isolate(), finalization_registry_prototype,
-                          "unregister",
-                          Builtins::kFinalizationRegistryUnregister, 1, false);
-
-    // The cleanupSome function is created but not exposed, as it is used
-    // internally by InvokeFinalizationRegistryCleanupFromTask.
-    //
-    // It is exposed by FLAG_harmony_weak_refs_with_cleanup_some.
-    Handle<JSFunction> cleanup_some_fun = SimpleCreateFunction(
-        isolate(), factory->InternalizeUtf8String("cleanupSome"),
-        Builtins::kFinalizationRegistryPrototypeCleanupSome, 0, false);
-    native_context()->set_finalization_registry_cleanup_some(*cleanup_some_fun);
-  }
-  {
-    // Create %WeakRef%
-    Handle<JSFunction> weak_ref_fun = InstallFunction(
-        isolate(), global, factory->WeakRef_string(), JS_WEAK_REF_TYPE,
-        JSWeakRef::kHeaderSize, 0, factory->the_hole_value(),
-        Builtins::kWeakRefConstructor);
-    InstallWithIntrinsicDefaultProto(isolate(), weak_ref_fun,
-                                     Context::JS_WEAK_REF_FUNCTION_INDEX);
-
-    weak_ref_fun->shared().DontAdaptArguments();
-    weak_ref_fun->shared().set_length(1);
-
-    Handle<JSObject> weak_ref_prototype(
-        JSObject::cast(weak_ref_fun->instance_prototype()), isolate());
-
-    InstallToStringTag(isolate(), weak_ref_prototype,
-                       factory->WeakRef_string());
-
-    SimpleInstallFunction(isolate(), weak_ref_prototype, "deref",
-                          Builtins::kWeakRefDeref, 0, true);
-  }
-}
-
 void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
   if (!FLAG_harmony_weak_refs_with_cleanup_some) return;
-  DCHECK(FLAG_harmony_weak_refs);
 
   Handle<JSFunction> finalization_registry_fun =
       isolate()->js_finalization_registry_fun();
@@ -4461,17 +4461,6 @@ void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
 
   // Store regexp prototype map again after change.
   native_context()->set_regexp_prototype_map(prototype->map());
-}
-
-void Genesis::InitializeGlobal_harmony_string_replaceall() {
-  if (!FLAG_harmony_string_replaceall) return;
-
-  Handle<JSFunction> string_fun(native_context()->string_function(), isolate());
-  Handle<JSObject> string_prototype(
-      JSObject::cast(string_fun->instance_prototype()), isolate());
-
-  SimpleInstallFunction(isolate(), string_prototype, "replaceAll",
-                        Builtins::kStringPrototypeReplaceAll, 2, true);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {
@@ -4594,8 +4583,8 @@ bool Genesis::InstallABunchOfRandomThings() {
   native_context()->set_slow_template_instantiations_cache(
       *slow_template_instantiations_cache);
 
-  auto wasm_debug_proxy_maps = isolate()->factory()->empty_fixed_array();
-  native_context()->set_wasm_debug_proxy_maps(*wasm_debug_proxy_maps);
+  auto wasm_debug_maps = isolate()->factory()->empty_fixed_array();
+  native_context()->set_wasm_debug_maps(*wasm_debug_maps);
 
   // Store the map for the %ObjectPrototype% after the natives has been compiled
   // and the Object function has been set up.
@@ -4944,6 +4933,7 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
   JSObject::AddProperty(isolate, Error, name, stack_trace_limit, NONE);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (FLAG_expose_wasm) {
     // Install the internal data structures into the isolate and expose on
     // the global object.
@@ -4953,6 +4943,7 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
     // translated to Wasm to work correctly.
     WasmJs::Install(isolate, false);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   return true;
 }
@@ -5146,7 +5137,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
   // in the snapshotted global object.
   if (from->HasFastProperties()) {
     Handle<DescriptorArray> descs = Handle<DescriptorArray>(
-        from->map().instance_descriptors(kRelaxedLoad), isolate());
+        from->map().instance_descriptors(isolate()), isolate());
     for (InternalIndex i : from->map().IterateOwnDescriptors()) {
       PropertyDetails details = descs->GetDetails(i);
       if (details.location() == kField) {
@@ -5200,12 +5191,12 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
     }
 
-  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     // Copy all keys and values in enumeration order.
-    Handle<OrderedNameDictionary> properties = Handle<OrderedNameDictionary>(
-        from->property_dictionary_ordered(), isolate());
+    Handle<SwissNameDictionary> properties = Handle<SwissNameDictionary>(
+        from->property_dictionary_swiss(), isolate());
     ReadOnlyRoots roots(isolate());
-    for (InternalIndex entry : properties->IterateEntries()) {
+    for (InternalIndex entry : properties->IterateEntriesOrdered()) {
       Object raw_key;
       if (!properties->ToKey(roots, entry, &raw_key)) continue;
 
@@ -5298,7 +5289,7 @@ Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
   {
     JSFunction array_function = native_context()->array_function();
     Handle<DescriptorArray> array_descriptors(
-        array_function.initial_map().instance_descriptors(kRelaxedLoad),
+        array_function.initial_map().instance_descriptors(isolate()),
         isolate());
     Handle<String> length = factory()->length_string();
     InternalIndex old = array_descriptors->SearchWithCache(
@@ -5319,7 +5310,7 @@ Genesis::Genesis(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
-  RuntimeCallTimerScope rcs_timer(isolate, RuntimeCallCounterId::kGenesis);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kGenesis);
   result_ = Handle<Context>::null();
   global_proxy_ = Handle<JSGlobalProxy>::null();
 

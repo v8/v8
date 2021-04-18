@@ -39,7 +39,6 @@
 
   # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
   # the test passed).
-  'test-api/RegExpInterruptAndReenterIrregexp': [FAIL, CRASH],
   'test-verifiers/Fail*': [FAIL, CRASH],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
@@ -171,7 +170,6 @@
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
-  'test-debug/DebugBreakStackTrace': [PASS, SLOW],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and system == macos and not simulator_run', {
@@ -196,6 +194,10 @@
   'test-streaming-compilation/SingleThreadedTestDeserializationFails': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
+
+  # %ObserveNode tests relies on TurboFan.
+  'test-sloppy-equality/*' : [SKIP],
+  'test-js-to-wasm/*': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -274,7 +276,6 @@
 ['arch == arm and simulator_run', {
   # Pass but take too long with the simulator.
   'test-api/Threading*': [SKIP],
-  'test-cpu-profiler/MultipleIsolates': [PASS, SLOW],
 }],  # 'arch == arm and simulator_run'
 
 ##############################################################################
@@ -293,6 +294,9 @@
 ['arch == arm and not simulator_run', {
   # crbug.com/v8/7605
   'test-heap/OutOfMemorySmallObjects': [SKIP],
+
+  # crbug.com/v8/11134
+  'test-cpu-profiler/MultipleThreadsSingleIsolate': [PASS, ['system != android', SKIP]],
 }],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
@@ -366,6 +370,41 @@
 }],  # 'mips_arch_variant == r6'
 
 ##############################################################################
+['arch == riscv64', {
+  # this test is unstable, sometimes fail when running w/ other tests
+  'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
+
+  # https://github.com/v8-riscv/v8/issues/297
+  'test-run-wasm-simd/RunWasm_F64x2ExtractLaneWithI64x2_liftoff': [SKIP],
+  'test-run-wasm-simd/RunWasm_I64x2ExtractWithF64x2_liftoff': [SKIP],
+
+  # https://github.com/v8-riscv/v8/issues/290
+  'test-orderedhashtable/SmallOrderedNameDictionaryInsertionMax': [SKIP],
+  'test-orderedhashtable/SmallOrderedNameDictionarySetAndMigrateHash': [SKIP],
+
+  # SIMD not fully implemented yet
+  'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-simd-scalar-lowering/*':[SKIP],
+  'test-run-wasm-simd/*':[SKIP],
+
+  # Some wasm functionality is not implemented yet
+  'test-run-wasm-atomics64/*': [SKIP],
+  'test-run-wasm-atomics/*': [SKIP],
+  'test-run-wasm-64/*': [SKIP],
+  'test-run-wasm/*': [SKIP],
+}],
+
+##############################################################################
+['arch == riscv64 and simulator_run', {
+
+  # Pass but take too long with the simulator.
+  'test-api/Threading*': [PASS, SLOW],
+  'test-api/ExternalArrays': [PASS, SLOW],
+  'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
+
+}],  # 'arch == riscv64 and simulator_run'
+
+##############################################################################
 ['system == android', {
   # Uses too much memory.
   'test-api/NewStringRangeError': [SKIP],
@@ -408,22 +447,29 @@
   # TODO(ppc/s390): support concurrent patching of jump table
   'test-jump-table-assembler/*': [SKIP],
 
-  # Liftoff is not currently supported on ppc and s390
-  'test-liftoff-*': [SKIP],
   'test-wasm-breakpoints/*' : [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
-  'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
-  'test-gc/RunWasmLiftoff*': [SKIP],
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP]
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
 ['arch == ppc64', {
   # https://crbug.com/v8/8766
   'test-bytecode-generator/WideRegisters': [SKIP],
+  # Liftoff is not currently supported on ppc
+  'test-liftoff-*': [SKIP],
+  'test-gc/RunWasmLiftoff*': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
+  'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
 }],
+
+##############################################################################
+['arch == ppc64 and not simulator_run', {
+  # crbug.com/v8/11134
+  'test-cpu-profiler/MultipleThreadsSingleIsolate': [SKIP],
+}],  # 'arch == ppc64 and not simulator_run'
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
@@ -472,12 +518,9 @@
 }],
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-
-  # Slow tests
-  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
-
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  'test-api/TurboAsmDisablesDetach': [SKIP],
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
   'test-api-wasm/WasmStreaming*': [SKIP],
@@ -500,6 +543,13 @@
   'test-wasm-stack/*': [SKIP],
   'test-wasm-trap-position/*': [SKIP],
   'wasm-run-utils/*': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+##############################################################################
+['lite_mode or variant == jitless', {
+
+  # Slow tests
+  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
   # Tests that generate code at runtime.
   'codegen-tester/*': [SKIP],
@@ -548,6 +598,7 @@
   'test-run-variables/*': [SKIP],
   'test-serialize/*': [SKIP],
   'test-sloppy-equality/*' : [SKIP],
+  'test-swiss-name-dictionary-csa/*': [SKIP],
   'test-torque/*': [SKIP],
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
 
@@ -586,7 +637,6 @@
   'serializer-tester/SerializeConstructWithSpread': [SKIP],
   'serializer-tester/SerializeInlinedClosure': [SKIP],
   'serializer-tester/SerializeInlinedFunction': [SKIP],
-  'test-api/TurboAsmDisablesDetach': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
   'test-js-to-wasm/*': [SKIP],
@@ -645,5 +695,25 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+##############################################################################
+['no_simd_sse == True', {
+  'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-simd-scalar-lowering/*': [SKIP],
+}],  # no_simd_sse == True
+
+################################################################################
+['variant == stress_concurrent_inlining', {
+  # BUG(11524): Crashing flakily.
+  'test-cpu-profiler/TracingCpuProfiler': [PASS, FAIL],
+  # crbug.com/v8/11513: Flakily failing due to the additional compile task.
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, FAIL],
+  'test-heap/LeakNativeContextVia*': [PASS, FAIL],
+  'test-heap/NewSpaceObjectsInOptimizedCode': [PASS, FAIL],
+  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [PASS, FAIL],
+  # crbug.com/v8/11650: Flakily failing after increased coverage.
+  'test-js-to-wasm/*': [PASS, FAIL],
+}], # variant == stress_concurrent_inlining
 
 ]

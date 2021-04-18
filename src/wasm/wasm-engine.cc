@@ -130,11 +130,10 @@ class WasmGCForegroundTask : public CancelableTask {
 class WeakScriptHandle {
  public:
   explicit WeakScriptHandle(Handle<Script> script) : script_id_(script->id()) {
-    DCHECK(script->source_url().IsString() ||
-           script->source_url().IsUndefined());
-    if (script->source_url().IsString()) {
+    DCHECK(script->name().IsString() || script->name().IsUndefined());
+    if (script->name().IsString()) {
       std::unique_ptr<char[]> source_url =
-          String::cast(script->source_url()).ToCString();
+          String::cast(script->name()).ToCString();
       // Convert from {unique_ptr} to {shared_ptr}.
       source_url_ = {source_url.release(), source_url.get_deleter()};
     }
@@ -389,6 +388,16 @@ struct WasmEngine::IsolateInfo {
 
   // Keep new modules in tiered down state.
   bool keep_tiered_down = false;
+
+  // Elapsed time since last throw/rethrow/catch event.
+  base::ElapsedTimer throw_timer;
+  base::ElapsedTimer rethrow_timer;
+  base::ElapsedTimer catch_timer;
+
+  // Total number of exception events in this isolate.
+  int throw_count = 0;
+  int rethrow_count = 0;
+  int catch_count = 0;
 };
 
 struct WasmEngine::NativeModuleInfo {
@@ -792,7 +801,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                     .ToHandleChecked();
     }
   }
-  script->set_source_url(*url_str);
+  script->set_name(*url_str);
 
   const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   if (debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
@@ -998,10 +1007,14 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   if (current_gc_info_) {
     if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
   }
-  if (auto* task = info->log_codes_task) task->Cancel();
-  for (auto& log_entry : info->code_to_log) {
-    WasmCode::DecrementRefCount(VectorOf(log_entry.second.code));
+  if (auto* task = info->log_codes_task) {
+    task->Cancel();
+    for (auto& log_entry : info->code_to_log) {
+      WasmCode::DecrementRefCount(VectorOf(log_entry.second.code));
+    }
+    info->code_to_log.clear();
   }
+  DCHECK(info->code_to_log.empty());
 }
 
 void WasmEngine::LogCode(Vector<WasmCode*> code_vec) {
@@ -1268,6 +1281,18 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
     StackFrame* const frame = it.frame();
     if (frame->type() != StackFrame::WASM) continue;
     live_wasm_code.insert(WasmFrame::cast(frame)->wasm_code());
+#if V8_TARGET_ARCH_X64
+    if (WasmFrame::cast(frame)->wasm_code()->for_debugging()) {
+      Address osr_target = base::Memory<Address>(WasmFrame::cast(frame)->fp() -
+                                                 kOSRTargetOffset);
+      if (osr_target) {
+        WasmCode* osr_code =
+            isolate->wasm_engine()->code_manager()->LookupCode(osr_target);
+        DCHECK_NOT_NULL(osr_code);
+        live_wasm_code.insert(osr_code);
+      }
+    }
+#endif
   }
 
   CheckNoArchivedThreads(isolate);
@@ -1369,6 +1394,53 @@ Handle<Script> WasmEngine::GetOrCreateScript(
 std::shared_ptr<OperationsBarrier>
 WasmEngine::GetBarrierForBackgroundCompile() {
   return operations_barrier_;
+}
+
+namespace {
+void SampleExceptionEvent(base::ElapsedTimer* timer, TimedHistogram* counter) {
+  if (!timer->IsStarted()) {
+    timer->Start();
+    return;
+  }
+  counter->AddSample(static_cast<int>(timer->Elapsed().InMilliseconds()));
+  timer->Restart();
+}
+}  // namespace
+
+void WasmEngine::SampleThrowEvent(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  IsolateInfo* isolate_info = isolates_[isolate].get();
+  int& throw_count = isolate_info->throw_count;
+  // To avoid an int overflow, clip the count to the histogram's max value.
+  throw_count =
+      std::min(throw_count + 1, isolate->counters()->wasm_throw_count()->max());
+  isolate->counters()->wasm_throw_count()->AddSample(throw_count);
+  SampleExceptionEvent(&isolate_info->throw_timer,
+                       isolate->counters()->wasm_time_between_throws());
+}
+
+void WasmEngine::SampleRethrowEvent(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  IsolateInfo* isolate_info = isolates_[isolate].get();
+  int& rethrow_count = isolate_info->rethrow_count;
+  // To avoid an int overflow, clip the count to the histogram's max value.
+  rethrow_count = std::min(rethrow_count + 1,
+                           isolate->counters()->wasm_rethrow_count()->max());
+  isolate->counters()->wasm_rethrow_count()->AddSample(rethrow_count);
+  SampleExceptionEvent(&isolate_info->rethrow_timer,
+                       isolate->counters()->wasm_time_between_rethrows());
+}
+
+void WasmEngine::SampleCatchEvent(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  IsolateInfo* isolate_info = isolates_[isolate].get();
+  int& catch_count = isolate_info->catch_count;
+  // To avoid an int overflow, clip the count to the histogram's max value.
+  catch_count =
+      std::min(catch_count + 1, isolate->counters()->wasm_catch_count()->max());
+  isolate->counters()->wasm_catch_count()->AddSample(catch_count);
+  SampleExceptionEvent(&isolate_info->catch_timer,
+                       isolate->counters()->wasm_time_between_catch());
 }
 
 void WasmEngine::TriggerGC(int8_t gc_sequence_index) {

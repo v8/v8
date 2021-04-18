@@ -10,21 +10,48 @@
 namespace cppgc {
 namespace testing {
 
-void Heap::EnableTestingAPIsForTesting(HeapHandle& heap_handle) {
-  internal::HeapBase::From(heap_handle).EnableTestingAPIsForTesting();
-}
-
 OverrideEmbedderStackStateScope::OverrideEmbedderStackStateScope(
     HeapHandle& heap_handle, EmbedderStackState state)
     : heap_handle_(heap_handle) {
-  auto& heap = internal::HeapBase::ForTesting(heap_handle_);
+  auto& heap = internal::HeapBase::From(heap_handle_);
   CHECK_NULL(heap.override_stack_state_.get());
   heap.override_stack_state_ = std::make_unique<EmbedderStackState>(state);
 }
 
 OverrideEmbedderStackStateScope::~OverrideEmbedderStackStateScope() {
-  auto& heap = internal::HeapBase::ForTesting(heap_handle_);
-  heap.override_stack_state_.reset();
+  internal::HeapBase::From(heap_handle_).override_stack_state_.reset();
+}
+
+StandaloneTestingHeap::StandaloneTestingHeap(HeapHandle& heap_handle)
+    : heap_handle_(heap_handle) {}
+
+void StandaloneTestingHeap::StartGarbageCollection() {
+  internal::HeapBase::From(heap_handle_)
+      .StartIncrementalGarbageCollectionForTesting();
+}
+
+bool StandaloneTestingHeap::PerformMarkingStep(EmbedderStackState stack_state) {
+  return internal::HeapBase::From(heap_handle_)
+      .marker()
+      ->IncrementalMarkingStepForTesting(stack_state);
+}
+
+void StandaloneTestingHeap::FinalizeGarbageCollection(
+    EmbedderStackState stack_state) {
+  internal::HeapBase::From(heap_handle_)
+      .FinalizeIncrementalGarbageCollectionForTesting(stack_state);
+}
+
+void StandaloneTestingHeap::ToggleMainThreadMarking(bool should_mark) {
+  internal::HeapBase::From(heap_handle_)
+      .marker()
+      ->SetMainThreadMarkingDisabledForTesting(!should_mark);
+}
+
+void StandaloneTestingHeap::ForceCompactionForNextGarbageCollection() {
+  internal::HeapBase::From(heap_handle_)
+      .compactor()
+      .EnableForNextGCForTesting();
 }
 
 }  // namespace testing

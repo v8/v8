@@ -39,7 +39,6 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
                                         HeapObject target)>>
           gc_notify_updated_slot = base::nullopt);
   inline void SetInitialInterruptBudget();
-  inline void SetInterruptBudget();
 
   // The closure count is encoded in the cell's map, which distinguishes
   // between zero, one, or many closures. This function records a new closure

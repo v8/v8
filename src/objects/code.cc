@@ -2,20 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <iomanip>
-
-#include "src/execution/isolate-utils.h"
 #include "src/objects/code.h"
+
+#include <iomanip>
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/safepoint-table.h"
+#include "src/codegen/source-position.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate-utils.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/code-kind.h"
 #include "src/roots/roots-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
@@ -129,8 +131,8 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   }
 }
 
-SafepointEntry Code::GetSafepointEntry(Address pc) {
-  SafepointTable table(*this);
+SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
+  SafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
 }
 
@@ -148,7 +150,17 @@ Address Code::OffHeapInstructionStart() const {
   if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
     return raw_instruction_size();
   }
-  EmbeddedData d = EmbeddedData::FromBlob();
+  // TODO(11527): pass Isolate as an argument.
+  // GetIsolateFromWritableObject(*this) works for both read-only and writable
+  // objects here because short builtin calls feature requires pointer
+  // compression.
+  // We don't have to check the Isolate::is_short_builtin_calls_enabled() value
+  // because if the short builtin calls wasn't actually enabled because of not
+  // enough memory, the FromBlob(isolate) would still be the correct one to use.
+  EmbeddedData d =
+      FLAG_short_builtin_calls
+          ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))
+          : EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index());
 }
 
@@ -157,7 +169,30 @@ Address Code::OffHeapInstructionEnd() const {
   if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
     return raw_instruction_size();
   }
-  EmbeddedData d = EmbeddedData::FromBlob();
+  // TODO(11527): pass Isolate as an argument.
+  // GetIsolateFromWritableObject(*this) works for both read-only and writable
+  // objects here because short builtin calls feature requires pointer
+  // compression.
+  // We don't have to check the Isolate::is_short_builtin_calls_enabled() value
+  // because if the short builtin calls wasn't actually enabled because of not
+  // enough memory, the FromBlob(isolate) would still be the correct one to use.
+  EmbeddedData d =
+      FLAG_short_builtin_calls
+          ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))
+          : EmbeddedData::FromBlob();
+  return d.InstructionStartOfBuiltin(builtin_index()) +
+         d.InstructionSizeOfBuiltin(builtin_index());
+}
+
+Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
+  return d.InstructionStartOfBuiltin(builtin_index());
+}
+
+Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionStartOfBuiltin(builtin_index()) +
          d.InstructionSizeOfBuiltin(builtin_index());
 }
@@ -190,8 +225,10 @@ Address Code::OffHeapMetadataEnd() const {
          d.MetadataSizeOfBuiltin(builtin_index());
 }
 
+// TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourcePosition(int offset) {
-  Object maybe_table = source_position_table();
+  CHECK_NE(kind(), CodeKind::BASELINE);
+  Object maybe_table = SourcePositionTableInternal();
   if (maybe_table.IsException()) return kNoSourcePosition;
 
   ByteArray source_position_table = ByteArray::cast(maybe_table);
@@ -208,13 +245,15 @@ int AbstractCode::SourcePosition(int offset) {
   return position;
 }
 
+// TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourceStatementPosition(int offset) {
+  CHECK_NE(kind(), CodeKind::BASELINE);
   // First find the closest position.
   int position = SourcePosition(offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  for (SourcePositionTableIterator it(source_position_table()); !it.done();
-       it.Advance()) {
+  for (SourcePositionTableIterator it(SourcePositionTableInternal());
+       !it.done(); it.Advance()) {
     if (it.is_statement()) {
       int p = it.source_position().ScriptOffset();
       if (statement_position < p && p <= position) {
@@ -225,10 +264,10 @@ int AbstractCode::SourceStatementPosition(int offset) {
   return statement_position;
 }
 
-bool Code::CanDeoptAt(Address pc) {
+bool Code::CanDeoptAt(Isolate* isolate, Address pc) {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(deoptimization_data());
-  Address code_start_address = InstructionStart();
+  Address code_start_address = InstructionStart(isolate, pc);
   for (int i = 0; i < deopt_data.DeoptCount(); i++) {
     if (deopt_data.Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data.Pc(i).value();
@@ -264,7 +303,8 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
   return RelocIterator(*this, kModeMask).done();
 #elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||    \
-    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_IA32)
+    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_IA32) ||   \
+    defined(V8_TARGET_ARCH_RISCV64)
   for (RelocIterator it(*this, kModeMask); !it.done(); it.next()) {
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. They are later
@@ -284,67 +324,6 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
 #error Unsupported architecture.
 #endif
   return true;
-}
-
-// Multiple native contexts live on the same heap, and V8 currently
-// draws no clear distinction between native-context-dependent and
-// independent objects. A good guideline is "objects embedded into
-// bytecode are nc-independent", since bytecode is shared between
-// native contexts. Among others, this is the case for ScopeInfo,
-// SharedFunctionInfo, String, etc.
-bool Code::IsNativeContextIndependent(Isolate* isolate) {
-  static constexpr int kModeMask =
-      RelocInfo::AllRealModesMask() &
-      ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
-      ~RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
-      ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
-      ~RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) &
-      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(kModeMask ==
-                (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-                 RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
-                 RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
-                 RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
-                 RelocInfo::ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
-                 RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-                 RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
-
-  bool is_independent = true;
-  for (RelocIterator it(*this, kModeMask); !it.done(); it.next()) {
-    if (RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode())) {
-      HeapObject o = it.rinfo()->target_object();
-      // TODO(jgruber,v8:8888): Extend this with further NCI objects,
-      // and define a more systematic
-      // IsNativeContextIndependent<T>() predicate.
-      if (o.IsString()) continue;
-      if (o.IsScopeInfo()) continue;
-      if (o.IsHeapNumber()) continue;
-      if (o.IsBigInt()) continue;
-      if (o.IsSharedFunctionInfo()) continue;
-      if (o.IsArrayBoilerplateDescription()) continue;
-      if (o.IsObjectBoilerplateDescription()) continue;
-      if (o.IsTemplateObjectDescription()) continue;
-      if (o.IsFixedArray()) {
-        // Some uses of FixedArray are valid.
-        // 1. Passed as arg to %DeclareGlobals, contains only strings
-        //    and SFIs.
-        // 2. Passed as arg to %DefineClass. No well defined contents.
-        // .. ?
-        // TODO(jgruber): Consider assigning dedicated instance
-        //    types instead of assuming fixed arrays are okay.
-        continue;
-      }
-      // Other objects are expected to be context-dependent.
-      PrintF("Found native-context-dependent object:\n");
-      o.Print();
-      o.map().Print();
-    }
-    is_independent = false;
-  }
-
-  return is_independent;
 }
 
 bool Code::Inlines(SharedFunctionInfo sfi) {
@@ -497,10 +476,14 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (CodeKindIsOptimizedJSFunction(kind())) {
+  if (CodeKindIsOptimizedJSFunction(kind()) && kind() != CodeKind::BASELINE) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
-  os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
+  os << "compiler = "
+     << (is_turbofanned()
+             ? "turbofan"
+             : kind() == CodeKind::BASELINE ? "baseline" : "unknown")
+     << "\n";
   os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 
   if (is_off_heap_trampoline()) {
@@ -531,32 +514,36 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   os << "\n";
 
-  {
-    SourcePositionTableIterator it(
-        SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
-    if (!it.done()) {
-      os << "Source positions:\n pc offset  position\n";
-      for (; !it.done(); it.Advance()) {
-        os << std::setw(10) << std::hex << it.code_offset() << std::dec
-           << std::setw(10) << it.source_position().ScriptOffset()
-           << (it.is_statement() ? "  statement" : "") << "\n";
+  // TODO(cbruni): add support for baseline code.
+  if (kind() != CodeKind::BASELINE) {
+    {
+      SourcePositionTableIterator it(
+          source_position_table(),
+          SourcePositionTableIterator::kJavaScriptOnly);
+      if (!it.done()) {
+        os << "Source positions:\n pc offset  position\n";
+        for (; !it.done(); it.Advance()) {
+          os << std::setw(10) << std::hex << it.code_offset() << std::dec
+             << std::setw(10) << it.source_position().ScriptOffset()
+             << (it.is_statement() ? "  statement" : "") << "\n";
+        }
+        os << "\n";
       }
-      os << "\n";
     }
-  }
 
-  {
-    SourcePositionTableIterator it(SourcePositionTable(),
-                                   SourcePositionTableIterator::kExternalOnly);
-    if (!it.done()) {
-      os << "External Source positions:\n pc offset  fileid  line\n";
-      for (; !it.done(); it.Advance()) {
-        DCHECK(it.source_position().IsExternal());
-        os << std::setw(10) << std::hex << it.code_offset() << std::dec
-           << std::setw(10) << it.source_position().ExternalFileId()
-           << std::setw(10) << it.source_position().ExternalLine() << "\n";
+    {
+      SourcePositionTableIterator it(
+          source_position_table(), SourcePositionTableIterator::kExternalOnly);
+      if (!it.done()) {
+        os << "External Source positions:\n pc offset  fileid  line\n";
+        for (; !it.done(); it.Advance()) {
+          DCHECK(it.source_position().IsExternal());
+          os << std::setw(10) << std::hex << it.code_offset() << std::dec
+             << std::setw(10) << it.source_position().ExternalFileId()
+             << std::setw(10) << it.source_position().ExternalLine() << "\n";
+        }
+        os << "\n";
       }
-      os << "\n";
     }
   }
 
@@ -568,7 +555,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "\n";
 
   if (has_safepoint_info()) {
-    SafepointTable table(*this);
+    SafepointTable table(isolate, current_pc, *this);
     os << "Safepoints (size = " << table.size() << ")\n";
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
@@ -613,10 +600,6 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     eh_frame_disassembler.DisassembleToStream(os);
     os << "\n";
   }
-
-  if (has_code_comments()) {
-    PrintCodeCommentsSection(os, code_comments(), code_comments_size());
-  }
 }
 #endif  // ENABLE_DISASSEMBLER
 
@@ -626,6 +609,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
+  os << "OSR nesting level: " << osr_loop_nesting_level() << "\n";
+  os << "Bytecode Age: " << bytecode_age() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());
@@ -877,6 +862,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   bool marked = MarkCodeForDeoptimization(group);
   if (marked) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());
+    // TODO(11527): pass Isolate as an argument.
     Deoptimizer::DeoptimizeMarkedCode(GetIsolateFromWritableObject(*this));
   }
 }

@@ -27,8 +27,9 @@ namespace internal {
   T(ApplyNonFunction,                                                          \
     "Function.prototype.apply was called on %, which is a % and not a "        \
     "function")                                                                \
-  T(ArgumentsDisallowedInInitializer,                                          \
-    "'arguments' is not allowed in class field initializer")                   \
+  T(ArgumentsDisallowedInInitializerAndStaticBlock,                            \
+    "'arguments' is not allowed in class field initializer or static "         \
+    "initialization block")                                                    \
   T(ArrayBufferTooShort,                                                       \
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \
@@ -391,6 +392,7 @@ namespace internal {
   T(ForInOfLoopInitializer,                                                    \
     "% loop variable declaration may not have an initializer.")                \
   T(ForOfLet, "The left-hand side of a for-of loop may not start with 'let'.") \
+  T(ForOfAsync, "The left-hand side of a for-of loop may not be 'async'.")     \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
   T(GeneratorInSingleStatementContext,                                         \
@@ -472,7 +474,6 @@ namespace internal {
   T(BadSetterRestParameter,                                                    \
     "Setter function argument must not be a rest parameter")                   \
   T(ParamDupe, "Duplicate parameter name not allowed in this context")         \
-  T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
   T(ArgStringTerminatesParametersEarly,                                        \
     "Arg string terminates parameters early")                                  \
   T(UnexpectedEndOfArgString, "Unexpected end of arg string")                  \
@@ -563,7 +564,7 @@ namespace internal {
   T(WasmTrapRemByZero, "remainder by zero")                                    \
   T(WasmTrapFloatUnrepresentable, "float unrepresentable in integer range")    \
   T(WasmTrapTableOutOfBounds, "table index is out of bounds")                  \
-  T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
+  T(WasmTrapFuncSigMismatch, "null function or function signature mismatch")   \
   T(WasmTrapMultiReturnLengthMismatch, "multi-return length mismatch")         \
   T(WasmTrapJSTypeError, "type incompatibility when transforming from/to JS")  \
   T(WasmTrapDataSegmentDropped, "data segment has been dropped")               \

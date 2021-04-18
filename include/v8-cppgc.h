@@ -5,11 +5,13 @@
 #ifndef INCLUDE_V8_CPPGC_H_
 #define INCLUDE_V8_CPPGC_H_
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
+#include "cppgc/common.h"
 #include "cppgc/custom-space.h"
-#include "cppgc/internal/process-heap.h"
+#include "cppgc/heap-statistics.h"
 #include "cppgc/internal/write-barrier.h"
 #include "cppgc/visitor.h"
 #include "v8-internal.h"  // NOLINT(build/include_directory)
@@ -26,8 +28,56 @@ namespace internal {
 class CppHeap;
 }  // namespace internal
 
+/**
+ * Describes how V8 wrapper objects maintain references to garbage-collected C++
+ * objects.
+ */
+struct WrapperDescriptor final {
+  /**
+   * The index used on `v8::Ojbect::SetAlignedPointerFromInternalField()` and
+   * related APIs to add additional data to an object which is used to identify
+   * JS->C++ references.
+   */
+  using InternalFieldIndex = int;
+
+  /**
+   * Unknown embedder id. The value is reserved for internal usages and must not
+   * be used with `CppHeap`.
+   */
+  static constexpr uint16_t kUnknownEmbedderId = UINT16_MAX;
+
+  constexpr WrapperDescriptor(InternalFieldIndex wrappable_type_index,
+                              InternalFieldIndex wrappable_instance_index,
+                              uint16_t embedder_id_for_garbage_collected)
+      : wrappable_type_index(wrappable_type_index),
+        wrappable_instance_index(wrappable_instance_index),
+        embedder_id_for_garbage_collected(embedder_id_for_garbage_collected) {}
+
+  /**
+   * Index of the wrappable type.
+   */
+  InternalFieldIndex wrappable_type_index;
+
+  /**
+   * Index of the wrappable instance.
+   */
+  InternalFieldIndex wrappable_instance_index;
+
+  /**
+   * Embedder id identifying instances of garbage-collected objects. It is
+   * expected that the first field of the wrappable type is a uint16_t holding
+   * the id. Only references to instances of wrappables types with an id of
+   * `embedder_id_for_garbage_collected` will be considered by CppHeap.
+   */
+  uint16_t embedder_id_for_garbage_collected;
+};
+
 struct V8_EXPORT CppHeapCreateParams {
+  CppHeapCreateParams(const CppHeapCreateParams&) = delete;
+  CppHeapCreateParams& operator=(const CppHeapCreateParams&) = delete;
+
   std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
+  WrapperDescriptor wrapper_descriptor;
 };
 
 /**
@@ -35,6 +85,9 @@ struct V8_EXPORT CppHeapCreateParams {
  */
 class V8_EXPORT CppHeap {
  public:
+  static std::unique_ptr<CppHeap> Create(v8::Platform* platform,
+                                         const CppHeapCreateParams& params);
+
   virtual ~CppHeap() = default;
 
   /**
@@ -56,6 +109,29 @@ class V8_EXPORT CppHeap {
    * After this call, object allocation is prohibited.
    */
   void Terminate();
+
+  /**
+   * \param detail_level specifies whether should return detailed
+   *   statistics or only brief summary statistics.
+   * \returns current CppHeap statistics regarding memory consumption
+   *   and utilization.
+   */
+  cppgc::HeapStatistics CollectStatistics(
+      cppgc::HeapStatistics::DetailLevel detail_level);
+
+  /**
+   * Enables a detached mode that allows testing garbage collection using
+   * `cppgc::testing` APIs. Once used, the heap cannot be attached to an
+   * `Isolate` anymore.
+   */
+  void EnableDetachedGarbageCollectionsForTesting();
+
+  /**
+   * Performs a stop-the-world garbage collection for testing purposes.
+   *
+   * \param stack_state The stack state to assume for the garbage collection.
+   */
+  void CollectGarbageForTesting(cppgc::EmbedderStackState stack_state);
 
  private:
   CppHeap() = default;
@@ -109,7 +185,7 @@ class V8_EXPORT JSHeapConsistency final {
                       WriteBarrierParams& params, HeapHandleCallback callback) {
     if (ref.IsEmpty()) return WriteBarrierType::kNone;
 
-    if (V8_LIKELY(!cppgc::internal::ProcessHeap::
+    if (V8_LIKELY(!cppgc::internal::WriteBarrier::
                       IsAnyIncrementalOrConcurrentMarking())) {
       return cppgc::internal::WriteBarrier::Type::kNone;
     }

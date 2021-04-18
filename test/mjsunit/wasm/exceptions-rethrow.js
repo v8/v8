@@ -14,7 +14,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except = builder.addException(kSig_v_v);
   builder.addFunction("rethrow0", kSig_v_v)
       .addBody([
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
           kExprThrow, except,
         kExprCatch, except,
           kExprRethrow, 0,
@@ -27,7 +27,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprCatch, except,
           kExprLocalGet, 0,
           kExprI32Eqz,
-          kExprIf, kWasmStmt,
+          kExprIf, kWasmVoid,
             kExprRethrow, 1,
           kExprEnd,
           kExprI32Const, 23,
@@ -47,17 +47,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except = builder.addException(kSig_v_v);
   builder.addFunction("rethrow0", kSig_v_v)
       .addBody([
-        kExprTry, kWasmStmt,
+        kExprTry, kWasmVoid,
           kExprThrow, except,
-        kExprElse,
-          kExprRethrow, 0,
-        kExprEnd,
-  ]).exportFunc();
-  builder.addFunction("rethrow0_unwind", kSig_v_v)
-      .addBody([
-        kExprTry, kWasmStmt,
-          kExprThrow, except,
-        kExprUnwind,
+        kExprCatchAll,
           kExprRethrow, 0,
         kExprEnd,
   ]).exportFunc();
@@ -65,23 +57,10 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmI32,
           kExprThrow, except,
-        kExprElse,
+        kExprCatchAll,
           kExprLocalGet, 0,
           kExprI32Eqz,
-          kExprIf, kWasmStmt,
-            kExprRethrow, 1,
-          kExprEnd,
-          kExprI32Const, 23,
-        kExprEnd
-  ]).exportFunc();
-  builder.addFunction("rethrow1_unwind", kSig_i_i)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprThrow, except,
-        kExprUnwind,
-          kExprLocalGet, 0,
-          kExprI32Eqz,
-          kExprIf, kWasmStmt,
+          kExprIf, kWasmVoid,
             kExprRethrow, 1,
           kExprEnd,
           kExprI32Const, 23,
@@ -90,11 +69,8 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let instance = builder.instantiate();
 
   assertWasmThrows(instance, except, [], () => instance.exports.rethrow0());
-  assertWasmThrows(instance, except, [], () => instance.exports.rethrow0_unwind());
   assertWasmThrows(instance, except, [], () => instance.exports.rethrow1(0));
-  assertWasmThrows(instance, except, [], () => instance.exports.rethrow1_unwind(0));
   assertEquals(23, instance.exports.rethrow1(1));
-  assertEquals(23, instance.exports.rethrow1_unwind(1));
 })();
 
 // Test that rethrow expression properly target the correct surrounding try
@@ -115,13 +91,13 @@ load("test/mjsunit/wasm/exceptions-utils.js");
             kExprLocalGet, 0,
             kExprI32Const, 0,
             kExprI32Eq,
-            kExprIf, kWasmStmt,
+            kExprIf, kWasmVoid,
               kExprRethrow, 1,
             kExprEnd,
             kExprLocalGet, 0,
             kExprI32Const, 1,
             kExprI32Eq,
-            kExprIf, kWasmStmt,
+            kExprIf, kWasmVoid,
               kExprRethrow, 2,
             kExprEnd,
             kExprI32Const, 23,
@@ -149,7 +125,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprTry, kWasmI32,
             kExprLocalGet, 0,
             kExprI32Eqz,
-            kExprIf, kWasmStmt,
+            kExprIf, kWasmVoid,
               kExprRethrow, 2,
             kExprEnd,
             kExprI32Const, 42,

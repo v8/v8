@@ -115,10 +115,10 @@ void Heap::CollectGarbage(Config config) {
 
   config_ = config;
 
-  if (!IsMarking()) StartGarbageCollection(config);
-
+  if (!IsMarking()) {
+    StartGarbageCollection(config);
+  }
   DCHECK(IsMarking());
-
   FinalizeGarbageCollection(config.stack_state);
 }
 
@@ -183,12 +183,8 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
     cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
     marker_->FinishMarking(config_.stack_state);
   }
-  {
-    // Pre finalizers are forbidden from allocating objects.
-    cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
-    prefinalizer_handler_->InvokePreFinalizers();
-  }
   marker_.reset();
+  ExecutePreFinalizers();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   MarkingVerifier verifier(*this);
@@ -209,8 +205,25 @@ void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
 void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
     Config::StackState stack_state) {
   StatsCollector::EnabledScope stats_scope(
-      *this, StatsCollector::kMarkIncrementalFinalize);
+      stats_collector(), StatsCollector::kMarkIncrementalFinalize);
   FinalizeGarbageCollection(stack_state);
+}
+
+void Heap::StartIncrementalGarbageCollectionForTesting() {
+  DCHECK(!IsMarking());
+  DCHECK(!in_no_gc_scope());
+  StartGarbageCollection({Config::CollectionType::kMajor,
+                          Config::StackState::kNoHeapPointers,
+                          Config::MarkingType::kIncrementalAndConcurrent,
+                          Config::SweepingType::kIncrementalAndConcurrent});
+}
+
+void Heap::FinalizeIncrementalGarbageCollectionForTesting(
+    EmbedderStackState stack_state) {
+  DCHECK(!in_no_gc_scope());
+  DCHECK(IsMarking());
+  FinalizeGarbageCollection(stack_state);
+  sweeper_.FinishIfRunning();
 }
 
 }  // namespace internal

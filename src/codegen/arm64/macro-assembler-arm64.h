@@ -15,6 +15,7 @@
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
+#include "src/objects/tagged-index.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -200,9 +201,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     mov(rd, vn, vn_index);
   }
 
-  // This is required for compatibility with architecture independent code.
+  // These are required for compatibility with architecture independent code.
   // Remove if not needed.
   void Move(Register dst, Smi src);
+  void Move(Register dst, MemOperand src);
+  void Move(Register dst, Register src);
 
   // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
   void MovePair(Register dst0, Register src0, Register dst1, Register src1);
@@ -695,6 +698,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                    const Operand& operand);
   void Csel(const Register& rd, const Register& rn, const Operand& operand,
             Condition cond);
+  inline void Fcsel(const VRegister& fd, const VRegister& fn,
+                    const VRegister& fm, Condition cond);
 
   // Emits a runtime assert that the stack pointer is aligned.
   void AssertSpAligned();
@@ -834,14 +839,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <StoreLRMode lr_mode = kDontStoreLR>
   void Push(const Register& src0, const VRegister& src1);
 
-  // This is a convenience method for pushing a single Handle<Object>.
-  inline void Push(Handle<HeapObject> object);
-  inline void Push(Smi smi);
-
-  // Aliases of Push and Pop, required for V8 compatibility.
-  inline void push(Register src) { Push(src); }
-  inline void pop(Register dst) { Pop(dst); }
-
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
@@ -978,12 +975,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
                                  Register destination);
+  MemOperand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
+  void CallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return CallBuiltin(static_cast<int>(builtin));
+  }
   void CallBuiltin(int builtin_index);
+  void TailCallBuiltin(Builtins::Name builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+    return TailCallBuiltin(static_cast<int>(builtin));
+  }
+  void TailCallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
-  void JumpCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override;
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
@@ -1271,6 +1279,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) override;
+  void PushRoot(RootIndex index);
 
   inline void Ret(const Register& xn = lr);
 
@@ -1351,6 +1360,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadAnyTaggedField(const Register& destination,
                           const MemOperand& field_operand);
 
+  // Loads a field containing a tagged signed value and decompresses it if
+  // necessary.
+  void LoadTaggedSignedField(const Register& destination,
+                             const MemOperand& field_operand);
+
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
 
@@ -1371,12 +1385,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // authenticate the LR when pointer authentication is enabled.
   void RestoreFPAndLR();
 
+#if V8_ENABLE_WEBASSEMBLY
   void StoreReturnAddressInWasmExitFrame(Label* return_location);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Wasm SIMD helpers. These instructions don't have direct lowering to native
   // instructions. These helpers allow us to define the optimal code sequence,
   // and be used in both TurboFan and Liftoff.
   void I64x2BitMask(Register dst, VRegister src);
+  void I64x2AllTrue(Register dst, VRegister src);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code
@@ -1443,6 +1460,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
 
+  int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
+                                byte* pc);
+
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
 
   void CallRecordWriteStub(Register object, Operand offset,
@@ -1493,8 +1513,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                     Condition cond);
   inline void Extr(const Register& rd, const Register& rn, const Register& rm,
                    unsigned lsb);
-  inline void Fcsel(const VRegister& fd, const VRegister& fn,
-                    const VRegister& fm, Condition cond);
   void Fcvtl(const VRegister& vd, const VRegister& vn) {
     DCHECK(allow_macro_instructions());
     fcvtl(vd, vn);
@@ -2028,7 +2046,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Debugging.
 
-  void LoadNativeContextSlot(int index, Register dst);
+  void LoadNativeContextSlot(Register dst, int index);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

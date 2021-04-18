@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_OBJECTS_INL_H_
 #define V8_WASM_WASM_OBJECTS_INL_H_
 
@@ -55,13 +59,13 @@ CAST_ACCESSOR(WasmTypeInfo)
 CAST_ACCESSOR(WasmStruct)
 CAST_ACCESSOR(WasmArray)
 
-#define OPTIONAL_ACCESSORS(holder, name, type, offset)                \
-  DEF_GETTER(holder, has_##name, bool) {                              \
-    Object value = TaggedField<Object, offset>::load(isolate, *this); \
-    return !value.IsUndefined(GetReadOnlyRoots(isolate));             \
-  }                                                                   \
-  ACCESSORS_CHECKED2(holder, name, type, offset,                      \
-                     !value.IsUndefined(GetReadOnlyRoots(isolate)), true)
+#define OPTIONAL_ACCESSORS(holder, name, type, offset)                  \
+  DEF_GETTER(holder, has_##name, bool) {                                \
+    Object value = TaggedField<Object, offset>::load(cage_base, *this); \
+    return !value.IsUndefined(GetReadOnlyRoots(cage_base));             \
+  }                                                                     \
+  ACCESSORS_CHECKED2(holder, name, type, offset,                        \
+                     !value.IsUndefined(GetReadOnlyRoots(cage_base)), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \
   type holder::name() const {                                                 \
@@ -130,8 +134,7 @@ ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
           kUntaggedBufferOffset)
 ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
-// TODO(7748): This will not suffice to hold the 32-bit encoding of a ValueType.
-// We need to devise and encoding that does, and also encodes is_mutable.
+// TODO(7748): Try to come up with some encoding that includes is_mutable?
 SMI_ACCESSORS(WasmGlobalObject, raw_type, kRawTypeOffset)
 SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
 
@@ -168,7 +171,7 @@ double WasmGlobalObject::GetF64() {
 
 Handle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for externref and funcref.
-  DCHECK(type().is_reference_type());
+  DCHECK(type().is_reference());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
 
@@ -239,6 +242,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
                     kHookOnFunctionCallAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, num_liftoff_function_calls_array,
                     uint32_t*, kNumLiftoffFunctionCallsArrayOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, break_on_entry, uint8_t,
+                    kBreakOnEntryOffset)
 
 ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
@@ -392,8 +397,7 @@ ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 #undef PRIMITIVE_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
-  // TODO(7748): Support other table types? Wait for spec to clear up.
-  return wasm::ValueType::Ref(raw_type(), wasm::kNullable);
+  return wasm::ValueType::FromRawBitField(raw_type());
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }

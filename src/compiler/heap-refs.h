@@ -44,6 +44,10 @@ namespace compiler {
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
 
+inline bool IsAnyStore(AccessMode mode) {
+  return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral;
+}
+
 enum class SerializationPolicy { kAssumeSerialized, kSerializeIfNeeded };
 
 enum class OddballType : uint8_t {
@@ -72,14 +76,19 @@ enum class OddballType : uint8_t {
   /* Subtypes of FixedArrayBase */                  \
   V(BytecodeArray)                                  \
   /* Subtypes of Name */                            \
+  V(String)                                         \
   V(Symbol)                                         \
   /* Subtypes of HeapObject */                      \
   V(AccessorInfo)                                   \
   V(ArrayBoilerplateDescription)                    \
   V(CallHandlerInfo)                                \
   V(Cell)                                           \
+  V(Code)                                           \
+  V(DescriptorArray)                                \
   V(FeedbackCell)                                   \
   V(FeedbackVector)                                 \
+  V(FunctionTemplateInfo)                           \
+  V(Name)                                           \
   V(RegExpBoilerplateDescription)                   \
   V(SharedFunctionInfo)                             \
   V(TemplateObjectDescription)
@@ -96,6 +105,13 @@ enum class OddballType : uint8_t {
   V(BigInt)                                                       \
   V(HeapNumber)                                                   \
   V(Map)
+
+// This list is sorted such that subtypes appear before their supertypes.
+// DO NOT VIOLATE THIS PROPERTY!
+// Types in this list can be serialized on demand from the background thread.
+#define HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(V) \
+  /* Subtypes of HeapObject */                           \
+  V(PropertyCell)
 
 // This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
@@ -116,19 +132,12 @@ enum class OddballType : uint8_t {
   /* Subtypes of FixedArrayBase */            \
   V(FixedArray)                               \
   V(FixedDoubleArray)                         \
-  /* Subtypes of Name */                      \
-  V(String)                                   \
   /* Subtypes of JSReceiver */                \
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
-  V(Code)                                     \
-  V(DescriptorArray)                          \
   V(FixedArrayBase)                           \
-  V(FunctionTemplateInfo)                     \
   V(JSReceiver)                               \
-  V(Name)                                     \
-  V(PropertyCell)                             \
   V(SourceTextModule)                         \
   /* Subtypes of Object */                    \
   V(HeapObject)
@@ -142,6 +151,7 @@ class PropertyAccessInfo;
 #define FORWARD_DECL(Name) class Name##Ref;
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
+HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
@@ -171,26 +181,23 @@ class V8_EXPORT_PRIVATE ObjectRef {
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
   HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
+  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
 
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
   HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
+  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
+  bool IsNull() const;
   bool IsNullOrUndefined() const;
   bool IsTheHole() const;
 
   bool BooleanValue() const;
   Maybe<double> OddballToNumber() const;
-
-  // Return the element at key {index} if {index} is known to be an own data
-  // property of the object that is non-writable and non-configurable.
-  base::Optional<ObjectRef> GetOwnConstantElement(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
 
   Isolate* isolate() const;
 
@@ -300,9 +307,16 @@ class PropertyCellRef : public HeapObjectRef {
 
   Handle<PropertyCell> object() const;
 
-  PropertyDetails property_details() const;
+  // Can be called from a background thread.
+  V8_WARN_UNUSED_RESULT bool Serialize() const;
+  void SerializeAsProtector() const {
+    bool serialized = Serialize();
+    // A protector always holds a Smi value and its cell type never changes, so
+    // Serialize can't fail.
+    CHECK(serialized);
+  }
 
-  void Serialize();
+  PropertyDetails property_details() const;
   ObjectRef value() const;
 };
 
@@ -319,17 +333,28 @@ class JSObjectRef : public JSReceiverRef {
 
   Handle<JSObject> object() const;
 
-  uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
-  double RawFastDoublePropertyAt(FieldIndex index) const;
   ObjectRef RawFastPropertyAt(FieldIndex index) const;
+
+  // Return the element at key {index} if {index} is known to be an own data
+  // property of the object that is non-writable and non-configurable.
+  base::Optional<ObjectRef> GetOwnConstantElement(
+      uint32_t index, SerializationPolicy policy =
+                          SerializationPolicy::kAssumeSerialized) const;
 
   // Return the value of the property identified by the field {index}
   // if {index} is known to be an own data property of the object.
-  base::Optional<ObjectRef> GetOwnDataProperty(
+  base::Optional<ObjectRef> GetOwnFastDataProperty(
       Representation field_representation, FieldIndex index,
       SerializationPolicy policy =
           SerializationPolicy::kAssumeSerialized) const;
-  FixedArrayBaseRef elements() const;
+
+  // Return the value of the dictionary property at {index} in the dictionary
+  // if {index} is known to be an own data property of the object.
+  ObjectRef GetOwnDictionaryProperty(
+      InternalIndex index, SerializationPolicy policy =
+                               SerializationPolicy::kAssumeSerialized) const;
+
+  base::Optional<FixedArrayBaseRef> elements() const;
   void SerializeElements();
   void EnsureElementsTenured();
   ElementsKind GetElementsKind() const;
@@ -371,7 +396,6 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool has_feedback_vector() const;
   bool has_initial_map() const;
   bool has_prototype() const;
-  bool HasAttachedOptimizedCode() const;
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();
@@ -547,6 +571,7 @@ class DescriptorArrayRef : public HeapObjectRef {
 
   PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
   NameRef GetPropertyKey(InternalIndex descriptor_index) const;
+  ObjectRef GetFieldType(InternalIndex descriptor_index) const;
   base::Optional<ObjectRef> GetStrongValue(
       InternalIndex descriptor_index) const;
 };
@@ -586,8 +611,6 @@ class CallHandlerInfoRef : public HeapObjectRef {
   Handle<CallHandlerInfo> object() const;
 
   Address callback() const;
-
-  void Serialize();
   ObjectRef data() const;
 };
 
@@ -695,7 +718,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   NameRef GetPropertyKey(InternalIndex descriptor_index) const;
   FieldIndex GetFieldIndexFor(InternalIndex descriptor_index) const;
   ObjectRef GetFieldType(InternalIndex descriptor_index) const;
-  bool IsUnboxedDoubleField(InternalIndex descriptor_index) const;
   base::Optional<ObjectRef> GetStrongValue(
       InternalIndex descriptor_number) const;
 
@@ -789,26 +811,19 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
 
   Handle<BytecodeArray> object() const;
 
+  // NOTE: Concurrent reads of the actual bytecodes as well as the constant pool
+  // (both immutable) do not go through BytecodeArrayRef but are performed
+  // directly through the handle by BytecodeArrayIterator.
+
   int register_count() const;
   int parameter_count() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
 
-  // Bytecode access methods.
-  uint8_t get(int index) const;
-  Address GetFirstBytecodeAddress() const;
-
   Handle<ByteArray> SourcePositionTable() const;
-
-  // Constant pool access.
-  Handle<Object> GetConstantAtIndex(int index) const;
-  bool IsConstantAtIndexSmi(int index) const;
-  Smi GetConstantAtIndexAsSmi(int index) const;
 
   // Exception handler table.
   Address handler_table_address() const;
   int handler_table_size() const;
-
-  void SerializeForCompilation();
 };
 
 class JSArrayRef : public JSObjectRef {
@@ -817,13 +832,24 @@ class JSArrayRef : public JSObjectRef {
 
   Handle<JSArray> object() const;
 
-  ObjectRef length() const;
+  // The `length` property of boilerplate JSArray objects. Boilerplates are
+  // immutable after initialization. Must not be used for non-boilerplate
+  // JSArrays.
+  ObjectRef GetBoilerplateLength() const;
 
   // Return the element at key {index} if the array has a copy-on-write elements
   // storage and {index} is known to be an own data property.
+  // Note the value returned by this function is only valid if we ensure at
+  // runtime that the backing store has not changed.
   base::Optional<ObjectRef> GetOwnCowElement(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+      FixedArrayBaseRef elements_ref, uint32_t index,
+      SerializationPolicy policy =
+          SerializationPolicy::kAssumeSerialized) const;
+
+  // The `JSArray::length` property; not safe to use in general, but can be
+  // used in some special cases that guarantee a valid `length` value despite
+  // concurrent reads.
+  ObjectRef length_unsafe() const;
 };
 
 class ScopeInfoRef : public HeapObjectRef {
@@ -841,22 +867,22 @@ class ScopeInfoRef : public HeapObjectRef {
   void SerializeScopeInfoChain();
 };
 
-#define BROKER_SFI_FIELDS(V)              \
-  V(int, internal_formal_parameter_count) \
-  V(bool, has_duplicate_parameters)       \
-  V(int, function_map_index)              \
-  V(FunctionKind, kind)                   \
-  V(LanguageMode, language_mode)          \
-  V(bool, native)                         \
-  V(bool, HasBreakInfo)                   \
-  V(bool, HasBuiltinId)                   \
-  V(bool, construct_as_builtin)           \
-  V(bool, HasBytecodeArray)               \
-  V(int, StartPosition)                   \
-  V(bool, is_compiled)                    \
-  V(bool, IsUserJavaScript)               \
-  V(const wasm::WasmModule*, wasm_module) \
-  V(const wasm::FunctionSig*, wasm_function_signature)
+#define BROKER_SFI_FIELDS(V)                       \
+  V(int, internal_formal_parameter_count)          \
+  V(bool, has_duplicate_parameters)                \
+  V(int, function_map_index)                       \
+  V(FunctionKind, kind)                            \
+  V(LanguageMode, language_mode)                   \
+  V(bool, native)                                  \
+  V(bool, HasBreakInfo)                            \
+  V(bool, HasBuiltinId)                            \
+  V(bool, construct_as_builtin)                    \
+  V(bool, HasBytecodeArray)                        \
+  V(int, StartPosition)                            \
+  V(bool, is_compiled)                             \
+  V(bool, IsUserJavaScript)                        \
+  IF_WASM(V, const wasm::WasmModule*, wasm_module) \
+  IF_WASM(V, const wasm::FunctionSig*, wasm_function_signature)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:
@@ -890,9 +916,18 @@ class StringRef : public NameRef {
 
   Handle<String> object() const;
 
+  // With concurrent inlining on, we return base::nullopt due to not being able
+  // to use LookupIterator in a thread-safe way.
+  base::Optional<ObjectRef> GetCharAsStringOrUndefined(
+      uint32_t index, SerializationPolicy policy =
+                          SerializationPolicy::kAssumeSerialized) const;
+
+  // When concurrently accessing non-read-only non-internalized strings, we
+  // return base::nullopt for these methods.
   base::Optional<int> length() const;
   base::Optional<uint16_t> GetFirstChar();
   base::Optional<double> ToNumber();
+
   bool IsSeqString() const;
   bool IsExternalString() const;
 };
@@ -916,6 +951,7 @@ class JSTypedArrayRef : public JSObjectRef {
 
   void Serialize();
   bool serialized() const;
+  bool ShouldHaveBeenSerialized() const;
 
   HeapObjectRef buffer() const;
 };
@@ -979,7 +1015,7 @@ class CodeRef : public HeapObjectRef {
 
   Handle<Code> object() const;
 
-  unsigned inlined_bytecode_size() const;
+  unsigned GetInlinedBytecodeSize() const;
 };
 
 class InternalizedStringRef : public StringRef {

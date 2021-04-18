@@ -34,7 +34,6 @@ class JSPromise;
 class JSProxy;
 class JSProxyRevocableResult;
 class KeyAccumulator;
-class LayoutDescriptor;
 class LookupIterator;
 class FieldType;
 class Module;
@@ -71,7 +70,6 @@ template <typename T>
 class ZoneForwardList;
 
 #define OBJECT_TYPE_LIST(V) \
-  V(LayoutDescriptor)       \
   V(Primitive)              \
   V(Number)                 \
   V(Numeric)
@@ -117,7 +115,6 @@ class ZoneForwardList;
   V(FixedArrayExact)                           \
   V(FixedDoubleArray)                          \
   V(Foreign)                                   \
-  V(FrameArray)                                \
   V(FreeSpace)                                 \
   V(Function)                                  \
   V(GlobalDictionary)                          \
@@ -207,6 +204,7 @@ class ZoneForwardList;
   V(StringSet)                                 \
   V(StringWrapper)                             \
   V(Struct)                                    \
+  V(SwissNameDictionary)                       \
   V(Symbol)                                    \
   V(SymbolWrapper)                             \
   V(SyntheticModule)                           \
@@ -216,16 +214,17 @@ class ZoneForwardList;
   V(TransitionArray)                           \
   V(Undetectable)                              \
   V(UniqueName)                                \
-  V(WasmArray)                                 \
-  V(WasmExceptionObject)                       \
-  V(WasmExceptionPackage)                      \
-  V(WasmGlobalObject)                          \
-  V(WasmInstanceObject)                        \
-  V(WasmMemoryObject)                          \
-  V(WasmModuleObject)                          \
-  V(WasmStruct)                                \
-  V(WasmTypeInfo)                              \
-  V(WasmTableObject)                           \
+  IF_WASM(V, WasmArray)                        \
+  IF_WASM(V, WasmExceptionObject)              \
+  IF_WASM(V, WasmExceptionPackage)             \
+  IF_WASM(V, WasmGlobalObject)                 \
+  IF_WASM(V, WasmInstanceObject)               \
+  IF_WASM(V, WasmMemoryObject)                 \
+  IF_WASM(V, WasmModuleObject)                 \
+  IF_WASM(V, WasmStruct)                       \
+  IF_WASM(V, WasmTypeInfo)                     \
+  IF_WASM(V, WasmTableObject)                  \
+  IF_WASM(V, WasmValueObject)                  \
   V(WeakFixedArray)                            \
   V(WeakArrayList)                             \
   V(WeakCell)                                  \

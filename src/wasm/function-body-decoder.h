@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_FUNCTION_BODY_DECODER_H_
 #define V8_WASM_FUNCTION_BODY_DECODER_H_
 
@@ -85,6 +89,9 @@ V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
 V8_EXPORT_PRIVATE std::pair<uint32_t, uint32_t> StackEffect(
     const WasmModule* module, const FunctionSig* sig, const byte* pc,
     const byte* end);
+
+// Checks if the underlying hardware supports the Wasm SIMD proposal.
+V8_EXPORT_PRIVATE bool CheckHardwareSupportsSimd();
 
 // A simple forward iterator for bytecodes.
 class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {

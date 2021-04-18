@@ -36,6 +36,8 @@ struct QualifiedName {
   explicit QualifiedName(std::string name)
       : QualifiedName({}, std::move(name)) {}
 
+  static QualifiedName Parse(std::string qualified_name);
+
   bool HasNamespaceQualification() const {
     return !namespace_qualification.empty();
   }

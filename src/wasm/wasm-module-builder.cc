@@ -248,6 +248,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       data_segments_(zone),
       indirect_functions_(zone),
       globals_(zone),
+      exceptions_(zone),
       signature_map_(zone),
       start_function_index_(-1),
       min_memory_size_(16),
@@ -280,6 +281,14 @@ uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
   return index;
 }
 
+uint32_t WasmModuleBuilder::AddException(FunctionSig* type) {
+  DCHECK_EQ(0, type->return_count());
+  int type_index = AddSignature(type);
+  uint32_t except_index = static_cast<uint32_t>(exceptions_.size());
+  exceptions_.push_back(type_index);
+  return except_index;
+}
+
 uint32_t WasmModuleBuilder::AddStructType(StructType* type) {
   uint32_t index = static_cast<uint32_t>(types_.size());
   types_.push_back(Type(type));
@@ -306,7 +315,7 @@ uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
   if (tables_.empty()) {
     // This cannot use {AddTable} because that would flip the
     // {allocating_indirect_functions_allowed_} flag.
-    tables_.push_back({kWasmFuncRef, new_size, max, true});
+    tables_.push_back({kWasmFuncRef, new_size, max, true, {}});
   } else {
     // There can only be the indirect function table so far, otherwise the
     // {allocating_indirect_functions_allowed_} flag would have been false.
@@ -338,7 +347,7 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size) {
 #if DEBUG
   allocating_indirect_functions_allowed_ = false;
 #endif
-  tables_.push_back({type, min_size, 0, false});
+  tables_.push_back({type, min_size, 0, false, {}});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
@@ -347,7 +356,16 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
 #if DEBUG
   allocating_indirect_functions_allowed_ = false;
 #endif
-  tables_.push_back({type, min_size, max_size, true});
+  tables_.push_back({type, min_size, max_size, true, {}});
+  return static_cast<uint32_t>(tables_.size() - 1);
+}
+
+uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
+                                     uint32_t max_size, WasmInitExpr init) {
+#if DEBUG
+  allocating_indirect_functions_allowed_ = false;
+#endif
+  tables_.push_back({type, min_size, max_size, true, std::move(init)});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
@@ -423,8 +441,8 @@ void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   }
 }
 
-void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
-                            ValueType type) {
+void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
+                                ValueType type) {
   switch (init.kind()) {
     case WasmInitExpr::kI32Const:
       buffer->write_u8(kExprI32Const);
@@ -462,35 +480,35 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kNone: {
       // No initializer, emit a default value.
       switch (type.kind()) {
-        case ValueType::kI32:
+        case kI32:
           buffer->write_u8(kExprI32Const);
           // LEB encoding of 0.
           buffer->write_u8(0);
           break;
-        case ValueType::kI64:
+        case kI64:
           buffer->write_u8(kExprI64Const);
           // LEB encoding of 0.
           buffer->write_u8(0);
           break;
-        case ValueType::kF32:
+        case kF32:
           buffer->write_u8(kExprF32Const);
           buffer->write_f32(0.f);
           break;
-        case ValueType::kF64:
+        case kF64:
           buffer->write_u8(kExprF64Const);
           buffer->write_f64(0.);
           break;
-        case ValueType::kOptRef:
+        case kOptRef:
           buffer->write_u8(kExprRefNull);
           break;
-        case ValueType::kI8:
-        case ValueType::kI16:
-        case ValueType::kStmt:
-        case ValueType::kS128:
-        case ValueType::kBottom:
-        case ValueType::kRef:
-        case ValueType::kRtt:
-        case ValueType::kRttWithDepth:
+        case kI8:
+        case kI16:
+        case kVoid:
+        case kS128:
+        case kBottom:
+        case kRef:
+        case kRtt:
+        case kRttWithDepth:
           UNREACHABLE();
       }
       break;
@@ -503,7 +521,7 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
       break;
     case WasmInitExpr::kRttSub:
       // The operand to rtt.sub must be emitted first.
-      WriteGlobalInitializer(buffer, *init.operand(), kWasmBottom);
+      WriteInitializerExpression(buffer, *init.operand(), kWasmBottom);
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprRttSub));
@@ -602,6 +620,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       buffer->write_u8(table.has_maximum ? kWithMaximum : kNoMaximum);
       buffer->write_size(table.min_size);
       if (table.has_maximum) buffer->write_size(table.max_size);
+      if (table.init.kind() != WasmInitExpr::kNone) {
+        WriteInitializerExpression(buffer, table.init, table.type);
+      }
     }
     FixupSection(buffer, start);
   }
@@ -623,6 +644,17 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
+  // Emit event section.
+  if (exceptions_.size() > 0) {
+    size_t start = EmitSection(kExceptionSectionCode, buffer);
+    buffer->write_size(exceptions_.size());
+    for (int type : exceptions_) {
+      buffer->write_u32v(kExceptionAttribute);
+      buffer->write_u32v(type);
+    }
+    FixupSection(buffer, start);
+  }
+
   // == Emit globals ===========================================================
   if (globals_.size() > 0) {
     size_t start = EmitSection(kGlobalSectionCode, buffer);
@@ -631,7 +663,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     for (const WasmGlobal& global : globals_) {
       WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
-      WriteGlobalInitializer(buffer, global.init, global.type);
+      WriteInitializerExpression(buffer, global.init, global.type);
       buffer->write_u8(kExprEnd);
     }
     FixupSection(buffer, start);

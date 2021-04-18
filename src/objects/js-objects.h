@@ -44,13 +44,13 @@ class JSReceiver : public HeapObject {
   // map.
   DECL_GETTER(property_array, PropertyArray)
 
-  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
-  // not set).
+  // Gets slow properties for non-global objects (if
+  // v8_enable_swiss_name_dictionary is not set).
   DECL_GETTER(property_dictionary, NameDictionary)
 
-  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
-  // set).
-  DECL_GETTER(property_dictionary_ordered, OrderedNameDictionary)
+  // Gets slow properties for non-global objects (if
+  // v8_enable_swiss_name_dictionary is set).
+  DECL_GETTER(property_dictionary_swiss, SwissNameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -227,7 +227,7 @@ class JSReceiver : public HeapObject {
   // returned instead.
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
-  V8_EXPORT_PRIVATE Handle<NativeContext> GetCreationContext();
+  V8_EXPORT_PRIVATE MaybeHandle<NativeContext> GetCreationContext();
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
@@ -310,6 +310,19 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
       Isolate* isolate, Handle<Object> prototype);
+
+  DECL_ACCESSORS(elements, FixedArrayBase)
+  DECL_RELAXED_GETTER(elements, FixedArrayBase)
+
+  // Acquire/release semantics on this field are explicitly forbidden to avoid
+  // confusion, since the default setter uses relaxed semantics. If
+  // acquire/release semantics ever become necessary, the default setter should
+  // be reverted to non-atomic behavior, and setters with explicit tags
+  // introduced and used when required.
+  FixedArrayBase elements(PtrComprCageBase cage_base,
+                          AcquireLoadTag tag) const = delete;
+  void set_elements(FixedArrayBase value, ReleaseStoreTag tag,
+                    WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
@@ -630,26 +643,23 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   int unused_property_fields,
                                                   const char* reason);
 
-  inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const;
+  // Access property in dictionary mode object at the given dictionary index.
+  static Handle<Object> DictionaryPropertyAt(Handle<JSObject> object,
+                                             InternalIndex dict_index);
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
-  inline double RawFastDoublePropertyAt(FieldIndex index) const;
-  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
+  inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
+                                  FieldIndex index) const;
 
-  inline void FastPropertyAtPut(FieldIndex index, Object value);
-  inline void RawFastPropertyAtPut(
-      FieldIndex index, Object value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void FastPropertyAtPut(FieldIndex index, Object value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
 
@@ -670,11 +680,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Initializes the body starting at |start_offset|. It is responsibility of
   // the caller to initialize object header. Fill the pre-allocated fields with
-  // pre_allocated_value and the rest with filler_value.
+  // undefined_value and the rest with filler_map.
   // Note: this call does not update write barrier, the caller is responsible
-  // to ensure that |filler_value| can be collected without WB here.
+  // to ensure that |filler_map| can be collected without WB here.
   inline void InitializeBody(Map map, int start_offset,
-                             Object pre_allocated_value, Object filler_value);
+                             bool is_slack_tracking_in_progress,
+                             MapWord filler_map, Object undefined_value);
 
   // Check whether this object references another object
   bool ReferencesObject(Object obj);
@@ -733,14 +744,16 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(IsolateRoot isolate) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(
+      PtrComprCageBase cage_base) const;
 #endif
 
   Object SlowReverseLookup(Object value);
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
-  static const uint32_t kMaxElementCount = 0xffffffffu;
+  static constexpr uint32_t kMaxElementCount = kMaxUInt32;
+  static constexpr uint32_t kMaxElementIndex = kMaxElementCount - 1;
 
   // Constants for heuristics controlling conversion of fast elements
   // to slow elements.
@@ -1111,6 +1124,9 @@ class JSMessageObject : public JSObject {
   // Returns the offset of the given position within the containing line.
   // EnsureSourcePositionsAvailable must have been called before calling this.
   V8_EXPORT_PRIVATE int GetColumnNumber() const;
+
+  // Returns the source code
+  V8_EXPORT_PRIVATE String GetSource() const;
 
   // Returns the source code line containing the given source
   // position, or the empty string if the position is invalid.

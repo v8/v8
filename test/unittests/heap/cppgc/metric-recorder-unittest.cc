@@ -72,8 +72,9 @@ TEST_F(MetricRecorderTest, IncrementalScopesReportedImmediately) {
   {
     EXPECT_EQ(0u, MetricRecorderImpl::CppGCMainThreadIncrementalMark_callcount);
     {
-      StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
-                                         StatsCollector::kIncrementalMark);
+      StatsCollector::EnabledScope scope(
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kIncrementalMark);
       scope.DecreaseStartTimeForTesting(
           v8::base::TimeDelta::FromMilliseconds(1));
     }
@@ -86,8 +87,9 @@ TEST_F(MetricRecorderTest, IncrementalScopesReportedImmediately) {
     EXPECT_EQ(0u,
               MetricRecorderImpl::CppGCMainThreadIncrementalSweep_callcount);
     {
-      StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
-                                         StatsCollector::kIncrementalSweep);
+      StatsCollector::EnabledScope scope(
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kIncrementalSweep);
       scope.DecreaseStartTimeForTesting(
           v8::base::TimeDelta::FromMilliseconds(1));
     }
@@ -107,28 +109,30 @@ TEST_F(MetricRecorderTest, NonIncrementlaScopesNotReportedImmediately) {
   MetricRecorderImpl::CppGCMainThreadIncrementalSweep_callcount = 0u;
   StartGC();
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kAtomicMark);
   }
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kAtomicWeak);
   }
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kAtomicCompact);
   }
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kAtomicSweep);
   }
   {
     StatsCollector::EnabledConcurrentScope scope(
-        *Heap::From(GetHeap()), StatsCollector::kConcurrentMark);
+        Heap::From(GetHeap())->stats_collector(),
+        StatsCollector::kConcurrentMark);
   }
   {
     StatsCollector::EnabledConcurrentScope scope(
-        *Heap::From(GetHeap()), StatsCollector::kConcurrentSweep);
+        Heap::From(GetHeap())->stats_collector(),
+        StatsCollector::kConcurrentSweep);
   }
   EXPECT_EQ(0u, MetricRecorderImpl::CppGCMainThreadIncrementalMark_callcount);
   EXPECT_EQ(0u, MetricRecorderImpl::CppGCMainThreadIncrementalSweep_callcount);
@@ -152,50 +156,52 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsCorrectValues) {
   EndGC(1000);
   StartGC();
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kIncrementalMark);
     scope.DecreaseStartTimeForTesting(
         v8::base::TimeDelta::FromMilliseconds(10));
   }
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kIncrementalSweep);
     scope.DecreaseStartTimeForTesting(
         v8::base::TimeDelta::FromMilliseconds(20));
   }
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kAtomicMark);
     scope.DecreaseStartTimeForTesting(
         v8::base::TimeDelta::FromMilliseconds(30));
   }
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kAtomicWeak);
     scope.DecreaseStartTimeForTesting(
         v8::base::TimeDelta::FromMilliseconds(50));
   }
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kAtomicCompact);
     scope.DecreaseStartTimeForTesting(
         v8::base::TimeDelta::FromMilliseconds(60));
   }
   {
-    StatsCollector::EnabledScope scope(*Heap::From(GetHeap()),
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
                                        StatsCollector::kAtomicSweep);
     scope.DecreaseStartTimeForTesting(
         v8::base::TimeDelta::FromMilliseconds(70));
   }
   {
     StatsCollector::EnabledConcurrentScope scope(
-        *Heap::From(GetHeap()), StatsCollector::kConcurrentMark);
+        Heap::From(GetHeap())->stats_collector(),
+        StatsCollector::kConcurrentMark);
     scope.DecreaseStartTimeForTesting(
         v8::base::TimeDelta::FromMilliseconds(80));
   }
   {
     StatsCollector::EnabledConcurrentScope scope(
-        *Heap::From(GetHeap()), StatsCollector::kConcurrentSweep);
+        Heap::From(GetHeap())->stats_collector(),
+        StatsCollector::kConcurrentSweep);
     scope.DecreaseStartTimeForTesting(
         v8::base::TimeDelta::FromMilliseconds(100));
   }

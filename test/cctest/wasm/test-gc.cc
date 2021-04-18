@@ -43,8 +43,8 @@ class WasmGCTester {
             &v8::internal::FLAG_liftoff_only,
             execution_tier == TestExecutionTier::kLiftoff ? true : false),
         flag_tierup(&v8::internal::FLAG_wasm_tier_up, false),
-        zone(&allocator, ZONE_NAME),
-        builder_(&zone),
+        zone_(&allocator, ZONE_NAME),
+        builder_(&zone_),
         isolate_(CcTest::InitIsolateOnce()),
         scope(isolate_),
         thrower(isolate_, "Test wasm GC") {
@@ -82,7 +82,7 @@ class WasmGCTester {
   }
 
   byte DefineStruct(std::initializer_list<F> fields) {
-    StructType::Builder type_builder(&zone,
+    StructType::Builder type_builder(&zone_,
                                      static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
@@ -91,7 +91,8 @@ class WasmGCTester {
   }
 
   byte DefineArray(ValueType element_type, bool mutability) {
-    return builder_.AddArrayType(zone.New<ArrayType>(element_type, mutability));
+    return builder_.AddArrayType(
+        zone_.New<ArrayType>(element_type, mutability));
   }
 
   byte DefineSignature(FunctionSig* sig) { return builder_.AddSignature(sig); }
@@ -101,7 +102,7 @@ class WasmGCTester {
   }
 
   void CompileModule() {
-    ZoneBuffer buffer(&zone);
+    ZoneBuffer buffer(&zone_);
     builder_.WriteTo(&buffer);
     MaybeHandle<WasmInstanceObject> maybe_instance =
         testing::CompileAndInstantiateForTesting(
@@ -174,6 +175,7 @@ class WasmGCTester {
   Handle<WasmInstanceObject> instance() { return instance_; }
   Isolate* isolate() { return isolate_; }
   WasmModuleBuilder* builder() { return &builder_; }
+  Zone* zone() { return &zone_; }
 
   TestSignatures sigs;
 
@@ -186,7 +188,7 @@ class WasmGCTester {
   const FlagScope<bool> flag_tierup;
 
   v8::internal::AccountingAllocator allocator;
-  Zone zone;
+  Zone zone_;
   WasmModuleBuilder builder_;
 
   Isolate* const isolate_;
@@ -609,6 +611,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   WasmGCTester tester(execution_tier);
 
   const byte type_index = tester.DefineArray(wasm::kWasmI32, true);
+  const byte fp_type_index = tester.DefineArray(wasm::kWasmF64, true);
   ValueType kRefTypes[] = {ref(type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
   ValueType kOptRefType = optref(type_index);
@@ -655,6 +658,20 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
                               WASM_RTT_CANON(type_index)),
        kExprEnd});
 
+  // Tests that fp arrays work properly.
+  // f: a = [10.0, 10.0, 10.0]; a[1] = 42.42; return static_cast<int64>(a[1]);
+  double result_value = 42.42;
+  const byte kTestFpArray = tester.DefineFunction(
+      tester.sigs.i_v(), {optref(fp_type_index)},
+      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_WITH_RTT(
+                             fp_type_index, WASM_F64(10.0), WASM_I32V(3),
+                             WASM_RTT_CANON(fp_type_index))),
+       WASM_ARRAY_SET(fp_type_index, WASM_LOCAL_GET(0), WASM_I32V(1),
+                      WASM_F64(result_value)),
+       WASM_I32_SCONVERT_F64(
+           WASM_ARRAY_GET(fp_type_index, WASM_LOCAL_GET(0), WASM_I32V(1))),
+       kExprEnd});
+
   tester.CompileModule();
 
   tester.CheckResult(kGetElem, 12, 0);
@@ -663,6 +680,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   tester.CheckHasThrown(kGetElem, 3);
   tester.CheckHasThrown(kGetElem, -1);
   tester.CheckResult(kGetLength, 42);
+  tester.CheckResult(kTestFpArray, static_cast<int32_t>(result_value));
 
   MaybeHandle<Object> h_result = tester.GetResultObject(kAllocate);
   CHECK(h_result.ToHandleChecked()->IsWasmArray());
@@ -783,8 +801,8 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
   tester.CheckResult(allocate_array, 0);
 }
 
-TEST(BasicRtt) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(BasicRtt) {
+  WasmGCTester tester(execution_tier);
 
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte subtype_index =
@@ -811,31 +829,26 @@ TEST(BasicRtt) {
        kExprEnd});
 
   const int kFieldIndex = 1;
-  const int kStructIndexCode = 1;  // Shifted in 'let' block.
-  const int kRttIndexCode = 0;     // Let-bound, hence first local.
+  const int kStructIndexCode = 0;
   // This implements the following function:
   //   var local_struct: type0;
-  //   let (local_rtt = rtt.sub(rtt.canon(type0), type1) in {
-  //     local_struct = new type1 with rtt 'local_rtt';
-  //     return (ref.test local_struct local_rtt) +
-  //            ((ref.cast local_struct local_rtt)[field0]);
+  //   local_struct = new type1 with rtt 'kRttSub()';
+  //   return (ref.test local_struct kRttSub()) +
+  //          ((ref.cast local_struct kRttSub())[field0]);
   //   }
   // The expected return value is 1+42 = 43.
   const byte kRefCast = tester.DefineFunction(
       tester.sigs.i_v(), {optref(type_index)},
-      {WASM_LET_1_I(
-           WASM_RTT_WITH_DEPTH(1, subtype_index),
-           WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index)),
-           WASM_LOCAL_SET(kStructIndexCode,
-                          WASM_STRUCT_NEW_WITH_RTT(
-                              subtype_index, WASM_I32V(11), WASM_I32V(42),
-                              WASM_LOCAL_GET(kRttIndexCode))),
-           WASM_I32_ADD(
-               WASM_REF_TEST(WASM_LOCAL_GET(kStructIndexCode),
-                             WASM_LOCAL_GET(kRttIndexCode)),
-               WASM_STRUCT_GET(subtype_index, kFieldIndex,
-                               WASM_REF_CAST(WASM_LOCAL_GET(kStructIndexCode),
-                                             WASM_LOCAL_GET(kRttIndexCode))))),
+      {WASM_LOCAL_SET(
+           kStructIndexCode,
+           WASM_STRUCT_NEW_WITH_RTT(subtype_index, WASM_I32V(11), WASM_I32V(42),
+                                    WASM_CALL_FUNCTION0(kRttSub))),
+       WASM_I32_ADD(
+           WASM_REF_TEST(WASM_LOCAL_GET(kStructIndexCode),
+                         WASM_CALL_FUNCTION0(kRttSub)),
+           WASM_STRUCT_GET(subtype_index, kFieldIndex,
+                           WASM_REF_CAST(WASM_LOCAL_GET(kStructIndexCode),
+                                         WASM_CALL_FUNCTION0(kRttSub)))),
        kExprEnd});
 
   tester.CompileModule();
@@ -868,22 +881,126 @@ TEST(BasicRtt) {
   tester.CheckResult(kRefCast, 43);
 }
 
-TEST(NoDepthRtt) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
+  WasmGCTester tester(execution_tier);
+  byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  byte subtype_index =
+      tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmS128, false)});
+  ValueType sig_types[] = {kWasmS128, kWasmI32, kWasmF64};
+  FunctionSig sig(1, 2, sig_types);
+  byte sig_index = tester.DefineSignature(&sig);
+
+  const byte kRefTestNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(WASM_REF_NULL(type_index), WASM_RTT_CANON(subtype_index)),
+       kExprEnd});
+  const byte kRefTestUpcast = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(
+           WASM_STRUCT_NEW_DEFAULT(
+               subtype_index,
+               WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
+           WASM_RTT_CANON(type_index)),
+       kExprEnd});
+  const byte kRefTestUpcastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(WASM_REF_NULL(subtype_index), WASM_RTT_CANON(type_index)),
+       kExprEnd});
+  const byte kRefTestUnrelated = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(
+           WASM_STRUCT_NEW_DEFAULT(
+               subtype_index,
+               WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
+           WASM_RTT_CANON(sig_index)),
+       kExprEnd});
+  const byte kRefTestUnrelatedNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(WASM_REF_NULL(subtype_index), WASM_RTT_CANON(sig_index)),
+       kExprEnd});
+  const byte kRefTestUnrelatedNonNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(
+           WASM_STRUCT_NEW_DEFAULT(type_index, WASM_RTT_CANON(type_index)),
+           WASM_RTT_CANON(sig_index)),
+       kExprEnd});
+
+  const byte kRefCastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(type_index),
+                                      WASM_RTT_CANON(subtype_index))),
+       kExprEnd});
+  const byte kRefCastUpcast = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(
+           WASM_STRUCT_NEW_DEFAULT(
+               subtype_index,
+               WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
+           WASM_RTT_CANON(type_index))),
+       kExprEnd});
+  const byte kRefCastUpcastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(subtype_index),
+                                      WASM_RTT_CANON(type_index))),
+       kExprEnd});
+  const byte kRefCastUnrelated = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(
+           WASM_STRUCT_NEW_DEFAULT(
+               subtype_index,
+               WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
+           WASM_RTT_CANON(sig_index))),
+       kExprEnd});
+  const byte kRefCastUnrelatedNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(subtype_index),
+                                      WASM_RTT_CANON(sig_index))),
+       kExprEnd});
+  const byte kRefCastUnrelatedNonNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST(
+           WASM_STRUCT_NEW_DEFAULT(type_index, WASM_RTT_CANON(type_index)),
+           WASM_RTT_CANON(sig_index))),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult(kRefTestNull, 0);
+  tester.CheckResult(kRefTestUpcast, 1);
+  tester.CheckResult(kRefTestUpcastNull, 0);
+  tester.CheckResult(kRefTestUnrelated, 0);
+  tester.CheckResult(kRefTestUnrelatedNull, 0);
+  tester.CheckResult(kRefTestUnrelatedNonNullable, 0);
+
+  tester.CheckResult(kRefCastNull, 1);
+  tester.CheckResult(kRefCastUpcast, 0);
+  tester.CheckResult(kRefCastUpcastNull, 1);
+  tester.CheckHasThrown(kRefCastUnrelated);
+  tester.CheckResult(kRefCastUnrelatedNull, 1);
+  tester.CheckHasThrown(kRefCastUnrelatedNonNullable);
+}
+
+WASM_EXEC_TEST(NoDepthRtt) {
+  WasmGCTester tester(execution_tier);
 
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte subtype_index =
       tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)});
   const byte empty_struct_index = tester.DefineStruct({});
 
+  ValueType kRttTypeNoDepth = ValueType::Rtt(type_index);
+  FunctionSig sig_t1_v_nd(1, 0, &kRttTypeNoDepth);
   ValueType kRttSubtypeNoDepth = ValueType::Rtt(subtype_index);
   FunctionSig sig_t2_v_nd(1, 0, &kRttSubtypeNoDepth);
 
+  const byte kRttTypeCanon = tester.DefineFunction(
+      &sig_t1_v_nd, {}, {WASM_RTT_CANON(type_index), kExprEnd});
   const byte kRttSubtypeCanon = tester.DefineFunction(
       &sig_t2_v_nd, {}, {WASM_RTT_CANON(subtype_index), kExprEnd});
   const byte kRttSubtypeSub = tester.DefineFunction(
       &sig_t2_v_nd, {},
-      {WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index)), kExprEnd});
+      {WASM_RTT_SUB(subtype_index, WASM_CALL_FUNCTION0(kRttTypeCanon)),
+       kExprEnd});
 
   const byte kTestCanon = tester.DefineFunction(
       tester.sigs.i_v(), {optref(type_index)},
@@ -1064,23 +1181,46 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
   tester.CheckResult(caller, 47, 5);
 }
 
-WASM_COMPILED_EXEC_TEST(RefTestCastNull) {
+WASM_COMPILED_EXEC_TEST(CallReftypeParameters) {
   WasmGCTester tester(execution_tier);
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
-
-  const byte kRefTestNull = tester.DefineFunction(
+  ValueType kRefType{optref(type_index)};
+  ValueType sig_types[] = {kWasmI32, kRefType, kRefType, kRefType, kRefType,
+                           kWasmI32, kWasmI32, kWasmI32, kWasmI32};
+  FunctionSig sig(1, 8, sig_types);
+  byte adder = tester.DefineFunction(
+      &sig, {},
+      {WASM_I32_ADD(
+           WASM_STRUCT_GET(type_index, 0, WASM_LOCAL_GET(0)),
+           WASM_I32_ADD(
+               WASM_STRUCT_GET(type_index, 0, WASM_LOCAL_GET(1)),
+               WASM_I32_ADD(
+                   WASM_STRUCT_GET(type_index, 0, WASM_LOCAL_GET(2)),
+                   WASM_I32_ADD(
+                       WASM_STRUCT_GET(type_index, 0, WASM_LOCAL_GET(3)),
+                       WASM_I32_ADD(
+                           WASM_LOCAL_GET(4),
+                           WASM_I32_ADD(WASM_LOCAL_GET(5),
+                                        WASM_I32_ADD(WASM_LOCAL_GET(6),
+                                                     WASM_LOCAL_GET(7)))))))),
+       kExprEnd});
+  byte caller = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_TEST(WASM_REF_NULL(type_index), WASM_RTT_CANON(type_index)),
+      {WASM_CALL_FUNCTION(adder,
+                          WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(2),
+                                                   WASM_RTT_CANON(type_index)),
+                          WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(4),
+                                                   WASM_RTT_CANON(type_index)),
+                          WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(8),
+                                                   WASM_RTT_CANON(type_index)),
+                          WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(16),
+                                                   WASM_RTT_CANON(type_index)),
+                          WASM_I32V(32), WASM_I32V(64), WASM_I32V(128),
+                          WASM_I32V(256)),
        kExprEnd});
 
-  const byte kRefCastNull = tester.DefineFunction(
-      tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(type_index),
-                                      WASM_RTT_CANON(type_index))),
-       kExprEnd});
   tester.CompileModule();
-  tester.CheckResult(kRefTestNull, 0);
-  tester.CheckResult(kRefCastNull, 1);
+  tester.CheckResult(caller, 510);
 }
 
 WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
@@ -1346,19 +1486,101 @@ WASM_COMPILED_EXEC_TEST(GlobalInitReferencingGlobal) {
   tester.CheckResult(func, 42);
 }
 
-WASM_COMPILED_EXEC_TEST(IndirectNullSetManually) {
+WASM_COMPILED_EXEC_TEST(GCTables) {
   WasmGCTester tester(execution_tier);
-  byte sig_index = tester.DefineSignature(tester.sigs.i_i());
-  tester.DefineTable(ValueType::Ref(sig_index, kNullable), 1, 1);
-  byte func_index = tester.DefineFunction(
-      tester.sigs.i_i(), {},
-      {WASM_TABLE_SET(0, WASM_I32V(0), WASM_REF_NULL(sig_index)),
-       WASM_CALL_INDIRECT(sig_index, WASM_I32V(0), WASM_LOCAL_GET(0)),
-       kExprEnd});
+
+  byte super_struct = tester.DefineStruct({F(kWasmI32, false)});
+  byte sub_struct =
+      tester.DefineStruct({F(kWasmI32, false), F(kWasmI32, true)});
+  FunctionSig* super_sig =
+      FunctionSig::Build(tester.zone(), {kWasmI32}, {optref(sub_struct)});
+  byte super_sig_index = tester.DefineSignature(super_sig);
+  FunctionSig* sub_sig =
+      FunctionSig::Build(tester.zone(), {kWasmI32}, {optref(super_struct)});
+  byte sub_sig_index = tester.DefineSignature(sub_sig);
+
+  tester.DefineTable(optref(super_sig_index), 10, 10);
+
+  byte super_func = tester.DefineFunction(
+      super_sig, {},
+      {WASM_I32_ADD(WASM_STRUCT_GET(sub_struct, 0, WASM_LOCAL_GET(0)),
+                    WASM_STRUCT_GET(sub_struct, 1, WASM_LOCAL_GET(0))),
+       WASM_END});
+
+  byte sub_func = tester.DefineFunction(
+      sub_sig, {},
+      {WASM_STRUCT_GET(super_struct, 0, WASM_LOCAL_GET(0)), WASM_END});
+
+  byte setup_func = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_TABLE_SET(0, WASM_I32V(0), WASM_REF_NULL(super_sig_index)),
+       WASM_TABLE_SET(0, WASM_I32V(1), WASM_REF_FUNC(super_func)),
+       WASM_TABLE_SET(0, WASM_I32V(2), WASM_REF_FUNC(sub_func)), WASM_I32V(0),
+       WASM_END});
+
+  byte super_struct_producer = tester.DefineFunction(
+      FunctionSig::Build(tester.zone(), {ref(super_struct)}, {}), {},
+      {WASM_STRUCT_NEW_WITH_RTT(super_struct, WASM_I32V(-5),
+                                WASM_RTT_CANON(super_struct)),
+       WASM_END});
+  byte sub_struct_producer = tester.DefineFunction(
+      FunctionSig::Build(tester.zone(), {ref(sub_struct)}, {}), {},
+      {WASM_STRUCT_NEW_WITH_RTT(sub_struct, WASM_I32V(7), WASM_I32V(11),
+                                WASM_RTT_CANON(sub_struct)),
+       WASM_END});
+
+  // Calling a null entry should trap.
+  byte call_null = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(super_sig_index,
+                          WASM_CALL_FUNCTION0(sub_struct_producer),
+                          WASM_I32V(0)),
+       WASM_END});
+  // Calling with a signature identical to the type of the table should work,
+  // provided the entry has the same signature.
+  byte call_same_type = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(super_sig_index,
+                          WASM_CALL_FUNCTION0(sub_struct_producer),
+                          WASM_I32V(1)),
+       WASM_END});
+  // Calling with a signature that is a subtype of the type of the table should
+  // work, provided the entry has the same signature.
+  byte call_subtype = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(sub_sig_index,
+                          WASM_CALL_FUNCTION0(super_struct_producer),
+                          WASM_I32V(2)),
+       WASM_END});
+  // Calling with a signature that is mismatched to that of the entry should
+  // trap.
+  byte call_type_mismatch = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(super_sig_index,
+                          WASM_CALL_FUNCTION0(sub_struct_producer),
+                          WASM_I32V(2)),
+       WASM_END});
+  // Getting a table element and then calling it with call_ref should work.
+  byte table_get_and_call_ref = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_REF(WASM_TABLE_GET(0, WASM_I32V(2)),
+                     WASM_CALL_FUNCTION0(sub_struct_producer)),
+       WASM_END});
+
+  // Only here so these functions count as "declared".
+  tester.AddGlobal(optref(super_sig_index), false,
+                   WasmInitExpr::RefFuncConst(super_func));
+  tester.AddGlobal(optref(sub_sig_index), false,
+                   WasmInitExpr::RefFuncConst(sub_func));
 
   tester.CompileModule();
 
-  tester.CheckHasThrown(func_index, 42);
+  tester.CheckResult(setup_func, 0);
+  tester.CheckHasThrown(call_null);
+  tester.CheckResult(call_same_type, 18);
+  tester.CheckResult(call_subtype, -5);
+  tester.CheckHasThrown(call_type_mismatch);
+  tester.CheckResult(table_get_and_call_ref, 7);
 }
 
 WASM_COMPILED_EXEC_TEST(JsAccess) {

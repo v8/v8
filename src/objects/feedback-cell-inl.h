@@ -55,9 +55,6 @@ void FeedbackCell::SetInitialInterruptBudget() {
   }
 }
 
-void FeedbackCell::SetInterruptBudget() {
-  set_interrupt_budget(FLAG_interrupt_budget);
-}
 
 void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
   ReadOnlyRoots r(isolate);

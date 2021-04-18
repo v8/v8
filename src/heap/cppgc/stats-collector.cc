@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include "src/base/atomicops.h"
 #include "src/base/logging.h"
+#include "src/base/platform/time.h"
 #include "src/heap/cppgc/metric-recorder.h"
 
 namespace cppgc {
@@ -17,8 +19,10 @@ namespace internal {
 constexpr size_t StatsCollector::kAllocationThresholdBytes;
 
 StatsCollector::StatsCollector(
-    std::unique_ptr<MetricRecorder> histogram_recorder)
-    : metric_recorder_(std::move(histogram_recorder)) {}
+    std::unique_ptr<MetricRecorder> histogram_recorder, Platform* platform)
+    : metric_recorder_(std::move(histogram_recorder)), platform_(platform) {
+  USE(platform_);
+}
 
 void StatsCollector::RegisterObserver(AllocationObserver* observer) {
   DCHECK_EQ(allocation_observers_.end(),
@@ -51,6 +55,10 @@ void StatsCollector::NotifySafePointForConservativeCollection() {
       static_cast<int64_t>(kAllocationThresholdBytes)) {
     AllocatedObjectSizeSafepointImpl();
   }
+}
+
+void StatsCollector::NotifySafePointForTesting() {
+  AllocatedObjectSizeSafepointImpl();
 }
 
 void StatsCollector::AllocatedObjectSizeSafepointImpl() {
@@ -215,6 +223,10 @@ void StatsCollector::NotifySweepingCompleted() {
   }
 }
 
+size_t StatsCollector::allocated_memory_size() const {
+  return memory_allocated_bytes_ - memory_freed_bytes_since_end_of_marking_;
+}
+
 size_t StatsCollector::allocated_object_size() const {
   // During sweeping we refer to the current Event as that already holds the
   // correct marking information. In all other phases, the previous event holds
@@ -228,12 +240,40 @@ size_t StatsCollector::allocated_object_size() const {
                              allocated_bytes_since_end_of_marking_);
 }
 
+size_t StatsCollector::marked_bytes() const {
+  DCHECK_NE(GarbageCollectionState::kMarking, gc_state_);
+  // During sweeping we refer to the current Event as that already holds the
+  // correct marking information. In all other phases, the previous event holds
+  // the most up-to-date marking information.
+  const Event& event =
+      gc_state_ == GarbageCollectionState::kSweeping ? current_ : previous_;
+  return event.marked_bytes;
+}
+
+v8::base::TimeDelta StatsCollector::marking_time() const {
+  DCHECK_NE(GarbageCollectionState::kMarking, gc_state_);
+  // During sweeping we refer to the current Event as that already holds the
+  // correct marking information. In all other phases, the previous event holds
+  // the most up-to-date marking information.
+  const Event& event =
+      gc_state_ == GarbageCollectionState::kSweeping ? current_ : previous_;
+  return event.scope_data[kAtomicMark] + event.scope_data[kIncrementalMark] +
+         v8::base::TimeDelta::FromMicroseconds(v8::base::Relaxed_Load(
+             &event.concurrent_scope_data[kConcurrentMark]));
+}
+
 void StatsCollector::NotifyAllocatedMemory(int64_t size) {
   memory_allocated_bytes_ += size;
+  ForAllAllocationObservers([size](AllocationObserver* observer) {
+    observer->AllocatedSizeIncreased(static_cast<size_t>(size));
+  });
 }
 
 void StatsCollector::NotifyFreedMemory(int64_t size) {
   memory_freed_bytes_since_end_of_marking_ += size;
+  ForAllAllocationObservers([size](AllocationObserver* observer) {
+    observer->AllocatedSizeDecreased(static_cast<size_t>(size));
+  });
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,

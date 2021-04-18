@@ -117,12 +117,16 @@ class StatsCounter;
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
+  V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
   V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
   V(address_of_wasm_i8x16_splat_0x0f, "wasm_i8x16_splat_0x0f")                 \
   V(address_of_wasm_i8x16_splat_0x33, "wasm_i8x16_splat_0x33")                 \
   V(address_of_wasm_i8x16_splat_0x55, "wasm_i8x16_splat_0x55")                 \
   V(address_of_wasm_i16x8_splat_0x0001, "wasm_16x8_splat_0x0001")              \
+  V(baseline_pc_for_bytecode_offset, "BaselinePCForBytecodeOffset")            \
+  V(baseline_pc_for_next_executed_bytecode,                                    \
+    "BaselinePCForNextExecutedBytecode")                                       \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")     \
   V(check_object_type, "check_object_type")                                    \
   V(compute_integer_hash, "ComputeSeededHash")                                 \
@@ -197,63 +201,60 @@ class StatsCounter;
   V(string_to_array_index_function, "String::ToArrayIndex")                    \
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
-  V(wasm_call_trap_callback_for_testing,                                       \
-    "wasm::call_trap_callback_for_testing")                                    \
-  V(wasm_f32_ceil, "wasm::f32_ceil_wrapper")                                   \
-  V(wasm_f32_floor, "wasm::f32_floor_wrapper")                                 \
-  V(wasm_f32_nearest_int, "wasm::f32_nearest_int_wrapper")                     \
-  V(wasm_f32_trunc, "wasm::f32_trunc_wrapper")                                 \
-  V(wasm_f64_ceil, "wasm::f64_ceil_wrapper")                                   \
-  V(wasm_f64_floor, "wasm::f64_floor_wrapper")                                 \
-  V(wasm_f64_nearest_int, "wasm::f64_nearest_int_wrapper")                     \
-  V(wasm_f64_trunc, "wasm::f64_trunc_wrapper")                                 \
-  V(wasm_float32_to_int64, "wasm::float32_to_int64_wrapper")                   \
-  V(wasm_float32_to_uint64, "wasm::float32_to_uint64_wrapper")                 \
-  V(wasm_float32_to_int64_sat, "wasm::float32_to_int64_sat_wrapper")           \
-  V(wasm_float32_to_uint64_sat, "wasm::float32_to_uint64_sat_wrapper")         \
-  V(wasm_float64_pow, "wasm::float64_pow")                                     \
-  V(wasm_float64_to_int64, "wasm::float64_to_int64_wrapper")                   \
-  V(wasm_float64_to_uint64, "wasm::float64_to_uint64_wrapper")                 \
-  V(wasm_float64_to_int64_sat, "wasm::float64_to_int64_sat_wrapper")           \
-  V(wasm_float64_to_uint64_sat, "wasm::float64_to_uint64_sat_wrapper")         \
-  V(wasm_int64_div, "wasm::int64_div")                                         \
-  V(wasm_int64_mod, "wasm::int64_mod")                                         \
-  V(wasm_int64_to_float32, "wasm::int64_to_float32_wrapper")                   \
-  V(wasm_int64_to_float64, "wasm::int64_to_float64_wrapper")                   \
-  V(wasm_uint64_div, "wasm::uint64_div")                                       \
-  V(wasm_uint64_mod, "wasm::uint64_mod")                                       \
-  V(wasm_uint64_to_float32, "wasm::uint64_to_float32_wrapper")                 \
-  V(wasm_uint64_to_float64, "wasm::uint64_to_float64_wrapper")                 \
-  V(wasm_word32_ctz, "wasm::word32_ctz")                                       \
-  V(wasm_word32_popcnt, "wasm::word32_popcnt")                                 \
-  V(wasm_word32_rol, "wasm::word32_rol")                                       \
-  V(wasm_word32_ror, "wasm::word32_ror")                                       \
-  V(wasm_word64_rol, "wasm::word64_rol")                                       \
-  V(wasm_word64_ror, "wasm::word64_ror")                                       \
-  V(wasm_word64_ctz, "wasm::word64_ctz")                                       \
-  V(wasm_word64_popcnt, "wasm::word64_popcnt")                                 \
-  V(wasm_f64x2_ceil, "wasm::f64x2_ceil_wrapper")                               \
-  V(wasm_f64x2_floor, "wasm::f64x2_floor_wrapper")                             \
-  V(wasm_f64x2_trunc, "wasm::f64x2_trunc_wrapper")                             \
-  V(wasm_f64x2_nearest_int, "wasm::f64x2_nearest_int_wrapper")                 \
-  V(wasm_f32x4_ceil, "wasm::f32x4_ceil_wrapper")                               \
-  V(wasm_f32x4_floor, "wasm::f32x4_floor_wrapper")                             \
-  V(wasm_f32x4_trunc, "wasm::f32x4_trunc_wrapper")                             \
-  V(wasm_f32x4_nearest_int, "wasm::f32x4_nearest_int_wrapper")                 \
-  V(wasm_memory_init, "wasm::memory_init")                                     \
-  V(wasm_memory_copy, "wasm::memory_copy")                                     \
-  V(wasm_memory_fill, "wasm::memory_fill")                                     \
+  IF_WASM(V, wasm_call_trap_callback_for_testing,                              \
+          "wasm::call_trap_callback_for_testing")                              \
+  IF_WASM(V, wasm_f32_ceil, "wasm::f32_ceil_wrapper")                          \
+  IF_WASM(V, wasm_f32_floor, "wasm::f32_floor_wrapper")                        \
+  IF_WASM(V, wasm_f32_nearest_int, "wasm::f32_nearest_int_wrapper")            \
+  IF_WASM(V, wasm_f32_trunc, "wasm::f32_trunc_wrapper")                        \
+  IF_WASM(V, wasm_f64_ceil, "wasm::f64_ceil_wrapper")                          \
+  IF_WASM(V, wasm_f64_floor, "wasm::f64_floor_wrapper")                        \
+  IF_WASM(V, wasm_f64_nearest_int, "wasm::f64_nearest_int_wrapper")            \
+  IF_WASM(V, wasm_f64_trunc, "wasm::f64_trunc_wrapper")                        \
+  IF_WASM(V, wasm_float32_to_int64, "wasm::float32_to_int64_wrapper")          \
+  IF_WASM(V, wasm_float32_to_uint64, "wasm::float32_to_uint64_wrapper")        \
+  IF_WASM(V, wasm_float32_to_int64_sat, "wasm::float32_to_int64_sat_wrapper")  \
+  IF_WASM(V, wasm_float32_to_uint64_sat,                                       \
+          "wasm::float32_to_uint64_sat_wrapper")                               \
+  IF_WASM(V, wasm_float64_pow, "wasm::float64_pow")                            \
+  IF_WASM(V, wasm_float64_to_int64, "wasm::float64_to_int64_wrapper")          \
+  IF_WASM(V, wasm_float64_to_uint64, "wasm::float64_to_uint64_wrapper")        \
+  IF_WASM(V, wasm_float64_to_int64_sat, "wasm::float64_to_int64_sat_wrapper")  \
+  IF_WASM(V, wasm_float64_to_uint64_sat,                                       \
+          "wasm::float64_to_uint64_sat_wrapper")                               \
+  IF_WASM(V, wasm_int64_div, "wasm::int64_div")                                \
+  IF_WASM(V, wasm_int64_mod, "wasm::int64_mod")                                \
+  IF_WASM(V, wasm_int64_to_float32, "wasm::int64_to_float32_wrapper")          \
+  IF_WASM(V, wasm_int64_to_float64, "wasm::int64_to_float64_wrapper")          \
+  IF_WASM(V, wasm_uint64_div, "wasm::uint64_div")                              \
+  IF_WASM(V, wasm_uint64_mod, "wasm::uint64_mod")                              \
+  IF_WASM(V, wasm_uint64_to_float32, "wasm::uint64_to_float32_wrapper")        \
+  IF_WASM(V, wasm_uint64_to_float64, "wasm::uint64_to_float64_wrapper")        \
+  IF_WASM(V, wasm_word32_ctz, "wasm::word32_ctz")                              \
+  IF_WASM(V, wasm_word32_popcnt, "wasm::word32_popcnt")                        \
+  IF_WASM(V, wasm_word32_rol, "wasm::word32_rol")                              \
+  IF_WASM(V, wasm_word32_ror, "wasm::word32_ror")                              \
+  IF_WASM(V, wasm_word64_rol, "wasm::word64_rol")                              \
+  IF_WASM(V, wasm_word64_ror, "wasm::word64_ror")                              \
+  IF_WASM(V, wasm_word64_ctz, "wasm::word64_ctz")                              \
+  IF_WASM(V, wasm_word64_popcnt, "wasm::word64_popcnt")                        \
+  IF_WASM(V, wasm_f64x2_ceil, "wasm::f64x2_ceil_wrapper")                      \
+  IF_WASM(V, wasm_f64x2_floor, "wasm::f64x2_floor_wrapper")                    \
+  IF_WASM(V, wasm_f64x2_trunc, "wasm::f64x2_trunc_wrapper")                    \
+  IF_WASM(V, wasm_f64x2_nearest_int, "wasm::f64x2_nearest_int_wrapper")        \
+  IF_WASM(V, wasm_f32x4_ceil, "wasm::f32x4_ceil_wrapper")                      \
+  IF_WASM(V, wasm_f32x4_floor, "wasm::f32x4_floor_wrapper")                    \
+  IF_WASM(V, wasm_f32x4_trunc, "wasm::f32x4_trunc_wrapper")                    \
+  IF_WASM(V, wasm_f32x4_nearest_int, "wasm::f32x4_nearest_int_wrapper")        \
+  IF_WASM(V, wasm_memory_init, "wasm::memory_init")                            \
+  IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
+  IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
   V(address_of_wasm_f64x2_convert_low_i32x4_u_int_mask,                        \
     "wasm_f64x2_convert_low_i32x4_u_int_mask")                                 \
+  V(supports_wasm_simd_128_address, "wasm::supports_wasm_simd_128_address")    \
   V(address_of_wasm_double_2_power_52, "wasm_double_2_power_52")               \
   V(address_of_wasm_int32_max_as_double, "wasm_int32_max_as_double")           \
   V(address_of_wasm_uint32_max_as_double, "wasm_uint32_max_as_double")         \
-  V(address_of_i32x4_widen_i8x16_u1_mask, "i32x4_widen_i8x16_u1_mask")         \
-  V(address_of_i32x4_widen_i8x16_u2_mask, "i32x4_widen_i8x16_u2_mask")         \
-  V(address_of_i32x4_widen_i8x16_u3_mask, "i32x4_widen_i8x16_u3_mask")         \
-  V(address_of_i32x4_widen_i8x16_s1_mask, "i32x4_widen_i8x16_s1_mask")         \
-  V(address_of_i32x4_widen_i8x16_s2_mask, "i32x4_widen_i8x16_s2_mask")         \
-  V(address_of_i32x4_widen_i8x16_s3_mask, "i32x4_widen_i8x16_s3_mask")         \
   V(write_barrier_marking_from_code_function, "WriteBarrier::MarkingFromCode") \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")   \
   V(call_enter_context_function, "call_enter_context_function")                \

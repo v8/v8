@@ -53,13 +53,13 @@ class CallDescriptor;
 //
 //  slot      JS frame
 //       +-----------------+--------------------------------
-//  -n-1 |   parameter 0   |                            ^
+//  -n-1 |  parameter n    |                            ^
 //       |- - - - - - - - -|                            |
-//  -n   |                 |                          Caller
+//  -n   |  parameter n-1  |                          Caller
 //  ...  |       ...       |                       frame slots
-//  -2   |  parameter n-1  |                       (slot < 0)
+//  -2   |  parameter 1    |                       (slot < 0)
 //       |- - - - - - - - -|                            |
-//  -1   |   parameter n   |                            v
+//  -1   |  parameter 0    |                            v
 //  -----+-----------------+--------------------------------
 //   0   |   return addr   |   ^                        ^
 //       |- - - - - - - - -|   |                        |
@@ -116,6 +116,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   }
 
   void AlignSavedCalleeRegisterSlots(int alignment = kDoubleSize) {
+    DCHECK(!frame_aligned_);
 #if DEBUG
     spill_slots_finished_ = true;
 #endif
@@ -127,6 +128,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   }
 
   void AllocateSavedCalleeRegisterSlots(int count) {
+    DCHECK(!frame_aligned_);
 #if DEBUG
     spill_slots_finished_ = true;
 #endif
@@ -138,6 +140,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
               fixed_slot_count_ + spill_slot_count_ + return_slot_count_);
     // Never allocate spill slots after the callee-saved slots are defined.
     DCHECK(!spill_slots_finished_);
+    DCHECK(!frame_aligned_);
     int actual_width = std::max({width, AlignedSlotAllocator::kSlotSize});
     int actual_alignment =
         std::max({alignment, AlignedSlotAllocator::kSlotSize});
@@ -164,6 +167,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   }
 
   void EnsureReturnSlots(int count) {
+    DCHECK(!frame_aligned_);
     return_slot_count_ = std::max(return_slot_count_, count);
   }
 
@@ -171,6 +175,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
 
   int ReserveSpillSlots(size_t slot_count) {
     DCHECK_EQ(0, spill_slot_count_);
+    DCHECK(!frame_aligned_);
     spill_slot_count_ += static_cast<int>(slot_count);
     slot_allocator_.AllocateUnaligned(static_cast<int>(slot_count));
     return slot_allocator_.Size() - 1;
@@ -187,6 +192,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   BitVector* allocated_double_registers_;
 #if DEBUG
   bool spill_slots_finished_ = false;
+  bool frame_aligned_ = false;
 #endif
 };
 

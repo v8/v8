@@ -352,10 +352,6 @@ TEST(CodeMapMoveAndDeleteCode) {
   code_map.MoveCode(ToAddress(0x1500), ToAddress(0x1700));  // Deprecate bbb.
   CHECK(!code_map.FindEntry(ToAddress(0x1500)));
   CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1700)));
-  CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
-  code_map.AddCode(ToAddress(0x1750), entry3, 0x100);
-  CHECK(!code_map.FindEntry(ToAddress(0x1700)));
-  CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1750)));
 }
 
 TEST(CodeMapClear) {
@@ -521,6 +517,117 @@ TEST(SampleIds) {
   for (int i = 0; i < 3; i++) {
     CHECK_EQ(expected_id[i], profile->sample(i).node->id());
   }
+}
+
+namespace {
+class DiscardedSamplesDelegateImpl : public v8::DiscardedSamplesDelegate {
+ public:
+  DiscardedSamplesDelegateImpl() : DiscardedSamplesDelegate() {}
+  void Notify() override {}
+};
+
+class MockPlatform : public TestPlatform {
+ public:
+  MockPlatform()
+      : old_platform_(i::V8::GetCurrentPlatform()),
+        mock_task_runner_(new MockTaskRunner()) {
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
+  }
+
+  // When done, explicitly revert to old_platform_.
+  ~MockPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
+
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate*) override {
+    return mock_task_runner_;
+  }
+
+  int posted_count() { return mock_task_runner_->posted_count(); }
+
+ private:
+  class MockTaskRunner : public v8::TaskRunner {
+   public:
+    void PostTask(std::unique_ptr<v8::Task> task) override {
+      task->Run();
+      posted_count_++;
+    }
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      task_ = std::move(task);
+      delay_ = delay_in_seconds;
+    }
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      UNREACHABLE();
+    }
+
+    bool IdleTasksEnabled() override { return false; }
+
+    int posted_count() { return posted_count_; }
+
+   private:
+    int posted_count_ = 0;
+    double delay_ = -1;
+    std::unique_ptr<Task> task_;
+  };
+
+  v8::Platform* old_platform_;
+  std::shared_ptr<MockTaskRunner> mock_task_runner_;
+};
+}  // namespace
+
+TEST(MaxSamplesCallback) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
+  profiles.set_cpu_profiler(&profiler);
+  MockPlatform* mock_platform = new MockPlatform();
+  std::unique_ptr<DiscardedSamplesDelegateImpl> impl =
+      std::make_unique<DiscardedSamplesDelegateImpl>(
+          DiscardedSamplesDelegateImpl());
+  profiles.StartProfiling("",
+                          {v8::CpuProfilingMode::kLeafNodeLineNumbers, 1, 1,
+                           MaybeLocal<v8::Context>()},
+                          std::move(impl));
+
+  StringsStorage strings;
+  CodeMap code_map(strings);
+  Symbolizer symbolizer(&code_map);
+  TickSample sample1;
+  sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample1.pc = ToPointer(0x1600);
+  sample1.stack[0] = ToPointer(0x1510);
+  sample1.frames_count = 1;
+  auto symbolized = symbolizer.SymbolizeTickSample(sample1);
+  profiles.AddPathToCurrentProfiles(sample1.timestamp, symbolized.stack_trace,
+                                    symbolized.src_line, true,
+                                    base::TimeDelta());
+  CHECK_EQ(0, mock_platform->posted_count());
+  TickSample sample2;
+  sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample2.pc = ToPointer(0x1925);
+  sample2.stack[0] = ToPointer(0x1780);
+  sample2.frames_count = 2;
+  symbolized = symbolizer.SymbolizeTickSample(sample2);
+  profiles.AddPathToCurrentProfiles(sample2.timestamp, symbolized.stack_trace,
+                                    symbolized.src_line, true,
+                                    base::TimeDelta());
+  CHECK_EQ(1, mock_platform->posted_count());
+  TickSample sample3;
+  sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample3.pc = ToPointer(0x1510);
+  sample3.frames_count = 3;
+  symbolized = symbolizer.SymbolizeTickSample(sample3);
+  profiles.AddPathToCurrentProfiles(sample3.timestamp, symbolized.stack_trace,
+                                    symbolized.src_line, true,
+                                    base::TimeDelta());
+  CHECK_EQ(1, mock_platform->posted_count());
+
+  // Teardown
+  profiles.StopProfiling("");
+  delete mock_platform;
 }
 
 TEST(NoSamples) {
@@ -849,6 +956,63 @@ TEST(NodeSourceTypes) {
   auto* unresolved_node = PickChild(root, "(unresolved function)");
   CHECK(unresolved_node);
   CHECK_EQ(unresolved_node->source_type(), v8::CpuProfileNode::kUnresolved);
+}
+
+TEST(CodeMapRemoveCode) {
+  StringsStorage strings;
+  CodeMap code_map(strings);
+
+  CodeEntry* entry = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  code_map.AddCode(ToAddress(0x1000), entry, 0x100);
+  CHECK(code_map.RemoveCode(entry));
+  CHECK(!code_map.FindEntry(ToAddress(0x1000)));
+
+  // Test that when two entries share the same address, we remove only the
+  // entry that we desired to.
+  CodeEntry* colliding_entry1 =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* colliding_entry2 =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  code_map.AddCode(ToAddress(0x1000), colliding_entry1, 0x100);
+  code_map.AddCode(ToAddress(0x1000), colliding_entry2, 0x100);
+
+  CHECK(code_map.RemoveCode(colliding_entry1));
+  CHECK_EQ(code_map.FindEntry(ToAddress(0x1000)), colliding_entry2);
+
+  CHECK(code_map.RemoveCode(colliding_entry2));
+  CHECK(!code_map.FindEntry(ToAddress(0x1000)));
+}
+
+TEST(CodeMapMoveOverlappingCode) {
+  StringsStorage strings;
+  CodeMap code_map(strings);
+  CodeEntry* colliding_entry1 =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* colliding_entry2 =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  CodeEntry* after_entry =
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+
+  code_map.AddCode(ToAddress(0x1400), colliding_entry1, 0x200);
+  code_map.AddCode(ToAddress(0x1400), colliding_entry2, 0x200);
+  code_map.AddCode(ToAddress(0x1800), after_entry, 0x200);
+
+  CHECK_EQ(colliding_entry1->instruction_start(), ToAddress(0x1400));
+  CHECK_EQ(colliding_entry2->instruction_start(), ToAddress(0x1400));
+  CHECK_EQ(after_entry->instruction_start(), ToAddress(0x1800));
+
+  CHECK(code_map.FindEntry(ToAddress(0x1400)));
+  CHECK_EQ(code_map.FindEntry(ToAddress(0x1800)), after_entry);
+
+  code_map.MoveCode(ToAddress(0x1400), ToAddress(0x1600));
+
+  CHECK(!code_map.FindEntry(ToAddress(0x1400)));
+  CHECK(code_map.FindEntry(ToAddress(0x1600)));
+  CHECK_EQ(code_map.FindEntry(ToAddress(0x1800)), after_entry);
+
+  CHECK_EQ(colliding_entry1->instruction_start(), ToAddress(0x1600));
+  CHECK_EQ(colliding_entry2->instruction_start(), ToAddress(0x1600));
+  CHECK_EQ(after_entry->instruction_start(), ToAddress(0x1800));
 }
 
 }  // namespace test_profile_generator

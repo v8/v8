@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
+#include "src/heap/cppgc/object-poisoner.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 
@@ -371,6 +372,10 @@ void CompactSpace(NormalPageSpace* space,
                   MovableReferences& movable_references) {
   using Pages = NormalPageSpace::Pages;
 
+#ifdef V8_USE_ADDRESS_SANITIZER
+  UnmarkedObjectsPoisoner().Traverse(space);
+#endif  // V8_USE_ADDRESS_SANITIZER
+
   DCHECK(space->is_compactable());
 
   space->free_list().Clear();
@@ -465,7 +470,6 @@ void Compactor::InitializeIfShouldCompact(
   compaction_worklists_ = std::make_unique<CompactionWorklists>();
 
   is_enabled_ = true;
-  enable_for_next_gc_for_testing_ = false;
 }
 
 bool Compactor::CancelIfShouldNotCompact(
@@ -484,8 +488,8 @@ bool Compactor::CancelIfShouldNotCompact(
 Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
   if (!is_enabled_) return CompactableSpaceHandling::kSweep;
 
-  StatsCollector::DisabledScope stats_scope(*heap_.heap(),
-                                            StatsCollector::kAtomicCompact);
+  StatsCollector::EnabledScope stats_scope(heap_.heap()->stats_collector(),
+                                           StatsCollector::kAtomicCompact);
 
   MovableReferences movable_references(*heap_.heap());
 
@@ -501,8 +505,14 @@ Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
     CompactSpace(space, movable_references);
   }
 
+  enable_for_next_gc_for_testing_ = false;
   is_enabled_ = false;
   return CompactableSpaceHandling::kIgnore;
+}
+
+void Compactor::EnableForNextGCForTesting() {
+  DCHECK_NULL(heap_.heap()->marker());
+  enable_for_next_gc_for_testing_ = true;
 }
 
 }  // namespace internal

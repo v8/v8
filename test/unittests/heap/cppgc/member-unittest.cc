@@ -371,5 +371,61 @@ TEST_F(MemberTest, CheckingPolicy) {
   EXPECT_EQ(CustomCheckingPolicy::Cached.size(),
             CustomCheckingPolicy::ChecksTriggered);
 }
+
+namespace {
+
+class MemberHeapTest : public testing::TestWithHeap {};
+
+class GCedWithMember final : public GarbageCollected<GCedWithMember> {
+ public:
+  static size_t live_count_;
+
+  GCedWithMember() : GCedWithMember(nullptr) {}
+  explicit GCedWithMember(GCedWithMember* nested)
+      : nested_(nested), weak_nested_(nested) {
+    ++live_count_;
+  }
+
+  ~GCedWithMember() { --live_count_; }
+
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(nested_); }
+
+  bool WasNestedCleared() const { return !weak_nested_; }
+
+ private:
+  Member<GCedWithMember> nested_;
+  WeakMember<GCedWithMember> weak_nested_;
+};
+size_t GCedWithMember::live_count_ = 0;
+
+}  // namespace
+
+TEST_F(MemberHeapTest, MemberRetainsObject) {
+  EXPECT_EQ(0u, GCedWithMember::live_count_);
+  {
+    Persistent<GCedWithMember> gced_with_member =
+        MakeGarbageCollected<GCedWithMember>(
+            GetAllocationHandle(),
+            MakeGarbageCollected<GCedWithMember>(GetAllocationHandle()));
+    EXPECT_EQ(2u, GCedWithMember::live_count_);
+    PreciseGC();
+    EXPECT_EQ(2u, GCedWithMember::live_count_);
+    EXPECT_FALSE(gced_with_member->WasNestedCleared());
+  }
+  PreciseGC();
+  EXPECT_EQ(0u, GCedWithMember::live_count_);
+  {
+    GCedWithMember* gced_with_member = MakeGarbageCollected<GCedWithMember>(
+        GetAllocationHandle(),
+        MakeGarbageCollected<GCedWithMember>(GetAllocationHandle()));
+    EXPECT_EQ(2u, GCedWithMember::live_count_);
+    ConservativeGC();
+    EXPECT_EQ(2u, GCedWithMember::live_count_);
+    EXPECT_FALSE(gced_with_member->WasNestedCleared());
+  }
+  PreciseGC();
+  EXPECT_EQ(0u, GCedWithMember::live_count_);
+}
+
 }  // namespace internal
 }  // namespace cppgc

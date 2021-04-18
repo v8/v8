@@ -457,8 +457,10 @@ UNINITIALIZED_TEST(Issue539892) {
     void LogRecordedBuffer(i::Handle<i::AbstractCode> code,
                            i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
                            const char* name, int length) override {}
+#if V8_ENABLE_WEBASSEMBLY
     void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
+#endif  // V8_ENABLE_WEBASSEMBLY
   };
 
   SETUP_FLAGS();
@@ -577,8 +579,9 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
 
     logger.StopLogging();
 
-    CHECK(logger.ContainsLine(
-        {"InterpretedFunction", "testLogInterpretedFramesNativeStack"}));
+    CHECK(logger.ContainsLinesInOrder(
+        {{"LazyCompile", "testLogInterpretedFramesNativeStack"},
+         {"LazyCompile", "testLogInterpretedFramesNativeStack"}}));
   }
   isolate->Dispose();
 }
@@ -629,7 +632,11 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
               .ToLocalChecked();
       if (has_cache) {
         logger.StopLogging();
-        CHECK(logger.ContainsLine({"InterpretedFunction", "eyecatcher"}));
+        logger.PrintLog();
+        // Function is logged twice: once as interpreted, and once as the
+        // interpreter entry trampoline builtin.
+        CHECK(logger.ContainsLinesInOrder(
+            {{"Function", "eyecatcher"}, {"Function", "eyecatcher"}}));
       }
       v8::Local<v8::Value> arg = v8_num(3);
       v8::Local<v8::Value> result =
@@ -667,13 +674,16 @@ UNINITIALIZED_TEST(ExternalCodeEventListener) {
         "testCodeEventListenerBeforeStart('1', 1);";
     CompileRun(source_text_before_start);
 
+    CHECK_EQ(code_event_handler.CountLines("Function",
+                                           "testCodeEventListenerBeforeStart"),
+             0);
     CHECK_EQ(code_event_handler.CountLines("LazyCompile",
                                            "testCodeEventListenerBeforeStart"),
              0);
 
     code_event_handler.Enable();
 
-    CHECK_GE(code_event_handler.CountLines("LazyCompile",
+    CHECK_GE(code_event_handler.CountLines("Function",
                                            "testCodeEventListenerBeforeStart"),
              1);
 
@@ -715,10 +725,12 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
     v8::Local<v8::UnboundScript> script =
         v8::ScriptCompiler::CompileUnboundScript(isolate1, &source)
             .ToLocalChecked();
-    CHECK_EQ(code_event_handler.CountLines("Script", "f1"),
-             i::FLAG_stress_background_compile ? 2 : 1);
-    CHECK_EQ(code_event_handler.CountLines("Script", "f2"),
-             i::FLAG_stress_background_compile ? 2 : 1);
+    CHECK_EQ(code_event_handler.CountLines("Function", "f1"),
+             1 + (i::FLAG_stress_background_compile ? 1 : 0) +
+                 (i::FLAG_always_sparkplug ? 1 : 0));
+    CHECK_EQ(code_event_handler.CountLines("Function", "f2"),
+             1 + (i::FLAG_stress_background_compile ? 1 : 0) +
+                 (i::FLAG_always_sparkplug ? 1 : 0));
     cache = v8::ScriptCompiler::CreateCodeCache(script);
   }
   isolate1->Dispose();
@@ -743,8 +755,8 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
           isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
           .ToLocalChecked();
     }
-    CHECK_EQ(code_event_handler.CountLines("Script", "f1"), 1);
-    CHECK_EQ(code_event_handler.CountLines("Script", "f2"), 1);
+    CHECK_EQ(code_event_handler.CountLines("Function", "f1"), 1);
+    CHECK_EQ(code_event_handler.CountLines("Function", "f2"), 1);
   }
   isolate2->Dispose();
 }
@@ -772,24 +784,24 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
         "testCodeEventListenerBeforeStart('1', 1);";
     CompileRun(source_text_before_start);
 
-    CHECK_EQ(code_event_handler.CountLines("InterpretedFunction",
+    CHECK_EQ(code_event_handler.CountLines("Function",
                                            "testCodeEventListenerBeforeStart"),
              0);
 
     code_event_handler.Enable();
 
-    CHECK_GE(code_event_handler.CountLines("InterpretedFunction",
+    CHECK_GE(code_event_handler.CountLines("Function",
                                            "testCodeEventListenerBeforeStart"),
-             1);
+             2);
 
     const char* source_text_after_start =
         "function testCodeEventListenerAfterStart(a,b) { return a + b };"
         "testCodeEventListenerAfterStart('1', 1);";
     CompileRun(source_text_after_start);
 
-    CHECK_GE(code_event_handler.CountLines("InterpretedFunction",
+    CHECK_GE(code_event_handler.CountLines("LazyCompile",
                                            "testCodeEventListenerAfterStart"),
-             1);
+             2);
 
     CHECK_EQ(
         code_event_handler.CountLines("Builtin", "InterpreterEntryTrampoline"),
@@ -1133,28 +1145,28 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
 
         // Step 2: compiling top-level script and eager functions
         // - Compiling script without name.
-        {"function,compile,"},
-        {"function,compile,", ",eagerFunction"},
+        {"function,interpreter,"},
+        {"function,interpreter,", ",eagerFunction"},
 
         // Step 3: start executing script
         // Step 4. - lazy parse, lazy compiling and execute skipped functions
         //         - execute eager functions.
         {"function,parse-function,", ",lazyFunction"},
-        {"function,compile-lazy,", ",lazyFunction"},
+        {"function,interpreter-lazy,", ",lazyFunction"},
         {"function,first-execution,", ",lazyFunction"},
 
         {"function,parse-function,", ",lazyInnerFunction"},
-        {"function,compile-lazy,", ",lazyInnerFunction"},
+        {"function,interpreter-lazy,", ",lazyInnerFunction"},
         {"function,first-execution,", ",lazyInnerFunction"},
 
         {"function,first-execution,", ",eagerFunction"},
 
         {"function,parse-function,", ",Foo"},
-        {"function,compile-lazy,", ",Foo"},
+        {"function,interpreter-lazy,", ",Foo"},
         {"function,first-execution,", ",Foo"},
 
         {"function,parse-function,", ",Foo.foo"},
-        {"function,compile-lazy,", ",Foo.foo"},
+        {"function,interpreter-lazy,", ",Foo.foo"},
         {"function,first-execution,", ",Foo.foo"},
     };
     CHECK(logger.ContainsLinesInOrder(lines, start));

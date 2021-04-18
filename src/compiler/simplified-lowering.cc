@@ -28,7 +28,10 @@
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/address-map.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -139,6 +142,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       return UseInfo::TaggedSigned();
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kMapWord:
       return UseInfo::AnyTagged();
     case MachineRepresentation::kFloat64:
       return UseInfo::TruncatingFloat64();
@@ -1474,10 +1478,15 @@ class RepresentationSelector {
     Type right_feedback_type = TypeOf(node->InputAt(1));
 
     // Using Signed32 as restriction type amounts to promising there won't be
-    // signed overflow. This is incompatible with relying on a Word32
-    // truncation in order to skip the overflow check.
+    // signed overflow. This is incompatible with relying on a Word32 truncation
+    // in order to skip the overflow check.  Similarly, we must not drop -0 from
+    // the result type unless we deopt for -0 inputs.
     Type const restriction =
-        truncation.IsUsedAsWord32() ? Type::Any() : Type::Signed32();
+        truncation.IsUsedAsWord32()
+            ? Type::Any()
+            : (truncation.identify_zeros() == kIdentifyZeros)
+                  ? Type::Signed32OrMinusZero()
+                  : Type::Signed32();
 
     // Handle the case when no int32 checks on inputs are necessary (but
     // an overflow check is needed on the output). Note that we do not
@@ -1737,29 +1746,6 @@ class RepresentationSelector {
     }
   }
 
-  static MachineType MachineTypeFor(CTypeInfo::Type type) {
-    switch (type) {
-      case CTypeInfo::Type::kVoid:
-        return MachineType::AnyTagged();
-      case CTypeInfo::Type::kBool:
-        return MachineType::Bool();
-      case CTypeInfo::Type::kInt32:
-        return MachineType::Int32();
-      case CTypeInfo::Type::kUint32:
-        return MachineType::Uint32();
-      case CTypeInfo::Type::kInt64:
-        return MachineType::Int64();
-      case CTypeInfo::Type::kUint64:
-        return MachineType::Uint64();
-      case CTypeInfo::Type::kFloat32:
-        return MachineType::Float32();
-      case CTypeInfo::Type::kFloat64:
-        return MachineType::Float64();
-      case CTypeInfo::Type::kV8Value:
-        return MachineType::AnyTagged();
-    }
-  }
-
   UseInfo UseInfoForFastApiCallArgument(CTypeInfo::Type type,
                                         FeedbackSource const& feedback) {
     switch (type) {
@@ -1824,21 +1810,19 @@ class RepresentationSelector {
       ProcessInput<T>(node, i, UseInfo::AnyTagged());
     }
     ProcessRemainingInputs<T>(node, value_input_count);
-
-    MachineType return_type =
-        MachineTypeFor(c_signature->ReturnInfo().GetType());
-    SetOutput<T>(node, return_type.representation());
+    SetOutput<T>(node, MachineRepresentation::kTagged);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   static MachineType MachineTypeForWasmReturnType(wasm::ValueType type) {
     switch (type.kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         return MachineType::Int32();
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         return MachineType::Float32();
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         return MachineType::Float64();
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         // Not used for i64, see VisitJSWasmCall().
       default:
         UNREACHABLE();
@@ -1852,12 +1836,12 @@ class RepresentationSelector {
     // UseInfo::AnyTagged to signal that WasmWrapperGraphBuilder will need to
     // add Nodes to perform the conversion (in WasmWrapperGraphBuilder::FromJS).
     switch (type.kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         return UseInfo::AnyTagged();
-      case wasm::ValueType::kF32:
-      case wasm::ValueType::kF64:
+      case wasm::kF32:
+      case wasm::kF64:
         // For Float32, TruncateFloat64ToFloat32 will be inserted later in
         // WasmWrapperGraphBuilder::BuildJSToWasmWrapper.
         return UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
@@ -1909,7 +1893,7 @@ class RepresentationSelector {
     ProcessRemainingInputs<T>(node, NodeProperties::FirstEffectIndex(node));
 
     if (wasm_signature->return_count() == 1) {
-      if (wasm_signature->GetReturn().kind() == wasm::ValueType::kI64) {
+      if (wasm_signature->GetReturn().kind() == wasm::kI64) {
         // Conversion between negative int64 and BigInt not supported yet.
         // Do not bypass the type conversion when the result type is i64.
         SetOutput<T>(node, MachineRepresentation::kTagged);
@@ -1928,6 +1912,7 @@ class RepresentationSelector {
     // The actual lowering of JSWasmCall nodes happens later, in the subsequent
     // "wasm-inlining" phase.
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
@@ -3857,9 +3842,11 @@ class RepresentationSelector {
       case IrOpcode::kJSToObject:
       case IrOpcode::kJSToString:
       case IrOpcode::kJSParseInt:
+#if V8_ENABLE_WEBASSEMBLY
         if (node->opcode() == IrOpcode::kJSWasmCall) {
           return VisitJSWasmCall<T>(node, lowering);
         }
+#endif  // V8_ENABLE_WEBASSEMBLY
         VisitInputs<T>(node);
         // Assume the output is tagged.
         return SetOutput<T>(node, MachineRepresentation::kTagged);

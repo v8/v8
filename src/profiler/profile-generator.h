@@ -72,6 +72,11 @@ class CodeEntry {
                    CodeType code_type = CodeType::JS);
   CodeEntry(const CodeEntry&) = delete;
   CodeEntry& operator=(const CodeEntry&) = delete;
+  ~CodeEntry() {
+    // No alive handles should be associated with the CodeEntry at time of
+    // destruction.
+    DCHECK(!heap_object_location_);
+  }
 
   const char* name() const { return name_; }
   const char* resource_name() const { return resource_name_; }
@@ -115,6 +120,13 @@ class CodeEntry {
         return "other";
     }
   }
+
+  // Returns the start address of the instruction segment represented by this
+  // CodeEntry. Used as a key in the containing CodeMap.
+  Address instruction_start() const { return instruction_start_; }
+  void set_instruction_start(Address address) { instruction_start_ = address; }
+
+  Address** heap_object_location_address() { return &heap_object_location_; }
 
   void FillFunctionInfo(SharedFunctionInfo shared);
 
@@ -214,6 +226,8 @@ class CodeEntry {
   int position_;
   std::unique_ptr<SourcePositionTable> line_info_;
   std::unique_ptr<RareData> rare_data_;
+  Address instruction_start_ = kNullAddress;
+  Address* heap_object_location_ = nullptr;
 };
 
 struct CodeEntryAndLineNumber {
@@ -344,8 +358,9 @@ class CpuProfile {
     int line;
   };
 
-  V8_EXPORT_PRIVATE CpuProfile(CpuProfiler* profiler, const char* title,
-                               CpuProfilingOptions options);
+  V8_EXPORT_PRIVATE CpuProfile(
+      CpuProfiler* profiler, const char* title, CpuProfilingOptions options,
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
   CpuProfile(const CpuProfile&) = delete;
   CpuProfile& operator=(const CpuProfile&) = delete;
 
@@ -381,6 +396,7 @@ class CpuProfile {
 
   const char* title_;
   const CpuProfilingOptions options_;
+  std::unique_ptr<DiscardedSamplesDelegate> delegate_;
   base::TimeTicks start_time_;
   base::TimeTicks end_time_;
   std::deque<SampleInfo> samples_;
@@ -395,6 +411,18 @@ class CpuProfile {
   static std::atomic<uint32_t> last_id_;
 };
 
+class CpuProfileMaxSamplesCallbackTask : public v8::Task {
+ public:
+  CpuProfileMaxSamplesCallbackTask(
+      std::unique_ptr<DiscardedSamplesDelegate> delegate)
+      : delegate_(std::move(delegate)) {}
+
+  void Run() override { delegate_->Notify(); }
+
+ private:
+  std::unique_ptr<DiscardedSamplesDelegate> delegate_;
+};
+
 class V8_EXPORT_PRIVATE CodeMap {
  public:
   // Creates a new CodeMap with an associated StringsStorage to store the
@@ -406,8 +434,13 @@ class V8_EXPORT_PRIVATE CodeMap {
 
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
+  // Attempts to remove the given CodeEntry from the CodeMap.
+  // Returns true iff the entry was found and removed.
+  bool RemoveCode(CodeEntry*);
+  void ClearCodesInRange(Address start, Address end);
   CodeEntry* FindEntry(Address addr, Address* out_instruction_start = nullptr);
   void Print();
+  size_t size() const { return code_map_.size(); }
 
   void Clear();
 
@@ -417,10 +450,9 @@ class V8_EXPORT_PRIVATE CodeMap {
     unsigned size;
   };
 
-  void ClearCodesInRange(Address start, Address end);
   void DeleteCodeEntry(CodeEntry*);
 
-  std::map<Address, CodeEntryMapInfo> code_map_;
+  std::multimap<Address, CodeEntryMapInfo> code_map_;
   std::deque<CodeEntry*> used_entries_;  // Entries that are no longer in the
                                          // map, but used by a profile.
   StringsStorage& function_and_resource_names_;
@@ -433,8 +465,9 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   CpuProfilesCollection& operator=(const CpuProfilesCollection&) = delete;
 
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
-  CpuProfilingStatus StartProfiling(const char* title,
-                                    CpuProfilingOptions options = {});
+  CpuProfilingStatus StartProfiling(
+      const char* title, CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {

@@ -10,10 +10,11 @@
 
 #include <vector>
 
+#include "include/cppgc/platform.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/heap/cppgc/garbage-collector.h"
-#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/trace-event.h"
 
@@ -154,9 +155,9 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
    public:
     template <typename... Args>
-    InternalScope(HeapBase& heap, ScopeIdType scope_id, Args... args)
-        : heap_(heap),
-          stats_collector_(heap_.stats_collector()),
+    InternalScope(StatsCollector* stats_collector, ScopeIdType scope_id,
+                  Args... args)
+        : stats_collector_(stats_collector),
           start_time_(v8::base::TimeTicks::Now()),
           scope_id_(scope_id) {
       DCHECK_LE(0, scope_id_);
@@ -203,7 +204,6 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
     inline void IncreaseScopeTime();
 
-    HeapBase& heap_;
     StatsCollector* const stats_collector_;
     v8::base::TimeTicks start_time_;
     const ScopeIdType scope_id_;
@@ -226,21 +226,28 @@ class V8_EXPORT_PRIVATE StatsCollector final {
     // the deltas is interesting.
     //
     // May trigger GC.
-    virtual void AllocatedObjectSizeIncreased(size_t) = 0;
-    virtual void AllocatedObjectSizeDecreased(size_t) = 0;
+    virtual void AllocatedObjectSizeIncreased(size_t) {}
+    virtual void AllocatedObjectSizeDecreased(size_t) {}
 
     // Called when the exact size of allocated object size is known. In
     // practice, this is after marking when marked bytes == allocated bytes.
     //
     // Must not trigger GC synchronously.
-    virtual void ResetAllocatedObjectSize(size_t) = 0;
+    virtual void ResetAllocatedObjectSize(size_t) {}
+
+    // Called upon allocating/releasing chunks of memory (e.g. pages) that can
+    // contain objects.
+    //
+    // Must not trigger GC.
+    virtual void AllocatedSizeIncreased(size_t) {}
+    virtual void AllocatedSizeDecreased(size_t) {}
   };
 
   // Observers are implemented using virtual calls. Avoid notifications below
   // reasonably interesting sizes.
   static constexpr size_t kAllocationThresholdBytes = 1024;
 
-  explicit StatsCollector(std::unique_ptr<MetricRecorder>);
+  StatsCollector(std::unique_ptr<MetricRecorder>, Platform*);
   StatsCollector(const StatsCollector&) = delete;
   StatsCollector& operator=(const StatsCollector&) = delete;
 
@@ -254,6 +261,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // their actual allocation/reclamation as possible.
   void NotifySafePointForConservativeCollection();
 
+  void NotifySafePointForTesting();
+
   // Indicates a new garbage collection cycle.
   void NotifyMarkingStarted(CollectionType, IsForcedGC);
   // Indicates that marking of the current garbage collection cycle is
@@ -263,9 +272,17 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // is finished at this point.
   void NotifySweepingCompleted();
 
+  size_t allocated_memory_size() const;
   // Size of live objects in bytes  on the heap. Based on the most recent marked
   // bytes and the bytes allocated since last marking.
   size_t allocated_object_size() const;
+
+  // Returns the most recent marked bytes count. Should not be called during
+  // marking.
+  size_t marked_bytes() const;
+  // Returns the overall duration of the most recent marking phase. Should not
+  // be called during marking.
+  v8::base::TimeDelta marking_time() const;
 
   double GetRecentAllocationSpeedInBytesPerMs() const;
 
@@ -324,6 +341,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   Event previous_;
 
   std::unique_ptr<MetricRecorder> metric_recorder_;
+
+  Platform* platform_;
 };
 
 template <typename Callback>
@@ -350,6 +369,12 @@ template <StatsCollector::TraceCategory trace_category,
 template <typename... Args>
 void StatsCollector::InternalScope<trace_category, scope_category>::StartTrace(
     Args... args) {
+  // Top level scopes that contribute to histogram should always be enabled.
+  DCHECK_IMPLIES(static_cast<int>(scope_id_) <
+                     (scope_category == kMutatorThread
+                          ? static_cast<int>(kNumHistogramScopeIds)
+                          : static_cast<int>(kNumHistogramConcurrentScopeIds)),
+                 trace_category == StatsCollector::TraceCategory::kEnabled);
   if (trace_category == StatsCollector::TraceCategory::kEnabled)
     StartTraceImpl(args...);
 }

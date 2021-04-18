@@ -33,16 +33,15 @@ CAST_ACCESSOR(Module)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, exception, Object, kExceptionOffset)
+ACCESSORS(Module, top_level_capability, HeapObject, kTopLevelCapabilityOffset)
 SMI_ACCESSORS(Module, status, kStatusOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
 BOOL_ACCESSORS(SourceTextModule, flags, async, AsyncBit::kShift)
-BOOL_ACCESSORS(SourceTextModule, flags, async_evaluating,
-               AsyncEvaluatingBit::kShift)
+BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluating_ordinal,
+                    SourceTextModule::AsyncEvaluatingOrdinalBits)
 ACCESSORS(SourceTextModule, async_parent_modules, ArrayList,
           kAsyncParentModulesOffset)
-ACCESSORS(SourceTextModule, top_level_capability, HeapObject,
-          kTopLevelCapabilityOffset)
 
 struct Module::Hash {
   V8_INLINE size_t operator()(Module const& module) const {
@@ -138,6 +137,10 @@ Handle<SourceTextModule> SourceTextModule::GetAsyncParentModule(
 
 int SourceTextModule::AsyncParentModuleCount() {
   return async_parent_modules().Length();
+}
+
+bool SourceTextModule::IsAsyncEvaluating() const {
+  return async_evaluating_ordinal() >= kFirstAsyncEvaluatingOrdinal;
 }
 
 bool SourceTextModule::HasPendingAsyncDependencies() {

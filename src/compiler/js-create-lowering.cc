@@ -168,9 +168,11 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             graph()->NewNode(simplified()->ArgumentsLength());
         // Allocate the elements backing store.
         bool has_aliased_arguments = false;
-        Node* const elements = effect =
-            AllocateAliasedArguments(effect, control, context, arguments_length,
-                                     shared, &has_aliased_arguments);
+        Node* const elements = effect = TryAllocateAliasedArguments(
+            effect, control, context, arguments_length, shared,
+            &has_aliased_arguments);
+        if (elements == nullptr) return NoChange();
+
         // Load the arguments object map.
         Node* const arguments_map = jsgraph()->Constant(
             has_aliased_arguments
@@ -269,15 +271,11 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       }
       FrameStateInfo args_state_info = args_state.frame_state_info();
       int length = args_state_info.parameter_count() - 1;  // Minus receiver.
-      // Check that the array allocated for arguments is not "large".
-      {
-        const int alloc_size = FixedArray::SizeFor(length);
-        if (alloc_size > kMaxRegularHeapObjectSize) return NoChange();
-      }
       // Prepare element backing store to be used by arguments object.
       bool has_aliased_arguments = false;
-      Node* const elements = AllocateAliasedArguments(
+      Node* const elements = TryAllocateAliasedArguments(
           effect, control, args_state, context, shared, &has_aliased_arguments);
+      if (elements == nullptr) return NoChange();
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
       // Load the arguments object map.
       Node* const arguments_map = jsgraph()->Constant(
@@ -313,13 +311,9 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       }
       FrameStateInfo args_state_info = args_state.frame_state_info();
       int length = args_state_info.parameter_count() - 1;  // Minus receiver.
-      // Check that the array allocated for arguments is not "large".
-      {
-        const int alloc_size = FixedArray::SizeFor(length);
-        if (alloc_size > kMaxRegularHeapObjectSize) return NoChange();
-      }
       // Prepare element backing store to be used by arguments object.
-      Node* const elements = AllocateArguments(effect, control, args_state);
+      Node* const elements = TryAllocateArguments(effect, control, args_state);
+      if (elements == nullptr) return NoChange();
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
       // Load the arguments object map.
       Node* const arguments_map =
@@ -355,7 +349,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       FrameStateInfo args_state_info = args_state.frame_state_info();
       // Prepare element backing store to be used by the rest array.
       Node* const elements =
-          AllocateRestArguments(effect, control, args_state, start_index);
+          TryAllocateRestArguments(effect, control, args_state, start_index);
+      if (elements == nullptr) return NoChange();
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
       // Load the JSArray object map.
       Node* const jsarray_map =
@@ -407,11 +402,15 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     SharedFunctionInfoRef shared = js_function.shared();
     DCHECK(shared.HasBytecodeArray());
     int parameter_count_no_receiver = shared.internal_formal_parameter_count();
-    int size = parameter_count_no_receiver +
-               shared.GetBytecodeArray().register_count();
+    int length = parameter_count_no_receiver +
+                 shared.GetBytecodeArray().register_count();
+    MapRef fixed_array_map(broker(), factory()->fixed_array_map());
     AllocationBuilder ab(jsgraph(), effect, control);
-    ab.AllocateArray(size, MapRef(broker(), factory()->fixed_array_map()));
-    for (int i = 0; i < size; ++i) {
+    if (!ab.CanAllocateArray(length, fixed_array_map)) {
+      return NoChange();
+    }
+    ab.AllocateArray(length, fixed_array_map);
+    for (int i = 0; i < length; ++i) {
       ab.Store(AccessBuilder::ForFixedArraySlot(i),
                jsgraph()->UndefinedConstant());
     }
@@ -653,6 +652,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   } else {
     PropertyCellRef array_constructor_protector(
         broker(), factory()->array_constructor_protector());
+    array_constructor_protector.SerializeAsProtector();
     can_inline_call = array_constructor_protector.value().AsSmi() ==
                       Protectors::kProtectorValid;
   }
@@ -775,9 +775,10 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Create the register file.
+  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
   AllocationBuilder ab(jsgraph(), effect, control);
-  ab.AllocateArray(register_count,
-                   MapRef(broker(), factory()->fixed_array_map()));
+  CHECK(ab.CanAllocateArray(register_count, fixed_array_map));
+  ab.AllocateArray(register_count, fixed_array_map);
   for (int i = 0; i < register_count; ++i) {
     ab.Store(AccessBuilder::ForFixedArraySlot(i),
              jsgraph()->UndefinedConstant());
@@ -887,13 +888,15 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
   // Create the [[BoundArguments]] for the result.
   Node* bound_arguments = jsgraph()->EmptyFixedArrayConstant();
   if (arity > 0) {
-    AllocationBuilder a(jsgraph(), effect, control);
-    a.AllocateArray(arity, MapRef(broker(), factory()->fixed_array_map()));
+    MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+    AllocationBuilder ab(jsgraph(), effect, control);
+    CHECK(ab.CanAllocateArray(arity, fixed_array_map));
+    ab.AllocateArray(arity, fixed_array_map);
     for (int i = 0; i < arity; ++i) {
-      a.Store(AccessBuilder::ForFixedArraySlot(i),
-              NodeProperties::GetValueInput(node, 2 + i));
+      ab.Store(AccessBuilder::ForFixedArraySlot(i),
+               NodeProperties::GetValueInput(node, 2 + i));
     }
-    bound_arguments = effect = a.Finish();
+    bound_arguments = effect = ab.Finish();
   }
 
   // Create the JSBoundFunction result.
@@ -1411,8 +1414,8 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
 
 // Helper that allocates a FixedArray holding argument values recorded in the
 // given {frame_state}. Serves as backing store for JSCreateArguments nodes.
-Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
-                                          FrameState frame_state) {
+Node* JSCreateLowering::TryAllocateArguments(Node* effect, Node* control,
+                                             FrameState frame_state) {
   FrameStateInfo state_info = frame_state.frame_state_info();
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
@@ -1423,22 +1426,25 @@ Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
   auto parameters_it = parameters_access.begin_without_receiver();
 
   // Actually allocate the backing store.
-  AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(argument_count,
-                  MapRef(broker(), factory()->fixed_array_map()));
+  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+  AllocationBuilder ab(jsgraph(), effect, control);
+  if (!ab.CanAllocateArray(argument_count, fixed_array_map)) {
+    return nullptr;
+  }
+  ab.AllocateArray(argument_count, fixed_array_map);
   for (int i = 0; i < argument_count; ++i, ++parameters_it) {
     DCHECK_NOT_NULL(parameters_it.node());
-    a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
-            parameters_it.node());
+    ab.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
+             parameters_it.node());
   }
-  return a.Finish();
+  return ab.Finish();
 }
 
 // Helper that allocates a FixedArray holding argument values recorded in the
 // given {frame_state}. Serves as backing store for JSCreateArguments nodes.
-Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
-                                              FrameState frame_state,
-                                              int start_index) {
+Node* JSCreateLowering::TryAllocateRestArguments(Node* effect, Node* control,
+                                                 FrameState frame_state,
+                                                 int start_index) {
   FrameStateInfo state_info = frame_state.frame_state_info();
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   int num_elements = std::max(0, argument_count - start_index);
@@ -1451,20 +1457,24 @@ Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
       parameters_access.begin_without_receiver_and_skip(start_index);
 
   // Actually allocate the backing store.
-  AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(num_elements, MapRef(broker(), factory()->fixed_array_map()));
+  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+  AllocationBuilder ab(jsgraph(), effect, control);
+  if (!ab.CanAllocateArray(num_elements, fixed_array_map)) {
+    return nullptr;
+  }
+  ab.AllocateArray(num_elements, fixed_array_map);
   for (int i = 0; i < num_elements; ++i, ++parameters_it) {
     DCHECK_NOT_NULL(parameters_it.node());
-    a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
-            parameters_it.node());
+    ab.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
+             parameters_it.node());
   }
-  return a.Finish();
+  return ab.Finish();
 }
 
 // Helper that allocates a FixedArray serving as a parameter map for values
 // recorded in the given {frame_state}. Some elements map to slots within the
 // given {context}. Serves as backing store for JSCreateArguments nodes.
-Node* JSCreateLowering::AllocateAliasedArguments(
+Node* JSCreateLowering::TryAllocateAliasedArguments(
     Node* effect, Node* control, FrameState frame_state, Node* context,
     const SharedFunctionInfoRef& shared, bool* has_aliased_arguments) {
   FrameStateInfo state_info = frame_state.frame_state_info();
@@ -1475,12 +1485,24 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // any way, we can just return an unmapped backing store instead.
   int parameter_count = shared.internal_formal_parameter_count();
   if (parameter_count == 0) {
-    return AllocateArguments(effect, control, frame_state);
+    return TryAllocateArguments(effect, control, frame_state);
   }
 
   // Calculate number of argument values being aliased/mapped.
   int mapped_count = std::min(argument_count, parameter_count);
   *has_aliased_arguments = true;
+
+  MapRef sloppy_arguments_elements_map(
+      broker(), factory()->sloppy_arguments_elements_map());
+  if (!AllocationBuilder::CanAllocateSloppyArgumentElements(
+          mapped_count, sloppy_arguments_elements_map)) {
+    return nullptr;
+  }
+
+  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+  if (!AllocationBuilder::CanAllocateArray(argument_count, fixed_array_map)) {
+    return nullptr;
+  }
 
   // Prepare an iterator over argument values recorded in the frame state.
   Node* const parameters = frame_state.parameters();
@@ -1491,25 +1513,22 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // The unmapped argument values recorded in the frame state are stored yet
   // another indirection away and then linked into the parameter map below,
   // whereas mapped argument values are replaced with a hole instead.
-  AllocationBuilder aa(jsgraph(), effect, control);
-  aa.AllocateArray(argument_count,
-                   MapRef(broker(), factory()->fixed_array_map()));
+  AllocationBuilder ab(jsgraph(), effect, control);
+  ab.AllocateArray(argument_count, fixed_array_map);
   for (int i = 0; i < mapped_count; ++i) {
-    aa.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
+    ab.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
              jsgraph()->TheHoleConstant());
   }
   for (int i = mapped_count; i < argument_count; ++i, ++parameters_it) {
     DCHECK_NOT_NULL(parameters_it.node());
-    aa.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
+    ab.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
              parameters_it.node());
   }
-  Node* arguments = aa.Finish();
+  Node* arguments = ab.Finish();
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), arguments, control);
-  a.AllocateSloppyArgumentElements(
-      mapped_count,
-      MapRef(broker(), factory()->sloppy_arguments_elements_map()));
+  a.AllocateSloppyArgumentElements(mapped_count, sloppy_arguments_elements_map);
   a.Store(AccessBuilder::ForSloppyArgumentsElementsContext(), context);
   a.Store(AccessBuilder::ForSloppyArgumentsElementsArguments(), arguments);
   for (int i = 0; i < mapped_count; ++i) {
@@ -1524,7 +1543,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
 // unknown at compile-time, the true {arguments_length} and {arguments_frame}
 // values can only be determined dynamically at run-time and are provided.
 // Serves as backing store for JSCreateArguments nodes.
-Node* JSCreateLowering::AllocateAliasedArguments(
+Node* JSCreateLowering::TryAllocateAliasedArguments(
     Node* effect, Node* control, Node* context, Node* arguments_length,
     const SharedFunctionInfoRef& shared, bool* has_aliased_arguments) {
   // If there is no aliasing, the arguments object elements are not
@@ -1537,11 +1556,18 @@ Node* JSCreateLowering::AllocateAliasedArguments(
         arguments_length, effect);
   }
 
+  int mapped_count = parameter_count;
+  MapRef sloppy_arguments_elements_map(
+      broker(), factory()->sloppy_arguments_elements_map());
+  if (!AllocationBuilder::CanAllocateSloppyArgumentElements(
+          mapped_count, sloppy_arguments_elements_map)) {
+    return nullptr;
+  }
+
   // From here on we are going to allocate a mapped (aka. aliased) elements
   // backing store. We do not statically know how many arguments exist, but
   // dynamically selecting the hole for some of the "mapped" elements allows
   // using a static shape for the parameter map.
-  int mapped_count = parameter_count;
   *has_aliased_arguments = true;
 
   // The unmapped argument values are stored yet another indirection away and
@@ -1554,9 +1580,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateSloppyArgumentElements(
-      mapped_count,
-      MapRef(broker(), factory()->sloppy_arguments_elements_map()));
+  a.AllocateSloppyArgumentElements(mapped_count, sloppy_arguments_elements_map);
   a.Store(AccessBuilder::ForSloppyArgumentsElementsContext(), context);
   a.Store(AccessBuilder::ForSloppyArgumentsElementsArguments(), arguments);
   for (int i = 0; i < mapped_count; ++i) {
@@ -1647,52 +1671,35 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
                           kFullWriteBarrier,
                           LoadSensitivity::kUnsafe,
                           const_field_info};
+    ObjectRef boilerplate_value = boilerplate.RawFastPropertyAt(index);
+    bool is_uninitialized =
+        boilerplate_value.IsHeapObject() &&
+        boilerplate_value.AsHeapObject().map().oddball_type() ==
+            OddballType::kUninitialized;
+    if (is_uninitialized) {
+      access.const_field_info = ConstFieldInfo::None();
+    }
     Node* value;
-    if (boilerplate_map.IsUnboxedDoubleField(i)) {
-      access.machine_type = MachineType::Float64();
-      access.type = Type::Number();
-      uint64_t value_bits = boilerplate.RawFastDoublePropertyAsBitsAt(index);
-      if (value_bits == kHoleNanInt64) {
-        // This special case is analogous to is_uninitialized being true in the
-        // non-unboxed-double case below. The store of the hole NaN value here
-        // will always be followed by another store that actually initializes
-        // the field. The hole NaN should therefore be unobservable.
-        // Load elimination expects there to be at most one const store to any
-        // given field, so we always mark the unobservable ones as mutable.
-        access.const_field_info = ConstFieldInfo::None();
-      }
-      value = jsgraph()->Constant(bit_cast<double>(value_bits));
+    if (boilerplate_value.IsJSObject()) {
+      JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
+      value = effect =
+          AllocateFastLiteral(effect, control, boilerplate_object, allocation);
+    } else if (property_details.representation().IsDouble()) {
+      double number = boilerplate_value.AsHeapNumber().value();
+      // Allocate a mutable HeapNumber box and store the value into it.
+      AllocationBuilder builder(jsgraph(), effect, control);
+      builder.Allocate(HeapNumber::kSize, allocation);
+      builder.Store(AccessBuilder::ForMap(),
+                    MapRef(broker(), factory()->heap_number_map()));
+      builder.Store(AccessBuilder::ForHeapNumberValue(),
+                    jsgraph()->Constant(number));
+      value = effect = builder.Finish();
+    } else if (property_details.representation().IsSmi()) {
+      // Ensure that value is stored as smi.
+      value = is_uninitialized ? jsgraph()->ZeroConstant()
+                               : jsgraph()->Constant(boilerplate_value.AsSmi());
     } else {
-      ObjectRef boilerplate_value = boilerplate.RawFastPropertyAt(index);
-      bool is_uninitialized =
-          boilerplate_value.IsHeapObject() &&
-          boilerplate_value.AsHeapObject().map().oddball_type() ==
-              OddballType::kUninitialized;
-      if (is_uninitialized) {
-        access.const_field_info = ConstFieldInfo::None();
-      }
-      if (boilerplate_value.IsJSObject()) {
-        JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
-        value = effect = AllocateFastLiteral(effect, control,
-                                             boilerplate_object, allocation);
-      } else if (property_details.representation().IsDouble()) {
-        double number = boilerplate_value.AsHeapNumber().value();
-        // Allocate a mutable HeapNumber box and store the value into it.
-        AllocationBuilder builder(jsgraph(), effect, control);
-        builder.Allocate(HeapNumber::kSize, allocation);
-        builder.Store(AccessBuilder::ForMap(),
-                      MapRef(broker(), factory()->heap_number_map()));
-        builder.Store(AccessBuilder::ForHeapNumberValue(),
-                      jsgraph()->Constant(number));
-        value = effect = builder.Finish();
-      } else if (property_details.representation().IsSmi()) {
-        // Ensure that value is stored as smi.
-        value = is_uninitialized
-                    ? jsgraph()->ZeroConstant()
-                    : jsgraph()->Constant(boilerplate_value.AsSmi());
-      } else {
-        value = jsgraph()->Constant(boilerplate_value);
-      }
+      value = jsgraph()->Constant(boilerplate_value);
     }
     inobject_fields.push_back(std::make_pair(access, value));
   }
@@ -1701,6 +1708,9 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
   int const boilerplate_length = boilerplate_map.GetInObjectProperties();
   for (int index = static_cast<int>(inobject_fields.size());
        index < boilerplate_length; ++index) {
+    DCHECK(!V8_MAP_PACKING_BOOL);
+    // TODO(wenyuzhao): Fix incorrect MachineType when V8_MAP_PACKING is
+    // enabled.
     FieldAccess access =
         AccessBuilder::ForJSObjectInObjectProperty(boilerplate_map, index);
     Node* value = jsgraph()->HeapConstant(factory()->one_pointer_filler_map());
@@ -1724,7 +1734,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
     JSArrayRef boilerplate_array = boilerplate.AsJSArray();
     builder.Store(
         AccessBuilder::ForJSArrayLength(boilerplate_array.GetElementsKind()),
-        boilerplate_array.length());
+        boilerplate_array.GetBoilerplateLength());
   }
   for (auto const& inobject_field : inobject_fields) {
     builder.Store(inobject_field.first, inobject_field.second);
@@ -1735,7 +1745,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
 Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
                                                     JSObjectRef boilerplate,
                                                     AllocationType allocation) {
-  FixedArrayBaseRef boilerplate_elements = boilerplate.elements();
+  FixedArrayBaseRef boilerplate_elements = boilerplate.elements().value();
 
   // Empty or copy-on-write elements just store a constant.
   int const elements_length = boilerplate_elements.length();
@@ -1743,7 +1753,7 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
   if (boilerplate_elements.length() == 0 || elements_map.IsFixedCowArrayMap()) {
     if (allocation == AllocationType::kOld) {
       boilerplate.EnsureElementsTenured();
-      boilerplate_elements = boilerplate.elements();
+      boilerplate_elements = boilerplate.elements().value();
     }
     return jsgraph()->HeapConstant(boilerplate_elements.object());
   }
@@ -1774,16 +1784,17 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
   }
 
   // Allocate the backing store array and store the elements.
-  AllocationBuilder builder(jsgraph(), effect, control);
-  builder.AllocateArray(elements_length, elements_map, allocation);
+  AllocationBuilder ab(jsgraph(), effect, control);
+  CHECK(ab.CanAllocateArray(elements_length, elements_map, allocation));
+  ab.AllocateArray(elements_length, elements_map, allocation);
   ElementAccess const access =
       (elements_map.instance_type() == FIXED_DOUBLE_ARRAY_TYPE)
           ? AccessBuilder::ForFixedDoubleArrayElement()
           : AccessBuilder::ForFixedArrayElement();
   for (int i = 0; i < elements_length; ++i) {
-    builder.Store(access, jsgraph()->Constant(i), elements_values[i]);
+    ab.Store(access, jsgraph()->Constant(i), elements_values[i]);
   }
-  return builder.Finish();
+  return ab.Finish();
 }
 
 Node* JSCreateLowering::AllocateLiteralRegExp(

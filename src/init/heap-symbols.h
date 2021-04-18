@@ -152,6 +152,7 @@
   V(_, CompileError_string, "CompileError")                          \
   V(_, callee_string, "callee")                                      \
   V(_, caller_string, "caller")                                      \
+  V(_, cause_string, "cause")                                        \
   V(_, character_string, "character")                                \
   V(_, closure_string, "(closure)")                                  \
   V(_, code_string, "code")                                          \
@@ -168,7 +169,6 @@
   V(_, defineProperty_string, "defineProperty")                      \
   V(_, deleteProperty_string, "deleteProperty")                      \
   V(_, disjunction_string, "disjunction")                            \
-  V(_, display_name_string, "displayName")                           \
   V(_, done_string, "done")                                          \
   V(_, dot_brand_string, ".brand")                                   \
   V(_, dot_catch_string, ".catch")                                   \
@@ -338,8 +338,7 @@
 
 #define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)    \
   V(_, array_buffer_wasm_memory_symbol)        \
-  V(_, call_site_frame_array_symbol)           \
-  V(_, call_site_frame_index_symbol)           \
+  V(_, call_site_frame_info_symbol)            \
   V(_, console_context_id_symbol)              \
   V(_, console_context_name_symbol)            \
   V(_, class_fields_symbol)                    \
@@ -451,7 +450,6 @@
   F(MC_EVACUATE_UPDATE_POINTERS)                     \
   F(MC_EVACUATE_UPDATE_POINTERS_PARALLEL)            \
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
-  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
   F(MC_FINISH_SWEEP_ARRAY_BUFFERS)                   \
@@ -520,6 +518,8 @@
   F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)           \
   F(BACKGROUND_COLLECTION)                        \
   F(BACKGROUND_UNMAPPER)                          \
+  F(BACKGROUND_UNPARK)                            \
+  F(BACKGROUND_SAFEPOINT)                         \
   F(MC_BACKGROUND_EVACUATE_COPY)                  \
   F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS)       \
   F(MC_BACKGROUND_MARKING)                        \

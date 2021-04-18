@@ -5,6 +5,11 @@
 #ifndef V8_HEAP_CPPGC_JS_CPP_HEAP_H_
 #define V8_HEAP_CPPGC_JS_CPP_HEAP_H_
 
+#if CPPGC_IS_STANDALONE
+static_assert(
+    false, "V8 targets can not be built with cppgc_is_standalone set to true.");
+#endif
+
 #include "include/v8-cppgc.h"
 #include "include/v8.h"
 #include "src/base/macros.h"
@@ -32,8 +37,9 @@ class V8_EXPORT_PRIVATE CppHeap final
   }
 
   CppHeap(
-      v8::Isolate* isolate,
+      v8::Platform* platform,
       const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
+      const v8::WrapperDescriptor& wrapper_descriptor,
       std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder =
           nullptr);
   ~CppHeap() final;
@@ -44,7 +50,15 @@ class V8_EXPORT_PRIVATE CppHeap final
   HeapBase& AsBase() { return *this; }
   const HeapBase& AsBase() const { return *this; }
 
+  void AttachIsolate(Isolate* isolate);
+  void DetachIsolate();
+
   void Terminate();
+
+  void EnableDetachedGarbageCollectionsForTesting();
+
+  void CollectGarbageForTesting(
+      cppgc::internal::GarbageCollector::Config::StackState);
 
   // v8::EmbedderHeapTracer interface.
   void RegisterV8References(
@@ -69,13 +83,22 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void ReportBufferedAllocationSizeIfPossible();
 
-  Isolate& isolate_;
+  void StartIncrementalGarbageCollectionForTesting() final;
+  void FinalizeIncrementalGarbageCollectionForTesting(EmbedderStackState) final;
+
+  Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
+  TraceFlags current_flags_ = TraceFlags::kNoFlags;
 
   // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
   // atomic pause. Allocated bytes are buffer in case this is temporarily
   // prohibited.
   int64_t buffered_allocated_bytes_ = 0;
+
+  v8::WrapperDescriptor wrapper_descriptor_;
+
+  bool in_detached_testing_mode_ = false;
+  bool force_incremental_marking_for_testing_ = false;
 };
 
 }  // namespace internal

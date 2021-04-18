@@ -14,6 +14,11 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+class ValueType;
+using FunctionSig = Signature<ValueType>;
+}  // namespace wasm
+
 namespace compiler {
 
 class JSGraph;
@@ -62,12 +67,14 @@ class OutputFrameStateCombine {
 
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kInterpretedFunction,            // Represents an InterpretedFrame.
+  kUnoptimizedFunction,            // Represents an UnoptimizedFrame.
   kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
   kConstructStub,                  // Represents a ConstructStubFrame.
   kBuiltinContinuation,            // Represents a continuation to a stub.
+#if V8_ENABLE_WEBASSEMBLY          // ↓ WebAssembly only
   kJSToWasmBuiltinContinuation,    // Represents a lazy deopt continuation for a
                                    // JS to Wasm call.
+#endif                             // ↑ WebAssembly only
   kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
                                    // builtin.
   kJavaScriptBuiltinContinuationWithCatch  // Represents a continuation to a
@@ -91,7 +98,7 @@ class FrameStateFunctionInfo {
   FrameStateType type() const { return type_; }
 
   static bool IsJSFunctionType(FrameStateType type) {
-    return type == FrameStateType::kInterpretedFunction ||
+    return type == FrameStateType::kUnoptimizedFunction ||
            type == FrameStateType::kJavaScriptBuiltinContinuation ||
            type == FrameStateType::kJavaScriptBuiltinContinuationWithCatch;
   }
@@ -103,6 +110,7 @@ class FrameStateFunctionInfo {
   Handle<SharedFunctionInfo> const shared_info_;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
  public:
   JSToWasmFrameStateFunctionInfo(FrameStateType type, int parameter_count,
@@ -119,6 +127,7 @@ class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
  private:
   const wasm::FunctionSig* const signature_;
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class FrameStateInfo final {
  public:
@@ -130,7 +139,7 @@ class FrameStateInfo final {
         info_(info) {}
 
   FrameStateType type() const {
-    return info_ == nullptr ? FrameStateType::kInterpretedFunction
+    return info_ == nullptr ? FrameStateType::kUnoptimizedFunction
                             : info_->type();
   }
   BytecodeOffset bailout_id() const { return bailout_id_; }
@@ -170,9 +179,11 @@ FrameState CreateStubBuiltinContinuationFrameState(
     ContinuationFrameStateMode mode,
     const wasm::FunctionSig* signature = nullptr);
 
+#if V8_ENABLE_WEBASSEMBLY
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
     const wasm::FunctionSig* signature);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,

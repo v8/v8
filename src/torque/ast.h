@@ -924,15 +924,24 @@ struct Annotation {
   base::Optional<AnnotationParameter> param;
 };
 
+struct ClassFieldIndexInfo {
+  // The expression that can compute how many items are in the indexed field.
+  Expression* expr;
+
+  // Whether the field was declared as optional, meaning it can only hold zero
+  // or one values, and thus should not require an index expression to access.
+  bool optional;
+};
+
 struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
-  base::Optional<Expression*> index;
+  base::Optional<ClassFieldIndexInfo> index;
   std::vector<ConditionalAnnotation> conditions;
   bool weak;
   bool const_qualified;
   bool generate_verify;
-  bool relaxed_read;
-  bool relaxed_write;
+  FieldSynchronization read_synchronization;
+  FieldSynchronization write_synchronization;
 };
 
 struct LabelAndTypes {

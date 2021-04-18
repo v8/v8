@@ -116,7 +116,9 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // feedback vector marker.
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Code> sfi_code = GetSharedFunctionInfoCode(shared, &compile_function);
+  TVARIABLE(Uint16T, sfi_data_type);
+  TNode<Code> sfi_code =
+      GetSharedFunctionInfoCode(shared, &sfi_data_type, &compile_function);
 
   TNode<HeapObject> feedback_cell_value = LoadFeedbackCellValue(function);
 
@@ -143,23 +145,31 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
                                                 isolate(), CompileLazy))));
   StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
 
-  // Finally, check for presence of an NCI cached Code object - if an entry
-  // possibly exists, call into runtime to query the cache.
-  TNode<Uint8T> flags2 =
-      LoadObjectField<Uint8T>(shared, SharedFunctionInfo::kFlags2Offset);
-  TNode<BoolT> may_have_cached_code =
-      IsSetWord32<SharedFunctionInfo::MayHaveCachedCodeBit>(flags2);
-  TNode<Code> code = Select<Code>(
-      may_have_cached_code,
+  Label tailcall_code(this);
+  Label baseline(this);
+
+  TVARIABLE(Code, code);
+
+  // Check if we have baseline code.
+  GotoIf(InstanceTypeEqual(sfi_data_type.value(), BASELINE_DATA_TYPE),
+         &baseline);
+
+  code = sfi_code;
+  Goto(&tailcall_code);
+
+  BIND(&baseline);
+  // Ensure we have a feedback vector.
+  code = Select<Code>(
+      IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
       [=]() {
-        return CAST(CallRuntime(Runtime::kTryInstallNCICode,
+        return CAST(CallRuntime(Runtime::kInstallBaselineCode,
                                 Parameter<Context>(Descriptor::kContext),
                                 function));
-      },
-      [=]() { return sfi_code; });
-
+      });
+  Goto(&tailcall_code);
+  BIND(&tailcall_code);
   // Jump to the selected code entry.
-  GenerateTailCallToJSCode(code, function);
+  GenerateTailCallToJSCode(code.value(), function);
 
   BIND(&compile_function);
   GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function);

@@ -6,7 +6,6 @@
 
 #include "test/cctest/test-api.h"
 
-#include "include/v8-util.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/compilation-cache.h"
@@ -18,29 +17,17 @@
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
 
-using ::v8::Boolean;
-using ::v8::BooleanObject;
 using ::v8::Context;
-using ::v8::Extension;
 using ::v8::Function;
 using ::v8::FunctionTemplate;
-using ::v8::HandleScope;
 using ::v8::Local;
 using ::v8::Name;
-using ::v8::Message;
-using ::v8::MessageCallback;
 using ::v8::Object;
 using ::v8::ObjectTemplate;
-using ::v8::Persistent;
 using ::v8::Script;
-using ::v8::StackTrace;
 using ::v8::String;
 using ::v8::Symbol;
-using ::v8::TryCatch;
-using ::v8::Undefined;
-using ::v8::V8;
 using ::v8::Value;
-
 
 namespace {
 
@@ -94,17 +81,19 @@ void SimpleAccessorSetter(Local<String> name, Local<Value> value,
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorGetter(sym->Description().As<String>(), info);
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleAccessorGetter(sym->Description(isolate).As<String>(), info);
 }
 
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(name->IsSymbol());
+  v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
-  if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorSetter(sym->Description().As<String>(), value, info);
+  if (sym->Description(isolate)->IsUndefined()) return;
+  SimpleAccessorSetter(sym->Description(isolate).As<String>(), value, info);
 }
 
 void InterceptorGetter(Local<Name> generic_name,
@@ -152,9 +141,10 @@ void InterceptorSetter(Local<Name> generic_name, Local<Value> value,
 
 void GenericInterceptorGetter(Local<Name> generic_name,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
   Local<String> str;
   if (generic_name->IsSymbol()) {
-    Local<Value> name = generic_name.As<Symbol>()->Description();
+    Local<Value> name = generic_name.As<Symbol>()->Description(isolate);
     if (name->IsUndefined()) return;
     str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
   } else {
@@ -172,9 +162,10 @@ void GenericInterceptorGetter(Local<Name> generic_name,
 
 void GenericInterceptorSetter(Local<Name> generic_name, Local<Value> value,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
   Local<String> str;
   if (generic_name->IsSymbol()) {
-    Local<Value> name = generic_name.As<Symbol>()->Description();
+    Local<Value> name = generic_name.As<Symbol>()->Description(isolate);
     if (name->IsUndefined()) return;
     str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
   } else {

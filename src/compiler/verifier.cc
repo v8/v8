@@ -553,7 +553,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
                  StateValuesAccess(state.locals()).size());
 
         Node* accumulator = state.stack();
-        if (func_info->type() == FrameStateType::kInterpretedFunction) {
+        if (func_info->type() == FrameStateType::kUnoptimizedFunction) {
           // The accumulator (InputAt(2)) cannot be kStateValues.
           // It can be kTypedStateValues (to signal the type) and it can have
           // other Node types including that of the optimized_out HeapConstant.
@@ -1617,15 +1617,18 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::ExternalPointer());  // callee
       CheckValueInputIs(node, 1, Type::Any());              // receiver
       break;
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kJSWasmCall:
       CHECK_GE(value_count, 3);
       CheckTypeIs(node, Type::Any());
       CheckValueInputIs(node, 0, Type::Any());  // callee
       break;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     // Machine operators
     // -----------------------
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable:
     case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
@@ -1788,6 +1791,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kFloat64ExtractHighWord32:
     case IrOpcode::kFloat64InsertLowWord32:
     case IrOpcode::kFloat64InsertHighWord32:
+    case IrOpcode::kWord32Select:
+    case IrOpcode::kWord64Select:
+    case IrOpcode::kFloat32Select:
+    case IrOpcode::kFloat64Select:
     case IrOpcode::kInt32PairAdd:
     case IrOpcode::kInt32PairSub:
     case IrOpcode::kInt32PairMul:

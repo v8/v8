@@ -13,7 +13,10 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/boxed-float.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -125,6 +128,8 @@ class TranslatedValue {
     return storage_;
   }
 
+  void ReplaceElementsArrayWithCopy();
+
   Kind kind_;
   MaterializationState materialization_state_ = kUninitialized;
   TranslatedState* container_;  // This is only needed for materialization of
@@ -171,11 +176,13 @@ class TranslatedValue {
 class TranslatedFrame {
  public:
   enum Kind {
-    kInterpretedFunction,
+    kUnoptimizedFunction,
     kArgumentsAdaptor,
     kConstructStub,
     kBuiltinContinuation,
+#if V8_ENABLE_WEBASSEMBLY
     kJSToWasmBuiltinContinuation,
+#endif  // V8_ENABLE_WEBASSEMBLY
     kJavaScriptBuiltinContinuation,
     kJavaScriptBuiltinContinuationWithCatch,
     kInvalid
@@ -250,18 +257,20 @@ class TranslatedFrame {
   reference front() { return values_.front(); }
   const_reference front() const { return values_.front(); }
 
+#if V8_ENABLE_WEBASSEMBLY
   // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueType::Kind> wasm_call_return_type() const {
+  base::Optional<wasm::ValueKind> wasm_call_return_kind() const {
     DCHECK_EQ(kind(), kJSToWasmBuiltinContinuation);
-    return return_type_;
+    return return_kind_;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
   friend class TranslatedState;
   friend class Deoptimizer;
 
   // Constructor static methods.
-  static TranslatedFrame InterpretedFrame(BytecodeOffset bytecode_offset,
+  static TranslatedFrame UnoptimizedFrame(BytecodeOffset bytecode_offset,
                                           SharedFunctionInfo shared_info,
                                           int height, int return_value_offset,
                                           int return_value_count);
@@ -274,9 +283,11 @@ class TranslatedFrame {
                                             int height);
   static TranslatedFrame BuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
+#if V8_ENABLE_WEBASSEMBLY
   static TranslatedFrame JSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height,
-      base::Optional<wasm::ValueType::Kind> return_type);
+      base::Optional<wasm::ValueKind> return_type);
+#endif  // V8_ENABLE_WEBASSEMBLY
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
@@ -314,8 +325,10 @@ class TranslatedFrame {
 
   ValuesContainer values_;
 
+#if V8_ENABLE_WEBASSEMBLY
   // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueType::Kind> return_type_;
+  base::Optional<wasm::ValueKind> return_kind_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 // Auxiliary class for translating deoptimization values.
@@ -335,7 +348,15 @@ class TranslatedFrame {
 
 class TranslatedState {
  public:
-  TranslatedState() = default;
+  // There are two constructors, each for a different purpose:
+
+  // The default constructor is for the purpose of deoptimizing an optimized
+  // frame (replacing it with one or several unoptimized frames). It is used by
+  // the Deoptimizer.
+  TranslatedState() : purpose_(kDeoptimization) {}
+
+  // This constructor is for the purpose of merely inspecting an optimized
+  // frame. It is used by stack trace generation and various debugging features.
   explicit TranslatedState(const JavaScriptFrame* frame);
 
   void Prepare(Address stack_frame_pointer);
@@ -369,6 +390,12 @@ class TranslatedState {
 
  private:
   friend TranslatedValue;
+
+  // See the description of the constructors for an explanation of the two
+  // purposes. The only actual difference is that in the kFrameInspection case
+  // extra work is needed to not violate assumptions made by left-trimming.  For
+  // details, see the code around ReplaceElementsArrayWithCopy.
+  enum Purpose { kDeoptimization, kFrameInspection };
 
   TranslatedFrame CreateNextTranslatedFrame(TranslationArrayIterator* iterator,
                                             FixedArray literal_array,
@@ -426,6 +453,7 @@ class TranslatedState {
   static Float32 GetFloatSlot(Address fp, int slot_index);
   static Float64 GetDoubleSlot(Address fp, int slot_index);
 
+  Purpose const purpose_;
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_ = nullptr;
   Address stack_frame_pointer_ = kNullAddress;
@@ -442,8 +470,8 @@ class TranslatedState {
   FeedbackSlot feedback_slot_;
 };
 
-// Return type encoding for a Wasm function returning void.
-const int kNoWasmReturnType = -1;
+// Return kind encoding for a Wasm function returning void.
+const int kNoWasmReturnKind = -1;
 
 }  // namespace internal
 }  // namespace v8

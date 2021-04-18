@@ -90,7 +90,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       EXPECT_NE(InstructionOperand::CONSTANT, input->kind());
       if (input->IsImmediate()) {
         auto imm = ImmediateOperand::cast(input);
-        if (imm->type() == ImmediateOperand::INDEXED) {
+        if (imm->type() == ImmediateOperand::INDEXED_IMM) {
           int index = imm->indexed_value();
           s.immediates_.insert(
               std::make_pair(index, sequence.GetImmediate(imm)));
@@ -138,6 +138,14 @@ bool InstructionSelectorTest::Stream::IsSameAsFirst(
   return unallocated->HasSameAsInputPolicy();
 }
 
+bool InstructionSelectorTest::Stream::IsSameAsInput(
+    const InstructionOperand* operand, int input_index) const {
+  if (!operand->IsUnallocated()) return false;
+  const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
+  return unallocated->HasSameAsInputPolicy() &&
+         unallocated->input_index() == input_index;
+}
+
 bool InstructionSelectorTest::Stream::IsUsedAtStart(
     const InstructionOperand* operand) const {
   if (!operand->IsUnallocated()) return false;
@@ -149,7 +157,7 @@ const FrameStateFunctionInfo*
 InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
     int parameter_count, int local_count) {
   return common()->CreateFrameStateFunctionInfo(
-      FrameStateType::kInterpretedFunction, parameter_count, local_count,
+      FrameStateType::kUnoptimizedFunction, parameter_count, local_count,
       Handle<SharedFunctionInfo>());
 }
 

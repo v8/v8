@@ -34,7 +34,8 @@ class Symbolizer;
   V(CODE_MOVE, CodeMoveEventRecord)              \
   V(CODE_DISABLE_OPT, CodeDisableOptEventRecord) \
   V(CODE_DEOPT, CodeDeoptEventRecord)            \
-  V(REPORT_BUILTIN, ReportBuiltinEventRecord)
+  V(REPORT_BUILTIN, ReportBuiltinEventRecord)    \
+  V(CODE_DELETE, CodeDeleteEventRecord)
 
 class CodeEventRecord {
  public:
@@ -109,6 +110,13 @@ class TickSampleEventRecord {
 
   unsigned order;
   TickSample sample;
+};
+
+class CodeDeleteEventRecord : public CodeEventRecord {
+ public:
+  CodeEntry* entry;
+
+  V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
 // A record type for sending code events (e.g. create, move, delete) to the
@@ -247,6 +255,7 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
   CodeMap* code_map() { return &code_map_; }
   StringsStorage* strings() { return &strings_; }
+  WeakCodeRegistry* weak_code_registry() { return &weak_code_registry_; }
 
   void ClearCodeMap();
 
@@ -271,6 +280,7 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   Isolate* const isolate_;
   StringsStorage strings_;
   CodeMap code_map_;
+  WeakCodeRegistry weak_code_registry_;
   ProfilerEventsProcessor* processor_;
 };
 
@@ -320,10 +330,12 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
   void CollectSample();
-  StartProfilingStatus StartProfiling(const char* title,
-                                      CpuProfilingOptions options = {});
-  StartProfilingStatus StartProfiling(String title,
-                                      CpuProfilingOptions options = {});
+  StartProfilingStatus StartProfiling(
+      const char* title, CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+  StartProfilingStatus StartProfiling(
+      String title, CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);

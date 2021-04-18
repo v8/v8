@@ -237,7 +237,7 @@ enum ContextLookupFlags {
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, SimpleNumberDictionary,          \
     slow_template_instantiations_cache)                                        \
   V(ATOMICS_WAITASYNC_PROMISES, OrderedHashSet, atomics_waitasync_promises)    \
-  V(WASM_DEBUG_PROXY_MAPS, FixedArray, wasm_debug_proxy_maps)                  \
+  V(WASM_DEBUG_MAPS, FixedArray, wasm_debug_maps)                              \
   /* Fast Path Protectors */                                                   \
   V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
@@ -422,13 +422,14 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;
-  V8_INLINE Object get(IsolateRoot isolate, int index) const;
+  V8_INLINE Object get(PtrComprCageBase cage_base, int index) const;
   V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
   // Setter and getter with synchronization semantics.
   V8_INLINE Object synchronized_get(int index) const;
-  V8_INLINE Object synchronized_get(IsolateRoot isolate, int index) const;
+  V8_INLINE Object synchronized_get(PtrComprCageBase cage_base,
+                                    int index) const;
   V8_INLINE void synchronized_set(int index, Object value);
 
   static const int kScopeInfoOffset = kElementsOffset;
@@ -517,17 +518,20 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static const int kInvalidContext = 1;
 
   // Direct slot access.
-  inline void set_scope_info(ScopeInfo scope_info);
+  inline void set_scope_info(ScopeInfo scope_info,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Object unchecked_previous();
   inline Context previous();
-  inline void set_previous(Context context);
+  inline void set_previous(Context context,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Object next_context_link();
 
   inline bool has_extension();
   inline HeapObject extension();
-  inline void set_extension(HeapObject object);
+  inline void set_extension(HeapObject object,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   JSObject extension_object();
   JSReceiver extension_receiver();
   V8_EXPORT_PRIVATE ScopeInfo scope_info();

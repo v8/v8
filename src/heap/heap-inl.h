@@ -502,7 +502,7 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
   MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
-  if (!candidate_map_slot.contains_value(
+  if (!candidate_map_slot.contains_map_value(
           ReadOnlyRoots(this).allocation_memento_map().ptr())) {
     return AllocationMemento();
   }
@@ -644,8 +644,8 @@ int Heap::NextDebuggingId() {
 }
 
 int Heap::GetNextTemplateSerialNumber() {
-  int next_serial_number = next_template_serial_number().value() + 1;
-  set_next_template_serial_number(Smi::FromInt(next_serial_number));
+  int next_serial_number = next_template_serial_number().value();
+  set_next_template_serial_number(Smi::FromInt(next_serial_number + 1));
   return next_serial_number;
 }
 

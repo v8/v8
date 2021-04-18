@@ -7,6 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/codegen/s390/register-s390.h"
 #include "src/execution/frame-constants.h"
 
 namespace v8 {
@@ -22,7 +23,7 @@ class EntryFrameConstants : public AllStatic {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 5;
+  static constexpr int kNumberOfSavedGpParamRegs = 4;
 #ifdef V8_TARGET_ARCH_S390X
   static constexpr int kNumberOfSavedFpParamRegs = 4;
 #else
@@ -30,6 +31,9 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 #endif
 
   // FP-relative.
+  // The instance is pushed as part of the saved registers. Being in {r6}, it is
+  // the first register pushed (highest register code in
+  // {wasm::kGpParamRegisters}).
   static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static constexpr int kFixedFrameSizeFromFp =
       TypedFrameConstants::kFixedFrameSizeFromFp +
@@ -42,10 +46,11 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  // {r2, r3, r4, r5, r6, r7, r8}
-  static constexpr uint32_t kPushedGpRegs = 0b111111100;
-  // {d0 .. d12}
-  static constexpr uint32_t kPushedFpRegs = 0b1111111111111;
+  static constexpr RegList kPushedGpRegs =
+      Register::ListOf(r2, r3, r4, r5, r6, r7, r8, cp);
+
+  static constexpr RegList kPushedFpRegs = DoubleRegister::ListOf(
+      d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12);
 
   static constexpr int kNumPushedGpRegisters =
       base::bits::CountPopulation(kPushedGpRegs);

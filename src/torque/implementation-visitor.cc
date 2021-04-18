@@ -20,6 +20,7 @@
 #include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 #include "src/torque/types.h"
+#include "src/torque/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -154,6 +155,8 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   std::ostream& header = debug_macros_h_;
 
   source << "#include \"torque-generated/debug-macros.h\"\n\n";
+  source << "#include \"src/objects/swiss-name-dictionary.h\"\n";
+  source << "#include \"src/objects/ordered-hash-table.h\"\n";
   source << "#include \"tools/debug_helper/debug-macro-shims.h\"\n";
   source << "#include \"include/v8-internal.h\"\n";
   source << "\n";
@@ -166,13 +169,12 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   const char* kHeaderDefine = "V8_GEN_TORQUE_GENERATED_DEBUG_MACROS_H_";
   header << "#ifndef " << kHeaderDefine << "\n";
   header << "#define " << kHeaderDefine << "\n\n";
-  header << "#include \"src/builtins/torque-csa-header-includes.h\"\n";
   header << "#include \"tools/debug_helper/debug-helper-internal.h\"\n";
   header << "\n";
 
   header << "namespace v8 {\n"
          << "namespace internal {\n"
-         << "namespace debug_helper_internal{\n"
+         << "namespace debug_helper_internal {\n"
          << "\n";
 }
 
@@ -656,8 +658,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
   } else {
     DCHECK(builtin->IsStub());
 
-    bool has_context_parameter = signature.HasContextParameter();
     for (size_t i = 0; i < signature.parameter_names.size(); ++i) {
+      const std::string& parameter_name = signature.parameter_names[i]->value;
       const Type* type = signature.types()[i];
       const bool mark_as_used = signature.implicit_count > i;
       std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
@@ -665,14 +667,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       csa_ccfile() << "  " << type->GetGeneratedTypeName() << " " << var
                    << " = "
                    << "UncheckedParameter<" << type->GetGeneratedTNodeTypeName()
-                   << ">(";
-      if (i == 0 && has_context_parameter) {
-        csa_ccfile() << "Descriptor::kContext";
-      } else {
-        csa_ccfile() << "Descriptor::ParameterIndex<"
-                     << (has_context_parameter ? i - 1 : i) << ">()";
-      }
-      csa_ccfile() << ");\n";
+                   << ">(Descriptor::k" << CamelifyString(parameter_name)
+                   << ");\n";
       csa_ccfile() << "  USE(" << var << ");\n";
     }
   }
@@ -1381,10 +1377,19 @@ InitializerResults ImplementationVisitor::VisitInitializerResults(
 }
 
 LocationReference ImplementationVisitor::GenerateFieldReference(
-    VisitResult object, const Field& field, const ClassType* class_type) {
+    VisitResult object, const Field& field, const ClassType* class_type,
+    bool treat_optional_as_indexed) {
   if (field.index.has_value()) {
-    return LocationReference::HeapSlice(
+    LocationReference slice = LocationReference::HeapSlice(
         GenerateCall(class_type->GetSliceMacroName(field), {{object}, {}}));
+    if (field.index->optional && !treat_optional_as_indexed) {
+      // This field was declared using optional syntax, so any reference to it
+      // is implicitly a reference to the first item.
+      return GenerateReferenceToItemInHeapSlice(
+          slice, {TypeOracle::GetConstInt31Type(), "0"});
+    } else {
+      return slice;
+    }
   }
   DCHECK(field.offset.has_value());
   StackRange result_range = assembler().TopRange(0);
@@ -1481,18 +1486,25 @@ VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
     if (field.name_and_type.name == f.name_and_type.name) {
       before_current = false;
     }
+    // We can't generate field references eagerly here, because some preceding
+    // fields might be optional, and attempting to get a reference to an
+    // optional field can crash the program if the field isn't present.
+    // Instead, we use the lazy form of LocalValue to only generate field
+    // references if they are used in the length expression.
     bindings.insert(
         {f.name_and_type.name,
          f.const_qualified
              ? (before_current
-                    ? LocalValue{GenerateFieldReference(object, f, class_type)}
+                    ? LocalValue{[=]() {
+                        return GenerateFieldReference(object, f, class_type);
+                      }}
                     : LocalValue("Array lengths may only refer to fields "
                                  "defined earlier"))
              : LocalValue(
                    "Non-const fields cannot be used for array lengths.")});
   }
   return stack_scope.Yield(
-      GenerateArrayLength(*field.index, class_type->nspace(), bindings));
+      GenerateArrayLength(field.index->expr, class_type->nspace(), bindings));
 }
 
 VisitResult ImplementationVisitor::GenerateArrayLength(
@@ -1515,7 +1527,7 @@ VisitResult ImplementationVisitor::GenerateArrayLength(
                    "Non-const fields cannot be used for array lengths.")});
   }
   return stack_scope.Yield(
-      GenerateArrayLength(*field.index, class_type->nspace(), bindings));
+      GenerateArrayLength(field.index->expr, class_type->nspace(), bindings));
 }
 
 LayoutForInitialization ImplementationVisitor::GenerateLayoutForInitialization(
@@ -2284,20 +2296,25 @@ LocationReference ImplementationVisitor::GetLocationReference(
   LocationReference reference = GetLocationReference(expr->array);
   VisitResult index = Visit(expr->index);
   if (reference.IsHeapSlice()) {
-    Arguments arguments{{index}, {}};
-    const StructType* slice_type =
-        *reference.heap_slice().type()->StructSupertype();
-    Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
-    // The reference has to be treated like a normal value when calling methods
-    // on the underlying slice implementation.
-    LocationReference slice_value = LocationReference::Temporary(
-        reference.GetVisitResult(), "slice as value");
-    return LocationReference::HeapReference(
-        GenerateCall(method, std::move(slice_value), arguments, {}, false));
+    return GenerateReferenceToItemInHeapSlice(reference, index);
   } else {
     return LocationReference::ArrayAccess(GenerateFetchFromLocation(reference),
                                           index);
   }
+}
+
+LocationReference ImplementationVisitor::GenerateReferenceToItemInHeapSlice(
+    LocationReference slice, VisitResult index) {
+  DCHECK(slice.IsHeapSlice());
+  Arguments arguments{{index}, {}};
+  const StructType* slice_type = *slice.heap_slice().type()->StructSupertype();
+  Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
+  // The reference has to be treated like a normal value when calling methods
+  // on the underlying slice implementation.
+  LocationReference slice_value =
+      LocationReference::Temporary(slice.GetVisitResult(), "slice as value");
+  return LocationReference::HeapReference(
+      GenerateCall(method, std::move(slice_value), arguments, {}, false));
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
@@ -2665,7 +2682,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       if (!this_value.type()->IsSubtypeOf(method->aggregate_type())) {
         ReportError("this parameter must be a subtype of ",
                     *method->aggregate_type(), " but it is of type ",
-                    this_value.type());
+                    *this_value.type());
       }
     } else {
       AddCallParameter(callable, this_value, method->aggregate_type(),
@@ -2935,6 +2952,83 @@ VisitResult ImplementationVisitor::GenerateCall(
       const Field& field =
           class_type->LookupField(StringLiteralUnquote(constexpr_arguments[0]));
       return GenerateArrayLength(VisitResult(type, argument_range), field);
+    } else if (intrinsic->ExternalName() == "%MakeLazy") {
+      if (specialization_types[0]->IsStructType()) {
+        ReportError("%MakeLazy can't use macros that return structs");
+      }
+      std::string getter_name = StringLiteralUnquote(constexpr_arguments[0]);
+
+      // Normally the parser would split namespace names for us, but we
+      // sidestepped it by putting the macro name in a string literal.
+      QualifiedName qualified_getter_name = QualifiedName::Parse(getter_name);
+
+      // converted_arguments contains all of the arguments to %MakeLazy. We're
+      // looking for a function that takes all but the first.
+      Arguments arguments_to_getter;
+      arguments_to_getter.parameters.insert(
+          arguments_to_getter.parameters.begin(),
+          converted_arguments.begin() + 1, converted_arguments.end());
+
+      Callable* callable = LookupCallable(
+          qualified_getter_name, Declarations::Lookup(qualified_getter_name),
+          arguments_to_getter, {});
+      Macro* getter = Macro::DynamicCast(callable);
+      if (!getter || getter->IsMethod()) {
+        ReportError(
+            "%MakeLazy expects a macro, not builtin or other type of callable");
+      }
+      if (!getter->signature().labels.empty()) {
+        ReportError("%MakeLazy requires a macro with no labels");
+      }
+      if (!getter->signature().return_type->IsSubtypeOf(
+              specialization_types[0])) {
+        ReportError("%MakeLazy expected return type ", *specialization_types[0],
+                    " but found ", *getter->signature().return_type);
+      }
+      if (getter->signature().implicit_count > 0) {
+        ReportError("Implicit parameters are not yet supported in %MakeLazy");
+      }
+
+      getter->SetUsed();  // Prevent warnings about unused macros.
+
+      // Now that we've looked up the getter macro, we have to convert the
+      // arguments again, so that, for example, constexpr arguments can be
+      // coerced to non-constexpr types and put on the stack.
+
+      std::vector<VisitResult> converted_arguments_for_getter;
+      StackRange argument_range_for_getter = assembler().TopRange(0);
+      std::vector<std::string> constexpr_arguments_for_getter;
+
+      size_t current = 0;
+      for (auto arg : arguments_to_getter.parameters) {
+        DCHECK_LT(current, getter->signature().types().size());
+        const Type* to_type = getter->signature().types()[current++];
+        AddCallParameter(getter, arg, to_type, &converted_arguments_for_getter,
+                         &argument_range_for_getter,
+                         &constexpr_arguments_for_getter,
+                         /*inline_macro=*/false);
+      }
+
+      // Now that the arguments are prepared, emit the instruction that consumes
+      // them.
+      assembler().Emit(MakeLazyNodeInstruction{getter, return_type,
+                                               constexpr_arguments_for_getter});
+      return VisitResult(return_type, assembler().TopRange(1));
+    } else if (intrinsic->ExternalName() == "%FieldSlice") {
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%FieldSlice must take a class type parameter");
+      }
+      const Field& field =
+          class_type->LookupField(StringLiteralUnquote(constexpr_arguments[0]));
+      LocationReference ref = GenerateFieldReference(
+          VisitResult(type, argument_range), field, class_type,
+          /*treat_optional_as_indexed=*/true);
+      if (!ref.IsHeapSlice()) {
+        ReportError("%FieldSlice expected an indexed or optional field");
+      }
+      return ref.heap_slice();
     } else {
       assembler().Emit(CallIntrinsicInstruction{intrinsic, specialization_types,
                                                 constexpr_arguments});
@@ -3337,40 +3431,40 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
         std::string descriptor_name = builtin->ExternalName() + "Descriptor";
         bool has_context_parameter = builtin->signature().HasContextParameter();
         size_t kFirstNonContextParameter = has_context_parameter ? 1 : 0;
-        size_t parameter_count =
-            builtin->parameter_names().size() - kFirstNonContextParameter;
         TypeVector return_types = LowerType(builtin->signature().return_type);
 
-        interface_descriptors
-            << "class " << descriptor_name
-            << " : public TorqueInterfaceDescriptor<" << return_types.size()
-            << ", " << parameter_count << ", "
-            << (has_context_parameter ? "true" : "false") << "> {\n";
-        interface_descriptors << "  DECLARE_DESCRIPTOR_WITH_BASE("
-                              << descriptor_name
-                              << ", TorqueInterfaceDescriptor)\n";
+        interface_descriptors << "class " << descriptor_name
+                              << " : public StaticCallInterfaceDescriptor<"
+                              << descriptor_name << "> {\n";
 
-        interface_descriptors
-            << "  std::vector<MachineType> ReturnType() override {\n";
-        interface_descriptors << "    return {{";
-        PrintCommaSeparatedList(interface_descriptors, return_types,
-                                MachineTypeString);
-        interface_descriptors << "}};\n";
-        interface_descriptors << "  }\n";
+        interface_descriptors << " public:\n";
 
-        interface_descriptors << "  std::array<MachineType, " << parameter_count
-                              << "> ParameterTypes() override {\n";
-        interface_descriptors << "    return {";
+        if (has_context_parameter) {
+          interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS(";
+        } else {
+          interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(";
+        }
+        interface_descriptors << return_types.size();
         for (size_t i = kFirstNonContextParameter;
              i < builtin->parameter_names().size(); ++i) {
-          bool last = i + 1 == builtin->parameter_names().size();
-          const Type* type = builtin->signature().parameter_types.types[i];
-          interface_descriptors << MachineTypeString(type)
-                                << (last ? "" : ", ");
+          Identifier* parameter = builtin->parameter_names()[i];
+          interface_descriptors << ", k" << CamelifyString(parameter->value);
         }
-        interface_descriptors << "};\n";
+        interface_descriptors << ")\n";
 
-        interface_descriptors << "  }\n";
+        interface_descriptors << "  DEFINE_RESULT_AND_PARAMETER_TYPES(";
+        PrintCommaSeparatedList(interface_descriptors, return_types,
+                                MachineTypeString);
+        for (size_t i = kFirstNonContextParameter;
+             i < builtin->parameter_names().size(); ++i) {
+          const Type* type = builtin->signature().parameter_types.types[i];
+          interface_descriptors << ", " << MachineTypeString(type);
+        }
+        interface_descriptors << ")\n";
+
+        interface_descriptors << "  DECLARE_DEFAULT_DESCRIPTOR("
+                              << descriptor_name << ")\n";
+
         interface_descriptors << "};\n\n";
       } else {
         builtin_definitions << "TFJ(" << builtin->ExternalName();
@@ -3784,7 +3878,17 @@ class CppClassGenerator {
 
  private:
   void GenerateClassConstructors();
-  void GenerateFieldAccessor(const Field& f);
+
+  // Generates getter and setter runtime member functions for the given class
+  // field. Traverses depth-first through any nested struct fields to generate
+  // accessors for them also; struct_fields represents the stack of currently
+  // active struct fields.
+  void GenerateFieldAccessors(const Field& class_field,
+                              std::vector<const Field*>& struct_fields);
+  void EmitLoadFieldStatement(const Field& class_field,
+                              std::vector<const Field*>& struct_fields);
+  void EmitStoreFieldStatement(const Field& class_field,
+                               std::vector<const Field*>& struct_fields);
 
   void GenerateClassCasts();
 
@@ -3795,10 +3899,6 @@ class CppClassGenerator {
   std::string GetTypeNameForAccessor(const Field& f);
 
   bool CanContainHeapObjects(const Type* t);
-
-  void EmitLoadFieldStatement(const Field& f);
-
-  void EmitStoreFieldStatement(const Field& f);
 
   const ClassType* type_;
   const ClassType* super_;
@@ -3817,7 +3917,7 @@ base::Optional<std::vector<Field>> GetOrderedUniqueIndexFields(
   std::set<std::string> index_names;
   for (const Field& field : type.ComputeAllFields()) {
     if (field.index) {
-      auto name_and_type = ExtractSimpleFieldArraySize(type, *field.index);
+      auto name_and_type = ExtractSimpleFieldArraySize(type, field.index->expr);
       if (!name_and_type) {
         return base::nullopt;
       }
@@ -3860,7 +3960,8 @@ void CppClassGenerator::GenerateClass() {
     hdr_ << " protected: // not extern or @export\n";
   }
   for (const Field& f : type_->fields()) {
-    GenerateFieldAccessor(f);
+    std::vector<const Field*> struct_fields;
+    GenerateFieldAccessors(f, struct_fields);
   }
   if (!type_->ShouldExport() && !type_->IsExtern()) {
     hdr_ << " public:\n";
@@ -3905,9 +4006,9 @@ void CppClassGenerator::GenerateClass() {
     const Field& last_field = type_->LastField();
     std::string last_field_item_size =
         std::get<1>(*SizeOf(last_field.name_and_type.type));
-    hdr_ << "  inline int AllocatedSize();\n\n";
+    hdr_ << "  inline int AllocatedSize() const;\n\n";
     inl_ << "template <class D, class P>\n";
-    inl_ << "int " << gen_name_T_ << "::AllocatedSize() {\n";
+    inl_ << "int " << gen_name_T_ << "::AllocatedSize() const {\n";
     inl_ << "  auto slice = "
          << Callable::PrefixNameForCCOutput(
                 type_->GetSliceMacroName(last_field))
@@ -3935,7 +4036,7 @@ void CppClassGenerator::GenerateClass() {
     for (const Field& field : type_->ComputeAllFields()) {
       if (field.index) {
         auto index_name_and_type =
-            *ExtractSimpleFieldArraySize(*type_, *field.index);
+            *ExtractSimpleFieldArraySize(*type_, field.index->expr);
         size_t field_size = 0;
         std::tie(field_size, std::ignore) = field.GetFieldSizeInformation();
         hdr_ << "    size += " << index_name_and_type.name << " * "
@@ -3947,7 +4048,7 @@ void CppClassGenerator::GenerateClass() {
     }
     hdr_ << "    return size;\n";
     hdr_ << "  }\n\n";
-    hdr_ << "  V8_INLINE int32_t AllocatedSize() {\n";
+    hdr_ << "  V8_INLINE int32_t AllocatedSize() const {\n";
     hdr_ << "    return SizeFor(";
     first = true;
     for (auto field : *index_fields) {
@@ -4054,7 +4155,7 @@ void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
   os << "  DCHECK_GE(" << index << ", 0);\n";
   std::string length_expression;
   if (base::Optional<NameAndType> array_length =
-          ExtractSimpleFieldArraySize(*type, *f.index)) {
+          ExtractSimpleFieldArraySize(*type, f.index->expr)) {
     length_expression = "this ->" + array_length->name + "()";
   } else {
     // The length is element 2 in the flattened field slice.
@@ -4068,21 +4169,43 @@ void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
 }  // namespace
 
 // TODO(sigurds): Keep in sync with DECL_ACCESSORS and ACCESSORS macro.
-void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
-  const Type* field_type = f.name_and_type.type;
+void CppClassGenerator::GenerateFieldAccessors(
+    const Field& class_field, std::vector<const Field*>& struct_fields) {
+  const Field& innermost_field =
+      struct_fields.empty() ? class_field : *struct_fields.back();
+  const Type* field_type = innermost_field.name_and_type.type;
   if (field_type == TypeOracle::GetVoidType()) return;
 
-  // TODO(danno): Support generation of struct accessors
-  if (f.name_and_type.type->IsStructType()) return;
-
-  // TODO(v8:10391) Generate accessors for external pointers
-  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
+  // float64_or_hole should be treated like float64. For now, we don't need it.
+  if (field_type == TypeOracle::GetFloat64OrHoleType()) {
     return;
   }
 
-  std::string type_name = GetTypeNameForAccessor(f);
+  if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
+    struct_fields.resize(struct_fields.size() + 1);
+    for (const Field& struct_field : struct_type->fields()) {
+      struct_fields[struct_fields.size() - 1] = &struct_field;
+      GenerateFieldAccessors(class_field, struct_fields);
+    }
+    struct_fields.resize(struct_fields.size() - 1);
+    return;
+  }
+
+  // TODO(v8:10391) Generate accessors for external pointers
+  if (field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
+    return;
+  }
+
+  bool indexed = class_field.index && !class_field.index->optional;
+  std::string type_name = GetTypeNameForAccessor(innermost_field);
   bool can_contain_heap_objects = CanContainHeapObjects(field_type);
-  const std::string& name = f.name_and_type.name;
+
+  // Assemble an accessor name by accumulating together all of the nested field
+  // names.
+  std::string name = class_field.name_and_type.name;
+  for (const Field* nested_struct_field : struct_fields) {
+    name += "_" + nested_struct_field->name_and_type.name;
+  }
 
   // Generate declarations in header.
   if (can_contain_heap_objects && !field_type->IsClassType() &&
@@ -4092,47 +4215,48 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
   }
 
   hdr_ << "  inline " << type_name << " " << name << "("
-       << (f.index ? "int i" : "") << ") const;\n";
+       << (indexed ? "int i" : "") << ") const;\n";
   if (can_contain_heap_objects) {
-    hdr_ << "  inline " << type_name << " " << name << "(IsolateRoot isolate"
-         << (f.index ? ", int i" : "") << ") const;\n";
+    hdr_ << "  inline " << type_name << " " << name
+         << "(PtrComprCageBase cage_base" << (indexed ? ", int i" : "")
+         << ") const;\n";
   }
-  hdr_ << "  inline void set_" << name << "(" << (f.index ? "int i, " : "")
+  hdr_ << "  inline void set_" << name << "(" << (indexed ? "int i, " : "")
        << type_name << " value"
        << (can_contain_heap_objects
                ? ", WriteBarrierMode mode = UPDATE_WRITE_BARRIER"
                : "")
        << ");\n\n";
 
-  // For tagged data, generate the extra getter that derives an IsolateRoot from
-  // the current object's pointer.
+  // For tagged data, generate the extra getter that derives an PtrComprCageBase
+  // from the current object's pointer.
   if (can_contain_heap_objects) {
     inl_ << "template <class D, class P>\n";
     inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "("
-         << (f.index ? "int i" : "") << ") const {\n";
-    inl_ << "  IsolateRoot isolate = GetIsolateForPtrCompr(*this);\n";
-    inl_ << "  return " << gen_name_ << "::" << name << "(isolate"
-         << (f.index ? ", i" : "") << ");\n";
+         << (indexed ? "int i" : "") << ") const {\n";
+    inl_ << "  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);\n";
+    inl_ << "  return " << gen_name_ << "::" << name << "(cage_base"
+         << (indexed ? ", i" : "") << ");\n";
     inl_ << "}\n";
   }
 
   // Generate the getter implementation.
   inl_ << "template <class D, class P>\n";
   inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "(";
-  if (can_contain_heap_objects) inl_ << "IsolateRoot isolate";
-  if (can_contain_heap_objects && f.index) inl_ << ", ";
-  if (f.index) inl_ << "int i";
+  if (can_contain_heap_objects) inl_ << "PtrComprCageBase cage_base";
+  if (can_contain_heap_objects && indexed) inl_ << ", ";
+  if (indexed) inl_ << "int i";
   inl_ << ") const {\n";
 
   inl_ << "  " << type_name << " value;\n";
-  EmitLoadFieldStatement(f);
+  EmitLoadFieldStatement(class_field, struct_fields);
   inl_ << "  return value;\n";
   inl_ << "}\n";
 
   // Generate the setter implementation.
   inl_ << "template <class D, class P>\n";
   inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(";
-  if (f.index) {
+  if (indexed) {
     inl_ << "int i, ";
   }
   inl_ << type_name << " value";
@@ -4140,7 +4264,7 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
     inl_ << ", WriteBarrierMode mode";
   }
   inl_ << ") {\n";
-  EmitStoreFieldStatement(f);
+  EmitStoreFieldStatement(class_field, struct_fields);
   inl_ << "}\n\n";
 }
 
@@ -4178,37 +4302,65 @@ bool CppClassGenerator::CanContainHeapObjects(const Type* t) {
          !t->IsSubtypeOf(TypeOracle::GetSmiType());
 }
 
-void CppClassGenerator::EmitLoadFieldStatement(const Field& f) {
-  const Type* field_type = f.name_and_type.type;
-  std::string type_name = GetTypeNameForAccessor(f);
-  std::string class_field_offset = GetFieldOffsetForAccessor(f);
-  const std::string field_size = std::get<1>(f.GetFieldSizeInformation());
+void CppClassGenerator::EmitLoadFieldStatement(
+    const Field& class_field, std::vector<const Field*>& struct_fields) {
+  const Field& innermost_field =
+      struct_fields.empty() ? class_field : *struct_fields.back();
+  const Type* field_type = innermost_field.name_and_type.type;
+  std::string type_name = GetTypeNameForAccessor(innermost_field);
+  const std::string class_field_size =
+      std::get<1>(class_field.GetFieldSizeInformation());
 
-  std::string offset = class_field_offset;
-  if (f.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, f);
-    inl_ << "  int offset = " << class_field_offset << " + i * " << field_size
-         << ";\n";
+  // field_offset contains both the offset from the beginning of the object to
+  // the class field and the combined offsets of any nested struct fields
+  // within, but not the index adjustment.
+  std::string field_offset = GetFieldOffsetForAccessor(class_field);
+  for (const Field* nested_struct_field : struct_fields) {
+    field_offset += " + " + std::to_string(*nested_struct_field->offset);
+  }
+
+  std::string offset = field_offset;
+  if (class_field.index) {
+    const char* index = class_field.index->optional ? "0" : "i";
+    GenerateBoundsDCheck(inl_, index, type_, class_field);
+    inl_ << "  int offset = " << field_offset << " + " << index << " * "
+         << class_field_size << ";\n";
     offset = "offset";
   }
 
   inl_ << "  value = ";
 
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    if (f.relaxed_read) {
+    if (class_field.read_synchronization ==
+        FieldSynchronization::kAcquireRelease) {
+      ReportError("Torque doesn't support @acquireRead on untagged data");
+    } else if (class_field.read_synchronization ==
+               FieldSynchronization::kRelaxed) {
       ReportError("Torque doesn't support @relaxedRead on untagged data");
     }
     inl_ << "this->template ReadField<" << type_name << ">(" << offset
          << ");\n";
   } else {
-    const char* load = f.relaxed_read ? "Relaxed_Load" : "load";
+    const char* load;
+    switch (class_field.read_synchronization) {
+      case FieldSynchronization::kNone:
+        load = "load";
+        break;
+      case FieldSynchronization::kRelaxed:
+        load = "Relaxed_Load";
+        break;
+      case FieldSynchronization::kAcquireRelease:
+        load = "Acquire_Load";
+        break;
+    }
     bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
     const std::string load_type = is_smi ? "Smi" : type_name;
     const char* postfix = is_smi ? ".value()" : "";
-    const char* optional_isolate = is_smi ? "" : "isolate, ";
+    const char* optional_cage_base = is_smi ? "" : "cage_base, ";
 
     inl_ << "TaggedField<" << load_type << ">::" << load << "("
-         << optional_isolate << "*this, " << offset << ")" << postfix << ";\n";
+         << optional_cage_base << "*this, " << offset << ")" << postfix
+         << ";\n";
   }
 
   if (CanContainHeapObjects(field_type)) {
@@ -4217,17 +4369,29 @@ void CppClassGenerator::EmitLoadFieldStatement(const Field& f) {
   }
 }
 
-void CppClassGenerator::EmitStoreFieldStatement(const Field& f) {
-  const Type* field_type = f.name_and_type.type;
-  std::string type_name = GetTypeNameForAccessor(f);
-  std::string class_field_offset = GetFieldOffsetForAccessor(f);
-  const std::string field_size = std::get<1>(f.GetFieldSizeInformation());
+void CppClassGenerator::EmitStoreFieldStatement(
+    const Field& class_field, std::vector<const Field*>& struct_fields) {
+  const Field& innermost_field =
+      struct_fields.empty() ? class_field : *struct_fields.back();
+  const Type* field_type = innermost_field.name_and_type.type;
+  std::string type_name = GetTypeNameForAccessor(innermost_field);
+  const std::string class_field_size =
+      std::get<1>(class_field.GetFieldSizeInformation());
 
-  std::string offset = class_field_offset;
-  if (f.index) {
-    GenerateBoundsDCheck(inl_, "i", type_, f);
-    inl_ << "  int offset = " << class_field_offset << " + i * " << field_size
-         << ";\n";
+  // field_offset contains both the offset from the beginning of the object to
+  // the class field and the combined offsets of any nested struct fields
+  // within, but not the index adjustment.
+  std::string field_offset = GetFieldOffsetForAccessor(class_field);
+  for (const Field* nested_struct_field : struct_fields) {
+    field_offset += " + " + std::to_string(*nested_struct_field->offset);
+  }
+
+  std::string offset = field_offset;
+  if (class_field.index) {
+    const char* index = class_field.index->optional ? "0" : "i";
+    GenerateBoundsDCheck(inl_, index, type_, class_field);
+    inl_ << "  int offset = " << field_offset << " + " << index << " * "
+         << class_field_size << ";\n";
     offset = "offset";
   }
 
@@ -4237,10 +4401,26 @@ void CppClassGenerator::EmitStoreFieldStatement(const Field& f) {
   } else {
     bool strong_pointer = field_type->IsSubtypeOf(TypeOracle::GetObjectType());
     bool is_smi = field_type->IsSubtypeOf(TypeOracle::GetSmiType());
-    const char* write_macro =
-        strong_pointer
-            ? (f.relaxed_write ? "RELAXED_WRITE_FIELD" : "WRITE_FIELD")
-            : "RELAXED_WRITE_WEAK_FIELD";
+    const char* write_macro;
+    if (!strong_pointer) {
+      if (class_field.write_synchronization ==
+          FieldSynchronization::kAcquireRelease) {
+        ReportError("Torque doesn't support @releaseWrite on weak fields");
+      }
+      write_macro = "RELAXED_WRITE_WEAK_FIELD";
+    } else {
+      switch (class_field.write_synchronization) {
+        case FieldSynchronization::kNone:
+          write_macro = "WRITE_FIELD";
+          break;
+        case FieldSynchronization::kRelaxed:
+          write_macro = "RELAXED_WRITE_FIELD";
+          break;
+        case FieldSynchronization::kAcquireRelease:
+          write_macro = "RELEASE_WRITE_FIELD";
+          break;
+      }
+    }
     const std::string value_to_write = is_smi ? "Smi::FromInt(value)" : "value";
 
     if (!is_smi) {
@@ -4678,7 +4858,7 @@ namespace {
 void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
                                 std::string offset, const Field& leaf_field,
                                 std::string indexed_field_size,
-                                std::ostream& cc_contents) {
+                                std::ostream& cc_contents, bool is_map) {
   const Type* field_type = leaf_field.name_and_type.type;
 
   bool maybe_object =
@@ -4693,8 +4873,12 @@ void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
   const std::string value = leaf_field.name_and_type.name + "__value";
 
   // Read the field.
-  cc_contents << "    " << object_type << " " << value << " = TaggedField<"
-              << object_type << ">::load(o, " << offset << ");\n";
+  if (is_map) {
+    cc_contents << "    " << object_type << " " << value << " = o.map();\n";
+  } else {
+    cc_contents << "    " << object_type << " " << value << " = TaggedField<"
+                << object_type << ">::load(o, " << offset << ");\n";
+  }
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
   cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "
@@ -4761,13 +4945,13 @@ void GenerateClassFieldVerifier(const std::string& class_name,
             class_name, f.index.has_value(),
             field_start_offset + " + " + std::to_string(*struct_field.offset),
             struct_field, std::to_string((*struct_type)->PackedSize()),
-            cc_contents);
+            cc_contents, f.name_and_type.name == "map");
       }
     }
   } else {
     GenerateFieldValueVerifier(class_name, f.index.has_value(),
                                field_start_offset, f, "kTaggedSize",
-                               cc_contents);
+                               cc_contents, f.name_and_type.name == "map");
   }
 
   cc_contents << "  }\n";
@@ -4785,14 +4969,10 @@ void ImplementationVisitor::GenerateClassVerifiers(
     IfDefScope verify_heap_h(h_contents, "VERIFY_HEAP");
     IfDefScope verify_heap_cc(cc_contents, "VERIFY_HEAP");
 
-    cc_contents << "\n#include \"src/objects/objects.h\"\n";
+    h_contents << "#include \"src/base/macros.h\"\n\n";
 
-    for (const std::string& include_path : GlobalContext::CppIncludes()) {
-      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
-    }
-    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
-    cc_contents << "#include "
-                   "\"src/objects/all-objects-inl.h\"\n";
+    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n\n";
+    cc_contents << "#include \"src/objects/all-objects-inl.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 
@@ -4911,6 +5091,7 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
     cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";
     cc_contents << "#include \"src/objects/property-descriptor-object.h\"\n";
+    cc_contents << "#include \"src/objects/swiss-name-dictionary.h\"\n";
     cc_contents << "#include \"src/objects/synthetic-module.h\"\n";
     cc_contents << "#include \"src/objects/template-objects.h\"\n";
     {
@@ -4978,6 +5159,24 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
   WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
 }
 
+namespace {
+
+void CollectAllFields(const std::string& path, const Field& field,
+                      std::vector<std::string>& result) {
+  if (field.name_and_type.type->StructSupertype()) {
+    std::string next_path = path + field.name_and_type.name + ".";
+    const StructType* struct_type =
+        StructType::DynamicCast(field.name_and_type.type);
+    for (const auto& inner_field : struct_type->fields()) {
+      CollectAllFields(next_path, inner_field, result);
+    }
+  } else {
+    result.push_back(path + field.name_and_type.name);
+  }
+}
+
+}  // namespace
+
 void ImplementationVisitor::GenerateCSATypes(
     const std::string& output_directory) {
   std::string file_name = "csa-types";
@@ -5008,20 +5207,13 @@ void ImplementationVisitor::GenerateCSATypes(
         first = false;
         h_contents << type->GetGeneratedTypeName();
       }
-      h_contents << "> Flatten() const {\n"
-                 << "    return std::tuple_cat(";
-      first = true;
+      std::vector<std::string> all_fields;
       for (auto& field : struct_type->fields()) {
-        if (!first) {
-          h_contents << ", ";
-        }
-        first = false;
-        if (field.name_and_type.type->StructSupertype()) {
-          h_contents << field.name_and_type.name << ".Flatten()";
-        } else {
-          h_contents << "std::make_tuple(" << field.name_and_type.name << ")";
-        }
+        CollectAllFields("", field, all_fields);
       }
+      h_contents << "> Flatten() const {\n"
+                    "    return std::make_tuple(";
+      PrintCommaSeparatedList(h_contents, all_fields);
       h_contents << ");\n";
       h_contents << "  }\n";
       h_contents << "};\n";
@@ -5055,6 +5247,7 @@ void ReportAllUnusedMacros() {
                                                  "FromConstexpr<"};
     const std::string name = macro->ReadableName();
     const bool ignore =
+        StartsWithSingleUnderscore(name) ||
         std::any_of(ignored_prefixes.begin(), ignored_prefixes.end(),
                     [&name](const std::string& prefix) {
                       return StringStartsWith(name, prefix);

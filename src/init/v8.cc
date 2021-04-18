@@ -26,7 +26,14 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#include "src/diagnostics/system-jit-win.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -46,7 +53,9 @@ bool V8::Initialize() {
 }
 
 void V8::TearDown() {
+#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::GlobalTearDown();
+#endif  // V8_ENABLE_WEBASSEMBLY
 #if defined(USE_SIMULATOR)
   Simulator::GlobalTearDown();
 #endif
@@ -118,9 +127,11 @@ void V8::InitializeOncePerProcessImpl() {
   // continue exposing wasm on correctness fuzzers even in jitless mode.
   // TODO(jgruber): Remove this once / if wasm can run without executable
   // memory.
+#if V8_ENABLE_WEBASSEMBLY
   if (FLAG_jitless && !FLAG_correctness_fuzzer_suppressions) {
     FLAG_expose_wasm = false;
   }
+#endif
 
   if (FLAG_regexp_interpret_all && FLAG_regexp_tier_up) {
     // Turning off the tier-up strategy, because the --regexp-interpret-all and
@@ -140,6 +151,7 @@ void V8::InitializeOncePerProcessImpl() {
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();
 #endif
+  PtrComprCage::InitializeOncePerProcess();
   Isolate::InitializeOncePerProcess();
 
 #if defined(USE_SIMULATOR)
@@ -149,7 +161,9 @@ void V8::InitializeOncePerProcessImpl() {
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
+#if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void V8::InitializeOncePerProcess() {
@@ -162,15 +176,24 @@ void V8::InitializePlatform(v8::Platform* platform) {
   platform_ = platform;
   v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
   v8::tracing::TracingCategoryObserver::SetUp();
-  cppgc::InitializeProcess(platform->GetPageAllocator());
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  if (FLAG_enable_system_instrumentation) {
+    // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
+    v8::internal::ETWJITInterface::Register();
+  }
+#endif
 }
 
 void V8::ShutdownPlatform() {
   CHECK(platform_);
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  if (FLAG_enable_system_instrumentation) {
+    v8::internal::ETWJITInterface::Unregister();
+  }
+#endif
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
   platform_ = nullptr;
-  cppgc::ShutdownProcess();
 }
 
 v8::Platform* V8::GetCurrentPlatform() {

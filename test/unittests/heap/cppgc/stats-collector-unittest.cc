@@ -18,7 +18,8 @@ constexpr size_t kMinReportedSize = StatsCollector::kAllocationThresholdBytes;
 
 class StatsCollectorTest : public ::testing::Test {
  public:
-  StatsCollectorTest() : stats(nullptr /* metric_recorder */) {}
+  StatsCollectorTest()
+      : stats(nullptr /* metric_recorder */, nullptr /* platform */) {}
 
   void FakeAllocate(size_t bytes) {
     stats.NotifyAllocation(bytes);
@@ -116,6 +117,8 @@ class MockAllocationObserver : public StatsCollector::AllocationObserver {
   MOCK_METHOD(void, AllocatedObjectSizeIncreased, (size_t), (override));
   MOCK_METHOD(void, AllocatedObjectSizeDecreased, (size_t), (override));
   MOCK_METHOD(void, ResetAllocatedObjectSize, (size_t), (override));
+  MOCK_METHOD(void, AllocatedSizeIncreased, (size_t), (override));
+  MOCK_METHOD(void, AllocatedSizeDecreased, (size_t), (override));
 };
 
 TEST_F(StatsCollectorTest, RegisterUnregisterObserver) {
@@ -152,6 +155,18 @@ TEST_F(StatsCollectorTest, ObserveResetAllocatedObjectSize) {
   FakeAllocate(kMinReportedSize);
   EXPECT_CALL(observer, ResetAllocatedObjectSize(64));
   FakeGC(&stats, 64);
+  stats.UnregisterObserver(&observer);
+}
+
+TEST_F(StatsCollectorTest, ObserveAllocatedMemoryIncreaseAndDecrease) {
+  MockAllocationObserver observer;
+  stats.RegisterObserver(&observer);
+  static constexpr size_t kAllocatedMemorySize = 4096;
+  EXPECT_CALL(observer, AllocatedSizeIncreased(kAllocatedMemorySize));
+  stats.NotifyAllocatedMemory(kAllocatedMemorySize);
+  static constexpr size_t kFreedMemorySize = 2048;
+  EXPECT_CALL(observer, AllocatedSizeDecreased(kFreedMemorySize));
+  stats.NotifyFreedMemory(kFreedMemorySize);
   stats.UnregisterObserver(&observer);
 }
 
@@ -210,6 +225,14 @@ TEST_F(StatsCollectorTest, ObserverTriggersGC) {
 
   stats.UnregisterObserver(&gc_observer);
   stats.UnregisterObserver(&mock_observer);
+}
+
+TEST_F(StatsCollectorTest, AllocatedMemorySize) {
+  EXPECT_EQ(0u, stats.allocated_memory_size());
+  stats.NotifyAllocatedMemory(1024);
+  EXPECT_EQ(1024u, stats.allocated_memory_size());
+  stats.NotifyFreedMemory(1024);
+  EXPECT_EQ(0u, stats.allocated_memory_size());
 }
 
 }  // namespace internal

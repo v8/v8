@@ -113,7 +113,7 @@ PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
 // static
 Name TransitionsAccessor::GetSimpleTransitionKey(Map transition) {
   InternalIndex descriptor = transition.LastAdded();
-  return transition.instance_descriptors(kRelaxedLoad).GetKey(descriptor);
+  return transition.instance_descriptors().GetKey(descriptor);
 }
 
 // static
@@ -217,7 +217,7 @@ void TransitionsAccessor::Reload() {
 int TransitionsAccessor::Capacity() { return transitions().Capacity(); }
 
 void TransitionsAccessor::Initialize() {
-  raw_transitions_ = map_.raw_transitions(isolate_);
+  raw_transitions_ = map_.raw_transitions(isolate_, kAcquireLoad);
   HeapObject heap_object;
   if (raw_transitions_->IsSmi() || raw_transitions_->IsCleared()) {
     encoding_ = kUninitialized;

@@ -11,6 +11,7 @@
 #include "src/builtins/builtins-string-gen.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
@@ -65,7 +66,7 @@ TEST(CallCFunction) {
 
     MachineType type_intptr = MachineType::IntPtr();
 
-    Node* const result =
+    TNode<IntPtrT> const result = m.UncheckedCast<IntPtrT>(
         m.CallCFunction(fun_constant, type_intptr,
                         std::make_pair(type_intptr, m.IntPtrConstant(0)),
                         std::make_pair(type_intptr, m.IntPtrConstant(1)),
@@ -76,7 +77,7 @@ TEST(CallCFunction) {
                         std::make_pair(type_intptr, m.IntPtrConstant(6)),
                         std::make_pair(type_intptr, m.IntPtrConstant(7)),
                         std::make_pair(type_intptr, m.IntPtrConstant(8)),
-                        std::make_pair(type_intptr, m.IntPtrConstant(9)));
+                        std::make_pair(type_intptr, m.IntPtrConstant(9))));
     m.Return(m.SmiTag(result));
   }
 
@@ -99,11 +100,12 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
 
     MachineType type_intptr = MachineType::IntPtr();
 
-    Node* const result = m.CallCFunctionWithCallerSavedRegisters(
-        fun_constant, type_intptr, kSaveFPRegs,
-        std::make_pair(type_intptr, m.IntPtrConstant(0)),
-        std::make_pair(type_intptr, m.IntPtrConstant(1)),
-        std::make_pair(type_intptr, m.IntPtrConstant(2)));
+    TNode<IntPtrT> const result =
+        m.UncheckedCast<IntPtrT>(m.CallCFunctionWithCallerSavedRegisters(
+            fun_constant, type_intptr, kSaveFPRegs,
+            std::make_pair(type_intptr, m.IntPtrConstant(0)),
+            std::make_pair(type_intptr, m.IntPtrConstant(1)),
+            std::make_pair(type_intptr, m.IntPtrConstant(2))));
     m.Return(m.SmiTag(result));
   }
 
@@ -881,7 +883,8 @@ void TestNameDictionaryLookup() {
   };
 
   for (size_t i = 0; i < arraysize(keys); i++) {
-    Handle<Object> value = factory->NewPropertyCell(keys[i]);
+    Handle<Object> value =
+        factory->NewPropertyCell(keys[i], fake_details, keys[i]);
     dictionary =
         Dictionary::Add(isolate, dictionary, keys[i], value, fake_details);
   }
@@ -1888,13 +1891,21 @@ TEST(AllocateJSObjectFromMap) {
                                           "object")));
     JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "Normalize");
+    Handle<HeapObject> properties =
+        V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
+            ? Handle<HeapObject>(object->property_dictionary_swiss(), isolate)
+            : handle(object->property_dictionary(), isolate);
     Handle<JSObject> result = Handle<JSObject>::cast(
-        ft.Call(handle(object->map(), isolate),
-                handle(object->property_dictionary(), isolate),
+        ft.Call(handle(object->map(), isolate), properties,
                 handle(object->elements(), isolate))
             .ToHandleChecked());
     CHECK_EQ(result->map(), object->map());
-    CHECK_EQ(result->property_dictionary(), object->property_dictionary());
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      CHECK_EQ(result->property_dictionary_swiss(),
+               object->property_dictionary_swiss());
+    } else {
+      CHECK_EQ(result->property_dictionary(), object->property_dictionary());
+    }
     CHECK(!result->HasFastProperties());
 #ifdef VERIFY_HEAP
     isolate->heap()->Verify();
@@ -2014,7 +2025,7 @@ TEST(PopAndReturnFromTFCBuiltinWithStackParameters) {
   // least one argument passed on stack.
   using Descriptor = FlatMapIntoArrayDescriptor;
   Descriptor descriptor;
-  CHECK_LT(0, descriptor.GetStackParameterCount());
+  CHECK_LT(0, Descriptor::GetStackParameterCount());
 
   CodeAssemblerTester asm_tester(isolate, Descriptor());
   {
@@ -2443,6 +2454,90 @@ TEST(IsDebugActive) {
   *debug_is_active = false;
 }
 
+// Ensure that the kShortBuiltinCallsOldSpaceSizeThreshold constant can be used
+// for detecting whether the machine has >= 4GB of physical memory by checking
+// the max old space size.
+TEST(ShortBuiltinCallsThreshold) {
+  if (!V8_SHORT_BUILTIN_CALLS_BOOL) return;
+
+  const uint64_t kPhysicalMemoryThreshold = size_t{4} * GB;
+
+  size_t heap_size, old, young;
+
+  // If the physical memory is < kPhysicalMemoryThreshold then the old space
+  // size must be below the kShortBuiltinCallsOldSpaceThreshold.
+  heap_size = Heap::HeapSizeFromPhysicalMemory(kPhysicalMemoryThreshold - MB);
+  i::Heap::GenerationSizesFromHeapSize(heap_size, &young, &old);
+  CHECK_LT(old, kShortBuiltinCallsOldSpaceSizeThreshold);
+
+  // If the physical memory is >= kPhysicalMemoryThreshold then the old space
+  // size must be below the kShortBuiltinCallsOldSpaceThreshold.
+  heap_size = Heap::HeapSizeFromPhysicalMemory(kPhysicalMemoryThreshold);
+  i::Heap::GenerationSizesFromHeapSize(heap_size, &young, &old);
+  CHECK_GE(old, kShortBuiltinCallsOldSpaceSizeThreshold);
+
+  heap_size = Heap::HeapSizeFromPhysicalMemory(kPhysicalMemoryThreshold + MB);
+  i::Heap::GenerationSizesFromHeapSize(heap_size, &young, &old);
+  CHECK_GE(old, kShortBuiltinCallsOldSpaceSizeThreshold);
+}
+
+TEST(CallBuiltin) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester(isolate,
+                                 kNumParams + 1);  // Include receiver.
+  PromiseBuiltinsAssembler m(asm_tester.state());
+
+  {
+    auto receiver = m.Parameter<Object>(1);
+    auto name = m.Parameter<Name>(2);
+    auto context = m.Parameter<Context>(kNumParams + 3);
+
+    auto value = m.CallBuiltin(Builtins::kGetProperty, context, receiver, name);
+    m.Return(value);
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Factory* factory = isolate->factory();
+  Handle<Name> name = factory->InternalizeUtf8String("a");
+  Handle<Object> value(Smi::FromInt(153), isolate);
+  Handle<JSObject> object = factory->NewJSObjectWithNullProto();
+  JSObject::AddProperty(isolate, object, name, value, NONE);
+
+  Handle<Object> result = ft.Call(object, name).ToHandleChecked();
+  CHECK_EQ(*value, *result);
+}
+
+TEST(TailCallBuiltin) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester(isolate,
+                                 kNumParams + 1);  // Include receiver.
+  PromiseBuiltinsAssembler m(asm_tester.state());
+
+  {
+    auto receiver = m.Parameter<Object>(1);
+    auto name = m.Parameter<Name>(2);
+    auto context = m.Parameter<Context>(kNumParams + 3);
+
+    m.TailCallBuiltin(Builtins::kGetProperty, context, receiver, name);
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Factory* factory = isolate->factory();
+  Handle<Name> name = factory->InternalizeUtf8String("a");
+  Handle<Object> value(Smi::FromInt(153), isolate);
+  Handle<JSObject> object = factory->NewJSObjectWithNullProto();
+  JSObject::AddProperty(isolate, object, name, value, NONE);
+
+  Handle<Object> result = ft.Call(object, name).ToHandleChecked();
+  CHECK_EQ(*value, *result);
+}
+
 class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
  public:
   AppendJSArrayCodeStubAssembler(compiler::CodeAssemblerState* state,
@@ -2747,7 +2842,8 @@ TEST(CreatePromiseResolvingFunctions) {
       m.NewJSPromise(context, m.UndefinedConstant());
   PromiseResolvingFunctions funcs = m.CreatePromiseResolvingFunctions(
       context, promise, m.BooleanConstant(false), native_context);
-  Node *resolve = funcs.resolve, *reject = funcs.reject;
+  TNode<JSFunction> resolve = funcs.resolve;
+  TNode<JSFunction> reject = funcs.reject;
   TNode<IntPtrT> const kSize = m.IntPtrConstant(2);
   TNode<FixedArray> const arr =
       m.Cast(m.AllocateFixedArray(PACKED_ELEMENTS, kSize));
@@ -3132,7 +3228,7 @@ TEST(DirectMemoryTest16BitWord32) {
 
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
-      Node* loaded = m.LoadBufferData<Uint16T>(
+      TNode<Uint16T> loaded = m.LoadBufferData<Uint16T>(
           buffer_node1, static_cast<int>(i * sizeof(int16_t)));
       TNode<Word32T> masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
@@ -3853,8 +3949,8 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   CodeStubAssembler m(asm_tester.state());
 
   {
-    Node* x = m.SmiUntag(m.Parameter<Smi>(1));
-    Node* y = m.WordOr(m.WordShr(x, 1), m.IntPtrConstant(1));
+    TNode<IntPtrT> x = m.SmiUntag(m.Parameter<Smi>(1));
+    TNode<WordT> y = m.WordOr(m.WordShr(x, 1), m.IntPtrConstant(1));
     TNode<ExternalReference> isolate_ptr =
         m.ExternalConstant(ExternalReference::isolate_address(isolate));
     m.CallCFunctionWithCallerSavedRegisters(
@@ -3877,6 +3973,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   FLAG_turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST(WasmInt32ToHeapNumber) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
@@ -4103,6 +4200,7 @@ TEST(WasmTaggedToFloat64) {
     }
   }
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST(SmiUntagLeftShiftOptimization) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -4149,6 +4247,85 @@ TEST(SmiUntagComparisonOptimization) {
 
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+}
+
+TEST(PopCount) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  const std::vector<std::pair<uint32_t, int>> test_cases = {
+      {0, 0},
+      {1, 1},
+      {(1 << 31), 1},
+      {0b01010101010101010101010101010101, 16},
+      {0b10101010101010101010101010101010, 16},
+      {0b11100011100000011100011111000111, 17}  // arbitrarily chosen
+  };
+
+  for (std::pair<uint32_t, int> test_case : test_cases) {
+    uint32_t value32 = test_case.first;
+    uint64_t value64 = (static_cast<uint64_t>(value32) << 32) | value32;
+    int expected_pop32 = test_case.second;
+    int expected_pop64 = 2 * expected_pop32;
+
+    TNode<Int32T> pop32 = m.PopulationCount32(m.Uint32Constant(value32));
+    CSA_CHECK(&m, m.Word32Equal(pop32, m.Int32Constant(expected_pop32)));
+
+    if (m.Is64()) {
+      // TODO(emrich): enable once 64-bit operations are supported on 32-bit
+      // architectures.
+
+      TNode<Int64T> pop64 = m.PopulationCount64(m.Uint64Constant(value64));
+      CSA_CHECK(&m, m.Word64Equal(pop64, m.Int64Constant(expected_pop64)));
+    }
+  }
+  m.Return(m.UndefinedConstant());
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  ft.Call();
+}
+
+TEST(CountTrailingZeros) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  const std::vector<std::pair<uint32_t, int>> test_cases = {
+      {1, 0},
+      {2, 1},
+      {(0b0101010'0000'0000), 9},
+      {(1 << 31), 31},
+      {std::numeric_limits<uint32_t>::max(), 0},
+  };
+
+  for (std::pair<uint32_t, int> test_case : test_cases) {
+    uint32_t value32 = test_case.first;
+    uint64_t value64 = static_cast<uint64_t>(value32) << 32;
+    int expected_ctz32 = test_case.second;
+    int expected_ctz64 = expected_ctz32 + 32;
+
+    TNode<Int32T> pop32 = m.CountTrailingZeros32(m.Uint32Constant(value32));
+    CSA_CHECK(&m, m.Word32Equal(pop32, m.Int32Constant(expected_ctz32)));
+
+    if (m.Is64()) {
+      // TODO(emrich): enable once 64-bit operations are supported on 32-bit
+      // architectures.
+
+      TNode<Int64T> pop64_ext =
+          m.CountTrailingZeros64(m.Uint64Constant(value32));
+      TNode<Int64T> pop64 = m.CountTrailingZeros64(m.Uint64Constant(value64));
+
+      CSA_CHECK(&m, m.Word64Equal(pop64_ext, m.Int64Constant(expected_ctz32)));
+      CSA_CHECK(&m, m.Word64Equal(pop64, m.Int64Constant(expected_ctz64)));
+    }
+  }
+  m.Return(m.UndefinedConstant());
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  ft.Call();
 }
 
 }  // namespace compiler

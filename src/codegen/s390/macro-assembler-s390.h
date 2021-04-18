@@ -46,6 +46,22 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
+  void AtomicCmpExchangeHelper(Register addr, Register output,
+                               Register old_value, Register new_value,
+                               int start, int end, int shift_amount, int offset,
+                               Register temp0, Register temp1);
+  void AtomicCmpExchangeU8(Register addr, Register output, Register old_value,
+                           Register new_value, Register temp0, Register temp1);
+  void AtomicCmpExchangeU16(Register addr, Register output, Register old_value,
+                            Register new_value, Register temp0, Register temp1);
+  void AtomicExchangeHelper(Register addr, Register value, Register output,
+                            int start, int end, int shift_amount, int offset,
+                            Register scratch);
+  void AtomicExchangeU8(Register addr, Register value, Register output,
+                        Register scratch);
+  void AtomicExchangeU16(Register addr, Register value, Register output,
+                         Register scratch);
+
   void DoubleMax(DoubleRegister result_reg, DoubleRegister left_reg,
                  DoubleRegister right_reg);
   void DoubleMin(DoubleRegister result_reg, DoubleRegister left_reg,
@@ -102,7 +118,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
-  void JumpCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override;
 
   void CallBuiltinByIndex(Register builtin_index) override;
 
@@ -976,6 +993,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Returns the pc offset at which the frame ends.
   int LeaveFrame(StackFrame::Type type, int stack_adjustment = 0);
 
+  void AllocateStackSpace(int bytes) {
+    DCHECK_GE(bytes, 0);
+    if (bytes == 0) return;
+    lay(sp, MemOperand(sp, -bytes));
+  }
+
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
@@ -1026,6 +1049,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressTaggedPointer(Register destination, Register source);
   void DecompressAnyTagged(Register destination, MemOperand field_operand);
   void DecompressAnyTagged(Register destination, Register source);
+
+  // CountLeadingZeros will corrupt the scratch register pair (eg. r0:r1)
+  void CountLeadingZerosU32(Register dst, Register src,
+                            Register scratch_pair = r0);
+  void CountLeadingZerosU64(Register dst, Register src,
+                            Register scratch_pair = r0);
+  void CountTrailingZerosU32(Register dst, Register src,
+                             Register scratch_pair = r0);
+  void CountTrailingZerosU64(Register dst, Register src,
+                             Register scratch_pair = r0);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1228,10 +1261,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
-    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+    LoadNativeContextSlot(dst, Context::GLOBAL_PROXY_INDEX);
   }
 
-  void LoadNativeContextSlot(int index, Register dst);
+  void LoadNativeContextSlot(Register dst, int index);
 
   // ---------------------------------------------------------------------------
   // Smi utilities

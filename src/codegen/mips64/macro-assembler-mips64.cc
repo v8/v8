@@ -23,7 +23,10 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
@@ -2755,6 +2758,51 @@ void TurboAssembler::ExtMulHigh(MSADataType type, MSARegister dst,
 }
 #undef EXT_MUL_BINOP
 
+void TurboAssembler::LoadSplat(MSASize sz, MSARegister dst, MemOperand src) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  switch (sz) {
+    case MSA_B:
+      Lb(scratch, src);
+      fill_b(dst, scratch);
+      break;
+    case MSA_H:
+      Lh(scratch, src);
+      fill_h(dst, scratch);
+      break;
+    case MSA_W:
+      Lw(scratch, src);
+      fill_w(dst, scratch);
+      break;
+    case MSA_D:
+      Ld(scratch, src);
+      fill_d(dst, scratch);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void TurboAssembler::ExtAddPairwise(MSADataType type, MSARegister dst,
+                                    MSARegister src) {
+  switch (type) {
+    case MSAS8:
+      hadd_s_h(dst, src, src);
+      break;
+    case MSAU8:
+      hadd_u_h(dst, src, src);
+      break;
+    case MSAS16:
+      hadd_s_w(dst, src, src);
+      break;
+    case MSAU16:
+      hadd_u_w(dst, src, src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void TurboAssembler::MSARoundW(MSARegister dst, MSARegister src,
                                FPURoundingMode mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -3334,8 +3382,13 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   Dsubu(sp, sp, Operand(kDoubleSize));  // Put input on stack.
   Sdc1(double_input, MemOperand(sp, 0));
 
+#if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+#else
+  // For balance.
+  if (false) {
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }
@@ -5281,7 +5334,7 @@ void TurboAssembler::LoadMap(Register destination, Register object) {
   Ld(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
-void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   Ld(dst,
      FieldMemOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));

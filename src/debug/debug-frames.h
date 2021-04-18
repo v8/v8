@@ -38,7 +38,9 @@ class FrameInspector {
 
   Handle<String> GetFunctionName() { return function_name_; }
 
+#if V8_ENABLE_WEBASSEMBLY
   bool IsWasm();
+#endif  // V8_ENABLE_WEBASSEMBLY
   bool IsJavaScript();
 
   JavaScriptFrame* javascript_frame();
@@ -59,7 +61,6 @@ class FrameInspector {
   Handle<String> function_name_;
   int source_position_ = -1;
   bool is_optimized_ = false;
-  bool is_interpreted_ = false;
   bool is_constructor_ = false;
 };
 

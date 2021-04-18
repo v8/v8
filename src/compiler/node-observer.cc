@@ -20,6 +20,7 @@ void ObserveNodeManager::StartObserving(Node* node, NodeObserver* observer) {
   DCHECK_NOT_NULL(observer);
   DCHECK(observations_.find(node->id()) == observations_.end());
 
+  observer->set_has_observed_changes();
   NodeObserver::Observation observation = observer->OnNodeCreated(node);
   if (observation == NodeObserver::Observation::kContinue) {
     observations_[node->id()] =

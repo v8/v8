@@ -6,7 +6,7 @@ type SourceTextModuleInfo extends FixedArray;
 
 bitfield struct SourceTextModuleFlags extends uint31 {
   async: bool: 1 bit;
-  async_evaluating: bool: 1 bit;
+  async_evaluating_ordinal: uint32: 30 bit;
 }
 
 @generateCppClass
@@ -37,7 +37,6 @@ extern class SourceTextModule extends Module {
   cycle_root: SourceTextModule|TheHole;
 
   async_parent_modules: ArrayList;
-  top_level_capability: JSPromise|Undefined;
 
   // TODO(neis): Don't store those in the module object?
   dfs_index: Smi;

@@ -113,8 +113,8 @@
 
 #define WASM_HEAP_TYPE(heap_type) static_cast<byte>((heap_type).code() & 0x7f)
 
-#define WASM_REF_TYPE(type)                                  \
-  (type).kind() == ValueType::kRef ? kRefCode : kOptRefCode, \
+#define WASM_REF_TYPE(type)                       \
+  (type).kind() == kRef ? kRefCode : kOptRefCode, \
       WASM_HEAP_TYPE((type).heap_type())
 
 #define WASM_BLOCK(...) kExprBlock, kVoidCode, __VA_ARGS__, kExprEnd
@@ -183,13 +183,23 @@
 #define WASM_TRY_CATCH_T(t, trystmt, catchstmt, except)                    \
   kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
       except, catchstmt, kExprEnd
+#define WASM_TRY_CATCH_CATCH_T(t, trystmt, except1, catchstmt1, except2,   \
+                               catchstmt2)                                 \
+  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
+      except1, catchstmt1, kExprCatch, except2, catchstmt2, kExprEnd
 #define WASM_TRY_CATCH_R(t, trystmt, catchstmt) \
   kExprTry, WASM_REF_TYPE(t), trystmt, kExprCatch, catchstmt, kExprEnd
-#define WASM_TRY_CATCH_ALL_T(t, trystmt, catchstmt)                       \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprElse, \
+#define WASM_TRY_CATCH_ALL_T(t, trystmt, catchstmt)                           \
+  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatchAll, \
       catchstmt, kExprEnd
 #define WASM_TRY_DELEGATE(trystmt, depth) \
   kExprTry, kVoidCode, trystmt, kExprDelegate, depth
+#define WASM_TRY_DELEGATE_T(t, trystmt, depth)                                \
+  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprDelegate, \
+      depth
+#define WASM_TRY_UNWIND_T(t, trystmt, unwindstmt)                           \
+  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprUnwind, \
+      unwindstmt, kExprEnd
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 #define WASM_SELECT_I(tval, fval, cond) \
@@ -465,6 +475,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   index, val,                                                               \
       static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       alignment, ZERO_OFFSET
+#define WASM_RETHROW(index) kExprRethrow, static_cast<byte>(index)
 
 #define WASM_CALL_FUNCTION0(index) kExprCallFunction, static_cast<byte>(index)
 #define WASM_CALL_FUNCTION(index, ...) \
@@ -796,7 +807,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 //------------------------------------------------------------------------------
 // Memory Operations.
 //------------------------------------------------------------------------------
-#define WASM_GROW_MEMORY(x) x, kExprMemoryGrow, 0
+#define WASM_MEMORY_GROW(x) x, kExprMemoryGrow, 0
 #define WASM_MEMORY_SIZE kExprMemorySize, 0
 
 #define SIG_ENTRY_v_v kWasmFunctionTypeCode, 0, 0

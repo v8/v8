@@ -2,6 +2,10 @@
 // this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_OBJECTS_H_
 #define V8_WASM_WASM_OBJECTS_H_
 
@@ -309,12 +313,14 @@ class WasmMemoryObject : public JSObject {
   inline bool has_maximum_pages();
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
-      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, uint32_t maximum);
+      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, int maximum);
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(Isolate* isolate,
-                                                             uint32_t initial,
-                                                             uint32_t maximum,
+                                                             int initial,
+                                                             int maximum,
                                                              SharedFlag shared);
+
+  static constexpr int kNoMaximum = -1;
 
   void update_instances(Isolate* isolate, Handle<JSArrayBuffer> buffer);
 
@@ -339,8 +345,8 @@ class WasmGlobalObject : public JSObject {
   DECL_INT32_ACCESSORS(offset)
   DECL_INT_ACCESSORS(raw_type)
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
-  // TODO(7748): Once we improve the encoding of mutability/type, turn this back
-  // into a boolean accessor.
+  // TODO(7748): If we encode mutability in raw_type, turn this into a boolean
+  // accessor.
   DECL_INT_ACCESSORS(is_mutable)
 
   // Dispatched behavior.
@@ -418,6 +424,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(num_liftoff_function_calls_array, uint32_t*)
+  DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
@@ -466,6 +473,9 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kNumLiftoffFunctionCallsArrayOffset, kSystemPointerSize)              \
+  V(kBreakOnEntryOffset, kUInt8Size)                                      \
+  /* More padding to make the header pointer-size aligned */              \
+  V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -795,6 +805,10 @@ class WasmJSFunctionData : public Struct {
 
 class WasmScript : public AllStatic {
  public:
+  // Position used for storing "on entry" breakpoints (a.k.a. instrumentation
+  // breakpoints). This would be an illegal position for any other breakpoint.
+  static constexpr int kOnEntryBreakpointPosition = -1;
+
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.
   // The passed position might be modified to point to the next breakable
@@ -904,6 +918,8 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
 
   inline ObjectSlot RawField(int raw_offset);
 
+  wasm::WasmValue GetFieldValue(uint32_t field_index);
+
   DECL_CAST(WasmStruct)
   DECL_PRINTER(WasmStruct)
 
@@ -917,6 +933,8 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
   static inline wasm::ArrayType* type(Map map);
   inline wasm::ArrayType* type() const;
   static inline wasm::ArrayType* GcSafeType(Map map);
+
+  wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Map map, int length);
   static inline int GcSafeSizeFor(Map map, int length);

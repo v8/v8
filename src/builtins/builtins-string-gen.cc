@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-using Node = compiler::Node;
-
 TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
     TNode<String> string, TNode<Word32T> string_instance_type) {
   // Compute the effective offset of the first character.
@@ -1160,87 +1158,6 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   }
 }
 
-class StringMatchSearchAssembler : public StringBuiltinsAssembler {
- public:
-  explicit StringMatchSearchAssembler(compiler::CodeAssemblerState* state)
-      : StringBuiltinsAssembler(state) {}
-
- protected:
-  enum Variant { kMatch, kSearch };
-
-  void Generate(Variant variant, const char* method_name,
-                TNode<Object> receiver, TNode<Object> maybe_regexp,
-                TNode<Context> context) {
-    Label call_regexp_match_search(this);
-
-    Builtins::Name builtin;
-    Handle<Symbol> symbol;
-    DescriptorIndexNameValue property_to_check;
-    if (variant == kMatch) {
-      builtin = Builtins::kRegExpMatchFast;
-      symbol = isolate()->factory()->match_symbol();
-      property_to_check = DescriptorIndexNameValue{
-          JSRegExp::kSymbolMatchFunctionDescriptorIndex,
-          RootIndex::kmatch_symbol, Context::REGEXP_MATCH_FUNCTION_INDEX};
-    } else {
-      builtin = Builtins::kRegExpSearchFast;
-      symbol = isolate()->factory()->search_symbol();
-      property_to_check = DescriptorIndexNameValue{
-          JSRegExp::kSymbolSearchFunctionDescriptorIndex,
-          RootIndex::ksearch_symbol, Context::REGEXP_SEARCH_FUNCTION_INDEX};
-    }
-
-    RequireObjectCoercible(context, receiver, method_name);
-
-    MaybeCallFunctionAtSymbol(
-        context, maybe_regexp, receiver, symbol, property_to_check,
-        [=] { Return(CallBuiltin(builtin, context, maybe_regexp, receiver)); },
-        [=](TNode<Object> fn) {
-          Return(Call(context, fn, maybe_regexp, receiver));
-        });
-
-    // maybe_regexp is not a RegExp nor has [@@match / @@search] property.
-    {
-      RegExpBuiltinsAssembler regexp_asm(state());
-
-      TNode<String> receiver_string = ToString_Inline(context, receiver);
-      TNode<NativeContext> native_context = LoadNativeContext(context);
-      TNode<HeapObject> regexp_function = CAST(
-          LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
-      TNode<Map> initial_map = CAST(LoadObjectField(
-          regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
-      TNode<Object> regexp = regexp_asm.RegExpCreate(
-          context, initial_map, maybe_regexp, EmptyStringConstant());
-
-      // TODO(jgruber): Handle slow flag accesses on the fast path and make this
-      // permissive.
-      Label fast_path(this), slow_path(this);
-      regexp_asm.BranchIfFastRegExp(
-          context, CAST(regexp), initial_map,
-          PrototypeCheckAssembler::kCheckPrototypePropertyConstness,
-          property_to_check, &fast_path, &slow_path);
-
-      BIND(&fast_path);
-      Return(CallBuiltin(builtin, context, regexp, receiver_string));
-
-      BIND(&slow_path);
-      {
-        TNode<Object> maybe_func = GetProperty(context, regexp, symbol);
-        Return(Call(context, maybe_func, regexp, receiver_string));
-      }
-    }
-  }
-};
-
-// ES6 #sec-string.prototype.match
-TF_BUILTIN(StringPrototypeMatch, StringMatchSearchAssembler) {
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
-  auto context = Parameter<Context>(Descriptor::kContext);
-
-  Generate(kMatch, "String.prototype.match", receiver, maybe_regexp, context);
-}
-
 // ES #sec-string.prototype.matchAll
 TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   char const* method_name = "String.prototype.matchAll";
@@ -1338,14 +1255,6 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   TNode<Object> match_all_func =
       GetProperty(context, rx, isolate()->factory()->match_all_symbol());
   Return(Call(context, match_all_func, rx, s));
-}
-
-// ES6 #sec-string.prototype.search
-TF_BUILTIN(StringPrototypeSearch, StringMatchSearchAssembler) {
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
-  auto context = Parameter<Context>(Descriptor::kContext);
-  Generate(kSearch, "String.prototype.search", receiver, maybe_regexp, context);
 }
 
 TNode<JSArray> StringBuiltinsAssembler::StringToArray(

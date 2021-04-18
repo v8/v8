@@ -216,14 +216,14 @@ const bucketDescriptors =
         color : "#64dd17",
         backgroundColor : "#80e27e",
         text : "JS Optimized" },
-      { kinds : [ "JSNCI" ],
-        color : "#3289a8",
-        backgroundColor : "#3289a8",
-        text : "JS NCI" },
       { kinds : [ "JSTURBOPROP" ],
         color : "#693eb8",
         backgroundColor : "#a6c452",
         text : "JS Turboprop" },
+      { kinds : [ "JSBASELINE" ],
+        color : "#b3005b",
+        backgroundColor : "#ff9e80",
+        text : "JS Baseline" },
       { kinds : [ "JSUNOPT", "BC" ],
         color : "#dd2c00",
         backgroundColor : "#ff9e80",
@@ -316,8 +316,6 @@ function codeTypeToText(type) {
       return "RegExp";
     case "JSOPT":
       return "JS opt";
-    case "JSNCI":
-      return "JS NCI";
     case "JSTURBOPROP":
       return "JS Turboprop";
     case "JSUNOPT":

@@ -258,15 +258,46 @@ bool ArrayIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
   }
 }
 
-// TODO(7748): Expand this with function subtyping once the hiccups
-// with 'exact types' have been cleared.
 bool FunctionIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
                          const WasmModule* sub_module,
                          const WasmModule* super_module) {
-  return FunctionEquivalentIndices(subtype_index, supertype_index, sub_module,
-                                   super_module);
-}
+  if (!FLAG_experimental_wasm_gc) {
+    return FunctionEquivalentIndices(subtype_index, supertype_index, sub_module,
+                                     super_module);
+  }
+  const FunctionSig* sub_func = sub_module->types[subtype_index].function_sig;
+  const FunctionSig* super_func =
+      super_module->types[supertype_index].function_sig;
 
+  if (sub_func->parameter_count() != super_func->parameter_count() ||
+      sub_func->return_count() != super_func->return_count()) {
+    return false;
+  }
+
+  TypeJudgementCache::instance()->cache_subtype(subtype_index, supertype_index,
+                                                sub_module, super_module);
+
+  for (uint32_t i = 0; i < sub_func->parameter_count(); i++) {
+    // Contravariance for params.
+    if (!IsSubtypeOf(super_func->parameters()[i], sub_func->parameters()[i],
+                     super_module, sub_module)) {
+      TypeJudgementCache::instance()->uncache_subtype(
+          subtype_index, supertype_index, sub_module, super_module);
+      return false;
+    }
+  }
+  for (uint32_t i = 0; i < sub_func->return_count(); i++) {
+    // Covariance for returns.
+    if (!IsSubtypeOf(sub_func->returns()[i], super_func->returns()[i],
+                     sub_module, super_module)) {
+      TypeJudgementCache::instance()->uncache_subtype(
+          subtype_index, supertype_index, sub_module, super_module);
+      return false;
+    }
+  }
+
+  return true;
+}
 }  // namespace
 
 V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
@@ -275,43 +306,43 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   DCHECK(subtype != supertype || sub_module != super_module);
 
   switch (subtype.kind()) {
-    case ValueType::kI32:
-    case ValueType::kI64:
-    case ValueType::kF32:
-    case ValueType::kF64:
-    case ValueType::kS128:
-    case ValueType::kI8:
-    case ValueType::kI16:
-    case ValueType::kStmt:
-    case ValueType::kBottom:
+    case kI32:
+    case kI64:
+    case kF32:
+    case kF64:
+    case kS128:
+    case kI8:
+    case kI16:
+    case kVoid:
+    case kBottom:
       return subtype == supertype;
-    case ValueType::kRtt:
-      return supertype.kind() == ValueType::kRtt &&
+    case kRtt:
+      return supertype.kind() == kRtt &&
              EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                sub_module, super_module);
-    case ValueType::kRttWithDepth:
-      return (supertype.kind() == ValueType::kRtt &&
+    case kRttWithDepth:
+      return (supertype.kind() == kRtt &&
               ((sub_module == super_module &&
                 subtype.ref_index() == supertype.ref_index()) ||
                EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                  sub_module, super_module))) ||
-             (supertype.kind() == ValueType::kRttWithDepth &&
+             (supertype.kind() == kRttWithDepth &&
               supertype.depth() == subtype.depth() &&
               EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                 sub_module, super_module));
-    case ValueType::kRef:
-    case ValueType::kOptRef:
+    case kRef:
+    case kOptRef:
       break;
   }
 
-  DCHECK(subtype.is_object_reference_type());
+  DCHECK(subtype.is_object_reference());
 
   bool compatible_references = subtype.is_nullable()
                                    ? supertype.is_nullable()
-                                   : supertype.is_object_reference_type();
+                                   : supertype.is_object_reference();
   if (!compatible_references) return false;
 
-  DCHECK(supertype.is_object_reference_type());
+  DCHECK(supertype.is_object_reference());
 
   // Now check that sub_heap and super_heap are subtype-related.
 
@@ -402,13 +433,6 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
 
   return EquivalentIndices(type1.ref_index(), type2.ref_index(), module1,
                            module2);
-}
-
-ValueType CommonSubtype(ValueType a, ValueType b, const WasmModule* module) {
-  if (a == b) return a;
-  if (IsSubtypeOf(a, b, module)) return a;
-  if (IsSubtypeOf(b, a, module)) return b;
-  return kWasmBottom;
 }
 
 }  // namespace wasm

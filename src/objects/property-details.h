@@ -108,10 +108,8 @@ class Representation {
   // might cause a map deprecation.
   bool MightCauseMapDeprecation() const {
     // HeapObject to tagged representation change can be done in-place.
-    if (IsTagged() || IsHeapObject()) return false;
-    // When double fields unboxing is enabled, there must be a map deprecation.
     // Boxed double to tagged transition is always done in-place.
-    if (IsDouble()) return FLAG_unbox_double_fields;
+    if (IsTagged() || IsHeapObject() || IsDouble()) return false;
     // None to double and smi to double representation changes require
     // deprecation, because doubles might require box allocation, see
     // CanBeInPlaceChangedTo().
@@ -128,10 +126,7 @@ class Representation {
     // smi and tagged values. Doubles, however, would require a box allocation.
     if (IsNone()) return !other.IsDouble();
     if (!other.IsTagged()) return false;
-    // Everything but unboxed doubles can be in-place changed to Tagged.
-    if (FLAG_unbox_double_fields && IsDouble()) return false;
-    DCHECK(IsSmi() || (!FLAG_unbox_double_fields && IsDouble()) ||
-           IsHeapObject());
+    DCHECK(IsSmi() || IsDouble() || IsHeapObject());
     return true;
   }
 
@@ -139,8 +134,6 @@ class Representation {
   // changed to in-place. If an in-place representation change is not allowed,
   // then this will return the current representation.
   Representation MostGenericInPlaceChange() const {
-    // Everything but unboxed doubles can be in-place changed to Tagged.
-    if (FLAG_unbox_double_fields && IsDouble()) return Representation::Double();
     return Representation::Tagged();
   }
 
@@ -215,7 +208,7 @@ enum class PropertyCellType {
   kUndefined,     // The PREMONOMORPHIC of property cells.
   kConstant,      // Cell has been assigned only once.
   kConstantType,  // Cell has been assigned only one type.
-  // Value for dictionaries not holding cells, must have value 0:
+  // Value for dictionaries not holding cells, must be 0:
   kNoCell = kMutable,
 };
 
@@ -260,6 +253,14 @@ class PropertyDetails {
   static PropertyDetails Empty(
       PropertyCellType cell_type = PropertyCellType::kNoCell) {
     return PropertyDetails(kData, NONE, cell_type);
+  }
+
+  bool operator==(PropertyDetails const& other) {
+    return value_ == other.value_;
+  }
+
+  bool operator!=(PropertyDetails const& other) {
+    return value_ != other.value_;
   }
 
   int pointer() const { return DescriptorPointer::decode(value_); }

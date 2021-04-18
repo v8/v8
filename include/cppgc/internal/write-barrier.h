@@ -7,7 +7,7 @@
 
 #include "cppgc/heap-state.h"
 #include "cppgc/internal/api-constants.h"
-#include "cppgc/internal/process-heap.h"
+#include "cppgc/internal/atomic-entry-flag.h"
 #include "cppgc/sentinel-pointer.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -86,6 +86,13 @@ class V8_EXPORT WriteBarrier final {
   static void CheckParams(Type expected_type, const Params& params) {}
 #endif  // !V8_ENABLE_CHECKS
 
+  // The IncrementalOrConcurrentUpdater class allows cppgc internal to update
+  // |incremental_or_concurrent_marking_flag_|.
+  class IncrementalOrConcurrentMarkingFlagUpdater;
+  static bool IsAnyIncrementalOrConcurrentMarking() {
+    return incremental_or_concurrent_marking_flag_.MightBeEntered();
+  }
+
  private:
   WriteBarrier() = delete;
 
@@ -111,6 +118,8 @@ class V8_EXPORT WriteBarrier final {
                                       const AgeTable& ageTable,
                                       const void* slot, uintptr_t value_offset);
 #endif  // CPPGC_YOUNG_GENERATION
+
+  static AtomicEntryFlag incremental_or_concurrent_marking_flag_;
 };
 
 template <WriteBarrier::Type type>
@@ -138,7 +147,7 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
     if (!TryGetCagedHeap(value, value, params)) {
       return WriteBarrier::Type::kNone;
     }
-    if (V8_UNLIKELY(params.caged_heap().is_marking_in_progress)) {
+    if (V8_UNLIKELY(params.caged_heap().is_incremental_marking_in_progress)) {
       return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
     }
     return SetAndReturnType<WriteBarrier::Type::kNone>(params);
@@ -182,7 +191,7 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
     if (!within_cage) {
       return WriteBarrier::Type::kNone;
     }
-    if (V8_LIKELY(!params.caged_heap().is_marking_in_progress)) {
+    if (V8_LIKELY(!params.caged_heap().is_incremental_marking_in_progress)) {
 #if defined(CPPGC_YOUNG_GENERATION)
       params.heap = reinterpret_cast<HeapHandle*>(params.start);
       params.slot_offset = reinterpret_cast<uintptr_t>(slot) - params.start;
@@ -218,7 +227,7 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
       return SetAndReturnType<WriteBarrier::Type::kGenerational>(params);
     }
 #else   // !CPPGC_YOUNG_GENERATION
-    if (V8_LIKELY(!ProcessHeap::IsAnyIncrementalOrConcurrentMarking())) {
+    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
     HeapHandle& handle = callback();
@@ -246,28 +255,19 @@ class V8_EXPORT WriteBarrierTypeForNonCagedHeapPolicy final {
   static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
       const void* value, WriteBarrier::Params& params,
       HeapHandleCallback callback) {
-    return GetInternal(params, callback);
+    // The slot will never be used in `Get()` below.
+    return Get<WriteBarrier::ValueMode::kValuePresent>(nullptr, value, params,
+                                                       callback);
   }
 
  private:
   template <WriteBarrier::ValueMode value_mode>
   struct ValueModeDispatch;
 
-  template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type GetInternal(WriteBarrier::Params& params,
-                                                  HeapHandleCallback callback) {
-    if (V8_UNLIKELY(ProcessHeap::IsAnyIncrementalOrConcurrentMarking())) {
-      HeapHandle& handle = callback();
-      if (subtle::HeapState::IsMarking(handle)) {
-        params.heap = &handle;
-        return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
-      }
-    }
-    return WriteBarrier::Type::kNone;
-  }
-
   // TODO(chromium:1056170): Create fast path on API.
   static bool IsMarking(const void*, HeapHandle**);
+  // TODO(chromium:1056170): Create fast path on API.
+  static bool IsMarking(HeapHandle&);
 
   WriteBarrierTypeForNonCagedHeapPolicy() = delete;
 };
@@ -294,10 +294,17 @@ template <>
 struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
     WriteBarrier::ValueMode::kNoValuePresent> {
   template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type Get(const void* slot, const void*,
+  static V8_INLINE WriteBarrier::Type Get(const void*, const void*,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
-    return GetInternal(params, callback);
+    if (V8_UNLIKELY(WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
+      HeapHandle& handle = callback();
+      if (IsMarking(handle)) {
+        params.heap = &handle;
+        return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
+      }
+    }
+    return WriteBarrier::Type::kNone;
   }
 };
 

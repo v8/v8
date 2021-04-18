@@ -645,6 +645,7 @@ class PreParserFactory {
   }
   PreParserExpression NewCall(PreParserExpression expression,
                               const PreParserExpressionList& arguments, int pos,
+                              bool has_spread,
                               Call::PossiblyEval possibly_eval = Call::NOT_EVAL,
                               bool optional_chain = false) {
     if (possibly_eval == Call::IS_POSSIBLY_EVAL) {
@@ -661,7 +662,7 @@ class PreParserFactory {
   }
   PreParserExpression NewCallNew(const PreParserExpression& expression,
                                  const PreParserExpressionList& arguments,
-                                 int pos) {
+                                 int pos, bool has_spread) {
     return PreParserExpression::Default();
   }
   PreParserStatement NewReturnStatement(
@@ -876,6 +877,7 @@ struct ParserTypes<PreParser> {
 
   // Return types for traversing functions.
   using ClassLiteralProperty = PreParserExpression;
+  using ClassLiteralStaticElement = PreParserExpression;
   using Expression = PreParserExpression;
   using FunctionLiteral = PreParserExpression;
   using ObjectLiteralProperty = PreParserExpression;
@@ -885,6 +887,7 @@ struct ParserTypes<PreParser> {
   using FormalParameters = PreParserFormalParameters;
   using Identifier = PreParserIdentifier;
   using ClassPropertyList = PreParserPropertyList;
+  using ClassStaticElementList = PreParserPropertyList;
   using StatementList = PreParserScopedStatementList;
   using Block = PreParserBlock;
   using BreakableStatement = PreParserStatement;
@@ -1046,15 +1049,6 @@ class PreParser : public ParserBase<PreParser> {
     scope->SetLanguageMode(mode);
   }
   V8_INLINE void SetAsmModule() {}
-
-  V8_INLINE PreParserExpression SpreadCall(const PreParserExpression& function,
-                                           const PreParserExpressionList& args,
-                                           int pos,
-                                           Call::PossiblyEval possibly_eval,
-                                           bool optional_chain);
-  V8_INLINE PreParserExpression
-  SpreadCallNew(const PreParserExpression& function,
-                const PreParserExpressionList& args, int pos);
 
   V8_INLINE void PrepareGeneratorVariables() {}
   V8_INLINE void RewriteAsyncFunctionBody(
@@ -1239,6 +1233,11 @@ class PreParser : public ParserBase<PreParser> {
     }
   }
 
+  V8_INLINE void AddClassStaticBlock(PreParserBlock block,
+                                     ClassInfo* class_info) {
+    DCHECK(class_info->has_static_elements);
+  }
+
   V8_INLINE PreParserExpression
   RewriteClassLiteral(ClassScope* scope, const PreParserIdentifier& name,
                       ClassInfo* class_info, int pos, int end_pos) {
@@ -1260,7 +1259,7 @@ class PreParser : public ParserBase<PreParser> {
       FunctionState function_state(&function_state_, &scope_, function_scope);
       GetNextFunctionLiteralId();
     }
-    if (class_info->has_static_class_fields) {
+    if (class_info->has_static_elements) {
       GetNextFunctionLiteralId();
     }
     if (class_info->has_instance_members) {
@@ -1601,6 +1600,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserPropertyList();
   }
 
+  V8_INLINE PreParserPropertyList NewClassStaticElementList(int size) const {
+    return PreParserPropertyList();
+  }
+
   V8_INLINE PreParserStatementList NewStatementList(int size) const {
     return PreParserStatementList();
   }
@@ -1670,20 +1673,6 @@ class PreParser : public ParserBase<PreParser> {
   PreparseDataBuilder* preparse_data_builder_;
   std::vector<void*> preparse_data_builder_buffer_;
 };
-
-PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,
-                                          const PreParserExpressionList& args,
-                                          int pos,
-                                          Call::PossiblyEval possibly_eval,
-                                          bool optional_chain) {
-  return factory()->NewCall(function, args, pos, possibly_eval, optional_chain);
-}
-
-PreParserExpression PreParser::SpreadCallNew(
-    const PreParserExpression& function, const PreParserExpressionList& args,
-    int pos) {
-  return factory()->NewCallNew(function, args, pos);
-}
 
 }  // namespace internal
 }  // namespace v8

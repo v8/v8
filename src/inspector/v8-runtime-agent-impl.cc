@@ -743,8 +743,8 @@ void V8RuntimeAgentImpl::bindingCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   if (info.Length() != 1 || !info[0]->IsString()) {
-    info.GetIsolate()->ThrowException(toV8String(
-        isolate, "Invalid arguments: should be exactly one string."));
+    info.GetIsolate()->ThrowError(
+        "Invalid arguments: should be exactly one string.");
     return;
   }
   V8InspectorImpl* inspector =

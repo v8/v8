@@ -285,6 +285,22 @@ Node* MachineOperatorReducer::TruncateInt64ToInt32(Node* value) {
   return reduction.Changed() ? reduction.replacement() : node;
 }
 
+namespace {
+bool ObjectsMayAlias(Node* a, Node* b) {
+  if (a != b) {
+    if (NodeProperties::IsFreshObject(b)) std::swap(a, b);
+    if (NodeProperties::IsFreshObject(a) &&
+        (NodeProperties::IsFreshObject(b) ||
+         b->opcode() == IrOpcode::kParameter ||
+         b->opcode() == IrOpcode::kLoadImmutable ||
+         IrOpcode::IsConstantOpcode(b->opcode()))) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
 // Perform constant folding and strength reduction on machine operators.
 Reduction MachineOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -340,6 +356,11 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
       if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
+      // This is a workaround for not having escape analysis for wasm
+      // (machine-level) turbofan graphs.
+      if (!ObjectsMayAlias(m.left().node(), m.right().node())) {
+        return ReplaceBool(false);
+      }
       break;
     }
     case IrOpcode::kInt32Add:
@@ -737,20 +758,9 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
                                                  m.right().ResolvedValue()));
       } else if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
         return ReplaceFloat64(1.0);
-      } else if (m.right().Is(-2.0)) {  // x ** -2.0 => 1 / (x * x)
-        node->ReplaceInput(0, Float64Constant(1.0));
-        node->ReplaceInput(1, Float64Mul(m.left().node(), m.left().node()));
-        NodeProperties::ChangeOp(node, machine()->Float64Div());
-        return Changed(node);
       } else if (m.right().Is(2.0)) {  // x ** 2.0 => x * x
         node->ReplaceInput(1, m.left().node());
         NodeProperties::ChangeOp(node, machine()->Float64Mul());
-        return Changed(node);
-      } else if (m.right().Is(-0.5)) {
-        // x ** 0.5 => 1 / (if x <= -Infinity then Infinity else sqrt(0.0 + x))
-        node->ReplaceInput(0, Float64Constant(1.0));
-        node->ReplaceInput(1, Float64PowHalf(m.left().node()));
-        NodeProperties::ChangeOp(node, machine()->Float64Div());
         return Changed(node);
       } else if (m.right().Is(0.5)) {
         // x ** 0.5 => if x <= -Infinity then Infinity else sqrt(0.0 + x)
@@ -1941,6 +1951,10 @@ Reduction MachineOperatorReducer::ReduceWordNXor(Node* node) {
 
 Reduction MachineOperatorReducer::ReduceWord32Xor(Node* node) {
   DCHECK_EQ(IrOpcode::kWord32Xor, node->opcode());
+  Int32BinopMatcher m(node);
+  if (m.right().IsWord32Equal() && m.left().Is(1)) {
+    return Replace(Word32Equal(m.right().node(), Int32Constant(0)));
+  }
   return ReduceWordNXor<Word32Adapter>(node);
 }
 
@@ -1977,6 +1991,11 @@ Reduction MachineOperatorReducer::ReduceWord32Equal(Node* node) {
       node->ReplaceInput(1, Uint32Constant(replacements->second));
       return Changed(node);
     }
+  }
+  // This is a workaround for not having escape analysis for wasm
+  // (machine-level) turbofan graphs.
+  if (!ObjectsMayAlias(m.left().node(), m.right().node())) {
+    return ReplaceBool(false);
   }
 
   return NoChange();

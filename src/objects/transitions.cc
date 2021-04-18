@@ -145,7 +145,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
       base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-          isolate_->transition_array_access());
+          isolate_->full_transition_array_access());
       array.SetRawTarget(index, HeapObjectReference::Weak(*target));
       return;
     }
@@ -158,7 +158,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     // If there is enough capacity, insert new entry into the existing array.
     if (new_nof <= array.Capacity()) {
       base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-          isolate_->transition_array_access());
+          isolate_->full_transition_array_access());
       array.SetNumberOfTransitions(new_nof);
       for (int i = number_of_transitions; i > insertion_index; --i) {
         array.SetKey(i, array.GetKey(i - 1));
@@ -231,7 +231,7 @@ Map TransitionsAccessor::SearchTransition(Name name, PropertyKind kind,
     }
     case kFullTransitionArray: {
       base::SharedMutexGuardIf<base::kShared> scope(
-          isolate_->transition_array_access(), concurrent_access_);
+          isolate_->full_transition_array_access(), concurrent_access_);
       return transitions().SearchAndGetTarget(kind, name, attributes);
     }
   }
@@ -429,13 +429,14 @@ void TransitionsAccessor::SetMigrationTarget(Map migration_target) {
   // sake.
   if (encoding() != kUninitialized) return;
   DCHECK(map_.is_deprecated());
-  map_.set_raw_transitions(MaybeObject::FromObject(migration_target));
+  map_.set_raw_transitions(MaybeObject::FromObject(migration_target),
+                           kReleaseStore);
   MarkNeedsReload();
 }
 
 Map TransitionsAccessor::GetMigrationTarget() {
   if (encoding() == kMigrationTarget) {
-    return map_.raw_transitions()->cast<Map>();
+    return map_.raw_transitions(kAcquireLoad)->cast<Map>();
   }
   return Map();
 }
@@ -449,7 +450,7 @@ void TransitionsAccessor::ReplaceTransitions(MaybeObject new_transitions) {
     DCHECK(old_transitions != new_transitions->GetHeapObjectAssumeStrong());
 #endif
   }
-  map_.set_raw_transitions(new_transitions);
+  map_.set_raw_transitions(new_transitions, kReleaseStore);
   MarkNeedsReload();
 }
 
@@ -528,8 +529,8 @@ void TransitionsAccessor::CheckNewTransitionsAreConsistent(
   TransitionArray new_transitions = TransitionArray::cast(transitions);
   for (int i = 0; i < old_transitions.number_of_transitions(); i++) {
     Map target = old_transitions.GetTarget(i);
-    if (target.instance_descriptors(kRelaxedLoad) ==
-        map_.instance_descriptors(kRelaxedLoad)) {
+    if (target.instance_descriptors(isolate_) ==
+        map_.instance_descriptors(isolate_)) {
       Name key = old_transitions.GetKey(i);
       int new_target_index;
       if (IsSpecialTransition(ReadOnlyRoots(isolate_), key)) {

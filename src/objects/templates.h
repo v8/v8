@@ -27,6 +27,16 @@ class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
   // instead of caching them.
   static const int kSlowTemplateInstantiationsCacheSize = 1 * MB;
 
+  // If the serial number is set to kDoNotCache, then we should never cache this
+  // TemplateInfo.
+  static const int kDoNotCache = -1;
+  // If the serial number is set to kUncached, it means that this TemplateInfo
+  // has not been cached yet but it can be.
+  static const int kUncached = -2;
+
+  inline bool should_cache() const;
+  inline bool is_cached() const;
+
   TQ_OBJECT_CONSTRUCTORS(TemplateInfo)
 };
 
@@ -87,7 +97,15 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
 #undef DECL_RARE_ACCESSORS
 
+  // TODO(nicohartmann@, v8:11122): Let Torque generate the following accessor.
   DECL_RELEASE_ACQUIRE_ACCESSORS(call_code, HeapObject)
+
+  // TODO(nicohartmann@, v8:11122): Let Torque generate the following accessor.
+  inline HeapObject rare_data(AcquireLoadTag) const;
+  inline HeapObject rare_data(PtrComprCageBase cage_base, AcquireLoadTag) const;
+  inline void set_rare_data(
+      HeapObject value, ReleaseStoreTag,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Begin flag bits ---------------------
   DECL_BOOLEAN_ACCESSORS(undetectable)
@@ -103,18 +121,18 @@ class FunctionTemplateInfo
   // prototype_provoider_template are instantiated.
   DECL_BOOLEAN_ACCESSORS(remove_prototype)
 
-  // If set, do not attach a serial number to this FunctionTemplate and thus do
-  // not keep an instance boilerplate around.
-  DECL_BOOLEAN_ACCESSORS(do_not_cache)
-
   // If not set an access may be performed on calling the associated JSFunction.
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
+
+  // This flag is used to check that the FunctionTemplateInfo instance is not
+  // changed after it became visible to TurboFan (either set in a
+  // SharedFunctionInfo or an accessor), because TF relies on immutability to
+  // safely read concurrently.
+  DECL_BOOLEAN_ACCESSORS(published)
   // End flag bits ---------------------
 
   // Dispatched behavior.
   DECL_PRINTER(FunctionTemplateInfo)
-
-  static const int kInvalidSerialNumber = 0;
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,

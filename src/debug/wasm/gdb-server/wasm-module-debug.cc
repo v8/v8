@@ -96,6 +96,7 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
+      case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
@@ -154,6 +155,7 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
+      case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
@@ -398,7 +400,7 @@ bool WasmModuleDebug::GetWasmValue(const wasm::WasmValue& wasm_value,
     case wasm::kWasmS128.kind():
       return StoreValue(wasm_value.to_s128(), buffer, buffer_size, size);
 
-    case wasm::kWasmStmt.kind():
+    case wasm::kWasmVoid.kind():
     case wasm::kWasmExternRef.kind():
     case wasm::kWasmBottom.kind():
     default:

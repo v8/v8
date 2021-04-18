@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_LOCAL_HEAP_INL_H_
 #define V8_HEAP_LOCAL_HEAP_INL_H_
 
+#include <atomic>
+
 #include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
@@ -24,7 +26,12 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                  alignment == AllocationAlignment::kWordAligned);
   Heap::HeapState state = heap()->gc_state();
   DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
+  ThreadState current = state_.load(std::memory_order_relaxed);
+  DCHECK(current == kRunning || current == kSafepointRequested);
 #endif
+
+  // Each allocation is supposed to be a safepoint.
+  Safepoint();
 
   bool large_object = size_in_bytes > Heap::MaxRegularHeapObjectSize(type);
   CHECK_EQ(type, AllocationType::kOld);

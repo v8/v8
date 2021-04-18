@@ -179,13 +179,12 @@ LargePage::LargePage(HeapBase* heap, BaseSpace* space, size_t size)
 
 LargePage::~LargePage() = default;
 
-namespace {
-size_t LargePageAllocationSize(size_t payload_size) {
+// static
+size_t LargePage::AllocationSize(size_t payload_size) {
   const size_t page_header_size =
       RoundUp(sizeof(LargePage), kAllocationGranularity);
   return page_header_size + payload_size;
 }
-}  // namespace
 
 // static
 LargePage* LargePage::Create(PageBackend* page_backend, LargePageSpace* space,
@@ -194,14 +193,13 @@ LargePage* LargePage::Create(PageBackend* page_backend, LargePageSpace* space,
   DCHECK_NOT_NULL(space);
   DCHECK_LE(kLargeObjectSizeThreshold, size);
 
-  const size_t allocation_size = LargePageAllocationSize(size);
+  const size_t allocation_size = AllocationSize(size);
 
   auto* heap = space->raw_heap()->heap();
   void* memory = page_backend->AllocateLargePageMemory(allocation_size);
   LargePage* page = new (memory) LargePage(heap, space, size);
   page->SynchronizedStore();
-  page->heap()->stats_collector()->NotifyAllocatedMemory(
-      LargePageAllocationSize(page->PayloadSize()));
+  page->heap()->stats_collector()->NotifyAllocatedMemory(allocation_size);
   return page;
 }
 
@@ -215,7 +213,7 @@ void LargePage::Destroy(LargePage* page) {
   page->~LargePage();
   PageBackend* backend = page->heap()->page_backend();
   page->heap()->stats_collector()->NotifyFreedMemory(
-      LargePageAllocationSize(page->PayloadSize()));
+      AllocationSize(page->PayloadSize()));
   backend->FreeLargePageMemory(reinterpret_cast<Address>(page));
 }
 

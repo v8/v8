@@ -70,7 +70,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // [context]: The context for this function.
   inline Context context();
   inline bool has_context() const;
-  inline void set_context(HeapObject context);
+  inline void set_context(HeapObject context,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline JSGlobalProxy global_proxy();
   inline NativeContext native_context();
   inline int length();
@@ -82,9 +83,13 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
+  // Release/Acquire accessors are used when storing a newly-created
+  // optimized code object, or when reading from the background thread.
+  // Storing a builtin doesn't require release semantics because these objects
+  // are fully initialized.
   inline Code code() const;
   inline void set_code(Code code);
-  inline void set_code_no_write_barrier(Code code);
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -111,12 +116,14 @@ class JSFunction : public JSFunctionOrBoundFunction {
   V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode() const;
   bool HasAvailableOptimizedCode() const;
 
+  bool HasAttachedCodeKind(CodeKind kind) const;
   bool HasAvailableCodeKind(CodeKind kind) const;
 
   CodeKind GetActiveTier() const;
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
-  bool ActiveTierIsNCI() const;
+  bool ActiveTierIsBaseline() const;
+  bool ActiveTierIsIgnitionOrBaseline() const;
   bool ActiveTierIsMidtierTurboprop() const;
   bool ActiveTierIsToptierTurboprop() const;
 
@@ -150,6 +157,10 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   // Clears the optimization marker in the function's feedback vector.
   inline void ClearOptimizationMarker();
+
+  // Sets the interrupt budget based on whether the function has a feedback
+  // vector and any optimized code.
+  inline void SetInterruptBudget();
 
   // If slack tracking is active, it computes instance size of the initial map
   // with minimum permissible object slack.  If it is not active, it simply
@@ -210,8 +221,11 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // The initial map for an object created by this constructor.
   DECL_GETTER(initial_map, Map)
 
-  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                            Handle<HeapObject> prototype);
+  static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                            Handle<Map> map, Handle<HeapObject> prototype);
+  static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                            Handle<Map> map, Handle<HeapObject> prototype,
+                            Handle<JSFunction> constructor);
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
       Handle<JSFunction> function);
@@ -263,8 +277,6 @@ class JSFunction : public JSFunctionOrBoundFunction {
   DECL_PRINTER(JSFunction)
   DECL_VERIFIER(JSFunction)
 
-  // The function's name if it is configured, otherwise shared function info
-  // debug name.
   static Handle<String> GetName(Handle<JSFunction> function);
 
   // ES6 section 9.2.11 SetFunctionName
@@ -275,8 +287,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
                                             Handle<Name> name,
                                             Handle<String> prefix);
 
-  // The function's displayName if it is set, otherwise name if it is
-  // configured, otherwise shared function info
+  // The function's name if it is configured, otherwise shared function info
   // debug name.
   static Handle<String> GetDebugName(Handle<JSFunction> function);
 

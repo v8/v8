@@ -19,27 +19,22 @@ namespace v8 {
 namespace internal {
 
 CodeKinds JSFunction::GetAttachedCodeKinds() const {
-  CodeKinds result;
-
   // Note: There's a special case when bytecode has been aged away. After
   // flushing the bytecode, the JSFunction will still have the interpreter
   // entry trampoline attached, but the bytecode is no longer available.
-  if (code().is_interpreter_trampoline_builtin()) {
-    result |= CodeKindFlag::INTERPRETED_FUNCTION;
+  Code code = this->code(kAcquireLoad);
+  if (code.is_interpreter_trampoline_builtin()) {
+    return CodeKindFlag::INTERPRETED_FUNCTION;
   }
 
-  const CodeKind kind = code().kind();
-  if (!CodeKindIsOptimizedJSFunction(kind) ||
-      code().marked_for_deoptimization()) {
-    DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
-    return result;
+  const CodeKind kind = code.kind();
+  if (!CodeKindIsJSFunction(kind)) return {};
+
+  if (CodeKindIsOptimizedJSFunction(kind) && code.marked_for_deoptimization()) {
+    // Nothing is attached.
+    return {};
   }
-
-  DCHECK(CodeKindIsOptimizedJSFunction(kind));
-  result |= CodeKindToCodeKindFlag(kind);
-
-  DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
-  return result;
+  return CodeKindToCodeKindFlag(kind);
 }
 
 CodeKinds JSFunction::GetAvailableCodeKinds() const {
@@ -49,6 +44,13 @@ CodeKinds JSFunction::GetAvailableCodeKinds() const {
     // The SharedFunctionInfo could have attached bytecode.
     if (shared().HasBytecodeArray()) {
       result |= CodeKindFlag::INTERPRETED_FUNCTION;
+    }
+  }
+
+  if ((result & CodeKindFlag::BASELINE) == 0) {
+    // The SharedFunctionInfo could have attached baseline code.
+    if (shared().HasBaselineData()) {
+      result |= CodeKindFlag::BASELINE;
     }
   }
 
@@ -74,6 +76,11 @@ bool JSFunction::HasAvailableOptimizedCode() const {
   return (result & kOptimizedJSFunctionCodeKindsMask) != 0;
 }
 
+bool JSFunction::HasAttachedCodeKind(CodeKind kind) const {
+  CodeKinds result = GetAttachedCodeKinds();
+  return (result & CodeKindToCodeKindFlag(kind)) != 0;
+}
+
 bool JSFunction::HasAvailableCodeKind(CodeKind kind) const {
   CodeKinds result = GetAvailableCodeKinds();
   return (result & CodeKindToCodeKindFlag(kind)) != 0;
@@ -91,8 +98,8 @@ bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
   } else if ((kinds & CodeKindFlag::TURBOPROP) != 0) {
     *highest_tier = CodeKind::TURBOPROP;
     return true;
-  } else if ((kinds & CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT) != 0) {
-    *highest_tier = CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+  } else if ((kinds & CodeKindFlag::BASELINE) != 0) {
+    *highest_tier = CodeKind::BASELINE;
     return true;
   } else if ((kinds & CodeKindFlag::INTERPRETED_FUNCTION) != 0) {
     *highest_tier = CodeKind::INTERPRETED_FUNCTION;
@@ -107,12 +114,14 @@ bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
 bool JSFunction::ActiveTierIsIgnition() const {
   if (!shared().HasBytecodeArray()) return false;
   bool result = (GetActiveTier() == CodeKind::INTERPRETED_FUNCTION);
-  DCHECK_IMPLIES(result,
-                 code().is_interpreter_trampoline_builtin() ||
-                     (CodeKindIsOptimizedJSFunction(code().kind()) &&
-                      code().marked_for_deoptimization()) ||
-                     (code().builtin_index() == Builtins::kCompileLazy &&
-                      shared().IsInterpreted()));
+#ifdef DEBUG
+  Code code = this->code(kAcquireLoad);
+  DCHECK_IMPLIES(result, code.is_interpreter_trampoline_builtin() ||
+                             (CodeKindIsOptimizedJSFunction(code.kind()) &&
+                              code.marked_for_deoptimization()) ||
+                             (code.builtin_index() == Builtins::kCompileLazy &&
+                              shared().IsInterpreted()));
+#endif  // DEBUG
   return result;
 }
 
@@ -121,8 +130,8 @@ CodeKind JSFunction::GetActiveTier() const {
   DCHECK(shared().is_compiled());
   HighestTierOf(GetAvailableCodeKinds(), &highest_tier);
   DCHECK(highest_tier == CodeKind::TURBOFAN ||
+         highest_tier == CodeKind::BASELINE ||
          highest_tier == CodeKind::TURBOPROP ||
-         highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT ||
          highest_tier == CodeKind::INTERPRETED_FUNCTION);
   return highest_tier;
 }
@@ -132,9 +141,12 @@ bool JSFunction::ActiveTierIsTurbofan() const {
   return GetActiveTier() == CodeKind::TURBOFAN;
 }
 
-bool JSFunction::ActiveTierIsNCI() const {
-  if (!shared().HasBytecodeArray()) return false;
-  return GetActiveTier() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+bool JSFunction::ActiveTierIsBaseline() const {
+  return GetActiveTier() == CodeKind::BASELINE;
+}
+
+bool JSFunction::ActiveTierIsIgnitionOrBaseline() const {
+  return ActiveTierIsIgnition() || ActiveTierIsBaseline();
 }
 
 bool JSFunction::ActiveTierIsToptierTurboprop() const {
@@ -153,7 +165,7 @@ CodeKind JSFunction::NextTier() const {
   if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsMidtierTurboprop()) {
     return CodeKind::TURBOFAN;
   } else if (V8_UNLIKELY(FLAG_turboprop)) {
-    DCHECK(ActiveTierIsIgnition());
+    DCHECK(ActiveTierIsIgnitionOrBaseline());
     return CodeKind::TURBOPROP;
   }
   return CodeKind::TURBOFAN;
@@ -262,7 +274,9 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   Isolate* const isolate = function->GetIsolate();
   DCHECK(function->shared().is_compiled());
   DCHECK(function->shared().HasFeedbackMetadata());
+#if V8_ENABLE_WEBASSEMBLY
   if (function->shared().HasAsmWasmData()) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(function->shared().HasBytecodeArray());
@@ -279,9 +293,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (V8_UNLIKELY(FLAG_feedback_allocation_on_bytecode_size) &&
       (reset_budget_for_feedback_allocation ||
        !has_closure_feedback_cell_array)) {
-    int budget = function->shared().GetBytecodeArray(isolate).length() *
-                 FLAG_scale_factor_for_feedback_allocation;
-    function->raw_feedback_cell().set_interrupt_budget(budget);
+    function->SetInterruptBudget();
   }
 
   if (has_closure_feedback_cell_array) {
@@ -299,9 +311,8 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (function->raw_feedback_cell() == isolate->heap()->many_closures_cell()) {
     Handle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
-    feedback_cell->set_interrupt_budget(
-        function->raw_feedback_cell().interrupt_budget());
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
+    function->SetInterruptBudget();
   } else {
     function->raw_feedback_cell().set_value(*feedback_cell_array,
                                             kReleaseStore);
@@ -315,7 +326,9 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
   DCHECK(is_compiled_scope->is_compiled());
   DCHECK(function->shared().HasFeedbackMetadata());
   if (function->has_feedback_vector()) return;
+#if V8_ENABLE_WEBASSEMBLY
   if (function->shared().HasAsmWasmData()) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(function->shared().HasBytecodeArray());
@@ -331,7 +344,7 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
   DCHECK(function->raw_feedback_cell() !=
          isolate->heap()->many_closures_cell());
   function->raw_feedback_cell().set_value(*feedback_vector, kReleaseStore);
-  function->raw_feedback_cell().SetInterruptBudget();
+  function->SetInterruptBudget();
 }
 
 // static
@@ -354,7 +367,6 @@ void JSFunction::InitializeFeedbackCell(
 
   const bool needs_feedback_vector =
       !FLAG_lazy_feedback_allocation || FLAG_always_opt ||
-      function->shared().may_have_cached_code() ||
       // We also need a feedback vector for certain log events, collecting type
       // profile and more precise code coverage.
       FLAG_log_function_events || !isolate->is_best_effort_code_coverage() ||
@@ -392,7 +404,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     } else {
       Handle<Map> new_map =
           Map::Copy(isolate, initial_map, "SetInstancePrototype");
-      JSFunction::SetInitialMap(function, new_map, value);
+      JSFunction::SetInitialMap(isolate, function, new_map, value);
 
       // If the function is used as the global Array function, cache the
       // updated initial maps (and transitioned versions) in the native context.
@@ -441,9 +453,9 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     Handle<Map> new_map =
         Map::Copy(isolate, handle(function->map(), isolate), "SetPrototype");
 
-    JSObject::MigrateToMap(isolate, function, new_map);
     new_map->SetConstructor(*value);
     new_map->set_has_non_instance_prototype(true);
+    JSObject::MigrateToMap(isolate, function, new_map);
 
     FunctionKind kind = function->shared().kind();
     Handle<Context> native_context(function->context().native_context(),
@@ -464,14 +476,19 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
   SetInstancePrototype(isolate, function, construct_prototype);
 }
 
-void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                               Handle<HeapObject> prototype) {
-  Isolate* isolate = function->GetIsolate();
+void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                               Handle<Map> map, Handle<HeapObject> prototype) {
+  SetInitialMap(isolate, function, map, prototype, function);
+}
+
+void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
+                               Handle<Map> map, Handle<HeapObject> prototype,
+                               Handle<JSFunction> constructor) {
   if (map->prototype() != *prototype) {
     Map::SetPrototype(isolate, map, prototype);
   }
+  map->SetConstructor(*constructor);
   function->set_prototype_or_initial_map(*map);
-  map->SetConstructor(*function);
   if (FLAG_log_maps) {
     LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
                           SharedFunctionInfo::DebugName(
@@ -525,7 +542,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
   // Finally link initial map and constructor function.
   DCHECK(prototype->IsJSReceiver());
-  JSFunction::SetInitialMap(function, map, prototype);
+  JSFunction::SetInitialMap(isolate, function, map, prototype);
   map->StartInobjectSlackTracking();
 }
 
@@ -591,11 +608,14 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_VALUE_OBJECT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return true;
 
     case BIGINT_TYPE:
@@ -694,9 +714,8 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
   Handle<HeapObject> prototype(new_target->instance_prototype(), isolate);
-  JSFunction::SetInitialMap(new_target, map, prototype);
+  JSFunction::SetInitialMap(isolate, new_target, map, prototype, constructor);
   DCHECK(new_target->instance_prototype().IsJSReceiver());
-  map->SetConstructor(*constructor);
   map->set_construction_counter(Map::kNoSlackTracking);
   map->StartInobjectSlackTracking();
   return true;
@@ -790,20 +809,49 @@ void JSFunction::PrintName(FILE* out) {
   PrintF(out, "%s", shared().DebugNameCStr().get());
 }
 
-Handle<String> JSFunction::GetName(Handle<JSFunction> function) {
-  Isolate* isolate = function->GetIsolate();
-  Handle<Object> name =
-      JSReceiver::GetDataProperty(function, isolate->factory()->name_string());
-  if (name->IsString()) return Handle<String>::cast(name);
-  return SharedFunctionInfo::DebugName(handle(function->shared(), isolate));
+namespace {
+
+bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
+  DCHECK(map.IsJSFunctionMap());
+  if (map.NumberOfOwnDescriptors() < JSFunction::kMinDescriptorsForFastBind) {
+    return false;
+  }
+  DCHECK(!map.is_dictionary_map());
+  HeapObject value;
+  ReadOnlyRoots roots(isolate);
+  auto descriptors = map.instance_descriptors(isolate);
+  InternalIndex kNameIndex{JSFunction::kNameDescriptorIndex};
+  if (descriptors.GetKey(kNameIndex) != roots.name_string() ||
+      !descriptors.GetValue(kNameIndex)
+           .GetHeapObjectIfStrong(isolate, &value)) {
+    return false;
+  }
+  return value.IsAccessorInfo();
 }
 
+}  // namespace
+
 Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
+  // Below we use the same fast-path that we already established for
+  // Function.prototype.bind(), where we avoid a slow "name" property
+  // lookup if the DescriptorArray for the |function| still has the
+  // "name" property at the original spot and that property is still
+  // implemented via an AccessorInfo (which effectively means that
+  // it must be the FunctionNameGetter).
   Isolate* isolate = function->GetIsolate();
-  Handle<Object> name = JSReceiver::GetDataProperty(
-      function, isolate->factory()->display_name_string());
-  if (name->IsString()) return Handle<String>::cast(name);
-  return JSFunction::GetName(function);
+  if (!UseFastFunctionNameLookup(isolate, function->map())) {
+    // Normally there should be an else case for the fast-path check
+    // above, which should invoke JSFunction::GetName(), since that's
+    // what the FunctionNameGetter does, however GetDataProperty() has
+    // never invoked accessors and thus always returned undefined for
+    // JSFunction where the "name" property is untouched, so we retain
+    // that exact behavior and go with SharedFunctionInfo::DebugName()
+    // in case of the fast-path.
+    Handle<Object> name =
+        GetDataProperty(function, isolate->factory()->name_string());
+    if (name->IsString()) return Handle<String>::cast(name);
+  }
+  return SharedFunctionInfo::DebugName(handle(function->shared(), isolate));
 }
 
 bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
@@ -874,6 +922,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
 
   // If this function was compiled from asm.js, use the recorded offset
   // information.
+#if V8_ENABLE_WEBASSEMBLY
   if (shared_info->HasWasmExportedFunctionData()) {
     Handle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
@@ -888,6 +937,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
                                               offsets.second);
     }
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (shared_info->function_token_position() == kNoSourcePosition) {
     // If the function token position isn't valid, return [native code] to
@@ -916,7 +966,7 @@ int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
     Handle<SharedFunctionInfo> shared(func->shared(), isolate);
     IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
     if (is_compiled_scope.is_compiled() ||
-        Compiler::Compile(func, Compiler::CLEAR_EXCEPTION,
+        Compiler::Compile(isolate, func, Compiler::CLEAR_EXCEPTION,
                           &is_compiled_scope)) {
       DCHECK(shared->is_compiled());
       int count = shared->expected_nof_properties();

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_WASM_ENGINE_H_
 #define V8_WASM_WASM_ENGINE_H_
 
@@ -338,6 +342,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Returns a barrier allowing background compile operations if valid and
   // preventing this object from being destroyed.
   std::shared_ptr<OperationsBarrier> GetBarrierForBackgroundCompile();
+
+  void SampleThrowEvent(Isolate*);
+  void SampleRethrowEvent(Isolate*);
+  void SampleCatchEvent(Isolate*);
 
   // Call on process start and exit.
   static void InitializeOncePerProcess();

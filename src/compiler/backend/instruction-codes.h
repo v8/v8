@@ -23,6 +23,8 @@
 #include "src/compiler/backend/ppc/instruction-codes-ppc.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/compiler/backend/s390/instruction-codes-s390.h"
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/compiler/backend/riscv64/instruction-codes-riscv64.h"
 #else
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
@@ -69,12 +71,12 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   /* IsCallWithDescriptorFlags fast */                                     \
   V(ArchTailCallCodeObject)                                                \
   V(ArchTailCallAddress)                                                   \
-  V(ArchTailCallWasm)                                                      \
+  IF_WASM(V, ArchTailCallWasm)                                             \
   /* Update IsTailCall if further TailCall opcodes are added */            \
                                                                            \
   V(ArchCallCodeObject)                                                    \
   V(ArchCallJSFunction)                                                    \
-  V(ArchCallWasmFunction)                                                  \
+  IF_WASM(V, ArchCallWasmFunction)                                         \
   V(ArchCallBuiltinPointer)                                                \
   /* Update IsCallWithDescriptorFlags if further Call opcodes are added */ \
                                                                            \
@@ -210,7 +212,8 @@ enum FlagsMode {
   kFlags_deoptimize = 3,
   kFlags_deoptimize_and_poison = 4,
   kFlags_set = 5,
-  kFlags_trap = 6
+  kFlags_trap = 6,
+  kFlags_select = 7,
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

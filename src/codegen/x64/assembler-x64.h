@@ -786,7 +786,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void ret(int imm16);
   void ud2();
   void setcc(Condition cc, Register reg);
-  void prefetch(Operand src, int level);
 
   void pblendw(XMMRegister dst, Operand src, uint8_t mask);
   void pblendw(XMMRegister dst, XMMRegister src, uint8_t mask);
@@ -833,6 +832,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
+  void jmp(Address entry, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
@@ -1274,6 +1274,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE_CMP_P(cmpeq, 0x0)
   SSE_CMP_P(cmplt, 0x1)
   SSE_CMP_P(cmple, 0x2)
+  SSE_CMP_P(cmpunord, 0x3)
   SSE_CMP_P(cmpneq, 0x4)
   SSE_CMP_P(cmpnlt, 0x5)
   SSE_CMP_P(cmpnle, 0x6)
@@ -1571,6 +1572,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   AVX_CMP_P(vcmpeq, 0x0)
   AVX_CMP_P(vcmplt, 0x1)
   AVX_CMP_P(vcmple, 0x2)
+  AVX_CMP_P(vcmpunord, 0x3)
   AVX_CMP_P(vcmpneq, 0x4)
   AVX_CMP_P(vcmpnlt, 0x5)
   AVX_CMP_P(vcmpnle, 0x6)

@@ -24,6 +24,9 @@
   # The initial CL only fixed the crash. The test still causes an endless
   # loop instead of properly reporting a RangeError for a stack overflow.
   'regress/regress-crbug-1080638': [SKIP],
+
+  # https://crbug.com/v8/11338
+  'runtime-call-stats/enable-disable': [PASS, ['verify_csa', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -52,6 +55,17 @@
 }],  # variant != default
 
 ##############################################################################
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  'debugger/asm-js-stack': [SKIP],
+  'debugger/asm-js-breakpoint-before-exec': [SKIP],
+  'debugger/asm-js-breakpoint-during-exec': [SKIP],
+  'debugger/wasm-*': [SKIP],
+  'cpu-profiler/console-profile-wasm': [SKIP],
+  'runtime/get-properties': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+##############################################################################
 ['lite_mode or variant == jitless', {
   # Lite mode does not allocate feedback vector.
   'type-profiler/type-profile-start-stop': [SKIP],
@@ -59,14 +73,6 @@
   'type-profiler/type-profile-with-to-string-tag': [SKIP],
   'type-profiler/type-profile-with-classes': [SKIP],
   'type-profiler/type-profile-disable': [SKIP],
-
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
-  'debugger/asm-js-stack': [SKIP],
-  'debugger/asm-js-breakpoint-before-exec': [SKIP],
-  'debugger/asm-js-breakpoint-during-exec': [SKIP],
-  'debugger/wasm-*': [SKIP],
-  'cpu-profiler/console-profile-wasm': [SKIP],
-  'runtime/get-properties': [SKIP],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
@@ -114,6 +120,17 @@
   'debugger/wasm-scope-info*': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el) and not simd_mips'
 
+##############################################################################
+['arch == riscv64', {
+  # SIMD support is still in progress.
+  'debugger/wasm-scope-info*': [SKIP],
+  'debugger/wasm-step-after-trap': [SKIP],
+}],  # 'arch == riscv64'
+
+['arch == riscv64 and variant == stress_incremental_marking', {
+  'debugger/wasm-gc-breakpoints': [SKIP]
+}],  # 'arch == riscv64'
+
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
@@ -132,6 +149,9 @@
   # This test is just slow on TSan, and TSan coverage is not needed to test
   # that we do not run OOM. Thus skip it on TSan.
   'debugger/wasm-step-a-lot': [SKIP],
+
+  # Another slow test that does not need to run on TSan.
+  'debugger/wasm-inspect-many-registers': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################

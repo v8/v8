@@ -31,13 +31,17 @@ async function instantiateModule({objectId}, importObject) {
 }
 
 async function dumpOnCallFrame(callFrameId, expression) {
-  const {result: {result}} = await Protocol.Debugger.evaluateOnCallFrame({
+  const {result: {result: object}} = await Protocol.Debugger.evaluateOnCallFrame({
     callFrameId, expression
   });
-  if ('description' in result) {
-    InspectorTest.log(`> ${expression} = ${result.description}`);
+  if (object.type === 'object' && object.subtype === 'wasmvalue') {
+    const {result: {result: properties}} = await Protocol.Runtime.getProperties({objectId: object.objectId, ownProperties: true})
+    const valueProperty = properties.find(p => p.name === 'value');
+    InspectorTest.log(`> ${expression} = ${object.description} {${valueProperty.value.description}}`);
+  } else if ('description' in object) {
+    InspectorTest.log(`> ${expression} = ${object.description}`);
   } else {
-    InspectorTest.log(`> ${expression} = ${JSON.stringify(result.value)}`);
+    InspectorTest.log(`> ${expression} = ${JSON.stringify(object.value)}`);
   }
 }
 

@@ -14,8 +14,11 @@
 namespace v8 {
 namespace internal {
 
-UnifiedHeapTest::UnifiedHeapTest() {
-  isolate()->heap()->ConfigureCppHeap(std::make_unique<CppHeapCreateParams>());
+UnifiedHeapTest::UnifiedHeapTest()
+    : cpp_heap_(v8::CppHeap::Create(
+          V8::GetCurrentPlatform(),
+          CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()})) {
+  isolate()->heap()->AttachCppHeap(cpp_heap_.get());
 }
 
 void UnifiedHeapTest::CollectGarbageWithEmbedderStack(
@@ -48,8 +51,8 @@ cppgc::AllocationHandle& UnifiedHeapTest::allocation_handle() {
 
 // static
 v8::Local<v8::Object> WrapperHelper::CreateWrapper(
-    v8::Local<v8::Context> context, void* wrappable_object,
-    const char* class_name) {
+    v8::Local<v8::Context> context, void* wrappable_type,
+    void* wrappable_object, const char* class_name) {
   v8::EscapableHandleScope scope(context->GetIsolate());
   v8::Local<v8::FunctionTemplate> function_t =
       v8::FunctionTemplate::New(context->GetIsolate());
@@ -64,8 +67,7 @@ v8::Local<v8::Object> WrapperHelper::CreateWrapper(
       function_t->GetFunction(context).ToLocalChecked();
   v8::Local<v8::Object> instance =
       function->NewInstance(context).ToLocalChecked();
-  instance->SetAlignedPointerInInternalField(0, wrappable_object);
-  instance->SetAlignedPointerInInternalField(1, wrappable_object);
+  SetWrappableConnection(instance, wrappable_type, wrappable_object);
   CHECK(!instance.IsEmpty());
   i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*instance);
   CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map().instance_type());
@@ -74,15 +76,19 @@ v8::Local<v8::Object> WrapperHelper::CreateWrapper(
 
 // static
 void WrapperHelper::ResetWrappableConnection(v8::Local<v8::Object> api_object) {
-  api_object->SetAlignedPointerInInternalField(0, nullptr);
-  api_object->SetAlignedPointerInInternalField(1, nullptr);
+  api_object->SetAlignedPointerInInternalField(kWrappableTypeEmbedderIndex,
+                                               nullptr);
+  api_object->SetAlignedPointerInInternalField(kWrappableInstanceEmbedderIndex,
+                                               nullptr);
 }
 
 // static
 void WrapperHelper::SetWrappableConnection(v8::Local<v8::Object> api_object,
-                                           void* field1, void* field2) {
-  api_object->SetAlignedPointerInInternalField(0, field1);
-  api_object->SetAlignedPointerInInternalField(1, field2);
+                                           void* type, void* instance) {
+  api_object->SetAlignedPointerInInternalField(kWrappableTypeEmbedderIndex,
+                                               type);
+  api_object->SetAlignedPointerInInternalField(kWrappableInstanceEmbedderIndex,
+                                               instance);
 }
 
 }  // namespace internal

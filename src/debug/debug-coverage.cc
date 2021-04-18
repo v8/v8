@@ -77,9 +77,9 @@ std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo shared) {
   if (coverage_info.slot_count() == 0) return result;
 
   for (int i = 0; i < coverage_info.slot_count(); i++) {
-    const int start_pos = coverage_info.StartSourcePosition(i);
-    const int until_pos = coverage_info.EndSourcePosition(i);
-    const int count = coverage_info.BlockCount(i);
+    const int start_pos = coverage_info.slots_start_source_position(i);
+    const int until_pos = coverage_info.slots_end_source_position(i);
+    const int count = coverage_info.slots_block_count(i);
 
     DCHECK_NE(kNoSourcePosition, start_pos);
     result.emplace_back(start_pos, until_pos, count);

@@ -8,6 +8,7 @@
 #include "src/base/optional.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/common/message-template.h"
+#include "src/regexp/regexp.h"
 
 namespace v8 {
 namespace internal {
@@ -51,11 +52,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                          TVariable<RawPtrT>* var_string_end);
 
   // Low level logic around the actual call into pattern matching code.
-  TNode<HeapObject> RegExpExecInternal(TNode<Context> context,
-                                       TNode<JSRegExp> regexp,
-                                       TNode<String> string,
-                                       TNode<Number> last_index,
-                                       TNode<RegExpMatchInfo> match_info);
+  TNode<HeapObject> RegExpExecInternal(
+      TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
+      TNode<Number> last_index, TNode<RegExpMatchInfo> match_info,
+      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
 
   TNode<JSRegExpResult> ConstructNewResultFromMatchInfo(
       TNode<Context> context, TNode<JSRegExp> regexp,
@@ -97,6 +97,14 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
       PrototypeCheckAssembler::Flags prototype_check_flags,
       base::Optional<DescriptorIndexNameValue> additional_property_to_check,
       Label* if_isunmodified, Label* if_ismodified);
+
+  void BranchIfFastRegExpForSearch(TNode<Context> context,
+                                   TNode<HeapObject> object,
+                                   Label* if_isunmodified,
+                                   Label* if_ismodified);
+  void BranchIfFastRegExpForMatch(TNode<Context> context,
+                                  TNode<HeapObject> object,
+                                  Label* if_isunmodified, Label* if_ismodified);
 
   // Strict: Does not tolerate any changes to the prototype map.
   // Permissive: Allows changes to the prototype map except for the exec

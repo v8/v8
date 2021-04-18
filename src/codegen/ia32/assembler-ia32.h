@@ -235,6 +235,12 @@ class V8_EXPORT_PRIVATE Operand {
   explicit Operand(Register base, int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
+  // [rip + disp/r]
+  explicit Operand(Label* label) {
+    set_modrm(0, ebp);
+    set_dispr(reinterpret_cast<intptr_t>(label), RelocInfo::INTERNAL_REFERENCE);
+  }
+
   // [base + index*scale + disp/r]
   explicit Operand(Register base, Register index, ScaleFactor scale,
                    int32_t disp, RelocInfo::Mode rmode = RelocInfo::NONE);
@@ -990,6 +996,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void movdqa(XMMRegister dst, Operand src);
   void movdqa(Operand dst, XMMRegister src);
+  void movdqa(XMMRegister dst, XMMRegister src);
   void movdqu(XMMRegister dst, Operand src);
   void movdqu(Operand dst, XMMRegister src);
   void movdqu(XMMRegister dst, XMMRegister src);
@@ -1015,6 +1022,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void extractps(Operand dst, XMMRegister src, byte imm8);
   void extractps(Register dst, XMMRegister src, byte imm8);
+
+  void pcmpgtq(XMMRegister dst, XMMRegister src);
 
   void psllw(XMMRegister reg, uint8_t shift);
   void pslld(XMMRegister reg, uint8_t shift);
@@ -1368,6 +1377,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   void vextractps(Operand dst, XMMRegister src, byte imm8);
+
+  void vpcmpgtq(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
   void vmovaps(XMMRegister dst, XMMRegister src) { vmovaps(dst, Operand(src)); }
   void vmovaps(XMMRegister dst, Operand src) { vps(0x28, dst, xmm0, src); }

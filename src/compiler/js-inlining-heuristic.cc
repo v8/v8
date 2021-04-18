@@ -138,11 +138,15 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 }
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
+#if V8_ENABLE_WEBASSEMBLY
   if (mode() == kWasmOnly) {
-    return (node->opcode() == IrOpcode::kJSWasmCall)
-               ? inliner_.ReduceJSWasmCall(node)
-               : NoChange();
+    if (node->opcode() == IrOpcode::kJSWasmCall) {
+      return inliner_.ReduceJSWasmCall(node);
+    }
+    return NoChange();
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   DCHECK_EQ(mode(), kJSOnly);
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
@@ -152,7 +156,6 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Check if we already saw that {node} before, and if so, just skip it.
   if (seen_.find(node->id()) != seen_.end()) return NoChange();
-  seen_.insert(node->id());
 
   // Check if the {node} is an appropriate candidate for inlining.
   Candidate candidate = CollectFunctions(node, kMaxCallPolymorphism);
@@ -204,10 +207,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       unsigned inlined_bytecode_size = 0;
       if (candidate.functions[i].has_value()) {
         JSFunctionRef function = candidate.functions[i].value();
-        if (function.HasAttachedOptimizedCode()) {
-          inlined_bytecode_size = function.code().inlined_bytecode_size();
-          candidate.total_size += inlined_bytecode_size;
-        }
+        inlined_bytecode_size = function.code().GetInlinedBytecodeSize();
+        candidate.total_size += inlined_bytecode_size;
       }
       candidate_is_small = candidate_is_small &&
                            IsSmall(bytecode.length() + inlined_bytecode_size);
@@ -231,6 +232,14 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       candidate.frequency.value() < FLAG_min_inlining_frequency) {
     return NoChange();
   }
+
+  // Found a candidate. Insert it into the set of seen nodes s.t. we don't
+  // revisit in the future. Note this insertion happens here and not earlier in
+  // order to make inlining decisions order-independent. A node may not be a
+  // candidate when first seen, but later reductions may turn it into a valid
+  // candidate. In that case, the node should be revisited by
+  // JSInliningHeuristic.
+  seen_.insert(node->id());
 
   // Forcibly inline small functions here. In the case of polymorphic inlining
   // candidate_is_small is set only when all functions are small.
@@ -672,7 +681,9 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool small_function) {
   int const num_calls = candidate.num_functions;
   Node* const node = candidate.node;
+#if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(node->opcode(), IrOpcode::kJSWasmCall);
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (num_calls == 1) {
     Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {
@@ -791,9 +802,11 @@ void JSInliningHeuristic::PrintCandidates() {
         os << ", bytecode size: " << candidate.bytecode[i]->length();
         if (candidate.functions[i].has_value()) {
           JSFunctionRef function = candidate.functions[i].value();
-          if (function.HasAttachedOptimizedCode()) {
+          unsigned inlined_bytecode_size =
+              function.code().GetInlinedBytecodeSize();
+          if (inlined_bytecode_size > 0) {
             os << ", existing opt code's inlined bytecode size: "
-               << function.code().inlined_bytecode_size();
+               << inlined_bytecode_size;
           }
         }
       } else {

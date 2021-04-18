@@ -181,9 +181,9 @@ export class Profile {
   static CodeState = {
     COMPILED: 0,
     IGNITION: 1,
-    NATIVE_CONTEXT_INDEPENDENT: 2,
-    TURBOPROP: 3,
-    TURBOFAN: 4,
+    BASELINE: 2,
+    TURBOPROP: 4,
+    TURBOFAN: 5,
   }
 
   /**
@@ -195,8 +195,8 @@ export class Profile {
         return this.CodeState.COMPILED;
       case '~':
         return this.CodeState.IGNITION;
-      case '-':
-        return this.CodeState.NATIVE_CONTEXT_INDEPENDENT;
+      case '^':
+        return this.CodeState.BASELINE;
       case '+':
         return this.CodeState.TURBOPROP;
       case '*':
@@ -210,8 +210,8 @@ export class Profile {
       return "Builtin";
     } else if (state === this.CodeState.IGNITION) {
       return "Unopt";
-    } else if (state === this.CodeState.NATIVE_CONTEXT_INDEPENDENT) {
-      return "NCI";
+    } else if (state === this.CodeState.BASELINE) {
+      return "Baseline";
     } else if (state === this.CodeState.TURBOPROP) {
       return "Turboprop";
     } else if (state === this.CodeState.TURBOFAN) {
@@ -693,7 +693,7 @@ class DynamicFuncCodeEntry extends CodeEntry {
     return this.source?.getSourceCode();
   }
 
-  static STATE_PREFIX = ["", "~", "-", "+", "*"];
+  static STATE_PREFIX = ["", "~", "^", "-", "+", "*"];
   getState() {
     return DynamicFuncCodeEntry.STATE_PREFIX[this.state];
   }

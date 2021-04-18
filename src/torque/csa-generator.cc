@@ -279,6 +279,10 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       out() << "ca_.Int32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
       out() << "ca_.Uint32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetInt64Type())) {
+      out() << "ca_.Int64Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUint64Type())) {
+      out() << "ca_.Uint64Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetBoolType())) {
       out() << "ca_.BoolConstant";
     } else {
@@ -477,6 +481,41 @@ void CSAGenerator::EmitInstruction(
     out() << ");\n";
     out() << "    }\n";
   }
+}
+
+void CSAGenerator::EmitInstruction(const MakeLazyNodeInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  TypeVector parameter_types =
+      instruction.macro->signature().parameter_types.types;
+  std::vector<std::string> args = ProcessArgumentsCommon(
+      parameter_types, instruction.constexpr_arguments, stack);
+
+  std::string result_name =
+      DefinitionToVariable(instruction.GetValueDefinition());
+
+  stack->Push(result_name);
+
+  decls() << "  " << instruction.result_type->GetGeneratedTypeName() << " "
+          << result_name << ";\n";
+
+  // We assume here that the CodeAssemblerState will outlive any usage of
+  // the generated std::function that binds it. Likewise, copies of TNode values
+  // are only valid during generation of the current builtin.
+  out() << "    " << result_name << " = [=] () { return ";
+  bool first = true;
+  if (const ExternMacro* extern_macro =
+          ExternMacro::DynamicCast(instruction.macro)) {
+    out() << extern_macro->external_assembler_name() << "(state_)."
+          << extern_macro->ExternalName() << "(";
+  } else {
+    out() << instruction.macro->ExternalName() << "(state_";
+    first = false;
+  }
+  if (!args.empty()) {
+    if (!first) out() << ", ";
+    PrintCommaSeparatedList(out(), args);
+  }
+  out() << "); };\n";
 }
 
 void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
@@ -712,7 +751,7 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
 void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
                                    Stack<std::string>* stack) {
   out() << "    ca_.Branch(" << stack->Pop() << ", &"
-        << BlockName(instruction.if_true) << ", std::vector<Node*>{";
+        << BlockName(instruction.if_true) << ", std::vector<compiler::Node*>{";
 
   const auto& true_definitions = instruction.if_true->InputDefinitions();
   DCHECK_EQ(stack->Size(), true_definitions.Size());
@@ -725,7 +764,8 @@ void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
     }
   }
 
-  out() << "}, &" << BlockName(instruction.if_false) << ", std::vector<Node*>{";
+  out() << "}, &" << BlockName(instruction.if_false)
+        << ", std::vector<compiler::Node*>{";
 
   const auto& false_definitions = instruction.if_false->InputDefinitions();
   DCHECK_EQ(stack->Size(), false_definitions.Size());
@@ -1012,7 +1052,7 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
     out << "}";
   } else {
     DCHECK_EQ(1, result.stack_range().Size());
-    out << "TNode<" << result.type()->GetGeneratedTNodeTypeName() << ">{"
+    out << result.type()->GetGeneratedTypeName() << "{"
         << values.Peek(result.stack_range().begin()) << "}";
   }
 }

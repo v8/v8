@@ -85,6 +85,12 @@ namespace internal {
   HR(wasm_modules_per_engine, V8.WasmModulesPerEngine, 1, 1024, 30)            \
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
+  /* number of thrown exceptions per isolate */                                \
+  HR(wasm_throw_count, V8.WasmThrowCount, 0, 100000, 30)                       \
+  /* number of rethrown exceptions per isolate */                              \
+  HR(wasm_rethrow_count, V8.WasmReThrowCount, 0, 100000, 30)                   \
+  /* number of caught exceptions per isolate */                                \
+  HR(wasm_catch_count, V8.WasmCatchCount, 0, 100000, 30)                       \
   /* Ticks observed in a single Turbofan compilation, in 1K */                 \
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
   /* Backtracks observed in a single regexp interpreter execution */           \
@@ -94,8 +100,6 @@ namespace internal {
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \
   /* Garbage collection timers. */                                             \
-  HT(gc_context, V8.GCContext, 10000,                                          \
-     MILLISECOND) /* GC context cleanup time */                                \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)          \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)      \
   HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,        \
@@ -189,6 +193,12 @@ namespace internal {
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  HT(wasm_time_between_throws, V8.WasmTimeBetweenThrowsMilliseconds, 1000,     \
+     MILLISECOND)                                                              \
+  HT(wasm_time_between_rethrows, V8.WasmTimeBetweenRethrowsMilliseconds, 1000, \
+     MILLISECOND)                                                              \
+  HT(wasm_time_between_catch, V8.WasmTimeBetweenCatchMilliseconds, 1000,       \
+     MILLISECOND)                                                              \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \

@@ -55,8 +55,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   FieldIndex groups_index = FieldIndex::ForDescriptor(
       indices->map(), InternalIndex(kGroupsDescriptorIndex));
   if (maybe_names->IsUndefined(isolate)) {
-    indices->RawFastPropertyAtPut(groups_index,
-                                  ReadOnlyRoots(isolate).undefined_value());
+    indices->FastPropertyAtPut(groups_index,
+                               ReadOnlyRoots(isolate).undefined_value());
     return indices;
   }
 
@@ -65,8 +65,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   Handle<FixedArray> names(Handle<FixedArray>::cast(maybe_names));
   int num_names = names->length() >> 1;
   Handle<HeapObject> group_names;
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    group_names = isolate->factory()->NewOrderedNameDictionary(num_names);
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    group_names = isolate->factory()->NewSwissNameDictionary(num_names);
   } else {
     group_names = isolate->factory()->NewNameDictionary(num_names);
   }
@@ -81,12 +81,10 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     if (!capture_indices->IsUndefined(isolate)) {
       capture_indices = Handle<JSArray>::cast(capture_indices);
     }
-    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-      group_names =
-          OrderedNameDictionary::Add(
-              isolate, Handle<OrderedNameDictionary>::cast(group_names), name,
-              capture_indices, PropertyDetails::Empty())
-              .ToHandleChecked();
+    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      group_names = SwissNameDictionary::Add(
+          isolate, Handle<SwissNameDictionary>::cast(group_names), name,
+          capture_indices, PropertyDetails::Empty());
     } else {
       group_names = NameDictionary::Add(
           isolate, Handle<NameDictionary>::cast(group_names), name,
@@ -102,7 +100,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   Handle<JSObject> js_group_names =
       isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
           null, group_names, elements);
-  indices->RawFastPropertyAtPut(groups_index, *js_group_names);
+  indices->FastPropertyAtPut(groups_index, *js_group_names);
   return indices;
 }
 

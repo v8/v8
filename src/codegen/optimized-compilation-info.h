@@ -70,7 +70,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(TraceTurboAllocation, trace_turbo_allocation, 16)                \
   V(TraceHeapBroker, trace_heap_broker, 17)                          \
   V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18) \
-  V(ConcurrentInlining, concurrent_inlining, 19)
+  V(ConcurrentInlining, concurrent_inlining, 19)                     \
+  V(DiscardResultForTesting, discard_result_for_testing, 20)         \
+  V(InlineJSWasmCalls, inline_js_wasm_calls, 21)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -142,8 +144,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   void SetCode(Handle<Code> code);
 
+#if V8_ENABLE_WEBASSEMBLY
   void SetWasmCompilationResult(std::unique_ptr<wasm::WasmCompilationResult>);
   std::unique_ptr<wasm::WasmCompilationResult> ReleaseWasmCompilationResult();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   bool has_context() const;
   Context context() const;
@@ -158,11 +162,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool IsOptimizing() const {
     return CodeKindIsOptimizedJSFunction(code_kind());
   }
-  bool IsNativeContextIndependent() const {
-    return code_kind() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
-  }
   bool IsTurboprop() const { return code_kind() == CodeKind::TURBOPROP; }
+#if V8_ENABLE_WEBASSEMBLY
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void SetOptimizingForOsr(BytecodeOffset osr_offset,
                            JavaScriptFrame* osr_frame) {
@@ -283,8 +286,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // Basic block profiling support.
   BasicBlockProfilerData* profiler_data_ = nullptr;
 
+#if V8_ENABLE_WEBASSEMBLY
   // The WebAssembly compilation result, not published in the NativeModule yet.
   std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Entry point when compiling for OSR, {BytecodeOffset::None} otherwise.
   BytecodeOffset osr_offset_ = BytecodeOffset::None();

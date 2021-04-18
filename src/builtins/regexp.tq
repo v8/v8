@@ -6,6 +6,20 @@
 
 namespace regexp {
 
+extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpForMatch(
+    implicit context: Context)(HeapObject): never labels IsFast,
+    IsSlow;
+macro IsFastRegExpForMatch(implicit context: Context)(o: HeapObject): bool {
+  BranchIfFastRegExpForMatch(o) otherwise return true, return false;
+}
+
+extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpForSearch(
+    implicit context: Context)(HeapObject): never labels IsFast,
+    IsSlow;
+macro IsFastRegExpForSearch(implicit context: Context)(o: HeapObject): bool {
+  BranchIfFastRegExpForSearch(o) otherwise return true, return false;
+}
+
 extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp_Strict(
     implicit context: Context)(HeapObject): never labels IsFast,
     IsSlow;

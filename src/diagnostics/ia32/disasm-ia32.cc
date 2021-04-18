@@ -696,6 +696,11 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer("vbroadcastss %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x37:
+        AppendToBuffer("vpcmpgtq %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x99:
         AppendToBuffer("vfmadd132s%c %s,%s,", float_size_code(),
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
@@ -2264,6 +2269,10 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                 AppendToBuffer("blendvps %s,", NameOfXMMRegister(regop));
                 data += PrintRightXMMOperand(data);
                 AppendToBuffer(",xmm0");
+                break;
+              case 0x37:
+                AppendToBuffer("pcmpgtq %s,", NameOfXMMRegister(regop));
+                data += PrintRightXMMOperand(data);
                 break;
               default:
                 UnimplementedInstruction();

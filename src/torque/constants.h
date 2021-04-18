@@ -49,6 +49,7 @@ static const char* const BUILTIN_POINTER_TYPE_STRING = "BuiltinPtr";
 static const char* const INTPTR_TYPE_STRING = "intptr";
 static const char* const UINTPTR_TYPE_STRING = "uintptr";
 static const char* const INT64_TYPE_STRING = "int64";
+static const char* const UINT64_TYPE_STRING = "uint64";
 static const char* const INT31_TYPE_STRING = "int31";
 static const char* const INT32_TYPE_STRING = "int32";
 static const char* const UINT31_TYPE_STRING = "uint31";
@@ -73,6 +74,7 @@ static const char* const MUTABLE_SLICE_TYPE_STRING = "MutableSlice";
 static const char* const CONST_SLICE_TYPE_STRING = "ConstSlice";
 static const char* const WEAK_TYPE_STRING = "Weak";
 static const char* const SMI_TAGGED_TYPE_STRING = "SmiTagged";
+static const char* const LAZY_TYPE_STRING = "Lazy";
 static const char* const UNINITIALIZED_ITERATOR_TYPE_STRING =
     "UninitializedIterator";
 static const char* const GENERIC_TYPE_INSTANTIATION_NAMESPACE_STRING =
@@ -110,6 +112,10 @@ static const char* const ANNOTATION_USE_PARENT_TYPE_CHECKER =
 static const char* const ANNOTATION_RELAXED_WRITE = "@relaxedWrite";
 // Generate C++ accessors with relaxed read semantics.
 static const char* const ANNOTATION_RELAXED_READ = "@relaxedRead";
+// Generate C++ accessors with release write semantics.
+static const char* const ANNOTATION_RELEASE_WRITE = "@releaseWrite";
+// Generate C++ accessors with acquire read semantics.
+static const char* const ANNOTATION_ACQUIRE_READ = "@acquireRead";
 
 inline bool IsConstexprName(const std::string& name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==
@@ -157,6 +163,12 @@ using ClassFlags = base::Flags<ClassFlag>;
 
 enum class StructFlag { kNone = 0, kExport = 1 << 0 };
 using StructFlags = base::Flags<StructFlag>;
+
+enum class FieldSynchronization {
+  kNone,
+  kRelaxed,
+  kAcquireRelease,
+};
 
 }  // namespace torque
 }  // namespace internal

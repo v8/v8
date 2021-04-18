@@ -643,6 +643,18 @@ TEST_F(MidTierRegisterAllocatorTest, RegressionSpillDeoptInputIfUsedAtEnd) {
   EXPECT_FALSE(instr->InputAt(0)->EqualsCanonicalized(*instr->InputAt(1)));
 }
 
+TEST_F(MidTierRegisterAllocatorTest, RegressionConstantInSlotOperands) {
+  StartBlock();
+  auto const_var1 = DefineConstant(1);
+  auto const_var2 = DefineConstant(2);
+  EmitOI(Reg(), Slot(const_var1));
+  VReg out = EmitOI(Same(), Slot(const_var2));
+  Return(out);
+  EndBlock(Last());
+
+  Allocate();
+}
+
 TEST_F(MidTierRegisterAllocatorTest, DiamondWithCallFirstBlock) {
   StartBlock();
   auto x = EmitOI(Reg(0));

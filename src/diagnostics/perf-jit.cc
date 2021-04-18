@@ -27,6 +27,8 @@
 
 #include "src/diagnostics/perf-jit.h"
 
+#include "src/common/assert-scope.h"
+
 // Only compile the {PerfJitLogger} on Linux.
 #if V8_OS_LINUX
 
@@ -44,7 +46,10 @@
 #include "src/objects/shared-function-info.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -210,8 +215,8 @@ void PerfJitLogger::LogRecordedBuffer(
   if (FLAG_perf_basic_prof_only_functions &&
       (abstract_code->kind() != CodeKind::INTERPRETED_FUNCTION &&
        abstract_code->kind() != CodeKind::TURBOFAN &&
-       abstract_code->kind() != CodeKind::NATIVE_CONTEXT_INDEPENDENT &&
-       abstract_code->kind() != CodeKind::TURBOPROP)) {
+       abstract_code->kind() != CodeKind::TURBOPROP &&
+       abstract_code->kind() != CodeKind::BASELINE)) {
     return;
   }
 
@@ -244,6 +249,7 @@ void PerfJitLogger::LogRecordedBuffer(
                         length);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void PerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
                                       const char* name, int length) {
   base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
@@ -257,6 +263,7 @@ void PerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
   WriteJitCodeLoadEntry(code->instructions().begin(),
                         code->instructions().length(), name, length);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void PerfJitLogger::WriteJitCodeLoadEntry(const uint8_t* code_pointer,
                                           uint32_t code_size, const char* name,
@@ -335,9 +342,12 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
 
 void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
                                       Handle<SharedFunctionInfo> shared) {
+  DisallowGarbageCollection no_gc;
+  // TODO(v8:11429,cbruni): add proper baseline source position iterator
+  ByteArray source_position_table = code->SourcePositionTable(*shared);
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
-  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
+  for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     entry_count++;
   }
@@ -358,7 +368,7 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
   size += entry_count * sizeof(PerfJitDebugEntry);
   // Add the size of the name after each entry.
 
-  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
+  for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(
         GetSourcePositionInfo(code, shared, iterator.source_position()));
@@ -371,7 +381,7 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
 
   Address code_start = code->InstructionStart();
 
-  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
+  for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(
         GetSourcePositionInfo(code, shared, iterator.source_position()));
@@ -395,6 +405,7 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
   LogWriteBytes(padding_bytes, padding);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void PerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
   wasm::WasmModuleSourceMap* source_map =
       code->native_module()->GetWasmSourceMap();
@@ -461,6 +472,7 @@ void PerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
   char padding_bytes[8] = {0};
   LogWriteBytes(padding_bytes, padding);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void PerfJitLogger::LogWriteUnwindingInfo(Code code) {
   PerfJitCodeUnwindingInfo unwinding_info_header;

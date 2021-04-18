@@ -208,12 +208,12 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
       object2_start, static_cast<size_t>(object3_end - object2_start)};
 
   EXPECT_EQ(0u, g_destructor_callcount);
-  EXPECT_FALSE(freelist.Contains(coalesced_block));
+  EXPECT_FALSE(freelist.ContainsForTesting(coalesced_block));
 
   Sweep();
 
   EXPECT_EQ(2u, g_destructor_callcount);
-  EXPECT_TRUE(freelist.Contains(coalesced_block));
+  EXPECT_TRUE(freelist.ContainsForTesting(coalesced_block));
 }
 
 namespace {
@@ -324,6 +324,25 @@ TEST_F(SweeperTest, LazySweepingDuringAllocation) {
   EXPECT_TRUE((new_object2 == expected_address_on_first_page) ||
               (new_object2 == expected_address_on_second_page));
   EXPECT_NE(new_object1, new_object2);
+}
+
+TEST_F(SweeperTest, LazySweepingNormalPages) {
+  using GCedObject = GCed<sizeof(size_t)>;
+  EXPECT_EQ(0u, g_destructor_callcount);
+  PreciseGC();
+  EXPECT_EQ(0u, g_destructor_callcount);
+  MakeGarbageCollected<GCedObject>(GetAllocationHandle());
+  static constexpr Heap::Config config = {
+      Heap::Config::CollectionType::kMajor,
+      Heap::Config::StackState::kNoHeapPointers,
+      Heap::Config::MarkingType::kAtomic,
+      Heap::Config::SweepingType::kIncrementalAndConcurrent};
+  Heap::From(GetHeap())->CollectGarbage(config);
+  EXPECT_EQ(0u, g_destructor_callcount);
+  MakeGarbageCollected<GCedObject>(GetAllocationHandle());
+  EXPECT_EQ(1u, g_destructor_callcount);
+  PreciseGC();
+  EXPECT_EQ(2u, g_destructor_callcount);
 }
 
 }  // namespace internal

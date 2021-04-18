@@ -3,33 +3,31 @@
 // found in the LICENSE file.
 
 #include "src/asmjs/asm-js.h"
+#include "src/baseline/baseline.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
+#include "src/compiler/pipeline.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
-
-// Returns false iff an exception was thrown.
-bool MaybeSpawnNativeContextIndependentCompilationJob(
-    Handle<JSFunction> function, ConcurrencyMode mode) {
-  if (!FLAG_turbo_nci) return true;  // Nothing to do.
-  return Compiler::CompileOptimized(function, mode,
-                                    CodeKind::NATIVE_CONTEXT_INDEPENDENT);
-}
 
 Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                         ConcurrencyMode mode) {
@@ -39,12 +37,8 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   }
 
   // Compile for the next tier.
-  if (!Compiler::CompileOptimized(function, mode, function->NextTier())) {
-    return ReadOnlyRoots(isolate).exception();
-  }
-
-  // Possibly compile for NCI caching.
-  if (!MaybeSpawnNativeContextIndependentCompilationJob(function, mode)) {
+  if (!Compiler::CompileOptimized(isolate, function, mode,
+                                  function->NextTier())) {
     return ReadOnlyRoots(isolate).exception();
   }
 
@@ -52,22 +46,6 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   // i.e. the installed Code object must not be the CompileLazy builtin.
   DCHECK(function->is_compiled());
   return function->code();
-}
-
-void TryInstallNCICode(Isolate* isolate, Handle<JSFunction> function,
-                       Handle<SharedFunctionInfo> sfi,
-                       IsCompiledScope* is_compiled_scope) {
-  // This function should only be called if there's a possibility that cached
-  // code exists.
-  DCHECK(sfi->may_have_cached_code());
-  DCHECK_EQ(function->shared(), *sfi);
-
-  Handle<Code> code;
-  if (sfi->TryGetCachedCode(isolate).ToHandle(&code)) {
-    function->set_code(*code);
-    JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
-    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
-  }
 }
 
 }  // namespace
@@ -92,27 +70,28 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
     return isolate->StackOverflow();
   }
   IsCompiledScope is_compiled_scope;
-  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+  if (!Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
                          &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).exception();
-  }
-  if (sfi->may_have_cached_code()) {
-    TryInstallNCICode(isolate, function, sfi, &is_compiled_scope);
   }
   DCHECK(function->is_compiled());
   return function->code();
 }
 
-RUNTIME_FUNCTION(Runtime_TryInstallNCICode) {
+RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  DCHECK(function->is_compiled());
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  DCHECK(sfi->HasBaselineData());
   IsCompiledScope is_compiled_scope(*sfi, isolate);
-  TryInstallNCICode(isolate, function, sfi, &is_compiled_scope);
-  DCHECK(function->is_compiled());
-  return function->code();
+  DCHECK(!function->HasAvailableOptimizedCode());
+  DCHECK(!function->HasOptimizationMarker());
+  DCHECK(!function->has_feedback_vector());
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  Code baseline_code = sfi->baseline_data().baseline_code();
+  function->set_code(baseline_code);
+  return baseline_code;
 }
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
@@ -157,7 +136,8 @@ RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   DCHECK(function->shared().is_compiled());
 
   function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-      function->shared(), "Runtime_HealOptimizedCodeSlot");
+      function->raw_feedback_cell(), function->shared(),
+      "Runtime_HealOptimizedCodeSlot");
   return function->code();
 }
 
@@ -179,6 +159,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     memory = args.at<JSArrayBuffer>(3);
   }
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+#if V8_ENABLE_WEBASSEMBLY
   if (shared->HasAsmWasmData()) {
     Handle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
@@ -189,6 +170,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     SharedFunctionInfo::DiscardCompiled(isolate, shared);
   }
   shared->set_is_asm_wasm_broken(true);
+#endif
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
   function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
@@ -274,27 +256,30 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
 
 namespace {
 
-BytecodeOffset DetermineEntryAndDisarmOSRForInterpreter(
-    JavaScriptFrame* frame) {
-  InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
+BytecodeOffset DetermineEntryAndDisarmOSRForUnoptimized(
+    JavaScriptFrame* js_frame) {
+  UnoptimizedFrame* frame = reinterpret_cast<UnoptimizedFrame*>(js_frame);
 
   // Note that the bytecode array active on the stack might be different from
   // the one installed on the function (e.g. patched by debugger). This however
   // is fine because we guarantee the layout to be in sync, hence any
   // BytecodeOffset representing the entry point will be valid for any copy of
   // the bytecode.
-  Handle<BytecodeArray> bytecode(iframe->GetBytecodeArray(), iframe->isolate());
+  Handle<BytecodeArray> bytecode(frame->GetBytecodeArray(), frame->isolate());
 
-  DCHECK(frame->LookupCode().is_interpreter_trampoline_builtin());
+  DCHECK_IMPLIES(frame->is_interpreted(),
+                 frame->LookupCode().is_interpreter_trampoline_builtin());
+  DCHECK_IMPLIES(frame->is_baseline(),
+                 frame->LookupCode().kind() == CodeKind::BASELINE);
+  DCHECK(frame->is_unoptimized());
   DCHECK(frame->function().shared().HasBytecodeArray());
-  DCHECK(frame->is_interpreted());
 
   // Reset the OSR loop nesting depth to disarm back edges.
   bytecode->set_osr_loop_nesting_level(0);
 
   // Return a BytecodeOffset representing the bytecode offset of the back
   // branch.
-  return BytecodeOffset(iframe->GetBytecodeOffset());
+  return BytecodeOffset(frame->GetBytecodeOffset());
 }
 
 }  // namespace
@@ -309,11 +294,11 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   // Determine frame triggering OSR request.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  DCHECK(frame->is_interpreted());
+  DCHECK(frame->is_unoptimized());
 
   // Determine the entry point for which this OSR request has been fired and
   // also disarm all back edges in the calling code to stop new requests.
-  BytecodeOffset osr_offset = DetermineEntryAndDisarmOSRForInterpreter(frame);
+  BytecodeOffset osr_offset = DetermineEntryAndDisarmOSRForUnoptimized(frame);
   DCHECK(!osr_offset.IsNone());
 
   MaybeHandle<Code> maybe_result;
@@ -327,14 +312,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     }
     maybe_result =
         Compiler::GetOptimizedCodeForOSR(function, osr_offset, frame);
-
-    // Possibly compile for NCI caching.
-    if (!MaybeSpawnNativeContextIndependentCompilationJob(
-            function, isolate->concurrent_recompilation_enabled()
-                          ? ConcurrencyMode::kConcurrent
-                          : ConcurrencyMode::kNotConcurrent)) {
-      return Object();
-    }
   }
 
   // Check whether we ended up with usable optimized code.
@@ -399,7 +376,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   }
 
   if (!function->HasAttachedOptimizedCode()) {
-    function->set_code(function->shared().GetCode());
+    function->set_code(function->shared().GetCode(), kReleaseStore);
   }
   return Object();
 }

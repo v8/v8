@@ -40,7 +40,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
   stack_it++;  // Skip the function.
   stack_it++;  // Skip the receiver.
 
-  DCHECK_EQ(TranslatedFrame::kInterpretedFunction, frame_it->kind());
+  DCHECK_EQ(TranslatedFrame::kUnoptimizedFunction, frame_it->kind());
 
   parameters_.resize(static_cast<size_t>(parameter_count));
   for (int i = 0; i < parameter_count; i++) {
@@ -54,7 +54,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
   stack_it++;
 
   // Get the expression stack.
-  DCHECK_EQ(TranslatedFrame::kInterpretedFunction, frame_it->kind());
+  DCHECK_EQ(TranslatedFrame::kUnoptimizedFunction, frame_it->kind());
   const int stack_height = frame_it->height();  // Accumulator *not* included.
 
   expression_stack_.resize(static_cast<size_t>(stack_height));
@@ -64,7 +64,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
     stack_it++;
   }
 
-  DCHECK_EQ(TranslatedFrame::kInterpretedFunction, frame_it->kind());
+  DCHECK_EQ(TranslatedFrame::kUnoptimizedFunction, frame_it->kind());
   stack_it++;  // Skip the accumulator.
 
   CHECK(stack_it == frame_it->end());

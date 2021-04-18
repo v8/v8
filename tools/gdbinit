@@ -38,15 +38,6 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
-# Print LayoutDescriptor.
-define jld
-call (void) _v8_internal_Print_LayoutDescriptor((void*)($arg0))
-end
-document jld
-Print a v8 LayoutDescriptor object
-Usage: jld tagged_ptr
-end
-
 # Print TransitionTree.
 define jtt
 call (void) _v8_internal_Print_TransitionTree((void*)($arg0))

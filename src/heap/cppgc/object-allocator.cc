@@ -100,6 +100,8 @@ void* AllocateLargeObject(PageBackend* page_backend, LargePageSpace* space,
 
 }  // namespace
 
+constexpr size_t ObjectAllocator::kSmallestSpaceSize;
+
 ObjectAllocator::ObjectAllocator(RawHeap* heap, PageBackend* page_backend,
                                  StatsCollector* stats_collector)
     : raw_heap_(heap),
@@ -137,14 +139,25 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
   // 3. Lazily sweep pages of this heap until we find a freed area for
   // this allocation or we finish sweeping all pages of this heap.
   Sweeper& sweeper = raw_heap_->heap()->sweeper();
+  // TODO(chromium:1056170): Investigate whether this should be a loop which
+  // would result in more agressive re-use of memory at the expense of
+  // potentially larger allocation time.
   if (sweeper.SweepForAllocationIfRunning(space, size)) {
-    void* result = AllocateFromFreeList(space, size, gcinfo);
-    DCHECK_NOT_NULL(result);
-    return result;
+    // Sweeper found a block of at least `size` bytes. Allocation from the free
+    // list may still fail as actual  buckets are not exhaustively searched for
+    // a suitable block. Instead, buckets are tested from larger sizes that are
+    // guaranteed to fit the block to smaller bucket sizes that may only
+    // potentially fit the block. For the bucket that may exactly fit the
+    // allocation of `size` bytes (no overallocation), only the first entry is
+    // checked.
+    if (void* result = AllocateFromFreeList(space, size, gcinfo)) {
+      return result;
+    }
   }
 
   // 4. Complete sweeping.
   sweeper.FinishIfRunning();
+  // TODO(chromium:1056170): Make use of the synchronously freed memory.
 
   // 5. Add a new page to this heap.
   auto* new_page = NormalPage::Create(page_backend_, space);
