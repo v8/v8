@@ -2552,16 +2552,20 @@ SIMD_REPLACE_LANE_TYPE_OP(VISIT_SIMD_REPLACE_LANE)
 // operand2 to be UseRegister, because the codegen relies on insertps using
 // registers.
 // TODO(v8:9764) Remove this UseRegister requirement
-#define VISIT_SIMD_REPLACE_LANE_USE_REG(Type)                              \
-  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {         \
-    IA32OperandGenerator g(this);                                          \
-    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));         \
-    InstructionOperand operand1 =                                          \
-        g.UseImmediate(OpParameter<int32_t>(node->op()));                  \
-    InstructionOperand operand2 = g.UseUniqueRegister(node->InputAt(1));   \
-    InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)   \
-                                              : g.DefineSameAsFirst(node); \
-    Emit(k##Type##ReplaceLane, dst, operand0, operand1, operand2);         \
+#define VISIT_SIMD_REPLACE_LANE_USE_REG(Type)                            \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {       \
+    IA32OperandGenerator g(this);                                        \
+    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));       \
+    InstructionOperand operand1 =                                        \
+        g.UseImmediate(OpParameter<int32_t>(node->op()));                \
+    InstructionOperand operand2 = g.UseUniqueRegister(node->InputAt(1)); \
+    if (IsSupported(AVX)) {                                              \
+      Emit(kAVX##Type##ReplaceLane, g.DefineAsRegister(node), operand0,  \
+           operand1, operand2);                                          \
+    } else {                                                             \
+      Emit(kSSE##Type##ReplaceLane, g.DefineSameAsFirst(node), operand0, \
+           operand1, operand2);                                          \
+    }                                                                    \
   }
 VISIT_SIMD_REPLACE_LANE_USE_REG(F64x2)
 #undef VISIT_SIMD_REPLACE_LANE_USE_REG

@@ -4712,7 +4712,27 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  F64x2ReplaceLane(dst.fp(), src1.fp(), src2.fp(), imm_lane_idx);
+  // TODO(fanchenk): Use movlhps and blendpd
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    if (imm_lane_idx == 0) {
+      vinsertps(dst.fp(), src1.fp(), src2.fp(), 0b00000000);
+      vinsertps(dst.fp(), dst.fp(), src2.fp(), 0b01010000);
+    } else {
+      vinsertps(dst.fp(), src1.fp(), src2.fp(), 0b00100000);
+      vinsertps(dst.fp(), dst.fp(), src2.fp(), 0b01110000);
+    }
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    if (dst.fp() != src1.fp()) movaps(dst.fp(), src1.fp());
+    if (imm_lane_idx == 0) {
+      insertps(dst.fp(), src2.fp(), 0b00000000);
+      insertps(dst.fp(), src2.fp(), 0b01010000);
+    } else {
+      insertps(dst.fp(), src2.fp(), 0b00100000);
+      insertps(dst.fp(), src2.fp(), 0b01110000);
+    }
+  }
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

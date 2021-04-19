@@ -3070,7 +3070,7 @@ void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
   }
 
 #define SIMD_TYPES_FOR_REPLACE_LANE(V) \
-  V(F64x2, kX64F64x2ReplaceLane)       \
+  V(F64x2, kX64Pinsrq)                 \
   V(I64x2, kX64Pinsrq)                 \
   V(I32x4, kX64Pinsrd)                 \
   V(I16x8, kX64Pinsrw)                 \

@@ -4242,7 +4242,22 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  F64x2ReplaceLane(dst.fp(), src1.fp(), src2.fp(), imm_lane_idx);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    if (imm_lane_idx == 0) {
+      vpblendw(dst.fp(), src1.fp(), src2.fp(), 0b00001111);
+    } else {
+      vmovlhps(dst.fp(), src1.fp(), src2.fp());
+    }
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    if (dst.fp() != src1.fp()) movaps(dst.fp(), src1.fp());
+    if (imm_lane_idx == 0) {
+      pblendw(dst.fp(), src2.fp(), 0b00001111);
+    } else {
+      movlhps(dst.fp(), src2.fp());
+    }
+  }
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
