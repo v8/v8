@@ -1969,7 +1969,8 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
     const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
 
     if (FLAG_stress_concurrent_inlining && FLAG_concurrent_recompilation &&
-        concurrency_mode == ConcurrencyMode::kNotConcurrent) {
+        concurrency_mode == ConcurrencyMode::kNotConcurrent &&
+        isolate->node_observer() == nullptr) {
       SpawnDuplicateConcurrentJobForStressTesting(function, concurrency_mode,
                                                   code_kind);
     }
@@ -2073,7 +2074,8 @@ bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   if (FLAG_stress_concurrent_inlining && FLAG_concurrent_recompilation &&
-      mode == ConcurrencyMode::kNotConcurrent) {
+      mode == ConcurrencyMode::kNotConcurrent &&
+      isolate->node_observer() == nullptr) {
     SpawnDuplicateConcurrentJobForStressTesting(function, mode, code_kind);
   }
 
