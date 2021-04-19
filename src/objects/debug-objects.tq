@@ -51,7 +51,7 @@ extern class DebugInfo extends Struct {
   // Fixed array holding status information for each active break point.
   break_points: FixedArray;
   // A bitfield that lists uses of the current instance.
-  flags: SmiTagged<DebugInfoFlags>;
+  @relaxedRead @relaxedWrite flags: SmiTagged<DebugInfoFlags>;
   coverage_info: CoverageInfo|Undefined;
 }
 
