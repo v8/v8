@@ -2069,7 +2069,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
       recorder_context_id_map_;
 
-  size_t last_long_task_stats_counter_;
+  size_t last_long_task_stats_counter_ = 0;
   v8::metrics::LongTaskStats long_task_stats_;
 
   std::vector<Object> startup_object_cache_;
