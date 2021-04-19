@@ -54,7 +54,6 @@ master_console_view("ports", "Ports")
 master_console_view("experiments", "Experiments")
 master_console_view("integration", "Integration")
 master_console_view("clusterfuzz", "ClusterFuzz")
-master_console_view("perf", "Perf")
 master_console_view("chromium", "Chromium", "https://chromium.googlesource.com/chromium/src")
 
 console_view(
