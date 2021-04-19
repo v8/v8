@@ -1133,6 +1133,9 @@ TEST(TerminateExecutionTopLevelAwaitAsync) {
   CHECK(!try_catch.HasTerminated());
 
   eval_promise->Resolve(env.local(), v8::Undefined(isolate)).ToChecked();
+#if !defined(V8_ALLOW_JAVASCRIPT_IN_PROMISE_HOOKS)
+  isolate->PerformMicrotaskCheckpoint();
+#endif
 
   CHECK(try_catch.HasCaught());
   CHECK(try_catch.HasTerminated());
