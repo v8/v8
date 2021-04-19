@@ -2408,7 +2408,10 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 
 void InstructionSelector::VisitI64x2Neg(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand operand0 = g.UseUnique(node->InputAt(0));
+  // If AVX unsupported, make sure dst != src to avoid a move.
+  InstructionOperand operand0 = IsSupported(AVX)
+                                    ? g.UseRegister(node->InputAt(0))
+                                    : g.UseUnique(node->InputAt(0));
   Emit(kIA32I64x2Neg, g.DefineAsRegister(node), operand0);
 }
 

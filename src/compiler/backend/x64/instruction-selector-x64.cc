@@ -2936,7 +2936,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4RecipApprox)       \
   V(F32x4RecipSqrtApprox)   \
   V(F32x4DemoteF64x2Zero)   \
-  V(I64x2Neg)               \
   V(I64x2BitMask)           \
   V(I64x2SConvertI32x4Low)  \
   V(I64x2SConvertI32x4High) \
@@ -3201,6 +3200,15 @@ VISIT_SIMD_QFMOP(F64x2Qfms)
 VISIT_SIMD_QFMOP(F32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
+
+void InstructionSelector::VisitI64x2Neg(Node* node) {
+  X64OperandGenerator g(this);
+  // If AVX unsupported, make sure dst != src to avoid a move.
+  InstructionOperand operand0 = IsSupported(AVX)
+                                    ? g.UseRegister(node->InputAt(0))
+                                    : g.UseUnique(node->InputAt(0));
+  Emit(kX64I64x2Neg, g.DefineAsRegister(node), operand0);
+}
 
 void InstructionSelector::VisitI64x2ShrS(Node* node) {
   X64OperandGenerator g(this);

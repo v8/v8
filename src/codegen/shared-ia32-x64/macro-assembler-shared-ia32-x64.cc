@@ -251,6 +251,22 @@ void SharedTurboAssembler::I32x4UConvertI16x8High(XMMRegister dst,
   }
 }
 
+void SharedTurboAssembler::I64x2Neg(XMMRegister dst, XMMRegister src,
+                                    XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpxor(scratch, scratch, scratch);
+    vpsubq(dst, scratch, src);
+  } else {
+    if (dst == src) {
+      movaps(scratch, src);
+      std::swap(src, scratch);
+    }
+    pxor(dst, dst);
+    psubq(dst, src);
+  }
+}
+
 void SharedTurboAssembler::I64x2Abs(XMMRegister dst, XMMRegister src,
                                     XMMRegister scratch) {
   if (CpuFeatures::IsSupported(AVX)) {

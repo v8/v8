@@ -3855,16 +3855,7 @@ void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  DoubleRegister reg =
-      dst.fp() == src.fp() ? liftoff::kScratchDoubleReg : dst.fp();
-  Pxor(reg, reg);
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsubq(dst.fp(), reg, src.fp());
-  } else {
-    psubq(reg, src.fp());
-    if (dst.fp() != reg) movaps(dst.fp(), reg);
-  }
+  I64x2Neg(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,

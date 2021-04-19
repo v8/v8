@@ -288,6 +288,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
   void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
+  void I64x2Neg(XMMRegister dst, XMMRegister src, XMMRegister scratch);
   void I64x2Abs(XMMRegister dst, XMMRegister src, XMMRegister scratch);
   void I64x2GtS(XMMRegister dst, XMMRegister src0, XMMRegister src1,
                 XMMRegister scratch);
