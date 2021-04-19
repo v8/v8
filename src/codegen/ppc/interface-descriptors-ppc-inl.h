@@ -78,12 +78,12 @@ constexpr Register GrowArrayElementsDescriptor::KeyRegister() { return r6; }
 // static
 constexpr Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
   // TODO(v8:11421): Implement on this platform.
-  return no_reg;
+  return r6;
 }
 // static
 constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
   // TODO(v8:11421): Implement on this platform.
-  return no_reg;
+  return r7;
 }
 
 // static
@@ -193,7 +193,7 @@ constexpr auto CompareDescriptor::registers() { return RegisterArray(r4, r3); }
 // static
 constexpr auto Compare_BaselineDescriptor::registers() {
   // TODO(v8:11421): Implement on this platform.
-  return RegisterArray();
+  return DefaultRegisterArray();
 }
 
 // static
@@ -202,7 +202,7 @@ constexpr auto BinaryOpDescriptor::registers() { return RegisterArray(r4, r3); }
 // static
 constexpr auto BinaryOp_BaselineDescriptor::registers() {
   // TODO(v8:11421): Implement on this platform.
-  return RegisterArray();
+  return DefaultRegisterArray();
 }
 
 // static
