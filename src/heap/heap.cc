@@ -980,6 +980,12 @@ inline bool MakePretenureDecision(
   return false;
 }
 
+// Clear feedback calculation fields until the next gc.
+inline void ResetPretenuringFeedback(AllocationSite site) {
+  site.set_memento_found_count(0);
+  site.set_memento_create_count(0);
+}
+
 inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite site,
                                       bool maximum_size_scavenge) {
   bool deopt = false;
@@ -1007,11 +1013,34 @@ inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite site,
                  site.PretenureDecisionName(site.pretenure_decision()));
   }
 
-  // Clear feedback calculation fields until the next gc.
-  site.set_memento_found_count(0);
-  site.set_memento_create_count(0);
+  ResetPretenuringFeedback(site);
   return deopt;
 }
+
+bool PretenureAllocationSiteManually(Isolate* isolate, AllocationSite site) {
+  AllocationSite::PretenureDecision current_decision =
+      site.pretenure_decision();
+  bool deopt = true;
+  if (current_decision == AllocationSite::kUndecided ||
+      current_decision == AllocationSite::kMaybeTenure) {
+    site.set_deopt_dependent_code(true);
+    site.set_pretenure_decision(AllocationSite::kTenure);
+  } else {
+    deopt = false;
+  }
+  if (FLAG_trace_pretenuring_statistics) {
+    PrintIsolate(isolate,
+                 "pretenuring manually requested: AllocationSite(%p): "
+                 "%s => %s\n",
+                 reinterpret_cast<void*>(site.ptr()),
+                 site.PretenureDecisionName(current_decision),
+                 site.PretenureDecisionName(site.pretenure_decision()));
+  }
+
+  ResetPretenuringFeedback(site);
+  return deopt;
+}
+
 }  // namespace
 
 void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite site) {
@@ -1059,7 +1088,18 @@ void Heap::ProcessPretenuringFeedback() {
       }
     }
 
-    // Step 2: Deopt maybe tenured allocation sites if necessary.
+    // Step 2: Pretenure allocation sites for manual requests.
+    if (allocation_sites_to_pretenure_) {
+      while (!allocation_sites_to_pretenure_->empty()) {
+        auto site = allocation_sites_to_pretenure_->Pop();
+        if (PretenureAllocationSiteManually(isolate_, site)) {
+          trigger_deoptimization = true;
+        }
+      }
+      allocation_sites_to_pretenure_.reset();
+    }
+
+    // Step 3: Deopt maybe tenured allocation sites if necessary.
     bool deopt_maybe_tenured = DeoptMaybeTenuredAllocationSites();
     if (deopt_maybe_tenured) {
       ForeachAllocationSite(
@@ -1093,6 +1133,14 @@ void Heap::ProcessPretenuringFeedback() {
     global_pretenuring_feedback_.clear();
     global_pretenuring_feedback_.reserve(kInitialFeedbackCapacity);
   }
+}
+
+void Heap::PretenureAllocationSiteOnNextCollection(AllocationSite site) {
+  if (!allocation_sites_to_pretenure_) {
+    allocation_sites_to_pretenure_.reset(
+        new GlobalHandleVector<AllocationSite>(this));
+  }
+  allocation_sites_to_pretenure_->Push(site);
 }
 
 void Heap::InvalidateCodeDeoptimizationData(Code code) {
@@ -5579,6 +5627,8 @@ void Heap::TearDown() {
   external_string_table_.TearDown();
 
   tracer_.reset();
+
+  allocation_sites_to_pretenure_.reset();
 
   for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
     delete space_[i];

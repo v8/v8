@@ -72,6 +72,8 @@ class CppHeap;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
+template <typename T>
+class GlobalHandleVector;
 class GlobalSafepoint;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
@@ -1453,6 +1455,12 @@ class Heap {
   void MergeAllocationSitePretenuringFeedback(
       const PretenuringFeedbackMap& local_pretenuring_feedback);
 
+  // Adds an allocation site to the list of sites to be pretenured during the
+  // next collection. Added allocation sites are pretenured independent of
+  // their feedback.
+  V8_EXPORT_PRIVATE void PretenureAllocationSiteOnNextCollection(
+      AllocationSite site);
+
   // ===========================================================================
   // Allocation tracking. ======================================================
   // ===========================================================================
@@ -2279,6 +2287,9 @@ class Heap {
   // pointers in this map are already fixed, i.e., they do not point to
   // forwarding pointers.
   PretenuringFeedbackMap global_pretenuring_feedback_;
+
+  std::unique_ptr<GlobalHandleVector<AllocationSite>>
+      allocation_sites_to_pretenure_;
 
   char trace_ring_buffer_[kTraceRingBufferSize];
 
