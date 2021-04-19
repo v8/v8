@@ -626,6 +626,9 @@ class Shell : public i::AllStatic {
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
 
+  static void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static Local<FunctionTemplate> CreateNodeTemplates(Isolate* isolate);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);

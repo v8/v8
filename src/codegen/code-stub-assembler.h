@@ -67,6 +67,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     AsyncIteratorValueUnwrapSharedFun)                                         \
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)        \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
+  V(MegaDOMProtector, mega_dom_protector, MegaDOMProtector)                    \
   V(NumberStringCache, number_string_cache, NumberStringCache)                 \
   V(PromiseAllResolveElementSharedFun, promise_all_resolve_element_shared_fun, \
     PromiseAllResolveElementSharedFun)                                         \
@@ -157,6 +158,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)        \
   V(match_symbol, match_symbol, MatchSymbol)                                 \
   V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)               \
+  V(mega_dom_symbol, mega_dom_symbol, MegaDOMSymbol)                         \
   V(message_string, message_string, MessageString)                           \
   V(minus_Infinity_string, minus_Infinity_string, MinusInfinityString)       \
   V(MinusZeroValue, minus_zero_value, MinusZero)                             \
@@ -2370,6 +2372,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // JSProxy or an object with interceptors.
   TNode<BoolT> InstanceTypeEqual(TNode<Int32T> instance_type, int type);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
+  TNode<BoolT> IsMegaDOMProtectorCellInvalid();
   TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
   TNode<BoolT> IsBigIntInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsBigInt(TNode<HeapObject> object);
@@ -2419,6 +2422,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSObjectInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSObjectMap(TNode<Map> map);
   TNode<BoolT> IsJSObject(TNode<HeapObject> object);
+  TNode<BoolT> IsJSApiObjectInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsJSApiObjectMap(TNode<Map> map);
+  TNode<BoolT> IsJSApiObject(TNode<HeapObject> object);
   TNode<BoolT> IsJSFinalizationRegistryMap(TNode<Map> map);
   TNode<BoolT> IsJSFinalizationRegistry(TNode<HeapObject> object);
   TNode<BoolT> IsJSPromiseMap(TNode<Map> map);

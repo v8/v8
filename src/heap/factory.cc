@@ -53,6 +53,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
@@ -3135,6 +3136,16 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
   DCHECK(!map->is_dictionary_map());
   cache->Set(cache_index, HeapObjectReference::Weak(*map));
   return map;
+}
+
+Handle<MegaDomHandler> Factory::NewMegaDomHandler(MaybeObjectHandle accessor,
+                                                  MaybeObjectHandle context) {
+  Handle<Map> map = read_only_roots().mega_dom_handler_map_handle();
+  MegaDomHandler handler = MegaDomHandler::cast(New(map, AllocationType::kOld));
+  DisallowGarbageCollection no_gc;
+  handler.set_accessor(*accessor);
+  handler.set_context(*context);
+  return handle(handler, isolate());
 }
 
 Handle<LoadHandler> Factory::NewLoadHandler(int data_count,

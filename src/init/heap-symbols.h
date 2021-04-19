@@ -350,6 +350,7 @@
   V(_, error_start_pos_symbol)                 \
   V(_, frozen_symbol)                          \
   V(_, interpreter_trampoline_symbol)          \
+  V(_, mega_dom_symbol)                        \
   V(_, megamorphic_symbol)                     \
   V(_, native_context_index_symbol)            \
   V(_, nonextensible_symbol)                   \

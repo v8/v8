@@ -381,6 +381,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_PRIMITIVE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol,
                            Context::SYMBOL_FUNCTION_INDEX)
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
+    ALLOCATE_MAP(MEGA_DOM_HANDLER_TYPE, MegaDomHandler::kSize, mega_dom_handler)
 
     ALLOCATE_PRIMITIVE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean,
                            Context::BOOLEAN_FUNCTION_INDEX);
@@ -864,6 +865,7 @@ void Heap::CreateInitialObjects() {
   set_is_concat_spreadable_protector(*factory->NewProtector());
   set_map_iterator_protector(*factory->NewProtector());
   set_no_elements_protector(*factory->NewProtector());
+  set_mega_dom_protector(*factory->NewProtector());
   set_promise_hook_protector(*factory->NewProtector());
   set_promise_resolve_protector(*factory->NewProtector());
   set_promise_species_protector(*factory->NewProtector());

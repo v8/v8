@@ -11,6 +11,7 @@ namespace internal {
 CallOptimization::CallOptimization(Isolate* isolate, Handle<Object> function) {
   constant_function_ = Handle<JSFunction>::null();
   is_simple_api_call_ = false;
+  accept_any_receiver_ = false;
   expected_receiver_type_ = Handle<FunctionTemplateInfo>::null();
   api_call_info_ = Handle<CallHandlerInfo>::null();
   if (function->IsJSFunction()) {
@@ -98,6 +99,7 @@ void CallOptimization::Initialize(
         handle(FunctionTemplateInfo::cast(signature), isolate);
   }
   is_simple_api_call_ = true;
+  accept_any_receiver_ = function_template_info->accept_any_receiver();
 }
 
 void CallOptimization::Initialize(Isolate* isolate,
@@ -125,6 +127,7 @@ void CallOptimization::AnalyzePossibleApiFunction(Isolate* isolate,
   }
 
   is_simple_api_call_ = true;
+  accept_any_receiver_ = info->accept_any_receiver();
 }
 }  // namespace internal
 }  // namespace v8
