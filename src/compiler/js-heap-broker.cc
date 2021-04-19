@@ -2486,7 +2486,8 @@ bool ObjectRef::equals(const ObjectRef& other) const {
 
 bool ObjectRef::ShouldHaveBeenSerialized() const {
   return broker()->mode() == JSHeapBroker::kSerialized &&
-         data()->kind() == kSerializedHeapObject;
+         (data()->kind() == kSerializedHeapObject ||
+          data()->kind() == kBackgroundSerializedHeapObject);
 }
 
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
