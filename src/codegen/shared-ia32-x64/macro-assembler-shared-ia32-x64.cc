@@ -47,6 +47,23 @@ void SharedTurboAssembler::F64x2ExtractLane(DoubleRegister dst, XMMRegister src,
   }
 }
 
+void SharedTurboAssembler::F32x4Splat(XMMRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vbroadcastss(dst, src);
+  } else if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vshufps(dst, src, src, 0);
+  } else {
+    if (dst == src) {
+      // 1 byte shorter than pshufd.
+      shufps(dst, src, 0);
+    } else {
+      pshufd(dst, src, 0);
+    }
+  }
+}
+
 void SharedTurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
                                            uint8_t laneidx) {
   if (laneidx == 0) {

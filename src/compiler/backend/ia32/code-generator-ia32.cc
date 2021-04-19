@@ -2274,15 +2274,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F32x4Splat: {
-      XMMRegister dst = i.OutputDoubleRegister();
-      XMMRegister src = i.InputDoubleRegister(0);
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vshufps(i.OutputSimd128Register(), src, src, 0x0);
-      } else {
-        DCHECK_EQ(dst, src);
-        __ shufps(dst, src, 0x0);
-      }
+      __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;
     }
     case kIA32F32x4ExtractLane: {

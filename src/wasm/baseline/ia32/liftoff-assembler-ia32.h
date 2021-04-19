@@ -2938,15 +2938,7 @@ void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vshufps(dst.fp(), src.fp(), src.fp(), 0);
-  } else {
-    if (dst.fp() != src.fp()) {
-      movss(dst.fp(), src.fp());
-    }
-    shufps(dst.fp(), src.fp(), 0);
-  }
+  F32x4Splat(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,

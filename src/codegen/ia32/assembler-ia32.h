@@ -1516,6 +1516,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovshdup(XMMRegister dst, XMMRegister src) {
     vinstr(0x16, dst, xmm0, src, kF3, k0F, kWIG);
   }
+  void vbroadcastss(XMMRegister dst, XMMRegister src) {
+    vinstr(0x18, dst, xmm0, src, k66, k0F38, kW0, AVX2);
+  }
   void vbroadcastss(XMMRegister dst, Operand src) {
     vinstr(0x18, dst, xmm0, src, k66, k0F38, kW0);
   }
@@ -1892,9 +1895,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void sse4_instr(XMMRegister dst, Operand src, byte prefix, byte escape1,
                   byte escape2, byte opcode);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
-              SIMDPrefix pp, LeadingOpcode m, VexW w);
+              SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature = AVX);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
-              SIMDPrefix pp, LeadingOpcode m, VexW w);
+              SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature = AVX);
   // Most BMI instructions are similar.
   void bmi1(byte op, Register reg, Register vreg, Operand rm);
   void bmi2(SIMDPrefix pp, byte op, Register reg, Register vreg, Operand rm);
