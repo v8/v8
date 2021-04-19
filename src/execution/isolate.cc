@@ -22,6 +22,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/bigint/bigint.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/assembler-inl.h"
@@ -3212,6 +3213,8 @@ Isolate::~Isolate() {
   delete thread_manager_;
   thread_manager_ = nullptr;
 
+  bigint_processor_->Destroy();
+
   delete global_handles_;
   global_handles_ = nullptr;
   delete eternal_handles_;
@@ -3504,6 +3507,21 @@ using MapOfLoadsAndStoresPerFunction =
     std::map<std::string /* function_name */,
              std::pair<uint64_t /* loads */, uint64_t /* stores */>>;
 MapOfLoadsAndStoresPerFunction* stack_access_count_map = nullptr;
+
+class BigIntPlatform : public bigint::Platform {
+ public:
+  explicit BigIntPlatform(Isolate* isolate) : isolate_(isolate) {}
+  ~BigIntPlatform() override = default;
+
+  bool InterruptRequested() override {
+    StackLimitCheck interrupt_check(isolate_);
+    return (interrupt_check.InterruptRequested() &&
+            isolate_->stack_guard()->HasTerminationRequest());
+  }
+
+ private:
+  Isolate* isolate_;
+};
 }  // namespace
 
 bool Isolate::Init(SnapshotData* startup_snapshot_data,
@@ -3552,6 +3570,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
   string_table_.reset(new StringTable(this));
+  bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
 
   compiler_dispatcher_ =
       new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);

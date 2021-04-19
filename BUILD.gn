@@ -4826,8 +4826,13 @@ v8_source_set("fuzzer_support") {
 
 v8_source_set("v8_bigint") {
   sources = [
+    "src/bigint/bigint-internal.cc",
+    "src/bigint/bigint-internal.h",
     "src/bigint/bigint.h",
+    "src/bigint/digit-arithmetic.h",
+    "src/bigint/mul-schoolbook.cc",
     "src/bigint/vector-arithmetic.cc",
+    "src/bigint/vector-arithmetic.h",
   ]
 
   configs = [ ":internal_config" ]

@@ -54,6 +54,10 @@ namespace base {
 class RandomNumberGenerator;
 }  // namespace base
 
+namespace bigint {
+class Processor;
+}
+
 namespace debug {
 class ConsoleDelegate;
 class AsyncEventDelegate;
@@ -1138,6 +1142,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   ThreadManager* thread_manager() const { return thread_manager_; }
 
+  bigint::Processor* bigint_processor() { return bigint_processor_; }
+
 #ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize>* jsregexp_uncanonicalize() {
     return &jsregexp_uncanonicalize_;
@@ -1877,6 +1883,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   GlobalHandles* global_handles_ = nullptr;
   EternalHandles* eternal_handles_ = nullptr;
   ThreadManager* thread_manager_ = nullptr;
+  bigint::Processor* bigint_processor_ = nullptr;
   RuntimeState runtime_state_;
   Builtins builtins_;
   SetupIsolateDelegate* setup_delegate_ = nullptr;
