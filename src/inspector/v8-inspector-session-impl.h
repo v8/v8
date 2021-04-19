@@ -50,6 +50,9 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   int contextGroupId() const { return m_contextGroupId; }
   int sessionId() const { return m_sessionId; }
 
+  v8::Local<v8::Object> createCommandLineAPI(
+      v8::Local<v8::Context> context) override;
+
   Response findInjectedScript(int contextId, InjectedScript*&);
   Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
   void reset();

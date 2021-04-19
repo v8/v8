@@ -891,7 +891,7 @@ Response InjectedScript::Scope::initialize() {
 void InjectedScript::Scope::installCommandLineAPI() {
   DCHECK(m_injectedScript && !m_context.IsEmpty() &&
          !m_commandLineAPIScope.get());
-  m_commandLineAPIScope.reset(new V8Console::CommandLineAPIScope(
+  m_commandLineAPIScope.reset(new V8CommandLineAPIScope(
       m_context, m_injectedScript->commandLineAPI(), m_context->Global()));
 }
 

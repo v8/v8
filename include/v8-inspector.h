@@ -35,6 +35,28 @@ class Domain;
 }
 }  // namespace protocol
 
+class V8_EXPORT V8CommandLineAPIScope {
+ public:
+  V8CommandLineAPIScope(v8::Local<v8::Context>,
+                        v8::Local<v8::Object> commandLineAPI,
+                        v8::Local<v8::Object> global);
+  ~V8CommandLineAPIScope();
+  V8CommandLineAPIScope(const V8CommandLineAPIScope&) = delete;
+  V8CommandLineAPIScope& operator=(const V8CommandLineAPIScope&) = delete;
+
+ private:
+  static void accessorGetterCallback(
+      v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>&);
+  static void accessorSetterCallback(v8::Local<v8::Name>, v8::Local<v8::Value>,
+                                     const v8::PropertyCallbackInfo<void>&);
+
+  v8::Local<v8::Context> m_context;
+  v8::Local<v8::Object> m_commandLineAPI;
+  v8::Local<v8::Object> m_global;
+  v8::Local<v8::Set> m_installedMethods;
+  v8::Local<v8::ArrayBuffer> m_thisReference;
+};
+
 class V8_EXPORT StringView {
  public:
   StringView() : m_is8Bit(true), m_length(0), m_characters8(nullptr) {}
@@ -138,6 +160,9 @@ class V8_EXPORT V8InspectorSession {
   virtual std::vector<uint8_t> state() = 0;
   virtual std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
   supportedDomains() = 0;
+
+  virtual v8::Local<v8::Object> createCommandLineAPI(
+      v8::Local<v8::Context> context) = 0;
 
   // Debugger actions.
   virtual void schedulePauseOnNextStatement(StringView breakReason,
