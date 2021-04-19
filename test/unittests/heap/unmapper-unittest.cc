@@ -9,7 +9,6 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/spaces-inl.h"
-#include "src/init/ptr-compr-cage.h"
 #include "src/utils/ostreams.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -243,8 +242,8 @@ class SequentialUnmapperTest : public TestWithIsolate {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Reinitialize the process-wide pointer cage so it can pick up the
     // TrackingPageAllocator.
-    PtrComprCage::GetProcessWideCage()->Free();
-    PtrComprCage::GetProcessWideCage()->InitReservationOrDie();
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
+    IsolateAllocator::InitializeOncePerProcess();
 #endif
     TestWithIsolate::SetUpTestCase();
   }
@@ -254,7 +253,7 @@ class SequentialUnmapperTest : public TestWithIsolate {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Free the process-wide cage reservation, otherwise the pages won't be
     // freed until process teardown.
-    PtrComprCage::GetProcessWideCage()->Free();
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
 #endif
     i::FLAG_concurrent_sweeping = old_flag_;
     CHECK(tracking_page_allocator_->IsEmpty());

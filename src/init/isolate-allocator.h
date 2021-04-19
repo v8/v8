@@ -7,19 +7,12 @@
 
 #include <memory>
 
-#include "src/base/bounded-page-allocator.h"
 #include "src/base/page-allocator.h"
 #include "src/common/globals.h"
-#include "src/init/ptr-compr-cage.h"
+#include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
-
-// Forward declarations.
-namespace base {
-class BoundedPageAllocator;
-}  // namespace base
-
 namespace internal {
 
 // IsolateAllocator object is responsible for allocating memory for one (!)
@@ -49,18 +42,29 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
 
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
 
-  // When pointer compression is on, returns the base address of the pointer
-  // compression cage reservation. Otherwise returns kNullAddress.
-  Address GetPtrComprCageBaseAddress() const;
+  Address GetPtrComprCageBase() const {
+    return COMPRESS_POINTERS_BOOL ? GetPtrComprCage()->base() : kNullAddress;
+  }
+
+  // When pointer compression is on, return the pointer compression
+  // cage. Otherwise return nullptr.
+  VirtualMemoryCage* GetPtrComprCage();
+  const VirtualMemoryCage* GetPtrComprCage() const;
+
+  static void InitializeOncePerProcess();
 
  private:
-  void CommitPagesForIsolate(Address heap_reservation_address);
+  void CommitPagesForIsolate();
+
+  friend class SequentialUnmapperTest;
+  // Only used for testing.
+  static void FreeProcessWidePtrComprCageForTesting();
 
   // The allocated memory for Isolate instance.
   void* isolate_memory_ = nullptr;
   v8::PageAllocator* page_allocator_ = nullptr;
 #ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-  PtrComprCage isolate_cage_;
+  VirtualMemoryCage isolate_ptr_compr_cage_;
 #endif
 };
 

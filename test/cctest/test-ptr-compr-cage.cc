@@ -5,7 +5,6 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/init/ptr-compr-cage.h"
 #include "test/cctest/cctest.h"
 
 #ifdef V8_COMPRESS_POINTERS
@@ -61,12 +60,6 @@ UNINITIALIZED_TEST(SharedPtrComprCage) {
 
     CHECK_EQ(GetPtrComprCageBase(*isolate1_object),
              GetPtrComprCageBase(*isolate2_object));
-
-    const PtrComprCage* cage = PtrComprCage::GetProcessWideCage();
-    CHECK(cage->reservation()->InVM(isolate1_object->ptr(),
-                                    isolate1_object->Size()));
-    CHECK(cage->reservation()->InVM(isolate2_object->ptr(),
-                                    isolate2_object->Size()));
   }
 
   isolate1->Dispose();

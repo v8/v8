@@ -54,7 +54,6 @@
 #include "src/heap/read-only-heap.h"
 #include "src/ic/stub-cache.h"
 #include "src/init/bootstrapper.h"
-#include "src/init/ptr-compr-cage.h"
 #include "src/init/setup-isolate.h"
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
@@ -2950,7 +2949,7 @@ v8::PageAllocator* Isolate::page_allocator() const {
 }
 
 Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
-    : isolate_data_(this, isolate_allocator->GetPtrComprCageBaseAddress()),
+    : isolate_data_(this, isolate_allocator->GetPtrComprCageBase()),
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
