@@ -231,8 +231,6 @@ class TestingModuleBuilder {
     return reinterpret_cast<Address>(globals_data_);
   }
 
-  void SetExecutable() { native_module_->SetExecutable(true); }
-
   void SetTieredDown() {
     native_module_->SetTieringState(kTieredDown);
     execution_tier_ = TestExecutionTier::kLiftoff;
@@ -583,7 +581,6 @@ class WasmRunner : public WasmRunnerBase {
 
     wrapper_.SetInnerCode(builder_.GetFunctionCode(main_fn_index_));
     wrapper_.SetInstance(builder_.instance_object());
-    builder_.SetExecutable();
     Handle<Code> wrapper_code = wrapper_.GetWrapperCode();
     compiler::CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                          wrapper_code, wrapper_.signature());

@@ -685,15 +685,23 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
   return {reinterpret_cast<byte*>(code_space.begin()), code_space.size()};
 }
 
-bool WasmCodeAllocator::SetExecutable(bool executable) {
-  if (is_executable_ == executable) return true;
-  TRACE_HEAP("Setting module %p as executable: %d.\n", this, executable);
-
-  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+// TODO(dlehmann): Do not return the success as a bool, but instead fail hard.
+// That is, pull the CHECK from {NativeModuleModificationScope} in here and
+// return void.
+bool WasmCodeAllocator::SetWritable(bool writable) {
+  if (is_writable_ == writable) return true;
+  TRACE_HEAP("Setting module %p as writable: %d.\n", this, writable);
 
   if (FLAG_wasm_write_protect_code_memory) {
+    v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+
+    // Due to concurrent compilation and execution, we always need the execute
+    // permission, however during codegen we additionally need to write.
+    // Hence this does not actually achieve write-xor-execute, but merely
+    // "always-execute" with "no-write-eventually".
     PageAllocator::Permission permission =
-        executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
+        writable ? PageAllocator::kReadWriteExecute
+                 : PageAllocator::kReadExecute;
 #if V8_OS_WIN
     // On windows, we need to switch permissions per separate virtual memory
     // reservation.
@@ -706,8 +714,8 @@ bool WasmCodeAllocator::SetExecutable(bool executable) {
                           permission)) {
         return false;
       }
-      TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
-                 executable);
+      TRACE_HEAP("Set %p:%p to writable:%d\n", vmem.address(), vmem.end(),
+                 writable);
     }
 #else   // V8_OS_WIN
     size_t commit_page_size = page_allocator->CommitPageSize();
@@ -719,12 +727,12 @@ bool WasmCodeAllocator::SetExecutable(bool executable) {
                           permission)) {
         return false;
       }
-      TRACE_HEAP("Set 0x%" PRIxPTR ":0x%" PRIxPTR " to executable:%d\n",
-                 region.begin(), region.end(), executable);
+      TRACE_HEAP("Set 0x%" PRIxPTR ":0x%" PRIxPTR " to writable:%d\n",
+                 region.begin(), region.end(), writable);
     }
 #endif  // V8_OS_WIN
   }
-  is_executable_ = executable;
+  is_writable_ = writable;
   return true;
 }
 
@@ -1691,11 +1699,23 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
       break;
     }
   }
-  PageAllocator::Permission permission = FLAG_wasm_write_protect_code_memory
-                                             ? PageAllocator::kReadWrite
-                                             : PageAllocator::kReadWriteExecute;
+  // Even when we employ W^X with FLAG_wasm_write_protect_code_memory == true,
+  // code pages need to be initially allocated with RWX permission because of
+  // concurrent compilation/execution. For this reason there is no distinction
+  // here based on FLAG_wasm_write_protect_code_memory.
+  // TODO(dlehmann): This allocates initially as writable and executable, and
+  // as such is not safe-by-default. In particular, if
+  // {WasmCodeAllocator::SetWritable(false)} is never called afterwards (e.g.,
+  // because no {NativeModuleModificationScope} is created), the writable
+  // permission is never withdrawn.
+  // One potential fix is to allocate initially with kReadExecute only, which
+  // forces all compilation threads to add the missing
+  // {NativeModuleModificationScope}s before modification; and/or adding
+  // DCHECKs that {NativeModuleModificationScope} is open when calling this
+  // method.
+  PageAllocator::Permission permission = PageAllocator::kReadWriteExecute;
 
-  TRACE_HEAP("Setting rw permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
+  TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
 
   if (!SetPermissions(GetPlatformPageAllocator(), region.begin(), region.size(),
@@ -2185,7 +2205,7 @@ NativeModuleModificationScope::NativeModuleModificationScope(
     : native_module_(native_module) {
   if (FLAG_wasm_write_protect_code_memory && native_module_ &&
       (native_module_->modification_scope_depth_++) == 0) {
-    bool success = native_module_->SetExecutable(false);
+    bool success = native_module_->SetWritable(true);
     CHECK(success);
   }
 }
@@ -2193,7 +2213,7 @@ NativeModuleModificationScope::NativeModuleModificationScope(
 NativeModuleModificationScope::~NativeModuleModificationScope() {
   if (FLAG_wasm_write_protect_code_memory && native_module_ &&
       (native_module_->modification_scope_depth_--) == 1) {
-    bool success = native_module_->SetExecutable(true);
+    bool success = native_module_->SetWritable(false);
     CHECK(success);
   }
 }

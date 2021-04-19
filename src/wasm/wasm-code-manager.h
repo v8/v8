@@ -424,10 +424,10 @@ class WasmCodeAllocator {
   Vector<byte> AllocateForCodeInRegion(NativeModule*, size_t size,
                                        base::AddressRegion);
 
-  // Sets permissions of all owned code space to executable, or read-write (if
-  // {executable} is false). Returns true on success.
+  // Sets permissions of all owned code space to read-write or read-only (if
+  // {writable} is false). Returns true on success.
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
-  V8_EXPORT_PRIVATE bool SetExecutable(bool executable);
+  V8_EXPORT_PRIVATE bool SetWritable(bool writable);
 
   // Free memory pages of all given code objects. Used for wasm code GC.
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
@@ -466,7 +466,7 @@ class WasmCodeAllocator {
   std::atomic<size_t> generated_code_size_{0};
   std::atomic<size_t> freed_code_size_{0};
 
-  bool is_executable_ = false;
+  bool is_writable_ = false;
 
   std::shared_ptr<Counters> async_counters_;
 };
@@ -575,9 +575,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
-  bool SetExecutable(bool executable) {
+  bool SetWritable(bool writable) {
     base::MutexGuard guard{&allocation_mutex_};
-    return code_allocator_.SetExecutable(executable);
+    return code_allocator_.SetWritable(writable);
   }
 
   // For cctests, where we build both WasmModule and the runtime objects
