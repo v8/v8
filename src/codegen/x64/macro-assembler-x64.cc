@@ -570,11 +570,11 @@ void TurboAssembler::CheckStackAlignment() {
 }
 
 void TurboAssembler::Abort(AbortReason reason) {
-#ifdef DEBUG
-  const char* msg = GetAbortReason(reason);
-  RecordComment("Abort message: ");
-  RecordComment(msg);
-#endif
+  if (FLAG_code_comments) {
+    const char* msg = GetAbortReason(reason);
+    RecordComment("Abort message: ");
+    RecordComment(msg);
+  }
 
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {
@@ -1713,7 +1713,7 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
     Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
     call(kScratchRegister);
   }
-  if (FLAG_code_comments) RecordComment("]");
+  RecordComment("]");
 }
 
 void TurboAssembler::TailCallBuiltin(int builtin_index) {
@@ -1730,7 +1730,7 @@ void TurboAssembler::TailCallBuiltin(int builtin_index) {
     Address entry = d.InstructionStartOfBuiltin(builtin_index);
     Jump(entry, RelocInfo::OFF_HEAP_TARGET);
   }
-  if (FLAG_code_comments) RecordComment("]");
+  RecordComment("]");
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

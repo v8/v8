@@ -120,7 +120,7 @@ void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
     Register temp = t6;
     __ LoadEntryFromBuiltinIndex(builtin, temp);
     __ Call(temp);
-    if (FLAG_code_comments) __ RecordComment("]");
+    __ RecordComment("]");
   }
 }
 
@@ -135,7 +135,7 @@ void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
     Register temp = t6;
     __ LoadEntryFromBuiltinIndex(builtin, temp);
     __ Jump(temp);
-    if (FLAG_code_comments) __ RecordComment("]");
+    __ RecordComment("]");
   }
 }
 

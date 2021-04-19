@@ -124,7 +124,7 @@ void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
   Register temp = temps.AcquireScratch();
   __ LoadEntryFromBuiltinIndex(builtin, temp);
   __ Call(temp);
-  if (FLAG_code_comments) __ RecordComment("]");
+  __ RecordComment("]");
 }
 
 void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
@@ -133,7 +133,7 @@ void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
   Register temp = temps.AcquireScratch();
   __ LoadEntryFromBuiltinIndex(builtin, temp);
   __ Jump(temp);
-  if (FLAG_code_comments) __ RecordComment("]");
+  __ RecordComment("]");
 }
 
 void BaselineAssembler::Test(Register value, int mask) {

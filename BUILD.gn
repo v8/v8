@@ -95,7 +95,13 @@ declare_args() {
   v8_win64_unwinding_info = true
 
   # Enable code comments for builtins in the snapshot (impacts performance).
+  # This also enables v8_code_comments.
   v8_enable_snapshot_code_comments = false
+
+  # Allow runtime-enabled code comments (with --code-comments). Enabled by
+  # default in debug builds.
+  # Sets -dV8_CODE_COMMENTS
+  v8_code_comments = ""
 
   # Enable native counters from the snapshot (impacts performance, sets
   # -dV8_SNAPSHOT_NATIVE_CODE_COUNTERS).
@@ -326,6 +332,13 @@ if (v8_enable_test_features == "") {
 }
 if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = v8_enable_debugging_features
+}
+if (v8_enable_snapshot_code_comments) {
+  assert(v8_code_comments || v8_code_comments == "",
+         "v8_enable_snapshot_code_comments conflicts with v8_code_comments.")
+  v8_code_comments = true
+} else if (v8_code_comments == "") {
+  v8_code_comments = v8_enable_debugging_features
 }
 if (v8_check_microtasks_scopes_consistency == "") {
   v8_check_microtasks_scopes_consistency =
@@ -745,6 +758,9 @@ config("features") {
   }
   if (v8_enable_handle_zapping) {
     defines += [ "ENABLE_HANDLE_ZAPPING" ]
+  }
+  if (v8_code_comments == true) {
+    defines += [ "V8_CODE_COMMENTS" ]
   }
   if (v8_enable_snapshot_native_code_counters) {
     defines += [ "V8_SNAPSHOT_NATIVE_CODE_COUNTERS" ]

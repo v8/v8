@@ -103,7 +103,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
                               std::initializer_list<ExtraNode> extra_nodes) {
   Label ok(this);
   Label not_ok(this, Label::kDeferred);
-  if (message != nullptr && FLAG_code_comments) {
+  if (message != nullptr) {
     Comment("[ Assert: ", message);
   } else {
     Comment("[ Assert");
@@ -5317,6 +5317,10 @@ TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
   Comment("] GrowElementsCapacity");
   return new_elements;
 }
+
+template TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity<IntPtrT>(
+    TNode<HeapObject>, TNode<FixedArrayBase>, ElementsKind, ElementsKind,
+    TNode<IntPtrT>, TNode<IntPtrT>, compiler::CodeAssemblerLabel*);
 
 void CodeStubAssembler::InitializeAllocationMemento(
     TNode<HeapObject> base, TNode<IntPtrT> base_allocation_size,

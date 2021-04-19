@@ -291,7 +291,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
-  void RecordComment(const char* msg) {
+  V8_INLINE void RecordComment(const char* msg) {
+    // Set explicit dependency on --code-comments for dead-code elimination in
+    // release builds.
+    if (!FLAG_code_comments) return;
     if (options().emit_code_comments) {
       code_comments_writer_.Add(pc_offset(), std::string(msg));
     }

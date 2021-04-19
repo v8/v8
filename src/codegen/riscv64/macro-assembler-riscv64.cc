@@ -3122,7 +3122,7 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
   } else {
     Call(entry, RelocInfo::OFF_HEAP_TARGET);
   }
-  if (FLAG_code_comments) RecordComment("]");
+  RecordComment("]");
 }
 
 void TurboAssembler::TailCallBuiltin(int builtin_index) {
@@ -3136,7 +3136,7 @@ void TurboAssembler::TailCallBuiltin(int builtin_index) {
   } else {
     Jump(entry, RelocInfo::OFF_HEAP_TARGET);
   }
-  if (FLAG_code_comments) RecordComment("]");
+  RecordComment("]");
 }
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
@@ -3904,11 +3904,11 @@ void TurboAssembler::Check(Condition cc, AbortReason reason, Register rs,
 void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
-#ifdef DEBUG
-  const char* msg = GetAbortReason(reason);
-  RecordComment("Abort message: ");
-  RecordComment(msg);
-#endif
+  if (FLAG_code_comments) {
+    const char* msg = GetAbortReason(reason);
+    RecordComment("Abort message: ");
+    RecordComment(msg);
+  }
 
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {

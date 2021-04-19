@@ -124,7 +124,12 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static constexpr int kStackPageSize = 4 * KB;
 #endif
 
-  void RecordCommentForOffHeapTrampoline(int builtin_index);
+  V8_INLINE void RecordCommentForOffHeapTrampoline(int builtin_index) {
+    if (!FLAG_code_comments) return;
+    std::ostringstream str;
+    str << "[ Inlined Trampoline to " << Builtins::name(builtin_index);
+    RecordComment(str.str().c_str());
+  }
 
  protected:
   Isolate* const isolate_ = nullptr;

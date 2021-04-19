@@ -75,7 +75,7 @@ struct assert_field_size {
   __ LoadTaggedPointerFromInstance(dst, LoadInstanceIntoRegister(pinned, dst), \
                                    WASM_INSTANCE_OBJECT_FIELD_OFFSET(name));
 
-#ifdef DEBUG
+#ifdef V8_CODE_COMMENTS
 #define DEBUG_CODE_COMMENT(str) \
   do {                          \
     __ RecordComment(str);      \

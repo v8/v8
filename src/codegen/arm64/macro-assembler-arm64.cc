@@ -1943,7 +1943,7 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
     Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
     Call(scratch);
   }
-  if (FLAG_code_comments) RecordComment("]");
+  RecordComment("]");
 }
 
 void TurboAssembler::TailCallBuiltin(int builtin_index) {
@@ -1972,7 +1972,7 @@ void TurboAssembler::TailCallBuiltin(int builtin_index) {
     Ldr(temp, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
     Jump(temp);
   }
-  if (FLAG_code_comments) RecordComment("]");
+  RecordComment("]");
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
@@ -3134,10 +3134,10 @@ void TurboAssembler::Trap() { Brk(0); }
 void TurboAssembler::DebugBreak() { Debug("DebugBreak", 0, BREAK); }
 
 void TurboAssembler::Abort(AbortReason reason) {
-#ifdef DEBUG
-  RecordComment("Abort message: ");
-  RecordComment(GetAbortReason(reason));
-#endif
+  if (FLAG_code_comments) {
+    RecordComment("Abort message: ");
+    RecordComment(GetAbortReason(reason));
+  }
 
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {
