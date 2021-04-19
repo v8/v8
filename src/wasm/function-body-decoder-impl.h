@@ -960,6 +960,8 @@ struct ControlBase : public PcForErrors<validate> {
   ControlKind kind = kControlBlock;
   uint32_t locals_count = 0;  // Additional locals introduced in this 'let'.
   uint32_t stack_depth = 0;   // Stack height at the beginning of the construct.
+  int32_t previous_catch = -1;  // Depth of the innermost catch containing this
+                                // 'try'.
   Reachability reachability = kReachable;
 
   // Values merged into the start or end of this control construct.
@@ -2275,31 +2277,37 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return WasmOpcodes::OpcodeName(opcode);
   }
 
-  inline WasmCodePosition position() {
+  WasmCodePosition position() const {
     int offset = static_cast<int>(this->pc_ - this->start_);
     DCHECK_EQ(this->pc_ - this->start_, offset);  // overflows cannot happen
     return offset;
   }
 
-  inline uint32_t control_depth() const {
+  uint32_t control_depth() const {
     return static_cast<uint32_t>(control_.size());
   }
 
-  inline Control* control_at(uint32_t depth) {
+  Control* control_at(uint32_t depth) {
     DCHECK_GT(control_.size(), depth);
     return &control_.back() - depth;
   }
 
-  inline uint32_t stack_size() const {
+  uint32_t stack_size() const {
     DCHECK_GE(stack_end_, stack_);
     DCHECK_GE(kMaxUInt32, stack_end_ - stack_);
     return static_cast<uint32_t>(stack_end_ - stack_);
   }
 
-  inline Value* stack_value(uint32_t depth) {
+  Value* stack_value(uint32_t depth) const {
     DCHECK_LT(0, depth);
     DCHECK_GE(stack_size(), depth);
     return stack_end_ - depth;
+  }
+
+  int32_t current_catch() const { return current_catch_; }
+
+  uint32_t control_depth_of_current_catch() const {
+    return control_depth() - 1 - current_catch();
   }
 
   void SetSucceedingCodeDynamicallyUnreachable() {
@@ -2325,6 +2333,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   // Controls whether code should be generated for the current block (basically
   // a cache for {ok() && control_.back().reachable()}).
   bool current_code_reachable_and_ok_ = true;
+
+  // Depth of the current try block.
+  int32_t current_catch_ = -1;
 
   static Value UnreachableValue(const uint8_t* pc) {
     return Value{pc, kWasmBottom};
@@ -2505,6 +2516,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     ArgVector args = PeekArgs(imm.sig);
     Control* try_block = PushControl(kControlTry, 0, args.length());
     SetBlockType(try_block, imm, args.begin());
+    try_block->previous_catch = current_catch_;
+    current_catch_ = static_cast<int>(control_depth() - 1);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Try, try_block);
     DropArgs(imm.sig);
     PushMergeValues(try_block, &try_block->start_merge);
@@ -2542,6 +2555,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Push(CreateValue(sig->GetParam(i)));
     }
     Vector<Value> values(stack_ + c->stack_depth, sig->parameter_count());
+    current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchException, imm, c, values);
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
     return 1 + imm.length;
@@ -2572,6 +2586,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
     FallThrough();
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Delegate, imm.depth + 1, c);
+    current_catch_ = c->previous_catch;
     EndControl();
     PopControl();
     return 1 + imm.length;
@@ -2596,6 +2611,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     FallThrough();
     c->kind = kControlTryCatchAll;
     c->reachability = control_at(1)->innerReachability();
+    current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
     stack_end_ = stack_ + c->stack_depth;
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
@@ -2618,6 +2634,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     FallThrough();
     c->kind = kControlTryUnwind;
     c->reachability = control_at(1)->innerReachability();
+    current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
     stack_end_ = stack_ + c->stack_depth;
     current_code_reachable_and_ok_ = this->ok() && c->reachable();

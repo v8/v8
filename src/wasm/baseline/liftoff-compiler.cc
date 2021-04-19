@@ -362,7 +362,6 @@ class LiftoffCompiler {
     Label catch_label;
     bool catch_reached = false;
     bool in_handler = false;
-    int32_t previous_catch = -1;
   };
 
   struct Control : public ControlBase<Value, validate> {
@@ -1085,8 +1084,6 @@ class LiftoffCompiler {
 
   void Try(FullDecoder* decoder, Control* block) {
     block->try_info = std::make_unique<TryInfo>();
-    block->try_info->previous_catch = current_catch_;
-    current_catch_ = static_cast<int32_t>(decoder->control_depth() - 1);
     PushControl(block);
   }
 
@@ -1119,7 +1116,6 @@ class LiftoffCompiler {
                       const ExceptionIndexImmediate<validate>& imm,
                       Control* block, Vector<Value> values) {
     DCHECK(block->is_try_catch());
-    current_catch_ = block->try_info->previous_catch;  // Pop try scope.
     __ emit_jump(block->label.get());
 
     // The catch block is unreachable if no possible throws in the try block
@@ -1200,7 +1196,6 @@ class LiftoffCompiler {
         __ emit_jump(&target->try_info->catch_label);
       }
     }
-    current_catch_ = block->try_info->previous_catch;
   }
 
   void Rethrow(FullDecoder* decoder, Control* try_block) {
@@ -1216,8 +1211,6 @@ class LiftoffCompiler {
     DCHECK(block->is_try_catchall() || block->is_try_catch() ||
            block->is_try_unwind());
     DCHECK_EQ(decoder->control_at(0), block);
-
-    current_catch_ = block->try_info->previous_catch;  // Pop try scope.
 
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
@@ -4064,7 +4057,7 @@ class LiftoffCompiler {
   }
 
   void EmitLandingPad(FullDecoder* decoder, int handler_offset) {
-    if (current_catch_ == -1) return;
+    if (decoder->current_catch() == -1) return;
     MovableLabel handler;
 
     // If we return from the throwing code normally, just skip over the handler.
@@ -4078,7 +4071,7 @@ class LiftoffCompiler {
     __ PushException();
     handlers_.push_back({std::move(handler), handler_offset});
     Control* current_try =
-        decoder->control_at(decoder->control_depth() - 1 - current_catch_);
+        decoder->control_at(decoder->control_depth_of_current_catch());
     DCHECK_NOT_NULL(current_try->try_info);
     if (!current_try->try_info->catch_reached) {
       current_try->try_info->catch_state.InitMerge(
@@ -6008,9 +6001,6 @@ class LiftoffCompiler {
   // call" and "break on entry" a.k.a. instrumentation breakpoint). This happens
   // at the first breakable opcode in the function (if compiling for debugging).
   bool did_function_entry_break_checks_ = false;
-
-  // Depth of the current try block.
-  int32_t current_catch_ = -1;
 
   struct HandlerInfo {
     MovableLabel handler;
