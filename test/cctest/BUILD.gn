@@ -439,7 +439,6 @@ v8_source_set("cctest_sources") {
       "wasm/test-run-wasm-relaxed-simd.cc",
       "wasm/test-run-wasm-sign-extension.cc",
       "wasm/test-run-wasm-simd-liftoff.cc",
-      "wasm/test-run-wasm-simd-scalar-lowering.cc",
       "wasm/test-run-wasm-simd.cc",
       "wasm/test-run-wasm-wrappers.cc",
       "wasm/test-run-wasm.cc",

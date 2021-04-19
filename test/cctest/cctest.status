@@ -384,7 +384,6 @@
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-run-wasm-simd-scalar-lowering/*':[SKIP],
   'test-run-wasm-simd/*':[SKIP],
 
   # Some wasm functionality is not implemented yet
@@ -700,7 +699,6 @@
 ['no_simd_sse == True', {
   'test-run-wasm-simd/*': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-run-wasm-simd-scalar-lowering/*': [SKIP],
 }],  # no_simd_sse == True
 
 ################################################################################

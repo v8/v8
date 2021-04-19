@@ -23,7 +23,3 @@ per-file opcodes.*=ahaas@chromium.org
 per-file opcodes.*=bbudge@chromium.org
 per-file opcodes.*=gdeepti@chromium.org
 per-file opcodes.*=zhin@chromium.org
-
-per-file simd-scalar-lowering.*=bbudge@chromium.org
-per-file simd-scalar-lowering.*=gdeepti@chromium.org
-per-file simd-scalar-lowering.*=zhin@chromium.org
