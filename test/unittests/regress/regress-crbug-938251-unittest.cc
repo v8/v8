@@ -13,7 +13,7 @@ using NewFixedDoubleArrayTest = TestWithIsolateAndZone;
 
 TEST_F(NewFixedDoubleArrayTest, ThrowOnNegativeLength) {
   ASSERT_DEATH_IF_SUPPORTED({ factory()->NewFixedDoubleArray(-1); },
-                            "Fatal JavaScript invalid array length -1 error");
+                            "Fatal JavaScript invalid size error -1");
 }
 
 }  // namespace internal

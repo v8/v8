@@ -413,7 +413,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
 Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
   if (length == 0) return empty_fixed_array();
   if (length < 0 || length > FixedArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid array length %d error", length);
+    FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
 
