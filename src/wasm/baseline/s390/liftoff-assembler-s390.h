@@ -1538,19 +1538,11 @@ bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
 
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
-    vfmin(dst, lhs, rhs, Condition(1), Condition(8), Condition(3));
-    return;
-  }
   DoubleMin(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
-    vfmin(dst, lhs, rhs, Condition(1), Condition(8), Condition(2));
-    return;
-  }
   FloatMin(dst, lhs, rhs);
 }
 
@@ -1577,19 +1569,11 @@ bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
 
 void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
-    vfmax(dst, lhs, rhs, Condition(1), Condition(8), Condition(3));
-    return;
-  }
   DoubleMax(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
-    vfmax(dst, lhs, rhs, Condition(1), Condition(8), Condition(2));
-    return;
-  }
   FloatMax(dst, lhs, rhs);
 }
 
