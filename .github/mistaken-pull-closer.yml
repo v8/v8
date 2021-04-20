@@ -1,4 +1,4 @@
-# `true` will close all PRs.
+# `true` will close all PRs...
 filters:
   - true
 
