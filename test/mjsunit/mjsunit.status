@@ -1471,12 +1471,6 @@
   'concurrent-initial-prototype-change-1': [SKIP],
 }],  # variant == concurrent_inlining
 
-################################################################################
-['variant == stress_concurrent_inlining', {
-  # crbug.com/v8/11668
-  'regress/regress-669024': [SKIP],
-}], # variant == stress_concurrent_inlining
-
 ##############################################################################
 ['pointer_compression_shared_cage', {
    # kMaximalCodeRangeSize causing VM exhaustion with 50 workers when sharing a

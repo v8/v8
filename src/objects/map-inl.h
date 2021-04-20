@@ -98,8 +98,8 @@ BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_in_retained_map_list,
                     Map::Bits3::IsInRetainedMapListBit)
 BIT_FIELD_ACCESSORS(Map, release_acquire_bit_field3, is_prototype_map,
                     Map::Bits3::IsPrototypeMapBit)
-BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field3, bit_field3, is_migration_target,
-                     Map::Bits3::IsMigrationTargetBit)
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_migration_target,
+                    Map::Bits3::IsMigrationTargetBit)
 BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field3, bit_field3, is_extensible,
                      Map::Bits3::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
