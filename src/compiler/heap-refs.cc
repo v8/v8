@@ -16,6 +16,7 @@
 #include "src/execution/protectors-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/template-objects-inl.h"
 
