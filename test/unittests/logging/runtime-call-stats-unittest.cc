@@ -623,6 +623,10 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
 
 TEST_F(RuntimeCallStatsTest, GarbageCollection) {
   FLAG_expose_gc = true;
+  // Disable concurrent GC threads because otherwise they may continue
+  // running after this test completes and race with is_runtime_stats_enabled()
+  // updates.
+  FLAG_single_threaded_gc = true;
   v8::Isolate* isolate = v8_isolate();
   RunJS(
       "let root = [];"

@@ -4,12 +4,6 @@
 
 [
 ##############################################################################
-[ALWAYS, {
-  # https://crbug.com/v8/11413
-  'RuntimeCallStatsTest.GarbageCollection': [PASS, ['verify_csa', SKIP]],
-}],  # ALWAYS
-
-##############################################################################
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],

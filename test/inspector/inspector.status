@@ -24,9 +24,6 @@
   # The initial CL only fixed the crash. The test still causes an endless
   # loop instead of properly reporting a RangeError for a stack overflow.
   'regress/regress-crbug-1080638': [SKIP],
-
-  # https://crbug.com/v8/11338
-  'runtime-call-stats/enable-disable': [PASS, ['verify_csa', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
