@@ -197,6 +197,10 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   IncrementObjectCounters();
 #endif
 
+  if (CanSafepoint()) {
+    main_thread_local_heap()->Safepoint();
+  }
+
   size_t large_object_threshold = MaxRegularHeapObjectSize(type);
   bool large_object =
       static_cast<size_t>(size_in_bytes) > large_object_threshold;

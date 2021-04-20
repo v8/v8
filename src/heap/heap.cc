@@ -1280,10 +1280,8 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   }
 
   // Set main thread state back to Running from CollectionRequested.
-  LocalHeap* main_thread_local_heap = isolate()->main_thread_local_heap();
-
   LocalHeap::ThreadState old_state =
-      main_thread_local_heap->state_.exchange(LocalHeap::kRunning);
+      main_thread_local_heap()->state_.exchange(LocalHeap::kRunning);
 
   CHECK(old_state == LocalHeap::kRunning ||
         old_state == LocalHeap::kCollectionRequested);
@@ -5424,6 +5422,11 @@ void Heap::SetUpSpaces() {
   }
 
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
+}
+
+void Heap::InitializeMainThreadLocalHeap(LocalHeap* main_thread_local_heap) {
+  DCHECK_NULL(main_thread_local_heap_);
+  main_thread_local_heap_ = main_thread_local_heap;
 }
 
 void Heap::InitializeHashSeed() {
