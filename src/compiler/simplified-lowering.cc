@@ -101,18 +101,20 @@ MachineRepresentation MachineRepresentationFromArrayType(
 }
 
 UseInfo CheckedUseInfoAsWord32FromHint(
-    NumberOperationHint hint, const FeedbackSource& feedback = FeedbackSource(),
-    IdentifyZeros identify_zeros = kDistinguishZeros) {
+    NumberOperationHint hint, IdentifyZeros identify_zeros = kDistinguishZeros,
+    const FeedbackSource& feedback = FeedbackSource()) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
       return UseInfo::CheckedSignedSmallAsWord32(identify_zeros, feedback);
     case NumberOperationHint::kNumber:
+      DCHECK_EQ(identify_zeros, kIdentifyZeros);
       return UseInfo::CheckedNumberAsWord32(feedback);
     case NumberOperationHint::kNumberOrBoolean:
       // Not used currently.
       UNREACHABLE();
     case NumberOperationHint::kNumberOrOddball:
+      DCHECK_EQ(identify_zeros, kIdentifyZeros);
       return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
   }
   UNREACHABLE();
@@ -967,7 +969,8 @@ class RepresentationSelector {
                            MachineRepresentation::kWord32);
     }
     NumberOperationHint hint = NumberOperationHintOf(node->op());
-    return VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+    return VisitBinop<T>(node,
+                         CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                          MachineRepresentation::kWord32);
   }
 
@@ -1485,8 +1488,8 @@ class RepresentationSelector {
     }
 
     // Try to use type feedback.
-    NumberOperationHint hint = NumberOperationHintOf(node->op());
-    DCHECK_EQ(hint, NumberOperationHint::kSignedSmall);
+    NumberOperationHint const hint = NumberOperationHint::kSignedSmall;
+    DCHECK_EQ(hint, NumberOperationHintOf(node->op()));
 
     Type left_feedback_type = TypeOf(node->InputAt(0));
     Type right_feedback_type = TypeOf(node->InputAt(1));
@@ -1526,14 +1529,13 @@ class RepresentationSelector {
           !right_feedback_type.Maybe(Type::MinusZero())) {
         left_identify_zeros = kIdentifyZeros;
       }
-      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint, FeedbackSource(),
-                                                        left_identify_zeros);
+      UseInfo left_use =
+          CheckedUseInfoAsWord32FromHint(hint, left_identify_zeros);
       // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
       // a minus zero check for the right hand side, since we already
       // know that the left hand side is a proper Signed32 value,
       // potentially guarded by a check.
-      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, FeedbackSource(),
-                                                         kIdentifyZeros);
+      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
       VisitBinop<T>(node, left_use, right_use, MachineRepresentation::kWord32,
                     restriction);
     }
@@ -1544,7 +1546,6 @@ class RepresentationSelector {
                                right_feedback_type, type_cache_,
                                graph_zone())) {
         ChangeToPureOp(node, Int32Op(node));
-
       } else {
         ChangeToInt32OverflowOp(node);
       }
@@ -1628,10 +1629,10 @@ class RepresentationSelector {
       // mode of the {truncation}; and for modulus the sign of the
       // right hand side doesn't matter anyways, so in particular there's
       // no observable difference between a 0 and a -0 then.
-      UseInfo const lhs_use = CheckedUseInfoAsWord32FromHint(
-          hint, FeedbackSource(), truncation.identify_zeros());
-      UseInfo const rhs_use = CheckedUseInfoAsWord32FromHint(
-          hint, FeedbackSource(), kIdentifyZeros);
+      UseInfo const lhs_use =
+          CheckedUseInfoAsWord32FromHint(hint, truncation.identify_zeros());
+      UseInfo const rhs_use =
+          CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
       if (truncation.IsUsedAsWord32()) {
         VisitBinop<T>(node, lhs_use, rhs_use, MachineRepresentation::kWord32);
         if (lower<T>()) DeferReplacement(node, lowering->Int32Mod(node));
@@ -2184,10 +2185,9 @@ class RepresentationSelector {
         switch (hint) {
           case NumberOperationHint::kSignedSmall:
             if (propagate<T>()) {
-              VisitBinop<T>(node,
-                            CheckedUseInfoAsWord32FromHint(
-                                hint, FeedbackSource(), kIdentifyZeros),
-                            MachineRepresentation::kBit);
+              VisitBinop<T>(
+                  node, CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
+                  MachineRepresentation::kBit);
             } else if (retype<T>()) {
               SetOutput<T>(node, MachineRepresentation::kBit, Type::Any());
             } else {
@@ -2204,10 +2204,9 @@ class RepresentationSelector {
                     node, changer_->TaggedSignedOperatorFor(node->opcode()));
 
               } else {
-                VisitBinop<T>(node,
-                              CheckedUseInfoAsWord32FromHint(
-                                  hint, FeedbackSource(), kIdentifyZeros),
-                              MachineRepresentation::kBit);
+                VisitBinop<T>(
+                    node, CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
+                    MachineRepresentation::kBit);
                 ChangeToPureOp(node, Int32Op(node));
               }
             }
@@ -2499,7 +2498,8 @@ class RepresentationSelector {
         }
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         Type rhs_type = GetUpperBound(node->InputAt(1));
-        VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+        VisitBinop<T>(node,
+                      CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                       MachineRepresentation::kWord32, Type::Signed32());
         if (lower<T>()) {
           MaskShiftOperand(node, rhs_type);
@@ -2532,7 +2532,8 @@ class RepresentationSelector {
         }
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         Type rhs_type = GetUpperBound(node->InputAt(1));
-        VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+        VisitBinop<T>(node,
+                      CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                       MachineRepresentation::kWord32, Type::Signed32());
         if (lower<T>()) {
           MaskShiftOperand(node, rhs_type);
@@ -2561,7 +2562,8 @@ class RepresentationSelector {
           // have seen so far were of type Unsigned31.  We speculate that this
           // will continue to hold.  Moreover, since the RHS is 0, the result
           // will just be the (converted) LHS.
-          VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+          VisitBinop<T>(node,
+                        CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                         MachineRepresentation::kWord32, Type::Unsigned31());
           if (lower<T>()) {
             node->RemoveInput(1);
@@ -2580,7 +2582,8 @@ class RepresentationSelector {
           }
           return;
         }
-        VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
+        VisitBinop<T>(node,
+                      CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros),
                       MachineRepresentation::kWord32, Type::Unsigned32());
         if (lower<T>()) {
           MaskShiftOperand(node, rhs_type);
@@ -3439,7 +3442,8 @@ class RepresentationSelector {
           case NumberOperationHint::kSignedSmall:
           case NumberOperationHint::kSignedSmallInputs:
             VisitUnop<T>(node,
-                         CheckedUseInfoAsWord32FromHint(p.hint(), p.feedback()),
+                         CheckedUseInfoAsWord32FromHint(
+                             p.hint(), kDistinguishZeros, p.feedback()),
                          MachineRepresentation::kWord32, Type::Signed32());
             break;
           case NumberOperationHint::kNumber:
