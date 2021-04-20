@@ -151,6 +151,14 @@ export class Profile {
   scripts_ = [];
   urlToScript_ = new Map();
 
+  serializeVMSymbols() {
+    let result = this.codeMap_.getAllStaticEntriesWithAddresses();
+    result.concat(this.codeMap_.getAllLibraryEntriesWithAddresses())
+    return result.map(([startAddress, codeEntry]) => {
+      return [codeEntry.getName(), startAddress, startAddress + codeEntry.size]
+    });
+  }
+
   /**
    * Returns whether a function with the specified name must be skipped.
    * Should be overriden by subclasses.
