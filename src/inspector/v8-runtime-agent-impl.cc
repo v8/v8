@@ -694,7 +694,6 @@ protocol::DictionaryValue* getOrCreateDictionary(
 Response V8RuntimeAgentImpl::addBinding(const String16& name,
                                         Maybe<int> executionContextId,
                                         Maybe<String16> executionContextName) {
-  if (m_activeBindings.count(name)) return Response::Success();
   if (executionContextId.isJust()) {
     if (executionContextName.isJust()) {
       return Response::InvalidParams(
@@ -764,6 +763,10 @@ void V8RuntimeAgentImpl::bindingCallback(
 
 void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
                                     const String16& name) {
+  auto it = m_activeBindings.find(name);
+  if (it != m_activeBindings.end() && it->second.count(context->contextId())) {
+    return;
+  }
   v8::HandleScope handles(m_inspector->isolate());
   v8::Local<v8::Context> localContext = context->context();
   v8::Local<v8::Object> global = localContext->Global();
@@ -775,7 +778,12 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
           .ToLocal(&functionValue)) {
     v8::Maybe<bool> success = global->Set(localContext, v8Name, functionValue);
     USE(success);
-    m_activeBindings.insert(name);
+    if (it == m_activeBindings.end()) {
+      m_activeBindings.emplace(name,
+                               std::unordered_set<int>(context->contextId()));
+    } else {
+      m_activeBindings.at(name).insert(context->contextId());
+    }
   }
 }
 
