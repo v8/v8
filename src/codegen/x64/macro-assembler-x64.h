@@ -379,9 +379,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
-  // Shufps that will mov src1 into dst if AVX is not supported.
-  void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8);
-
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
 

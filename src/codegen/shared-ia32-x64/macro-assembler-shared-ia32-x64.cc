@@ -29,6 +29,19 @@ void SharedTurboAssembler::Movapd(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void SharedTurboAssembler::Shufps(XMMRegister dst, XMMRegister src1,
+                                  XMMRegister src2, uint8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vshufps(dst, src1, src2, imm8);
+  } else {
+    if (dst != src1) {
+      movaps(dst, src1);
+    }
+    shufps(dst, src2, imm8);
+  }
+}
+
 void SharedTurboAssembler::F64x2ExtractLane(DoubleRegister dst, XMMRegister src,
                                             uint8_t lane) {
   if (lane == 0) {
@@ -61,6 +74,27 @@ void SharedTurboAssembler::F32x4Splat(XMMRegister dst, DoubleRegister src) {
     } else {
       pshufd(dst, src, 0);
     }
+  }
+}
+
+void SharedTurboAssembler::F32x4ExtractLane(FloatRegister dst, XMMRegister src,
+                                            uint8_t lane) {
+  DCHECK_LT(lane, 4);
+  // These instructions are shorter than insertps, but will leave junk in
+  // the top lanes of dst.
+  if (lane == 0) {
+    if (dst != src) {
+      Movaps(dst, src);
+    }
+  } else if (lane == 1) {
+    Movshdup(dst, src);
+  } else if (lane == 2 && dst == src) {
+    // Check dst == src to avoid false dependency on dst.
+    Movhlps(dst, src);
+  } else if (dst == src) {
+    Shufps(dst, src, src, lane);
+  } else {
+    Pshufd(dst, src, lane);
   }
 }
 

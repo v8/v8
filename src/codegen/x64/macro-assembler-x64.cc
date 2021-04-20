@@ -1886,19 +1886,6 @@ void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                            byte imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vshufps(dst, src1, src2, imm8);
-  } else {
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    shufps(dst, src2, imm8);
-  }
-}
-
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   if (imm8 == 0) {
     Movd(dst, src);

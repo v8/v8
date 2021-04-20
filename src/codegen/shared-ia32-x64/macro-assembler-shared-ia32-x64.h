@@ -39,6 +39,10 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
     }
   }
 
+  // Shufps that will mov src1 into dst if AVX is not supported.
+  void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+              uint8_t imm8);
+
   // Helper struct to implement functions that check for AVX support and
   // dispatch to the appropriate AVX/SSE instruction.
   template <typename Dst, typename Arg, typename... Args>
@@ -273,6 +277,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
 
   void F64x2ExtractLane(DoubleRegister dst, XMMRegister src, uint8_t lane);
   void F32x4Splat(XMMRegister dst, DoubleRegister src);
+  void F32x4ExtractLane(FloatRegister dst, XMMRegister src, uint8_t lane);
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
   void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                       XMMRegister scrat, bool is_signed);

@@ -364,10 +364,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
   void Vbroadcastss(XMMRegister dst, Operand src);
 
-  // Shufps that will mov src1 into dst if AVX is not supported.
-  void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-              uint8_t imm8);
-
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
