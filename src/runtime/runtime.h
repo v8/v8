@@ -532,6 +532,7 @@ namespace internal {
   F(OptimizeOsr, -1, 1)                       \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
   F(PrepareFunctionForOptimization, -1, 1)    \
+  F(PretenureAllocationSite, 1, 1)            \
   F(PrintWithNameForAssert, 2, 1)             \
   F(RunningInSimulator, 0, 1)                 \
   F(RuntimeEvaluateREPL, 1, 1)                \

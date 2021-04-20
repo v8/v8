@@ -1424,6 +1424,14 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
+['variant == stress_concurrent_allocation', {
+  # This test manually forces pretenuring of allocation sites.
+  # stress-concurrent-allocation reverts the pretenuring decision due to low
+  # survival rate in old generation.
+  'compiler/deopt-pretenure': [SKIP],
+}],  # variant == stress_concurrent_allocation
+
+##############################################################################
 ['no_simd_sse == True', {
   'wasm/exceptions-simd': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
