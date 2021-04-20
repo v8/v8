@@ -22,6 +22,10 @@
 #include "src/codegen/ppc/interface-descriptors-ppc-inl.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/codegen/s390/interface-descriptors-s390-inl.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/codegen/mips64/interface-descriptors-mips64-inl.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "src/codegen/mips/interface-descriptors-mips-inl.h"
 #else
 #error Unsupported target architecture.
 #endif
