@@ -705,9 +705,11 @@
 ['variant == stress_concurrent_inlining', {
   # crbug.com/v8/11649: Improper access to BreakInfo and friends.
   'test-debug/BreakPointInlinedBuiltin': [PASS, FAIL],
+  'test-debug/BreakPointInlining': [PASS, FAIL],
   # BUG(11524): Crashing flakily.
   'test-cpu-profiler/TracingCpuProfiler': [PASS, FAIL],
   # crbug.com/v8/11513: Flakily failing due to the additional compile task.
+  'test-heap/CellsInOptimizedCodeAreWeak': [PASS, FAIL],
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, FAIL],
   'test-heap/LeakNativeContextVia*': [PASS, FAIL],
   'test-heap/NewSpaceObjectsInOptimizedCode': [PASS, FAIL],
