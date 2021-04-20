@@ -334,7 +334,7 @@ if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = v8_enable_debugging_features
 }
 if (v8_enable_snapshot_code_comments) {
-  assert(v8_code_comments || v8_code_comments == "",
+  assert(v8_code_comments == true || v8_code_comments == "",
          "v8_enable_snapshot_code_comments conflicts with v8_code_comments.")
   v8_code_comments = true
 } else if (v8_code_comments == "") {
