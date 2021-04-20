@@ -3427,6 +3427,7 @@ v8_compiler_sources = [
   "src/compiler/graph-trimmer.cc",
   "src/compiler/graph-visualizer.cc",
   "src/compiler/graph.cc",
+  "src/compiler/heap-refs.cc",
   "src/compiler/js-call-reducer.cc",
   "src/compiler/js-context-specialization.cc",
   "src/compiler/js-create-lowering.cc",

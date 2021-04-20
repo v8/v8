@@ -40,6 +40,8 @@ struct WasmModule;
 
 namespace compiler {
 
+class ObjectData;
+
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
@@ -531,6 +533,8 @@ class ContextRef : public HeapObjectRef {
 class NativeContextRef : public ContextRef {
  public:
   DEFINE_REF_CONSTRUCTOR(NativeContext, ContextRef)
+
+  bool is_unserialized_heap_object() const;
 
   Handle<NativeContext> object() const;
 
