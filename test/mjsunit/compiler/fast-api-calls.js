@@ -13,8 +13,8 @@
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0
 
-assertThrows(() => d8.test.fast_c_api());
-const fast_c_api = new d8.test.fast_c_api();
+assertThrows(() => d8.test.FastCAPI());
+const fast_c_api = new d8.test.FastCAPI();
 
 // ----------- add_all -----------
 // `add_all` has the following signature:

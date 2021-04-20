@@ -1473,6 +1473,14 @@ void PerIsolateData::DeleteDynamicImportData(DynamicImportData* data) {
   delete data;
 }
 
+Local<FunctionTemplate> PerIsolateData::GetTestApiObjectCtor() const {
+  return test_api_object_ctor_.Get(isolate_);
+}
+
+void PerIsolateData::SetTestApiObjectCtor(Local<FunctionTemplate> ctor) {
+  test_api_object_ctor_.Reset(isolate_, ctor);
+}
+
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_count_ = 1;
   data_->realm_current_ = 0;
@@ -2765,8 +2773,10 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     // constructor when --correctness_fuzzer_suppressions is on.
     if (i::FLAG_turbo_fast_api_calls &&
         !i::FLAG_correctness_fuzzer_suppressions) {
-      test_template->Set(isolate, "fast_c_api",
+      test_template->Set(isolate, "FastCAPI",
                          Shell::CreateTestFastCApiTemplate(isolate));
+      test_template->Set(isolate, "LeafInterfaceType",
+                         Shell::CreateLeafInterfaceTypeTemplate(isolate));
     }
 
     d8_template->Set(isolate, "test", test_template);

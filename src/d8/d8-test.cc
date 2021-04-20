@@ -21,16 +21,16 @@
 
 namespace v8 {
 namespace {
+
 class FastCApiObject {
  public:
-  static double AddAllFastCallback(ApiObject receiver, bool should_fallback,
+  static double AddAllFastCallback(v8::Value* receiver, bool should_fallback,
                                    int32_t arg_i32, uint32_t arg_u32,
                                    int64_t arg_i64, uint64_t arg_u64,
                                    float arg_f32, double arg_f64,
                                    FastApiCallbackOptions& options) {
-    Value* receiver_value = reinterpret_cast<Value*>(&receiver);
-    CHECK(receiver_value->IsObject());
-    FastCApiObject* self = UnwrapObject(Object::Cast(receiver_value));
+    CHECK(receiver->IsObject());
+    FastCApiObject* self = UnwrapObject(Object::Cast(receiver));
     self->fast_call_count_++;
 
     if (should_fallback) {
@@ -77,12 +77,11 @@ class FastCApiObject {
     args.GetReturnValue().Set(Number::New(isolate, sum));
   }
 
-  static int Add32BitIntFastCallback(ApiObject receiver, bool should_fallback,
+  static int Add32BitIntFastCallback(v8::Value* receiver, bool should_fallback,
                                      int32_t arg_i32, uint32_t arg_u32,
                                      FastApiCallbackOptions& options) {
-    Value* receiver_value = reinterpret_cast<Value*>(&receiver);
-    CHECK(receiver_value->IsObject());
-    FastCApiObject* self = UnwrapObject(Object::Cast(receiver_value));
+    CHECK(receiver->IsObject());
+    FastCApiObject* self = UnwrapObject(Object::Cast(receiver));
     self->fast_call_count_++;
 
     if (should_fallback) {
@@ -109,6 +108,58 @@ class FastCApiObject {
     }
 
     args.GetReturnValue().Set(Number::New(isolate, sum));
+  }
+
+  static bool IsFastCApiObjectFastCallback(v8::Value* receiver,
+                                           bool should_fallback, v8::Value* arg,
+                                           FastApiCallbackOptions& options) {
+    CHECK(receiver->IsObject());
+    FastCApiObject* self = UnwrapObject(Object::Cast(receiver));
+    self->fast_call_count_++;
+
+    if (should_fallback) {
+      options.fallback = 1;
+      return false;
+    }
+
+    Object* object = Object::Cast(arg);
+    if (!IsValidApiObject(object)) return false;
+
+    internal::Isolate* i_isolate =
+        internal::IsolateFromNeverReadOnlySpaceObject(
+            *reinterpret_cast<internal::Address*>(object));
+    CHECK_NOT_NULL(i_isolate);
+    Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
+    HandleScope handle_scope(isolate);
+    return PerIsolateData::Get(isolate)
+        ->GetTestApiObjectCtor()
+        ->IsLeafTemplateForApiObject(object);
+  }
+  static void IsFastCApiObjectSlowCallback(
+      const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+
+    FastCApiObject* self = UnwrapObject(*args.This());
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    bool result = false;
+    if (args.Length() < 2) {
+      args.GetIsolate()->ThrowError(
+          "is_valid_api_object should be called with 2 arguments");
+      return;
+    }
+    Object* object = Object::Cast(*args[1]);
+    if (!IsValidApiObject(object)) {
+      result = false;
+    } else {
+      result = PerIsolateData::Get(args.GetIsolate())
+                   ->GetTestApiObjectCtor()
+                   ->IsLeafTemplateForApiObject(object);
+    }
+
+    args.GetReturnValue().Set(Boolean::New(isolate, result));
   }
 
   static void FastCallCount(const FunctionCallbackInfo<Value>& args) {
@@ -141,12 +192,14 @@ class FastCApiObject {
   static const int kV8WrapperObjectIndex = 1;
 
  private:
-  static FastCApiObject* UnwrapObject(Object* object) {
+  static bool IsValidApiObject(Object* object) {
     i::Address addr = *reinterpret_cast<i::Address*>(object);
     auto instance_type = i::Internals::GetInstanceType(addr);
-    if (instance_type != i::Internals::kJSObjectType &&
-        instance_type != i::Internals::kJSApiObjectType &&
-        instance_type != i::Internals::kJSSpecialApiObjectType) {
+    return (instance_type == i::Internals::kJSApiObjectType ||
+            instance_type == i::Internals::kJSSpecialApiObjectType);
+  }
+  static FastCApiObject* UnwrapObject(Object* object) {
+    if (!IsValidApiObject(object)) {
       return nullptr;
     }
     FastCApiObject* wrapped = reinterpret_cast<FastCApiObject*>(
@@ -167,8 +220,7 @@ class FastCApiObject {
 thread_local FastCApiObject kFastCApiObject;
 }  // namespace
 
-// TODO(mslekova): Rename the fast_c_api helper to FastCAPI.
-void CreateObject(const FunctionCallbackInfo<Value>& info) {
+void CreateFastCAPIObject(const FunctionCallbackInfo<Value>& info) {
   if (!info.IsConstructCall()) {
     info.GetIsolate()->ThrowError(
         "FastCAPI helper must be constructed with new.");
@@ -187,7 +239,8 @@ void CreateObject(const FunctionCallbackInfo<Value>& info) {
 
 Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
   Local<FunctionTemplate> api_obj_ctor =
-      FunctionTemplate::New(isolate, CreateObject);
+      FunctionTemplate::New(isolate, CreateFastCAPIObject);
+  PerIsolateData::Get(isolate)->SetTestApiObjectCtor(api_obj_ctor);
   Local<Signature> signature = Signature::New(isolate, api_obj_ctor);
   {
     CFunction add_all_c_func =
@@ -206,6 +259,14 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::Add32BitIntSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_32bit_int_c_func));
+    CFunction is_valid_api_object_c_func =
+        CFunction::Make(FastCApiObject::IsFastCApiObjectFastCallback);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "is_fast_c_api_object",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::IsFastCApiObjectSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &is_valid_api_object_c_func));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "fast_call_count",
         FunctionTemplate::New(isolate, FastCApiObject::FastCallCount,
@@ -223,6 +284,22 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
       FastCApiObject::kV8WrapperObjectIndex + 1);
 
   return api_obj_ctor;
+}
+
+void CreateLeafInterfaceObject(const FunctionCallbackInfo<Value>& info) {
+  if (!info.IsConstructCall()) {
+    info.GetIsolate()->ThrowError(
+        "LeafInterfaceType helper must be constructed with new.");
+  }
+}
+
+Local<FunctionTemplate> Shell::CreateLeafInterfaceTypeTemplate(
+    Isolate* isolate) {
+  Local<FunctionTemplate> leaf_object_ctor =
+      FunctionTemplate::New(isolate, CreateLeafInterfaceObject);
+  leaf_object_ctor->SetClassName(
+      String::NewFromUtf8Literal(isolate, "LeafInterfaceType"));
+  return leaf_object_ctor;
 }
 
 }  // namespace v8

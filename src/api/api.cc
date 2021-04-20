@@ -6399,6 +6399,15 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
   return false;
 }
 
+bool FunctionTemplate::IsLeafTemplateForApiObject(v8::Value* value) const {
+  i::DisallowGarbageCollection no_gc;
+
+  i::Object object = *Utils::OpenHandle(value);
+
+  auto self = Utils::OpenHandle(this);
+  return self->IsLeafTemplateForApiObject(object);
+}
+
 Local<External> v8::External::New(Isolate* isolate, void* value) {
   STATIC_ASSERT(sizeof(value) == sizeof(i::Address));
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

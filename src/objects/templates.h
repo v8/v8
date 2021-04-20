@@ -150,7 +150,11 @@ class FunctionTemplateInfo
   inline FunctionTemplateInfo GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.
   inline bool IsTemplateFor(JSObject object);
-  bool IsTemplateFor(Map map);
+  bool IsTemplateFor(Map map) const;
+  // Returns true if |object| is an API object and is constructed by this
+  // particular function template (skips walking up the chain of inheriting
+  // functions that is done by IsTemplateFor).
+  bool IsLeafTemplateForApiObject(Object object) const;
   inline bool instantiated();
 
   inline bool BreakAtEntry();

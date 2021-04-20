@@ -20789,6 +20789,56 @@ THREADED_TEST(InstanceCheckOnPrototypeAccessor) {
   CheckInstanceCheckedAccessors(true);
 }
 
+THREADED_TEST(CheckIsLeafTemplateForApiObject) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f"),
+                  templ->GetFunction(context.local()).ToLocalChecked())
+            .FromJust());
+
+  printf("Testing positive ...\n");
+  CompileRun("var obj = new f();");
+  CHECK(templ->IsLeafTemplateForApiObject(
+      *context->Global()
+           ->Get(context.local(), v8_str("obj"))
+           .ToLocalChecked()));
+
+  printf("Testing negative ...\n");
+  CompileRun(
+      "var obj = {};"
+      "obj.__proto__ = new f();");
+  CHECK(!templ->IsLeafTemplateForApiObject(
+      *context->Global()
+           ->Get(context.local(), v8_str("obj"))
+           .ToLocalChecked()));
+
+  printf("Testing positive with modified prototype chain ...\n");
+  CompileRun(
+      "var obj = new f();"
+      "var pro = {};"
+      "pro.__proto__ = obj.__proto__;"
+      "obj.__proto__ = pro;");
+  CHECK(templ->IsLeafTemplateForApiObject(
+      *context->Global()
+           ->Get(context.local(), v8_str("obj"))
+           .ToLocalChecked()));
+
+  Local<FunctionTemplate> child_templ =
+      FunctionTemplate::New(context->GetIsolate());
+  child_templ->Inherit(templ);
+  Local<Object> instance = child_templ->GetFunction(context.local())
+                               .ToLocalChecked()
+                               ->NewInstance(context.local())
+                               .ToLocalChecked();
+
+  printf("Testing positive for child ...\n");
+  CHECK(child_templ->IsLeafTemplateForApiObject(*instance));
+  printf("Testing negative for parent ...\n");
+  CHECK(!templ->IsLeafTemplateForApiObject(*instance));
+}
 
 TEST(TryFinallyMessage) {
   LocalContext context;
@@ -27626,14 +27676,15 @@ namespace {
 
 template <typename Value, typename Impl, typename Ret>
 struct BasicApiChecker {
-  static Ret FastCallback(v8::ApiObject receiver, Value argument,
+  static Ret FastCallback(v8::Value* receiver, Value argument,
                           v8::FastApiCallbackOptions& options) {
-    const v8::Value* data = reinterpret_cast<const v8::Value*>(&options.data);
+    // TODO(mslekova): Refactor the data checking.
+    v8::Value* data = &(options.data);
     CHECK(data->IsNumber());
-    CHECK_EQ(reinterpret_cast<const v8::Number*>(data)->Value(), 42.0);
+    CHECK_EQ(v8::Number::Cast(data)->Value(), 42.0);
     return Impl::FastCallback(receiver, argument, options);
   }
-  static Ret FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
+  static Ret FastCallbackNoFallback(v8::Value* receiver, Value argument) {
     v8::FastApiCallbackOptions options = {false, {0}};
     return Impl::FastCallback(receiver, argument, options);
   }
@@ -27644,6 +27695,12 @@ struct BasicApiChecker {
   bool DidCallFast() const { return (result_ & ApiCheckerResult::kFastCalled); }
   bool DidCallSlow() const { return (result_ & ApiCheckerResult::kSlowCalled); }
 
+  void SetCallFast() { result_ |= ApiCheckerResult::kFastCalled; }
+  void SetCallSlow() { result_ |= ApiCheckerResult::kSlowCalled; }
+
+  void Reset() { result_ = ApiCheckerResult::kNotCalled; }
+
+ private:
   ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
 };
 
@@ -27668,17 +27725,16 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
         write_to_fallback_(write_to_fallback),
         args_count_(args_count) {}
 
-  static void FastCallback(v8::ApiObject receiver, T argument,
+  static void FastCallback(v8::Value* receiver, T argument,
                            v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    v8::Object* receiver_obj = v8::Object::Cast(receiver);
     if (!IsValidUnwrapObject(receiver_obj)) {
       options.fallback = 1;
       return;
     }
     ApiNumberChecker<T>* receiver_ptr =
-        GetInternalField<ApiNumberChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+        GetInternalField<ApiNumberChecker<T>>(receiver_obj);
+    receiver_ptr->SetCallFast();
     receiver_ptr->fast_value_ = argument;
     if (receiver_ptr->write_to_fallback_ == FallbackPolicy::kRequestFallback) {
       // Anything != 0 has the same effect here, but we're writing 1 to match
@@ -27697,10 +27753,10 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
       return;
     }
     ApiNumberChecker<T>* checker =
-        GetInternalField<ApiNumberChecker<T>, kV8WrapperObjectIndex>(receiver);
+        GetInternalField<ApiNumberChecker<T>>(receiver);
     CHECK_EQ(info.Length(), checker->args_count_);
 
-    checker->result_ |= ApiCheckerResult::kSlowCalled;
+    checker->SetCallSlow();
 
     LocalContext env;
     checker->slow_value_ = ConvertJSValue<T>::Get(info[0], env.local());
@@ -27719,17 +27775,15 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
 };
 
 struct UnexpectedObjectChecker
-    : BasicApiChecker<v8::ApiObject, UnexpectedObjectChecker, void> {
-  static void FastCallback(v8::ApiObject receiver, v8::ApiObject argument,
+    : BasicApiChecker<v8::Value*, UnexpectedObjectChecker, void> {
+  static void FastCallback(v8::Value* receiver, v8::Value* argument,
                            v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    v8::Object* receiver_obj = v8::Object::Cast(receiver);
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
-    v8::Value* argument_value = reinterpret_cast<v8::Value*>(&argument);
-    if (argument_value->IsObject()) {
-      v8::Object* argument_obj = reinterpret_cast<v8::Object*>(&argument);
+        GetInternalField<UnexpectedObjectChecker>(receiver_obj);
+    receiver_ptr->SetCallFast();
+    if (argument->IsObject()) {
+      v8::Object* argument_obj = v8::Object::Cast(argument);
       CHECK(!IsValidUnwrapObject(argument_obj));
     }
   }
@@ -27737,14 +27791,50 @@ struct UnexpectedObjectChecker
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+        GetInternalField<UnexpectedObjectChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
     if (info[0]->IsObject()) {
       v8::Object* argument_obj = v8::Object::Cast(*info[0]);
       CHECK(!IsValidUnwrapObject(argument_obj));
     }
   }
+};
+
+struct EmbedderType {
+  int data;
+};
+
+struct ApiObjectChecker : BasicApiChecker<v8::Value*, ApiObjectChecker, void> {
+  ApiObjectChecker(v8::FunctionTemplate* ctor, int data)
+      : ctor_(ctor), initial_data_(data) {}
+
+  static void FastCallback(v8::Value* receiver, v8::Value* argument,
+                           v8::FastApiCallbackOptions& options) {
+    v8::Object* receiver_obj = v8::Object::Cast(receiver);
+    ApiObjectChecker* receiver_ptr =
+        GetInternalField<ApiObjectChecker>(receiver_obj);
+    receiver_ptr->SetCallFast();
+
+    v8::Object* argument_obj = v8::Object::Cast(argument);
+    EmbedderType* argument_ptr = GetInternalField<EmbedderType>(argument_obj);
+    CHECK(receiver_ptr->ctor_->IsLeafTemplateForApiObject(argument));
+
+    argument_ptr->data = receiver_ptr->initial_data_;
+  }
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    ApiObjectChecker* receiver_ptr =
+        GetInternalField<ApiObjectChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
+
+    CHECK(info[0]->IsObject());
+    v8::Object* argument_obj = v8::Object::Cast(*info[0]);
+    CHECK(receiver_ptr->ctor_->IsLeafTemplateForApiObject(argument_obj));
+  }
+
+  v8::FunctionTemplate* ctor_;
+  int fast_value_ = 0;
+  int initial_data_;
 };
 
 template <typename Value, typename Impl, typename Ret>
@@ -27838,7 +27928,7 @@ void CallAndCheck(
       "function func(arg) { return receiver.api_func(arg); }"
       "%PrepareFunctionForOptimization(func);"
       "func(value);");
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
@@ -27867,24 +27957,58 @@ void CallAndCheck(
   }
 }
 
+void CheckApiObjectArg() {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  Local<v8::FunctionTemplate> api_obj_ctor = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::ObjectTemplate> api_obj_template =
+      api_obj_ctor->InstanceTemplate();
+  api_obj_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
+
+  EmbedderType embedder_obj;
+  v8::Local<v8::Object> api_obj =
+      api_obj_template->NewInstance(env.local()).ToLocalChecked();
+  api_obj->SetAlignedPointerInInternalField(
+      kV8WrapperObjectIndex, reinterpret_cast<void*>(&embedder_obj));
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("api_object"), api_obj)
+            .FromJust());
+
+  const int data = 42;
+  ApiObjectChecker checker(*api_obj_ctor, data);
+  bool has_caught =
+      SetupTest(v8_num(data), &env, &checker,
+                "function func() { return receiver.api_func(api_object); }"
+                "%PrepareFunctionForOptimization(func);"
+                "func();");
+  checker.Reset();
+  CHECK(!has_caught);
+
+  CompileRun(
+      "%OptimizeFunctionOnNextCall(func);"
+      "func();");
+
+  CHECK(checker.DidCallFast());
+  CHECK_EQ(embedder_obj.data, data);
+  CHECK(!checker.DidCallSlow());
+}
+
 template <typename T>
 struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
-  static T FastCallback(v8::ApiObject receiver, T arg,
+  static T FastCallback(v8::Value* receiver, T arg,
                         v8::FastApiCallbackOptions& options) {
-    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    v8::Object* receiver_obj = v8::Object::Cast(receiver);
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+        GetInternalField<ReturnValueChecker<T>>(receiver_obj);
+    receiver_ptr->SetCallFast();
     return arg;
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>, kV8WrapperObjectIndex>(
-            receiver_obj);
-    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+        GetInternalField<ReturnValueChecker<T>>(receiver_obj);
+    receiver_ptr->SetCallSlow();
     info.GetReturnValue().Set(info[0]);
   }
 };
@@ -27901,7 +28025,7 @@ void CheckFastReturnValue(v8::Local<v8::Value> expected_value,
       "%PrepareFunctionForOptimization(func);"
       "func(value);");
   CHECK(!has_caught);
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
@@ -28100,7 +28224,7 @@ TEST(FastApiStackSlot) {
       " };"
       " return foo;"
       "};");
-  checker.result_ = ApiCheckerResult::kNotCalled;
+  checker.Reset();
 
   v8::TryCatch try_catch(isolate);
   v8::Local<v8::Value> foo =
@@ -28576,8 +28700,8 @@ TEST(FastApiCalls) {
   CallWithUnexpectedObjectType(v8_str("str"));
   CallWithUnexpectedObjectType(CompileRun("new Proxy({}, {});"));
 
-  // TODO(mslekova): Add corner cases for 64-bit values.
-  // TODO(mslekova): Add main cases for float and double.
+  CheckApiObjectArg();
+
   // TODO(mslekova): Restructure the tests so that the fast optimized calls
   // are compared against the slow optimized calls.
   // TODO(mslekova): Add tests for FTI that requires access check.

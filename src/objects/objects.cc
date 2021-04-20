@@ -1320,7 +1320,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   return result;
 }
 
-bool FunctionTemplateInfo::IsTemplateFor(Map map) {
+bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
   RCS_SCOPE(
       LocalHeap::Current() == nullptr
           ? GetIsolate()->counters()->runtime_call_stats()
@@ -1348,6 +1348,26 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) {
   }
   // Didn't find the required type in the inheritance chain.
   return false;
+}
+
+bool FunctionTemplateInfo::IsLeafTemplateForApiObject(Object object) const {
+  i::DisallowGarbageCollection no_gc;
+
+  if (!object.IsJSApiObject()) {
+    return false;
+  }
+
+  bool result = false;
+  Map map = HeapObject::cast(object).map();
+  Object constructor_obj = map.GetConstructor();
+  if (constructor_obj.IsJSFunction()) {
+    JSFunction fun = JSFunction::cast(constructor_obj);
+    result = (*this == fun.shared().function_data(kAcquireLoad));
+  } else if (constructor_obj.IsFunctionTemplateInfo()) {
+    result = (*this == constructor_obj);
+  }
+  DCHECK_IMPLIES(result, IsTemplateFor(map));
+  return result;
 }
 
 // static
