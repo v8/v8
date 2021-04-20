@@ -231,6 +231,39 @@ void TurboAssembler::FloatMin(DoubleRegister result_reg,
   }
   bind(&done);
 }
+
+void TurboAssembler::CeilF32(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_POS_INF, dst, src);
+}
+
+void TurboAssembler::CeilF64(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_POS_INF, dst, src);
+}
+
+void TurboAssembler::FloorF32(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_NEG_INF, dst, src);
+}
+
+void TurboAssembler::FloorF64(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_NEG_INF, dst, src);
+}
+
+void TurboAssembler::TruncF32(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TOWARD_0, dst, src);
+}
+
+void TurboAssembler::TruncF64(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TOWARD_0, dst, src);
+}
+
+void TurboAssembler::NearestIntF32(DoubleRegister dst, DoubleRegister src) {
+  fiebra(ROUND_TO_NEAREST_TO_EVEN, dst, src);
+}
+
+void TurboAssembler::NearestIntF64(DoubleRegister dst, DoubleRegister src) {
+  fidbra(ROUND_TO_NEAREST_TO_EVEN, dst, src);
+}
+
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
                                                     Register exclusion2,

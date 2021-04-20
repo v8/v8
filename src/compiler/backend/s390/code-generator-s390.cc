@@ -1692,16 +1692,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_UNARY_OP(D_DInstr(sqdbr), nullInstr, nullInstr);
       break;
     case kS390_FloorFloat:
-      __ fiebra(ROUND_TOWARD_NEG_INF, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ FloorF32(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_CeilFloat:
-      __ fiebra(ROUND_TOWARD_POS_INF, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ CeilF32(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_TruncateFloat:
-      __ fiebra(ROUND_TOWARD_0, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ TruncF32(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     //  Double operations
     case kS390_ModDouble:
@@ -1797,16 +1794,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lpdbr(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_FloorDouble:
-      __ fidbra(ROUND_TOWARD_NEG_INF, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ FloorF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_CeilDouble:
-      __ fidbra(ROUND_TOWARD_POS_INF, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ CeilF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_TruncateDouble:
-      __ fidbra(ROUND_TOWARD_0, i.OutputDoubleRegister(),
-                i.InputDoubleRegister(0));
+      __ TruncF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_RoundDouble:
       __ fidbra(ROUND_TO_NEAREST_AWAY_FROM_0, i.OutputDoubleRegister(),

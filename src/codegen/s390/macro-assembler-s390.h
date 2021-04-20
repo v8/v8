@@ -70,6 +70,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                 DoubleRegister right_reg);
   void FloatMin(DoubleRegister result_reg, DoubleRegister left_reg,
                 DoubleRegister right_reg);
+  void CeilF32(DoubleRegister dst, DoubleRegister src);
+  void CeilF64(DoubleRegister dst, DoubleRegister src);
+  void FloorF32(DoubleRegister dst, DoubleRegister src);
+  void FloorF64(DoubleRegister dst, DoubleRegister src);
+  void TruncF32(DoubleRegister dst, DoubleRegister src);
+  void TruncF64(DoubleRegister dst, DoubleRegister src);
+  void NearestIntF32(DoubleRegister dst, DoubleRegister src);
+  void NearestIntF64(DoubleRegister dst, DoubleRegister src);
+
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;

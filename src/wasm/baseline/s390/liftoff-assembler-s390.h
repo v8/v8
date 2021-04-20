@@ -1516,23 +1516,23 @@ BINOP_LIST(EMIT_BINOP_FUNCTION)
 #undef LFR_TO_REG
 
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
-  fiebra(ROUND_TOWARD_POS_INF, dst, src);
+  CeilF32(dst, src);
   return true;
 }
 
 bool LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
-  fiebra(ROUND_TOWARD_NEG_INF, dst, src);
+  FloorF32(dst, src);
   return true;
 }
 
 bool LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
-  fiebra(ROUND_TOWARD_0, dst, src);
+  TruncF32(dst, src);
   return true;
 }
 
 bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
-  fiebra(ROUND_TO_NEAREST_TO_EVEN, dst, src);
+  NearestIntF32(dst, src);
   return true;
 }
 
@@ -1547,23 +1547,23 @@ void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
 }
 
 bool LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
-  fidbra(ROUND_TOWARD_POS_INF, dst, src);
+  CeilF64(dst, src);
   return true;
 }
 
 bool LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
-  fidbra(ROUND_TOWARD_NEG_INF, dst, src);
+  FloorF64(dst, src);
   return true;
 }
 
 bool LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
-  fidbra(ROUND_TOWARD_0, dst, src);
+  TruncF64(dst, src);
   return true;
 }
 
 bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
-  fidbra(ROUND_TO_NEAREST_TO_EVEN, dst, src);
+  NearestIntF64(dst, src);
   return true;
 }
 
