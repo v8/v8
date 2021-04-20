@@ -202,6 +202,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pavgb, pavgb)
   AVX_OP(Pavgw, pavgw)
   AVX_OP(Pcmpgtb, pcmpgtb)
+  AVX_OP(Pcmpeqd, pcmpeqd)
   AVX_OP(Pmaxub, pmaxub)
   AVX_OP(Pminub, pminub)
   AVX_OP(Pmovmskb, pmovmskb)
@@ -305,6 +306,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
   void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
+  void S128Not(XMMRegister dst, XMMRegister src, XMMRegister scratch);
   // Requires dst == mask when AVX is not supported.
   void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
                   XMMRegister src2, XMMRegister scratch);

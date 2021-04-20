@@ -464,6 +464,17 @@ void SharedTurboAssembler::I64x2UConvertI32x4High(XMMRegister dst,
   }
 }
 
+void SharedTurboAssembler::S128Not(XMMRegister dst, XMMRegister src,
+                                   XMMRegister scratch) {
+  if (dst == src) {
+    Pcmpeqd(scratch, scratch);
+    Pxor(dst, scratch);
+  } else {
+    Pcmpeqd(dst, dst);
+    Pxor(dst, src);
+  }
+}
+
 void SharedTurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
                                       XMMRegister src1, XMMRegister src2,
                                       XMMRegister scratch) {

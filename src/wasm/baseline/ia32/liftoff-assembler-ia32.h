@@ -3260,13 +3260,7 @@ void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
-  if (dst.fp() != src.fp()) {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Pxor(dst.fp(), src.fp());
-  } else {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Pxor(dst.fp(), liftoff::kScratchDoubleReg);
-  }
+  S128Not(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
