@@ -95,7 +95,7 @@ class WasmGraphBuildingInterface {
   };
 
   struct Control : public ControlBase<Value, validate> {
-    SsaEnv* end_env = nullptr;    // end environment for the construct.
+    SsaEnv* merge_env = nullptr;  // merge environment for the construct.
     SsaEnv* false_env = nullptr;  // false environment (only for if).
     TryInfo* try_info = nullptr;  // information about try statements.
     int32_t previous_catch = -1;  // previous Control with a catch.
@@ -154,15 +154,15 @@ class WasmGraphBuildingInterface {
 
   void Block(FullDecoder* decoder, Control* block) {
     // The branch environment is the outer environment.
-    block->end_env = ssa_env_;
+    block->merge_env = ssa_env_;
     SetEnv(Steal(decoder->zone(), ssa_env_));
   }
 
   void Loop(FullDecoder* decoder, Control* block) {
-    SsaEnv* finish_try_env = Steal(decoder->zone(), ssa_env_);
-    block->end_env = finish_try_env;
-    SetEnv(finish_try_env);
-    // The continue environment is the inner environment.
+    // This is the merge environment at the beginning of the loop.
+    SsaEnv* merge_env = Steal(decoder->zone(), ssa_env_);
+    block->merge_env = merge_env;
+    SetEnv(merge_env);
 
     ssa_env_->state = SsaEnv::kMerged;
 
@@ -214,15 +214,15 @@ class WasmGraphBuildingInterface {
                                             control());
     }
 
+    // Now we setup a new environment for the inside of the loop.
     SetEnv(Split(decoder->zone(), ssa_env_));
     builder_->StackCheck(decoder->position());
-
     ssa_env_->SetNotMerged();
-    if (!decoder->ok()) return;
+
     // Wrap input merge into phis.
     for (uint32_t i = 0; i < block->start_merge.arity; ++i) {
       Value& val = block->start_merge[i];
-      TFNode* inputs[] = {val.node, block->end_env->control};
+      TFNode* inputs[] = {val.node, block->merge_env->control};
       val.node = builder_->Phi(val.type, 1, inputs);
     }
   }
@@ -236,7 +236,7 @@ class WasmGraphBuildingInterface {
     SsaEnv* try_env = Steal(decoder->zone(), outer_env);
     SetEnv(try_env);
     TryInfo* try_info = decoder->zone()->New<TryInfo>(catch_env);
-    block->end_env = outer_env;
+    block->merge_env = outer_env;
     block->try_info = try_info;
   }
 
@@ -244,12 +244,12 @@ class WasmGraphBuildingInterface {
     TFNode* if_true = nullptr;
     TFNode* if_false = nullptr;
     builder_->BranchNoHint(cond.node, &if_true, &if_false);
-    SsaEnv* end_env = ssa_env_;
+    SsaEnv* merge_env = ssa_env_;
     SsaEnv* false_env = Split(decoder->zone(), ssa_env_);
     false_env->control = if_false;
     SsaEnv* true_env = Steal(decoder->zone(), ssa_env_);
     true_env->control = if_true;
-    if_block->end_env = end_env;
+    if_block->merge_env = merge_env;
     if_block->false_env = false_env;
     SetEnv(true_env);
   }
@@ -290,7 +290,7 @@ class WasmGraphBuildingInterface {
       MergeValuesInto(decoder, block, &block->end_merge, values);
     }
     // Now continue with the merged environment.
-    SetEnv(block->end_env);
+    SetEnv(block->merge_env);
   }
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
@@ -1197,7 +1197,7 @@ class WasmGraphBuildingInterface {
                        Value* values) {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
 
-    SsaEnv* target = c->end_env;
+    SsaEnv* target = c->merge_env;
     // This has to be computed before calling Goto().
     const bool first = target->state == SsaEnv::kUnreachable;
 

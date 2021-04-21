@@ -3841,7 +3841,7 @@ TEST_F(FunctionBodyDecoderTest, BrOnNull) {
                               WASM_I32V(0), kExprSelectWithType, 1,
                               WASM_REF_TYPE(reps[0]))},
                 kAppendEnd,
-                "expected 1 elements on the stack for br to @1, found 0");
+                "expected 1 elements on the stack for branch, found 0");
 }
 
 TEST_F(FunctionBodyDecoderTest, GCStruct) {
@@ -3880,8 +3880,7 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
       &sig_r_v,
       {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_I32V(0), WASM_I32V(1),
                                 WASM_RTT_CANON(struct_type_index))},
-      kAppendEnd,
-      "expected 1 elements on the stack for fallthru to @1, found 2");
+      kAppendEnd, "expected 1 elements on the stack for fallthru, found 2");
   // Mistyped arguments.
   ExpectFailure(&sig_v_r,
                 {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_LOCAL_GET(0),
@@ -3927,7 +3926,7 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   ExpectFailure(
       &sig_f_r,
       {WASM_STRUCT_GET(struct_type_index, field_index, WASM_LOCAL_GET(0))},
-      kAppendEnd, "type error in merge[0] (expected f32, got i32)");
+      kAppendEnd, "type error in fallthru[0] (expected f32, got i32)");
 
   /** struct.set **/
   ExpectValidates(&sig_v_r, {WASM_STRUCT_SET(struct_type_index, field_index,
@@ -3953,7 +3952,7 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
                 {WASM_STRUCT_SET(struct_type_index, field_index,
                                  WASM_LOCAL_GET(0), WASM_I32V(0))},
                 kAppendEnd,
-                "expected 1 elements on the stack for fallthru to @1, found 0");
+                "expected 1 elements on the stack for fallthru, found 0");
   // Setting immutable field.
   ExpectFailure(
       sigs.v_v(),
@@ -4063,7 +4062,7 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   ExpectFailure(
       &sig_f_r,
       {WASM_ARRAY_GET(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
-      kAppendEnd, "type error in merge[0] (expected f32, got funcref)");
+      kAppendEnd, "type error in fallthru[0] (expected f32, got funcref)");
 
   // array.get_s/u fail.
   ExpectFailure(
@@ -4112,7 +4111,8 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
                   {WASM_ARRAY_LEN(array_type_index, WASM_LOCAL_GET(0))});
   // Wrong return type.
   ExpectFailure(&sig_f_r, {WASM_ARRAY_LEN(array_type_index, WASM_LOCAL_GET(0))},
-                kAppendEnd, "type error in merge[0] (expected f32, got i32)");
+                kAppendEnd,
+                "type error in fallthru[0] (expected f32, got i32)");
   // Non-array type index.
   ExpectFailure(&sig_i_r,
                 {WASM_ARRAY_LEN(struct_type_index, WASM_LOCAL_GET(0))},
@@ -4234,7 +4234,7 @@ TEST_F(FunctionBodyDecoderTest, RttCanon) {
     ValueType rtt2 = ValueType::Rtt(type_index, 1);
     FunctionSig sig2(1, 0, &rtt2);
     ExpectFailure(&sig2, {WASM_RTT_CANON(type_index)}, kAppendEnd,
-                  "type error in merge[0]");
+                  "type error in fallthru[0]");
   }
 }
 

@@ -29,5 +29,5 @@ kExprEnd,   // @21
   assertThrows(
       () => {builder.toModule()}, WebAssembly.CompileError,
       'WebAssembly.Module(): Compiling function #0:\"main\" failed: ' +
-      'type error in merge[0] (expected f32, got i32) @+57');
+      'type error in branch[0] (expected f32, got i32) @+57');
 })();
