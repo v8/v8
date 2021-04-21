@@ -337,7 +337,7 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          int32_t offset_imm,
                                          LiftoffRegList pinned) {
   DCHECK_GE(offset_imm, 0);
-  if (emit_debug_code() && offset_reg != no_reg) {
+  if (FLAG_debug_code && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
   }
   Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg,

@@ -180,7 +180,6 @@ AssemblerBase::AssemblerBase(const AssemblerOptions& options,
     : buffer_(std::move(buffer)),
       options_(options),
       enabled_cpu_features_(0),
-      emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
       constant_pool_available_(false),
       jump_optimization_info_(nullptr) {

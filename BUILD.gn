@@ -103,6 +103,11 @@ declare_args() {
   # Sets -dV8_CODE_COMMENTS
   v8_code_comments = ""
 
+  # Allow runtime-enabled debug code (with --debug-code). Enabled by default in
+  # debug builds.
+  # Sets -dV8_ENABLE_DEBUG_CODE
+  v8_enable_debug_code = ""
+
   # Enable native counters from the snapshot (impacts performance, sets
   # -dV8_SNAPSHOT_NATIVE_CODE_COUNTERS).
   # This option will generate extra code in the snapshot to increment counters,
@@ -339,6 +344,9 @@ if (v8_enable_snapshot_code_comments) {
   v8_code_comments = true
 } else if (v8_code_comments == "") {
   v8_code_comments = v8_enable_debugging_features
+}
+if (v8_enable_debug_code == "") {
+  v8_enable_debug_code = v8_enable_debugging_features
 }
 if (v8_check_microtasks_scopes_consistency == "") {
   v8_check_microtasks_scopes_consistency =
@@ -761,6 +769,9 @@ config("features") {
   }
   if (v8_code_comments == true) {
     defines += [ "V8_CODE_COMMENTS" ]
+  }
+  if (v8_enable_debug_code) {
+    defines += [ "V8_ENABLE_DEBUG_CODE" ]
   }
   if (v8_enable_snapshot_native_code_counters) {
     defines += [ "V8_SNAPSHOT_NATIVE_CODE_COUNTERS" ]

@@ -669,7 +669,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kPointerSize.
   DCHECK(IsAligned(offset, kPointerSize));
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -827,7 +827,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
   DCHECK_NE(object, value);
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
@@ -1436,7 +1436,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   PushCommonFrame(scratch);
   // Reserve room for saved entry sp.
   sub(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     mov(scratch, Operand::Zero());
     str(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
@@ -2035,11 +2035,11 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 }
 
 void TurboAssembler::Assert(Condition cond, AbortReason reason) {
-  if (emit_debug_code()) Check(cond, reason);
+  if (FLAG_debug_code) Check(cond, reason);
 }
 
 void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (emit_debug_code()) Abort(reason);
+  if (FLAG_debug_code) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason) {
@@ -2144,7 +2144,7 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmi);
@@ -2152,7 +2152,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 }
 
 void MacroAssembler::AssertSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(eq, AbortReason::kOperandIsNotASmi);
@@ -2160,7 +2160,7 @@ void MacroAssembler::AssertSmi(Register object) {
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
@@ -2174,7 +2174,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction);
@@ -2188,7 +2188,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction);
@@ -2200,7 +2200,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!emit_debug_code()) return;
+  if (!FLAG_debug_code) return;
   tst(object, Operand(kSmiTagMask));
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
 
@@ -2230,7 +2230,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label done_checking;
     AssertNotSmi(object);
     CompareRoot(object, RootIndex::kUndefinedValue);
@@ -2521,7 +2521,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
 #if V8_HOST_ARCH_ARM
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {

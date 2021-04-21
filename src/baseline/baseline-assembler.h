@@ -32,7 +32,6 @@ class BaselineAssembler {
 
   inline void GetCode(Isolate* isolate, CodeDesc* desc);
   inline int pc_offset() const;
-  inline bool emit_debug_code() const;
   inline void CodeEntry() const;
   inline void ExceptionHandler() const;
   V8_INLINE void RecordComment(const char* string);

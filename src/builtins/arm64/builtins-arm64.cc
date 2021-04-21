@@ -100,7 +100,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     Label already_aligned;
     Register argc = x0;
 
-    if (__ emit_debug_code()) {
+    if (FLAG_debug_code) {
       // Check that FrameScope pushed the context on to the stack already.
       __ Peek(x2, 0);
       __ Cmp(x2, cp);
@@ -220,7 +220,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::CONSTRUCT);
   Label post_instantiation_deopt_entry, not_create_implicit_receiver;
 
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Check that FrameScope pushed the context on to the stack already.
     __ Peek(x2, 0);
     __ Cmp(x2, cp);
@@ -1000,7 +1000,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ Tst(params_size, kSystemPointerSize - 1);
     __ Check(eq, AbortReason::kUnexpectedValue);
   }
@@ -1232,7 +1232,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedPointerField(
       feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ CompareObjectType(feedback_vector, x4, x4, FEEDBACK_VECTOR_TYPE);
     __ Assert(eq, AbortReason::kExpectedFeedbackVector);
   }
@@ -1290,7 +1290,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Baseline code frames store the feedback vector where interpreter would
   // store the bytecode offset.
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ CompareObjectType(feedback_vector, x4, x4, FEEDBACK_VECTOR_TYPE);
     __ Assert(eq, AbortReason::kExpectedFeedbackVector);
   }
@@ -2397,7 +2397,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- x4 : len (number of elements to push from args)
   //  -- x3 : new.target (for [[Construct]])
   // -----------------------------------
-  if (masm->emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Allow x2 to be a FixedArray, or a FixedDoubleArray if x4 == 0.
     Label ok, fail;
     __ AssertNotSmi(x2, AbortReason::kOperandIsNotAFixedArray);
@@ -3304,7 +3304,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // signed overflow in the int64_t target. Since we've already handled
   // exponents >= 84, we can guarantee that 63 <= exponent < 84.
 
-  if (masm->emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ Cmp(exponent, HeapNumber::kExponentBias + 63);
     // Exponents less than this should have been handled by the Fcvt case.
     __ Check(ge, AbortReason::kUnexpectedValue);
@@ -3420,7 +3420,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ Str(next_address_reg, MemOperand(handle_scope_base, kNextOffset));
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ Ldr(w1, MemOperand(handle_scope_base, kLevelOffset));
     __ Cmp(w1, level_reg);
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);

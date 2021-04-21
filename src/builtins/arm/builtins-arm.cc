@@ -1052,7 +1052,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ ldr(feedback_vector,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ ldr(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ CompareObjectType(feedback_vector, scratch, scratch,
@@ -1125,7 +1125,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Baseline code frames store the feedback vector where interpreter would
   // store the bytecode offset.
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ CompareObjectType(feedback_vector, scratch, scratch,
@@ -2022,7 +2022,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // -----------------------------------
   Register scratch = r8;
 
-  if (masm->emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Allow r2 to be a FixedArray, or a FixedDoubleArray if r4 == 0.
     Label ok, fail;
     __ AssertNotSmi(r2);
@@ -2848,7 +2848,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // If we reach this code, 30 <= exponent <= 83.
   // `TryInlineTruncateDoubleToI` above will have truncated any double with an
   // exponent lower than 30.
-  if (masm->emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Scratch is exponent - 1.
     __ cmp(scratch, Operand(30 - 1));
     __ Check(ge, AbortReason::kUnexpectedValue);
@@ -2964,7 +2964,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ str(r4, MemOperand(r9, kNextOffset));
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ ldr(r1, MemOperand(r9, kLevelOffset));
     __ cmp(r1, r6);
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);

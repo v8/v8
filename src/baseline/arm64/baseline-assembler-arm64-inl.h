@@ -167,7 +167,7 @@ void BaselineAssembler::CmpInstanceType(Register map,
                                         InstanceType instance_type) {
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ AssertNotSmi(map);
     __ CompareObjectType(map, type, type, MAP_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);

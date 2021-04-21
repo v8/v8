@@ -1252,8 +1252,12 @@ DEFINE_BOOL_READONLY(
     "object space")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
+#ifdef V8_ENABLE_DEBUG_CODE
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")
+#else
+DEFINE_BOOL_READONLY(debug_code, false, "")
+#endif
 #ifdef V8_CODE_COMMENTS
 DEFINE_BOOL(code_comments, false,
             "emit comments in code disassembly; for more readable source "

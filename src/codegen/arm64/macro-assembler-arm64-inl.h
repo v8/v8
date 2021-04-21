@@ -1200,7 +1200,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
 
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
-  } else if (emit_debug_code()) {
+  } else if (FLAG_debug_code) {
     Cmp(xzr, offset);
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
@@ -1212,7 +1212,7 @@ template <TurboAssembler::LoadLRMode lr_mode>
 void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
-  } else if (emit_debug_code()) {
+  } else if (FLAG_debug_code) {
     Cmp(xzr, offset);
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }

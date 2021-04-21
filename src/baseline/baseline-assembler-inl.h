@@ -44,7 +44,6 @@ void BaselineAssembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   __ GetCode(isolate, desc);
 }
 int BaselineAssembler::pc_offset() const { return __ pc_offset(); }
-bool BaselineAssembler::emit_debug_code() const { return __ emit_debug_code(); }
 void BaselineAssembler::CodeEntry() const { __ CodeEntry(); }
 void BaselineAssembler::ExceptionHandler() const { __ ExceptionHandler(); }
 void BaselineAssembler::RecordComment(const char* string) {

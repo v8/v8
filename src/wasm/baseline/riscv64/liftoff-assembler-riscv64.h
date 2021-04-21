@@ -2427,7 +2427,7 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  if (emit_debug_code()) Abort(reason);
+  if (FLAG_debug_code) Abort(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {

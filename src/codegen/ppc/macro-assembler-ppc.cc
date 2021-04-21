@@ -607,7 +607,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   DCHECK(IsAligned(offset, kTaggedSize));
 
   Add(dst, object, offset - kHeapObjectTag, r0);
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label ok;
     andi(r0, dst, Operand(kTaggedSize - 1));
     beq(&ok, cr0);
@@ -622,7 +622,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     mov(value, Operand(bit_cast<intptr_t>(kZapValue + 4)));
     mov(dst, Operand(bit_cast<intptr_t>(kZapValue + 8)));
   }
@@ -753,7 +753,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
   DCHECK(object != value);
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     LoadTaggedPointerField(r0, MemOperand(address));
     cmp(r0, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
@@ -795,7 +795,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     mov(address, Operand(bit_cast<intptr_t>(kZapValue + 12)));
     mov(value, Operand(bit_cast<intptr_t>(kZapValue + 16)));
   }
@@ -1222,7 +1222,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // Reserve room for saved entry sp.
   subi(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     li(r8, Operand::Zero());
     StoreP(r8, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
@@ -1922,7 +1922,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 }
 
 void TurboAssembler::Assert(Condition cond, AbortReason reason, CRegister cr) {
-  if (emit_debug_code()) Check(cond, reason, cr);
+  if (FLAG_debug_code) Check(cond, reason, cr);
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason, CRegister cr) {
@@ -1985,7 +1985,7 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmi, cr0);
@@ -1993,7 +1993,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 }
 
 void MacroAssembler::AssertSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(eq, AbortReason::kOperandIsNotASmi, cr0);
@@ -2001,7 +2001,7 @@ void MacroAssembler::AssertSmi(Register object) {
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, cr0);
@@ -2015,7 +2015,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
@@ -2029,7 +2029,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, cr0);
@@ -2041,7 +2041,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!emit_debug_code()) return;
+  if (!FLAG_debug_code) return;
   TestIfSmi(object, r0);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, cr0);
 
@@ -2071,7 +2071,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label done_checking;
     AssertNotSmi(object);
     CompareRoot(object, RootIndex::kUndefinedValue);

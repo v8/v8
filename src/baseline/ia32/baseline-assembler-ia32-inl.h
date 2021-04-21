@@ -147,7 +147,7 @@ void BaselineAssembler::CmpObjectType(Register object,
 }
 void BaselineAssembler::CmpInstanceType(Register map,
                                         InstanceType instance_type) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ movd(xmm0, eax);
     __ AssertNotSmi(map);
     __ CmpObjectType(map, MAP_TYPE, eax);

@@ -1816,7 +1816,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- a4 : len (number of elements to push from args)
   //  -- a3 : new.target (for [[Construct]])
   // -----------------------------------
-  if (masm->emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Allow a2 to be a FixedArray, or a FixedDoubleArray if a4 == 0.
     Label ok, fail;
     __ AssertNotSmi(a2);
@@ -2801,7 +2801,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ Sd(s0, MemOperand(s5, kNextOffset));
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ Lw(a1, MemOperand(s5, kLevelOffset));
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, a1,
              Operand(s2));

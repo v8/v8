@@ -159,7 +159,7 @@ void BaselineAssembler::CmpObjectType(Register object,
 }
 void BaselineAssembler::CmpInstanceType(Register map,
                                         InstanceType instance_type) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ AssertNotSmi(map);
     __ CmpObjectType(map, MAP_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);

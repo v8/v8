@@ -341,7 +341,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   DCHECK(IsAligned(offset, kTaggedSize));
 
   leaq(dst, FieldOperand(object, offset));
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label ok;
     testb(dst, Immediate(kTaggedSize - 1));
     j(zero, &ok, Label::kNear);
@@ -356,7 +356,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Move(value, kZapValue, RelocInfo::NONE);
     Move(dst, kZapValue, RelocInfo::NONE);
   }
@@ -500,7 +500,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     return;
   }
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label ok;
     cmp_tagged(value, Operand(address, 0));
     j(equal, &ok, Label::kNear);
@@ -533,18 +533,18 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Move(address, kZapValue, RelocInfo::NONE);
     Move(value, kZapValue, RelocInfo::NONE);
   }
 }
 
 void TurboAssembler::Assert(Condition cc, AbortReason reason) {
-  if (emit_debug_code()) Check(cc, reason);
+  if (FLAG_debug_code) Check(cc, reason);
 }
 
 void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (emit_debug_code()) Abort(reason);
+  if (FLAG_debug_code) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cc, AbortReason reason) {
@@ -2557,28 +2557,28 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Condition is_smi = CheckSmi(object);
     Check(NegateCondition(is_smi), AbortReason::kOperandIsASmi);
   }
 }
 
 void MacroAssembler::AssertSmi(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Condition is_smi = CheckSmi(object);
     Check(is_smi, AbortReason::kOperandIsNotASmi);
   }
 }
 
 void MacroAssembler::AssertSmi(Operand object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Condition is_smi = CheckSmi(object);
     Check(is_smi, AbortReason::kOperandIsNotASmi);
   }
 }
 
 void TurboAssembler::AssertZeroExtended(Register int32_register) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     DCHECK_NE(int32_register, kScratchRegister);
     movq(kScratchRegister, int64_t{0x0000000100000000});
     cmpq(kScratchRegister, int32_register);
@@ -2587,7 +2587,7 @@ void TurboAssembler::AssertZeroExtended(Register int32_register) {
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     testb(object, Immediate(kSmiTagMask));
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAConstructor);
     Push(object);
@@ -2600,7 +2600,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     testb(object, Immediate(kSmiTagMask));
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAFunction);
     Push(object);
@@ -2612,7 +2612,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     testb(object, Immediate(kSmiTagMask));
     Check(not_equal, AbortReason::kOperandIsASmiAndNotABoundFunction);
     Push(object);
@@ -2623,7 +2623,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!emit_debug_code()) return;
+  if (!FLAG_debug_code) return;
   testb(object, Immediate(kSmiTagMask));
   Check(not_equal, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
 
@@ -2651,7 +2651,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label done_checking;
     AssertNotSmi(object);
     Cmp(object, isolate()->factory()->undefined_value());
@@ -3002,7 +3002,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   // TODO(v8:11429): Consider passing BASELINE instead, and checking for
   // IsJSFrame or similar. Could then unify with manual frame leaves in the
   // interpreter too.
-  if (emit_debug_code() && !StackFrame::IsJavaScript(type)) {
+  if (FLAG_debug_code && !StackFrame::IsJavaScript(type)) {
     cmpq(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
          Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, AbortReason::kStackFrameTypesMustMatch);
@@ -3246,7 +3246,7 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
   DCHECK_LE(num_arguments, kMaxCParameters);
   DCHECK(has_frame());
   // Check stack alignment.
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     CheckStackAlignment();
   }
 

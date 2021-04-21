@@ -1267,7 +1267,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
 }
 
 void TurboAssembler::AssertSpAligned() {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     HardAbortScope hard_abort(this);  // Avoid calls to Abort.
     // Arm64 requires the stack pointer to be 16-byte aligned prior to address
     // calculation.
@@ -1300,7 +1300,7 @@ void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
                                      CopyDoubleWordsMode mode) {
   DCHECK(!AreAliased(dst, src, count));
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Register pointer1 = dst;
     Register pointer2 = src;
     if (mode == kSrcLessThanDst) {
@@ -1375,7 +1375,7 @@ void TurboAssembler::SlotAddress(Register dst, Register slot_offset) {
 }
 
 void TurboAssembler::AssertFPCRState(Register fpcr) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label unexpected_mode, done;
     UseScratchRegisterScope temps(this);
     if (fpcr.IsNone()) {
@@ -1474,7 +1474,7 @@ void TurboAssembler::Swap(VRegister lhs, VRegister rhs) {
 }
 
 void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
     Check(eq, reason);
@@ -1482,7 +1482,7 @@ void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
 }
 
 void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
     Check(ne, reason);
@@ -1490,7 +1490,7 @@ void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAConstructor);
 
     UseScratchRegisterScope temps(this);
@@ -1505,7 +1505,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
 
     UseScratchRegisterScope temps(this);
@@ -1518,7 +1518,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotABoundFunction);
 
     UseScratchRegisterScope temps(this);
@@ -1530,7 +1530,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!emit_debug_code()) return;
+  if (!FLAG_debug_code) return;
   AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
 
   // Load map
@@ -1556,7 +1556,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.AcquireX();
     Label done_checking;
@@ -1570,7 +1570,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
 }
 
 void TurboAssembler::AssertPositiveOrZero(Register value) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label done;
     int sign_bit = value.Is64Bits() ? kXSignBit : kWSignBit;
     Tbz(value, sign_bit, &done);
@@ -2060,7 +2060,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
 #endif
   Poke(x17, 0);
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Verify that the slot below fp[kSPOffset]-8 points to the signed return
     // location.
     Ldr(x16, MemOperand(fp, ExitFrameConstants::kSPOffset));
@@ -2665,7 +2665,7 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   Ldr(cp, MemOperand(scratch));
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Also emit debug code to clear the cp in the top frame.
     Mov(scratch2, Operand(Context::kInvalidContext));
     Mov(scratch, ExternalReference::Create(IsolateAddressId::kContextAddress,
@@ -2913,7 +2913,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so offset must be a multiple of kTaggedSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.AcquireX();
@@ -3070,7 +3070,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   ASM_LOCATION_IN_ASSEMBLER("MacroAssembler::RecordWrite");
   DCHECK(!AreAliased(object, value));
 
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
@@ -3113,13 +3113,13 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
 }
 
 void TurboAssembler::Assert(Condition cond, AbortReason reason) {
-  if (emit_debug_code()) {
+  if (FLAG_debug_code) {
     Check(cond, reason);
   }
 }
 
 void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (emit_debug_code()) Abort(reason);
+  if (FLAG_debug_code) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason) {

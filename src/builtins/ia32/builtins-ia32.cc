@@ -1667,7 +1667,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ CmpObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE, scratch);
     __ Assert(equal, AbortReason::kExpectedFeedbackVector);
   }
@@ -2135,7 +2135,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ pop(kArgumentsList);
   __ PushReturnAddressFrom(edx);
 
-  if (masm->emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Allow kArgumentsList to be a FixedArray, or a FixedDoubleArray if
     // kArgumentsLength == 0.
     Label ok, fail;
@@ -3155,7 +3155,7 @@ Operand ApiParameterOperand(int index) {
 // stores the pointer to the reserved slot into esi.
 void PrepareCallApiFunction(MacroAssembler* masm, int argc, Register scratch) {
   __ EnterApiExitFrame(argc, scratch);
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }

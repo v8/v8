@@ -479,7 +479,7 @@ void BaselineCompiler::VisitSingleBytecode() {
 }
 
 void BaselineCompiler::VerifyFrame() {
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ RecordComment("[ Verify frame");
     __ RecordComment(" -- Verify frame size");
     VerifyFrameSize();

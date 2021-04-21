@@ -155,8 +155,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 };
 
 // Avoids emitting calls to the {Builtins::kAbort} builtin when emitting debug
-// code during the lifetime of this scope object. For disabling debug code
-// entirely use the {DontEmitDebugCodeScope} instead.
+// code during the lifetime of this scope object.
 class V8_NODISCARD HardAbortScope {
  public:
   explicit HardAbortScope(TurboAssemblerBase* assembler)

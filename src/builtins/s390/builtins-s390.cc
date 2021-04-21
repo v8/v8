@@ -1904,7 +1904,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
   Register scratch = ip;
 
-  if (masm->emit_debug_code()) {
+  if (FLAG_debug_code) {
     // Allow r4 to be a FixedArray, or a FixedDoubleArray if r6 == 0.
     Label ok, fail;
     __ AssertNotSmi(r4);
@@ -2923,7 +2923,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ StoreU64(r6, MemOperand(r9, kNextOffset));
-  if (__ emit_debug_code()) {
+  if (FLAG_debug_code) {
     __ LoadU32(r3, MemOperand(r9, kLevelOffset));
     __ CmpS64(r3, r8);
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
