@@ -2880,14 +2880,14 @@ bool MapRef::HasOnlyStablePrototypesWithFastElements(
 }
 
 bool MapRef::supports_fast_array_iteration() const {
-  if (data_->should_access_heap()) {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
     return SupportsFastArrayIteration(broker()->isolate(), object());
   }
   return data()->AsMap()->supports_fast_array_iteration();
 }
 
 bool MapRef::supports_fast_array_resize() const {
-  if (data_->should_access_heap()) {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
     return SupportsFastArrayResize(broker()->isolate(), object());
   }
   return data()->AsMap()->supports_fast_array_resize();
