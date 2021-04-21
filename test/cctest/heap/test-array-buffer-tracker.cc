@@ -398,15 +398,16 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
-  const size_t backing_store_before =
-      heap->new_space()->ExternalBackingStoreBytes(type);
+  const Space* space = FLAG_incremental_marking
+                           ? static_cast<Space*>(heap->new_space())
+                           : static_cast<Space*>(heap->old_space());
+  const size_t backing_store_before = space->ExternalBackingStoreBytes(type);
   {
     const size_t kArraybufferSize = 117;
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
     USE(ab);
-    const size_t backing_store_after =
-        heap->new_space()->ExternalBackingStoreBytes(type);
+    const size_t backing_store_after = space->ExternalBackingStoreBytes(type);
     CHECK_EQ(kArraybufferSize, backing_store_after - backing_store_before);
   }
 }

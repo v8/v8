@@ -251,6 +251,7 @@ TEST(FinalizeTracingIsNoopWhenNotMarking) {
 }
 
 TEST(FinalizeTracingWhenMarking) {
+  if (!FLAG_incremental_marking) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -709,6 +710,7 @@ TEST(TracedGlobalSetFinalizationCallbackMarkSweep) {
 
 TEST(TracePrologueCallingIntoV8WriteBarrier) {
   // Regression test: https://crbug.com/940003
+  if (!FLAG_incremental_marking) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();

@@ -715,6 +715,7 @@ int FixedArrayLenFromSize(int size) {
 }
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
+  DCHECK(!FLAG_single_generation);
   PauseAllocationObserversScope pause_observers(heap);
   NewSpace* space = heap->new_space();
   // We cannot rely on `space->limit()` to point to the end of the current page

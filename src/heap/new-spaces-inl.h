@@ -87,6 +87,7 @@ HeapObject SemiSpaceObjectIterator::Next() {
 AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
                                        AllocationAlignment alignment,
                                        AllocationOrigin origin) {
+  DCHECK(!FLAG_single_generation);
 #if DEBUG
   VerifyTop();
 #endif

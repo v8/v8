@@ -1480,4 +1480,20 @@
   'regress/wasm/regress-1010272': [SKIP],
 }],
 
+################################################################################
+['single_generation', {
+  # These tests rely on allocation site tracking which only works in the young generation.
+  'array-constructor-feedback': [SKIP],
+  'wasm/generic-wrapper': [SKIP],
+  'regress/regress-trap-allocation-memento': [SKIP],
+  'regress/regress-crbug-1151890': [SKIP],
+  'regress/regress-crbug-1163184': [SKIP],
+  'regress/regress-11519': [SKIP],
+  'regress/regress-4121': [SKIP],
+  'packed-elements': [SKIP],
+  'const-dict-tracking': [SKIP],
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/test-literal-map-migration': [SKIP],
+}], # single_generation
+
 ]
