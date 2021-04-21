@@ -385,6 +385,8 @@
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd/*':[SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
+  'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
 
   # Some wasm functionality is not implemented yet
   'test-run-wasm-atomics64/*': [SKIP],

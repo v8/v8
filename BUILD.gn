@@ -4301,7 +4301,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv64/assembler-riscv64.cc",
       "src/codegen/riscv64/constants-riscv64.cc",
       "src/codegen/riscv64/cpu-riscv64.cc",
-      "src/codegen/riscv64/interface-descriptors-riscv64.cc",
+      "src/codegen/riscv64/interface-descriptors-riscv64-inl.h",
       "src/codegen/riscv64/macro-assembler-riscv64.cc",
       "src/compiler/backend/riscv64/code-generator-riscv64.cc",
       "src/compiler/backend/riscv64/instruction-scheduler-riscv64.cc",
