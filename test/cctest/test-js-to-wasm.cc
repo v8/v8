@@ -262,12 +262,13 @@ enum TestMode { kJSToWasmInliningDisabled, kJSToWasmInliningEnabled };
 class FastJSWasmCallTester {
  public:
   FastJSWasmCallTester()
-      : allow_natives_syntax_(&i::FLAG_allow_natives_syntax, true),
-        inline_js_wasm_calls_(&i::FLAG_turbo_inline_js_wasm_calls, true),
-        stress_background_compile_(&i::FLAG_stress_background_compile, false),
-        allocator_(),
+      : allocator_(),
         zone_(&allocator_, ZONE_NAME),
-        builder_(zone_.New<WasmModuleBuilder>(&zone_)) {}
+        builder_(zone_.New<WasmModuleBuilder>(&zone_)) {
+    i::FLAG_allow_natives_syntax = true;
+    i::FLAG_turbo_inline_js_wasm_calls = true;
+    i::FLAG_stress_background_compile = false;
+  }
 
   void DeclareCallback(const char* name, FunctionSig* signature,
                        const char* module) {
@@ -742,9 +743,6 @@ class FastJSWasmCallTester {
     return string_stream.str();
   }
 
-  i::FlagScope<bool> allow_natives_syntax_;
-  i::FlagScope<bool> inline_js_wasm_calls_;
-  i::FlagScope<bool> stress_background_compile_;
   AccountingAllocator allocator_;
   Zone zone_;
   WasmModuleBuilder* builder_;
