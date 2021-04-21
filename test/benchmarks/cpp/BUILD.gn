@@ -9,7 +9,7 @@ group("gn_all") {
 
   deps = []
 
-  if (v8_enable_google_benchmark) {
+  if (v8_enable_google_benchmark && !is_win) {
     deps += [
       ":empty_benchmark",
       "cppgc:gn_all",
@@ -17,7 +17,7 @@ group("gn_all") {
   }
 }
 
-if (v8_enable_google_benchmark) {
+if (v8_enable_google_benchmark && !is_win) {
   v8_executable("empty_benchmark") {
     testonly = true
 

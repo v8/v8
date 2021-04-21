@@ -3,8 +3,9 @@
 # found in the LICENSE file.
 
 import("//build/config/gclient_args.gni")
+import("../../gni/v8.gni")
 
-if (checkout_google_benchmark) {
+if (v8_enable_google_benchmark) {
   config("benchmark_config") {
     include_dirs = [ "src/include" ]
   }

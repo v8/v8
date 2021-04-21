@@ -9,7 +9,6 @@ gclient_gn_args = [
   # TODO(https://crbug.com/1137662, https://crbug.com/1080854)
   # Remove when migration is complete.
   'checkout_fuchsia_for_arm64_host',
-  'checkout_google_benchmark',
 ]
 
 vars = {
@@ -43,8 +42,6 @@ vars = {
   'download_gcmole': False,
   'download_jsfunfuzz': False,
   'check_v8_header_includes': False,
-
-  'checkout_google_benchmark' : False,
 
   # GN CIPD package version.
   'gn_version': 'git_revision:dba01723a441c358d843a575cb7720d54ddcdf92',
@@ -199,7 +196,6 @@ deps = {
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '07f4869221012b16b7f9ee685d94856e1fc9f361',
   'third_party/google_benchmark/src': {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '7f27afe83b82f3a98baf58ef595814b9d42a5b2b',
-    'condition': 'checkout_google_benchmark',
   },
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '11b6b3e5971d760bd2d310f77643f55a818a6d25',
