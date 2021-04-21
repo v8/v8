@@ -198,10 +198,10 @@ void BaselineAssembler::Move(MemOperand output, Register source) {
   __ str(source, output);
 }
 void BaselineAssembler::Move(Register output, ExternalReference reference) {
-  __ mov(output, Operand(reference));
+  __ Move32BitImmediate(output, Operand(reference));
 }
 void BaselineAssembler::Move(Register output, Handle<HeapObject> value) {
-  __ mov(output, Operand(value));
+  __ Move32BitImmediate(output, Operand(value));
 }
 void BaselineAssembler::Move(Register output, int32_t value) {
   __ mov(output, Operand(value));
