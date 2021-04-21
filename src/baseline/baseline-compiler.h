@@ -42,6 +42,8 @@ class BytecodeOffsetTableBuilder {
   template <typename LocalIsolate>
   Handle<ByteArray> ToBytecodeOffsetTable(LocalIsolate* isolate);
 
+  void Reserve(size_t size) { bytes_.reserve(size); }
+
  private:
   size_t previous_pc_ = 0;
   std::vector<byte> bytes_;

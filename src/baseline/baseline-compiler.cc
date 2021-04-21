@@ -4,6 +4,7 @@
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
+#include "src/base/bits.h"
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 
@@ -258,6 +259,13 @@ BaselineCompiler::BaselineCompiler(
       zone_(isolate->allocator(), ZONE_NAME),
       labels_(zone_.NewArray<BaselineLabels*>(bytecode_->length())) {
   MemsetPointer(labels_, nullptr, bytecode_->length());
+
+  // Empirically determined expected size of the offset table at the 95th %ile,
+  // based on the size of the bytecode, to be:
+  //
+  //   16 + (bytecode size) / 4
+  bytecode_offset_table_builder_.Reserve(
+      base::bits::RoundUpToPowerOfTwo(16 + bytecode_->Size() / 4));
 }
 
 #define __ basm_.
