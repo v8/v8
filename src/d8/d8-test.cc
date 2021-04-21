@@ -122,6 +122,9 @@ class FastCApiObject {
       return false;
     }
 
+    if (!arg->IsObject()) {
+      return false;
+    }
     Object* object = Object::Cast(arg);
     if (!IsValidApiObject(object)) return false;
 
@@ -150,13 +153,15 @@ class FastCApiObject {
           "is_valid_api_object should be called with 2 arguments");
       return;
     }
-    Object* object = Object::Cast(*args[1]);
-    if (!IsValidApiObject(object)) {
-      result = false;
-    } else {
-      result = PerIsolateData::Get(args.GetIsolate())
-                   ->GetTestApiObjectCtor()
-                   ->IsLeafTemplateForApiObject(object);
+    if (args[1]->IsObject()) {
+      Object* object = Object::Cast(*args[1]);
+      if (!IsValidApiObject(object)) {
+        result = false;
+      } else {
+        result = PerIsolateData::Get(args.GetIsolate())
+                     ->GetTestApiObjectCtor()
+                     ->IsLeafTemplateForApiObject(object);
+      }
     }
 
     args.GetReturnValue().Set(Boolean::New(isolate, result));
