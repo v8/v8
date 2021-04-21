@@ -352,6 +352,13 @@
   'test-run-wasm-simd-liftoff/*': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
+['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips', {
+  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
+  'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
+}],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
+
 ##############################################################################
 ['arch == mips or arch == mips64', {
   # TODO(mips-team): Implement I64Atomic operations on MIPS
