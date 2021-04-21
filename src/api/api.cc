@@ -1925,10 +1925,10 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   // TODO(crbug.com/1193459): remove once ablation study is completed
   base::ElapsedTimer timer;
   base::TimeDelta delta;
-  if (i::FLAG_script_delay) {
+  if (i::FLAG_script_delay > 0) {
     delta = v8::base::TimeDelta::FromMillisecondsD(i::FLAG_script_delay);
   }
-  if (i::FLAG_script_delay_once && !isolate->did_run_script_delay()) {
+  if (i::FLAG_script_delay_once > 0 && !isolate->did_run_script_delay()) {
     delta = v8::base::TimeDelta::FromMillisecondsD(i::FLAG_script_delay_once);
     isolate->set_did_run_script_delay(true);
   }
