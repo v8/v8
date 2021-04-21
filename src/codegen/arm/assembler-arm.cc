@@ -534,7 +534,6 @@ Assembler::Assembler(const AssemblerOptions& options,
     : AssemblerBase(options, std::move(buffer)),
       pending_32_bit_constants_(),
       scratch_register_list_(ip.bit()) {
-  pending_32_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   next_buffer_check_ = 0;
   const_pool_blocked_nesting_ = 0;
@@ -5267,7 +5266,7 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
     }
   }
 
-  pending_32_bit_constants_.push_back(entry);
+  pending_32_bit_constants_.emplace_back(entry);
 
   // Make sure the constant pool is not emitted in place of the next
   // instruction for which we just recorded relocation info.
