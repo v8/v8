@@ -66,7 +66,8 @@ class X64OperandGenerator final : public OperandGenerator {
 
   bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
                           int effect_level) {
-    if (input->opcode() != IrOpcode::kLoad ||
+    if ((input->opcode() != IrOpcode::kLoad &&
+         input->opcode() != IrOpcode::kLoadImmutable) ||
         !selector()->CanCover(node, input)) {
       return false;
     }
@@ -708,7 +709,8 @@ void InstructionSelector::VisitStackPointerGreaterThan(
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
   if (g.CanBeMemoryOperand(kX64Cmp, node, value, effect_level)) {
-    DCHECK_EQ(IrOpcode::kLoad, value->opcode());
+    DCHECK(IrOpcode::kLoad == value->opcode() ||
+           IrOpcode::kLoadImmutable == value->opcode());
 
     // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
     static constexpr int kMaxInputCount = 3;
@@ -730,7 +732,9 @@ namespace {
 
 bool TryMergeTruncateInt64ToInt32IntoLoad(InstructionSelector* selector,
                                           Node* node, Node* load) {
-  if (load->opcode() == IrOpcode::kLoad && selector->CanCover(node, load)) {
+  if ((load->opcode() == IrOpcode::kLoad ||
+       load->opcode() == IrOpcode::kLoadImmutable) &&
+      selector->CanCover(node, load)) {
     LoadRepresentation load_rep = LoadRepresentationOf(load->op());
     MachineRepresentation rep = load_rep.representation();
     InstructionCode opcode;
@@ -1367,7 +1371,9 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kLoadImmutable) &&
+      CanCover(node, value)) {
     LoadRepresentation load_rep = LoadRepresentationOf(value->op());
     MachineRepresentation rep = load_rep.representation();
     InstructionCode opcode;
@@ -1874,7 +1880,8 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
                                    FlagsContinuation* cont) {
-  DCHECK_EQ(IrOpcode::kLoad, left->opcode());
+  DCHECK(IrOpcode::kLoad == left->opcode() ||
+         IrOpcode::kLoadImmutable == left->opcode());
   X64OperandGenerator g(selector);
   size_t input_count = 0;
   InstructionOperand inputs[6];
@@ -1917,7 +1924,8 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
-  if (hint_node->opcode() == IrOpcode::kLoad) {
+  if (hint_node->opcode() == IrOpcode::kLoad ||
+      hint_node->opcode() == IrOpcode::kLoadImmutable) {
     MachineType hint = LoadRepresentationOf(hint_node->op());
     if (node->opcode() == IrOpcode::kInt32Constant ||
         node->opcode() == IrOpcode::kInt64Constant) {
@@ -1951,8 +1959,10 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
       }
     }
   }
-  return node->opcode() == IrOpcode::kLoad ? LoadRepresentationOf(node->op())
-                                           : MachineType::None();
+  return node->opcode() == IrOpcode::kLoad ||
+                 node->opcode() == IrOpcode::kLoadImmutable
+             ? LoadRepresentationOf(node->op())
+             : MachineType::None();
 }
 
 // Tries to match the size of the given opcode to that of the operands, if
@@ -2167,7 +2177,8 @@ void VisitCompareZero(InstructionSelector* selector, Node* user, Node* node,
     }
   }
   int effect_level = selector->GetEffectLevel(node, cont);
-  if (node->opcode() == IrOpcode::kLoad) {
+  if (node->opcode() == IrOpcode::kLoad ||
+      node->opcode() == IrOpcode::kLoadImmutable) {
     switch (LoadRepresentationOf(node->op()).representation()) {
       case MachineRepresentation::kWord8:
         if (opcode == kX64Cmp32) {

@@ -1216,7 +1216,9 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   Node* value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kLoadImmutable) &&
+      CanCover(node, value)) {
     // Generate sign-extending load.
     LoadRepresentation load_rep = LoadRepresentationOf(value->op());
     InstructionCode opcode = kArchNop;
@@ -1244,7 +1246,8 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
 bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
   DCHECK_NE(node->opcode(), IrOpcode::kPhi);
-  if (node->opcode() == IrOpcode::kLoad) {
+  if (node->opcode() == IrOpcode::kLoad ||
+      node->opcode() == IrOpcode::kLoadImmutable) {
     LoadRepresentation load_rep = LoadRepresentationOf(node->op());
     if (load_rep.IsUnsigned()) {
       switch (load_rep.representation()) {

@@ -65,7 +65,8 @@ class IA32OperandGenerator final : public OperandGenerator {
 
   bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
                           int effect_level) {
-    if (input->opcode() != IrOpcode::kLoad ||
+    if ((input->opcode() != IrOpcode::kLoad &&
+         input->opcode() != IrOpcode::kLoadImmutable) ||
         !selector()->CanCover(node, input)) {
       return false;
     }
@@ -818,7 +819,8 @@ void InstructionSelector::VisitStackPointerGreaterThan(
 
   Node* const value = node->InputAt(0);
   if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
-    DCHECK_EQ(IrOpcode::kLoad, value->opcode());
+    DCHECK(value->opcode() == IrOpcode::kLoad ||
+           value->opcode() == IrOpcode::kLoadImmutable);
 
     // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
     static constexpr int kMaxInputCount = 3;
@@ -1434,7 +1436,8 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
                                    FlagsContinuation* cont) {
-  DCHECK_EQ(IrOpcode::kLoad, left->opcode());
+  DCHECK(left->opcode() == IrOpcode::kLoad ||
+         left->opcode() == IrOpcode::kLoadImmutable);
   IA32OperandGenerator g(selector);
   size_t input_count = 0;
   InstructionOperand inputs[4];
@@ -1465,7 +1468,8 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
-  if (hint_node->opcode() == IrOpcode::kLoad) {
+  if (hint_node->opcode() == IrOpcode::kLoad ||
+      hint_node->opcode() == IrOpcode::kLoadImmutable) {
     MachineType hint = LoadRepresentationOf(hint_node->op());
     if (node->opcode() == IrOpcode::kInt32Constant ||
         node->opcode() == IrOpcode::kInt64Constant) {
@@ -1499,8 +1503,10 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
       }
     }
   }
-  return node->opcode() == IrOpcode::kLoad ? LoadRepresentationOf(node->op())
-                                           : MachineType::None();
+  return node->opcode() == IrOpcode::kLoad ||
+                 node->opcode() == IrOpcode::kLoadImmutable
+             ? LoadRepresentationOf(node->op())
+             : MachineType::None();
 }
 
 // Tries to match the size of the given opcode to that of the operands, if

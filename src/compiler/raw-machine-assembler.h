@@ -148,6 +148,13 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     Node* load = AddNode(op, base, index);
     return load;
   }
+  Node* LoadImmutable(MachineType type, Node* base) {
+    return LoadImmutable(type, base, IntPtrConstant(0));
+  }
+  Node* LoadImmutable(MachineType type, Node* base, Node* index) {
+    const Operator* op = machine()->LoadImmutable(type);
+    return AddNode(op, base, index);
+  }
   bool IsMapOffsetConstant(Node* node) {
     Int64Matcher m(node);
     if (m.Is(HeapObject::kMapOffset)) return true;
