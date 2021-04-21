@@ -1165,8 +1165,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
-  void MaybeCheckConstPool() {
-    if (pc_offset() >= next_buffer_check_) {
+  V8_INLINE void MaybeCheckConstPool() {
+    if (V8_UNLIKELY(pc_offset() >= next_buffer_check_)) {
       CheckConstPool(false, true);
     }
   }
@@ -1298,7 +1298,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  inline void CheckBuffer();
+  V8_INLINE void CheckBuffer();
   void GrowBuffer();
 
   // Instruction generation

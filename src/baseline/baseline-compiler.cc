@@ -230,6 +230,21 @@ void MoveArgumentsForBuiltin(BaselineAssembler* masm, Args... args) {
 
 }  // namespace detail
 
+namespace {
+// Rough upper-bound estimate. Copying the data is most likely more expensive
+// than pre-allocating a large enough buffer.
+#ifdef V8_TARGET_ARCH_IA32
+const int kAverageBytecodeToInstructionRatio = 5;
+#else
+const int kAverageBytecodeToInstructionRatio = 7;
+#endif
+std::unique_ptr<AssemblerBuffer> AllocateBuffer(
+    Handle<BytecodeArray> bytecodes) {
+  int estimated_size = bytecodes->length() * kAverageBytecodeToInstructionRatio;
+  return NewAssemblerBuffer(RoundUp(estimated_size, 4 * KB));
+}
+}  // namespace
+
 BaselineCompiler::BaselineCompiler(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_function_info,
     Handle<BytecodeArray> bytecode)
@@ -237,7 +252,7 @@ BaselineCompiler::BaselineCompiler(
       stats_(isolate->counters()->runtime_call_stats()),
       shared_function_info_(shared_function_info),
       bytecode_(bytecode),
-      masm_(isolate, CodeObjectRequired::kNo),
+      masm_(isolate, CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(isolate->allocator(), ZONE_NAME),
