@@ -368,7 +368,7 @@ class DisassemblerIA32 {
         Disassembler::kAbortOnUnimplementedOpcode) {
       FATAL("Unimplemented instruction in disassembler");
     } else {
-      AppendToBuffer("'Unimplemented Instruction'");
+      AppendToBuffer("'Unimplemented instruction'");
     }
   }
 };
@@ -2076,6 +2076,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           data += 3;
         } else {
           UnimplementedInstruction();
+          data += 1;
         }
       } break;
 
