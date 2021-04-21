@@ -21,7 +21,6 @@
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/type-cache.h"
 #include "src/execution/isolate-inl.h"
-#include "src/numbers/dtoa.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/heap-number.h"
@@ -140,7 +139,7 @@ base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
 
   NumberMatcher number_matcher(node);
   if (number_matcher.HasResolvedValue()) {
-    return kBase10MaximalLength + 1;
+    return kMaxDoubleStringLength;
   }
 
   // We don't support objects with possibly monkey-patched prototype.toString

@@ -210,6 +210,15 @@ constexpr int kElidedFrameSlots = 0;
 #endif
 
 constexpr int kDoubleSizeLog2 = 3;
+// The maximal length of the string representation for a double value
+// (e.g. "-2.2250738585072020E-308"). It is composed as follows:
+// - 17 decimal digits, see kBase10MaximalLength (dtoa.h)
+// - 1 sign
+// - 1 decimal point
+// - 1 E or e
+// - 1 exponent sign
+// - 3 exponent
+constexpr int kMaxDoubleStringLength = 24;
 
 // Total wasm code space per engine (i.e. per process) is limited to make
 // certain attacks that rely on heap spraying harder.
