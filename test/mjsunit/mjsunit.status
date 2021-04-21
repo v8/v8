@@ -354,6 +354,8 @@
   # These tests rely on TurboFan being enabled.
   'compiler/fast-api-calls': [SKIP],
   'compiler/fast-api-interface-types': [SKIP],
+  'compiler/regress-crbug-1201011': [SKIP],
+  'compiler/regress-crbug-1201082': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -1324,6 +1326,8 @@
   # to the snapshot, so we don't have a SerializeInternalFieldsCallback for it.
   'compiler/fast-api-calls': [SKIP],
   'compiler/fast-api-interface-types': [SKIP],
+  'compiler/regress-crbug-1201011': [SKIP],
+  'compiler/regress-crbug-1201082': [SKIP],
 }],  # variant == stress_snapshot
 
 ##############################################################################
