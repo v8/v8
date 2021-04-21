@@ -1031,7 +1031,9 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     GlobalDictionary dictionary =
         JSGlobalObject::cast(*holder).global_dictionary(isolate_, kAcquireLoad);
     PropertyCell cell = dictionary.CellAt(isolate_, dictionary_entry());
-    DCHECK_EQ(cell.value(), *value);
+    DCHECK(cell.value() == *value ||
+           cell.value().IsString() && value->IsString() &&
+               String::cast(cell.value()).Equals(String::cast(*value)));
 #endif  // DEBUG
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
