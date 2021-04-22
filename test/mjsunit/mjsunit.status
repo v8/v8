@@ -1442,7 +1442,7 @@
 }],  # variant == stress_concurrent_allocation
 
 ##############################################################################
-['no_simd_sse == True', {
+['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
@@ -1463,7 +1463,7 @@
   'regress/wasm/regress-1165966': [SKIP],
   'regress/wasm/regress-1187831': [SKIP],
   'regress/wasm/regress-1199662': [SKIP],
-}],  # no_simd_sse == True
+}],  # no_simd_hardware == True
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.

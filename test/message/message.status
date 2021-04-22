@@ -81,8 +81,8 @@
 }],
 
 ##############################################################################
-['no_simd_sse == True', {
+['no_simd_hardware == True', {
   'wasm-trace-memory': [SKIP],
   'wasm-trace-memory-liftoff': [SKIP],
-}],  # no_simd_sse == True
+}],  # no_simd_hardware == True
 ]
