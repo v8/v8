@@ -3477,11 +3477,6 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
 
 
 UNINITIALIZED_TEST(ReleaseStackTraceData) {
-  if (FLAG_always_opt) {
-    // TODO(ulan): Remove this once the memory leak via code_next_link is fixed.
-    // See: https://codereview.chromium.org/181833004/
-    return;
-  }
 #ifndef V8_LITE_MODE
   // ICs retain objects.
   FLAG_use_ic = false;
