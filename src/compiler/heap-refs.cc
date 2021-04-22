@@ -1184,21 +1184,24 @@ class MapData : public HeapObjectData {
   void SerializeForElementStore(JSHeapBroker* broker);
 
  private:
-  InstanceType const instance_type_;
-  int const instance_size_;
-  byte const bit_field_;
-  byte const bit_field2_;
-  uint32_t const bit_field3_;
-  bool const can_be_deprecated_;
-  bool const can_transition_;
-  int const in_object_properties_start_in_words_;
-  int const in_object_properties_;
-  int const constructor_function_index_;
-  int const next_free_property_index_;
-  int const unused_property_fields_;
-  bool const supports_fast_array_iteration_;
-  bool const supports_fast_array_resize_;
-  bool const is_abandoned_prototype_map_;
+  // The following fields should be const in principle, but construction
+  // requires locking the MapUpdater lock. For this reason, it's easier to
+  // initialize these inside the constructor body, not in the initializer list.
+  InstanceType instance_type_;
+  int instance_size_;
+  byte bit_field_;
+  byte bit_field2_;
+  uint32_t bit_field3_;
+  bool can_be_deprecated_;
+  bool can_transition_;
+  int in_object_properties_start_in_words_;
+  int in_object_properties_;
+  int constructor_function_index_;
+  int next_free_property_index_;
+  int unused_property_fields_;
+  bool supports_fast_array_iteration_;
+  bool supports_fast_array_resize_;
+  bool is_abandoned_prototype_map_;
 
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<ObjectData*> elements_kind_generalizations_;
@@ -1274,7 +1277,7 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
       // instance_type_ member. In the case of constructing the MapData for the
       // meta map (whose map is itself), this member has not yet been
       // initialized.
-      map_(broker->GetOrCreateData(object->map())) {
+      map_(broker->GetOrCreateData(object->synchronized_map())) {
   CHECK_IMPLIES(kind == kSerializedHeapObject,
                 broker->mode() == JSHeapBroker::kSerializing);
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
@@ -1302,17 +1305,22 @@ bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   return descriptors.GetDetails(offset).IsReadOnly();
 }
 
-bool SupportsFastArrayIteration(Isolate* isolate, Handle<Map> map) {
+// Important: this predicate does not check Protectors::IsNoElementsIntact. The
+// compiler checks protectors through the compilation dependency mechanism; it
+// doesn't make sense to do that here as part of every MapData construction.
+// Callers *must* take care to take the correct dependency themselves.
+bool SupportsFastArrayIteration(JSHeapBroker* broker, Handle<Map> map) {
   return map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(map->elements_kind()) &&
          map->prototype().IsJSArray() &&
-         isolate->IsAnyInitialArrayPrototype(JSArray::cast(map->prototype())) &&
-         Protectors::IsNoElementsIntact(isolate);
+         broker->IsArrayOrObjectPrototype(broker->CanonicalPersistentHandle(
+             JSArray::cast(map->prototype())));
 }
 
-bool SupportsFastArrayResize(Isolate* isolate, Handle<Map> map) {
-  return SupportsFastArrayIteration(isolate, map) && map->is_extensible() &&
-         !map->is_dictionary_map() && !IsReadOnlyLengthDescriptor(isolate, map);
+bool SupportsFastArrayResize(JSHeapBroker* broker, Handle<Map> map) {
+  return SupportsFastArrayIteration(broker, map) && map->is_extensible() &&
+         !map->is_dictionary_map() &&
+         !IsReadOnlyLengthDescriptor(broker->isolate(), map);
 }
 
 }  // namespace
@@ -1320,37 +1328,42 @@ bool SupportsFastArrayResize(Isolate* isolate, Handle<Map> map) {
 MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
                  ObjectDataKind kind)
     : HeapObjectData(broker, storage, object, kind),
-      instance_type_(object->instance_type()),
-      instance_size_(object->instance_size()),
-      // We read the bit_field as relaxed since `has_non_instance_prototype` can
-      // be modified in live objects, and because we serialize some maps on the
-      // background. Those background-serialized maps are the native context's
-      // maps for which this bit is "set" but it doesn't change value (i.e. it
-      // is set to false when it was already false).
-      bit_field_(object->relaxed_bit_field()),
-      bit_field2_(object->bit_field2()),
-      // Similar to the bit_field comment above.
-      bit_field3_(object->relaxed_bit_field3()),
-      can_be_deprecated_(object->NumberOfOwnDescriptors() > 0
-                             ? object->CanBeDeprecated()
-                             : false),
-      can_transition_(object->CanTransition()),
-      in_object_properties_start_in_words_(
-          object->IsJSObjectMap() ? object->GetInObjectPropertiesStartInWords()
-                                  : 0),
-      in_object_properties_(
-          object->IsJSObjectMap() ? object->GetInObjectProperties() : 0),
-      constructor_function_index_(object->IsPrimitiveMap()
-                                      ? object->GetConstructorFunctionIndex()
-                                      : Map::kNoConstructorFunctionIndex),
-      next_free_property_index_(object->NextFreePropertyIndex()),
-      unused_property_fields_(object->UnusedPropertyFields()),
-      supports_fast_array_iteration_(
-          SupportsFastArrayIteration(broker->isolate(), object)),
-      supports_fast_array_resize_(
-          SupportsFastArrayResize(broker->isolate(), object)),
-      is_abandoned_prototype_map_(object->is_abandoned_prototype_map()),
-      elements_kind_generalizations_(broker->zone()) {}
+      elements_kind_generalizations_(broker->zone()) {
+  // This lock ensure that MapData can always be background-serialized, i.e.
+  // while the lock is held the Map object may not be modified (except in
+  // benign ways).
+  // TODO(jgruber): Consider removing this lock by being smrt.
+  JSHeapBroker::MapUpdaterMutexDepthScope mumd_scope(broker);
+  base::SharedMutexGuardIf<base::kShared> mutex_guard(
+      broker->isolate()->map_updater_access(), mumd_scope.should_lock());
+
+  instance_type_ = object->instance_type();
+  instance_size_ = object->instance_size();
+  // We read the bit_field as relaxed since `has_non_instance_prototype` can
+  // be modified in live objects, and because we serialize some maps on the
+  // background. Those background-serialized maps are the native context's
+  // maps for which this bit is "set" but it doesn't change value (i.e. it
+  // is set to false when it was already false).
+  bit_field_ = object->relaxed_bit_field();
+  bit_field2_ = object->bit_field2();
+  // Similar to the bit_field comment above.
+  bit_field3_ = object->relaxed_bit_field3();
+  can_be_deprecated_ =
+      object->NumberOfOwnDescriptors() > 0 ? object->CanBeDeprecated() : false;
+  can_transition_ = object->CanTransition();
+  in_object_properties_start_in_words_ =
+      object->IsJSObjectMap() ? object->GetInObjectPropertiesStartInWords() : 0;
+  in_object_properties_ =
+      object->IsJSObjectMap() ? object->GetInObjectProperties() : 0;
+  constructor_function_index_ = object->IsPrimitiveMap()
+                                    ? object->GetConstructorFunctionIndex()
+                                    : Map::kNoConstructorFunctionIndex;
+  next_free_property_index_ = object->NextFreePropertyIndex();
+  unused_property_fields_ = object->UnusedPropertyFields();
+  supports_fast_array_iteration_ = SupportsFastArrayIteration(broker, object);
+  supports_fast_array_resize_ = SupportsFastArrayResize(broker, object);
+  is_abandoned_prototype_map_ = object->is_abandoned_prototype_map();
+}
 
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<JSFunction> object)
@@ -2293,7 +2306,7 @@ bool MapData::TrySerializeOwnDescriptor(JSHeapBroker* broker,
 
   if (instance_descriptors_ == nullptr) {
     instance_descriptors_ =
-        broker->TryGetOrCreateData(map->instance_descriptors(isolate));
+        broker->TryGetOrCreateData(map->instance_descriptors(kAcquireLoad));
     if (instance_descriptors_ == nullptr) return false;
   }
 
@@ -2628,6 +2641,8 @@ void JSHeapBroker::InitializeAndStartSerializing(
   refs_ =
       zone()->New<RefsMap>(kInitialRefsBucketCount, AddressMatcher(), zone());
 
+  CollectArrayAndObjectPrototypes();
+
   SetTargetNativeContextRef(native_context);
   target_native_context().Serialize();
   if (!FLAG_turbo_direct_heap_access) {
@@ -2635,8 +2650,6 @@ void JSHeapBroker::InitializeAndStartSerializing(
     // the background thread.
     target_native_context().SerializeOnBackground();
   }
-
-  CollectArrayAndObjectPrototypes();
 
   Factory* const f = isolate()->factory();
   if (!FLAG_turbo_direct_heap_access) {
@@ -2895,14 +2908,14 @@ bool MapRef::HasOnlyStablePrototypesWithFastElements(
 
 bool MapRef::supports_fast_array_iteration() const {
   if (data_->should_access_heap()) {
-    return SupportsFastArrayIteration(broker()->isolate(), object());
+    return SupportsFastArrayIteration(broker(), object());
   }
   return data()->AsMap()->supports_fast_array_iteration();
 }
 
 bool MapRef::supports_fast_array_resize() const {
   if (data_->should_access_heap()) {
-    return SupportsFastArrayResize(broker()->isolate(), object());
+    return SupportsFastArrayResize(broker(), object());
   }
   return data()->AsMap()->supports_fast_array_resize();
 }

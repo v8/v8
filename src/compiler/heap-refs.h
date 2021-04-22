@@ -105,14 +105,14 @@ enum class OddballType : uint8_t {
 #define HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of HeapObject */                                    \
   V(BigInt)                                                       \
-  V(HeapNumber)                                                   \
-  V(Map)
+  V(HeapNumber)
 
 // This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
 // Types in this list can be serialized on demand from the background thread.
 #define HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of HeapObject */                           \
+  V(Map)                                                 \
   V(PropertyCell)
 
 // This list is sorted such that subtypes appear before their supertypes.

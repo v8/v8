@@ -1141,7 +1141,7 @@ Handle<Map> Map::AsElementsKind(Isolate* isolate, Handle<Map> map,
 
 int Map::NumberOfEnumerableProperties() const {
   int result = 0;
-  DescriptorArray descs = instance_descriptors(kRelaxedLoad);
+  DescriptorArray descs = instance_descriptors(kAcquireLoad);
   for (InternalIndex i : IterateOwnDescriptors()) {
     if ((descs.GetDetails(i).attributes() & ONLY_ENUMERABLE) == 0 &&
         !descs.GetKey(i).FilterKey(ENUMERABLE_STRINGS)) {
@@ -1153,7 +1153,7 @@ int Map::NumberOfEnumerableProperties() const {
 
 int Map::NextFreePropertyIndex() const {
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  DescriptorArray descs = instance_descriptors();
+  DescriptorArray descs = instance_descriptors(kAcquireLoad);
   // Search properties backwards to find the last field.
   for (int i = number_of_own_descriptors - 1; i >= 0; --i) {
     PropertyDetails details = descs.GetDetails(InternalIndex(i));

@@ -213,14 +213,18 @@ bool JSHeapBroker::IsSerializedForCompilation(
 }
 
 bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
+  return IsArrayOrObjectPrototype(object.object());
+}
+
+bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
   if (mode() == kDisabled) {
-    return isolate()->IsInAnyContext(*object.object(),
+    return isolate()->IsInAnyContext(*object,
                                      Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
-           isolate()->IsInAnyContext(*object.object(),
+           isolate()->IsInAnyContext(*object,
                                      Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
   }
   CHECK(!array_and_object_prototypes_.empty());
-  return array_and_object_prototypes_.find(object.object()) !=
+  return array_and_object_prototypes_.find(object) !=
          array_and_object_prototypes_.end();
 }
 

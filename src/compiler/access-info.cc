@@ -722,9 +722,9 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, AccessMode access_mode) const {
   CHECK(name->IsUniqueName());
 
+  JSHeapBroker::MapUpdaterMutexDepthScope mumd_scope(broker());
   base::SharedMutexGuardIf<base::kShared> mutex_guard(
-      isolate()->map_updater_access(), should_lock_mutex());
-  MapUpdaterMutexDepthScope mumd_scope(this);
+      isolate()->map_updater_access(), mumd_scope.should_lock());
 
   if (access_mode == AccessMode::kHas && !map->IsJSReceiverMap()) {
     return Invalid();
@@ -864,8 +864,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Walk up the prototype chain.
-    ObjectData* data = broker()->TryGetOrCreateData(
-        map, false, ObjectRef::BackgroundSerialization::kAllowed);
+    ObjectData* data = broker()->TryGetOrCreateData(map, false);
     if (data == nullptr) return Invalid();
 
     if (!MapRef(broker(), data).TrySerializePrototype()) {
