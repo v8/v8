@@ -9,6 +9,9 @@ load(
     "waterfall_acls",
 )
 
+# Enable LUCI Realms support.
+lucicfg.enable_experiment("crbug.com/1085650")
+
 lucicfg.config(
     config_dir = "generated",
     tracked_files = [
@@ -19,6 +22,7 @@ lucicfg.config(
         "luci-scheduler.cfg",
         "luci-notify.cfg",
         "project.cfg",
+        "realms.cfg",
     ],
     fail_on_warnings = True,
 )
@@ -64,6 +68,59 @@ luci.project(
             ],
         ),
     ],
+    bindings = [
+        luci.binding(
+            roles = "role/swarming.poolOwner",
+            groups = "mdb/v8-infra",
+        ),
+        luci.binding(
+            roles = "role/swarming.poolViewer",
+            groups = "all",
+        ),
+    ],
+)
+
+## Swarming permissions
+
+# Allow admins to use LED and "Debug" button on every V8 builder and bot.
+luci.binding(
+    realm = "@root",
+    roles = "role/swarming.poolUser",
+    groups = "mdb/v8-infra",
+)
+luci.binding(
+    realm = "@root",
+    roles = "role/swarming.taskTriggerer",
+    groups = "mdb/v8-infra",
+)
+
+# Allow cria/project-v8-led-users to use LED and "Debug" button on
+# try and ci builders
+def led_users(*, pool_realm, builder_realms, groups):
+    luci.realm(
+        name = pool_realm,
+        bindings = [luci.binding(
+            realm = pool_realm,
+            roles = "role/swarming.poolUser",
+            groups = groups,
+        )],
+    )
+    for br in builder_realms:
+        luci.binding(
+            realm = br,
+            roles = "role/swarming.taskTriggerer",
+            groups = groups,
+        )
+led_users(
+    pool_realm = "pools/ci",
+    builder_realms = ["ci", "ci.br.beta", "ci.br.stable"],
+    groups = "projcect-v8-ci-led-users",
+)
+
+led_users(
+    pool_realm = "pools/try",
+    builder_realms = ["try", "try.triggered"],
+    groups = "projcect-v8-ci-led-users",
 )
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
