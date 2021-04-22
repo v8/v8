@@ -8136,6 +8136,11 @@ EmbedderHeapTracer* Isolate::GetEmbedderHeapTracer() {
   return isolate->heap()->GetEmbedderHeapTracer();
 }
 
+void Isolate::SetEmbedderRootsHandler(EmbedderRootsHandler* handler) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->SetEmbedderRootsHandler(handler);
+}
+
 void Isolate::AttachCppHeap(CppHeap* cpp_heap) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->AttachCppHeap(cpp_heap);

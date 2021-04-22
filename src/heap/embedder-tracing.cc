@@ -17,6 +17,7 @@ void LocalEmbedderHeapTracer::SetRemoteTracer(EmbedderHeapTracer* tracer) {
   if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
 
   remote_tracer_ = tracer;
+  default_embedder_roots_handler_.SetTracer(tracer);
   if (remote_tracer_)
     remote_tracer_->isolate_ = reinterpret_cast<v8::Isolate*>(isolate_);
 }
@@ -162,6 +163,24 @@ void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
     heap->FinalizeIncrementalMarkingAtomically(
         i::GarbageCollectionReason::kExternalFinalize);
   }
+}
+
+bool DefaultEmbedderRootsHandler::IsRoot(
+    const v8::TracedReference<v8::Value>& handle) {
+  return !tracer_ || tracer_->IsRootForNonTracingGC(handle);
+}
+
+bool DefaultEmbedderRootsHandler::IsRoot(
+    const v8::TracedGlobal<v8::Value>& handle) {
+  return !tracer_ || tracer_->IsRootForNonTracingGC(handle);
+}
+
+void DefaultEmbedderRootsHandler::ResetRoot(
+    const v8::TracedReference<v8::Value>& handle) {
+  // Resetting is only called when IsRoot() returns false which
+  // can only happen the EmbedderHeapTracer is set on API level.
+  DCHECK(tracer_);
+  tracer_->ResetHandleInNonTracingGC(handle);
 }
 
 }  // namespace internal

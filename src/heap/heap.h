@@ -1155,6 +1155,14 @@ class Heap {
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
   // ===========================================================================
+  // Embedder roots optimizations. =============================================
+  // ===========================================================================
+
+  V8_EXPORT_PRIVATE void SetEmbedderRootsHandler(EmbedderRootsHandler* handler);
+
+  EmbedderRootsHandler* GetEmbedderRootsHandler() const;
+
+  // ===========================================================================
   // External string table API. ================================================
   // ===========================================================================
 
@@ -2260,6 +2268,8 @@ class Heap {
 
   // The embedder owns the C++ heap.
   v8::CppHeap* cpp_heap_ = nullptr;
+
+  EmbedderRootsHandler* embedder_roots_handler_ = nullptr;
 
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;

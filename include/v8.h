@@ -905,8 +905,8 @@ class TracedReferenceBase {
  * The exact semantics are:
  * - Tracing garbage collections use |v8::EmbedderHeapTracer| or cppgc.
  * - Non-tracing garbage collections refer to
- *   |v8::EmbedderHeapTracer::IsRootForNonTracingGC()| whether the handle should
- *   be treated as root or not.
+ *   |v8::EmbedderRootsHandler::IsRoot()| whether the handle should
+ * be treated as root or not.
  *
  * Note that the base class cannot be instantiated itself. Choose from
  * - TracedGlobal
@@ -7933,6 +7933,45 @@ class V8_EXPORT PersistentHandleVisitor {  // NOLINT
 enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 
 /**
+ * Handler for embedder roots on non-unified heap garbage collections.
+ */
+class V8_EXPORT EmbedderRootsHandler {
+ public:
+  virtual ~EmbedderRootsHandler() = default;
+
+  /**
+   * Returns true if the TracedGlobal handle should be considered as root for
+   * the currently running non-tracing garbage collection and false otherwise.
+   * The default implementation will keep all TracedGlobal references as roots.
+   *
+   * If this returns false, then V8 may decide that the object referred to by
+   * such a handle is reclaimed. In that case:
+   * - No action is required if handles are used with destructors, i.e., by just
+   *   using |TracedGlobal|.
+   * - When run without destructors, i.e., by using |TracedReference|, V8 calls
+   *  |ResetRoot|.
+   *
+   * Note that the |handle| is different from the handle that the embedder holds
+   * for retaining the object. The embedder may use |WrapperClassId()| to
+   * distinguish cases where it wants handles to be treated as roots from not
+   * being treated as roots.
+   */
+  virtual bool IsRoot(const v8::TracedReference<v8::Value>& handle) = 0;
+  virtual bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) = 0;
+
+  /**
+   * Used in combination with |IsRoot|. Called by V8 when an
+   * object that is backed by a handle is reclaimed by a non-tracing garbage
+   * collection. It is up to the embedder to reset the original handle.
+   *
+   * Note that the |handle| is different from the handle that the embedder holds
+   * for retaining the object. It is up to the embedder to find the original
+   * handle via the object or class id.
+   */
+  virtual void ResetRoot(const v8::TracedReference<v8::Value>& handle) = 0;
+};
+
+/**
  * Interface for tracing through the embedder heap. During a V8 garbage
  * collection, V8 collects hidden fields of all potential wrappers, and at the
  * end of its marking phase iterates the collection and asks the embedder to
@@ -8057,34 +8096,14 @@ class V8_EXPORT EmbedderHeapTracer {
   void FinalizeTracing();
 
   /**
-   * Returns true if the TracedGlobal handle should be considered as root for
-   * the currently running non-tracing garbage collection and false otherwise.
-   * The default implementation will keep all TracedGlobal references as roots.
-   *
-   * If this returns false, then V8 may decide that the object referred to by
-   * such a handle is reclaimed. In that case:
-   * - No action is required if handles are used with destructors, i.e., by just
-   * using |TracedGlobal|.
-   * - When run without destructors, i.e., by using
-   * |TracedReference|, V8 calls |ResetHandleInNonTracingGC|.
-   *
-   * Note that the |handle| is different from the handle that the embedder holds
-   * for retaining the object. The embedder may use |WrapperClassId()| to
-   * distinguish cases where it wants handles to be treated as roots from not
-   * being treated as roots.
+   * See documentation on EmbedderRootsHandler.
    */
   virtual bool IsRootForNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
   virtual bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle);
 
   /**
-   * Used in combination with |IsRootForNonTracingGC|. Called by V8 when an
-   * object that is backed by a handle is reclaimed by a non-tracing garbage
-   * collection. It is up to the embedder to reset the original handle.
-   *
-   * Note that the |handle| is different from the handle that the embedder holds
-   * for retaining the object. It is up to the embedder to find the original
-   * handle via the object or class id.
+   * See documentation on EmbedderRootsHandler.
    */
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
@@ -8933,6 +8952,18 @@ class V8_EXPORT Isolate {
    * Gets the currently active heap tracer for the isolate.
    */
   EmbedderHeapTracer* GetEmbedderHeapTracer();
+
+  /**
+   * Sets an embedder roots handle that V8 should consider when performing
+   * non-unified heap garbage collections.
+   *
+   * Using only EmbedderHeapTracer automatically sets up a default handler.
+   * The intended use case is for setting a custom handler after invoking
+   * `AttachCppHeap()`.
+   *
+   * V8 does not take ownership of the handler.
+   */
+  void SetEmbedderRootsHandler(EmbedderRootsHandler* handler);
 
   /**
    * Attaches a managed C++ heap as an extension to the JavaScript heap. The

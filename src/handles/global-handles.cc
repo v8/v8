@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <map>
 
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
 #include "src/execution/vm-state-inl.h"
@@ -1252,18 +1253,21 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
   if (!FLAG_reclaim_unmodified_wrappers) return;
 
-  LocalEmbedderHeapTracer* const tracer =
-      isolate()->heap()->local_embedder_heap_tracer();
+  // Treat all objects as roots during incremental marking to avoid corrupting
+  // marking worklists.
+  if (isolate()->heap()->incremental_marking()->IsMarking()) return;
+
+  auto* const handler = isolate()->heap()->GetEmbedderRootsHandler();
   for (TracedNode* node : traced_young_nodes_) {
     if (node->IsInUse()) {
       DCHECK(node->is_root());
       if (is_unmodified(node->location())) {
         v8::Value* value = ToApi<v8::Value>(node->handle());
         if (node->has_destructor()) {
-          node->set_root(tracer->IsRootForNonTracingGC(
+          node->set_root(handler->IsRoot(
               *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value)));
         } else {
-          node->set_root(tracer->IsRootForNonTracingGC(
+          node->set_root(handler->IsRoot(
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value)));
         }
       }
@@ -1337,8 +1341,7 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
 
   if (!FLAG_reclaim_unmodified_wrappers) return;
 
-  LocalEmbedderHeapTracer* const tracer =
-      isolate()->heap()->local_embedder_heap_tracer();
+  auto* const handler = isolate()->heap()->GetEmbedderRootsHandler();
   for (TracedNode* node : traced_young_nodes_) {
     if (!node->IsInUse()) continue;
 
@@ -1353,7 +1356,7 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
           node->ResetPhantomHandle(HandleHolder::kLive);
         } else {
           v8::Value* value = ToApi<v8::Value>(node->handle());
-          tracer->ResetHandleInNonTracingGC(
+          handler->ResetRoot(
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
           DCHECK(!node->IsInUse());
         }
