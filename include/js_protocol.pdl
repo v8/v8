@@ -1567,7 +1567,10 @@ domain Runtime
       # execution context. If omitted and `executionContextName` is not set,
       # the binding is exposed to all execution contexts of the target.
       # This parameter is mutually exclusive with `executionContextName`.
-      optional ExecutionContextId executionContextId
+      # Deprecated in favor of `executionContextName` due to an unclear use case
+      # and bugs in implementation (crbug.com/1169639). `executionContextId` will be
+      # removed in the future.
+      deprecated optional ExecutionContextId executionContextId
       # If specified, the binding is exposed to the executionContext with
       # matching name, even for contexts created after the binding is added.
       # See also `ExecutionContext.name` and `worldName` parameter to
