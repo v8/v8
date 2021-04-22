@@ -559,10 +559,10 @@ void InstallInterpreterTrampolineCopy(
                                    script_name, line_num, column_num));
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
                             Handle<SharedFunctionInfo> shared_info,
-                            LocalIsolate* isolate) {
+                            IsolateT* isolate) {
   if (compilation_info->has_bytecode_array()) {
     DCHECK(!shared_info->HasBytecodeArray());  // Only compiled once.
     DCHECK(!compilation_info->has_asm_wasm_data());
@@ -585,7 +585,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(compilation_info->has_asm_wasm_data());
     // We should only have asm/wasm data when finalizing on the main thread.
-    DCHECK((std::is_same<LocalIsolate, Isolate>::value));
+    DCHECK((std::is_same<IsolateT, Isolate>::value));
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
     shared_info->set_feedback_metadata(
         ReadOnlyRoots(isolate).empty_feedback_metadata());
@@ -606,10 +606,10 @@ void LogUnoptimizedCompilation(Isolate* isolate,
   RecordUnoptimizedCompilationStats(isolate, shared_info);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 void EnsureSharedFunctionInfosArrayOnScript(Handle<Script> script,
                                             ParseInfo* parse_info,
-                                            LocalIsolate* isolate) {
+                                            IsolateT* isolate) {
   DCHECK(parse_info->flags().is_toplevel());
   if (script->shared_function_info_count() > 0) {
     DCHECK_LE(script->shared_function_info_count(),
@@ -716,10 +716,10 @@ bool CompileSharedWithBaseline(Isolate* isolate,
 // Finalize a single compilation job. This function can return
 // RETRY_ON_MAIN_THREAD if the job cannot be finalized off-thread, in which case
 // it should be safe to call it again on the main thread with the same job.
-template <typename LocalIsolate>
+template <typename IsolateT>
 CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
     UnoptimizedCompilationJob* job, Handle<SharedFunctionInfo> shared_info,
-    LocalIsolate* isolate,
+    IsolateT* isolate,
     FinalizeUnoptimizedCompilationDataList*
         finalize_unoptimized_compilation_data_list) {
   UnoptimizedCompilationInfo* compilation_info = job->compilation_info();
@@ -738,9 +738,8 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
         isolate, shared_info, coverage_info, job->time_taken_to_execute(),
         job->time_taken_to_finalize());
   }
-  DCHECK_IMPLIES(
-      status == CompilationJob::RETRY_ON_MAIN_THREAD,
-      (std::is_same<LocalIsolate, v8::internal::LocalIsolate>::value));
+  DCHECK_IMPLIES(status == CompilationJob::RETRY_ON_MAIN_THREAD,
+                 (std::is_same<IsolateT, LocalIsolate>::value));
   return status;
 }
 
@@ -803,9 +802,9 @@ bool RecursivelyExecuteUnoptimizedCompilationJobs(
   return true;
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-    LocalIsolate* isolate, Handle<SharedFunctionInfo> outer_shared_info,
+    IsolateT* isolate, Handle<SharedFunctionInfo> outer_shared_info,
     Handle<Script> script, ParseInfo* parse_info,
     AccountingAllocator* allocator, IsCompiledScope* is_compiled_scope,
     FinalizeUnoptimizedCompilationDataList*
@@ -851,7 +850,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
 
       case CompilationJob::RETRY_ON_MAIN_THREAD:
         // This should not happen on the main thread.
-        DCHECK((!std::is_same<LocalIsolate, Isolate>::value));
+        DCHECK((!std::is_same<IsolateT, Isolate>::value));
         DCHECK_NOT_NULL(jobs_to_retry_finalization_on_main_thread);
 
         // Clear the literal and ParseInfo to prevent further attempts to
@@ -1257,8 +1256,8 @@ bool FailAndClearPendingException(Isolate* isolate) {
   return false;
 }
 
-template <typename LocalIsolate>
-bool PreparePendingException(LocalIsolate* isolate, ParseInfo* parse_info) {
+template <typename IsolateT>
+bool PreparePendingException(IsolateT* isolate, ParseInfo* parse_info) {
   if (parse_info->pending_error_handler()->has_pending_error()) {
     parse_info->pending_error_handler()->PrepareErrors(
         isolate, parse_info->ast_value_factory());
@@ -1388,9 +1387,9 @@ void CompileAllWithBaseline(Isolate* isolate,
 
 // Create shared function info for top level and shared function infos array for
 // inner functions.
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<SharedFunctionInfo> CreateTopLevelSharedFunctionInfo(
-    ParseInfo* parse_info, Handle<Script> script, LocalIsolate* isolate) {
+    ParseInfo* parse_info, Handle<Script> script, IsolateT* isolate) {
   EnsureSharedFunctionInfosArrayOnScript(script, parse_info, isolate);
   DCHECK_EQ(kNoSourcePosition,
             parse_info->literal()->function_token_position());
@@ -3133,9 +3132,9 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 }
 
 // static
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
-    FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate) {
+    FunctionLiteral* literal, Handle<Script> script, IsolateT* isolate) {
   // Precondition: code has been parsed and scopes have been analyzed.
   MaybeHandle<SharedFunctionInfo> maybe_existing;
 

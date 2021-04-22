@@ -148,9 +148,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   static int GetEvalPosition(Isolate* isolate, Handle<Script> script);
 
   // Init line_ends array with source code positions of line ends.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static void InitLineEnds(LocalIsolate* isolate, Handle<Script> script);
+  static void InitLineEnds(IsolateT* isolate, Handle<Script> script);
 
   // Carries information about a source position.
   struct PositionInfo {
@@ -188,9 +188,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 
   // Look through the list of existing shared function infos to find one
   // that matches the function literal. Return empty handle if not found.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   static MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(
-      Handle<Script> script, LocalIsolate* isolate,
+      Handle<Script> script, IsolateT* isolate,
       FunctionLiteral* function_literal);
 
   static MaybeHandle<SharedFunctionInfo> FindWebSnapshotSharedFunctionInfo(

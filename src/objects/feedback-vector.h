@@ -535,9 +535,9 @@ class FeedbackMetadata : public HeapObject {
   V8_EXPORT_PRIVATE FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   // If {spec} is null, then it is considered empty.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
-      LocalIsolate* isolate, const FeedbackVectorSpec* spec = nullptr);
+      IsolateT* isolate, const FeedbackVectorSpec* spec = nullptr);
 
   DECL_PRINTER(FeedbackMetadata)
   DECL_VERIFIER(FeedbackMetadata)

@@ -76,8 +76,8 @@ void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
 }
 
 // static
-template <typename LocalIsolate>
-Handle<FeedbackMetadata> FeedbackMetadata::New(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<FeedbackMetadata> FeedbackMetadata::New(IsolateT* isolate,
                                                const FeedbackVectorSpec* spec) {
   auto* factory = isolate->factory();
 

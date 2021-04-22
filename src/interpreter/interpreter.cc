@@ -49,14 +49,13 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
 
  private:
   BytecodeGenerator* generator() { return &generator_; }
-  template <typename LocalIsolate>
-  void CheckAndPrintBytecodeMismatch(LocalIsolate* isolate,
-                                     Handle<Script> script,
+  template <typename IsolateT>
+  void CheckAndPrintBytecodeMismatch(IsolateT* isolate, Handle<Script> script,
                                      Handle<BytecodeArray> bytecode);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   Status DoFinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
-                           LocalIsolate* isolate);
+                           IsolateT* isolate);
 
   Zone zone_;
   UnoptimizedCompilationInfo compilation_info_;
@@ -201,10 +200,9 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 }
 
 #ifdef DEBUG
-template <typename LocalIsolate>
+template <typename IsolateT>
 void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
-    LocalIsolate* isolate, Handle<Script> script,
-    Handle<BytecodeArray> bytecode) {
+    IsolateT* isolate, Handle<Script> script, Handle<BytecodeArray> bytecode) {
   int first_mismatch = generator()->CheckBytecodeMatches(*bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
@@ -257,9 +255,9 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   return DoFinalizeJobImpl(shared_info, isolate);
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
+    Handle<SharedFunctionInfo> shared_info, IsolateT* isolate) {
   Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(

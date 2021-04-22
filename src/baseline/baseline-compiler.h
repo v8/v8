@@ -39,8 +39,8 @@ class BytecodeOffsetTableBuilder {
     previous_pc_ = pc_offset;
   }
 
-  template <typename LocalIsolate>
-  Handle<ByteArray> ToBytecodeOffsetTable(LocalIsolate* isolate);
+  template <typename IsolateT>
+  Handle<ByteArray> ToBytecodeOffsetTable(IsolateT* isolate);
 
   void Reserve(size_t size) { bytes_.reserve(size); }
 

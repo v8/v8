@@ -51,9 +51,9 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   Handle<ByteArray> table = isolate->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), AllocationType::kOld);

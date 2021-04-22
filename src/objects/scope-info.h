@@ -221,9 +221,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   bool Equals(ScopeInfo other) const;
 #endif
 
-  template <typename LocalIsolate>
-  static Handle<ScopeInfo> Create(LocalIsolate* isolate, Zone* zone,
-                                  Scope* scope,
+  template <typename IsolateT>
+  static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                   MaybeHandle<ScopeInfo> outer_scope);
   static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);

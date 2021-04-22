@@ -191,8 +191,8 @@ class SharedFunctionInfo
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  template <typename LocalIsolate>
-  inline AbstractCode abstract_code(LocalIsolate* isolate);
+  template <typename IsolateT>
+  inline AbstractCode abstract_code(IsolateT* isolate);
 
   // Tells whether or not this shared function info has an attached
   // BytecodeArray.
@@ -264,9 +264,8 @@ class SharedFunctionInfo
   // Returns an IsCompiledScope which reports whether the function is compiled,
   // and if compiled, will avoid the function becoming uncompiled while it is
   // held.
-  template <typename LocalIsolate>
-  inline IsCompiledScope is_compiled_scope(LocalIsolate* isolate) const;
-
+  template <typename IsolateT>
+  inline IsCompiledScope is_compiled_scope(IsolateT* isolate) const;
 
   // [internal formal parameter count]: The declared number of parameters.
   // For subclass constructors, also includes new.target.
@@ -301,8 +300,8 @@ class SharedFunctionInfo
   inline FunctionTemplateInfo get_api_func_data() const;
   inline void set_api_func_data(FunctionTemplateInfo data);
   inline bool HasBytecodeArray() const;
-  template <typename LocalIsolate>
-  inline BytecodeArray GetBytecodeArray(LocalIsolate* isolate) const;
+  template <typename IsolateT>
+  inline BytecodeArray GetBytecodeArray(IsolateT* isolate) const;
 
   inline void set_bytecode_array(BytecodeArray bytecode);
   inline Code InterpreterTrampoline() const;
@@ -548,8 +547,8 @@ class SharedFunctionInfo
     kExceedsBytecodeLimit,
     kMayContainBreakPoints,
   };
-  template <typename LocalIsolate>
-  Inlineability GetInlineability(LocalIsolate* isolate) const;
+  template <typename IsolateT>
+  Inlineability GetInlineability(IsolateT* isolate) const;
 
   // Source size of this function.
   int SourceSize();
@@ -560,8 +559,8 @@ class SharedFunctionInfo
   inline bool has_simple_parameters();
 
   // Initialize a SharedFunctionInfo from a parsed function literal.
-  template <typename LocalIsolate>
-  static void InitFromFunctionLiteral(LocalIsolate* isolate,
+  template <typename IsolateT>
+  static void InitFromFunctionLiteral(IsolateT* isolate,
                                       Handle<SharedFunctionInfo> shared_info,
                                       FunctionLiteral* lit, bool is_toplevel);
 
@@ -578,8 +577,8 @@ class SharedFunctionInfo
   static void EnsureSourcePositionsAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
-  template <typename LocalIsolate>
-  bool AreSourcePositionsAvailable(LocalIsolate* isolate) const;
+  template <typename IsolateT>
+  bool AreSourcePositionsAvailable(IsolateT* isolate) const;
 
   // Hash based on function literal id and script id.
   V8_EXPORT_PRIVATE uint32_t Hash();

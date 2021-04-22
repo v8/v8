@@ -81,9 +81,8 @@ Register BytecodeArrayBuilder::Local(int index) const {
   return Register(index);
 }
 
-template <typename LocalIsolate>
-Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
-    LocalIsolate* isolate) {
+template <typename IsolateT>
+Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(IsolateT* isolate) {
   DCHECK(RemainderOfBlockIsDead());
   DCHECK(!bytecode_generated_);
   bytecode_generated_ = true;
@@ -115,9 +114,9 @@ int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
 }
 #endif
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   DCHECK(RemainderOfBlockIsDead());
 
   return bytecode_array_writer_.ToSourcePositionTable(isolate);

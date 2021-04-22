@@ -8,9 +8,8 @@
 namespace v8 {
 namespace internal {
 
-template <class LocalIsolate>
-CallOptimization::CallOptimization(LocalIsolate* isolate,
-                                   Handle<Object> function) {
+template <class IsolateT>
+CallOptimization::CallOptimization(IsolateT* isolate, Handle<Object> function) {
   if (function->IsJSFunction()) {
     Initialize(isolate, Handle<JSFunction>::cast(function));
   } else if (function->IsFunctionTemplateInfo()) {
@@ -39,9 +38,9 @@ bool CallOptimization::IsCrossContextLazyAccessorPair(Context native_context,
   return native_context != GetAccessorContext(holder_map);
 }
 
-template <class LocalIsolate>
+template <class IsolateT>
 Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
-    LocalIsolate* isolate, Handle<Map> object_map,
+    IsolateT* isolate, Handle<Map> object_map,
     HolderLookup* holder_lookup) const {
   DCHECK(is_simple_api_call());
   if (!object_map->IsJSObjectMap()) {
@@ -100,10 +99,9 @@ bool CallOptimization::IsCompatibleReceiverMap(
   UNREACHABLE();
 }
 
-template <class LocalIsolate>
+template <class IsolateT>
 void CallOptimization::Initialize(
-    LocalIsolate* isolate,
-    Handle<FunctionTemplateInfo> function_template_info) {
+    IsolateT* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   HeapObject call_code = function_template_info->call_code(kAcquireLoad);
   if (call_code.IsUndefined(isolate)) return;
   api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
@@ -117,8 +115,8 @@ void CallOptimization::Initialize(
   accept_any_receiver_ = function_template_info->accept_any_receiver();
 }
 
-template <class LocalIsolate>
-void CallOptimization::Initialize(LocalIsolate* isolate,
+template <class IsolateT>
+void CallOptimization::Initialize(IsolateT* isolate,
                                   Handle<JSFunction> function) {
   if (function.is_null() || !function->is_compiled()) return;
 
@@ -126,8 +124,8 @@ void CallOptimization::Initialize(LocalIsolate* isolate,
   AnalyzePossibleApiFunction(isolate, function);
 }
 
-template <class LocalIsolate>
-void CallOptimization::AnalyzePossibleApiFunction(LocalIsolate* isolate,
+template <class IsolateT>
+void CallOptimization::AnalyzePossibleApiFunction(IsolateT* isolate,
                                                   Handle<JSFunction> function) {
   if (!function->shared().IsApiFunction()) return;
   Handle<FunctionTemplateInfo> info(function->shared().get_api_func_data(),

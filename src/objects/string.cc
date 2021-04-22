@@ -735,8 +735,8 @@ static void CalculateLineEndsImpl(std::vector<int>* line_ends,
   }
 }
 
-template <typename LocalIsolate>
-Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
                                              Handle<String> src,
                                              bool include_ending_line) {
   src = Flatten(isolate, src);

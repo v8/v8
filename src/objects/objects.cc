@@ -4328,8 +4328,8 @@ Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
   return result;
 }
 
-template <typename LocalIsolate>
-Handle<DescriptorArray> DescriptorArray::Allocate(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<DescriptorArray> DescriptorArray::Allocate(IsolateT* isolate,
                                                   int nof_descriptors,
                                                   int slack,
                                                   AllocationType allocation) {
@@ -4775,9 +4775,9 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
   return position;
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 // static
-void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
+void Script::InitLineEnds(IsolateT* isolate, Handle<Script> script) {
   if (!script->line_ends().IsUndefined(isolate)) return;
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(script->type() != Script::TYPE_WASM ||
@@ -4988,9 +4988,9 @@ Object Script::GetNameOrSourceURL() {
   return name();
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    Handle<Script> script, LocalIsolate* isolate,
+    Handle<Script> script, IsolateT* isolate,
     FunctionLiteral* function_literal) {
   int function_literal_id = function_literal->function_literal_id();
   if V8_UNLIKELY (script->type() == Script::TYPE_WEB_SNAPSHOT &&
@@ -5639,9 +5639,9 @@ void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Derived> HashTable<Derived, Shape>::New(
-    LocalIsolate* isolate, int at_least_space_for, AllocationType allocation,
+    IsolateT* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
@@ -5657,9 +5657,9 @@ Handle<Derived> HashTable<Derived, Shape>::New(
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Derived> HashTable<Derived, Shape>::NewInternal(
-    LocalIsolate* isolate, int capacity, AllocationType allocation) {
+    IsolateT* isolate, int capacity, AllocationType allocation) {
   auto* factory = isolate->factory();
   int length = EntryToIndex(InternalIndex(capacity));
   Handle<FixedArray> array = factory->NewFixedArrayWithMap(
@@ -5789,9 +5789,9 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
-    LocalIsolate* isolate, Handle<Derived> table, int n,
+    IsolateT* isolate, Handle<Derived> table, int n,
     AllocationType allocation) {
   if (table->HasSufficientCapacityToAdd(n)) return table;
 
@@ -5922,9 +5922,9 @@ Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
-    LocalIsolate* isolate, int at_least_space_for, AllocationType allocation,
+    IsolateT* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   Handle<Derived> dict = Dictionary<Derived, Shape>::New(
@@ -5996,10 +5996,10 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<Derived>
 BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
-    LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
+    IsolateT* isolate, Handle<Derived> dictionary, Key key,
     Handle<Object> value, PropertyDetails details, InternalIndex* entry_out) {
   // Insert element at empty or deleted entry.
   return Dictionary<Derived, Shape>::Add(isolate, dictionary, key, value,
@@ -6025,8 +6025,8 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
-Handle<Derived> Dictionary<Derived, Shape>::Add(LocalIsolate* isolate,
+template <typename IsolateT>
+Handle<Derived> Dictionary<Derived, Shape>::Add(IsolateT* isolate,
                                                 Handle<Derived> dictionary,
                                                 Key key, Handle<Object> value,
                                                 PropertyDetails details,

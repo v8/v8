@@ -93,8 +93,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  template <typename LocalIsolate>
-  inline AbstractCode abstract_code(LocalIsolate* isolate);
+  template <typename IsolateT>
+  inline AbstractCode abstract_code(IsolateT* isolate);
 
   // The predicates for querying code kinds related to this function have
   // specific terminology:

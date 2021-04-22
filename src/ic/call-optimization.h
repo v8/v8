@@ -14,8 +14,8 @@ namespace internal {
 // Holds information about possible function call optimizations.
 class CallOptimization {
  public:
-  template <class LocalIsolate>
-  CallOptimization(LocalIsolate* isolate, Handle<Object> function);
+  template <class IsolateT>
+  CallOptimization(IsolateT* isolate, Handle<Object> function);
 
   Context GetAccessorContext(Map holder_map) const;
   bool IsCrossContextLazyAccessorPair(Context native_context,
@@ -46,25 +46,25 @@ class CallOptimization {
 
   enum HolderLookup { kHolderNotFound, kHolderIsReceiver, kHolderFound };
 
-  template <class LocalIsolate>
+  template <class IsolateT>
   Handle<JSObject> LookupHolderOfExpectedType(
-      LocalIsolate* isolate, Handle<Map> receiver_map,
+      IsolateT* isolate, Handle<Map> receiver_map,
       HolderLookup* holder_lookup) const;
 
   bool IsCompatibleReceiverMap(Handle<JSObject> api_holder,
                                Handle<JSObject> holder, HolderLookup) const;
 
  private:
-  template <class LocalIsolate>
-  void Initialize(LocalIsolate* isolate, Handle<JSFunction> function);
-  template <class LocalIsolate>
-  void Initialize(LocalIsolate* isolate,
+  template <class IsolateT>
+  void Initialize(IsolateT* isolate, Handle<JSFunction> function);
+  template <class IsolateT>
+  void Initialize(IsolateT* isolate,
                   Handle<FunctionTemplateInfo> function_template_info);
 
   // Determines whether the given function can be called using the
   // fast api call builtin.
-  template <class LocalIsolate>
-  void AnalyzePossibleApiFunction(LocalIsolate* isolate,
+  template <class IsolateT>
+  void AnalyzePossibleApiFunction(IsolateT* isolate,
                                   Handle<JSFunction> function);
 
   Handle<JSFunction> constant_function_;

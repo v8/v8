@@ -146,9 +146,8 @@ void SwissNameDictionary::SetEntryForEnumerationIndex(int enumeration_index,
                     entry);
 }
 
-template <typename LocalIsolate>
-InternalIndex SwissNameDictionary::FindEntry(LocalIsolate* isolate,
-                                             Object key) {
+template <typename IsolateT>
+InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate, Object key) {
   Name name = Name::cast(key);
   DCHECK(name.IsUniqueName());
   uint32_t hash = name.hash();
@@ -212,8 +211,8 @@ InternalIndex SwissNameDictionary::FindEntry(LocalIsolate* isolate,
   }
 }
 
-template <typename LocalIsolate>
-InternalIndex SwissNameDictionary::FindEntry(LocalIsolate* isolate,
+template <typename IsolateT>
+InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
                                              Handle<Object> key) {
   return FindEntry(isolate, *key);
 }
@@ -318,9 +317,9 @@ PropertyDetails SwissNameDictionary::DetailsAt(InternalIndex entry) {
 }
 
 // static
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<SwissNameDictionary> SwissNameDictionary::EnsureGrowable(
-    LocalIsolate* isolate, Handle<SwissNameDictionary> table) {
+    IsolateT* isolate, Handle<SwissNameDictionary> table) {
   int capacity = table->Capacity();
 
   if (table->UsedCapacity() < MaxUsableCapacity(capacity)) {
@@ -488,9 +487,9 @@ bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 }
 
 // static
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<SwissNameDictionary> SwissNameDictionary::Add(
-    LocalIsolate* isolate, Handle<SwissNameDictionary> original_table,
+    IsolateT* isolate, Handle<SwissNameDictionary> original_table,
     Handle<Name> key, Handle<Object> value, PropertyDetails details,
     InternalIndex* entry_out) {
   DCHECK(original_table->FindEntry(isolate, *key).is_not_found());
@@ -538,9 +537,9 @@ int SwissNameDictionary::AddInternal(Name key, Object value,
   return target;
 }
 
-template <typename LocalIsolate>
-void SwissNameDictionary::Initialize(LocalIsolate* isolate,
-                                     ByteArray meta_table, int capacity) {
+template <typename IsolateT>
+void SwissNameDictionary::Initialize(IsolateT* isolate, ByteArray meta_table,
+                                     int capacity) {
   DCHECK(IsValidCapacity(capacity));
   DisallowHeapAllocation no_gc;
   ReadOnlyRoots roots(isolate);

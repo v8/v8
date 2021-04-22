@@ -739,11 +739,11 @@ class V8_NODISCARD BytecodeGenerator::TestResultScope final
 // Used to build a list of toplevel declaration data.
 class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
  public:
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   Handle<FixedArray> AllocateDeclarations(UnoptimizedCompilationInfo* info,
                                           BytecodeGenerator* generator,
                                           Handle<Script> script,
-                                          LocalIsolate* isolate) {
+                                          IsolateT* isolate) {
     DCHECK(has_constant_pool_entry_);
 
     Handle<FixedArray> data =
@@ -1186,14 +1186,14 @@ using NullContextScopeFor = typename NullContextScopeHelper<Isolate>::Type;
 
 }  // namespace
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
-    LocalIsolate* isolate, Handle<Script> script) {
+    IsolateT* isolate, Handle<Script> script) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
-  NullContextScopeFor<LocalIsolate> null_context_scope(isolate);
+  NullContextScopeFor<IsolateT> null_context_scope(isolate);
 #endif
 
   AllocateDeferredConstants(isolate, script);
@@ -1224,14 +1224,14 @@ template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
 template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     LocalIsolate* isolate, Handle<Script> script);
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
-    LocalIsolate* isolate) {
+    IsolateT* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
-  NullContextScopeFor<LocalIsolate> null_context_scope(isolate);
+  NullContextScopeFor<IsolateT> null_context_scope(isolate);
 #endif
 
   Handle<ByteArray> source_position_table =
@@ -1256,8 +1256,8 @@ int BytecodeGenerator::CheckBytecodeMatches(BytecodeArray bytecode) {
 }
 #endif
 
-template <typename LocalIsolate>
-void BytecodeGenerator::AllocateDeferredConstants(LocalIsolate* isolate,
+template <typename IsolateT>
+void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
                                                   Handle<Script> script) {
   if (top_level_builder()->has_top_level_declaration()) {
     // Build global declaration pair array.

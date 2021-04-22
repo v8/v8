@@ -335,8 +335,8 @@ class SequentialStringKey final : public StringTableKey {
         chars_(chars),
         convert_(convert) {}
 
-  template <typename LocalIsolate>
-  bool IsMatch(LocalIsolate* isolate, String s) {
+  template <typename IsolateT>
+  bool IsMatch(IsolateT* isolate, String s) {
     return s.IsEqualTo<String::EqualityType::kNoLengthCheck>(chars_, isolate);
   }
 

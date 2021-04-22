@@ -530,8 +530,8 @@ class String : public TorqueGeneratedString<String, Name> {
       Visitor* visitor, String string, int offset,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
-  template <typename LocalIsolate>
-  static Handle<FixedArray> CalculateLineEnds(LocalIsolate* isolate,
+  template <typename IsolateT>
+  static Handle<FixedArray> CalculateLineEnds(IsolateT* isolate,
                                               Handle<String> string,
                                               bool include_ending_line);
 
