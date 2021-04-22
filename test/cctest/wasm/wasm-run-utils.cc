@@ -21,14 +21,12 @@ namespace wasm {
 
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import,
-    TestExecutionTier tier, RuntimeExceptionSupport exception_support,
-    LowerSimd lower_simd)
+    TestExecutionTier tier, RuntimeExceptionSupport exception_support)
     : test_module_(std::make_shared<WasmModule>()),
       isolate_(CcTest::InitIsolateOnce()),
       enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
-      runtime_exception_support_(exception_support),
-      lower_simd_(lower_simd) {
+      runtime_exception_support_(exception_support) {
   WasmJs::Install(isolate_, true);
   test_module_->untagged_globals_buffer_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
@@ -313,7 +311,7 @@ CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
       V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler;
   return {test_module_.get(),
           is_trap_handler_enabled ? kUseTrapHandler : kNoTrapHandler,
-          runtime_exception_support_, enabled_features_, lower_simd()};
+          runtime_exception_support_, enabled_features_};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {

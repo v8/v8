@@ -881,7 +881,7 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 
 CompilationEnv NativeModule::CreateCompilationEnv() const {
   return {module(), use_trap_handler_, kRuntimeExceptionSupport,
-          enabled_features_, kNoLowerSimd};
+          enabled_features_};
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {

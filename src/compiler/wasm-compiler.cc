@@ -7470,7 +7470,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
   wasm::CompilationEnv env(
       nullptr, wasm::UseTrapHandler::kNoTrapHandler,
       wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport,
-      wasm::WasmFeatures::All(), wasm::LowerSimd::kNoLowerSimd);
+      wasm::WasmFeatures::All());
 
   WasmGraphBuilder builder(&env, mcgraph->zone(), mcgraph, sig,
                            source_positions);
@@ -7870,8 +7870,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
-  if (ContainsSimd(func_body.sig) &&
-      (!CpuFeatures::SupportsWasmSimd128() || env->lower_simd)) {
+  if (ContainsSimd(func_body.sig) && !CpuFeatures::SupportsWasmSimd128()) {
     call_descriptor = GetI32WasmCallDescriptorForSimd(&zone, call_descriptor);
   }
 

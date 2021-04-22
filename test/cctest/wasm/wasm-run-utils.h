@@ -98,7 +98,7 @@ struct ManuallyImportedJSFunction {
 class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, TestExecutionTier,
-                       RuntimeExceptionSupport, LowerSimd);
+                       RuntimeExceptionSupport);
   ~TestingModuleBuilder();
 
   void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
@@ -219,7 +219,6 @@ class TestingModuleBuilder {
 
   WasmInterpreter* interpreter() const { return interpreter_.get(); }
   bool interpret() const { return interpreter_ != nullptr; }
-  LowerSimd lower_simd() const { return lower_simd_; }
   Isolate* isolate() const { return isolate_; }
   Handle<WasmInstanceObject> instance_object() const {
     return instance_object_;
@@ -273,7 +272,6 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
   RuntimeExceptionSupport runtime_exception_support_;
-  LowerSimd lower_simd_;
 
   // Data segment arrays that are normally allocated on the instance.
   std::vector<byte> data_segment_data_;
@@ -386,11 +384,10 @@ class WasmRunnerBase : public InitializedHandleScope {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
                  TestExecutionTier execution_tier, int num_params,
-                 RuntimeExceptionSupport runtime_exception_support,
-                 LowerSimd lower_simd)
+                 RuntimeExceptionSupport runtime_exception_support)
       : zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
         builder_(&zone_, maybe_import, execution_tier,
-                 runtime_exception_support, lower_simd),
+                 runtime_exception_support),
         wrapper_(&zone_, num_params) {}
 
   static void SetUpTrapCallback() {
@@ -549,10 +546,9 @@ class WasmRunner : public WasmRunnerBase {
              ManuallyImportedJSFunction* maybe_import = nullptr,
              const char* main_fn_name = "main",
              RuntimeExceptionSupport runtime_exception_support =
-                 kNoRuntimeExceptionSupport,
-             LowerSimd lower_simd = kNoLowerSimd)
+                 kNoRuntimeExceptionSupport)
       : WasmRunnerBase(maybe_import, execution_tier, sizeof...(ParamTypes),
-                       runtime_exception_support, lower_simd) {
+                       runtime_exception_support) {
     WasmFunctionCompiler& main_fn =
         NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     // Non-zero if there is an import.
@@ -562,10 +558,6 @@ class WasmRunner : public WasmRunnerBase {
       wrapper_.Init<ReturnType, ParamTypes...>(main_fn.descriptor());
     }
   }
-
-  WasmRunner(TestExecutionTier execution_tier, LowerSimd lower_simd)
-      : WasmRunner(execution_tier, nullptr, "main", kNoRuntimeExceptionSupport,
-                   lower_simd) {}
 
   ReturnType Call(ParamTypes... p) {
     Isolate* isolate = CcTest::InitIsolateOnce();

@@ -22,7 +22,7 @@ class LiftoffCompileEnvironment {
         handle_scope_(isolate_),
         zone_(isolate_->allocator(), ZONE_NAME),
         wasm_runner_(nullptr, TestExecutionTier::kLiftoff, 0,
-                     kRuntimeExceptionSupport, kNoLowerSimd) {
+                     kRuntimeExceptionSupport) {
     // Add a table of length 1, for indirect calls.
     wasm_runner_.builder().AddIndirectFunctionTable(nullptr, 1);
     // Set tiered down such that we generate debugging code.
