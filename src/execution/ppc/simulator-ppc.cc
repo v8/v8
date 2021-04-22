@@ -3926,12 +3926,29 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           xt, 1, ReadDW(ra_val + rb_val + kSystemPointerSize));
       break;
     }
+    case LXVX: {
+      DECODE_VX_INSTRUCTION(vrt, ra, rb, T)
+      GET_ADDRESS(ra, rb, ra_val, rb_val)
+      intptr_t addr = ra_val + rb_val;
+      simdr_t* ptr = reinterpret_cast<simdr_t*>(addr);
+      set_simd_register(vrt, *ptr);
+      break;
+    }
     case STXVD: {
       DECODE_VX_INSTRUCTION(xs, ra, rb, S)
       GET_ADDRESS(ra, rb, ra_val, rb_val)
       WriteDW(ra_val + rb_val, get_simd_register_by_lane<int64_t>(xs, 0));
       WriteDW(ra_val + rb_val + kSystemPointerSize,
               get_simd_register_by_lane<int64_t>(xs, 1));
+      break;
+    }
+    case STXVX: {
+      DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
+      GET_ADDRESS(ra, rb, ra_val, rb_val)
+      intptr_t addr = ra_val + rb_val;
+      __int128 vrs_val =
+          *(reinterpret_cast<__int128*>(get_simd_register(vrs).int8));
+      WriteQW(addr, vrs_val);
       break;
     }
     case LXSIBZX: {

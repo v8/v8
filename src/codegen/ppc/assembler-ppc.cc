@@ -1821,6 +1821,12 @@ void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
        TX);
 }
 
+void Assembler::lxvx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXVX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
 void Assembler::lxsdx(const Simd128Register rt, const MemOperand& src) {
   int TX = 1;
   emit(LXSDX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
@@ -1872,6 +1878,12 @@ void Assembler::stxsiwx(const Simd128Register rs, const MemOperand& src) {
 void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
   int SX = 1;
   emit(STXVD | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
+       SX);
+}
+
+void Assembler::stxvx(const Simd128Register rt, const MemOperand& dst) {
+  int SX = 1;
+  emit(STXVX | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
        SX);
 }
 

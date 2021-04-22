@@ -1022,6 +1022,7 @@ class Assembler : public AssemblerBase {
   void mtvsrd(const Simd128Register rt, const Register ra);
   void mtvsrdd(const Simd128Register rt, const Register ra, const Register rb);
   void lxvd(const Simd128Register rt, const MemOperand& src);
+  void lxvx(const Simd128Register rt, const MemOperand& src);
   void lxsdx(const Simd128Register rt, const MemOperand& src);
   void lxsibzx(const Simd128Register rt, const MemOperand& src);
   void lxsihzx(const Simd128Register rt, const MemOperand& src);
@@ -1031,6 +1032,7 @@ class Assembler : public AssemblerBase {
   void stxsihx(const Simd128Register rs, const MemOperand& src);
   void stxsiwx(const Simd128Register rs, const MemOperand& src);
   void stxvd(const Simd128Register rt, const MemOperand& src);
+  void stxvx(const Simd128Register rt, const MemOperand& src);
   void xxspltib(const Simd128Register rt, const Operand& imm);
   void xxbrq(const Simd128Register rt, const Simd128Register rb);
 

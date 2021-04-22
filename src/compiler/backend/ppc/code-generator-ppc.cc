@@ -1222,8 +1222,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
           __ mov(ip, Operand(offset));
-          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, ip), r0,
-                         kScratchSimd128Reg);
+          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, ip));
         }
       } else {
         __ LoadP(i.OutputRegister(), MemOperand(fp, offset), r0);
@@ -1748,8 +1747,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           break;
         case MachineRepresentation::kSimd128:
           __ addi(sp, sp, Operand(-kSimd128Size));
-          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp), r0,
-                          kScratchSimd128Reg);
+          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp));
           break;
         default:
           __ StorePU(i.InputRegister(1), MemOperand(sp, -kSystemPointerSize),
@@ -1791,8 +1789,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
           __ mov(ip, Operand(slot * kSystemPointerSize));
-          __ StoreSimd128(i.InputSimd128Register(0), MemOperand(ip, sp), r0,
-                          kScratchSimd128Reg);
+          __ StoreSimd128(i.InputSimd128Register(0), MemOperand(ip, sp));
         }
       } else {
         __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kSystemPointerSize),
@@ -2057,9 +2054,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode);
       bool is_atomic = i.InputInt32(2);
-      // lvx only supports MRR.
       DCHECK_EQ(mode, kMode_MRR);
-      __ LoadSimd128(result, operand, r0, kScratchSimd128Reg);
+      __ LoadSimd128(result, operand);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2095,9 +2091,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register value = i.InputSimd128Register(index);
       bool is_atomic = i.InputInt32(3);
       if (is_atomic) __ lwsync();
-      // stvx only supports MRR.
       DCHECK_EQ(mode, kMode_MRR);
-      __ StoreSimd128(value, operand, r0, kScratchSimd128Reg);
+      __ StoreSimd128(value, operand);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -4443,8 +4438,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         DCHECK(destination->IsSimd128StackSlot());
         MemOperand dst = g.ToMemOperand(destination);
         __ mov(ip, Operand(dst.offset()));
-        __ StoreSimd128(g.ToSimd128Register(source), MemOperand(dst.ra(), ip),
-                        r0, kScratchSimd128Reg);
+        __ StoreSimd128(g.ToSimd128Register(source), MemOperand(dst.ra(), ip));
       }
     } else {
       DoubleRegister src = g.ToDoubleRegister(source);
@@ -4475,7 +4469,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         MemOperand src = g.ToMemOperand(source);
         __ mov(ip, Operand(src.offset()));
         __ LoadSimd128(g.ToSimd128Register(destination),
-                       MemOperand(src.ra(), ip), r0, kScratchSimd128Reg);
+                       MemOperand(src.ra(), ip));
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -4490,15 +4484,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         // push v0, to be used as scratch
         __ addi(sp, sp, Operand(-kSimd128Size));
-        __ StoreSimd128(v0, MemOperand(r0, sp), r0, kScratchSimd128Reg);
+        __ StoreSimd128(v0, MemOperand(r0, sp));
         MemOperand src = g.ToMemOperand(source);
         MemOperand dst = g.ToMemOperand(destination);
         __ mov(ip, Operand(src.offset()));
-        __ LoadSimd128(v0, MemOperand(src.ra(), ip), r0, kScratchSimd128Reg);
+        __ LoadSimd128(v0, MemOperand(src.ra(), ip));
         __ mov(ip, Operand(dst.offset()));
-        __ StoreSimd128(v0, MemOperand(dst.ra(), ip), r0, kScratchSimd128Reg);
+        __ StoreSimd128(v0, MemOperand(dst.ra(), ip));
         // restore v0
-        __ LoadSimd128(v0, MemOperand(r0, sp), ip, kScratchSimd128Reg);
+        __ LoadSimd128(v0, MemOperand(r0, sp));
         __ addi(sp, sp, Operand(kSimd128Size));
       }
     }

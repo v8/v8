@@ -638,6 +638,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "lxvd    'Xt, 'ra, 'rb");
       return;
     }
+    case LXVX: {
+      Format(instr, "lxvx    'Xt, 'ra, 'rb");
+      return;
+    }
     case LXSDX: {
       Format(instr, "lxsdx    'Xt, 'ra, 'rb");
       return;
@@ -656,6 +660,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
     }
     case STXVD: {
       Format(instr, "stxvd   'Xs, 'ra, 'rb");
+      return;
+    }
+    case STXVX: {
+      Format(instr, "stxvx   'Xs, 'ra, 'rb");
       return;
     }
     case STXSDX: {

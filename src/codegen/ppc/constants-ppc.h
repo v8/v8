@@ -1983,6 +1983,8 @@ using Instr = uint32_t;
   V(lxsspx, LXSSPX, 0x7C000418)                            \
   /* Load VSR Vector Doubleword*2 Indexed */               \
   V(lxvd, LXVD, 0x7C000698)                                \
+  /* Load VSX Vector Indexed */                            \
+  V(lxvx, LXVX, 0x7C000218)                                \
   /* Load VSR Vector Doubleword & Splat Indexed */         \
   V(lxvdsx, LXVDSX, 0x7C000298)                            \
   /* Load VSR Vector Word*4 Indexed */                     \
@@ -2011,6 +2013,8 @@ using Instr = uint32_t;
   V(stxsspx, STXSSPX, 0x7C000518)                          \
   /* Store VSR Vector Doubleword*2 Indexed */              \
   V(stxvd, STXVD, 0x7C000798)                              \
+  /* Store VSX Vector Indexed */                           \
+  V(stxvx, STXVX, 0x7C000318)                              \
   /* Store VSR Vector Word*4 Indexed */                    \
   V(stxvw, STXVW, 0x7C000718)
 
