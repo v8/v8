@@ -345,5 +345,33 @@ TEST_F(SweeperTest, LazySweepingNormalPages) {
   EXPECT_EQ(2u, g_destructor_callcount);
 }
 
+namespace {
+class AllocatingFinalizer : public GarbageCollected<AllocatingFinalizer> {
+ public:
+  static size_t destructor_callcount_;
+  explicit AllocatingFinalizer(AllocationHandle& allocation_handle)
+      : allocation_handle_(allocation_handle) {}
+  ~AllocatingFinalizer() {
+    MakeGarbageCollected<GCed<sizeof(size_t)>>(allocation_handle_);
+    ++destructor_callcount_;
+  }
+  void Trace(Visitor*) const {}
+
+ private:
+  AllocationHandle& allocation_handle_;
+};
+size_t AllocatingFinalizer::destructor_callcount_ = 0;
+}  // namespace
+
+TEST_F(SweeperTest, AllocationDuringFinalizationIsNotSwept) {
+  AllocatingFinalizer::destructor_callcount_ = 0;
+  g_destructor_callcount = 0;
+  MakeGarbageCollected<AllocatingFinalizer>(GetAllocationHandle(),
+                                            GetAllocationHandle());
+  PreciseGC();
+  EXPECT_LT(0u, AllocatingFinalizer::destructor_callcount_);
+  EXPECT_EQ(0u, g_destructor_callcount);
+}
+
 }  // namespace internal
 }  // namespace cppgc

@@ -4,6 +4,8 @@
 
 #include "include/cppgc/allocation.h"
 
+#include "include/cppgc/visitor.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -67,6 +69,25 @@ TEST_F(CppgcAllocationTest, ReuseMemoryFromFreelist) {
     }
   }
   EXPECT_TRUE(reused_memory_found);
+}
+
+namespace {
+class CallbackInCtor final : public GarbageCollected<CallbackInCtor> {
+ public:
+  template <typename Callback>
+  explicit CallbackInCtor(Callback callback) {
+    callback();
+  }
+
+  void Trace(Visitor*) const {}
+};
+}  // namespace
+
+TEST_F(CppgcAllocationTest,
+       ConservativeGCDuringAllocationDoesNotReclaimObject) {
+  CallbackInCtor* obj = MakeGarbageCollected<CallbackInCtor>(
+      GetAllocationHandle(), [this]() { ConservativeGC(); });
+  EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsFree());
 }
 
 }  // namespace internal
