@@ -42,6 +42,15 @@ class MemoryLowering::AllocationGroup final : public ZoneObject {
   AllocationType const allocation_;
   Node* const size_;
 
+  static inline AllocationType CheckAllocationType(AllocationType allocation) {
+    // For non-generational heap, all young allocations are redirected to old
+    // space.
+    if (FLAG_single_generation && allocation == AllocationType::kYoung) {
+      return AllocationType::kOld;
+    }
+    return allocation;
+  }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationGroup);
 };
 
@@ -99,6 +108,9 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
   DCHECK_IMPLIES(allocation_folding_ == AllocationFolding::kDoAllocationFolding,
                  state_ptr != nullptr);
+  if (FLAG_single_generation && allocation_type == AllocationType::kYoung) {
+    allocation_type = AllocationType::kOld;
+  }
   // Code objects may have a maximum size smaller than kMaxHeapObjectSize due to
   // guard pages. If we need to support allocating code here we would need to
   // call MemoryChunkLayout::MaxRegularCodeObjectSize() at runtime.
@@ -563,6 +575,9 @@ WriteBarrierKind MemoryLowering::ComputeWriteBarrierKind(
   if (!ValueNeedsWriteBarrier(value, isolate())) {
     write_barrier_kind = kNoWriteBarrier;
   }
+  if (FLAG_disable_write_barriers) {
+    write_barrier_kind = kNoWriteBarrier;
+  }
   if (write_barrier_kind == WriteBarrierKind::kAssertNoWriteBarrier) {
     write_barrier_assert_failed_(node, object, function_debug_name_, zone());
   }
@@ -587,14 +602,18 @@ bool MemoryLowering::NeedsPoisoning(LoadSensitivity load_sensitivity) const {
 MemoryLowering::AllocationGroup::AllocationGroup(Node* node,
                                                  AllocationType allocation,
                                                  Zone* zone)
-    : node_ids_(zone), allocation_(allocation), size_(nullptr) {
+    : node_ids_(zone),
+      allocation_(CheckAllocationType(allocation)),
+      size_(nullptr) {
   node_ids_.insert(node->id());
 }
 
 MemoryLowering::AllocationGroup::AllocationGroup(Node* node,
                                                  AllocationType allocation,
                                                  Node* size, Zone* zone)
-    : node_ids_(zone), allocation_(allocation), size_(size) {
+    : node_ids_(zone),
+      allocation_(CheckAllocationType(allocation)),
+      size_(size) {
   node_ids_.insert(node->id());
 }
 

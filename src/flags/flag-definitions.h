@@ -420,10 +420,6 @@ DEFINE_BOOL_READONLY(
     single_generation, V8_GENERATION_BOOL,
     "allocate all objects from young generation to old generation")
 
-// Prevent inline allocation into new space
-DEFINE_NEG_IMPLICATION(single_generation, inline_new)
-DEFINE_NEG_IMPLICATION(single_generation, turbo_allocation_folding)
-
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 #define V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL true
 #else

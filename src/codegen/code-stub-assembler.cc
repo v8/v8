@@ -1368,6 +1368,7 @@ TNode<HeapObject> CodeStubAssembler::AllocateInNewSpace(
 TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
                                               AllocationFlags flags) {
   Comment("Allocate");
+  if (FLAG_single_generation) flags |= kPretenured;
   bool const new_space = !(flags & kPretenured);
   bool const allow_large_objects = flags & kAllowLargeObjectAllocation;
   // For optimized allocations, we don't allow the allocation to happen in a
