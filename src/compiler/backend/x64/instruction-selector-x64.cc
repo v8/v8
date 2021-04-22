@@ -1890,8 +1890,14 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
   opcode |= AddressingModeField::encode(addressing_mode);
   inputs[input_count++] = right;
   if (cont->IsSelect()) {
-    inputs[input_count++] = g.UseRegister(cont->false_value());
-    inputs[input_count++] = g.Use(cont->true_value());
+    if (opcode == kUnorderedEqual) {
+      cont->Negate();
+      inputs[input_count++] = g.UseRegister(cont->true_value());
+      inputs[input_count++] = g.Use(cont->false_value());
+    } else {
+      inputs[input_count++] = g.UseRegister(cont->false_value());
+      inputs[input_count++] = g.Use(cont->true_value());
+    }
   }
 
   selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
@@ -1903,9 +1909,15 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   FlagsContinuation* cont) {
   if (cont->IsSelect()) {
     X64OperandGenerator g(selector);
-    InstructionOperand inputs[] = {left, right,
-                                   g.UseRegister(cont->false_value()),
-                                   g.Use(cont->true_value())};
+    InstructionOperand inputs[4] = {left, right};
+    if (cont->condition() == kUnorderedEqual) {
+      cont->Negate();
+      inputs[2] = g.UseRegister(cont->true_value());
+      inputs[3] = g.Use(cont->false_value());
+    } else {
+      inputs[2] = g.UseRegister(cont->false_value());
+      inputs[3] = g.Use(cont->true_value());
+    }
     selector->EmitWithContinuation(opcode, 0, nullptr, 4, inputs, cont);
     return;
   }

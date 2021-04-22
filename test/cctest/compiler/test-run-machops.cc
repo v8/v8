@@ -436,6 +436,40 @@ TEST(RunWord64Select) {
   }
 }
 
+TEST(RunSelectUnorderedEqual) {
+  BufferedRawMachineAssemblerTester<int64_t> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Float32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float32Equal(m.Parameter(2), m.Float32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int64_t input1 = 16;
+  constexpr int64_t input2 = 0x123456789abc;
+
+  CHECK_EQ(input1, m.Call(input1, input2, float{0}));
+  CHECK_EQ(input2, m.Call(input1, input2, float{1}));
+  CHECK_EQ(input2, m.Call(input1, input2, std::nanf("")));
+}
+
+TEST(RunSelectUnorderedNotEqual) {
+  BufferedRawMachineAssemblerTester<int64_t> m(
+      MachineType::Int64(), MachineType::Int64(), MachineType::Float32());
+  if (!m.machine()->Word64Select().IsSupported()) {
+    return;
+  }
+
+  Node* cmp = m.Float32NotEqual(m.Parameter(2), m.Float32Constant(0));
+  m.Return(m.Word64Select(cmp, m.Parameter(0), m.Parameter(1)));
+  constexpr int64_t input1 = 16;
+  constexpr int64_t input2 = 0x123456789abc;
+
+  CHECK_EQ(input2, m.Call(input1, input2, float{0}));
+  CHECK_EQ(input1, m.Call(input1, input2, float{1}));
+  CHECK_EQ(input1, m.Call(input1, input2, std::nanf("")));
+}
+
 namespace {
 void FooForSelect() {}
 }  // namespace

@@ -803,11 +803,6 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 }
 
 Instruction* InstructionSelector::EmitWithContinuation(
-    InstructionCode opcode, FlagsContinuation* cont) {
-  return EmitWithContinuation(opcode, 0, nullptr, 0, nullptr, cont);
-}
-
-Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
 }
