@@ -3541,8 +3541,6 @@ void Heap::ActivateMemoryReducerIfNeeded() {
 }
 
 void Heap::ReduceNewSpaceSize() {
-  // TODO(ulan): Unify this constant with the similar constant in
-  // GCIdleTimeHandler once the change is merged to 4.5.
   static const size_t kLowAllocationThroughput = 1000;
   const double allocation_throughput =
       tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
