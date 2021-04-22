@@ -146,7 +146,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   void PrintRefsAnalysis() const;
 #endif  // DEBUG
 
-  // Retruns the handle from root index table for read only heap objects.
+  // Returns the handle from root index table for read only heap objects.
   Handle<Object> GetRootHandle(Object object);
 
   // Never returns nullptr.
@@ -163,6 +163,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // smis, read-only objects and never-serialized objects.
   ObjectData* TryGetOrCreateData(
       Handle<Object>, bool crash_on_error = false,
+      ObjectRef::BackgroundSerialization background_serialization =
+          ObjectRef::BackgroundSerialization::kDisallowed);
+  ObjectData* TryGetOrCreateData(
+      Object object, bool crash_on_error = false,
       ObjectRef::BackgroundSerialization background_serialization =
           ObjectRef::BackgroundSerialization::kDisallowed);
 
@@ -241,6 +245,21 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
+  // Used to separate the problem of a concurrent GetPropertyAccessInfo (GPAI)
+  // from serialization. GPAI is currently called both during the serialization
+  // phase, and on the background thread. While some crucial objects (like
+  // JSObject) still must be serialized, we do the following:
+  // - Run GPAI during serialization to discover and serialize required objects.
+  // - After the serialization phase, clear cached property access infos.
+  // - On the background thread, rerun GPAI in a concurrent setting. The cache
+  //   has been cleared, thus the actual logic runs again.
+  // Once all required object kinds no longer require serialization, this
+  // should be removed together with all GPAI calls during serialization.
+  void ClearCachedPropertyAccessInfos() {
+    CHECK(FLAG_turbo_concurrent_get_property_access_info);
+    property_access_infos_.clear();
+  }
+
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
   bool ShouldBeSerializedForCompilation(const SharedFunctionInfoRef& shared,
@@ -257,6 +276,14 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   }
 
   LocalIsolate* local_isolate() const { return local_isolate_; }
+
+  // TODO(jgruber): Consider always having local_isolate_ set to a real value.
+  // This seems not entirely trivial since we currently reset local_isolate_ to
+  // nullptr at some point in the JSHeapBroker lifecycle.
+  LocalIsolate* local_isolate_or_isolate() const {
+    return local_isolate() != nullptr ? local_isolate()
+                                      : isolate()->AsLocalIsolate();
+  }
 
   // Return the corresponding canonical persistent handle for {object}. Create
   // one if it does not exist.
@@ -292,6 +319,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   template <typename T>
   Handle<T> CanonicalPersistentHandle(Handle<T> object) {
+    if (object.is_null()) return object;  // Can't deref a null handle.
     return CanonicalPersistentHandle<T>(*object);
   }
 

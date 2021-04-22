@@ -420,7 +420,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     access_info = broker()->GetPropertyAccessInfo(
         receiver_map,
         NameRef(broker(), isolate()->factory()->has_instance_symbol()),
-        AccessMode::kLoad);
+        AccessMode::kLoad, dependencies());
   } else {
     AccessInfoFactory access_info_factory(broker(), dependencies(),
                                           graph()->zone());
@@ -744,7 +744,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
       MapRef map_ref(broker(), map);
       access_infos.push_back(broker()->GetPropertyAccessInfo(
           map_ref, NameRef(broker(), isolate()->factory()->then_string()),
-          AccessMode::kLoad));
+          AccessMode::kLoad, dependencies()));
     }
   }
   PropertyAccessInfo access_info =

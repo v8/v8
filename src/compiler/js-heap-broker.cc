@@ -224,6 +224,13 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
          array_and_object_prototypes_.end();
 }
 
+ObjectData* JSHeapBroker::TryGetOrCreateData(
+    Object object, bool crash_on_error,
+    ObjectRef::BackgroundSerialization background_serialization) {
+  return TryGetOrCreateData(CanonicalPersistentHandle(object), crash_on_error,
+                            background_serialization);
+}
+
 ObjectData* JSHeapBroker::GetOrCreateData(
     Handle<Object> object,
     ObjectRef::BackgroundSerialization background_serialization) {
@@ -1060,7 +1067,8 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   auto it = property_access_infos_.find(target);
   if (it != property_access_infos_.end()) return it->second;
 
-  if (policy == SerializationPolicy::kAssumeSerialized) {
+  if (policy == SerializationPolicy::kAssumeSerialized &&
+      !FLAG_turbo_concurrent_get_property_access_info) {
     TRACE_BROKER_MISSING(this, "PropertyAccessInfo for "
                                    << access_mode << " of property " << name
                                    << " on map " << map);
@@ -1072,7 +1080,8 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   PropertyAccessInfo access_info = factory.ComputePropertyAccessInfo(
       map.object(), name.object(), access_mode);
   if (is_concurrent_inlining_) {
-    CHECK_EQ(mode(), kSerializing);
+    CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
+                  mode() == kSerializing);
     TRACE(this, "Storing PropertyAccessInfo for "
                     << access_mode << " of property " << name << " on map "
                     << map);

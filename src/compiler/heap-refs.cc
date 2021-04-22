@@ -263,7 +263,8 @@ FunctionTemplateInfoData::FunctionTemplateInfoData(
       function_template_info->signature().IsUndefined(broker->isolate());
   accept_any_receiver_ = function_template_info->accept_any_receiver();
 
-  CallOptimization call_optimization(broker->isolate(), object);
+  CallOptimization call_optimization(broker->local_isolate_or_isolate(),
+                                     object);
   has_call_code_ = call_optimization.is_simple_api_call();
 }
 
@@ -1143,8 +1144,12 @@ class MapData : public HeapObjectData {
 
   // Serialize a single (or all) own slot(s) of the descriptor array and recurse
   // on field owner(s).
+  bool TrySerializeOwnDescriptor(JSHeapBroker* broker,
+                                 InternalIndex descriptor_index);
   void SerializeOwnDescriptor(JSHeapBroker* broker,
-                              InternalIndex descriptor_index);
+                              InternalIndex descriptor_index) {
+    CHECK(TrySerializeOwnDescriptor(broker, descriptor_index));
+  }
   void SerializeOwnDescriptors(JSHeapBroker* broker);
   ObjectData* GetStrongValue(InternalIndex descriptor_index) const;
   ObjectData* instance_descriptors() const { return instance_descriptors_; }
@@ -1164,7 +1169,10 @@ class MapData : public HeapObjectData {
     return backpointer_;
   }
 
-  void SerializePrototype(JSHeapBroker* broker);
+  bool TrySerializePrototype(JSHeapBroker* broker);
+  void SerializePrototype(JSHeapBroker* broker) {
+    CHECK(TrySerializePrototype(broker));
+  }
   bool serialized_prototype() const { return serialized_prototype_; }
   ObjectData* prototype() const {
     CHECK(serialized_prototype_);
@@ -2253,14 +2261,16 @@ void MapData::SerializeBackPointer(JSHeapBroker* broker) {
   backpointer_ = broker->GetOrCreateData(map->GetBackPointer());
 }
 
-void MapData::SerializePrototype(JSHeapBroker* broker) {
-  if (serialized_prototype_) return;
-  serialized_prototype_ = true;
+bool MapData::TrySerializePrototype(JSHeapBroker* broker) {
+  if (serialized_prototype_) return true;
 
   TraceScope tracer(broker, this, "MapData::SerializePrototype");
   Handle<Map> map = Handle<Map>::cast(object());
   DCHECK_NULL(prototype_);
-  prototype_ = broker->GetOrCreateData(map->prototype());
+  prototype_ = broker->TryGetOrCreateData(map->prototype());
+  if (prototype_ == nullptr) return false;
+  serialized_prototype_ = true;
+  return true;
 }
 
 void MapData::SerializeOwnDescriptors(JSHeapBroker* broker) {
@@ -2275,15 +2285,16 @@ void MapData::SerializeOwnDescriptors(JSHeapBroker* broker) {
   }
 }
 
-void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
-                                     InternalIndex descriptor_index) {
+bool MapData::TrySerializeOwnDescriptor(JSHeapBroker* broker,
+                                        InternalIndex descriptor_index) {
   TraceScope tracer(broker, this, "MapData::SerializeOwnDescriptor");
   Handle<Map> map = Handle<Map>::cast(object());
   Isolate* isolate = broker->isolate();
 
   if (instance_descriptors_ == nullptr) {
     instance_descriptors_ =
-        broker->GetOrCreateData(map->instance_descriptors(isolate));
+        broker->TryGetOrCreateData(map->instance_descriptors(isolate));
+    if (instance_descriptors_ == nullptr) return false;
   }
 
   if (instance_descriptors()->should_access_heap()) {
@@ -2294,11 +2305,12 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
     Handle<DescriptorArray> descriptors = broker->CanonicalPersistentHandle(
         map->instance_descriptors(kAcquireLoad));
     if (descriptors->GetDetails(descriptor_index).location() == kField) {
-      Handle<Map> owner(map->FindFieldOwner(isolate, descriptor_index),
-                        isolate);
+      Handle<Map> owner = broker->CanonicalPersistentHandle(
+          map->FindFieldOwner(isolate, descriptor_index));
       if (!owner.equals(map)) {
-        broker->GetOrCreateData(owner)->AsMap()->SerializeOwnDescriptor(
-            broker, descriptor_index);
+        ObjectData* data = broker->TryGetOrCreateData(owner);
+        if (data == nullptr) return false;
+        data->AsMap()->SerializeOwnDescriptor(broker, descriptor_index);
       }
     }
   } else {
@@ -2306,6 +2318,8 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
         instance_descriptors()->AsDescriptorArray();
     descriptors->SerializeDescriptor(broker, map, descriptor_index);
   }
+
+  return true;
 }
 
 void MapData::SerializeRootMap(JSHeapBroker* broker) {
@@ -3415,9 +3429,12 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
   }
 
   HolderLookupResult result;
-  CallOptimization call_optimization(broker()->isolate(), object());
-  Handle<JSObject> holder = call_optimization.LookupHolderOfExpectedType(
-      receiver_map.object(), &result.lookup);
+  CallOptimization call_optimization(broker()->local_isolate_or_isolate(),
+                                     object());
+  Handle<JSObject> holder = broker()->CanonicalPersistentHandle(
+      call_optimization.LookupHolderOfExpectedType(
+          broker()->local_isolate_or_isolate(), receiver_map.object(),
+          &result.lookup));
 
   switch (result.lookup) {
     case CallOptimization::kHolderFound: {
@@ -4075,12 +4092,6 @@ NameRef DescriptorArrayRef::GetPropertyKey(
 ObjectRef DescriptorArrayRef::GetFieldType(
     InternalIndex descriptor_index) const {
   if (data_->should_access_heap()) {
-    // This method only gets called for the creation of FieldTypeDependencies.
-    // These calls happen when the broker is either disabled or serializing,
-    // which means that GetOrCreateData would be able to successfully create the
-    // ObjectRef for the cases where we haven't seen the FieldType before.
-    DCHECK(broker()->mode() == JSHeapBroker::kDisabled ||
-           broker()->mode() == JSHeapBroker::kSerializing);
     return ObjectRef(broker(), broker()->CanonicalPersistentHandle(
                                    object()->GetFieldType(descriptor_index)));
   }
@@ -4371,15 +4382,21 @@ ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
 
 void JSObjectRef::SerializeObjectCreateMap() {
   if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
+                broker()->mode() == JSHeapBroker::kSerializing);
   data()->AsJSObject()->SerializeObjectCreateMap(broker());
 }
 
-void MapRef::SerializeOwnDescriptor(InternalIndex descriptor_index) {
+bool MapRef::TrySerializeOwnDescriptor(InternalIndex descriptor_index) {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsMap()->SerializeOwnDescriptor(broker(), descriptor_index);
+  if (data_->should_access_heap()) return true;
+  CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
+                broker()->mode() == JSHeapBroker::kSerializing);
+  return data()->AsMap()->TrySerializeOwnDescriptor(broker(), descriptor_index);
+}
+
+void MapRef::SerializeOwnDescriptor(InternalIndex descriptor_index) {
+  CHECK(TrySerializeOwnDescriptor(descriptor_index));
 }
 
 bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
@@ -4395,15 +4412,19 @@ bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
 
 void MapRef::SerializeBackPointer() {
   if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
+                broker()->mode() == JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeBackPointer(broker());
 }
 
-void MapRef::SerializePrototype() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsMap()->SerializePrototype(broker());
+bool MapRef::TrySerializePrototype() {
+  if (data_->should_access_heap()) return true;
+  CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
+                broker()->mode() == JSHeapBroker::kSerializing);
+  return data()->AsMap()->TrySerializePrototype(broker());
 }
+
+void MapRef::SerializePrototype() { CHECK(TrySerializePrototype()); }
 
 bool MapRef::serialized_prototype() const {
   if (data_->should_access_heap()) return true;

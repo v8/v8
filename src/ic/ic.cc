@@ -605,7 +605,7 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
 
   // Check if the receiver is the holder
   CallOptimization::HolderLookup holder_lookup;
-  call_optimization.LookupHolderOfExpectedType(map, &holder_lookup);
+  call_optimization.LookupHolderOfExpectedType(isolate(), map, &holder_lookup);
   if (holder_lookup != CallOptimization::kHolderIsReceiver) return false;
 
   Handle<Context> accessor_context(call_optimization.GetAccessorContext(*map),
@@ -947,7 +947,8 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         if (call_optimization.is_simple_api_call()) {
           CallOptimization::HolderLookup holder_lookup;
           Handle<JSObject> api_holder =
-              call_optimization.LookupHolderOfExpectedType(map, &holder_lookup);
+              call_optimization.LookupHolderOfExpectedType(isolate(), map,
+                                                           &holder_lookup);
 
           if (!call_optimization.IsCompatibleReceiverMap(api_holder, holder,
                                                          holder_lookup) ||
@@ -1810,7 +1811,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           CallOptimization::HolderLookup holder_lookup;
           Handle<JSObject> api_holder =
               call_optimization.LookupHolderOfExpectedType(
-                  lookup_start_object_map(), &holder_lookup);
+                  isolate(), lookup_start_object_map(), &holder_lookup);
           if (call_optimization.IsCompatibleReceiverMap(api_holder, holder,
                                                         holder_lookup)) {
             Handle<Smi> smi_handler = StoreHandler::StoreApiSetter(

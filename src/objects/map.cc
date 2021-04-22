@@ -45,17 +45,16 @@ Map Map::GetPrototypeChainRootMap(Isolate* isolate) const {
 }
 
 // static
-MaybeHandle<JSFunction> Map::GetConstructorFunction(
-    Handle<Map> map, Handle<Context> native_context) {
-  if (map->IsPrimitiveMap()) {
-    int const constructor_function_index = map->GetConstructorFunctionIndex();
+base::Optional<JSFunction> Map::GetConstructorFunction(Map map,
+                                                       Context native_context) {
+  DisallowGarbageCollection no_gc;
+  if (map.IsPrimitiveMap()) {
+    int const constructor_function_index = map.GetConstructorFunctionIndex();
     if (constructor_function_index != kNoConstructorFunctionIndex) {
-      return handle(
-          JSFunction::cast(native_context->get(constructor_function_index)),
-          native_context->GetIsolate());
+      return JSFunction::cast(native_context.get(constructor_function_index));
     }
   }
-  return MaybeHandle<JSFunction>();
+  return {};
 }
 
 Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {

@@ -160,8 +160,8 @@ class FunctionTemplateInfo
   inline bool BreakAtEntry();
 
   // Helper function for cached accessors.
-  static MaybeHandle<Name> TryGetCachedPropertyName(Isolate* isolate,
-                                                    Handle<Object> getter);
+  static base::Optional<Name> TryGetCachedPropertyName(Isolate* isolate,
+                                                       Object getter);
 
   // Bit position in the flag, from least significant bit position.
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()

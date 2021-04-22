@@ -6647,17 +6647,14 @@ AccessCheckInfo AccessCheckInfo::Get(Isolate* isolate,
   return AccessCheckInfo::cast(data_obj);
 }
 
-MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
-    Isolate* isolate, Handle<Object> getter) {
-  if (getter->IsFunctionTemplateInfo()) {
-    Handle<FunctionTemplateInfo> fti =
-        Handle<FunctionTemplateInfo>::cast(getter);
-    // Check if the accessor uses a cached property.
-    if (!fti->cached_property_name().IsTheHole(isolate)) {
-      return handle(Name::cast(fti->cached_property_name()), isolate);
-    }
-  }
-  return MaybeHandle<Name>();
+base::Optional<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
+    Isolate* isolate, Object getter) {
+  DisallowGarbageCollection no_gc;
+  if (!getter.IsFunctionTemplateInfo()) return {};
+  // Check if the accessor uses a cached property.
+  Object maybe_name = FunctionTemplateInfo::cast(getter).cached_property_name();
+  if (maybe_name.IsTheHole(isolate)) return {};
+  return Name::cast(maybe_name);
 }
 
 Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {

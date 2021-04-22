@@ -7708,7 +7708,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
       MapRef map_ref(broker(), map);
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
           map_ref, NameRef(broker(), isolate()->factory()->exec_string()),
-          AccessMode::kLoad);
+          AccessMode::kLoad, dependencies());
       access_infos.push_back(access_info);
     }
   } else {

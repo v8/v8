@@ -1563,6 +1563,10 @@ struct SerializationPhase {
       ContextRef(data->broker(),
                  data->specialization_context().FromJust().context);
     }
+    if (FLAG_turbo_concurrent_get_property_access_info) {
+      data->broker()->ClearCachedPropertyAccessInfos();
+      data->dependencies()->ClearForConcurrentGetPropertyAccessInfo();
+    }
   }
 };
 

@@ -29,6 +29,7 @@
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
 // Flags: --nostress-opt --no-always-opt
 // Flags: --no-turbo-direct-heap-access
+// Flags: --no-turbo-concurrent-get-property-access-info
 
 // --nostress-opt is in place because this particular optimization
 // (guaranteeing that the Array prototype chain has no elements) is

@@ -305,6 +305,10 @@ class AccessInfoFactory final {
       MaybeHandle<JSObject> holder, InternalIndex descriptor,
       AccessMode access_mode) const;
 
+  PropertyAccessInfo Invalid() const {
+    return PropertyAccessInfo::Invalid(zone());
+  }
+
   void MergePropertyAccessInfos(ZoneVector<PropertyAccessInfo> infos,
                                 AccessMode access_mode,
                                 ZoneVector<PropertyAccessInfo>* result) const;

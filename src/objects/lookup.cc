@@ -1254,13 +1254,13 @@ bool LookupIterator::LookupCachedProperty(Handle<AccessorPair> accessor_pair) {
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
   DCHECK(GetAccessors()->IsAccessorPair(isolate_));
 
-  Handle<Object> getter(accessor_pair->getter(isolate_), isolate());
-  MaybeHandle<Name> maybe_name =
-      FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
-  if (maybe_name.is_null()) return false;
+  base::Optional<Name> maybe_name =
+      FunctionTemplateInfo::TryGetCachedPropertyName(
+          isolate(), accessor_pair->getter(isolate_));
+  if (!maybe_name.has_value()) return false;
 
   // We have found a cached property! Modify the iterator accordingly.
-  name_ = maybe_name.ToHandleChecked();
+  name_ = handle(maybe_name.value(), isolate_);
   Restart();
   CHECK_EQ(state(), LookupIterator::DATA);
   return true;

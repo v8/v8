@@ -211,8 +211,8 @@ class Map : public HeapObject {
   static const int kNoConstructorFunctionIndex = 0;
   inline int GetConstructorFunctionIndex() const;
   inline void SetConstructorFunctionIndex(int value);
-  static MaybeHandle<JSFunction> GetConstructorFunction(
-      Handle<Map> map, Handle<Context> native_context);
+  static base::Optional<JSFunction> GetConstructorFunction(
+      Map map, Context native_context);
 
   // Retrieve interceptors.
   DECL_GETTER(GetNamedInterceptor, InterceptorInfo)
