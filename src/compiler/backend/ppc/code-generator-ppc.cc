@@ -2642,21 +2642,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2GeS: {
-      __ vcmpequd(kScratchSimd128Reg, i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      __ vcmpgtsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchSimd128Reg);
+      __ vcmpgtsd(kScratchSimd128Reg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(0));
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4GeS: {
-      __ vcmpequw(kScratchSimd128Reg, i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      __ vcmpgtsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchSimd128Reg);
+      __ vcmpgtsw(kScratchSimd128Reg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(0));
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4GtU: {
@@ -2680,12 +2676,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I16x8GeS: {
-      __ vcmpequh(kScratchSimd128Reg, i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      __ vcmpgtsh(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchSimd128Reg);
+      __ vcmpgtsh(kScratchSimd128Reg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(0));
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8GtU: {
@@ -2708,12 +2702,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16GeS: {
-      __ vcmpequb(kScratchSimd128Reg, i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      __ vcmpgtsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchSimd128Reg);
+      __ vcmpgtsb(kScratchSimd128Reg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(0));
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16GtU: {
