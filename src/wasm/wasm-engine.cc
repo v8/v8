@@ -347,7 +347,8 @@ struct WasmEngine::CurrentGCInfo {
 struct WasmEngine::IsolateInfo {
   explicit IsolateInfo(Isolate* isolate)
       : log_codes(WasmCode::ShouldBeLogged(isolate)),
-        async_counters(isolate->async_counters()) {
+        async_counters(isolate->async_counters()),
+        wrapper_compilation_barrier_(std::make_shared<OperationsBarrier>()) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Platform* platform = V8::GetCurrentPlatform();
     foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
@@ -398,6 +399,12 @@ struct WasmEngine::IsolateInfo {
   int throw_count = 0;
   int rethrow_count = 0;
   int catch_count = 0;
+
+  // Operations barrier to synchronize on wrapper compilation on isolate
+  // shutdown.
+  // TODO(wasm): Remove this once we can use the generic js-to-wasm wrapper
+  // everywhere.
+  std::shared_ptr<OperationsBarrier> wrapper_compilation_barrier_;
 };
 
 struct WasmEngine::NativeModuleInfo {
@@ -934,9 +941,10 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   // Under the mutex get all jobs to delete. Then delete them without holding
   // the mutex, such that deletion can reenter the WasmEngine.
   std::vector<std::unique_ptr<AsyncCompileJob>> jobs_to_delete;
+  std::vector<std::weak_ptr<NativeModule>> modules_in_isolate;
+  std::shared_ptr<OperationsBarrier> wrapper_compilation_barrier;
   {
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
     for (auto it = async_compile_jobs_.begin();
          it != async_compile_jobs_.end();) {
       if (it->first->isolate() != isolate) {
@@ -946,7 +954,34 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
       jobs_to_delete.push_back(std::move(it->second));
       it = async_compile_jobs_.erase(it);
     }
+    DCHECK_EQ(1, isolates_.count(isolate));
+    auto* isolate_info = isolates_[isolate].get();
+    wrapper_compilation_barrier = isolate_info->wrapper_compilation_barrier_;
+    for (auto* native_module : isolate_info->native_modules) {
+      DCHECK_EQ(1, native_modules_.count(native_module));
+      modules_in_isolate.emplace_back(native_modules_[native_module]->weak_ptr);
+    }
   }
+
+  // All modules that have not finished initial compilation yet cannot be
+  // shared with other isolates. Hence we cancel their compilation. In
+  // particular, this will cancel wrapper compilation which is bound to this
+  // isolate (this would be a UAF otherwise).
+  for (auto& weak_module : modules_in_isolate) {
+    if (auto shared_module = weak_module.lock()) {
+      shared_module->compilation_state()->CancelInitialCompilation();
+    }
+  }
+
+  // After cancelling, wait for all current wrapper compilation to actually
+  // finish.
+  wrapper_compilation_barrier->CancelAndWait();
+}
+
+OperationsBarrier::Token WasmEngine::StartWrapperCompilation(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  DCHECK_EQ(1, isolates_.count(isolate));
+  return isolates_[isolate]->wrapper_compilation_barrier_->TryLock();
 }
 
 void WasmEngine::AddIsolate(Isolate* isolate) {

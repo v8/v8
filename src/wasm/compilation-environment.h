@@ -119,6 +119,8 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   void CancelCompilation();
 
+  void CancelInitialCompilation();
+
   void SetError();
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
