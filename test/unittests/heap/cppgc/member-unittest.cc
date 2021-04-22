@@ -444,5 +444,32 @@ TEST_F(MemberHeapTest, WeakMemberDoesNotRetainObject) {
   EXPECT_TRUE(gced_with_members->WasNestedCleared());
 }
 
+namespace {
+class GCedWithConstWeakMember
+    : public GarbageCollected<GCedWithConstWeakMember> {
+ public:
+  explicit GCedWithConstWeakMember(const GCedWithMembers* weak)
+      : weak_member_(weak) {}
+
+  void Trace(Visitor* visitor) const { visitor->Trace(weak_member_); }
+
+  const GCedWithMembers* weak_member() const { return weak_member_; }
+
+ private:
+  const WeakMember<const GCedWithMembers> weak_member_;
+};
+}  // namespace
+
+TEST_F(MemberHeapTest, ConstWeakRefIsClearedOnGC) {
+  const WeakPersistent<const GCedWithMembers> weak_persistent =
+      MakeGarbageCollected<GCedWithMembers>(GetAllocationHandle());
+  Persistent<GCedWithConstWeakMember> persistent =
+      MakeGarbageCollected<GCedWithConstWeakMember>(GetAllocationHandle(),
+                                                    weak_persistent);
+  PreciseGC();
+  EXPECT_FALSE(weak_persistent);
+  EXPECT_FALSE(persistent->weak_member());
+}
+
 }  // namespace internal
 }  // namespace cppgc

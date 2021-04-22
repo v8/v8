@@ -281,8 +281,8 @@ class CompactionState final {
   }
 
   void FinishCompactingPage(NormalPage* page) {
-#if DEBUG || defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER) || \
-    defined(MEMORY_SANITIZER)
+#if DEBUG || defined(V8_USE_MEMORY_SANITIZER) || \
+    defined(V8_USE_ADDRESS_SANITIZER)
     // Zap the unused portion, until it is either compacted into or freed.
     if (current_page_ != page) {
       ZapMemory(page->PayloadStart(), page->PayloadSize());
@@ -349,8 +349,8 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
       // As compaction is under way, leave the freed memory accessible
       // while compacting the rest of the page. We just zap the payload
       // to catch out other finalizers trying to access it.
-#if DEBUG || defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER) || \
-    defined(MEMORY_SANITIZER)
+#if DEBUG || defined(V8_USE_MEMORY_SANITIZER) || \
+    defined(V8_USE_ADDRESS_SANITIZER)
       ZapMemory(header, size);
 #endif
       header_address += size;
