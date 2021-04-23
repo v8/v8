@@ -1904,12 +1904,10 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     backing_store->set_the_hole(isolate, entry);
 
     // TODO(verwaest): Move this out of elements.cc.
-    // If an old space backing store is larger than a certain size and
+    // If the backing store is larger than a certain size and
     // has too few used values, normalize it.
     const int kMinLengthForSparsenessCheck = 64;
     if (backing_store->length() < kMinLengthForSparsenessCheck) return;
-    // TODO(ulan): Check if it works with young large objects.
-    if (ObjectInYoungGeneration(*backing_store)) return;
     uint32_t length = 0;
     if (obj->IsJSArray()) {
       JSArray::cast(*obj).length().ToArrayLength(&length);

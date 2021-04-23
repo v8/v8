@@ -775,7 +775,6 @@ static inline bool ShouldConvertToSlowElements(JSObject object,
   if (index - capacity >= JSObject::kMaxGap) return true;
   *new_capacity = JSObject::NewElementsCapacity(index + 1);
   DCHECK_LT(index, *new_capacity);
-  // TODO(ulan): Check if it works with young large objects.
   if (*new_capacity <= JSObject::kMaxUncheckedOldFastElementsLength ||
       (*new_capacity <= JSObject::kMaxUncheckedFastElementsLength &&
        ObjectInYoungGeneration(object))) {
