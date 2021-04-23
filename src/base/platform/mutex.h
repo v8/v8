@@ -164,6 +164,8 @@ class V8_BASE_EXPORT RecursiveMutex final {
   // successfully locked.
   bool TryLock() V8_WARN_UNUSED_RESULT;
 
+  V8_INLINE void AssertHeld() const { DCHECK_LT(0, level_); }
+
  private:
   // The implementation-defined native handle type.
 #if V8_OS_POSIX

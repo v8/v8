@@ -459,14 +459,14 @@ class WasmCodeAllocator {
   DisjointAllocationPool freed_code_space_;
   std::vector<VirtualMemory> owned_code_space_;
 
+  int writers_count_{0};
+
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
   std::atomic<size_t> committed_code_space_{0};
   std::atomic<size_t> generated_code_size_{0};
   std::atomic<size_t> freed_code_size_{0};
-
-  bool is_writable_ = false;
 
   std::shared_ptr<Counters> async_counters_;
 };
@@ -576,7 +576,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
   bool SetWritable(bool writable) {
-    base::MutexGuard guard{&allocation_mutex_};
+    base::RecursiveMutexGuard guard{&allocation_mutex_};
     return code_allocator_.SetWritable(writable);
   }
 
@@ -789,7 +789,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<uint32_t[]> num_liftoff_function_calls_;
 
   // This mutex protects concurrent calls to {AddCode} and friends.
-  mutable base::Mutex allocation_mutex_;
+  // TODO(dlehmann): Revert this to a regular {Mutex} again.
+  // This needs to be a {RecursiveMutex} only because of
+  // {NativeModuleModificationScope} usages, which are (1) either at places
+  // that already hold the {allocation_mutex_} or (2) because of multiple open
+  // {NativeModuleModificationScope}s in the call hierarchy. Both are fixable.
+  mutable base::RecursiveMutex allocation_mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {allocation_mutex_}:
@@ -830,7 +835,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  int modification_scope_depth_ = 0;
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
