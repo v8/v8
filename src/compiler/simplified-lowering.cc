@@ -720,7 +720,7 @@ class RepresentationSelector {
   void EnqueueInput(Node* use_node, int index,
                     UseInfo use_info = UseInfo::None()) {
     static_assert(retype<T>() || lower<T>(),
-                  "This version of ProcessRemainingInputs has to be called in "
+                  "This version of EnqueueInput has to be called in "
                   "the Retype or Lower phase.");
   }
 
@@ -927,7 +927,22 @@ class RepresentationSelector {
       ProcessInput<T>(node, i, UseInfo::None());
     }
     ProcessRemainingInputs<T>(node, first_effect_index);
-    if (lower<T>()) Kill(node);
+
+    if (lower<T>() &&
+        // Nodes of type None may not actually be "unused", so ignore them here.
+        // That's because we typically propagate Truncation::None based on type
+        // checks that are vacuously true when the type is None.  It's really
+        // the code that does these checks and truncation propagations that is
+        // to blame, but requiring such code to rule out None types currently
+        // seems infeasible since it's so easy to forget.
+        (!NodeProperties::IsTyped(node) || !TypeOf(node).IsNone())) {
+      TRACE("disconnecting unused #%d:%s\n", node->id(),
+            node->op()->mnemonic());
+      DisconnectFromEffectAndControl(node);
+      node->NullAllInputs();
+      // We still keep the partial node connected to its uses, knowing that
+      // lowering these operators is going to eliminate the uses.
+    }
   }
 
   // Helper for no-op node.
@@ -1960,7 +1975,32 @@ class RepresentationSelector {
       return VisitUnused<T>(node);
     }
 
-    if (lower<T>()) InsertUnreachableIfNecessary<T>(node);
+    if (lower<T>()) {
+      // Kill non-effectful operations that have a None-type input and are thus
+      // dead code. Otherwise we might end up lowering the operation in a way,
+      // e.g. by replacing it with a constant, that cuts the dependency on a
+      // deopting operation (the producer of the None type), possibly resulting
+      // in a nonsense schedule.
+      if (node->op()->EffectOutputCount() == 0 &&
+          node->op()->ControlOutputCount() == 0 &&
+          node->opcode() != IrOpcode::kDeadValue &&
+          node->opcode() != IrOpcode::kStateValues &&
+          node->opcode() != IrOpcode::kFrameState &&
+          node->opcode() != IrOpcode::kPhi) {
+        for (int i = 0; i < node->op()->ValueInputCount(); i++) {
+          Node* input = node->InputAt(i);
+          if (TypeOf(input).IsNone()) {
+            MachineRepresentation rep = GetInfo(node)->representation();
+            DeferReplacement(
+                node,
+                graph()->NewNode(jsgraph_->common()->DeadValue(rep), input));
+            return;
+          }
+        }
+      } else {
+        InsertUnreachableIfNecessary<T>(node);
+      }
+    }
 
     switch (node->opcode()) {
       //------------------------------------------------------------------
@@ -3891,34 +3931,8 @@ class RepresentationSelector {
     UNREACHABLE();
   }
 
-  void DeferReplacement(Node* node, Node* replacement) {
-    TRACE("defer replacement #%d:%s with #%d:%s\n", node->id(),
-          node->op()->mnemonic(), replacement->id(),
-          replacement->op()->mnemonic());
-
-    // Disconnect the node from effect and control chains, if necessary.
-    if (node->op()->EffectInputCount() > 0) {
-      DCHECK_LT(0, node->op()->ControlInputCount());
-      // Disconnect the node from effect and control chains.
-      Node* control = NodeProperties::GetControlInput(node);
-      Node* effect = NodeProperties::GetEffectInput(node);
-      ReplaceEffectControlUses(node, effect, control);
-    }
-
-    replacements_.push_back(node);
-    replacements_.push_back(replacement);
-
-    node->NullAllInputs();  // Node is now dead.
-
-    NotifyNodeReplaced(node, replacement);
-  }
-
-  void Kill(Node* node) {
-    TRACE("killing #%d:%s\n", node->id(), node->op()->mnemonic());
-
+  void DisconnectFromEffectAndControl(Node* node) {
     if (node->op()->EffectInputCount() == 1) {
-      DCHECK_LT(0, node->op()->ControlInputCount());
-      // Disconnect the node from effect and control chains.
       Node* control = NodeProperties::GetControlInput(node);
       Node* effect = NodeProperties::GetEffectInput(node);
       ReplaceEffectControlUses(node, effect, control);
@@ -3927,10 +3941,20 @@ class RepresentationSelector {
       DCHECK_EQ(0, node->op()->ControlOutputCount());
       DCHECK_EQ(0, node->op()->EffectOutputCount());
     }
+  }
 
-    node->ReplaceUses(jsgraph_->Dead());
+  void DeferReplacement(Node* node, Node* replacement) {
+    TRACE("defer replacement #%d:%s with #%d:%s\n", node->id(),
+          node->op()->mnemonic(), replacement->id(),
+          replacement->op()->mnemonic());
 
-    node->NullAllInputs();  // The {node} is now dead.
+    DisconnectFromEffectAndControl(node);
+    node->NullAllInputs();  // Node is now dead.
+
+    replacements_.push_back(node);
+    replacements_.push_back(replacement);
+
+    NotifyNodeReplaced(node, replacement);
   }
 
  private:
