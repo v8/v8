@@ -1415,8 +1415,10 @@ struct InliningPhase {
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
                                            data->broker());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &checkpoint_elimination);
-    AddReducer(data, &graph_reducer, &common_reducer);
+    if (!data->info()->IsTurboprop()) {
+      AddReducer(data, &graph_reducer, &checkpoint_elimination);
+      AddReducer(data, &graph_reducer, &common_reducer);
+    }
     AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
@@ -1597,7 +1599,9 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
 
     AddReducer(data, &graph_reducer, &create_lowering);
-    AddReducer(data, &graph_reducer, &constant_folding_reducer);
+    if (!data->info()->IsTurboprop()) {
+      AddReducer(data, &graph_reducer, &constant_folding_reducer);
+    }
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &simple_reducer);
