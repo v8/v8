@@ -39,10 +39,12 @@ class GCStackTest : public ::testing::Test {
 
 }  // namespace
 
+#if !V8_OS_FUCHSIA
 TEST_F(GCStackTest, IsOnStackForStackValue) {
   void* dummy;
   EXPECT_TRUE(GetStack()->IsOnStack(&dummy));
 }
+#endif  // !V8_OS_FUCHSIA
 
 TEST_F(GCStackTest, IsOnStackForHeapValue) {
   auto dummy = std::make_unique<int>();

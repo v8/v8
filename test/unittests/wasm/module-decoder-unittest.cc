@@ -897,6 +897,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobalTypeError) {
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
 }
 
+#if !V8_OS_FUCHSIA
 TEST_F(WasmModuleVerifyTest, GlobalRttSubIllegalParent) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
@@ -910,6 +911,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubIllegalParent) {
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
 }
+#endif  // !V8_OS_FUCHSIA
 
 TEST_F(WasmModuleVerifyTest, RttSubGlobalTypeError) {
   WASM_FEATURE_SCOPE(reftypes);

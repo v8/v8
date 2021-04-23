@@ -468,9 +468,11 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
 }
 #endif
 
+#if !V8_OS_FUCHSIA
 INSTANTIATE_TEST_SUITE_P(Traps, TrapHandlerTest,
                          ::testing::Values(kDefault, kCallback),
                          PrintTrapHandlerTestParam);
+#endif  // !V8_OS_FUCHSIA
 
 #undef __
 }  // namespace wasm
