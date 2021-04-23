@@ -375,7 +375,7 @@
   },
   'v8_linux64_fyi_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       # Infra staging.
@@ -1190,7 +1190,7 @@
   },
   'V8 Linux64 - debug - fyi': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       # Infra staging.
@@ -1221,7 +1221,7 @@
   },
   'V8 Linux64 - fyi': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       # Infra staging.
