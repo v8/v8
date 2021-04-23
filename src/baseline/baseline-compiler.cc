@@ -1858,17 +1858,16 @@ void BaselineCompiler::VisitGetTemplateObject() {
 }
 
 void BaselineCompiler::VisitCreateClosure() {
-  using Descriptor =
-      CallInterfaceDescriptorFor<Builtins::kFastNewClosure>::type;
   Register feedback_cell =
-      Descriptor::GetRegisterParameter(Descriptor::kFeedbackCell);
+      FastNewClosureBaselineDescriptor::GetRegisterParameter(
+          FastNewClosureBaselineDescriptor::kFeedbackCell);
   LoadClosureFeedbackArray(feedback_cell);
   __ LoadFixedArrayElement(feedback_cell, feedback_cell, Index(1));
 
   uint32_t flags = Flag(2);
   if (interpreter::CreateClosureFlags::FastNewClosureBit::decode(flags)) {
-    CallBuiltin<Builtins::kFastNewClosure>(Constant<SharedFunctionInfo>(0),
-                                           feedback_cell);
+    CallBuiltin<Builtins::kFastNewClosureBaseline>(
+        Constant<SharedFunctionInfo>(0), feedback_cell);
   } else {
     Runtime::FunctionId function_id =
         interpreter::CreateClosureFlags::PretenuredBit::decode(flags)

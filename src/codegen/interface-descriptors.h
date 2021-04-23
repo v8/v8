@@ -572,6 +572,12 @@ constexpr EmptyRegisterArray RegisterArray() { return {}; }
   static constexpr StackArgumentOrder kStackArgumentOrder = \
       StackArgumentOrder::kJS;
 
+#define DEFINE_PARAMETERS_NO_CONTEXT_VARARGS(...)           \
+  DEFINE_PARAMETERS_NO_CONTEXT(__VA_ARGS__)                 \
+  static constexpr bool kAllowVarArgs = true;               \
+  static constexpr StackArgumentOrder kStackArgumentOrder = \
+      StackArgumentOrder::kJS;
+
 #define DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(return_count, ...) \
   DEFINE_RESULT_AND_PARAMETERS(return_count, ##__VA_ARGS__)        \
   static constexpr bool kNoContext = true;
@@ -807,7 +813,7 @@ class StoreDescriptor : public StaticCallInterfaceDescriptor<StoreDescriptor> {
 };
 
 class StoreBaselineDescriptor
-    : public StaticCallInterfaceDescriptor<StoreDescriptor> {
+    : public StaticCallInterfaceDescriptor<StoreBaselineDescriptor> {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
@@ -1158,7 +1164,7 @@ class CallWithSpreadDescriptor
 class CallWithSpread_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<CallWithSpread_BaselineDescriptor> {
  public:
-  DEFINE_PARAMETERS_VARARGS(kTarget, kArgumentsCount, kSpread, kSlot)
+  DEFINE_PARAMETERS_NO_CONTEXT_VARARGS(kTarget, kArgumentsCount, kSpread, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kArgumentsCount
                          MachineType::AnyTagged(),  // kSpread
@@ -1241,7 +1247,7 @@ class ConstructWithSpread_BaselineDescriptor
  public:
   // Note: kSlot comes before kSpread since as an untagged value it must be
   // passed in a register.
-  DEFINE_JS_PARAMETERS(kSlot, kSpread)
+  DEFINE_JS_PARAMETERS_NO_CONTEXT(kSlot, kSpread)
   DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr(),    // kSlot
                             MachineType::AnyTagged())  // kSpread
   DECLARE_DESCRIPTOR(ConstructWithSpread_BaselineDescriptor)
@@ -1661,7 +1667,7 @@ class ResumeGeneratorDescriptor final
 class ResumeGeneratorBaselineDescriptor final
     : public StaticCallInterfaceDescriptor<ResumeGeneratorBaselineDescriptor> {
  public:
-  DEFINE_PARAMETERS(kGeneratorObject, kRegisterCount)
+  DEFINE_PARAMETERS_NO_CONTEXT(kGeneratorObject, kRegisterCount)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::TaggedSigned(),  // return type
       MachineType::AnyTagged(),     // kGeneratorObject
@@ -1673,8 +1679,8 @@ class ResumeGeneratorBaselineDescriptor final
 class SuspendGeneratorBaselineDescriptor final
     : public StaticCallInterfaceDescriptor<SuspendGeneratorBaselineDescriptor> {
  public:
-  DEFINE_PARAMETERS(kGeneratorObject, kSuspendId, kBytecodeOffset,
-                    kRegisterCount)
+  DEFINE_PARAMETERS_NO_CONTEXT(kGeneratorObject, kSuspendId, kBytecodeOffset,
+                               kRegisterCount)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kGeneratorObject
                          MachineType::IntPtr(),     // kSuspendId
                          MachineType::IntPtr(),     // kBytecodeOffset
@@ -1847,7 +1853,7 @@ class BinaryOp_WithFeedbackDescriptor
 class CallTrampoline_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<CallTrampoline_BaselineDescriptor> {
  public:
-  DEFINE_PARAMETERS_VARARGS(kFunction, kActualArgumentsCount, kSlot)
+  DEFINE_PARAMETERS_NO_CONTEXT_VARARGS(kFunction, kActualArgumentsCount, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
                          MachineType::Int32(),      // kActualArgumentsCount
                          MachineType::UintPtr())    // kSlot
@@ -1921,7 +1927,7 @@ class UnaryOp_WithFeedbackDescriptor
 class UnaryOp_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<UnaryOp_BaselineDescriptor> {
  public:
-  DEFINE_PARAMETERS(kValue, kSlot)
+  DEFINE_PARAMETERS_NO_CONTEXT(kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(UnaryOp_BaselineDescriptor)

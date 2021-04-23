@@ -78,8 +78,8 @@ extern macro LoadContextFromBaseline(): Context;
 extern macro LoadFeedbackVectorFromBaseline(): FeedbackVector;
 
 transitioning builtin GetIteratorBaseline(
-    context: Context, receiver: JSAny, loadSlot: TaggedIndex,
-    callSlot: TaggedIndex): JSAny {
+    receiver: JSAny, loadSlot: TaggedIndex, callSlot: TaggedIndex): JSAny {
+  const context: Context = LoadContextFromBaseline();
   const feedback: FeedbackVector = LoadFeedbackVectorFromBaseline();
   const iteratorMethod: JSAny =
       LoadIC(context, receiver, IteratorSymbolConstant(), loadSlot, feedback);

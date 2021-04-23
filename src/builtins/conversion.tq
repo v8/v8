@@ -45,7 +45,7 @@ builtin NumberToString(implicit context: Context)(input: Number): String {
 }
 
 // ES6 section 7.1.2 ToBoolean ( argument )
-builtin ToBoolean(implicit context: Context)(input: JSAny): Boolean {
+builtin ToBoolean(input: JSAny): Boolean {
   BranchIfToBooleanIsTrue(input) otherwise return TrueConstant(),
       return FalseConstant();
 }

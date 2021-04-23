@@ -1814,6 +1814,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  __ Ld(kContextRegister,
+        MemOperand(fp, StandardFrameConstants::kContextOffset));
   return OnStackReplacement(masm, false);
 }
 
