@@ -54,6 +54,7 @@ FEATURE_FLAGS = {
   'regexp-match-indices': '--harmony-regexp-match-indices',
   # https://github.com/tc39/test262/pull/2395
   'regexp-named-groups': '--harmony-regexp-match-indices',
+  'error-cause': '--harmony-error-cause',
 }
 
 SKIPPED_FEATURES = set([])
