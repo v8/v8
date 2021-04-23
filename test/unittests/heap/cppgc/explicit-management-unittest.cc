@@ -190,5 +190,21 @@ TEST_F(ExplicitManagementTest, ShrinkFreeListBailoutAvoidFragmentation) {
        ObjectAllocator::kSmallestSpaceSize - 1}));
 }
 
+TEST_F(ExplicitManagementTest, ResizeBailsOutDuringGC) {
+  auto* o = MakeGarbageCollected<DynamicallySized>(
+      GetHeap()->GetAllocationHandle(),
+      AdditionalBytes(ObjectAllocator::kSmallestSpaceSize - 1));
+  auto* heap = BasePage::FromPayload(o)->heap();
+  heap->SetInAtomicPauseForTesting(true);
+  const size_t allocated_size_before = AllocatedObjectSize();
+  // Grow:
+  EXPECT_FALSE(
+      subtle::Resize(*o, AdditionalBytes(ObjectAllocator::kSmallestSpaceSize)));
+  // Shrink:
+  EXPECT_FALSE(subtle::Resize(*o, AdditionalBytes(0)));
+  EXPECT_EQ(allocated_size_before, AllocatedObjectSize());
+  heap->SetInAtomicPauseForTesting(false);
+}
+
 }  // namespace internal
 }  // namespace cppgc
