@@ -51,6 +51,9 @@
                   '|test/cctest/interpreter/' \
                   '|test/unittests/interpreter/',
     },
+    'baseline': {
+      'filepath': 'src/baseline/'
+    },
     'feature_shipping_status': {
       'filepath': 'src/flags/flag-definitions.h',
     },
@@ -109,6 +112,10 @@
     ],
     'interpreter': [
       'rmcilroy@chromium.org',
+    ],
+    'baseline': [
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
     ],
     'feature_shipping_status': [
       'hablich@chromium.org',
