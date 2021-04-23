@@ -2171,12 +2171,22 @@ MemoryAccessImmediate<validate>::MemoryAccessImmediate(
     : MemoryAccessImmediate(decoder, pc, max_alignment,
                             decoder->module_->is_memory64) {}
 
+// Only call this in contexts where {current_code_reachable_and_ok_} is known to
+// hold.
+#define CALL_INTERFACE(name, ...)                         \
+  do {                                                    \
+    DCHECK(!control_.empty());                            \
+    DCHECK(current_code_reachable_and_ok_);               \
+    DCHECK_EQ(current_code_reachable_and_ok_,             \
+              this->ok() && control_.back().reachable()); \
+    interface_.name(this, ##__VA_ARGS__);                 \
+  } while (false)
 #define CALL_INTERFACE_IF_OK_AND_REACHABLE(name, ...)     \
   do {                                                    \
     DCHECK(!control_.empty());                            \
     DCHECK_EQ(current_code_reachable_and_ok_,             \
               this->ok() && control_.back().reachable()); \
-    if (current_code_reachable_and_ok_) {                 \
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {      \
       interface_.name(this, ##__VA_ARGS__);               \
     }                                                     \
   } while (false)
@@ -2658,15 +2668,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // the stack as it is.
         break;
       case kOptRef: {
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOnNull, ref_object, imm.depth);
           Value result = CreateValue(
               ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
           // The result of br_on_null has the same value as the argument (but a
           // non-nullable type).
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, ref_object, &result);
           if (V8_LIKELY(current_code_reachable_and_ok_)) {
+            CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
+            CALL_INTERFACE(Forward, ref_object, &result);
             c->br_merge()->reached = true;
           }
+          // In unreachable code, we still have to push a value of the correct
+          // type onto the stack.
           Drop(ref_object);
           Push(result);
         break;
@@ -2848,8 +2860,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Control* c = control_at(imm.depth);
     if (!VALIDATE(TypeCheckBranch<false>(c, 0))) return 0;
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOrRet, imm.depth, 0);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      CALL_INTERFACE(BrOrRet, imm.depth, 0);
       c->br_merge()->reached = true;
     }
     EndControl();
@@ -2862,8 +2874,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Value cond = Peek(0, 0, kWasmI32);
     Control* c = control_at(imm.depth);
     if (!VALIDATE(TypeCheckBranch<true>(c, 1))) return 0;
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(BrIf, cond, imm.depth);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      CALL_INTERFACE(BrIf, cond, imm.depth);
       c->br_merge()->reached = true;
     }
     Drop(cond);
@@ -2908,8 +2920,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
     }
 
-    if (current_code_reachable_and_ok_) {
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(BrTable, imm, key);
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
+      CALL_INTERFACE(BrTable, imm, key);
 
       for (uint32_t i = 0; i < control_depth(); ++i) {
         control_at(i)->br_merge()->reached |= br_targets[i];
@@ -4324,9 +4336,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           // be pointer-identical to the object on the stack, so we can't
           // reuse {result_on_branch} which was passed-by-value to {Push}.
           Value* value_on_branch = stack_value(1);
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(
-              BrOnCast, obj, rtt, value_on_branch, branch_depth.depth);
           if (V8_LIKELY(current_code_reachable_and_ok_)) {
+            CALL_INTERFACE(BrOnCast, obj, rtt, value_on_branch,
+                           branch_depth.depth);
             c->br_merge()->reached = true;
           }
         }
@@ -4403,17 +4415,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // pointer-identical to the object on the stack, so we can't reuse
         // {result_on_branch} which was passed-by-value to {Push}.
         Value* value_on_branch = stack_value(1);
-        if (opcode == kExprBrOnFunc) {
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOnFunc, obj, value_on_branch,
-                                             branch_depth.depth);
-        } else if (opcode == kExprBrOnData) {
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOnData, obj, value_on_branch,
-                                             branch_depth.depth);
-        } else {
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(BrOnI31, obj, value_on_branch,
-                                             branch_depth.depth);
-        }
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          if (opcode == kExprBrOnFunc) {
+            CALL_INTERFACE(BrOnFunc, obj, value_on_branch, branch_depth.depth);
+          } else if (opcode == kExprBrOnData) {
+            CALL_INTERFACE(BrOnData, obj, value_on_branch, branch_depth.depth);
+          } else {
+            CALL_INTERFACE(BrOnI31, obj, value_on_branch, branch_depth.depth);
+          }
           c->br_merge()->reached = true;
         }
         Drop(result_on_branch);
@@ -4742,7 +4751,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   enum MergeType { kBranchMerge, kReturnMerge, kFallthroughMerge };
 
-  // - If the current code is reachable check if the current stack values are
+  // - If the current code is reachable, check if the current stack values are
   //   compatible with {merge} based on their number and types. Disregard the
   //   first {drop_values} on the stack. If {strict_count}, check that
   //   #(stack elements) == {merge->arity}, otherwise
