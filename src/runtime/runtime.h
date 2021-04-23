@@ -342,7 +342,7 @@ namespace internal {
   I(ToNumber, 1, 1)                                             \
   F(ToNumeric, 1, 1)                                            \
   I(ToObject, 1, 1)                                             \
-  I(ToString, 1, 1)                                             \
+  F(ToString, 1, 1)                                             \
   F(TryMigrateInstance, 1, 1)                                   \
   F(SwissTableAdd, 4, 1)                                        \
   F(SwissTableAllocate, 1, 1)                                   \

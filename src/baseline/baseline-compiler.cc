@@ -1344,10 +1344,6 @@ void BaselineCompiler::VisitIntrinsicHasProperty(
   CallBuiltin<Builtins::kHasProperty>(args);
 }
 
-void BaselineCompiler::VisitIntrinsicToString(interpreter::RegisterList args) {
-  CallBuiltin<Builtins::kToString>(args);
-}
-
 void BaselineCompiler::VisitIntrinsicToLength(interpreter::RegisterList args) {
   CallBuiltin<Builtins::kToLength>(args);
 }
