@@ -150,7 +150,7 @@
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
-  'tools/tickprocessor-test-large': [PASS, SLOW, NO_VARIANTS, ['mode != release and arch != x64', SKIP]],
+  'tools/tickprocessor-test-large': [PASS, SLOW, NO_VARIANTS, ['mode != release or arch != x64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64)', SKIP]],
