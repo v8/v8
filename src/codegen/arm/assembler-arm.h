@@ -1149,13 +1149,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static int DecodeShiftImm(Instr instr);
   static Instr PatchShiftImm(Instr instr, int immed);
 
-  // Constants in pools are accessed via pc relative addressing, which can
-  // reach +/-4KB for integer PC-relative loads and +/-1KB for floating-point
+  // Constants are accessed via pc relative addressing, which can reach −4095 to
+  // 4095 for integer PC-relative loads, and −1020 to 1020 for floating-point
   // PC-relative loads, thereby defining a maximum distance between the
-  // instruction and the accessed constant.
-  static constexpr int kMaxDistToIntPool = 4 * KB;
+  // instruction and the accessed constant. Additionally, PC-relative loads
+  // start at a delta from the actual load instruction's PC, so we can add this
+  // on to the (positive) distance.
+  static constexpr int kMaxDistToPcRelativeConstant =
+      4095 + Instruction::kPcLoadDelta;
+  // The constant pool needs to be jumped over, and has a marker, so the actual
+  // distance from the instruction and start of the constant pool has to include
+  // space for these two instructions.
+  static constexpr int kMaxDistToIntPool =
+      kMaxDistToPcRelativeConstant - 2 * kInstrSize;
   // Experimentally derived as sufficient for ~95% of compiles.
   static constexpr int kTypicalNumPending32Constants = 32;
+  // The maximum number of pending constants is reached by a sequence of only
+  // constant loads, which limits it to the number of constant loads that can
+  // fit between the first constant load and the distance to the constant pool.
   static constexpr int kMaxNumPending32Constants =
       kMaxDistToIntPool / kInstrSize;
 
@@ -1167,7 +1178,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void CheckConstPool(bool force_emit, bool require_jump);
 
   V8_INLINE void MaybeCheckConstPool() {
-    if (V8_UNLIKELY(pc_offset() >= next_buffer_check_)) {
+    if (V8_UNLIKELY(pc_offset() >= constant_pool_deadline_)) {
       CheckConstPool(false, true);
     }
   }
@@ -1193,9 +1204,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // number of call to EndBlockConstpool.
   void StartBlockConstPool() {
     if (const_pool_blocked_nesting_++ == 0) {
-      // Prevent constant pool checks happening by setting the next check to
-      // the biggest possible offset.
-      next_buffer_check_ = kMaxInt;
+      // Prevent constant pool checks happening by resetting the deadline.
+      constant_pool_deadline_ = kMaxInt;
     }
   }
 
@@ -1203,19 +1213,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // StartBlockConstPool to have an effect.
   void EndBlockConstPool() {
     if (--const_pool_blocked_nesting_ == 0) {
+      if (first_const_pool_32_use_ >= 0) {
 #ifdef DEBUG
-      // Max pool start (if we need a jump and an alignment).
-      int start = pc_offset() + kInstrSize + 2 * kPointerSize;
-      // Check the constant pool hasn't been blocked for too long.
-      DCHECK(pending_32_bit_constants_.empty() ||
-             (start < first_const_pool_32_use_ + kMaxDistToIntPool));
+        // Check the constant pool hasn't been blocked for too long.
+        DCHECK_LE(pc_offset(), first_const_pool_32_use_ + kMaxDistToIntPool);
 #endif
-      // Two cases:
-      //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
-      //    still blocked
-      //  * no_const_pool_before_ < next_buffer_check_ and the next emit will
-      //    trigger a check.
-      next_buffer_check_ = no_const_pool_before_;
+        // Reset the constant pool check back to the deadline.
+        constant_pool_deadline_ = first_const_pool_32_use_ + kCheckPoolDeadline;
+      }
     }
   }
 
@@ -1270,8 +1275,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
 
-  int next_buffer_check_;  // pc offset of next buffer check
-
   // Constant pool generation
   // Pools are emitted in the instruction stream, preferably after unconditional
   // jumps or after returns from functions (in dead code locations).
@@ -1283,11 +1286,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // if so, a relocation info entry is associated to the constant pool entry.
 
   // Repeated checking whether the constant pool should be emitted is rather
-  // expensive. By default we only check again once a number of instructions
-  // has been generated. That also means that the sizing of the buffers is not
-  // an exact science, and that we rely on some slop to not overrun buffers.
-  static constexpr int kCheckPoolIntervalInst = 32;
-  static constexpr int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
+  // expensive. Instead, we check once a deadline is hit; the deadline being
+  // when there is a possibility that MaybeCheckConstPool won't be called before
+  // kMaxDistToIntPoolWithHeader is exceeded. Since MaybeCheckConstPool is
+  // called in CheckBuffer, this means that kGap is an upper bound on this
+  // check. Use 2 * kGap just to give it some slack around BlockConstPoolScopes.
+  static constexpr int kCheckPoolDeadline = kMaxDistToIntPool - 2 * kGap;
+
+  // pc offset of the upcoming constant pool deadline. Equivalent to
+  // first_const_pool_32_use_ + kCheckPoolDeadline.
+  int constant_pool_deadline_;
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.

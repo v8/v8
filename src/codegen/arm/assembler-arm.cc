@@ -535,7 +535,7 @@ Assembler::Assembler(const AssemblerOptions& options,
       pending_32_bit_constants_(),
       scratch_register_list_(ip.bit()) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
-  next_buffer_check_ = 0;
+  constant_pool_deadline_ = kMaxInt;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
@@ -5246,8 +5246,13 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                     (rmode == RelocInfo::CODE_TARGET && value != 0) ||
                     (RelocInfo::IsEmbeddedObjectMode(rmode) && value != 0);
   DCHECK_LT(pending_32_bit_constants_.size(), kMaxNumPending32Constants);
-  if (pending_32_bit_constants_.empty()) {
+  if (first_const_pool_32_use_ < 0) {
+    DCHECK(pending_32_bit_constants_.empty());
+    DCHECK_EQ(constant_pool_deadline_, kMaxInt);
     first_const_pool_32_use_ = position;
+    constant_pool_deadline_ = position + kCheckPoolDeadline;
+  } else {
+    DCHECK(!pending_32_bit_constants_.empty());
   }
   ConstantPoolEntry entry(position, value, sharing_ok, rmode);
 
@@ -5281,17 +5286,17 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstrSize;
   if (no_const_pool_before_ < pc_limit) {
-    // Max pool start (if we need a jump and an alignment).
-#ifdef DEBUG
-    int start = pc_limit + kInstrSize + 2 * kPointerSize;
-    DCHECK(pending_32_bit_constants_.empty() ||
-           (start < first_const_pool_32_use_ + kMaxDistToIntPool));
-#endif
     no_const_pool_before_ = pc_limit;
   }
 
-  if (next_buffer_check_ < no_const_pool_before_) {
-    next_buffer_check_ = no_const_pool_before_;
+  // If we're due a const pool check before the block finishes, move it to just
+  // after the block.
+  if (constant_pool_deadline_ < no_const_pool_before_) {
+    // Make sure that the new deadline isn't too late (including a jump and the
+    // constant pool marker).
+    DCHECK_LE(no_const_pool_before_,
+              first_const_pool_32_use_ + kMaxDistToIntPool);
+    constant_pool_deadline_ = no_const_pool_before_;
   }
 }
 
@@ -5307,9 +5312,36 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // There is nothing to do if there are no pending constant pool entries.
   if (pending_32_bit_constants_.empty()) {
-    // Calculate the offset of the next check.
-    next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+    // We should only fall into this case if we're either trying to forcing
+    // emission or opportunistically checking after a jump.
+    DCHECK(force_emit || !require_jump);
     return;
+  }
+
+  // We emit a constant pool when:
+  //  * requested to do so by parameter force_emit (e.g. after each function).
+  //  * the distance from the first instruction accessing the constant pool to
+  //    the first constant pool entry will exceed its limit the next time the
+  //    pool is checked.
+  //  * the instruction doesn't require a jump after itself to jump over the
+  //    constant pool, and we're getting close to running out of range.
+  if (!force_emit) {
+    DCHECK_NE(first_const_pool_32_use_, -1);
+    int dist32 = pc_offset() - first_const_pool_32_use_;
+    if (require_jump) {
+      // We should only be on this path if we've exceeded our deadline.
+      DCHECK_GE(dist32, kCheckPoolDeadline);
+    } else if (dist32 < kCheckPoolDeadline / 2) {
+      return;
+    }
+  }
+
+  int size_after_marker = pending_32_bit_constants_.size() * kPointerSize;
+
+  // Deduplicate constants.
+  for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
+    ConstantPoolEntry& entry = pending_32_bit_constants_[i];
+    if (entry.is_merged()) size_after_marker -= kPointerSize;
   }
 
   // Check that the code buffer is large enough before emitting the constant
@@ -5317,39 +5349,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // the gap to the relocation information).
   int jump_instr = require_jump ? kInstrSize : 0;
   int size_up_to_marker = jump_instr + kInstrSize;
-  int estimated_size_after_marker =
-      pending_32_bit_constants_.size() * kPointerSize;
-  int estimated_size = size_up_to_marker + estimated_size_after_marker;
-
-  // We emit a constant pool when:
-  //  * requested to do so by parameter force_emit (e.g. after each function).
-  //  * the distance from the first instruction accessing the constant pool to
-  //    any of the constant pool entries will exceed its limit the next
-  //    time the pool is checked. This is overly restrictive, but we don't emit
-  //    constant pool entries in-order so it's conservatively correct.
-  //  * the instruction doesn't require a jump after itself to jump over the
-  //    constant pool, and we're getting close to running out of range.
-  if (!force_emit) {
-    DCHECK(!pending_32_bit_constants_.empty());
-    bool need_emit = false;
-    int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
-    if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
-        (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
-      need_emit = true;
-    }
-    if (!need_emit) return;
-  }
-
-  // Deduplicate constants.
-  int size_after_marker = estimated_size_after_marker;
-
-  for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
-    ConstantPoolEntry& entry = pending_32_bit_constants_[i];
-    if (entry.is_merged()) size_after_marker -= kPointerSize;
-  }
-
   int size = size_up_to_marker + size_after_marker;
-
   int needed_space = size + kGap;
   while (buffer_space() <= needed_space) GrowBuffer();
 
@@ -5372,6 +5372,14 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     // The data size helps disassembly know what to print.
     emit(kConstantPoolMarker |
          EncodeConstantPoolLength(size_after_marker / kPointerSize));
+
+    // The first entry in the constant pool should also be the first
+    CHECK_EQ(first_const_pool_32_use_, pending_32_bit_constants_[0].position());
+    CHECK(!pending_32_bit_constants_[0].is_merged());
+
+    // Make sure we're not emitting the constant too late.
+    CHECK_LE(pc_offset(),
+             first_const_pool_32_use_ + kMaxDistToPcRelativeConstant);
 
     // Emit 32-bit constant pool entries.
     for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
@@ -5396,6 +5404,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
         ConstantPoolEntry& merged =
             pending_32_bit_constants_[entry.merged_index()];
         DCHECK(entry.value() == merged.value());
+        DCHECK_LT(merged.position(), entry.position());
         Instr merged_instr = instr_at(merged.position());
         DCHECK(IsLdrPcImmediateOffset(merged_instr));
         delta = GetLdrRegisterImmediateOffset(merged_instr);
@@ -5421,9 +5430,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
   }
 
-  // Since a constant pool was just emitted, move the check offset forward by
-  // the standard interval.
-  next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+  // Since a constant pool was just emitted, we don't need another check until
+  // the next constant pool entry is added.
+  constant_pool_deadline_ = kMaxInt;
 }
 
 PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
