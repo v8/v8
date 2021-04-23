@@ -4558,7 +4558,8 @@ void MinorMarkCompactCollector::CollectGarbage() {
     }
     // Since we promote all surviving large objects immediatelly, all remaining
     // large objects must be dead.
-    // TODO(ulan): Don't free all as soon as we have an intermediate generation.
+    // TODO(v8:11685): Don't free all as soon as we have an intermediate
+    // generation.
     heap()->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
   }
 

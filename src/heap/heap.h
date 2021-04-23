@@ -2663,7 +2663,6 @@ T ForwardingAddress(T heap_obj) {
   } else if (Heap::InFromPage(heap_obj)) {
     return T();
   } else {
-    // TODO(ulan): Support minor mark-compactor here.
     return heap_obj;
   }
 }
