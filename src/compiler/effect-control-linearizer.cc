@@ -113,7 +113,6 @@ class EffectControlLinearizer {
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
-  Node* LowerBigIntAsUintN(Node* node, Node* frame_state);
   Node* LowerChangeUint64ToBigInt(Node* node);
   Node* LowerTruncateBigIntToUint64(Node* node);
   Node* LowerChangeTaggedToFloat64(Node* node);
@@ -1060,9 +1059,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedTaggedToTaggedPointer:
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
-      break;
-    case IrOpcode::kBigIntAsUintN:
-      result = LowerBigIntAsUintN(node, frame_state);
       break;
     case IrOpcode::kChangeUint64ToBigInt:
       result = LowerChangeUint64ToBigInt(node);
@@ -2934,22 +2930,6 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
                      bi_check, frame_state);
 
   return value;
-}
-
-Node* EffectControlLinearizer::LowerBigIntAsUintN(Node* node,
-                                                  Node* frame_state) {
-  DCHECK(machine()->Is64());
-
-  const int bits = OpParameter<int>(node->op());
-  DCHECK(0 <= bits && bits <= 64);
-
-  if (bits == 64) {
-    // Reduce to nop.
-    return node->InputAt(0);
-  } else {
-    const uint64_t msk = (1ULL << bits) - 1ULL;
-    return __ Word64And(node->InputAt(0), __ Int64Constant(msk));
-  }
 }
 
 Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {

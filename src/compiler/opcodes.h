@@ -385,7 +385,6 @@
   V(NumberSilenceNaN)
 
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
-  V(BigIntAsUintN)                     \
   V(BigIntNegate)                      \
   V(CheckBigInt)
 
@@ -497,7 +496,9 @@
   V(SpeculativeBigIntAdd)                           \
   V(SpeculativeBigIntSubtract)
 
-#define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) V(SpeculativeBigIntNegate)
+#define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \
+  V(SpeculativeBigIntAsUintN)                      \
+  V(SpeculativeBigIntNegate)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \

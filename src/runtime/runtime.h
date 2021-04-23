@@ -552,7 +552,8 @@ namespace internal {
   I(DeoptimizeNow, 0, 1)                      \
   F(PromiseSpeciesProtector, 0, 1)            \
   F(IsConcatSpreadableProtector, 0, 1)        \
-  F(RegExpSpeciesProtector, 0, 1)
+  F(RegExpSpeciesProtector, 0, 1)             \
+  F(Is64Bit, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I) \
   F(ArrayBufferDetach, 1, 1)                \

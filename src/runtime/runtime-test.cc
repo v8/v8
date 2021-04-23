@@ -1348,5 +1348,11 @@ RUNTIME_FUNCTION(Runtime_NewRegExpWithBacktrackLimit) {
       isolate, JSRegExp::New(isolate, pattern, flags, backtrack_limit));
 }
 
+RUNTIME_FUNCTION(Runtime_Is64Bit) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
+}
+
 }  // namespace internal
 }  // namespace v8

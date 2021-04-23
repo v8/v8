@@ -836,7 +836,13 @@ class RepresentationSelector {
     } else {
       DCHECK_EQ(0, node->op()->ControlInputCount());
     }
-    node->InsertInput(jsgraph_->zone(), new_input_index, new_input);
+    if (new_input_index == 0) {
+      node->InsertInput(jsgraph_->zone(), 0, new_input);
+    } else {
+      DCHECK_EQ(new_input_index, 1);
+      DCHECK_EQ(node->InputCount(), 1);
+      node->AppendInput(jsgraph_->zone(), new_input);
+    }
     ChangeOp(node, new_op);
   }
 
@@ -2830,9 +2836,25 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kBigIntAsUintN: {
-        ProcessInput<T>(node, 0, UseInfo::TruncatingWord64());
+      case IrOpcode::kSpeculativeBigIntAsUintN: {
+        const auto p = SpeculativeBigIntAsUintNParametersOf(node->op());
+        DCHECK_LE(0, p.bits());
+        DCHECK_LE(p.bits(), 64);
+
+        ProcessInput<T>(node, 0,
+                        UseInfo::CheckedBigIntTruncatingWord64(p.feedback()));
         SetOutput<T>(node, MachineRepresentation::kWord64, Type::BigInt());
+        if (lower<T>()) {
+          if (p.bits() == 0) {
+            DeferReplacement(node, jsgraph_->ZeroConstant());
+          } else if (p.bits() == 64) {
+            DeferReplacement(node, node->InputAt(0));
+          } else {
+            const uint64_t mask = (1ULL << p.bits()) - 1ULL;
+            ChangeUnaryToPureBinaryOp(node, lowering->machine()->Word64And(), 1,
+                                      jsgraph_->Int64Constant(mask));
+          }
+        }
         return;
       }
       case IrOpcode::kNumberAcos:
