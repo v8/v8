@@ -9,7 +9,7 @@
 
 #include "include/libplatform/v8-tracing.h"
 
-#ifdef V8_TARGET_OS_MACOSX
+#ifdef V8_OS_MACOSX
 #if !defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
 #error V8_ENABLE_SYSTEM_INSTRUMENTATION is not defined
 #endif
@@ -49,7 +49,7 @@ class V8_PLATFORM_EXPORT Recorder {
   void AddEvent(TraceObject* trace_event);
 
  private:
-#ifdef V8_TARGET_OS_MACOSX
+#ifdef V8_OS_MACOSX
   os_log_t v8Provider;
 #endif
 };
@@ -58,7 +58,7 @@ class V8_PLATFORM_EXPORT Recorder {
 }  // namespace platform
 }  // namespace v8
 
-#ifdef V8_TARGET_OS_MACOSX
+#ifdef V8_OS_MACOSX
 #pragma clang diagnostic pop
 #endif
 

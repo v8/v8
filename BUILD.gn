@@ -4830,7 +4830,7 @@ v8_component("v8_libplatform") {
   } else if (is_win) {
     sources -= [ "src/libplatform/tracing/recorder-default.cc" ]
     sources += [ "src/libplatform/tracing/recorder-win.cc" ]
-  } else if (target_os == "mac") {
+  } else if (is_mac) {
     sources -= [ "src/libplatform/tracing/recorder-default.cc" ]
     sources += [ "src/libplatform/tracing/recorder-mac.cc" ]
   }
