@@ -76,6 +76,7 @@ try_builder(
     cq_properties = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"enable_swarming": False, "clobber": True, "coverage": "gcov"},
+    execution_timeout = 7200,
     use_goma = GOMA.NO,
 )
 
