@@ -136,7 +136,10 @@
       'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64',
       'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
           'release_x64_asan_symbolized_verify_heap',
+      'V8 Clusterfuzz Linux ASAN no inline - release builder':
+          'release_x86_asan_symbolized_verify_heap',
       'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan',
+      'V8 Clusterfuzz Linux ASAN - debug builder': 'debug_x86_asan',
       'V8 Clusterfuzz Linux64 ASAN arm64 - debug builder':
           'debug_simulate_arm64_asan',
       'V8 Clusterfuzz Linux - debug builder': 'debug_x86',
@@ -551,6 +554,8 @@
     # Debug configs for x86.
     'debug_x86': [
       'debug_bot', 'x86'],
+    'debug_x86_asan': [
+      'debug_bot', 'x86', 'asan', 'lsan'],
     'debug_x86_minimal_symbols': [
       'debug_bot', 'x86', 'minimal_symbols'],
     'debug_x86_no_i18n': [
@@ -563,6 +568,9 @@
       'debug', 'x86', 'goma', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
+    'release_x86_asan_symbolized_verify_heap': [
+      'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
+      'v8_verify_heap'],
     'release_x86_gcc': [
       'release_bot_no_goma', 'x86', 'gcc', 'v8_check_header_includes'],
     'release_x86_gcc_minimal_symbols': [
