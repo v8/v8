@@ -202,6 +202,7 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
   description.append(toProtocolString(isolate, value->GetSource()));
   description.append('/');
   v8::RegExp::Flags flags = value->GetFlags();
+  if (flags & v8::RegExp::Flags::kHasIndices) description.append('d');
   if (flags & v8::RegExp::Flags::kGlobal) description.append('g');
   if (flags & v8::RegExp::Flags::kIgnoreCase) description.append('i');
   if (flags & v8::RegExp::Flags::kLinear) description.append('l');
