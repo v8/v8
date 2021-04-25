@@ -4430,11 +4430,9 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
 void TurboAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
                                    int num_double_arguments) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  li(scratch, function);
-  CallCFunctionHelper(scratch, num_reg_arguments, num_double_arguments);
+  li(t6, function);
+  CallCFunctionHelper(t6, num_reg_arguments, num_double_arguments);
 }
 
 void TurboAssembler::CallCFunction(Register function, int num_reg_arguments,
@@ -4487,12 +4485,9 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // allow preemption, so the return address in the link register
   // stays correct.
   {
-    UseScratchRegisterScope temps(this);
-    Register func_scratch = temps.Acquire();
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    if (function != func_scratch) {
-      mv(func_scratch, function);
-      function = func_scratch;
+    if (function != t6) {
+      mv(t6, function);
+      function = t6;
     }
 
     // Save the frame pointer and PC so that the stack layout remains
@@ -4501,7 +4496,6 @@ void TurboAssembler::CallCFunctionHelper(Register function,
     // 't' registers are caller-saved so this is safe as a scratch register.
     Register pc_scratch = t1;
     Register scratch = t2;
-    DCHECK(!AreAliased(pc_scratch, scratch, function));
 
     auipc(pc_scratch, 0);
     // TODO(RISCV): Does this need an offset? It seems like this should be the
