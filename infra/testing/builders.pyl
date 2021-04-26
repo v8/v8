@@ -49,7 +49,7 @@
   # Fuchsia
   'v8_fuchsia_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'fuchsia-unittests'},
@@ -57,7 +57,7 @@
   },
   'V8 Fuchsia': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'fuchsia-unittests'},
@@ -360,7 +360,7 @@
   'v8_linux64_dict_tracking_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
@@ -368,7 +368,7 @@
   },
   'v8_linux64_fuzzilli_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     # TODO(almuthanna): Add a new test config for the fuzzilli suite.
     'tests': [],
@@ -446,7 +446,7 @@
   },
   'v8_linux64_perfetto_dbg_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
@@ -1038,7 +1038,7 @@
   },
   'V8 Linux - predictable': {
     'swarming_dimensions': {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'benchmarks'},
@@ -1182,7 +1182,7 @@
   'V8 Linux64 - dict tracking - debug': {
     'swarming_dimensions': {
       'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
@@ -1208,7 +1208,7 @@
   },
   'V8 Linux64 - debug - perfetto': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'swarming_task_attrs': {
       'expiration': 14400,
@@ -1239,7 +1239,7 @@
   },
   'V8 Linux64 - gcov coverage': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'v8testing'},
@@ -1893,7 +1893,7 @@
   # Clusterfuzz.
   'V8 NumFuzz': {
     'swarming_dimensions': {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'swarming_task_attrs': {
       'expiration': 13800,
@@ -1910,7 +1910,7 @@
   },
   'V8 NumFuzz - TSAN': {
     'swarming_dimensions': {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'swarming_task_attrs': {
       'expiration': 13800,
@@ -1958,7 +1958,7 @@
   },
   'V8 NumFuzz - debug': {
     'swarming_dimensions': {
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'swarming_task_attrs': {
       'expiration': 13800,
