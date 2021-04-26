@@ -3710,13 +3710,13 @@ bool MapRef::is_stable() const {
 }
 
 bool MapRef::CanBeDeprecated() const {
-  IF_ACCESS_FROM_HEAP_C(CanBeDeprecated);
+  IF_ACCESS_FROM_HEAP_WITH_FLAG_C(CanBeDeprecated);
   CHECK_GT(NumberOfOwnDescriptors(), 0);
   return data()->AsMap()->can_be_deprecated();
 }
 
 bool MapRef::CanTransition() const {
-  IF_ACCESS_FROM_HEAP_C(CanTransition);
+  IF_ACCESS_FROM_HEAP_WITH_FLAG_C(CanTransition);
   return data()->AsMap()->can_transition();
 }
 
