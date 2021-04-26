@@ -4262,6 +4262,7 @@ class LiftoffCompiler {
     __ DropValues(1);
 
     LiftoffRegister result = expected;
+    if (__ cache_state()->is_used(result)) __ SpillRegister(result);
 
     // We already added the index to addr, so we can just pass no_reg to the
     // assembler now.
