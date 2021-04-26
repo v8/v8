@@ -164,4 +164,12 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+################################################################################
+['third_party_heap', {
+  # Requires --concurrent_recompilation
+  'debug/regress/regress-opt-after-debug-deopt': [SKIP],
+  'debug/regress/regress-prepare-break-while-recompile': [SKIP],
+  'regress/regress-7421': [SKIP],
+}], # third_party_heap
+
 ]

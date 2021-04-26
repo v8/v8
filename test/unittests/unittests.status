@@ -85,4 +85,29 @@
   'LoggingTest.SourceLocation':[SKIP]  # issue-174
 }],
 
+################################################################################
+['third_party_heap', {
+  # Tests on OptimizingCompileDispatcher
+  'OptimizingCompileDispatcherTest.NonBlockingFlush': [SKIP],
+  'OptimizingCompileDispatcherTest.Construct': [SKIP],
+  # Test V8 stock GC
+  'SpacesTest.CompactionSpaceMerge': [SKIP],
+  # Requires --concurrent_inlining / --finalize_streaming_on_background:
+  'LocalFactoryTest.AstConsString_CreatesConsString': [SKIP],
+  'LocalFactoryTest.AstRawString_IsInternalized': [SKIP],
+  'LocalFactoryTest.EagerFunction': [SKIP],
+  'LocalFactoryTest.EmptyScript': [SKIP],
+  'LocalFactoryTest.GCDuringPublish': [SKIP],
+  'LocalFactoryTest.ImplicitNameFunction': [SKIP],
+  'LocalFactoryTest.LazyFunction': [SKIP],
+  'LocalFactoryTest.OneByteInternalizedString_DuplicateIsDeduplicated': [SKIP],
+  'LocalFactoryTest.OneByteInternalizedString_IsAddedToStringTable': [SKIP],
+  # Requires write barriers
+  'SpacesTest.WriteBarrierFromHeapObject': [SKIP],
+  'SpacesTest.WriteBarrierInYoungGenerationToSpace': [SKIP],
+  'SpacesTest.WriteBarrierInYoungGenerationFromSpace': [SKIP],
+  # Requires a second isolate
+  'ValueSerializerTest.DecodeArrayBufferOOM': [SKIP],
+}], # third_party_heap
+
 ]
