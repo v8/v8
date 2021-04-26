@@ -117,10 +117,10 @@ enum class RefSerializationKind {
   V(DescriptorArray, RefSerializationKind::kNeverSerialized)              \
   V(FeedbackCell, RefSerializationKind::kNeverSerialized)                 \
   V(FeedbackVector, RefSerializationKind::kNeverSerialized)               \
-  V(FixedArrayBase, RefSerializationKind::kSerialized)                    \
+  V(FixedArrayBase, RefSerializationKind::kBackgroundSerialized)          \
   V(FunctionTemplateInfo, RefSerializationKind::kNeverSerialized)         \
   V(HeapNumber, RefSerializationKind::kPossiblyBackgroundSerialized)      \
-  V(JSReceiver, RefSerializationKind::kSerialized)                        \
+  V(JSReceiver, RefSerializationKind::kBackgroundSerialized)              \
   V(Map, RefSerializationKind::kBackgroundSerialized)                     \
   V(Name, RefSerializationKind::kNeverSerialized)                         \
   V(PropertyCell, RefSerializationKind::kBackgroundSerialized)            \
@@ -129,7 +129,7 @@ enum class RefSerializationKind {
   V(SourceTextModule, RefSerializationKind::kSerialized)                  \
   V(TemplateObjectDescription, RefSerializationKind::kNeverSerialized)    \
   /* Subtypes of Object */                                                \
-  V(HeapObject, RefSerializationKind::kSerialized)
+  V(HeapObject, RefSerializationKind::kBackgroundSerialized)
 
 class CompilationDependencies;
 struct FeedbackSource;

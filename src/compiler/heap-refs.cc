@@ -369,8 +369,8 @@ void CallHandlerInfoData::Serialize(JSHeapBroker* broker) {
 class JSReceiverData : public HeapObjectData {
  public:
   JSReceiverData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<JSReceiver> object)
-      : HeapObjectData(broker, storage, object) {}
+                 Handle<JSReceiver> object, ObjectDataKind kind)
+      : HeapObjectData(broker, storage, object, kind) {}
 };
 
 class JSObjectData : public JSReceiverData {
@@ -1663,8 +1663,9 @@ void FeedbackVectorData::Serialize(JSHeapBroker* broker) {
 class FixedArrayBaseData : public HeapObjectData {
  public:
   FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
-                     Handle<FixedArrayBase> object)
-      : HeapObjectData(broker, storage, object), length_(object->length()) {}
+                     Handle<FixedArrayBase> object, ObjectDataKind kind)
+      : HeapObjectData(broker, storage, object, kind),
+        length_(object->length()) {}
 
   int length() const { return length_; }
 
@@ -1743,14 +1744,17 @@ bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
 
 JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
                            Handle<JSObject> object)
-    : JSReceiverData(broker, storage, object),
+    : JSReceiverData(broker, storage, object,
+                     ObjectDataKind::kSerializedHeapObject),
       inobject_fields_(broker->zone()),
       own_constant_elements_(broker->zone()),
       own_properties_(broker->zone()) {}
 
 FixedArrayData::FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<FixedArray> object)
-    : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {}
+    : FixedArrayBaseData(broker, storage, object,
+                         ObjectDataKind::kSerializedHeapObject),
+      contents_(broker->zone()) {}
 
 void FixedArrayData::SerializeContents(JSHeapBroker* broker) {
   if (serialized_contents_) return;
@@ -1787,7 +1791,9 @@ class FixedDoubleArrayData : public FixedArrayBaseData {
 FixedDoubleArrayData::FixedDoubleArrayData(JSHeapBroker* broker,
                                            ObjectData** storage,
                                            Handle<FixedDoubleArray> object)
-    : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {}
+    : FixedArrayBaseData(broker, storage, object,
+                         ObjectDataKind::kSerializedHeapObject),
+      contents_(broker->zone()) {}
 
 void FixedDoubleArrayData::SerializeContents(JSHeapBroker* broker) {
   if (serialized_contents_) return;
@@ -1815,7 +1821,8 @@ class BytecodeArrayData : public FixedArrayBaseData {
 
   BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<BytecodeArray> object)
-      : FixedArrayBaseData(broker, storage, object),
+      : FixedArrayBaseData(broker, storage, object,
+                           ObjectDataKind::kNeverSerializedHeapObject),
         register_count_(object->register_count()),
         parameter_count_(object->parameter_count()),
         incoming_new_target_or_generator_register_(
@@ -2752,7 +2759,8 @@ struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
     } else if (broker->mode() == JSHeapBroker::kSerializing) {
       RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
       *object_data_out = broker->zone()->New<DataT>(
-          broker, &entry->value, Handle<ObjectT>::cast(object));
+          broker, &entry->value, Handle<ObjectT>::cast(object),
+          ObjectDataKind::kSerializedHeapObject);
       *entry_out = entry;
       return true;
     }
