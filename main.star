@@ -14,8 +14,8 @@ load(
 # Enable LUCI Realms support.
 lucicfg.enable_experiment("crbug.com/1085650")
 
-# Launch 5% of Swarming tasks for builds in "realms-aware mode"
-luci.builder.defaults.experiments.set({"luci.use_realms": 5})
+# Launch 20% of Swarming tasks for builds in "realms-aware mode"
+luci.builder.defaults.experiments.set({"luci.use_realms": 20})
 
 lucicfg.config(
     config_dir = "generated",
