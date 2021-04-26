@@ -27,6 +27,12 @@
 #include "src/heap/cppgc/caged-heap.h"
 #endif
 
+namespace v8 {
+namespace base {
+class LsanPageAllocator;
+}  // namespace base
+}  // namespace v8
+
 namespace heap {
 namespace base {
 class Stack;
@@ -189,11 +195,18 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   void ExecutePreFinalizers();
 
+  PageAllocator* page_allocator() const;
+
   RawHeap raw_heap_;
   std::shared_ptr<cppgc::Platform> platform_;
+
+#if defined(LEAK_SANITIZER)
+  std::unique_ptr<v8::base::LsanPageAllocator> lsan_page_allocator_;
+#endif  // LEAK_SANITIZER
+
 #if defined(CPPGC_CAGED_HEAP)
   CagedHeap caged_heap_;
-#endif
+#endif  // CPPGC_CAGED_HEAP
   std::unique_ptr<PageBackend> page_backend_;
 
   std::unique_ptr<StatsCollector> stats_collector_;

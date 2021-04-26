@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
-#define V8_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
+#ifndef V8_BASE_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
+#define V8_BASE_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
 
 #include "include/v8-platform.h"
 #include "src/base/compiler-specific.h"
@@ -56,4 +56,4 @@ class LsanPageAllocator : public v8::PageAllocator {
 
 }  // namespace base
 }  // namespace v8
-#endif  // V8_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
+#endif  // V8_BASE_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
