@@ -1096,8 +1096,7 @@ static inline uint32_t ObjectAddressForHashing(Address object) {
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,
                                            Handle<Object> value) {
   Handle<Object> key = isolate->factory()->SizeToString(index);
-  Handle<FixedArray> entry_storage =
-      isolate->factory()->NewUninitializedFixedArray(2);
+  Handle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
     entry_storage->set(0, *key, SKIP_WRITE_BARRIER);
     entry_storage->set(1, *value, SKIP_WRITE_BARRIER);
@@ -1108,8 +1107,7 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,
 
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
                                            Handle<Object> value) {
-  Handle<FixedArray> entry_storage =
-      isolate->factory()->NewUninitializedFixedArray(2);
+  Handle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
     entry_storage->set(0, *key, SKIP_WRITE_BARRIER);
     entry_storage->set(1, *value, SKIP_WRITE_BARRIER);

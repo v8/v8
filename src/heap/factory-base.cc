@@ -72,8 +72,11 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
                                                     AllocationType allocation) {
-  DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
+  if (length < 0 || length > FixedArray::kMaxLength) {
+    FATAL("Fatal JavaScript invalid size error %d", length);
+    UNREACHABLE();
+  }
   return NewFixedArrayWithFiller(
       read_only_roots().fixed_array_map_handle(), length,
       read_only_roots().undefined_value_handle(), allocation);

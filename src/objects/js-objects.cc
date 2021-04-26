@@ -2054,8 +2054,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
         MaybeHandle<FixedArray>());
 
     if (get_entries) {
-      Handle<FixedArray> entry_storage =
-          isolate->factory()->NewUninitializedFixedArray(2);
+      Handle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
       entry_storage->set(0, *key);
       entry_storage->set(1, *value);
       value = isolate->factory()->NewJSArrayWithElements(entry_storage,

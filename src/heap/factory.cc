@@ -411,21 +411,6 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
   return handle(array, isolate());
 }
 
-Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
-  if (length == 0) return empty_fixed_array();
-  if (length < 0 || length > FixedArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
-    UNREACHABLE();
-  }
-
-  // TODO(ulan): As an experiment this temporarily returns an initialized fixed
-  // array. After getting canary/performance coverage, either remove the
-  // function or revert to returning uninitilized array.
-  return NewFixedArrayWithFiller(read_only_roots().fixed_array_map_handle(),
-                                 length, undefined_value(),
-                                 AllocationType::kYoung);
-}
-
 Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
     int length) {
   if (length == 0) return empty_closure_feedback_cell_array();
@@ -1386,7 +1371,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
   Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
   Handle<FixedArray> supertypes;
   if (opt_parent.is_null()) {
-    supertypes = NewUninitializedFixedArray(0);
+    supertypes = NewFixedArray(0);
   } else {
     supertypes = CopyArrayAndGrow(
         handle(opt_parent->wasm_type_info().supertypes(), isolate()), 1,
@@ -2369,7 +2354,7 @@ Handle<FixedArrayBase> Factory::NewJSArrayStorage(
   } else {
     DCHECK(IsSmiOrObjectElementsKind(elements_kind));
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      elms = NewUninitializedFixedArray(capacity);
+      elms = NewFixedArray(capacity);
     } else {
       DCHECK(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
       elms = NewFixedArrayWithHoles(capacity);

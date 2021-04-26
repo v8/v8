@@ -615,7 +615,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // list.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
-    Handle<FixedArray> maps = isolate_->factory()->NewUninitializedFixedArray(
+    Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
         static_cast<int>(module_->type_kinds.size()));
     for (int map_index = 0;
          map_index < static_cast<int>(module_->type_kinds.size());

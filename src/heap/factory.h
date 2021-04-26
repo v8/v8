@@ -131,9 +131,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   MaybeHandle<FixedArray> TryNewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  // Allocates an uninitialized fixed array. It must be filled by the caller.
-  Handle<FixedArray> NewUninitializedFixedArray(int length);
-
   // Allocates a closure feedback cell array whose feedback cells are
   // initialized with undefined values.
   Handle<ClosureFeedbackCellArray> NewClosureFeedbackCellArray(int num_slots);

@@ -510,7 +510,7 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
       isolate->factory()->NewArgumentsObject(callee, argument_count);
   if (argument_count) {
     Handle<FixedArray> array =
-        isolate->factory()->NewUninitializedFixedArray(argument_count);
+        isolate->factory()->NewFixedArray(argument_count);
     DisallowGarbageCollection no_gc;
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < argument_count; i++) {

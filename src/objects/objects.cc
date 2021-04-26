@@ -3958,8 +3958,7 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
   do {
     capacity = JSObject::NewElementsCapacity(capacity);
   } while (capacity <= index);
-  Handle<FixedArray> new_array =
-      isolate->factory()->NewUninitializedFixedArray(capacity);
+  Handle<FixedArray> new_array = isolate->factory()->NewFixedArray(capacity);
   array->CopyTo(0, *new_array, 0, array->length());
   new_array->FillWithHoles(array->length(), new_array->length());
   new_array->set(index, *value);

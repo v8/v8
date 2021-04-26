@@ -781,7 +781,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     if (IsDoubleElementsKind(kind())) {
       new_elements = isolate->factory()->NewFixedDoubleArray(capacity);
     } else {
-      new_elements = isolate->factory()->NewUninitializedFixedArray(capacity);
+      new_elements = isolate->factory()->NewFixedArray(capacity);
     }
 
     int packed_size = kPackedSizeNotKnown;

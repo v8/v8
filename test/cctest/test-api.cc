@@ -26224,8 +26224,9 @@ TEST(DynamicImport) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
-      kCustomHostDefinedOptionsLengthForTesting));
+  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting);
+  referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, i::MaybeHandle<i::Object>());
@@ -26310,8 +26311,9 @@ TEST(DynamicImportWithAssertions) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
-  referrer->set_host_defined_options(*i_isolate->factory()->NewFixedArray(
-      kCustomHostDefinedOptionsLengthForTesting));
+  i::Handle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
+      kCustomHostDefinedOptionsLengthForTesting);
+  referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
                                                         i_import_assertions);

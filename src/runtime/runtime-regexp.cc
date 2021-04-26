@@ -1696,7 +1696,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
     if (!result->IsNull(isolate)) return *factory->NewJSArray(0);
 
-    Handle<FixedArray> elems = factory->NewUninitializedFixedArray(1);
+    Handle<FixedArray> elems = factory->NewFixedArray(1);
     elems->set(0, *string);
     return *factory->NewJSArrayWithElements(elems);
   }
