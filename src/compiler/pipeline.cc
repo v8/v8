@@ -67,7 +67,6 @@
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/redundancy-elimination.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/scheduled-machine-lowering.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/select-lowering.h"
 #include "src/compiler/serializer-for-background-compilation.h"
@@ -1814,11 +1813,6 @@ struct EffectControlLinearizationPhase {
       TraceScheduleAndVerify(data->info(), data, schedule,
                              "effect linearization schedule");
 
-      MaskArrayIndexEnable mask_array_index =
-          (data->info()->GetPoisoningMitigationLevel() !=
-           PoisoningMitigationLevel::kDontPoison)
-              ? MaskArrayIndexEnable::kMaskArrayIndex
-              : MaskArrayIndexEnable::kDoNotMaskArrayIndex;
       // Post-pass for wiring the control/effects
       // - connect allocating representation changes into the control&effect
       //   chains and lower them,
@@ -1826,7 +1820,7 @@ struct EffectControlLinearizationPhase {
       // - introduce effect phis and rewire effects to get SSA again.
       LinearizeEffectControl(data->jsgraph(), schedule, temp_zone,
                              data->source_positions(), data->node_origins(),
-                             mask_array_index, MaintainSchedule::kDiscard,
+                             data->info()->GetPoisoningMitigationLevel(),
                              data->broker());
     }
     {
@@ -2013,43 +2007,22 @@ struct ScheduledEffectControlLinearizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(ScheduledEffectControlLinearization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    MaskArrayIndexEnable mask_array_index =
-        (data->info()->GetPoisoningMitigationLevel() !=
-         PoisoningMitigationLevel::kDontPoison)
-            ? MaskArrayIndexEnable::kMaskArrayIndex
-            : MaskArrayIndexEnable::kDoNotMaskArrayIndex;
     // Post-pass for wiring the control/effects
     // - connect allocating representation changes into the control&effect
     //   chains and lower them,
     // - get rid of the region markers,
-    // - introduce effect phis and rewire effects to get SSA again.
-    LinearizeEffectControl(data->jsgraph(), data->schedule(), temp_zone,
+    // - introduce effect phis and rewire effects to get SSA again,
+    // - lower simplified memory and select nodes to machine level nodes.
+    LowerToMachineSchedule(data->jsgraph(), data->schedule(), temp_zone,
                            data->source_positions(), data->node_origins(),
-                           mask_array_index, MaintainSchedule::kMaintain,
+                           data->info()->GetPoisoningMitigationLevel(),
                            data->broker());
-
-    // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
-    Scheduler::ComputeSpecialRPO(temp_zone, data->schedule());
-    if (FLAG_turbo_verify) Scheduler::GenerateDominatorTree(data->schedule());
-    TraceScheduleAndVerify(data->info(), data, data->schedule(),
-                           "effect linearization schedule");
-  }
-};
-
-struct ScheduledMachineLoweringPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(ScheduledMachineLowering)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    ScheduledMachineLowering machine_lowering(
-        data->jsgraph(), data->schedule(), temp_zone, data->source_positions(),
-        data->node_origins(), data->info()->GetPoisoningMitigationLevel());
-    machine_lowering.Run();
 
     // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
     Scheduler::ComputeSpecialRPO(temp_zone, data->schedule());
     Scheduler::GenerateDominatorTree(data->schedule());
     TraceScheduleAndVerify(data->info(), data, data->schedule(),
-                           "machine lowered schedule");
+                           "effect linearization schedule");
   }
 };
 
@@ -2876,9 +2849,6 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   Run<ScheduledEffectControlLinearizationPhase>();
   RunPrintAndVerify(ScheduledEffectControlLinearizationPhase::phase_name(),
                     true);
-
-  Run<ScheduledMachineLoweringPhase>();
-  RunPrintAndVerify(ScheduledMachineLoweringPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json()) {

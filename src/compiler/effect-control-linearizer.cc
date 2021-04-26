@@ -17,11 +17,13 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/memory-lowering.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/select-lowering.h"
 #include "src/execution/frames.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/heap-number.h"
@@ -32,10 +34,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+enum class MaintainSchedule { kMaintain, kDiscard };
+enum class MaskArrayIndexEnable { kDoNotMaskArrayIndex, kMaskArrayIndex };
+
 class EffectControlLinearizer {
  public:
   EffectControlLinearizer(JSGraph* js_graph, Schedule* schedule,
-                          Zone* temp_zone,
+                          JSGraphAssembler* graph_assembler, Zone* temp_zone,
                           SourcePositionTable* source_positions,
                           NodeOriginTable* node_origins,
                           MaskArrayIndexEnable mask_array_index,
@@ -49,8 +54,7 @@ class EffectControlLinearizer {
         source_positions_(source_positions),
         node_origins_(node_origins),
         broker_(broker),
-        graph_assembler_(js_graph, temp_zone, base::nullopt,
-                         should_maintain_schedule() ? schedule : nullptr),
+        graph_assembler_(graph_assembler),
         frame_state_zapper_(nullptr) {}
 
   void Run();
@@ -308,7 +312,7 @@ class EffectControlLinearizer {
     return js_graph_->simplified();
   }
   MachineOperatorBuilder* machine() const { return js_graph_->machine(); }
-  JSGraphAssembler* gasm() { return &graph_assembler_; }
+  JSGraphAssembler* gasm() const { return graph_assembler_; }
   JSHeapBroker* broker() const { return broker_; }
 
   JSGraph* js_graph_;
@@ -320,7 +324,7 @@ class EffectControlLinearizer {
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
   JSHeapBroker* broker_;
-  JSGraphAssembler graph_assembler_;
+  JSGraphAssembler* graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
 };
 
@@ -6467,15 +6471,47 @@ Node* EffectControlLinearizer::BuildIsClearedWeakReference(Node* maybe_object) {
 
 #undef __
 
+namespace {
+
+MaskArrayIndexEnable MaskArrayForPoisonLevel(
+    PoisoningMitigationLevel poison_level) {
+  return (poison_level != PoisoningMitigationLevel::kDontPoison)
+             ? MaskArrayIndexEnable::kMaskArrayIndex
+             : MaskArrayIndexEnable::kDoNotMaskArrayIndex;
+}
+
+}  // namespace
+
 void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
-                            MaskArrayIndexEnable mask_array_index,
-                            MaintainSchedule maintain_schedule,
+                            PoisoningMitigationLevel poison_level,
                             JSHeapBroker* broker) {
-  EffectControlLinearizer linearizer(
-      graph, schedule, temp_zone, source_positions, node_origins,
-      mask_array_index, maintain_schedule, broker);
+  JSGraphAssembler graph_assembler_(graph, temp_zone, base::nullopt, nullptr);
+  EffectControlLinearizer linearizer(graph, schedule, &graph_assembler_,
+                                     temp_zone, source_positions, node_origins,
+                                     MaskArrayForPoisonLevel(poison_level),
+                                     MaintainSchedule::kDiscard, broker);
+  linearizer.Run();
+}
+
+void LowerToMachineSchedule(JSGraph* js_graph, Schedule* schedule,
+                            Zone* temp_zone,
+                            SourcePositionTable* source_positions,
+                            NodeOriginTable* node_origins,
+                            PoisoningMitigationLevel poison_level,
+                            JSHeapBroker* broker) {
+  JSGraphAssembler graph_assembler(js_graph, temp_zone, base::nullopt,
+                                   schedule);
+  EffectControlLinearizer linearizer(js_graph, schedule, &graph_assembler,
+                                     temp_zone, source_positions, node_origins,
+                                     MaskArrayForPoisonLevel(poison_level),
+                                     MaintainSchedule::kMaintain, broker);
+  MemoryLowering memory_lowering(js_graph, temp_zone, &graph_assembler,
+                                 poison_level);
+  SelectLowering select_lowering(&graph_assembler, js_graph->graph());
+  graph_assembler.AddInlineReducer(&memory_lowering);
+  graph_assembler.AddInlineReducer(&select_lowering);
   linearizer.Run();
 }
 
