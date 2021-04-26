@@ -167,15 +167,13 @@ class HeapObjectData : public ObjectData {
                  Handle<HeapObject> object,
                  ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject);
 
-  bool boolean_value() const { return boolean_value_; }
+  base::Optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;
   ObjectData* map() const { return map_; }
   InstanceType GetMapInstanceType() const;
 
-  static HeapObjectData* Serialize(JSHeapBroker* broker,
-                                   Handle<HeapObject> object);
-
  private:
-  bool const boolean_value_;
+  base::Optional<bool> TryGetBooleanValueImpl(JSHeapBroker* broker) const;
+
   ObjectData* const map_;
 };
 
@@ -1271,17 +1269,45 @@ void AllocationSiteData::SerializeBoilerplate(JSHeapBroker* broker) {
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<HeapObject> object, ObjectDataKind kind)
     : ObjectData(broker, storage, object, kind),
-      boolean_value_(object->BooleanValue(broker->isolate())),
-      // We have to use a raw cast below instead of AsMap() because of
-      // recursion. AsMap() would call IsMap(), which accesses the
-      // instance_type_ member. In the case of constructing the MapData for the
-      // meta map (whose map is itself), this member has not yet been
-      // initialized.
       map_(broker->GetOrCreateData(object->synchronized_map())) {
   CHECK_IMPLIES(kind == kSerializedHeapObject,
                 broker->mode() == JSHeapBroker::kSerializing);
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                 kind == kBackgroundSerializedHeapObject);
+}
+
+base::Optional<bool> HeapObjectData::TryGetBooleanValue(
+    JSHeapBroker* broker) const {
+  // Keep in sync with Object::BooleanValue.
+  auto result = TryGetBooleanValueImpl(broker);
+  DCHECK_IMPLIES(broker->IsMainThread() && result.has_value(),
+                 result.value() == object()->BooleanValue(broker->isolate()));
+  return result;
+}
+
+base::Optional<bool> HeapObjectData::TryGetBooleanValueImpl(
+    JSHeapBroker* broker) const {
+  DisallowGarbageCollection no_gc;
+  Object o = *object();
+  Isolate* isolate = broker->isolate();
+  const InstanceType t = GetMapInstanceType();
+  if (o.IsTrue(isolate)) {
+    return true;
+  } else if (o.IsFalse(isolate)) {
+    return false;
+  } else if (o.IsNullOrUndefined(isolate)) {
+    return false;
+  } else if (MapRef{broker, map()}.is_undetectable()) {
+    return false;  // Undetectable object is false.
+  } else if (InstanceTypeChecker::IsString(t)) {
+    // TODO(jgruber): Implement in possible cases.
+    return {};
+  } else if (InstanceTypeChecker::IsHeapNumber(t)) {
+    return {};
+  } else if (InstanceTypeChecker::IsBigInt(t)) {
+    return {};
+  }
+  return true;
 }
 
 InstanceType HeapObjectData::GetMapInstanceType() const {
@@ -3778,11 +3804,12 @@ bool ObjectRef::IsTheHole() const {
          AsHeapObject().map().oddball_type() == OddballType::kHole;
 }
 
-bool ObjectRef::BooleanValue() const {
+base::Optional<bool> ObjectRef::TryGetBooleanValue() const {
   if (data_->should_access_heap()) {
     return object()->BooleanValue(broker()->isolate());
   }
-  return IsSmi() ? (AsSmi() != 0) : data()->AsHeapObject()->boolean_value();
+  if (IsSmi()) return AsSmi() != 0;
+  return data()->AsHeapObject()->TryGetBooleanValue(broker());
 }
 
 Maybe<double> ObjectRef::OddballToNumber() const {

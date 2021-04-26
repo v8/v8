@@ -60,7 +60,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        return ReplaceInt32(m.Ref(broker()).BooleanValue());
+        base::Optional<bool> maybe_result =
+            m.Ref(broker()).TryGetBooleanValue();
+        if (maybe_result.has_value()) return ReplaceInt32(*maybe_result);
       }
       if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;

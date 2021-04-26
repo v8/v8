@@ -198,7 +198,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool IsNullOrUndefined() const;
   bool IsTheHole() const;
 
-  bool BooleanValue() const;
+  base::Optional<bool> TryGetBooleanValue() const;
   Maybe<double> OddballToNumber() const;
 
   Isolate* isolate() const;

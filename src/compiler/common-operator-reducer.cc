@@ -28,7 +28,9 @@ Decision DecideCondition(JSHeapBroker* broker, Node* const cond) {
     }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher m(unwrapped);
-      return m.Ref(broker).BooleanValue() ? Decision::kTrue : Decision::kFalse;
+      base::Optional<bool> maybe_result = m.Ref(broker).TryGetBooleanValue();
+      if (!maybe_result.has_value()) return Decision::kUnknown;
+      return *maybe_result ? Decision::kTrue : Decision::kFalse;
     }
     default:
       return Decision::kUnknown;
