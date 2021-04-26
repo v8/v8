@@ -338,7 +338,7 @@
   'v8_linux64_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'benchmarks'},
@@ -423,7 +423,7 @@
   'v8_linux64_nodcheck_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'benchmarks'},
@@ -463,7 +463,7 @@
   'v8_linux64_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       # TODO(machenbach): Add benchmarks.
@@ -1075,7 +1075,7 @@
   'V8 Linux64': {
     'swarming_dimensions': {
       'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'benchmarks'},
@@ -1140,7 +1140,7 @@
   'V8 Linux64 - debug': {
     'swarming_dimensions': {
       'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-16.04',
+      'os': 'Ubuntu-18.04',
     },
     'tests': [
       {'name': 'benchmarks'},
