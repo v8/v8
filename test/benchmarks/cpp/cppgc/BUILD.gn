@@ -9,12 +9,12 @@ group("gn_all") {
 
   deps = []
 
-  if (v8_enable_google_benchmark && !is_win) {
+  if (v8_enable_google_benchmark) {
     deps += [ ":cppgc_basic_benchmarks" ]
   }
 }
 
-if (v8_enable_google_benchmark && !is_win) {
+if (v8_enable_google_benchmark) {
   v8_source_set("cppgc_benchmark_support") {
     testonly = true
 
