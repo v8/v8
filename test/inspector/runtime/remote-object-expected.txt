@@ -487,6 +487,16 @@ Running test: testRegExp
         type : object
     }
 }
+'new RegExp('foo/bar')', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : RegExp
+        description : /foo\/bar/
+        objectId : <objectId>
+        subtype : regexp
+        type : object
+    }
+}
 'var re = new RegExp('\w+', 'g');
         re.prop = 32;
         re', returnByValue: false, generatePreview: true

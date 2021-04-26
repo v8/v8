@@ -228,6 +228,9 @@ InspectorTest.runAsyncTestSuite([
       expression: `new RegExp('\\w+', 'g')`,
     })).result);
     InspectorTest.logMessage((await evaluate({
+      expression: `new RegExp('foo/bar')`
+    })).result);
+    InspectorTest.logMessage((await evaluate({
       expression: `var re = new RegExp('\\w+', 'g');
         re.prop = 32;
         re`,

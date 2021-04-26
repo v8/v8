@@ -195,22 +195,19 @@ String16 descriptionForPrimitiveType(v8::Local<v8::Context> context,
   return String16();
 }
 
-String16 descriptionForRegExp(v8::Isolate* isolate,
+String16 descriptionForObject(v8::Isolate* isolate,
+                              v8::Local<v8::Object> object) {
+  return toProtocolString(isolate, object->GetConstructorName());
+}
+
+String16 descriptionForRegExp(v8::Local<v8::Context> context,
                               v8::Local<v8::RegExp> value) {
-  String16Builder description;
-  description.append('/');
-  description.append(toProtocolString(isolate, value->GetSource()));
-  description.append('/');
-  v8::RegExp::Flags flags = value->GetFlags();
-  if (flags & v8::RegExp::Flags::kHasIndices) description.append('d');
-  if (flags & v8::RegExp::Flags::kGlobal) description.append('g');
-  if (flags & v8::RegExp::Flags::kIgnoreCase) description.append('i');
-  if (flags & v8::RegExp::Flags::kLinear) description.append('l');
-  if (flags & v8::RegExp::Flags::kMultiline) description.append('m');
-  if (flags & v8::RegExp::Flags::kDotAll) description.append('s');
-  if (flags & v8::RegExp::Flags::kUnicode) description.append('u');
-  if (flags & v8::RegExp::Flags::kSticky) description.append('y');
-  return description.toString();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::String> description;
+  if (!value->ToString(context).ToLocal(&description)) {
+    return descriptionForObject(isolate, value);
+  }
+  return toProtocolString(isolate, description);
 }
 
 enum class ErrorType { kNative, kClient };
@@ -266,11 +263,6 @@ String16 descriptionForError(v8::Local<v8::Context> context,
       index != String16::kNotFound ? stack->substring(index + message->length())
                                    : String16();
   return description + stackWithoutMessage;
-}
-
-String16 descriptionForObject(v8::Isolate* isolate,
-                              v8::Local<v8::Object> object) {
-  return toProtocolString(isolate, object->GetConstructorName());
 }
 
 String16 descriptionForDate(v8::Local<v8::Context> context,
@@ -1605,7 +1597,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   if (value->IsRegExp()) {
     return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Regexp,
-        descriptionForRegExp(isolate, value.As<v8::RegExp>()));
+        descriptionForRegExp(context, value.As<v8::RegExp>()));
   }
   if (value->IsProxy()) {
     return std::make_unique<ObjectMirror>(
