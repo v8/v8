@@ -8997,10 +8997,12 @@ CALLBACK_SETTER(WasmExceptionsEnabledCallback, WasmExceptionsEnabledCallback,
 
 void Isolate::InstallConditionalFeatures(Local<Context> context) {
 #if V8_ENABLE_WEBASSEMBLY
-  v8::HandleScope handle_scope(this);
-  v8::Context::Scope context_scope(context);
-  i::WasmJs::InstallConditionalFeatures(reinterpret_cast<i::Isolate*>(this),
-                                        Utils::OpenHandle(*context));
+  if (i::FLAG_expose_wasm) {
+    v8::HandleScope handle_scope(this);
+    v8::Context::Scope context_scope(context);
+    i::WasmJs::InstallConditionalFeatures(reinterpret_cast<i::Isolate*>(this),
+                                          Utils::OpenHandle(*context));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
