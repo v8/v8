@@ -3127,6 +3127,8 @@ bool Heap::IsImmovable(HeapObject object) {
 }
 
 bool Heap::IsLargeObject(HeapObject object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
+    return third_party_heap::Heap::InLargeObjectSpace(object.address());
   return BasicMemoryChunk::FromHeapObject(object)->IsLargePage();
 }
 
