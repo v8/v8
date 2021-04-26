@@ -4291,6 +4291,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   Node* target = n.target();
 
   // Do not reduce calls to functions with break points.
+  // If this state changes during background compilation, the compilation
+  // job will be aborted from the main thread (see
+  // Debug::PrepareFunctionForDebugExecution()).
   if (shared.HasBreakInfo()) return NoChange();
 
   // Raise a TypeError if the {target} is a "classConstructor".
@@ -4758,6 +4761,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
 
       // Do not reduce constructors with break points.
+      // If this state changes during background compilation, the compilation
+      // job will be aborted from the main thread (see
+      // Debug::PrepareFunctionForDebugExecution()).
       if (function.shared().HasBreakInfo()) return NoChange();
 
       // Don't inline cross native context.

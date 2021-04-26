@@ -1724,6 +1724,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
   if (shared.has_value()) {
     // Do not inline the call if we need to check whether to break at entry.
+    // If this state changes during background compilation, the compilation
+    // job will be aborted from the main thread (see
+    // Debug::PrepareFunctionForDebugExecution()).
     if (shared->HasBreakInfo()) return NoChange();
 
     // Class constructors are callable, but [[Call]] will raise an exception.
