@@ -44,6 +44,7 @@ ALL_VARIANT_FLAGS = {
   "instruction_scheduling": [["--turbo-instruction-scheduling"]],
   "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]],
   "top_level_await": [["--harmony-top-level-await"]],
+  "wasm_write_protect_code": [["--wasm-write-protect-code-memory"]],
 }
 
 # Flags that lead to a contradiction with the flags provided by the respective
@@ -76,6 +77,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "no_local_heaps": ["--concurrent-inlining", "--turboprop"],
   "experimental_regexp": ["--no-enable-experimental-regexp-engine",
                           "--no-default-to-experimental-regexp-engine"],
+  # There is a negative implication: --perf-prof disables
+  # --wasm-write-protect-code-memory.
+  "wasm_write_protect_code": ["--perf-prof"],
 }
 
 # Flags that lead to a contradiction under certain build variables.

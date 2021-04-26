@@ -389,6 +389,8 @@
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Concurrent inlining.
       {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
+      # Wasm write protect code space.
+      {'name': 'mjsunit', 'variant': 'wasm_write_protect_code'},
     ],
   },
   'v8_linux64_gc_stress_custom_snapshot_dbg_ng_triggered': {
@@ -1204,6 +1206,8 @@
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Concurrent inlining.
       {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
+      # Wasm write protect code space.
+      {'name': 'mjsunit', 'variant': 'wasm_write_protect_code'},
     ],
   },
   'V8 Linux64 - debug - perfetto': {
@@ -1235,6 +1239,8 @@
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Concurrent inlining.
       {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
+      # Wasm write protect code space.
+      {'name': 'mjsunit', 'variant': 'wasm_write_protect_code'},
     ],
   },
   'V8 Linux64 - gcov coverage': {
