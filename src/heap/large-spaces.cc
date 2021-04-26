@@ -130,6 +130,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {
 
 AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
                                                   Executability executable) {
+  DCHECK(!FLAG_enable_third_party_heap);
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGeneration(object_size) ||
@@ -160,6 +161,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
 
 AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     LocalHeap* local_heap, int object_size) {
+  DCHECK(!FLAG_enable_third_party_heap);
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGenerationBackground(local_heap, object_size) ||
@@ -446,6 +448,7 @@ NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
       capacity_(capacity) {}
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
+  DCHECK(!FLAG_enable_third_party_heap);
   // Do not allocate more objects if promoting the existing object would exceed
   // the old generation capacity.
   if (!heap()->CanExpandOldGeneration(SizeOfObjects())) {
@@ -532,6 +535,7 @@ CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
       chunk_map_(kInitialChunkMapCapacity) {}
 
 AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
+  DCHECK(!FLAG_enable_third_party_heap);
   return OldLargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
 }
 

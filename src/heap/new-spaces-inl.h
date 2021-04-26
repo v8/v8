@@ -88,6 +88,7 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
                                        AllocationAlignment alignment,
                                        AllocationOrigin origin) {
   DCHECK(!FLAG_single_generation);
+  DCHECK(!FLAG_enable_third_party_heap);
 #if DEBUG
   VerifyTop();
 #endif

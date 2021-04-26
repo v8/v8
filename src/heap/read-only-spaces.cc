@@ -635,6 +635,7 @@ HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
 
 AllocationResult ReadOnlySpace::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment) {
+  DCHECK(!FLAG_enable_third_party_heap);
   DCHECK(!IsDetached());
   int allocation_size = size_in_bytes;
 
