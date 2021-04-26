@@ -2982,14 +2982,14 @@ bool MapRef::HasOnlyStablePrototypesWithFastElements(
 }
 
 bool MapRef::supports_fast_array_iteration() const {
-  if (data_->should_access_heap()) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     return SupportsFastArrayIteration(broker(), object());
   }
   return data()->AsMap()->supports_fast_array_iteration();
 }
 
 bool MapRef::supports_fast_array_resize() const {
-  if (data_->should_access_heap()) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     return SupportsFastArrayResize(broker(), object());
   }
   return data()->AsMap()->supports_fast_array_resize();
