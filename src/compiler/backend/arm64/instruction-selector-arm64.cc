@@ -3656,22 +3656,28 @@ MulWithDupResult TryMatchMulWithDup(Node* node) {
   ShuffleMatcher left = m.left();
   ShuffleMatcher right = m.right();
 
-  // We don't want CanCover here because in many use cases, the shuffle is
-  // generated early in the function, but the f32x4.mul happens in a loop, which
-  // won't cover the shuffle since they are different basic blocks.
+  // TODO(zhin): We can canonicalize first to avoid checking index < LANES.
+  // e.g. shuffle(x, y, [16, 17, 18, 19...]) => shuffle(y, y, [0, 1, 2,
+  // 3]...). But doing so can mutate the inputs of the shuffle node without
+  // updating the shuffle immediates themselves. Fix that before we
+  // canonicalize here. We don't want CanCover here because in many use cases,
+  // the shuffle is generated early in the function, but the f32x4.mul happens
+  // in a loop, which won't cover the shuffle since they are different basic
+  // blocks.
   if (left.HasResolvedValue() && wasm::SimdShuffle::TryMatchSplat<LANES>(
                                      left.ResolvedValue().data(), &index)) {
-    dup_node = left.node()->InputAt(0);
+    dup_node = left.node()->InputAt(index < LANES ? 0 : 1);
     input = right.node();
   } else if (right.HasResolvedValue() &&
              wasm::SimdShuffle::TryMatchSplat<LANES>(
                  right.ResolvedValue().data(), &index)) {
-    dup_node = right.node()->InputAt(0);
+    dup_node = right.node()->InputAt(index < LANES ? 0 : 1);
     input = left.node();
   }
-
-  DCHECK_LT(index, LANES);
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  // Canonicalization would get rid of this too.
+  index %= LANES;
 
   return {input, dup_node, index};
 }
