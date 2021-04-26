@@ -394,6 +394,10 @@ void TurboAssembler::Add32(Register rd, Register rs, const Operand& rt) {
   } else {
     if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
       addiw(rd, rs, static_cast<int32_t>(rt.immediate()));
+    } else if ((-4096 <= rt.immediate() && rt.immediate() <= -2049) ||
+               (2048 <= rt.immediate() && rt.immediate() <= 4094)) {
+      addiw(rd, rs, rt.immediate() / 2);
+      addiw(rd, rd, rt.immediate() - (rt.immediate() / 2));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
@@ -410,6 +414,10 @@ void TurboAssembler::Add64(Register rd, Register rs, const Operand& rt) {
   } else {
     if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
       addi(rd, rs, static_cast<int32_t>(rt.immediate()));
+    } else if ((-4096 <= rt.immediate() && rt.immediate() <= -2049) ||
+               (2048 <= rt.immediate() && rt.immediate() <= 4094)) {
+      addi(rd, rs, rt.immediate() / 2);
+      addi(rd, rd, rt.immediate() - (rt.immediate() / 2));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
@@ -430,6 +438,10 @@ void TurboAssembler::Sub32(Register rd, Register rs, const Operand& rt) {
       addiw(rd, rs,
             static_cast<int32_t>(
                 -rt.immediate()));  // No subiw instr, use addiw(x, y, -imm).
+    } else if ((-4096 <= -rt.immediate() && -rt.immediate() <= -2049) ||
+               (2048 <= -rt.immediate() && -rt.immediate() <= 4094)) {
+      addiw(rd, rs, -rt.immediate() / 2);
+      addiw(rd, rd, -rt.immediate() - (-rt.immediate() / 2));
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
@@ -453,6 +465,10 @@ void TurboAssembler::Sub64(Register rd, Register rs, const Operand& rt) {
     addi(rd, rs,
          static_cast<int32_t>(
              -rt.immediate()));  // No subi instr, use addi(x, y, -imm).
+  } else if ((-4096 <= -rt.immediate() && -rt.immediate() <= -2049) ||
+             (2048 <= -rt.immediate() && -rt.immediate() <= 4094)) {
+    addi(rd, rs, -rt.immediate() / 2);
+    addi(rd, rd, -rt.immediate() - (-rt.immediate() / 2));
   } else {
     int li_count = InstrCountForLi64Bit(rt.immediate());
     int li_neg_count = InstrCountForLi64Bit(-rt.immediate());
