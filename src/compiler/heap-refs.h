@@ -67,8 +67,8 @@ enum class OddballType : uint8_t {
 // too. For example, it CANNOT contain FixedArrayBase if it doesn't contain
 // FixedDoubleArray, BytecodeArray and FixedArray.
 // DO NOT VIOLATE THESE TWO PROPERTIES!
-// Classes on this list will skip serialization when
-// FLAG_turbo_direct_heap_access is on. Otherwise, they might get serialized.
+// Classes on this list will skip serialization when --concurrent-inlining is
+// on. Otherwise, they might get serialized.
 #define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of FixedArray */                      \
   V(ObjectBoilerplateDescription)                   \

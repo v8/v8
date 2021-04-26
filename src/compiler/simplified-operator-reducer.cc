@@ -5,6 +5,7 @@
 #include "src/compiler/simplified-operator-reducer.h"
 
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
@@ -41,7 +42,7 @@ SimplifiedOperatorReducer::~SimplifiedOperatorReducer() = default;
 
 
 Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
+  DisallowHeapAccessIf no_heap_access(!broker()->is_concurrent_inlining());
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
       HeapObjectMatcher m(node->InputAt(0));

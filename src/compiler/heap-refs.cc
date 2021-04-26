@@ -56,7 +56,7 @@ HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 //   mutable) HeapObject and the data is an instance of ObjectData. Its handle
 //   must be persistent so that the GC can update it at a safepoint. Via this
 //   handle, the object can be accessed concurrently to the main thread. To be
-//   used the flag --turbo-direct-heap-access must be on.
+//   used the flag --concurrent-inlining must be on.
 //
 // kUnserializedReadOnlyHeapObject: The underlying V8 object is a read-only
 //   HeapObject and the data is an instance of ObjectData. For
@@ -100,7 +100,13 @@ class ObjectData : public ZoneObject {
  public:
   ObjectData(JSHeapBroker* broker, ObjectData** storage, Handle<Object> object,
              ObjectDataKind kind)
-      : object_(object), kind_(kind) {
+      : object_(object),
+        kind_(kind)
+#ifdef DEBUG
+        ,
+        broker_(broker)
+#endif  // DEBUG
+  {
     // This assignment ensures we don't end up inserting the same object
     // in an endless recursion.
     *storage = this;
@@ -154,11 +160,16 @@ class ObjectData : public ZoneObject {
 #ifdef DEBUG
   enum class Usage{kUnused, kOnlyIdentityUsed, kDataUsed};
   mutable Usage used_status = Usage::kUnused;
+
+  JSHeapBroker* broker() const { return broker_; }
 #endif  // DEBUG
 
  private:
   Handle<Object> const object_;
   ObjectDataKind const kind_;
+#ifdef DEBUG
+  JSHeapBroker* const broker_;  // For DCHECKs.
+#endif                          // DEBUG
 };
 
 class HeapObjectData : public ObjectData {
@@ -255,7 +266,7 @@ FunctionTemplateInfoData::FunctionTemplateInfoData(
       c_function_(v8::ToCData<Address>(object->GetCFunction())),
       c_signature_(v8::ToCData<CFunctionInfo*>(object->GetCSignature())),
       known_receivers_(broker->zone()) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
+  DCHECK(!broker->is_concurrent_inlining());
   auto function_template_info = Handle<FunctionTemplateInfo>::cast(object);
   is_signature_undefined_ =
       function_template_info->signature().IsUndefined(broker->isolate());
@@ -271,7 +282,7 @@ CallHandlerInfoData::CallHandlerInfoData(JSHeapBroker* broker,
                                          Handle<CallHandlerInfo> object)
     : HeapObjectData(broker, storage, object),
       callback_(v8::ToCData<Address>(object->callback())) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
+  DCHECK(!broker->is_concurrent_inlining());
 }
 
 PropertyCellData::PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
@@ -603,7 +614,7 @@ class ArrayBoilerplateDescriptionData : public HeapObjectData {
                                   Handle<ArrayBoilerplateDescription> object)
       : HeapObjectData(broker, storage, object),
         constants_elements_length_(object->constant_elements().length()) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 
   int constants_elements_length() const { return constants_elements_length_; }
@@ -617,7 +628,7 @@ class ObjectBoilerplateDescriptionData : public HeapObjectData {
   ObjectBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<ObjectBoilerplateDescription> object)
       : HeapObjectData(broker, storage, object), size_(object->size()) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 
   int size() const { return size_; }
@@ -646,15 +657,15 @@ class JSBoundFunctionData : public JSObjectData {
   bool serialized() const { return serialized_; }
 
   ObjectData* bound_target_function() const {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker()->is_concurrent_inlining());
     return bound_target_function_;
   }
   ObjectData* bound_this() const {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker()->is_concurrent_inlining());
     return bound_this_;
   }
   ObjectData* bound_arguments() const {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker()->is_concurrent_inlining());
     return bound_arguments_;
   }
 
@@ -701,7 +712,7 @@ class JSFunctionData : public JSObjectData {
   }
   ObjectData* code() const {
     DCHECK(serialized_code_and_feedback());
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker()->is_concurrent_inlining());
     return code_;
   }
   int initial_map_instance_size_with_min_slack() const {
@@ -867,7 +878,7 @@ class NameData : public HeapObjectData {
  public:
   NameData(JSHeapBroker* broker, ObjectData** storage, Handle<Name> object)
       : HeapObjectData(broker, storage, object) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 };
 
@@ -902,7 +913,7 @@ class SymbolData : public NameData {
  public:
   SymbolData(JSHeapBroker* broker, ObjectData** storage, Handle<Symbol> object)
       : NameData(broker, storage, object) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 };
 
@@ -915,7 +926,7 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
       is_external_string_(object->IsExternalString()),
       is_seq_string_(object->IsSeqString()),
       chars_as_strings_(broker->zone()) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
+  DCHECK(!broker->is_concurrent_inlining());
 }
 
 class InternalizedStringData : public StringData {
@@ -923,7 +934,7 @@ class InternalizedStringData : public StringData {
   InternalizedStringData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<InternalizedString> object)
       : StringData(broker, storage, object) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 };
 
@@ -1227,7 +1238,7 @@ class MapData : public HeapObjectData {
 AccessorInfoData::AccessorInfoData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<AccessorInfo> object)
     : HeapObjectData(broker, storage, object) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
+  DCHECK(!broker->is_concurrent_inlining());
 }
 
 AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
@@ -1269,6 +1280,11 @@ void AllocationSiteData::SerializeBoilerplate(JSHeapBroker* broker) {
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<HeapObject> object, ObjectDataKind kind)
     : ObjectData(broker, storage, object, kind),
+      // We have to use a raw cast below instead of AsMap() because of
+      // recursion. AsMap() would call IsMap(), which accesses the
+      // instance_type_ member. In the case of constructing the MapData for the
+      // meta map (whose map is itself), this member has not yet been
+      // initialized.
       map_(broker->GetOrCreateData(object->synchronized_map())) {
   CHECK_IMPLIES(kind == kSerializedHeapObject,
                 broker->mode() == JSHeapBroker::kSerializing);
@@ -1451,7 +1467,7 @@ void JSFunctionData::SerializeCodeAndFeedback(JSHeapBroker* broker) {
   DCHECK_NULL(feedback_cell_);
   DCHECK_NULL(feedback_vector_);
   DCHECK_NULL(code_);
-  if (!FLAG_turbo_direct_heap_access) {
+  if (!broker->is_concurrent_inlining()) {
     // This is conditionalized because Code objects are never serialized now.
     // We only need to represent the code object in serialized data when
     // we're unable to perform direct heap accesses.
@@ -1488,7 +1504,7 @@ class DescriptorArrayData : public HeapObjectData {
   DescriptorArrayData(JSHeapBroker* broker, ObjectData** storage,
                       Handle<DescriptorArray> object)
       : HeapObjectData(broker, storage, object), contents_(broker->zone()) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 
   ObjectData* FindFieldOwner(InternalIndex descriptor_index) const {
@@ -1580,7 +1596,7 @@ FeedbackCellData::FeedbackCellData(JSHeapBroker* broker, ObjectData** storage,
       value_(object->value().IsFeedbackVector()
                  ? broker->GetOrCreateData(object->value())
                  : nullptr) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
+  DCHECK(!broker->is_concurrent_inlining());
 }
 
 class FeedbackVectorData : public HeapObjectData {
@@ -1613,7 +1629,7 @@ FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
     : HeapObjectData(broker, storage, object),
       invocation_count_(object->invocation_count()),
       closure_feedback_cell_array_(broker->zone()) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
+  DCHECK(!broker->is_concurrent_inlining());
 }
 
 ObjectData* FeedbackVectorData::GetClosureFeedbackCell(JSHeapBroker* broker,
@@ -1849,7 +1865,7 @@ JSArrayData::JSArrayData(JSHeapBroker* broker, ObjectData** storage,
     : JSObjectData(broker, storage, object), own_elements_(broker->zone()) {}
 
 void JSArrayData::Serialize(JSHeapBroker* broker) {
-  CHECK(!FLAG_turbo_direct_heap_access);
+  CHECK(!broker->is_concurrent_inlining());
 
   if (serialized_) return;
   serialized_ = true;
@@ -1907,7 +1923,7 @@ ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
       has_context_extension_slot_(object->HasContextExtensionSlot()),
       has_outer_scope_info_(object->HasOuterScopeInfo()),
       outer_scope_info_(nullptr) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
+  DCHECK(!broker->is_concurrent_inlining());
 }
 
 void ScopeInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
@@ -2093,7 +2109,7 @@ class CellData : public HeapObjectData {
  public:
   CellData(JSHeapBroker* broker, ObjectData** storage, Handle<Cell> object)
       : HeapObjectData(broker, storage, object) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 };
 
@@ -2184,7 +2200,7 @@ class TemplateObjectDescriptionData : public HeapObjectData {
   TemplateObjectDescriptionData(JSHeapBroker* broker, ObjectData** storage,
                                 Handle<TemplateObjectDescription> object)
       : HeapObjectData(broker, storage, object) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 };
 
@@ -2196,7 +2212,7 @@ class CodeData : public HeapObjectData {
                                        !object->marked_for_deoptimization()
                                    ? object->inlined_bytecode_size()
                                    : 0) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker->is_concurrent_inlining());
   }
 
   unsigned inlined_bytecode_size() const { return inlined_bytecode_size_; }
@@ -2233,16 +2249,16 @@ HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
 
-// TODO(solanes, v8:10866): Remove once FLAG_turbo_direct_heap_access is
+// TODO(solanes, v8:10866): Remove once broker()->is_concurrent_inlining() is
 // removed.
 // This macro defines the Asxxx methods for NeverSerialized objects, which
 // should only be used with direct heap access off.
-#define DEFINE_AS(Name)                     \
-  Name##Data* ObjectData::As##Name() {      \
-    DCHECK(!FLAG_turbo_direct_heap_access); \
-    CHECK(Is##Name());                      \
-    CHECK_EQ(kind_, kSerializedHeapObject); \
-    return static_cast<Name##Data*>(this);  \
+#define DEFINE_AS(Name)                          \
+  Name##Data* ObjectData::As##Name() {           \
+    DCHECK(!broker()->is_concurrent_inlining()); \
+    CHECK(Is##Name());                           \
+    CHECK_EQ(kind_, kSerializedHeapObject);      \
+    return static_cast<Name##Data*>(this);       \
   }
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
@@ -2483,7 +2499,7 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
     map()->AsMap()->SerializeOwnDescriptors(broker);
   }
 
-  if (IsJSArray() && !FLAG_turbo_direct_heap_access) {
+  if (IsJSArray() && !broker->is_concurrent_inlining()) {
     AsJSArray()->Serialize(broker);
   }
 }
@@ -2671,14 +2687,14 @@ void JSHeapBroker::InitializeAndStartSerializing(
 
   SetTargetNativeContextRef(native_context);
   target_native_context().Serialize();
-  if (!FLAG_turbo_direct_heap_access) {
+  if (!is_concurrent_inlining()) {
     // Perform full native context serialization now if we can't do it later on
     // the background thread.
     target_native_context().SerializeOnBackground();
   }
 
   Factory* const f = isolate()->factory();
-  if (!FLAG_turbo_direct_heap_access) {
+  if (!is_concurrent_inlining()) {
     ObjectData* data;
     data = GetOrCreateData(f->array_buffer_detaching_protector());
     if (!data->should_access_heap()) data->AsPropertyCell()->Serialize(this);
@@ -2734,13 +2750,14 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(
     entry = refs_->LookupOrInsert(object.address());
     object_data = zone()->New<ObjectData>(this, &(entry->value), object,
                                           kUnserializedReadOnlyHeapObject);
-// TODO(solanes, v8:10866): Remove the if/else in this macro once we remove the
-// FLAG_turbo_direct_heap_access.
+// TODO(solanes, v8:10866): Remove the `(mode() == kSerializing)` case in this
+// macro when all classes skip serialization. Same for the other macros if we
+// end up keeping them.
 #define CREATE_DATA_FOR_DIRECT_READ(name)                                  \
   }                                                                        \
   /* NOLINTNEXTLINE(readability/braces) */                                 \
   else if (object->Is##name()) {                                           \
-    if (FLAG_turbo_direct_heap_access) {                                   \
+    if (is_concurrent_inlining()) {                                        \
       entry = refs_->LookupOrInsert(object.address());                     \
       object_data = zone()->New<ObjectData>(this, &(entry->value), object, \
                                             kNeverSerializedHeapObject);   \
@@ -2778,7 +2795,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(
   }                                                                           \
   /* NOLINTNEXTLINE(readability/braces) */                                    \
   else if (object->Is##name()) {                                              \
-    if (FLAG_turbo_direct_heap_access) {                                      \
+    if (is_concurrent_inlining()) {                                           \
       entry = refs_->LookupOrInsert(object.address());                        \
       object_data = zone()->New<name##Data>(this, &(entry->value),            \
                                             Handle<name>::cast(object),       \
@@ -3047,7 +3064,7 @@ void JSObjectRef::EnsureElementsTenured() {
 
 FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     FieldIndex result = FieldIndex::ForDescriptor(*object(), descriptor_index);
     DCHECK(result.is_inobject());
     return result;
@@ -3089,7 +3106,7 @@ bool MapRef::IsPrimitiveMap() const {
 
 MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // TODO(solanes, v8:7790): Consider caching the result of the field owner on
     // the descriptor array. It would be useful for same map as well as any
     // other map sharing that descriptor array.
@@ -3244,19 +3261,19 @@ int BytecodeArrayRef::handler_table_size() const {
 // Like IF_ACCESS_FROM_HEAP[_C] but we also allow direct heap access for
 // kSerialized only for methods that we identified to be safe.
 #define IF_ACCESS_FROM_HEAP_WITH_FLAG(result, name)                            \
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {          \
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {     \
     return result##Ref(broker(),                                               \
                        broker()->CanonicalPersistentHandle(object()->name())); \
   }
-#define IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name)                         \
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) { \
-    return object()->name();                                          \
+#define IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name)                              \
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) { \
+    return object()->name();                                               \
   }
 
 // Like BIMODAL_ACCESSOR[_C] except that we force a direct heap access if
-// FLAG_turbo_direct_heap_access is true (even for kSerialized). This is because
-// we identified the method to be safe to use direct heap access, but the
-// holder##Data class still needs to be serialized.
+// broker()->is_concurrent_inlining() is true (even for kSerialized). This is
+// because we identified the method to be safe to use direct heap access, but
+// the holder##Data class still needs to be serialized.
 #define BIMODAL_ACCESSOR_WITH_FLAG(holder, result, name)                   \
   result##Ref holder##Ref::name() const {                                  \
     IF_ACCESS_FROM_HEAP_WITH_FLAG(result, name);                           \
@@ -3498,7 +3515,7 @@ BIMODAL_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
 
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
 BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray() const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     BytecodeArray bytecode_array;
     if (!broker()->IsMainThread()) {
       bytecode_array = object()->GetBytecodeArray(broker()->local_isolate());
@@ -3553,7 +3570,7 @@ base::Optional<ObjectRef> MapRef::GetStrongValue(
 }
 
 DescriptorArrayRef MapRef::instance_descriptors() const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     return DescriptorArrayRef(
         broker(),
         broker()->CanonicalPersistentHandle(
@@ -3572,7 +3589,7 @@ void MapRef::SerializeRootMap() {
 // TODO(solanes, v8:7790): Remove base::Optional from the return type when
 // deleting serialization.
 base::Optional<MapRef> MapRef::FindRootMap() const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // TODO(solanes): Remove the TryGetOrCreateData part when Map is moved to
     // kNeverSerialized.
     ObjectData* root_map =
@@ -3594,7 +3611,7 @@ base::Optional<MapRef> MapRef::FindRootMap() const {
 }
 
 bool JSTypedArrayRef::is_on_heap() const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // Safe to read concurrently because:
     // - host object seen by serializer.
     // - underlying field written 1. during initialization or 2. with
@@ -3606,7 +3623,7 @@ bool JSTypedArrayRef::is_on_heap() const {
 
 size_t JSTypedArrayRef::length() const {
   CHECK(!is_on_heap());
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // Safe to read concurrently because:
     // - immutable after initialization.
     // - host object seen by serializer.
@@ -3617,7 +3634,7 @@ size_t JSTypedArrayRef::length() const {
 
 HeapObjectRef JSTypedArrayRef::buffer() const {
   CHECK(!is_on_heap());
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // Safe to read concurrently because:
     // - immutable after initialization.
     // - host object seen by serializer.
@@ -3630,7 +3647,7 @@ HeapObjectRef JSTypedArrayRef::buffer() const {
 
 void* JSTypedArrayRef::data_ptr() const {
   CHECK(!is_on_heap());
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // Safe to read concurrently because:
     // - host object seen by serializer.
     // - underlying field written 1. during initialization or 2. protected by
@@ -3839,7 +3856,7 @@ Maybe<double> ObjectRef::OddballToNumber() const {
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
     uint32_t index, SerializationPolicy policy) const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // `elements` are currently still serialized as members of JSObjectRef.
     // TODO(jgruber,v8:7790): Once JSObject is no longer serialized, we must
     // guarantee consistency between `object`, `elements_kind` and `elements`
@@ -3917,7 +3934,7 @@ ObjectRef JSArrayRef::GetBoilerplateLength() const {
 }
 
 ObjectRef JSArrayRef::length_unsafe() const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     Object o = object()->length(broker()->isolate(), kRelaxedLoad);
     return ObjectRef{broker(), broker()->CanonicalPersistentHandle(o)};
   } else {
@@ -3928,7 +3945,7 @@ ObjectRef JSArrayRef::length_unsafe() const {
 base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
     FixedArrayBaseRef elements_ref, uint32_t index,
     SerializationPolicy policy) const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // `elements` are currently still serialized as members of JSObjectRef.
     // TODO(jgruber,v8:7790): Remove the elements equality DCHECK below once
     // JSObject is no longer serialized.
@@ -3971,7 +3988,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
                      broker()->CanonicalPersistentHandle(result.value())};
   } else {
     DCHECK(!data_->should_access_heap());
-    DCHECK(!FLAG_turbo_direct_heap_access);
+    DCHECK(!broker()->is_concurrent_inlining());
 
     // Just to clarify that `elements_ref` is not used on this path.
     // GetOwnElement accesses the serialized `elements` field on its own.
@@ -3987,7 +4004,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
 }
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     return CellRef(broker(), broker()->CanonicalPersistentHandle(
                                  object()->GetCell(cell_index)));
   }
@@ -4369,7 +4386,7 @@ bool JSFunctionRef::serialized_code_and_feedback() const {
 }
 
 CodeRef JSFunctionRef::code() const {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     return CodeRef(broker(), broker()->CanonicalPersistentHandle(
                                  object()->code(kAcquireLoad)));
   }
@@ -4492,7 +4509,7 @@ void NativeContextRef::SerializeOnBackground() {
 }
 
 void JSTypedArrayRef::Serialize() {
-  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     // Even if the typed array object itself is no longer serialized (besides
     // the JSObject parts), the `buffer` field still is and thus we need to
     // make sure to visit it.
@@ -4514,7 +4531,7 @@ bool JSTypedArrayRef::serialized() const {
 }
 
 bool JSTypedArrayRef::ShouldHaveBeenSerialized() const {
-  if (FLAG_turbo_direct_heap_access) return false;
+  if (broker()->is_concurrent_inlining()) return false;
   return ObjectRef::ShouldHaveBeenSerialized();
 }
 

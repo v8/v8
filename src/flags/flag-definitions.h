@@ -589,7 +589,6 @@ DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 
 // Flags for TurboProp.
 DEFINE_BOOL(turboprop, false, "enable experimental turboprop mid-tier compiler")
-DEFINE_IMPLICATION(turboprop, turbo_direct_heap_access)
 DEFINE_BOOL(turboprop_mid_tier_reg_alloc, true,
             "enable mid-tier register allocator for turboprop")
 DEFINE_BOOL(
@@ -648,13 +647,10 @@ DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_BOOL(stress_concurrent_inlining, false,
             "makes concurrent inlining more likely to trigger in tests")
-DEFINE_BOOL(turbo_direct_heap_access, false,
-            "access kNeverSerialized objects directly from the heap")
 DEFINE_IMPLICATION(stress_concurrent_inlining, concurrent_inlining)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, lazy_feedback_allocation)
 DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
                               15 * KB)
-DEFINE_IMPLICATION(concurrent_inlining, turbo_direct_heap_access)
 DEFINE_BOOL(
     turbo_concurrent_get_property_access_info, false,
     "concurrently call GetPropertyAccessInfo (only with --concurrent-inlining)")

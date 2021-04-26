@@ -1570,7 +1570,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   }
 
   // TODO(leszeks): Increment usage counter on BG thread.
-  if (!FLAG_concurrent_inlining && has_one_shot_bytecode) {
+  if (!broker()->is_concurrent_inlining() && has_one_shot_bytecode) {
     // (For concurrent inlining this is done in the serializer instead.)
     isolate()->CountUsage(
         v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);

@@ -1535,7 +1535,7 @@ void SerializerForBackgroundCompilation::VisitLdaConstant(
       iterator->GetConstantForIndexOperand(0, broker()->isolate());
   // TODO(v8:7790): FixedArrays still need to be serialized until they are
   // moved to kNeverSerialized.
-  if (!FLAG_turbo_direct_heap_access || constant->IsFixedArray()) {
+  if (!broker()->is_concurrent_inlining() || constant->IsFixedArray()) {
     ObjectRef(broker(), constant);
   }
   environment()->accumulator_hints() = Hints::SingleConstant(constant, zone());

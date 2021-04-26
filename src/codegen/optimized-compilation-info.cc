@@ -23,12 +23,16 @@ namespace internal {
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<JSFunction> closure, CodeKind code_kind)
+    Handle<JSFunction> closure, CodeKind code_kind, BytecodeOffset osr_offset,
+    JavaScriptFrame* osr_frame)
     : code_kind_(code_kind),
+      osr_offset_(osr_offset),
+      osr_frame_(osr_frame),
       zone_(zone),
       optimization_id_(isolate->NextOptimizationId()) {
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
+  DCHECK_IMPLIES(is_osr(), IsOptimizing());
   bytecode_array_ = handle(shared->GetBytecodeArray(isolate), isolate);
   shared_info_ = shared;
   closure_ = closure;
@@ -85,6 +89,10 @@ bool OptimizedCompilationInfo::FlagGetIsValid(Flag flag) const {
 void OptimizedCompilationInfo::ConfigureFlags() {
   if (FLAG_untrusted_code_mitigations) set_untrusted_code_mitigations();
   if (FLAG_turbo_inline_js_wasm_calls) set_inline_js_wasm_calls();
+
+  if (!is_osr() && (IsTurboprop() || FLAG_concurrent_inlining)) {
+    set_concurrent_inlining();
+  }
 
   switch (code_kind_) {
     case CodeKind::TURBOFAN:

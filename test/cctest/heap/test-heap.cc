@@ -1269,7 +1269,6 @@ TEST(Regress10774) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_turboprop = true;
   i::FLAG_turbo_dynamic_map_checks = true;
-  i::FLAG_turbo_direct_heap_access = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif

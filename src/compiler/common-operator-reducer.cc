@@ -8,10 +8,11 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
@@ -55,7 +56,8 @@ CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
 }
 
 Reduction CommonOperatorReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
+  DisallowHeapAccessIf no_heap_access(broker() == nullptr ||
+                                      !broker()->is_concurrent_inlining());
   switch (node->opcode()) {
     case IrOpcode::kBranch:
       return ReduceBranch(node);
