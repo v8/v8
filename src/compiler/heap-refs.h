@@ -62,87 +62,74 @@ enum class OddballType : uint8_t {
   kOther  // Oddball, but none of the above.
 };
 
-// This list is sorted such that subtypes appear before their supertypes.
-// This list must not contain a type if it doesn't contain all of its subtypes
-// too. For example, it CANNOT contain FixedArrayBase if it doesn't contain
-// FixedDoubleArray, BytecodeArray and FixedArray.
-// DO NOT VIOLATE THESE TWO PROPERTIES!
-// Classes on this list will skip serialization when --concurrent-inlining is
-// on. Otherwise, they might get serialized.
-#define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
-  /* Subtypes of FixedArray */                      \
-  V(ObjectBoilerplateDescription)                   \
-  V(ScopeInfo)                                      \
-  /* Subtypes of String */                          \
-  V(InternalizedString)                             \
-  /* Subtypes of FixedArrayBase */                  \
-  V(BytecodeArray)                                  \
-  /* Subtypes of Name */                            \
-  V(String)                                         \
-  V(Symbol)                                         \
-  /* Subtypes of HeapObject */                      \
-  V(AccessorInfo)                                   \
-  V(ArrayBoilerplateDescription)                    \
-  V(CallHandlerInfo)                                \
-  V(Cell)                                           \
-  V(Code)                                           \
-  V(DescriptorArray)                                \
-  V(FeedbackCell)                                   \
-  V(FeedbackVector)                                 \
-  V(FunctionTemplateInfo)                           \
-  V(Name)                                           \
-  V(RegExpBoilerplateDescription)                   \
-  V(SharedFunctionInfo)                             \
-  V(TemplateObjectDescription)
+enum class RefSerializationKind {
+  // Will skip serialization when --concurrent-inlining is on. Otherwise, they
+  // might get serialized. (The cake is a lie.)
+  kNeverSerialized,
+  // Can be serialized on demand from the background thread.
+  kBackgroundSerialized,
+  // Behave like serialized classes, but allow lazy serialization from
+  // background threads where this is safe (e.g. for objects that are immutable
+  // and fully initialized once visible). Pass
+  // ObjectRef::BackgroundSerialization::kAllowed to the ObjectRef constructor
+  // for objects where serialization from the background thread is safe.
+  kPossiblyBackgroundSerialized,
+  kSerialized,
+};
 
 // This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
-// Classes in this list behave like serialized classes, but they allow lazy
-// serialization from background threads where this is safe (e.g. for objects
-// that are immutable and fully initialized once visible). Pass
-// ObjectRef::BackgroundSerialization::kAllowed to the ObjectRef constructor
-// for objects where serialization from the background thread is safe.
-#define HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(V) \
-  /* Subtypes of HeapObject */                                    \
-  V(BigInt)                                                       \
-  V(HeapNumber)
-
-// This list is sorted such that subtypes appear before their supertypes.
-// DO NOT VIOLATE THIS PROPERTY!
-// Types in this list can be serialized on demand from the background thread.
-#define HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(V) \
-  /* Subtypes of HeapObject */                           \
-  V(Map)                                                 \
-  V(PropertyCell)
-
-// This list is sorted such that subtypes appear before their supertypes.
-// DO NOT VIOLATE THIS PROPERTY!
-#define HEAP_BROKER_SERIALIZED_OBJECT_LIST(V) \
-  /* Subtypes of JSObject */                  \
-  V(JSArray)                                  \
-  V(JSBoundFunction)                          \
-  V(JSDataView)                               \
-  V(JSFunction)                               \
-  V(JSGlobalObject)                           \
-  V(JSGlobalProxy)                            \
-  V(JSTypedArray)                             \
-  /* Subtypes of Context */                   \
-  V(NativeContext)                            \
-  /* Subtypes of FixedArray */                \
-  V(Context)                                  \
-  V(ScriptContextTable)                       \
-  /* Subtypes of FixedArrayBase */            \
-  V(FixedArray)                               \
-  V(FixedDoubleArray)                         \
-  /* Subtypes of JSReceiver */                \
-  V(JSObject)                                 \
-  /* Subtypes of HeapObject */                \
-  V(AllocationSite)                           \
-  V(FixedArrayBase)                           \
-  V(JSReceiver)                               \
-  V(SourceTextModule)                         \
-  /* Subtypes of Object */                    \
-  V(HeapObject)
+#define HEAP_BROKER_OBJECT_LIST(V)                                        \
+  /* Subtypes of JSObject */                                              \
+  V(JSArray, RefSerializationKind::kSerialized)                           \
+  V(JSBoundFunction, RefSerializationKind::kSerialized)                   \
+  V(JSDataView, RefSerializationKind::kSerialized)                        \
+  V(JSFunction, RefSerializationKind::kSerialized)                        \
+  V(JSGlobalObject, RefSerializationKind::kSerialized)                    \
+  V(JSGlobalProxy, RefSerializationKind::kSerialized)                     \
+  V(JSTypedArray, RefSerializationKind::kSerialized)                      \
+  /* Subtypes of Context */                                               \
+  V(NativeContext, RefSerializationKind::kSerialized)                     \
+  /* Subtypes of FixedArray */                                            \
+  V(Context, RefSerializationKind::kSerialized)                           \
+  V(ObjectBoilerplateDescription, RefSerializationKind::kNeverSerialized) \
+  V(ScopeInfo, RefSerializationKind::kNeverSerialized)                    \
+  V(ScriptContextTable, RefSerializationKind::kSerialized)                \
+  /* Subtypes of String */                                                \
+  V(InternalizedString, RefSerializationKind::kNeverSerialized)           \
+  /* Subtypes of FixedArrayBase */                                        \
+  V(BytecodeArray, RefSerializationKind::kNeverSerialized)                \
+  V(FixedArray, RefSerializationKind::kSerialized)                        \
+  V(FixedDoubleArray, RefSerializationKind::kSerialized)                  \
+  /* Subtypes of Name */                                                  \
+  V(String, RefSerializationKind::kNeverSerialized)                       \
+  V(Symbol, RefSerializationKind::kNeverSerialized)                       \
+  /* Subtypes of JSReceiver */                                            \
+  V(JSObject, RefSerializationKind::kSerialized)                          \
+  /* Subtypes of HeapObject */                                            \
+  V(AccessorInfo, RefSerializationKind::kNeverSerialized)                 \
+  V(AllocationSite, RefSerializationKind::kSerialized)                    \
+  V(ArrayBoilerplateDescription, RefSerializationKind::kNeverSerialized)  \
+  V(BigInt, RefSerializationKind::kPossiblyBackgroundSerialized)          \
+  V(CallHandlerInfo, RefSerializationKind::kNeverSerialized)              \
+  V(Cell, RefSerializationKind::kNeverSerialized)                         \
+  V(Code, RefSerializationKind::kNeverSerialized)                         \
+  V(DescriptorArray, RefSerializationKind::kNeverSerialized)              \
+  V(FeedbackCell, RefSerializationKind::kNeverSerialized)                 \
+  V(FeedbackVector, RefSerializationKind::kNeverSerialized)               \
+  V(FixedArrayBase, RefSerializationKind::kSerialized)                    \
+  V(FunctionTemplateInfo, RefSerializationKind::kNeverSerialized)         \
+  V(HeapNumber, RefSerializationKind::kPossiblyBackgroundSerialized)      \
+  V(JSReceiver, RefSerializationKind::kSerialized)                        \
+  V(Map, RefSerializationKind::kBackgroundSerialized)                     \
+  V(Name, RefSerializationKind::kNeverSerialized)                         \
+  V(PropertyCell, RefSerializationKind::kBackgroundSerialized)            \
+  V(RegExpBoilerplateDescription, RefSerializationKind::kNeverSerialized) \
+  V(SharedFunctionInfo, RefSerializationKind::kNeverSerialized)           \
+  V(SourceTextModule, RefSerializationKind::kSerialized)                  \
+  V(TemplateObjectDescription, RefSerializationKind::kNeverSerialized)    \
+  /* Subtypes of Object */                                                \
+  V(HeapObject, RefSerializationKind::kSerialized)
 
 class CompilationDependencies;
 struct FeedbackSource;
@@ -150,11 +137,8 @@ class JSHeapBroker;
 class ObjectData;
 class PerIsolateCompilerCache;
 class PropertyAccessInfo;
-#define FORWARD_DECL(Name) class Name##Ref;
-HEAP_BROKER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
-HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
-HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
-HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
+#define FORWARD_DECL(Name, ...) class Name##Ref;
+HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
 class V8_EXPORT_PRIVATE ObjectRef {
@@ -180,18 +164,12 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool IsSmi() const;
   int AsSmi() const;
 
-#define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
-  HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
-  HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
-  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
-  HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
+#define HEAP_IS_METHOD_DECL(Name, ...) bool Is##Name() const;
+  HEAP_BROKER_OBJECT_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
 
-#define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
-  HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
-  HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
-  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
-  HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
+#define HEAP_AS_METHOD_DECL(Name, ...) Name##Ref As##Name() const;
+  HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
   bool IsNull() const;
