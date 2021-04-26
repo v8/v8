@@ -3109,7 +3109,7 @@ FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
 }
 
 int MapRef::GetInObjectPropertyOffset(int i) const {
-  if (data_->should_access_heap()) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     return object()->GetInObjectPropertyOffset(i);
   }
   return (GetInObjectPropertiesStartInWords() + i) * kTaggedSize;
@@ -3699,7 +3699,7 @@ bool MapRef::IsInobjectSlackTrackingInProgress() const {
 }
 
 int MapRef::constructor_function_index() const {
-  IF_ACCESS_FROM_HEAP_C(GetConstructorFunctionIndex);
+  IF_ACCESS_FROM_HEAP_WITH_FLAG_C(GetConstructorFunctionIndex);
   CHECK(IsPrimitiveMap());
   return data()->AsMap()->constructor_function_index();
 }
@@ -3721,7 +3721,7 @@ bool MapRef::CanTransition() const {
 }
 
 int MapRef::GetInObjectPropertiesStartInWords() const {
-  IF_ACCESS_FROM_HEAP_C(GetInObjectPropertiesStartInWords);
+  IF_ACCESS_FROM_HEAP_WITH_FLAG_C(GetInObjectPropertiesStartInWords);
   return data()->AsMap()->in_object_properties_start_in_words();
 }
 
