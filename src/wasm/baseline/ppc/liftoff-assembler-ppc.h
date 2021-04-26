@@ -620,13 +620,28 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "emit_i32_eqz");
+  Label done;
+  cmpwi(src, Operand(0));
+  mov(dst, Operand(1));
+  beq(&done);
+  mov(dst, Operand::Zero());
+  bind(&done);
 }
 
 void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
                                          Register dst, Register lhs,
                                          Register rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i32_set_cond");
+  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
+  if (use_signed) {
+    cmpw(lhs, rhs);
+  } else {
+    cmplw(lhs, rhs);
+  }
+  Label done;
+  mov(dst, Operand(1));
+  b(liftoff::ToCondition(liftoff_cond), &done);
+  mov(dst, Operand::Zero());
+  bind(&done);
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
