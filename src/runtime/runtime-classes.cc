@@ -188,7 +188,6 @@ Object GetMethodWithSharedName(
 template <typename Dictionary>
 Handle<Dictionary> ShallowCopyDictionaryTemplate(
     Isolate* isolate, Handle<Dictionary> dictionary_template) {
-  Handle<Map> dictionary_map(dictionary_template->map(), isolate);
   Handle<Dictionary> dictionary =
       Dictionary::ShallowCopy(isolate, dictionary_template);
   // Clone all AccessorPairs in the dictionary.
