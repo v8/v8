@@ -608,7 +608,7 @@
     'swarming_dimensions' : {
       'cores': '8',
       'cpu': 'armv7l-32-ODROID-XU4',
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu',
     },
     'swarming_task_attrs': {
       # Use same prio as CI due to limited resources.
@@ -1577,7 +1577,7 @@
     'swarming_dimensions': {
       'cores': '8',
       'cpu': 'armv7l-32-ODROID-XU4',
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu',
     },
     'swarming_task_attrs': {
       'expiration': 21600,
@@ -1606,7 +1606,7 @@
     'swarming_dimensions': {
       'cores': '8',
       'cpu': 'armv7l-32-ODROID-XU4',
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu',
     },
     'swarming_task_attrs': {
       'expiration': 21600,
@@ -1634,7 +1634,7 @@
     'swarming_dimensions': {
       'cores': '8',
       'cpu': 'armv7l-32-ODROID-XU4',
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu',
     },
     'swarming_task_attrs': {
       'expiration': 21600,
