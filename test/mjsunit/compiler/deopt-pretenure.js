@@ -4,6 +4,7 @@
 
 // Flags: --allow-natives-syntax --opt --no-always-opt
 // Flags: --allocation-site-pretenuring --stress-gc-during-compilation
+// Flags: --stress-scavenge=0
 // Flags: --max-optimized-bytecode-size=132000
 
 function CheckOptimizationStatus(func, expectedOptimizationStatus) {
