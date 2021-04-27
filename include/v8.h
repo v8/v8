@@ -1674,10 +1674,12 @@ class V8_EXPORT Module : public Data {
   /**
    * Evaluates the module and its dependencies.
    *
-   * If status is kInstantiated, run the module's code. On success, set status
-   * to kEvaluated and return the completion value; on failure, set status to
-   * kErrored and propagate the thrown exception (which is then also available
-   * via |GetException|).
+   * If status is kInstantiated, run the module's code and return a Promise
+   * object. On success, set status to kEvaluated and resolve the Promise with
+   * the completion value; on failure, set status to kErrored and reject the
+   * Promise with the error.
+   *
+   * If IsGraphAsync() is false, the returned Promise is settled.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 
