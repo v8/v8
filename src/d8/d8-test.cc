@@ -37,13 +37,13 @@ namespace {
 
 class FastCApiObject {
  public:
-  static double AddAllFastCallback(v8::Value* receiver, bool should_fallback,
+  static double AddAllFastCallback(Local<Value> receiver, bool should_fallback,
                                    int32_t arg_i32, uint32_t arg_u32,
                                    int64_t arg_i64, uint64_t arg_u64,
                                    float arg_f32, double arg_f64,
                                    FastApiCallbackOptions& options) {
     CHECK(receiver->IsObject());
-    FastCApiObject* self = UnwrapObject(Object::Cast(receiver));
+    FastCApiObject* self = UnwrapObject(receiver.As<Object>());
     CHECK_SELF_OR_FALLBACK(0);
     self->fast_call_count_++;
 
@@ -59,7 +59,7 @@ class FastCApiObject {
   static void AddAllSlowCallback(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
-    FastCApiObject* self = UnwrapObject(*args.This());
+    FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
     self->slow_call_count_++;
 
@@ -92,11 +92,12 @@ class FastCApiObject {
     args.GetReturnValue().Set(Number::New(isolate, sum));
   }
 
-  static int Add32BitIntFastCallback(v8::Value* receiver, bool should_fallback,
-                                     int32_t arg_i32, uint32_t arg_u32,
+  static int Add32BitIntFastCallback(v8::Local<v8::Value> receiver,
+                                     bool should_fallback, int32_t arg_i32,
+                                     uint32_t arg_u32,
                                      FastApiCallbackOptions& options) {
     CHECK(receiver->IsObject());
-    FastCApiObject* self = UnwrapObject(Object::Cast(receiver));
+    FastCApiObject* self = UnwrapObject(receiver.As<Object>());
     CHECK_SELF_OR_FALLBACK(0);
     self->fast_call_count_++;
 
@@ -110,7 +111,7 @@ class FastCApiObject {
   static void Add32BitIntSlowCallback(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
-    FastCApiObject* self = UnwrapObject(*args.This());
+    FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
     self->slow_call_count_++;
 
@@ -127,11 +128,12 @@ class FastCApiObject {
     args.GetReturnValue().Set(Number::New(isolate, sum));
   }
 
-  static bool IsFastCApiObjectFastCallback(v8::Value* receiver,
-                                           bool should_fallback, v8::Value* arg,
+  static bool IsFastCApiObjectFastCallback(v8::Local<v8::Value> receiver,
+                                           bool should_fallback,
+                                           v8::Local<v8::Value> arg,
                                            FastApiCallbackOptions& options) {
     CHECK(receiver->IsObject());
-    FastCApiObject* self = UnwrapObject(Object::Cast(receiver));
+    FastCApiObject* self = UnwrapObject(receiver.As<Object>());
     CHECK_SELF_OR_FALLBACK(false);
     self->fast_call_count_++;
 
@@ -143,12 +145,12 @@ class FastCApiObject {
     if (!arg->IsObject()) {
       return false;
     }
-    Object* object = Object::Cast(arg);
+    Local<Object> object = arg.As<Object>();
     if (!IsValidApiObject(object)) return false;
 
     internal::Isolate* i_isolate =
         internal::IsolateFromNeverReadOnlySpaceObject(
-            *reinterpret_cast<internal::Address*>(object));
+            *reinterpret_cast<internal::Address*>(*object));
     CHECK_NOT_NULL(i_isolate);
     Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
     HandleScope handle_scope(isolate);
@@ -160,7 +162,7 @@ class FastCApiObject {
       const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
-    FastCApiObject* self = UnwrapObject(*args.This());
+    FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
     self->slow_call_count_++;
 
@@ -173,7 +175,7 @@ class FastCApiObject {
       return;
     }
     if (args[1]->IsObject()) {
-      Object* object = Object::Cast(*args[1]);
+      Local<Object> object = args[1].As<Object>();
       if (!IsValidApiObject(object)) {
         result = false;
       } else {
@@ -187,25 +189,25 @@ class FastCApiObject {
   }
 
   static void FastCallCount(const FunctionCallbackInfo<Value>& args) {
-    FastCApiObject* self = UnwrapObject(*args.This());
+    FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
     args.GetReturnValue().Set(
         Number::New(args.GetIsolate(), self->fast_call_count()));
   }
   static void SlowCallCount(const FunctionCallbackInfo<Value>& args) {
-    FastCApiObject* self = UnwrapObject(*args.This());
+    FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
     args.GetReturnValue().Set(
         Number::New(args.GetIsolate(), self->slow_call_count()));
   }
   static void ResetCounts(const FunctionCallbackInfo<Value>& args) {
-    FastCApiObject* self = UnwrapObject(*args.This());
+    FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
     self->reset_counts();
     args.GetReturnValue().Set(Undefined(args.GetIsolate()));
   }
   static void SupportsFPParams(const FunctionCallbackInfo<Value>& args) {
-    FastCApiObject* self = UnwrapObject(*args.This());
+    FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
     args.GetReturnValue().Set(self->supports_fp_params_);
   }
@@ -220,13 +222,13 @@ class FastCApiObject {
   static const int kV8WrapperObjectIndex = 1;
 
  private:
-  static bool IsValidApiObject(Object* object) {
-    i::Address addr = *reinterpret_cast<i::Address*>(object);
+  static bool IsValidApiObject(Local<Object> object) {
+    i::Address addr = *reinterpret_cast<i::Address*>(*object);
     auto instance_type = i::Internals::GetInstanceType(addr);
     return (instance_type == i::Internals::kJSApiObjectType ||
             instance_type == i::Internals::kJSSpecialApiObjectType);
   }
-  static FastCApiObject* UnwrapObject(Object* object) {
+  static FastCApiObject* UnwrapObject(Local<Object> object) {
     if (!IsValidApiObject(object)) {
       return nullptr;
     }

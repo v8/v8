@@ -6438,10 +6438,11 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
   return false;
 }
 
-bool FunctionTemplate::IsLeafTemplateForApiObject(v8::Value* value) const {
+bool FunctionTemplate::IsLeafTemplateForApiObject(
+    v8::Local<v8::Value> value) const {
   i::DisallowGarbageCollection no_gc;
 
-  i::Object object = *Utils::OpenHandle(value);
+  i::Object object = *Utils::OpenHandle(*value);
 
   auto self = Utils::OpenHandle(this);
   return self->IsLeafTemplateForApiObject(object);

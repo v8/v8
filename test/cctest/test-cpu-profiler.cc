@@ -4070,11 +4070,11 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
 namespace {
 
 struct FastApiReceiver {
-  static void FastCallback(v8::Value* receiver, int argument,
+  static void FastCallback(v8::Local<v8::Value> receiver, int argument,
                            v8::FastApiCallbackOptions& options) {
     // TODO(mslekova): The fallback is not used by the test. Replace this
     // with a CHECK.
-    v8::Object* receiver_obj = v8::Object::Cast(receiver);
+    v8::Object* receiver_obj = v8::Object::Cast(*receiver);
     if (!IsValidUnwrapObject(receiver_obj)) {
       options.fallback = 1;
       return;

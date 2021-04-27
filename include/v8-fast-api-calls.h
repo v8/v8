@@ -425,7 +425,7 @@ struct TypeInfoHelper {
   V(float, kFloat32)       \
   V(double, kFloat64)      \
   V(ApiObject, kApiObject) \
-  V(v8::Value*, kV8Value)
+  V(v8::Local<v8::Value>, kV8Value)
 
 // ApiObject was a temporary solution to wrap the pointer to the v8::Value.
 // Please use v8::Value* in new code, as ApiObject will be deprecated soon.
