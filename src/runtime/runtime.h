@@ -486,6 +486,7 @@ namespace internal {
   F(HasElementsInALargeObjectSpace, 1, 1)     \
   F(HasFastElements, 1, 1)                    \
   F(HasFastProperties, 1, 1)                  \
+  F(HasOwnConstDataProperty, 2, 1)            \
   F(HasFixedBigInt64Elements, 1, 1)           \
   F(HasFixedBigUint64Elements, 1, 1)          \
   F(HasFixedFloat32Elements, 1, 1)            \
