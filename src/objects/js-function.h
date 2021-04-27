@@ -55,7 +55,7 @@ class JSBoundFunction
 class JSFunction : public JSFunctionOrBoundFunction {
  public:
   // [prototype_or_initial_map]:
-  DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, HeapObject)
 
   // [shared]: The information about the function that
   // can be shared by instances.

@@ -1638,8 +1638,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         JSFunction::kSizeWithPrototype, 0, prototype,
                         Builtins::kFunctionConstructor);
     // Function instances are sloppy by default.
-    function_fun->set_prototype_or_initial_map(
-        *isolate_->sloppy_function_map());
+    function_fun->set_prototype_or_initial_map(*isolate_->sloppy_function_map(),
+                                               kReleaseStore);
     function_fun->shared().DontAdaptArguments();
     function_fun->shared().set_length(1);
     InstallWithIntrinsicDefaultProto(isolate_, function_fun,
@@ -4168,7 +4168,7 @@ void Genesis::InitializeIteratorFunctions() {
         JSFunction::kSizeWithPrototype, 0, generator_function_prototype,
         Builtins::kGeneratorFunctionConstructor);
     generator_function_function->set_prototype_or_initial_map(
-        native_context->generator_function_map());
+        native_context->generator_function_map(), kReleaseStore);
     generator_function_function->shared().DontAdaptArguments();
     generator_function_function->shared().set_length(1);
     InstallWithIntrinsicDefaultProto(
@@ -4197,7 +4197,7 @@ void Genesis::InitializeIteratorFunctions() {
         JSFunction::kSizeWithPrototype, 0, async_generator_function_prototype,
         Builtins::kAsyncGeneratorFunctionConstructor);
     async_generator_function_function->set_prototype_or_initial_map(
-        native_context->async_generator_function_map());
+        native_context->async_generator_function_map(), kReleaseStore);
     async_generator_function_function->shared().DontAdaptArguments();
     async_generator_function_function->shared().set_length(1);
     InstallWithIntrinsicDefaultProto(
@@ -4298,7 +4298,7 @@ void Genesis::InitializeIteratorFunctions() {
         JSFunction::kSizeWithPrototype, 0, async_function_prototype,
         Builtins::kAsyncFunctionConstructor);
     async_function_constructor->set_prototype_or_initial_map(
-        native_context->async_function_map());
+        native_context->async_function_map(), kReleaseStore);
     async_function_constructor->shared().DontAdaptArguments();
     async_function_constructor->shared().set_length(1);
     native_context->set_async_function_constructor(*async_function_constructor);

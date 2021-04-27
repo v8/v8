@@ -3614,7 +3614,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
   function.set_code(*code, kReleaseStore, mode);
   if (function.has_prototype_slot()) {
     function.set_prototype_or_initial_map(
-        ReadOnlyRoots(isolate).the_hole_value(), SKIP_WRITE_BARRIER);
+        ReadOnlyRoots(isolate).the_hole_value(), kReleaseStore,
+        SKIP_WRITE_BARRIER);
   }
 
   // Potentially body initialization.

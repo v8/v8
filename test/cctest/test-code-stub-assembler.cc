@@ -3070,7 +3070,8 @@ TEST(NewPromiseCapability) {
 
     CHECK(result->promise().IsJSObject());
     Handle<JSObject> promise(JSObject::cast(result->promise()), isolate);
-    CHECK_EQ(constructor_fn->prototype_or_initial_map(), promise->map());
+    CHECK_EQ(constructor_fn->prototype_or_initial_map(kAcquireLoad),
+             promise->map());
     CHECK(result->resolve().IsJSFunction());
     CHECK(result->reject().IsJSFunction());
 

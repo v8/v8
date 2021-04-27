@@ -400,7 +400,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
       // Put the value in the initial map field until an initial map is needed.
       // At that point, a new initial map is created and the prototype is put
       // into the initial map where it belongs.
-      function->set_prototype_or_initial_map(*value);
+      function->set_prototype_or_initial_map(*value, kReleaseStore);
     } else {
       Handle<Map> new_map =
           Map::Copy(isolate, initial_map, "SetInstancePrototype");
@@ -425,7 +425,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
     // prototype is put into the initial map where it belongs.
-    function->set_prototype_or_initial_map(*value);
+    function->set_prototype_or_initial_map(*value, kReleaseStore);
     if (value->IsJSObject()) {
       // Optimize as prototype to detach it from its transition tree.
       JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
@@ -488,7 +488,7 @@ void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
     Map::SetPrototype(isolate, map, prototype);
   }
   map->SetConstructor(*constructor);
-  function->set_prototype_or_initial_map(*map);
+  function->set_prototype_or_initial_map(*map, kReleaseStore);
   if (FLAG_log_maps) {
     LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
                           SharedFunctionInfo::DebugName(

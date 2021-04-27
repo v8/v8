@@ -889,7 +889,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
   } else if (obj.IsJSFunction()) {
     JSFunction js_fun = JSFunction::cast(js_obj);
     if (js_fun.has_prototype_slot()) {
-      Object proto_or_map = js_fun.prototype_or_initial_map();
+      Object proto_or_map = js_fun.prototype_or_initial_map(kAcquireLoad);
       if (!proto_or_map.IsTheHole(isolate)) {
         if (!proto_or_map.IsMap()) {
           SetPropertyReference(entry, roots.prototype_string(), proto_or_map,
