@@ -444,7 +444,7 @@ class ElementsKindDependency final : public CompilationDependency {
   bool IsValid() const override {
     Handle<AllocationSite> site = site_.object();
     ElementsKind kind = site->PointsToLiteral()
-                            ? site->boilerplate().GetElementsKind()
+                            ? site->boilerplate(kAcquireLoad).GetElementsKind()
                             : site->GetElementsKind();
     return kind_ == kind;
   }

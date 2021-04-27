@@ -100,7 +100,7 @@ enum class RefSerializationKind {
   /* Subtypes of FixedArrayBase */                                        \
   V(BytecodeArray, RefSerializationKind::kNeverSerialized)                \
   V(FixedArray, RefSerializationKind::kSerialized)                        \
-  V(FixedDoubleArray, RefSerializationKind::kSerialized)                  \
+  V(FixedDoubleArray, RefSerializationKind::kNeverSerialized)             \
   /* Subtypes of Name */                                                  \
   V(String, RefSerializationKind::kNeverSerialized)                       \
   V(Symbol, RefSerializationKind::kNeverSerialized)                       \
@@ -786,7 +786,10 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
 
   Handle<FixedDoubleArray> object() const;
 
-  Float64 get(int i) const;
+  // Due to 64-bit unaligned reads, only usable for
+  // immutable-after-initialization FixedDoubleArrays protected by
+  // acquire-release semantics (such as boilerplate elements).
+  Float64 GetFromImmutableFixedDoubleArray(int i) const;
 };
 
 class BytecodeArrayRef : public FixedArrayBaseRef {

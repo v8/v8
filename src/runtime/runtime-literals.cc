@@ -291,7 +291,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
   }
   void ExitScope(Handle<AllocationSite> scope_site, Handle<JSObject> object) {
     if (object.is_null()) return;
-    scope_site->set_boilerplate(*object);
+    scope_site->set_boilerplate(*object, kReleaseStore);
     if (FLAG_trace_creation_allocation_sites) {
       bool top_level =
           !scope_site.is_null() && top().is_identical_to(scope_site);
