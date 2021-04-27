@@ -123,8 +123,8 @@ class BaselineCompiler {
   void SelectBooleanConstant(
       Register output, std::function<void(Label*, Label::Distance)> jump_func);
 
-  // Returns ToBoolean result into kInterpreterAccumulatorRegister.
-  void JumpIfToBoolean(bool do_jump_if_true, Register reg, Label* label,
+  // Jumps based on calling ToBoolean on kInterpreterAccumulatorRegister.
+  void JumpIfToBoolean(bool do_jump_if_true, Label* label,
                        Label::Distance distance = Label::kFar);
 
   // Call helpers.

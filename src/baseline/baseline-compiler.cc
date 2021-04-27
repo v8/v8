@@ -600,27 +600,17 @@ void BaselineCompiler::CallRuntime(Runtime::FunctionId function, Args... args) {
 }
 
 // Returns into kInterpreterAccumulatorRegister
-void BaselineCompiler::JumpIfToBoolean(bool do_jump_if_true, Register reg,
-                                       Label* label, Label::Distance distance) {
-  Label end;
-  Label::Distance end_distance = Label::kNear;
-
-  Label* true_label = do_jump_if_true ? label : &end;
-  Label::Distance true_distance = do_jump_if_true ? distance : end_distance;
-  Label* false_label = do_jump_if_true ? &end : label;
-  Label::Distance false_distance = do_jump_if_true ? end_distance : distance;
-
-  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
-  Register to_boolean = scratch_scope.AcquireScratch();
-  {
-    SaveAccumulatorScope accumulator_scope(&basm_);
-    CallBuiltin<Builtins::kToBoolean>(reg);
-    __ Move(to_boolean, kInterpreterAccumulatorRegister);
-  }
-  __ JumpIfRoot(to_boolean, RootIndex::kTrueValue, true_label, true_distance);
-  if (false_label != &end) __ Jump(false_label, false_distance);
-
-  __ Bind(&end);
+void BaselineCompiler::JumpIfToBoolean(bool do_jump_if_true, Label* label,
+                                       Label::Distance distance) {
+  CallBuiltin<Builtins::kToBooleanForBaselineJump>(
+      kInterpreterAccumulatorRegister);
+  // ToBooleanForBaselineJump returns the ToBoolean value into return reg 1, and
+  // the original value into kInterpreterAccumulatorRegister, so we don't have
+  // to worry about it getting clobbered.
+  STATIC_ASSERT(kReturnRegister0 == kInterpreterAccumulatorRegister);
+  __ Cmp(kReturnRegister1, Smi::FromInt(0));
+  __ JumpIf(do_jump_if_true ? Condition::kNotEqual : Condition::kEqual, label,
+            distance);
 }
 
 void BaselineCompiler::VisitLdaZero() {
@@ -1090,9 +1080,7 @@ void BaselineCompiler::VisitBitwiseNot() {
 void BaselineCompiler::VisitToBooleanLogicalNot() {
   SelectBooleanConstant(kInterpreterAccumulatorRegister,
                         [&](Label* if_true, Label::Distance distance) {
-                          JumpIfToBoolean(false,
-                                          kInterpreterAccumulatorRegister,
-                                          if_true, distance);
+                          JumpIfToBoolean(false, if_true, distance);
                         });
 }
 
@@ -1997,16 +1985,14 @@ void BaselineCompiler::VisitJumpIfToBooleanFalseConstant() {
 
 void BaselineCompiler::VisitJumpIfToBooleanTrue() {
   Label dont_jump;
-  JumpIfToBoolean(false, kInterpreterAccumulatorRegister, &dont_jump,
-                  Label::kNear);
+  JumpIfToBoolean(false, &dont_jump, Label::kNear);
   UpdateInterruptBudgetAndDoInterpreterJump();
   __ Bind(&dont_jump);
 }
 
 void BaselineCompiler::VisitJumpIfToBooleanFalse() {
   Label dont_jump;
-  JumpIfToBoolean(true, kInterpreterAccumulatorRegister, &dont_jump,
-                  Label::kNear);
+  JumpIfToBoolean(true, &dont_jump, Label::kNear);
   UpdateInterruptBudgetAndDoInterpreterJump();
   __ Bind(&dont_jump);
 }
