@@ -218,7 +218,7 @@ bool CanOverflowSigned32(const Operator* op, Type left, Type right,
 }
 
 bool IsSomePositiveOrderedNumber(Type type) {
-  return type.Is(Type::OrderedNumber()) && !type.IsNone() && type.Min() > 0;
+  return type.Is(Type::OrderedNumber()) && (type.IsNone() || type.Min() > 0);
 }
 
 }  // namespace
