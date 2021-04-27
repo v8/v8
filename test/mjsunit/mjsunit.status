@@ -609,6 +609,9 @@
 
   # https://crbug.com/v8/9337 - OOMs on TSAN
   'compiler/regress-9017': [SKIP],
+
+  # BUG(v8:11702): Times out on TSAN.
+  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
