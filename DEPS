@@ -85,11 +85,11 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0ee8b27cd9c63d3112a9175b52a851d082800f29',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '84e217e9fb39c388af69bb69927e9c4958b64e98',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '61bf6e8d69c4cb084b1541a996fc3f4990cd2535',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '90aee2acaff9c313f5c19707a1c3ec142c25f0bf',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'd25bdc013cb0d0d9b1b7c53beb1ab2a30323341c',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'cd9f9a9495b1978ded709c248e467e7f5a74ea0a',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '084aee04777db574038af9e9d33ca5caed577462',
   'buildtools':
@@ -181,7 +181,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '8bc6b08ed1411bdfc2781583a8b2bf435d6bf664',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1727be6da9e31aa4e060d4f849743100dfecede0',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -195,7 +195,7 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'f16d43cd38e9f2e41357dba8445f9d3a32d4e83d',
   'third_party/google_benchmark/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '058fb588b6dc7936927e6a4192a840b8195b59a3',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '86da5ec294d09842f93fadb391d91f59709b7269',
   },
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '11b6b3e5971d760bd2d310f77643f55a818a6d25',
@@ -235,7 +235,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'E8miK3g03NZQFrVhyywlfhYSWXsq2SfF7vw2pdW-doYC'
+              'version': 'GCNw2-mtXN7PnLi5hLQH5ab_ViULLYtqr5C1KX36CYQC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
