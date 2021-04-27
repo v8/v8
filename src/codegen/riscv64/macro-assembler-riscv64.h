@@ -167,6 +167,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Compare double, if any operand is NaN, result is false except for NE
   void CompareF64(Register rd, FPUCondition cc, FPURegister cmp1,
                   FPURegister cmp2);
+  void CompareIsNotNanF32(Register rd, FPURegister cmp1, FPURegister cmp2);
+  void CompareIsNotNanF64(Register rd, FPURegister cmp1, FPURegister cmp2);
   void CompareIsNanF32(Register rd, FPURegister cmp1, FPURegister cmp2);
   void CompareIsNanF64(Register rd, FPURegister cmp1, FPURegister cmp2);
 

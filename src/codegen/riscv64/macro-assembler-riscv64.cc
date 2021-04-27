@@ -2058,8 +2058,8 @@ void TurboAssembler::CompareF64(Register rd, FPUCondition cc, FPURegister cmp1,
   }
 }
 
-void TurboAssembler::CompareIsNanF32(Register rd, FPURegister cmp1,
-                                     FPURegister cmp2) {
+void TurboAssembler::CompareIsNotNanF32(Register rd, FPURegister cmp1,
+                                        FPURegister cmp2) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = temps.Acquire();
@@ -2067,11 +2067,10 @@ void TurboAssembler::CompareIsNanF32(Register rd, FPURegister cmp1,
   feq_s(rd, cmp1, cmp1);       // rd <- !isNan(cmp1)
   feq_s(scratch, cmp2, cmp2);  // scratch <- !isNaN(cmp2)
   And(rd, rd, scratch);        // rd <- !isNan(cmp1) && !isNan(cmp2)
-  Xor(rd, rd, 1);              // rd <- isNan(cmp1) || isNan(cmp2)
 }
 
-void TurboAssembler::CompareIsNanF64(Register rd, FPURegister cmp1,
-                                     FPURegister cmp2) {
+void TurboAssembler::CompareIsNotNanF64(Register rd, FPURegister cmp1,
+                                        FPURegister cmp2) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = temps.Acquire();
@@ -2079,7 +2078,18 @@ void TurboAssembler::CompareIsNanF64(Register rd, FPURegister cmp1,
   feq_d(rd, cmp1, cmp1);       // rd <- !isNan(cmp1)
   feq_d(scratch, cmp2, cmp2);  // scratch <- !isNaN(cmp2)
   And(rd, rd, scratch);        // rd <- !isNan(cmp1) && !isNan(cmp2)
-  Xor(rd, rd, 1);              // rd <- isNan(cmp1) || isNan(cmp2)
+}
+
+void TurboAssembler::CompareIsNanF32(Register rd, FPURegister cmp1,
+                                     FPURegister cmp2) {
+  CompareIsNotNanF32(rd, cmp1, cmp2);  // rd <- !isNan(cmp1) && !isNan(cmp2)
+  Xor(rd, rd, 1);                      // rd <- isNan(cmp1) || isNan(cmp2)
+}
+
+void TurboAssembler::CompareIsNanF64(Register rd, FPURegister cmp1,
+                                     FPURegister cmp2) {
+  CompareIsNotNanF64(rd, cmp1, cmp2);  // rd <- !isNan(cmp1) && !isNan(cmp2)
+  Xor(rd, rd, 1);                      // rd <- isNan(cmp1) || isNan(cmp2)
 }
 
 void TurboAssembler::BranchTrueShortF(Register rs, Label* target) {
@@ -4319,11 +4329,11 @@ void TurboAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   if (std::is_same<float, F_TYPE>::value) {
-    CompareIsNanF32(scratch, src1, src2);
+    CompareIsNotNanF32(scratch, src1, src2);
   } else {
-    CompareIsNanF64(scratch, src1, src2);
+    CompareIsNotNanF64(scratch, src1, src2);
   }
-  BranchTrueF(scratch, &nan);
+  BranchFalseF(scratch, &nan);
 
   if (kind == MaxMinKind::kMax) {
     if (std::is_same<float, F_TYPE>::value) {
