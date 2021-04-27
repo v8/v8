@@ -4,14 +4,16 @@
 
 // LeakSanitizer support.
 
-#ifndef V8_BASE_LSAN_H_
-#define V8_BASE_LSAN_H_
+#ifndef V8_BASE_SANITIZER_LSAN_H_
+#define V8_BASE_SANITIZER_LSAN_H_
 
 #include <type_traits>
 
-// There is no compile time flag for LSan, to enable this whenever ASan is
+#include "src/base/macros.h"
+
+// There is no compile time flag for LSan, so enable this whenever ASan is
 // enabled. Note that LSan can be used as part of ASan with 'detect_leaks=1'.
-// On windows, LSan is not implemented yet, so disable it there.
+// On Windows, LSan is not implemented yet, so disable it there.
 #if defined(V8_USE_ADDRESS_SANITIZER) && !defined(V8_OS_WIN)
 
 #include <sanitizer/lsan_interface.h>
@@ -26,4 +28,4 @@
 
 #endif  // defined(V8_USE_ADDRESS_SANITIZER) && !defined(V8_OS_WIN)
 
-#endif  // V8_BASE_LSAN_H_
+#endif  // V8_BASE_SANITIZER_LSAN_H_
