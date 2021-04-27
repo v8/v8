@@ -4875,7 +4875,6 @@ v8_source_set("v8_cppgc_shared") {
     "src/heap/base/stack.h",
     "src/heap/base/worklist.cc",
     "src/heap/base/worklist.h",
-    "src/heap/cppgc/sanitizers.h",
   ]
 
   if (is_clang || !is_win) {
@@ -5022,6 +5021,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/marking-visitor.h",
     "src/heap/cppgc/marking-worklists.cc",
     "src/heap/cppgc/marking-worklists.h",
+    "src/heap/cppgc/memory.h",
     "src/heap/cppgc/metric-recorder.h",
     "src/heap/cppgc/name-trait.cc",
     "src/heap/cppgc/object-allocator.cc",

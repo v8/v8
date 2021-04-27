@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
+#include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-poisoner.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -275,7 +276,7 @@ class CompactionState final {
     // Return remaining available pages to the free page pool, decommitting
     // them from the pagefile.
     for (NormalPage* page : available_pages_) {
-      SET_MEMORY_INACCESSIBLE(page->PayloadStart(), page->PayloadSize());
+      SetMemoryInaccessible(page->PayloadStart(), page->PayloadSize());
       NormalPage::Destroy(page);
     }
   }
@@ -303,7 +304,7 @@ class CompactionState final {
           current_page_->PayloadSize() - used_bytes_in_current_page_;
       Address payload = current_page_->PayloadStart();
       Address free_start = payload + used_bytes_in_current_page_;
-      SET_MEMORY_INACCESSIBLE(free_start, freed_size);
+      SetMemoryInaccessible(free_start, freed_size);
       space_->free_list().Add({free_start, freed_size});
       current_page_->object_start_bitmap().SetBit(free_start);
     }

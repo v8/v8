@@ -18,10 +18,10 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/heap-visitor.h"
+#include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-poisoner.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/raw-heap.h"
-#include "src/heap/cppgc/sanitizers.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/task-handle.h"
 
@@ -133,7 +133,7 @@ class InlinedFinalizationBuilder final {
 
   void AddFinalizer(HeapObjectHeader* header, size_t size) {
     header->Finalize();
-    SET_MEMORY_INACCESSIBLE(header, size);
+    SetMemoryInaccessible(header, size);
   }
 
   void AddFreeListEntry(Address start, size_t size) {
@@ -164,7 +164,7 @@ class DeferredFinalizationBuilder final {
       // Unmarked memory may have been poisoned. In the non-concurrent case this
       // is taken care of by finalizing a header.
       ASAN_UNPOISON_MEMORY_REGION(header, size);
-      SET_MEMORY_INACCESSIBLE(header, size);
+      SetMemoryInaccessible(header, size);
     }
   }
 
@@ -205,7 +205,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
     const size_t size = header->GetSize();
     // Check if this is a free list entry.
     if (header->IsFree<kAtomicAccess>()) {
-      SET_MEMORY_INACCESSIBLE(header, std::min(kFreeListEntrySize, size));
+      SetMemoryInaccessible(header, std::min(kFreeListEntrySize, size));
       begin += size;
       continue;
     }
@@ -292,7 +292,7 @@ class SweepFinalizer final {
     for (HeapObjectHeader* object : page_state->unfinalized_objects) {
       const size_t size = object->GetSize();
       object->Finalize();
-      SET_MEMORY_INACCESSIBLE(object, size);
+      SetMemoryInaccessible(object, size);
     }
 
     // Unmap page if empty.

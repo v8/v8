@@ -8,9 +8,9 @@
 
 #include "include/cppgc/internal/logging.h"
 #include "src/base/bits.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {

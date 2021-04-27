@@ -9,7 +9,7 @@
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
-#include "src/heap/cppgc/sanitizers.h"
+#include "src/heap/cppgc/memory.h"
 
 namespace cppgc {
 namespace internal {
@@ -52,7 +52,7 @@ void FreeUnreferencedObject(void* object) {
     auto& normal_space = *static_cast<NormalPageSpace*>(base_page->space());
     auto& lab = normal_space.linear_allocation_buffer();
     ConstAddress payload_end = header.PayloadEnd();
-    SET_MEMORY_INACCESSIBLE(&header, header_size);
+    SetMemoryInaccessible(&header, header_size);
     if (payload_end == lab.start()) {  // Returning to LAB.
       lab.Set(reinterpret_cast<Address>(&header), lab.size() + header_size);
       normal_page->object_start_bitmap().ClearBit(lab.start());
@@ -79,7 +79,7 @@ bool Grow(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
     // LABs are considered used memory which means that no allocated size
     // adjustments are needed.
     Address delta_start = lab.Allocate(size_delta);
-    SET_MEMORY_ACCESSIBLE(delta_start, size_delta);
+    SetMemoryAccessible(delta_start, size_delta);
     header.SetSize(new_size);
     return true;
   }
@@ -100,14 +100,14 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
     // LABs are considered used memory which means that no allocated size
     // adjustments are needed.
     lab.Set(free_start, lab.size() + size_delta);
-    SET_MEMORY_INACCESSIBLE(lab.start(), size_delta);
+    SetMemoryInaccessible(lab.start(), size_delta);
     header.SetSize(new_size);
     return true;
   }
   // Heuristic: Only return memory to the free list if the block is larger than
   // the smallest size class.
   if (size_delta >= ObjectAllocator::kSmallestSpaceSize) {
-    SET_MEMORY_INACCESSIBLE(free_start, size_delta);
+    SetMemoryInaccessible(free_start, size_delta);
     base_page.heap()->stats_collector()->NotifyExplicitFree(size_delta);
     normal_space.free_list().Add({free_start, size_delta});
     NormalPage::From(&base_page)->object_start_bitmap().SetBit(free_start);

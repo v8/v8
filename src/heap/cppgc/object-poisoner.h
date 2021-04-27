@@ -5,10 +5,10 @@
 #ifndef V8_HEAP_CPPGC_OBJECT_POISONER_H_
 #define V8_HEAP_CPPGC_OBJECT_POISONER_H_
 
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {

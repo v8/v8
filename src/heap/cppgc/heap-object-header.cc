@@ -6,9 +6,9 @@
 
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/macros.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-page.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {
