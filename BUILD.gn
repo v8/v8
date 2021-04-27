@@ -41,7 +41,7 @@ declare_args() {
   v8_enable_future = false
 
   # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
-  v8_enable_system_instrumentation = true
+  v8_enable_system_instrumentation = is_win || is_mac
 
   # Sets the GUID for the ETW provider
   v8_etw_guid = ""
@@ -4781,8 +4781,6 @@ v8_component("v8_libplatform") {
     "src/libplatform/delayed-task-queue.h",
     "src/libplatform/task-queue.cc",
     "src/libplatform/task-queue.h",
-    "src/libplatform/tracing/recorder-default.cc",
-    "src/libplatform/tracing/recorder.h",
     "src/libplatform/tracing/trace-buffer.cc",
     "src/libplatform/tracing/trace-buffer.h",
     "src/libplatform/tracing/trace-config.cc",
@@ -4813,8 +4811,6 @@ v8_component("v8_libplatform") {
   if (v8_use_perfetto) {
     sources -= [
       "//base/trace_event/common/trace_event_common.h",
-      "src/libplatform/tracing/recorder-default.cc",
-      "src/libplatform/tracing/recorder.h",
       "src/libplatform/tracing/trace-buffer.cc",
       "src/libplatform/tracing/trace-buffer.h",
       "src/libplatform/tracing/trace-object.cc",
@@ -4829,12 +4825,15 @@ v8_component("v8_libplatform") {
       # TODO(skyostil): Switch TraceEventListener to protozero.
       "//third_party/perfetto/protos/perfetto/trace:lite",
     ]
-  } else if (is_win) {
-    sources -= [ "src/libplatform/tracing/recorder-default.cc" ]
-    sources += [ "src/libplatform/tracing/recorder-win.cc" ]
-  } else if (is_mac) {
-    sources -= [ "src/libplatform/tracing/recorder-default.cc" ]
-    sources += [ "src/libplatform/tracing/recorder-mac.cc" ]
+  }
+
+  if (v8_enable_system_instrumentation) {
+    sources += [ "src/libplatform/tracing/recorder.h" ]
+    if (is_mac) {
+      sources += [ "src/libplatform/tracing/recorder-mac.cc" ]
+    } else if (is_win) {
+      sources += [ "src/libplatform/tracing/recorder-win.cc" ]
+    }
   }
 }
 
