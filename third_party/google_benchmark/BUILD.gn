@@ -69,6 +69,6 @@ if (v8_enable_google_benchmark) {
   source_set("benchmark_main") {
     testonly = true
     sources = [ "src/src/benchmark_main.cc" ]
-    deps = [ ":google_benchmark" ]
+    public_deps = [ ":google_benchmark" ]
   }
 }
