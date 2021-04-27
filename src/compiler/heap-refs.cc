@@ -77,22 +77,6 @@ bool IsReadOnlyHeapObject(Object object) {
           ReadOnlyHeap::Contains(HeapObject::cast(object)));
 }
 
-template <class T>
-constexpr bool IsSerializedHeapObject() {
-  return false;
-}
-
-#define DEFINE_MARKER(Name, Kind)                                        \
-  template <>                                                            \
-  constexpr bool IsSerializedHeapObject<Name>() {                        \
-    return Kind == RefSerializationKind::kSerialized;                    \
-  }                                                                      \
-  /* The static assert is needed to avoid 'unused function' warnings. */ \
-  STATIC_ASSERT(IsSerializedHeapObject<Name>() ==                        \
-                (Kind == RefSerializationKind::kSerialized));
-HEAP_BROKER_OBJECT_LIST(DEFINE_MARKER)
-#undef DEFINE_MARKER
-
 }  // namespace
 
 class ObjectData : public ZoneObject {
@@ -164,6 +148,31 @@ class ObjectData : public ZoneObject {
   JSHeapBroker* const broker_;  // For DCHECKs.
 #endif                          // DEBUG
 };
+
+namespace {
+
+template <class T>
+constexpr RefSerializationKind RefSerializationKindOf() {
+  CONSTEXPR_DCHECK(false);  // The default impl should never be called.
+  return RefSerializationKind::kSerialized;
+}
+
+#define DEFINE_REF_SERIALIZATION_KIND(Name, Kind)                        \
+  template <>                                                            \
+  constexpr RefSerializationKind RefSerializationKindOf<Name>() {        \
+    return Kind;                                                         \
+  }                                                                      \
+  /* The static assert is needed to avoid 'unused function' warnings. */ \
+  STATIC_ASSERT(RefSerializationKindOf<Name>() == Kind);
+HEAP_BROKER_OBJECT_LIST(DEFINE_REF_SERIALIZATION_KIND)
+#undef DEFINE_REF_SERIALIZATION_KIND
+
+template <class T>
+constexpr bool IsSerializedRef() {
+  return RefSerializationKindOf<T>() == RefSerializationKind::kSerialized;
+}
+
+}  // namespace
 
 class HeapObjectData : public ObjectData {
  public:
@@ -565,7 +574,7 @@ class JSTypedArrayData : public JSObjectData {
 
   // TODO(v8:7790): Once JSObject is no longer serialized, also make
   // JSTypedArrayRef never-serialized.
-  STATIC_ASSERT(IsSerializedHeapObject<JSObject>());
+  STATIC_ASSERT(IsSerializedRef<JSObject>());
 
   void Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
@@ -1184,6 +1193,14 @@ class MapData : public HeapObjectData {
   void SerializeForElementLoad(JSHeapBroker* broker);
 
   void SerializeForElementStore(JSHeapBroker* broker);
+
+  bool has_extra_serialized_data() const {
+    return serialized_elements_kind_generalizations_ ||
+           serialized_own_descriptors_ || serialized_constructor_ ||
+           serialized_backpointer_ || serialized_prototype_ ||
+           serialized_root_map_ || serialized_for_element_load_ ||
+           serialized_for_element_store_;
+  }
 
  private:
   // The following fields should be const in principle, but construction
@@ -2519,7 +2536,10 @@ bool ObjectRef::equals(const ObjectRef& other) const {
     data_->used_status = ObjectData::Usage::kOnlyIdentityUsed;
   }
 #endif  // DEBUG
-  return data_ == other.data_;
+  // TODO(jgruber): Consider going back to reference-equality on data_ once
+  // ObjectData objects are guaranteed to be canonicalized (see also:
+  // ClearReconstructibleData).
+  return data_->object().is_identical_to(other.data_->object());
 }
 
 bool ObjectRef::ShouldHaveBeenSerialized() const {
@@ -2819,6 +2839,27 @@ struct CreateDataFunctor<RefSerializationKind::kNeverSerialized, DataT,
 };
 
 }  // namespace
+
+void JSHeapBroker::ClearReconstructibleData() {
+  RefsMap::Entry* p = refs_->Start();
+  while (p != nullptr) {
+    Address key = p->key;
+    ObjectData* value = p->value;
+    p = refs_->Next(p);
+    const ObjectDataKind kind = value->kind();
+    if (kind == ObjectDataKind::kNeverSerializedHeapObject ||
+        kind == ObjectDataKind::kBackgroundSerializedHeapObject ||
+        kind == ObjectDataKind::kUnserializedReadOnlyHeapObject) {
+      if (value->IsMap() &&
+          value->kind() == ObjectDataKind::kBackgroundSerializedHeapObject &&
+          value->AsMap()->has_extra_serialized_data()) {
+        continue;
+      }
+      // Can be reconstructed from the background thread.
+      CHECK_NOT_NULL(refs_->Remove(key));
+    }
+  }
+}
 
 ObjectData* JSHeapBroker::TryGetOrCreateData(
     Handle<Object> object, bool crash_on_error,
@@ -3894,7 +3935,7 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
     // guarantee consistency between `object`, `elements_kind` and `elements`
     // through other means (store/load order? locks? storing elements_kind in
     // elements.map?).
-    STATIC_ASSERT(IsSerializedHeapObject<JSObject>());
+    STATIC_ASSERT(IsSerializedRef<JSObject>());
 
     base::Optional<FixedArrayBaseRef> maybe_elements_ref = elements();
     if (!maybe_elements_ref.has_value()) {
@@ -3982,7 +4023,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
     // TODO(jgruber,v8:7790): Remove the elements equality DCHECK below once
     // JSObject is no longer serialized.
     static_assert(std::is_base_of<JSObject, JSArray>::value, "");
-    STATIC_ASSERT(IsSerializedHeapObject<JSObject>());
+    STATIC_ASSERT(IsSerializedRef<JSObject>());
 
     // The elements_ref is passed in by callers to make explicit that it is
     // also used outside of this function, and must match the `elements` used
@@ -4247,7 +4288,7 @@ void RegExpBoilerplateDescriptionRef::Serialize() {
     // Even if the regexp boilerplate object itself is no longer serialized,
     // the `data` still is and thus we need to make sure to visit it.
     // TODO(jgruber,v8:7790): Remove once it is no longer a serialized type.
-    STATIC_ASSERT(IsSerializedHeapObject<FixedArray>());
+    STATIC_ASSERT(IsSerializedRef<FixedArray>());
     FixedArrayRef data_ref{
         broker(), broker()->CanonicalPersistentHandle(object()->data())};
   } else {
@@ -4545,7 +4586,7 @@ void JSTypedArrayRef::Serialize() {
     // TODO(jgruber,v8:7790): Remove once JSObject is no longer serialized.
     static_assert(
         std::is_base_of<JSObject, decltype(object()->buffer())>::value, "");
-    STATIC_ASSERT(IsSerializedHeapObject<JSObject>());
+    STATIC_ASSERT(IsSerializedRef<JSObject>());
     JSObjectRef data_ref{
         broker(), broker()->CanonicalPersistentHandle(object()->buffer())};
   } else {

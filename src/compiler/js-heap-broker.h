@@ -261,6 +261,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     property_access_infos_.clear();
   }
 
+  // As above, clear cached ObjectData that can be reconstructed, i.e. is
+  // either never-serialized or background-serialized.
+  void ClearReconstructibleData();
+
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
   bool ShouldBeSerializedForCompilation(const SharedFunctionInfoRef& shared,
