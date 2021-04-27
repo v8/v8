@@ -558,6 +558,7 @@ class Map : public HeapObject {
   // and with the Wasm type info for WebAssembly object maps.
   DECL_ACCESSORS(constructor_or_back_pointer, Object)
   DECL_ACCESSORS(native_context, NativeContext)
+  DECL_ACCESSORS(native_context_or_null, Object)
   DECL_ACCESSORS(wasm_type_info, WasmTypeInfo)
   DECL_GETTER(GetConstructor, Object)
   DECL_GETTER(GetFunctionTemplateInfo, FunctionTemplateInfo)

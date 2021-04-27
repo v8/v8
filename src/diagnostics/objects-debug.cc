@@ -458,7 +458,11 @@ void Map::MapVerify(Isolate* isolate) {
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
   if (IsContextMap()) {
-    CHECK(native_context().IsNativeContext());
+    // The map for the NativeContext is allocated before the NativeContext
+    // itself, so it may happen that during a GC the native_context() is still
+    // null.
+    CHECK(native_context_or_null().IsNull() ||
+          native_context().IsNativeContext());
   } else {
     if (GetBackPointer().IsUndefined(isolate)) {
       // Root maps must not have descriptors in the descriptor array that do not
