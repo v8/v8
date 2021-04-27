@@ -122,6 +122,7 @@ def led_users(*, pool_realm, builder_realms, groups):
             roles = "role/swarming.taskTriggerer",
             groups = groups,
         )
+
 led_users(
     pool_realm = "pools/ci",
     builder_realms = ["ci", "ci.br.beta", "ci.br.stable"],

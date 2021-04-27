@@ -62,7 +62,6 @@ luci.gitiles_poller(
 
 exec("//lib/recipes.star")
 
-
 luci.builder(
     bucket = "ci",
     name = "V8 Win64 - dev image",

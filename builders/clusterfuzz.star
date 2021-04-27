@@ -4,7 +4,7 @@
 
 load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "in_console", "v8_builder")
 
-def clusterfuzz_builder(properties, close_tree=True, use_goma=GOMA.DEFAULT, **kwargs):
+def clusterfuzz_builder(properties, close_tree = True, use_goma = GOMA.DEFAULT, **kwargs):
     properties["builder_group"] = "client.v8.clusterfuzz"
     properties["default_targets"] = ["v8_clusterfuzz"]
     return v8_builder(
@@ -13,11 +13,12 @@ def clusterfuzz_builder(properties, close_tree=True, use_goma=GOMA.DEFAULT, **kw
         properties = properties,
         triggered_by = ["v8-trigger"],
         triggering_policy = scheduler.policy(
-            kind =  scheduler.GREEDY_BATCHING_KIND,
+            kind = scheduler.GREEDY_BATCHING_KIND,
             max_batch_size = 1,
         ),
         use_goma = use_goma,
-        **kwargs)
+        **kwargs
+    )
 
 in_category = in_console("clusterfuzz")
 

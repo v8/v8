@@ -5,7 +5,7 @@
 load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "defaults_triggered", "defaults_try", "v8_builder")
 
 #TODO(almuthanna): get rid of kwargs and specify default values
-def try_ng_pair(name, use_cas=False, experimental = False, **kwargs):
+def try_ng_pair(name, use_cas = False, experimental = False, **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
     cq_tg = kwargs.pop("cq_properties_trigger", None)
     cq_td = kwargs.pop("cq_properties_triggered", None)
@@ -335,9 +335,9 @@ try_ng_pair(
 optional_rel_cq_properties = {
     "location_regexp": [
         ".+/[+]/src/codegen/ia32/(macro-)?assembler-ia32.(h|cc)",
-        ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)"
+        ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)",
     ],
-    "cancel_stale": False
+    "cancel_stale": False,
 }
 
 try_ng_pair(
@@ -496,8 +496,8 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_win_rel",
-    cq_properties_trigger = {"cancel_stale": False, "includable_only": "true",},
-    cq_properties_triggered = {"cancel_stale": False, "includable_only": "true",},
+    cq_properties_trigger = {"cancel_stale": False, "includable_only": "true"},
+    cq_properties_triggered = {"cancel_stale": False, "includable_only": "true"},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_goma = GOMA.ATS,
 )

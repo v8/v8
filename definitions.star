@@ -3,14 +3,14 @@
 # found in the LICENSE file.
 
 versions = {
-    "beta" : "9.1",
-    "stable" : "9.0",
+    "beta": "9.1",
+    "stable": "9.0",
 }
 
 branch_names = [
-    "ci",               # master
-    "ci.br.stable",     # stable
-    "ci.br.beta",       # beta
+    "ci",  # master
+    "ci.br.stable",  # stable
+    "ci.br.beta",  # beta
 ]
 
 beta_re = versions["beta"].replace(".", "\\.")
