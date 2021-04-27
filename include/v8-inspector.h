@@ -170,7 +170,7 @@ class V8_EXPORT V8InspectorSession {
                             v8::Local<v8::Context>*,
                             std::unique_ptr<StringBuffer>* objectGroup) = 0;
   virtual void releaseObjectGroup(StringView) = 0;
-  virtual void triggerPreciseCoverageDeltaUpdate(StringView occassion) = 0;
+  virtual void triggerPreciseCoverageDeltaUpdate(StringView occasion) = 0;
 };
 
 class V8_EXPORT V8InspectorClient {
