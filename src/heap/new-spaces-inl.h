@@ -5,12 +5,12 @@
 #ifndef V8_HEAP_NEW_SPACES_INL_H_
 #define V8_HEAP_NEW_SPACES_INL_H_
 
+#include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/tagged-impl.h"
-#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {

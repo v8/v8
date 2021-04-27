@@ -4,11 +4,11 @@
 
 #include "src/heap/cppgc/visitor.h"
 
+#include "src/base/sanitizer/msan.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/page-memory.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 
@@ -37,7 +37,7 @@ void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
     // |payload| may be uninitialized by design or just contain padding bytes.
     // Copy into a local variable that is not poisoned for conservative marking.
     // Copy into a temporary variable to maintain the original MSAN state.
-    MSAN_UNPOISON(&maybe_ptr, sizeof(maybe_ptr));
+    MSAN_MEMORY_IS_INITIALIZED(&maybe_ptr, sizeof(maybe_ptr));
 #endif
     if (maybe_ptr) {
       conservative_visitor->TraceConservativelyIfNeeded(maybe_ptr);

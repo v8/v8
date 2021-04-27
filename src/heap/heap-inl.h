@@ -8,22 +8,17 @@
 #include <cmath>
 
 // Clients of this interface shouldn't depend on lots of heap internals.
-// Do not include anything from src/heap other than src/heap/heap.h and its
-// write barrier here!
+// Avoid including anything but `heap.h` from `src/heap` where possible.
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/platform.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/common/assert-scope.h"
-#include "src/heap/heap-write-barrier.h"
-#include "src/heap/heap.h"
-#include "src/heap/third-party/heap-api.h"
-#include "src/objects/feedback-vector.h"
-
-// TODO(gc): There is one more include to remove in order to no longer
-// leak heap internals to users of this interface!
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-object-registry.h"
+#include "src/heap/heap-write-barrier.h"
+#include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk.h"
@@ -31,11 +26,13 @@
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/spaces-inl.h"
+#include "src/heap/third-party/heap-api.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
@@ -45,7 +42,6 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/sanitizer/msan.h"
 #include "src/strings/string-hasher.h"
 #include "src/zone/zone-list-inl.h"
 

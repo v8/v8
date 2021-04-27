@@ -5,6 +5,7 @@
 #include "src/heap/large-spaces.h"
 
 #include "src/base/platform/mutex.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
@@ -18,7 +19,6 @@
 #include "src/heap/spaces-inl.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
-#include "src/sanitizer/msan.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {

@@ -7,14 +7,14 @@
 #include <cinttypes>
 
 #include "include/v8-profiler.h"
+#include "src/base/sanitizer/asan.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/simulator.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap-inl.h"  // For Heap::code_range.
 #include "src/logging/counters.h"
 #include "src/profiler/profiler-stats.h"
-#include "src/sanitizer/asan.h"
-#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
