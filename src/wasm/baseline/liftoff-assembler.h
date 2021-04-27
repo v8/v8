@@ -341,6 +341,11 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void clear_used(LiftoffRegister reg) {
+      if (reg.is_pair()) {
+        clear_used(reg.low());
+        clear_used(reg.high());
+        return;
+      }
       register_use_count[reg.liftoff_code()] = 0;
       used_registers.clear(reg);
     }
