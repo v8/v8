@@ -336,7 +336,10 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_UNUSED 1
 # define V8_HAS_ATTRIBUTE_VISIBILITY 1
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT (!V8_CC_INTEL)
-# define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
+
+// [[nodiscard]] does not work together with with
+// __attribute__((visibility(""))) on GCC 7.4 which is why there is no define
+// for V8_HAS_CPP_ATTRIBUTE_NODISCARD. See https://crbug.com/v8/11707.
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED 1
 # define V8_HAS_BUILTIN_CLZ 1
