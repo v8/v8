@@ -1302,11 +1302,12 @@ class ScheduleEarlyNodeVisitor {
   void Run(NodeVector* roots) {
     for (Node* const root : *roots) {
       queue_.push(root);
-      while (!queue_.empty()) {
-        scheduler_->tick_counter_->TickAndMaybeEnterSafepoint();
-        VisitNode(queue_.front());
-        queue_.pop();
-      }
+    }
+
+    while (!queue_.empty()) {
+      scheduler_->tick_counter_->TickAndMaybeEnterSafepoint();
+      VisitNode(queue_.front());
+      queue_.pop();
     }
   }
 
