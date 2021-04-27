@@ -939,6 +939,39 @@ class Binary {
     }
   }
 
+  emit_init_expr(expr) {
+    switch (expr.type) {
+      case kExprGlobalGet:
+        this.emit_u8(kExprGlobalGet);
+        this.emit_u32v(expr.value);
+        break;
+      case kExprI32Const:
+        this.emit_bytes(wasmI32Const(expr.value));
+        break;
+      case kExprI64Const:
+        this.emit_bytes(wasmI64Const(expr.value));
+        break;
+      case kExprF32Const:
+        this.emit_bytes(wasmF32Const(expr.value));
+        break;
+      case kExprF64Const:
+        this.emit_bytes(wasmF64Const(expr.value));
+        break;
+      case kSimdPrefix:
+        this.emit_bytes(wasmS128Const(expr.value));
+        break;
+      case kExprRefFunc:
+        this.emit_u8(kExprRefFunc);
+        this.emit_u32v(expr.value);
+        break;
+      case kExprRefNull:
+        this.emit_u8(kExprRefNull);
+        this.emit_u32v(expr.value);
+        break;
+    }
+    this.emit_u8(kExprEnd);  // end of init expression
+  }
+
   emit_header() {
     this.emit_bytes([
       kWasmH0, kWasmH1, kWasmH2, kWasmH3, kWasmV0, kWasmV1, kWasmV2, kWasmV3
@@ -1035,12 +1068,58 @@ class WasmFunctionBuilder {
   }
 }
 
+class WasmInitExpr {
+  static I32Const(value) {
+    return {type: kExprI32Const, value: value};
+  }
+  static I64Const(value) {
+    return {type: kExprI64Const, value: value};
+  }
+  static F32Const(value) {
+    return {type: kExprF32Const, value: value};
+  }
+  static F64Const(value) {
+    return {type: kExprF64Const, value: value};
+  }
+  static S128Const(value) {
+    return {type: kSimdPrefix, value: value};
+  }
+  static GlobalGet(index) {
+    return {type: kExprGlobalGet, value: index};
+  }
+  static RefFunc(index) {
+    return {type: kExprRefFunc, value: index};
+  }
+  static RefNull(type) {
+    return {type: kExprRefNull, value: type};
+  }
+
+  static defaultFor(type) {
+    switch (type) {
+      case kWasmI32:
+        return this.I32Const(0);
+      case kWasmI64:
+        return this.I64Const(0);
+      case kWasmF32:
+        return this.F32Const(0);
+      case kWasmF64:
+        return this.F64Const(0);
+      case kWasmS128:
+        return this.S128Const(new Array(16).fill(0));
+      default:
+        let heap_type = (typeof type) == 'number' ? type : type.index;
+        return this.RefNull(heap_type);
+    }
+  }
+}
+
 class WasmGlobalBuilder {
-  constructor(module, type, mutable) {
+  // {init} a pair {type, immediate}. Construct it with WasmInitExpr.
+  constructor(module, type, mutable, init) {
     this.module = module;
     this.type = type;
     this.mutable = mutable;
-    this.init = 0;
+    this.init = init;
   }
 
   exportAs(name) {
@@ -1179,8 +1258,9 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
-  addGlobal(type, mutable) {
-    let glob = new WasmGlobalBuilder(this, type, mutable);
+  addGlobal(type, mutable, init) {
+    if (init == undefined) init = WasmInitExpr.defaultFor(type);
+    let glob = new WasmGlobalBuilder(this, type, mutable, init);
     glob.index = this.globals.length + this.num_imported_globals;
     this.globals.push(glob);
     return glob;
@@ -1545,56 +1625,7 @@ class WasmModuleBuilder {
         for (let global of wasm.globals) {
           section.emit_type(global.type);
           section.emit_u8(global.mutable);
-          if ((typeof global.init_index) == 'undefined') {
-            // Emit a constant initializer.
-            switch (global.type) {
-              case kWasmI32:
-                section.emit_u8(kExprI32Const);
-                section.emit_u32v(global.init);
-                break;
-              case kWasmI64:
-                section.emit_u8(kExprI64Const);
-                section.emit_u64v(global.init);
-                break;
-              case kWasmF32:
-                section.emit_bytes(wasmF32Const(global.init));
-                break;
-              case kWasmF64:
-                section.emit_bytes(wasmF64Const(global.init));
-                break;
-              case kWasmS128:
-                section.emit_bytes(wasmS128Const(global.init));
-                break;
-              case kWasmExternRef:
-                section.emit_u8(kExprRefNull);
-                section.emit_u8(kWasmExternRef);
-                assertEquals(global.function_index, undefined);
-                break;
-              case kWasmAnyFunc:
-                if (global.function_index !== undefined) {
-                  section.emit_u8(kExprRefFunc);
-                  section.emit_u32v(global.function_index);
-                } else {
-                  section.emit_u8(kExprRefNull);
-                  section.emit_u8(kWasmAnyFunc);
-                }
-                break;
-              default:
-                if (global.function_index !== undefined) {
-                  section.emit_u8(kExprRefFunc);
-                  section.emit_u32v(global.function_index);
-                } else {
-                  section.emit_u8(kExprRefNull);
-                  section.emit_u32v(global.type.index);
-                }
-                break;
-            }
-          } else {
-            // Emit a global-index initializer.
-            section.emit_u8(kExprGlobalGet);
-            section.emit_u32v(global.init_index);
-          }
-          section.emit_u8(kExprEnd);  // end of init expression
+          section.emit_init_expr(global.init);
         }
       });
     }
@@ -1887,6 +1918,12 @@ function wasmSignedLeb(val, max_len = 5) {
 
 function wasmI32Const(val) {
   return [kExprI32Const, ...wasmSignedLeb(val, 5)];
+}
+
+// Note: Since {val} is a JS number, the generated constant only has 53 bits of
+// precision.
+function wasmI64Const(val) {
+  return [kExprI64Const, ...wasmSignedLeb(val, 10)];
 }
 
 function wasmF32Const(f) {
