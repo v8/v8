@@ -88,7 +88,7 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 TSAN - release builder",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 NumFuzz - TSAN"]},
+        properties = {"triggers": ["V8 NumFuzz - TSAN"], "clusterfuzz_archive": {"bucket": "v8-tsan", "name": "d8-tsan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 UBSan - release builder",
