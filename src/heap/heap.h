@@ -67,6 +67,7 @@ class ArrayBufferSweeper;
 class BasicMemoryChunk;
 class CodeLargeObjectSpace;
 class CollectionBarrier;
+class ConcurrentAllocator;
 class ConcurrentMarking;
 class CppHeap;
 class GCIdleTimeHandler;
@@ -841,6 +842,12 @@ class Heap {
   // Returns whether SetUp has been called.
   bool HasBeenSetUp() const;
 
+  // Initialializes shared spaces.
+  void InitSharedSpaces();
+
+  // Removes shared spaces again.
+  void DeinitSharedSpaces();
+
   // ===========================================================================
   // Getters for spaces. =======================================================
   // ===========================================================================
@@ -1217,9 +1224,17 @@ class Heap {
   // heaps is required.
   V8_EXPORT_PRIVATE bool Contains(HeapObject value) const;
 
+  // Checks whether an address/object is in the non-read-only heap (including
+  // auxiliary area and unused area). Use IsValidHeapObject if checking both
+  // heaps is required.
+  V8_EXPORT_PRIVATE bool SharedHeapContains(HeapObject value) const;
+
   // Checks whether an address/object in a space.
   // Currently used by tests, serialization and heap verification only.
   V8_EXPORT_PRIVATE bool InSpace(HeapObject value, AllocationSpace space) const;
+
+  // Returns true when this heap is shared.
+  V8_EXPORT_PRIVATE bool IsShared();
 
   // Slow methods that can be used for verification as they can also be used
   // with off-heap Addresses.
@@ -2149,6 +2164,12 @@ class Heap {
   CodeLargeObjectSpace* code_lo_space_ = nullptr;
   NewLargeObjectSpace* new_lo_space_ = nullptr;
   ReadOnlySpace* read_only_space_ = nullptr;
+
+  OldSpace* shared_old_space_ = nullptr;
+  MapSpace* shared_map_space_ = nullptr;
+
+  std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
+  std::unique_ptr<ConcurrentAllocator> shared_map_allocator_;
 
   // Map from the space id to the space.
   Space* space_[LAST_SPACE + 1];

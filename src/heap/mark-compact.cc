@@ -242,6 +242,7 @@ class FullMarkingVerifier : public MarkingVerifier {
 
  private:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
+    if (BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap()) return;
     CHECK(marking_state_->IsBlackOrGrey(heap_object));
   }
 
@@ -977,9 +978,13 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
 
  private:
   V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p) {
-    if (!(*p).IsHeapObject()) return;
-
-    collector_->MarkRootObject(root, HeapObject::cast(*p));
+    Object object = *p;
+    if (!object.IsHeapObject()) return;
+    HeapObject heap_object = HeapObject::cast(object);
+    BasicMemoryChunk* target_page =
+        BasicMemoryChunk::FromHeapObject(heap_object);
+    if (target_page->InSharedHeap()) return;
+    collector_->MarkRootObject(root, heap_object);
   }
 
   MarkCompactCollector* const collector_;

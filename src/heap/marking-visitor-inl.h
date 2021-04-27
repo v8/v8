@@ -22,6 +22,7 @@ namespace internal {
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
     HeapObject host, HeapObject object) {
+  DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
   concrete_visitor()->SynchronizePageAccess(object);
   if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
     local_marking_worklists_->Push(object);
@@ -38,6 +39,9 @@ template <typename ConcreteVisitor, typename MarkingState>
 template <typename THeapObjectSlot>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessStrongHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
+  concrete_visitor()->SynchronizePageAccess(heap_object);
+  BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(heap_object);
+  if (target_page->InSharedHeap()) return;
   MarkObject(host, heap_object);
   concrete_visitor()->RecordSlot(host, slot, heap_object);
 }

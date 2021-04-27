@@ -19,6 +19,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
@@ -3074,6 +3075,9 @@ void Isolate::Deinit() {
     optimizing_compile_dispatcher_ = nullptr;
   }
 
+  // All client isolates should already be detached.
+  DCHECK_NULL(client_isolate_head_);
+
   // Help sweeper threads complete sweeping to stop faster.
   heap_.mark_compact_collector()->DrainSweepingWorklists();
   heap_.mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
@@ -3119,6 +3123,10 @@ void Isolate::Deinit() {
   cancelable_task_manager()->CancelAndWait();
 
   main_thread_local_isolate_->heap()->FreeLinearAllocationArea();
+
+  if (shared_isolate_) {
+    DetachFromSharedIsolate();
+  }
 
   heap_.TearDown();
 
@@ -5032,6 +5040,55 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   // It is safe to return the address of std::map values.
   // Only iterators and references to the erased elements are invalidated.
   return reinterpret_cast<Address>(&map[name].second);
+}
+
+void Isolate::AttachToSharedIsolate(Isolate* shared) {
+  DCHECK(shared->is_shared());
+  DCHECK_NULL(shared_isolate_);
+  shared->AppendAsClientIsolate(this);
+  shared_isolate_ = shared;
+  heap()->InitSharedSpaces();
+}
+
+void Isolate::DetachFromSharedIsolate() {
+  DCHECK_NOT_NULL(shared_isolate_);
+  shared_isolate_->RemoveAsClientIsolate(this);
+  shared_isolate_ = nullptr;
+  heap()->DeinitSharedSpaces();
+}
+
+void Isolate::AppendAsClientIsolate(Isolate* client) {
+  base::MutexGuard guard(&client_isolate_mutex_);
+
+  DCHECK_NULL(client->prev_client_isolate_);
+  DCHECK_NULL(client->next_client_isolate_);
+  DCHECK_NE(client_isolate_head_, client);
+
+  if (client_isolate_head_) {
+    client_isolate_head_->prev_client_isolate_ = client;
+  }
+
+  client->prev_client_isolate_ = nullptr;
+  client->next_client_isolate_ = client_isolate_head_;
+
+  client_isolate_head_ = client;
+}
+
+void Isolate::RemoveAsClientIsolate(Isolate* client) {
+  base::MutexGuard guard(&client_isolate_mutex_);
+
+  if (client->next_client_isolate_) {
+    client->next_client_isolate_->prev_client_isolate_ =
+        client->prev_client_isolate_;
+  }
+
+  if (client->prev_client_isolate_) {
+    client->prev_client_isolate_->next_client_isolate_ =
+        client->next_client_isolate_;
+  } else {
+    DCHECK_EQ(client_isolate_head_, client);
+    client_isolate_head_ = client->next_client_isolate_;
+  }
 }
 
 }  // namespace internal

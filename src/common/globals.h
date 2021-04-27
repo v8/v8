@@ -799,11 +799,14 @@ constexpr int kSpaceTagSize = 4;
 STATIC_ASSERT(FIRST_SPACE == 0);
 
 enum class AllocationType : uint8_t {
-  kYoung,    // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
-  kOld,      // Regular object allocated in OLD_SPACE or LO_SPACE
-  kCode,     // Code object allocated in CODE_SPACE or CODE_LO_SPACE
-  kMap,      // Map object allocated in MAP_SPACE
-  kReadOnly  // Object allocated in RO_SPACE
+  kYoung,      // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
+  kOld,        // Regular object allocated in OLD_SPACE or LO_SPACE
+  kCode,       // Code object allocated in CODE_SPACE or CODE_LO_SPACE
+  kMap,        // Map object allocated in MAP_SPACE
+  kReadOnly,   // Object allocated in RO_SPACE
+  kSharedOld,  // Regular object allocated in SHARED_OLD_SPACE or
+               // SHARED_LO_SPACE
+  kSharedMap,  // Map object in SHARED_MAP_SPACE
 };
 
 inline size_t hash_value(AllocationType kind) {
@@ -822,6 +825,10 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType kind) {
       return os << "Map";
     case AllocationType::kReadOnly:
       return os << "ReadOnly";
+    case AllocationType::kSharedOld:
+      return os << "SharedOld";
+    case AllocationType::kSharedMap:
+      return os << "SharedMap";
   }
   UNREACHABLE();
 }

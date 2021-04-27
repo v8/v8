@@ -156,6 +156,7 @@ v8_source_set("cctest_sources") {
     "heap/test-mark-compact.cc",
     "heap/test-memory-measurement.cc",
     "heap/test-page-promotion.cc",
+    "heap/test-shared-heap.cc",
     "heap/test-spaces.cc",
     "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",

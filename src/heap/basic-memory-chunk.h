@@ -106,6 +106,9 @@ class BasicMemoryChunk {
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
     PINNED = 1u << 22,
+
+    // This page belongs to a shared heap.
+    IN_SHARED_HEAP = 1u << 23,
   };
 
   static const intptr_t kAlignment =
@@ -254,6 +257,8 @@ class BasicMemoryChunk {
   }
   bool InOldSpace() const;
   V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
+
+  bool InSharedHeap() const { return IsFlagSet(IN_SHARED_HEAP); }
 
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet

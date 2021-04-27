@@ -605,11 +605,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void MarkLiveObjects() override;
 
-  // Marks the object black and adds it to the marking work list.
+  // Marks the object grey and adds it to the marking work list.
   // This is for non-incremental marking only.
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
-  // Marks the object black and adds it to the marking work list.
+  // Marks the object grey and adds it to the marking work list.
   // This is for non-incremental marking only.
   V8_INLINE void MarkRootObject(Root root, HeapObject obj);
 

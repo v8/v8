@@ -245,6 +245,12 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
       DCHECK(CanAllocateInReadOnlySpace());
       DCHECK_EQ(AllocationOrigin::kRuntime, origin);
       allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
+    } else if (AllocationType::kSharedOld == type) {
+      allocation =
+          shared_old_allocator_->AllocateRaw(size_in_bytes, alignment, origin);
+    } else if (AllocationType::kSharedMap == type) {
+      allocation =
+          shared_map_allocator_->AllocateRaw(size_in_bytes, alignment, origin);
     } else {
       UNREACHABLE();
     }

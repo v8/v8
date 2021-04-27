@@ -14,6 +14,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/flags.h"
+#include "src/base/logging.h"
 #include "src/base/once.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1633,6 +1634,9 @@ Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
+  // So far we can't collect the shared heap.
+  CHECK(!IsShared());
+
   if (V8_UNLIKELY(!deserialization_complete_)) {
     // During isolate initialization heap always grows. GC is only requested
     // if a new page allocation fails. In such a case we should crash with
@@ -4103,6 +4107,13 @@ bool Heap::Contains(HeapObject value) const {
           new_lo_space_->Contains(value));
 }
 
+bool Heap::SharedHeapContains(HeapObject value) const {
+  if (shared_old_space_)
+    return shared_old_space_->Contains(value) ||
+           shared_map_space_->Contains(value);
+  return false;
+}
+
 bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
   if (memory_allocator()->IsOutsideAllocatedSpace(value.address())) {
     return false;
@@ -4129,6 +4140,8 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
   }
   UNREACHABLE();
 }
+
+bool Heap::IsShared() { return isolate()->is_shared(); }
 
 bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
   if (memory_allocator()->IsOutsideAllocatedSpace(addr)) {
@@ -5717,6 +5730,24 @@ void Heap::TearDown() {
   strong_roots_head_ = nullptr;
 
   memory_allocator_.reset();
+}
+
+void Heap::InitSharedSpaces() {
+  shared_old_space_ = isolate()->shared_isolate()->heap()->old_space();
+  shared_old_allocator_.reset(
+      new ConcurrentAllocator(main_thread_local_heap(), shared_old_space_));
+
+  shared_map_space_ = isolate()->shared_isolate()->heap()->map_space();
+  shared_map_allocator_.reset(
+      new ConcurrentAllocator(main_thread_local_heap(), shared_map_space_));
+}
+
+void Heap::DeinitSharedSpaces() {
+  shared_old_space_ = nullptr;
+  shared_old_allocator_.reset();
+
+  shared_map_space_ = nullptr;
+  shared_map_allocator_.reset();
 }
 
 void Heap::AddGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
