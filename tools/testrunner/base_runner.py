@@ -658,6 +658,12 @@ class BaseTestRunner(object):
        self.build_config.arch == 'mipsel':
        no_simd_hardware = not simd_mips
 
+    # Ppc64 processors earlier than POWER9 do not support Simd instructions
+    if self.build_config.arch == 'ppc64' and \
+       not self.build_config.simulator_run and \
+       utils.GuessPowerProcessorVersion() < 9:
+       no_simd_hardware = True
+
     return {
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,
