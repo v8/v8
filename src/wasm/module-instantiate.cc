@@ -1325,11 +1325,15 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     // TODO(wasm): Still observable if Function.prototype.valueOf or friends
     // are patched, we might need to check for that as well.
     if (value->IsJSFunction()) value = isolate_->factory()->nan_value();
-    if (value->IsPrimitive() && !value->IsSymbol()) {
-      if (global.type == kWasmI32) {
-        value = Object::ToInt32(isolate_, value).ToHandleChecked();
-      } else {
-        value = Object::ToNumber(isolate_, value).ToHandleChecked();
+    if (value->IsPrimitive()) {
+      MaybeHandle<Object> converted = global.type == kWasmI32
+                                          ? Object::ToInt32(isolate_, value)
+                                          : Object::ToNumber(isolate_, value);
+      if (!converted.ToHandle(&value)) {
+        // Conversion is known to fail for Symbols and BigInts.
+        ReportLinkError("global import must be a number", import_index,
+                        module_name, import_name);
+        return false;
       }
     }
   }
