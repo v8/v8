@@ -8911,10 +8911,9 @@ void Isolate::SetStackLimit(uintptr_t stack_limit) {
 
 void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  const base::AddressRegion& code_range =
-      isolate->heap()->memory_allocator()->code_range();
-  *start = reinterpret_cast<void*>(code_range.begin());
-  *length_in_bytes = code_range.size();
+  const base::AddressRegion& code_region = isolate->heap()->code_region();
+  *start = reinterpret_cast<void*>(code_region.begin());
+  *length_in_bytes = code_region.size();
 }
 
 void Isolate::GetEmbeddedCodeRange(const void** start,

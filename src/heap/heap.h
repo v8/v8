@@ -66,6 +66,7 @@ class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BasicMemoryChunk;
 class CodeLargeObjectSpace;
+class CodeRange;
 class CollectionBarrier;
 class ConcurrentAllocator;
 class ConcurrentMarking;
@@ -827,12 +828,6 @@ class Heap {
   // Create ObjectStats if live_object_stats_ or dead_object_stats_ are nullptr.
   void CreateObjectStats();
 
-  // If the code range exists, allocates executable pages in the code range and
-  // copies the embedded builtins code blob there. Returns address of the copy.
-  // The builtins code region will be freed with the code range at tear down.
-  uint8_t* RemapEmbeddedBuiltinsIntoCodeRange(const uint8_t* embedded_blob_code,
-                                              size_t embedded_blob_code_size);
-
   // Sets the TearDown state, so no new GC tasks get posted.
   void StartTearDown();
 
@@ -892,7 +887,7 @@ class Heap {
     return array_buffer_sweeper_.get();
   }
 
-  const base::AddressRegion& code_range();
+  const base::AddressRegion& code_region();
 
   LocalHeap* main_thread_local_heap() { return main_thread_local_heap_; }
 
@@ -2304,6 +2299,13 @@ class Heap {
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
+
+  // This object controls virtual space reserved for code on the V8 heap. This
+  // is only valid for 64-bit architectures where kRequiresCodeRange.
+  //
+  // Owned by the heap when !V8_COMPRESS_POINTERS_IN_SHARED_CAGE, otherwise is
+  // process-wide.
+  std::shared_ptr<CodeRange> code_range_;
 
   // The embedder owns the C++ heap.
   v8::CppHeap* cpp_heap_ = nullptr;

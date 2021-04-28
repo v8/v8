@@ -413,10 +413,9 @@ if (v8_multi_arch_build &&
   v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression
 }
 if (v8_enable_short_builtin_calls &&
-    (!v8_enable_pointer_compression ||
-     v8_enable_pointer_compression_shared_cage || v8_control_flow_integrity)) {
-  # Disable short calls when pointer compression in a per-Isolate cage is not
-  # enabled. Or when CFI is enabled (until the CFI-related issues are fixed).
+    (!v8_enable_pointer_compression || v8_control_flow_integrity)) {
+  # Disable short calls when pointer compression is not enabled.
+  # Or when CFI is enabled (until the CFI-related issues are fixed).
   v8_enable_short_builtin_calls = false
 }
 if (v8_enable_shared_ro_heap == "") {
@@ -2617,6 +2616,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/base-space.h",
     "src/heap/basic-memory-chunk.h",
     "src/heap/code-object-registry.h",
+    "src/heap/code-range.h",
     "src/heap/code-stats.h",
     "src/heap/collection-barrier.h",
     "src/heap/combined-heap.h",
@@ -3741,6 +3741,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/base-space.cc",
     "src/heap/basic-memory-chunk.cc",
     "src/heap/code-object-registry.cc",
+    "src/heap/code-range.cc",
     "src/heap/code-stats.cc",
     "src/heap/collection-barrier.cc",
     "src/heap/combined-heap.cc",

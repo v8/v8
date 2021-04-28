@@ -218,7 +218,7 @@ class VirtualMemory final {
 
   v8::PageAllocator* page_allocator() { return page_allocator_; }
 
-  base::AddressRegion region() const { return region_; }
+  const base::AddressRegion& region() const { return region_; }
 
   // Returns the start address of the reserved memory.
   // If the memory was reserved with an alignment, this address is not

@@ -234,7 +234,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // TODO(petermarshall): Code range is always null on ia32 so this check for
   // IsNoFrameRegion will never actually run there.
   if (regs->pc &&
-      isolate->heap()->memory_allocator()->code_range().contains(
+      isolate->heap()->code_region().contains(
           reinterpret_cast<i::Address>(regs->pc)) &&
       IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.

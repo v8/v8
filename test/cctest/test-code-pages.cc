@@ -97,17 +97,16 @@ TEST(CodeRangeCorrectContents) {
 
   std::vector<MemoryRange>* pages = i_isolate->GetCodePages();
 
-  const base::AddressRegion& code_range =
-      i_isolate->heap()->memory_allocator()->code_range();
-  CHECK(!code_range.is_empty());
+  const base::AddressRegion& code_region = i_isolate->heap()->code_region();
+  CHECK(!code_region.is_empty());
   // We should only have the code range and the embedded code range.
   CHECK_EQ(2, pages->size());
-  CHECK(PagesHasExactPage(pages, code_range.begin(), code_range.size()));
+  CHECK(PagesHasExactPage(pages, code_region.begin(), code_region.size()));
   CHECK(PagesHasExactPage(
       pages, reinterpret_cast<Address>(i_isolate->CurrentEmbeddedBlobCode()),
       i_isolate->CurrentEmbeddedBlobCodeSize()));
   if (i_isolate->is_short_builtin_calls_enabled()) {
-    // In this case embedded blob code must be included via code_range.
+    // In this case embedded blob code must be included via code_region.
     CHECK(PagesContainsRange(
         pages, reinterpret_cast<Address>(i_isolate->embedded_blob_code()),
         i_isolate->embedded_blob_code_size()));
@@ -129,9 +128,8 @@ TEST(CodePagesCorrectContents) {
   // There might be other pages already.
   CHECK_GE(pages->size(), 1);
 
-  const base::AddressRegion& code_range =
-      i_isolate->heap()->memory_allocator()->code_range();
-  CHECK(code_range.is_empty());
+  const base::AddressRegion& code_region = i_isolate->heap()->code_region();
+  CHECK(code_region.is_empty());
 
   // We should have the embedded code range even when there is no regular code
   // range.

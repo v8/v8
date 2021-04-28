@@ -3053,9 +3053,8 @@ void Isolate::Deinit() {
 #if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
       heap()->memory_allocator() && RequiresCodeRange()) {
-    const base::AddressRegion& code_range =
-        heap()->memory_allocator()->code_range();
-    void* start = reinterpret_cast<void*>(code_range.begin());
+    const base::AddressRegion& code_region = heap()->code_region();
+    void* start = reinterpret_cast<void*>(code_region.begin());
     win64_unwindinfo::UnregisterNonABICompliantCodeRange(start);
   }
 #endif  // V8_OS_WIN64
@@ -3427,8 +3426,9 @@ void Isolate::MaybeRemapEmbeddedBuiltinsIntoCodeRange() {
   CHECK_NOT_NULL(embedded_blob_code_);
   CHECK_NE(embedded_blob_code_size_, 0);
 
-  embedded_blob_code_ = heap_.RemapEmbeddedBuiltinsIntoCodeRange(
-      embedded_blob_code_, embedded_blob_code_size_);
+  DCHECK_NOT_NULL(heap_.code_range_);
+  embedded_blob_code_ = heap_.code_range_->RemapEmbeddedBuiltins(
+      this, embedded_blob_code_, embedded_blob_code_size_);
   CHECK_NOT_NULL(embedded_blob_code_);
   // The un-embedded code blob is already a part of the registered code range
   // so it's not necessary to register it again.
@@ -3600,10 +3600,20 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   heap_.SetUpSpaces();
 
   if (V8_SHORT_BUILTIN_CALLS_BOOL && FLAG_short_builtin_calls) {
-    // Check if the system has more than 4GB of physical memory by comaring
-    // the old space size with respective threshod value.
-    is_short_builtin_calls_enabled_ =
-        heap_.MaxOldGenerationSize() >= kShortBuiltinCallsOldSpaceSizeThreshold;
+    // Check if the system has more than 4GB of physical memory by comparing the
+    // old space size with respective threshold value.
+    //
+    // Additionally, enable if there is already a process-wide CodeRange that
+    // has re-embedded builtins.
+    is_short_builtin_calls_enabled_ = (heap_.MaxOldGenerationSize() >=
+                                       kShortBuiltinCallsOldSpaceSizeThreshold);
+    if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
+      std::shared_ptr<CodeRange> code_range =
+          CodeRange::GetProcessWideCodeRange();
+      if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+        is_short_builtin_calls_enabled_ = true;
+      }
+    }
   }
 
   // Create LocalIsolate/LocalHeap for the main thread and set state to Running.
@@ -3774,10 +3784,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
-    const base::AddressRegion& code_range =
-        heap()->memory_allocator()->code_range();
-    void* start = reinterpret_cast<void*>(code_range.begin());
-    size_t size_in_bytes = code_range.size();
+    const base::AddressRegion& code_region = heap()->code_region();
+    void* start = reinterpret_cast<void*>(code_region.begin());
+    size_t size_in_bytes = code_region.size();
     win64_unwindinfo::RegisterNonABICompliantCodeRange(start, size_in_bytes);
   }
 #endif  // V8_OS_WIN64

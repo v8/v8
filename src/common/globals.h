@@ -101,11 +101,10 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
 
 // Determine whether the short builtin calls optimization is enabled.
 #ifdef V8_SHORT_BUILTIN_CALLS
-#ifndef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#ifndef V8_COMPRESS_POINTERS
 // TODO(11527): Fix this by passing Isolate* to Code::OffHeapInstructionStart()
 // and friends.
-#error Short builtin calls feature require pointer compression with per- \
-       Isolate cage
+#error Short builtin calls feature requires pointer compression
 #endif
 #endif
 

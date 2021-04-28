@@ -15,6 +15,7 @@ include_rules = [
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
   "+src/heap/basic-memory-chunk.h",
+  "+src/heap/code-range.h",
   "+src/heap/combined-heap.h",
   "+src/heap/embedder-tracing.h",
   "+src/heap/factory.h",

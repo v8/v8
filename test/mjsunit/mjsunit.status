@@ -1485,13 +1485,6 @@
   'concurrent-initial-prototype-change-1': [SKIP],
 }],  # variant == concurrent_inlining
 
-##############################################################################
-['pointer_compression_shared_cage', {
-   # kMaximalCodeRangeSize causing VM exhaustion with 50 workers when sharing a
-   # pointer cage.
-  'regress/wasm/regress-1010272': [SKIP],
-}],
-
 ################################################################################
 ['single_generation', {
   # These tests rely on allocation site tracking which only works in the young generation.

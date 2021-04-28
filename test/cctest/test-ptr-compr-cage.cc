@@ -38,6 +38,23 @@ UNINITIALIZED_TEST(PtrComprCageAndIsolateRoot) {
   isolate2->Dispose();
 }
 
+UNINITIALIZED_TEST(PtrComprCageCodeRange) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  VirtualMemoryCage* cage = i_isolate->GetPtrComprCage();
+  if (i_isolate->RequiresCodeRange()) {
+    CHECK(!i_isolate->heap()->code_region().is_empty());
+    CHECK(cage->reservation()->InVM(i_isolate->heap()->code_region().begin(),
+                                    i_isolate->heap()->code_region().size()));
+  }
+
+  isolate->Dispose();
+}
+
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 UNINITIALIZED_TEST(SharedPtrComprCage) {
   v8::Isolate::CreateParams create_params;
@@ -60,6 +77,24 @@ UNINITIALIZED_TEST(SharedPtrComprCage) {
 
     CHECK_EQ(GetPtrComprCageBase(*isolate1_object),
              GetPtrComprCageBase(*isolate2_object));
+  }
+
+  isolate1->Dispose();
+  isolate2->Dispose();
+}
+
+UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
+
+  if (i_isolate1->RequiresCodeRange() || i_isolate2->RequiresCodeRange()) {
+    CHECK_EQ(i_isolate1->heap()->code_region(),
+             i_isolate2->heap()->code_region());
   }
 
   isolate1->Dispose();
