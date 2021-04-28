@@ -82,11 +82,14 @@ luci.project(
             roles = "role/swarming.poolViewer",
             groups = "all",
         ),
-        # Allow any V8 build to trigger a test ran under chromium-tester@ task
-        # service account.
+        # Allow any V8 build to trigger a test ran under chromium-tester@ & 
+        # chrome-gpu-gold@ task service accounts.
         luci.binding(
             roles = "role/swarming.taskServiceAccount",
-            users = "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+            users = [
+                "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+                "chrome-gpu-gold@chops-service-accounts.iam.gserviceaccount.com",
+            ],
         ),
     ],
 )
