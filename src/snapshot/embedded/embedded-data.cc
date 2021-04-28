@@ -459,10 +459,9 @@ void EmbeddedData::PrintStatistics() const {
   const int k99th = kCount * 0.99;
 
   PrintF("EmbeddedData:\n");
-  PrintF("  Total size:                         %d\n",
+  PrintF("  Total size:                  %d\n",
          static_cast<int>(code_size() + data_size()));
-  PrintF("  Data size:                      %d\n",
-         static_cast<int>(data_size()));
+  PrintF("  Data size:                   %d\n", static_cast<int>(data_size()));
   PrintF("  Code size:                   %d\n", static_cast<int>(code_size()));
   PrintF("  Instruction size (50th percentile): %d\n", sizes[k50th]);
   PrintF("  Instruction size (75th percentile): %d\n", sizes[k75th]);

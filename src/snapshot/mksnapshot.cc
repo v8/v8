@@ -155,7 +155,7 @@ v8::StartupData CreateSnapshotDataBlob(v8::Isolate* isolate,
       isolate);
 
   if (i::FLAG_profile_deserialization) {
-    i::PrintF("Creating snapshot took %0.3f ms\n",
+    i::PrintF("[Creating snapshot took %0.3f ms]\n",
               timer.Elapsed().InMillisecondsF());
   }
 
