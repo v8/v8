@@ -32,17 +32,12 @@ class ValueSerializer;
 // Most code should be using BigInts instead.
 class BigIntBase : public PrimitiveHeapObject {
  public:
-  // The `length` field (or rather its underlying storage location) is the
-  // synchronization point that allows concurrent interactions with BigInt
-  // instances. The invariants are:
-  // - Instances are immutable after initialization, see MakeImmutable.
-  // - The last write to an instance is a release-store of `length`.
   inline int length() const {
     int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
-  // For use by the GC and Turbofan.
+  // For use by the GC.
   inline int synchronized_length() const {
     int32_t bitfield = ACQUIRE_READ_INT32_FIELD(*this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
