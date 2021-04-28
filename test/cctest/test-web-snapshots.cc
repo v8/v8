@@ -12,11 +12,10 @@ namespace internal {
 
 namespace {
 
-void TestWebSnapshotExtensive(
-    const char* snapshot_source, const char* test_source,
-    std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester,
-    uint32_t string_count, uint32_t map_count, uint32_t context_count,
-    uint32_t function_count, uint32_t object_count) {
+void TestWebSnapshot(const char* snapshot_source, const char* test_source,
+                     const char* expected_result, uint32_t string_count,
+                     uint32_t map_count, uint32_t context_count,
+                     uint32_t function_count, uint32_t object_count) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
 
@@ -48,27 +47,14 @@ void TestWebSnapshotExtensive(
     CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
                                       snapshot_data.buffer_size));
     CHECK(!deserializer.has_error());
-    tester(isolate, new_context);
+    v8::Local<v8::String> result = CompileRun(test_source).As<v8::String>();
+    CHECK(result->Equals(new_context, v8_str(expected_result)).FromJust());
     CHECK_EQ(string_count, deserializer.string_count());
     CHECK_EQ(map_count, deserializer.map_count());
     CHECK_EQ(context_count, deserializer.context_count());
     CHECK_EQ(function_count, deserializer.function_count());
     CHECK_EQ(object_count, deserializer.object_count());
   }
-}
-
-void TestWebSnapshot(const char* snapshot_source, const char* test_source,
-                     const char* expected_result, uint32_t string_count,
-                     uint32_t map_count, uint32_t context_count,
-                     uint32_t function_count, uint32_t object_count) {
-  TestWebSnapshotExtensive(
-      snapshot_source, test_source,
-      [test_source, expected_result](v8::Isolate* isolate,
-                                     v8::Local<v8::Context> new_context) {
-        v8::Local<v8::String> result = CompileRun(test_source).As<v8::String>();
-        CHECK(result->Equals(new_context, v8_str(expected_result)).FromJust());
-      },
-      string_count, map_count, context_count, function_count, object_count);
 }
 
 }  // namespace
@@ -84,60 +70,6 @@ TEST(Minimal) {
   uint32_t kObjectCount = 1;
   TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
                   kMapCount, kContextCount, kFunctionCount, kObjectCount);
-}
-
-TEST(Numbers) {
-  const char* snapshot_source =
-      "var foo = {'a': 6,\n"
-      "           'b': -11,\n"
-      "           'c': 11.6,\n"
-      "           'd': NaN,\n"
-      "           'e': Number.POSITIVE_INFINITY,\n"
-      "           'f': Number.NEGATIVE_INFINITY,\n"
-      "}";
-  const char* test_source = "foo";
-  uint32_t kStringCount = 7;  // 'foo', 'a', ..., 'f'
-  uint32_t kMapCount = 1;
-  uint32_t kContextCount = 0;
-  uint32_t kFunctionCount = 0;
-  uint32_t kObjectCount = 1;
-  std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
-      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
-        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
-        int32_t a = result->Get(new_context, v8_str("a"))
-                        .ToLocalChecked()
-                        .As<v8::Number>()
-                        ->Value();
-        CHECK_EQ(a, 6);
-        int32_t b = result->Get(new_context, v8_str("b"))
-                        .ToLocalChecked()
-                        .As<v8::Number>()
-                        ->Value();
-        CHECK_EQ(b, -11);
-        double c = result->Get(new_context, v8_str("c"))
-                       .ToLocalChecked()
-                       .As<v8::Number>()
-                       ->Value();
-        CHECK_EQ(c, 11.6);
-        double d = result->Get(new_context, v8_str("d"))
-                       .ToLocalChecked()
-                       .As<v8::Number>()
-                       ->Value();
-        CHECK(std::isnan(d));
-        double e = result->Get(new_context, v8_str("e"))
-                       .ToLocalChecked()
-                       .As<v8::Number>()
-                       ->Value();
-        CHECK_EQ(e, std::numeric_limits<double>::infinity());
-        double f = result->Get(new_context, v8_str("f"))
-                       .ToLocalChecked()
-                       .As<v8::Number>()
-                       ->Value();
-        CHECK_EQ(f, -std::numeric_limits<double>::infinity());
-      };
-  TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
-                           kMapCount, kContextCount, kFunctionCount,
-                           kObjectCount);
 }
 
 TEST(Function) {
