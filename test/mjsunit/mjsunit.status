@@ -825,6 +825,8 @@
   'regress/wasm/regress-1140549': [SKIP],
   'regress/wasm/regress-1153442': [SKIP],
   'regress/wasm/regress-1168116': [SKIP],
+  'regress/wasm/regress-1196837': [SKIP],
+  'regress/wasm/regress-1202736': [SKIP],
   'wasm/atomics': [SKIP],
   'wasm/atomics-non-shared': [SKIP],
   'wasm/grow-shared-memory': [SKIP],
