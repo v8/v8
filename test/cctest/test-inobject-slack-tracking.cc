@@ -839,6 +839,8 @@ TEST(ObjectLiteralPropertyBackingStoreSize) {
 }
 
 TEST(SlowModeSubclass) {
+  if (FLAG_stress_concurrent_allocation) return;
+
   // Avoid eventual completion of in-object slack tracking.
   FLAG_always_opt = false;
   CcTest::InitializeVM();
