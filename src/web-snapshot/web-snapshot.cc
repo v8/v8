@@ -390,8 +390,9 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
                                        ValueSerializer& serializer) {
   uint32_t id = 0;
   if (object->IsSmi()) {
-    // TODO(v8:11525): Implement.
-    UNREACHABLE();
+    serializer.WriteUint32(ValueType::INTEGER);
+    serializer.WriteZigZag<int32_t>(Smi::cast(*object).value());
+    return;
   }
 
   DCHECK(object->IsHeapObject());
@@ -400,8 +401,10 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       // TODO(v8:11525): Implement.
       UNREACHABLE();
     case HEAP_NUMBER_TYPE:
-      // TODO(v8:11525): Implement.
-      UNREACHABLE();
+      // TODO(v8:11525): Handle possible endianness mismatch.
+      serializer.WriteUint32(ValueType::DOUBLE);
+      serializer.WriteDouble(HeapNumber::cast(*object).value());
+      break;
     case JS_FUNCTION_TYPE:
       SerializeFunction(Handle<JSFunction>::cast(object), id);
       serializer.WriteUint32(ValueType::FUNCTION_ID);
@@ -843,6 +846,26 @@ void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
     return;
   }
   switch (value_type) {
+    case ValueType::INTEGER: {
+      Maybe<int32_t> number = deserializer_->ReadZigZag<int32_t>();
+      if (number.IsNothing()) {
+        Throw("Web snapshot: Malformed integer");
+        return;
+      }
+      value = isolate_->factory()->NewNumberFromInt(number.FromJust());
+      representation = Representation::Tagged();
+      break;
+    }
+    case ValueType::DOUBLE: {
+      double number;
+      if (!deserializer_->ReadDouble(&number)) {
+        Throw("Web snapshot: Malformed double");
+        return;
+      }
+      value = isolate_->factory()->NewNumber(number);
+      representation = Representation::Tagged();
+      break;
+    }
     case ValueType::STRING_ID: {
       value = ReadString(false);
       representation = Representation::Tagged();

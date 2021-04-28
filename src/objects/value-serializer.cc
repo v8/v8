@@ -302,6 +302,9 @@ void ValueSerializer::WriteZigZag(T value) {
               (value >> (8 * sizeof(T) - 1)));
 }
 
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void ValueSerializer::WriteZigZag(int32_t value);
+
 void ValueSerializer::WriteDouble(double value) {
   // Warning: this uses host endianness.
   WriteRawBytes(&value, sizeof(value));
