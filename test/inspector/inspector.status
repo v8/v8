@@ -108,8 +108,6 @@
 
 ##############################################################################
 ['arch == s390 or arch == s390x', {
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debugger/set-script-source-stack-padding': [SKIP],
   # Liftoff needs to be enabled before running these tests.
   'debugger/wasm-*': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
@@ -345,9 +343,7 @@
   'debugger/set-breakpoint-url-regex': [SKIP],
   'debugger/set-instrumentation-breakpoint': [SKIP],
   'debugger/set-script-source': [SKIP],
-  'debugger/set-script-source-2': [SKIP],
   'debugger/set-script-source-exception': [SKIP],
-  'debugger/set-script-source-stack-padding': [SKIP],
   'debugger/set-script-source-unchanged': [SKIP],
   'debugger/set-skip-all-pauses': [SKIP],
   'debugger/set-variable-value': [SKIP],
