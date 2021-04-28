@@ -14,7 +14,7 @@ try_builder(
     name = "v8_android_arm_compile_rel",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
     use_goma = GOMA.DEFAULT,
 )
@@ -22,7 +22,7 @@ try_builder(
 try_builder(
     name = "v8_android_arm64_compile_dbg",
     bucket = "try",
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
     use_goma = GOMA.DEFAULT,
 )
@@ -31,7 +31,7 @@ try_builder(
     name = "v8_fuchsia_compile_rel",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
     use_goma = GOMA.DEFAULT,
 )
@@ -41,7 +41,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False},
     executable = "recipe:v8/presubmit",
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
 )
 
 try_builder(
@@ -84,7 +84,7 @@ try_builder(
     name = "v8_linux64_header_includes_dbg",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.DEFAULT,
 )
@@ -93,7 +93,7 @@ try_builder(
     name = "v8_linux64_heap_sandbox_compile_dbg",
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -101,7 +101,7 @@ try_builder(
     name = "v8_linux64_no_wasm_compile_rel",
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -109,7 +109,7 @@ try_builder(
     name = "v8_linux64_shared_compile_rel",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -150,14 +150,14 @@ try_builder(
 try_builder(
     name = "v8_linux_mips64el_compile_rel",
     bucket = "try",
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
 try_builder(
     name = "v8_linux_mipsel_compile_rel",
     bucket = "try",
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -165,14 +165,14 @@ try_builder(
     name = "v8_linux_noi18n_compile_dbg",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
 try_builder(
     name = "v8_linux_shared_compile_rel",
     bucket = "try",
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -187,7 +187,7 @@ try_builder(
 try_builder(
     name = "v8_linux_torque_compare",
     bucket = "try",
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     properties = {"default_targets": ["compare_torque_runs"]},
     use_goma = GOMA.DEFAULT,
 )
@@ -196,7 +196,7 @@ try_builder(
     name = "v8_linux_vtunejit",
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.ITTAPI],
     use_goma = GOMA.DEFAULT,
 )
@@ -214,7 +214,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"disable_reuse": "true", "cancel_stale": False},
     executable = "recipe:run_presubmit",
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 600,
     properties = {"runhooks": True, "repo_name": "v8"},
     priority = 25,

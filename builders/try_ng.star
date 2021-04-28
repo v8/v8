@@ -46,7 +46,7 @@ try_ng_pair(
     name = "v8_android_arm64_n5x_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
     use_goma = GOMA.DEFAULT,
 )
@@ -55,7 +55,7 @@ try_ng_pair(
     name = "v8_fuchsia_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
     use_goma = GOMA.DEFAULT,
 )
@@ -64,7 +64,7 @@ try_ng_pair(
     name = "v8_linux64_arm64_pointer_compression_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -72,7 +72,7 @@ try_ng_pair(
     name = "v8_linux64_asan_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -80,7 +80,7 @@ try_ng_pair(
     name = "v8_linux64_cfi_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -88,7 +88,7 @@ try_ng_pair(
     name = "v8_linux64_dbg",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -96,7 +96,7 @@ try_ng_pair(
     name = "v8_linux64_dict_tracking_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -104,7 +104,7 @@ try_ng_pair(
     name = "v8_linux64_gc_stress_custom_snapshot_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -112,7 +112,7 @@ try_ng_pair(
     name = "v8_linux64_fuzzilli",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -120,7 +120,7 @@ try_ng_pair(
     name = "v8_linux64_fyi_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -128,7 +128,7 @@ try_ng_pair(
     name = "v8_linux64_msan_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"gclient_vars": {"checkout_instrumented_libraries": "True"}},
     use_goma = GOMA.DEFAULT,
@@ -138,7 +138,7 @@ try_ng_pair(
     name = "v8_linux64_nodcheck_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -146,7 +146,7 @@ try_ng_pair(
     name = "v8_linux64_perfetto_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -154,7 +154,7 @@ try_ng_pair(
     name = "v8_linux64_pointer_compression_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -162,7 +162,7 @@ try_ng_pair(
     name = "v8_linux64_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -170,7 +170,7 @@ try_ng_pair(
     name = "v8_linux64_riscv64_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -178,7 +178,7 @@ try_ng_pair(
     name = "v8_linux64_tsan_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
     experimental = True,
@@ -188,7 +188,7 @@ try_ng_pair(
     name = "v8_linux64_tsan_no_cm_rel",
     cq_properties_trigger = {"location_regexp": [".+/[+]/src/compiler/js-heap-broker.cc", ".+/[+]/src/compiler/heap-refs.h"], "cancel_stale": False},
     cq_properties_triggered = {"location_regexp": [".+/[+]/src/compiler/js-heap-broker.cc", ".+/[+]/src/compiler/heap-refs.h"], "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
@@ -197,7 +197,7 @@ try_ng_pair(
     name = "v8_linux64_tsan_isolates_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -205,7 +205,7 @@ try_ng_pair(
     name = "v8_linux64_ubsan_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -213,7 +213,7 @@ try_ng_pair(
     name = "v8_linux64_verify_csa_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -221,7 +221,7 @@ try_ng_pair(
     name = "v8_linux_arm64_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
@@ -230,7 +230,7 @@ try_ng_pair(
     name = "v8_linux_arm64_gc_stress_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
@@ -239,7 +239,7 @@ try_ng_pair(
     name = "v8_linux_arm64_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -247,7 +247,7 @@ try_ng_pair(
     name = "v8_linux_arm64_cfi_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -255,7 +255,7 @@ try_ng_pair(
     name = "v8_linux_arm_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
@@ -264,7 +264,7 @@ try_ng_pair(
     name = "v8_linux_arm_lite_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -272,7 +272,7 @@ try_ng_pair(
     name = "v8_linux_arm_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 2400,
     use_goma = GOMA.DEFAULT,
 )
@@ -281,7 +281,7 @@ try_ng_pair(
     name = "v8_linux_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -289,7 +289,7 @@ try_ng_pair(
     name = "v8_linux_gc_stress_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
@@ -308,7 +308,7 @@ try_ng_pair(
     name = "v8_linux_nodcheck_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 2400,
     use_goma = GOMA.DEFAULT,
 )
@@ -317,7 +317,7 @@ try_ng_pair(
     name = "v8_linux_noi18n_rel",
     cq_properties_trigger = {"location_regexp": [".+/[+]/.*intl.*", ".+/[+]/.*test262.*"], "cancel_stale": False},
     cq_properties_triggered = {"location_regexp": [".+/[+]/.*intl.*", ".+/[+]/.*test262.*"], "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
@@ -326,7 +326,7 @@ try_ng_pair(
     name = "v8_linux_rel",
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 2400,
     gclient_vars = [GCLIENT_VARS.GCMOLE],
     use_goma = GOMA.DEFAULT,
@@ -344,7 +344,7 @@ try_ng_pair(
     name = "v8_linux_optional_rel",
     cq_properties_trigger = optional_rel_cq_properties,
     cq_properties_triggered = optional_rel_cq_properties,
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -352,7 +352,7 @@ try_ng_pair(
     name = "v8_linux_verify_csa_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 2400,
     use_goma = GOMA.DEFAULT,
 )
@@ -453,7 +453,7 @@ try_ng_pair(
     name = "v8_odroid_arm_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
     properties = {"target_arch": "arm"},
     use_goma = GOMA.DEFAULT,
 )
