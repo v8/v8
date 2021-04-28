@@ -1857,7 +1857,6 @@ int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
   return d.InstructionDecode(instruction);
 }
 
-// The RISC-V assembler does not currently use constant pools.
 int Disassembler::ConstantPoolSizeAt(byte* instruction) {
   return v8::internal::Assembler::ConstantPoolSizeAt(
       reinterpret_cast<v8::internal::Instruction*>(instruction));

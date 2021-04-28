@@ -2970,17 +2970,17 @@ bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
 bool Assembler::IsConstantPoolAt(Instruction* instr) {
   // The constant pool marker is made of two instructions. These instructions
   // will never be emitted by the JIT, so checking for the first one is enough:
-  // 0: ld x0, t3, #offset
+  // 0: ld x0, x0, #offset
   Instr instr_value = *reinterpret_cast<Instr*>(instr);
-
-  bool result = IsLd(instr_value) && (instr->RdValue() == kRegCode_zero_reg);
-  // It is still worth asserting the marker is complete.
-  // 4: j 0
+  bool result = IsLd(instr_value) && (instr->Rs1Value() == kRegCode_zero_reg) &&
+                (instr->RdValue() == kRegCode_zero_reg);
 #ifdef DEBUG
-  Instruction* instr_fllowing = instr + kInstrSize;
-  DCHECK(!result || (IsJal(*reinterpret_cast<Instr*>(instr_fllowing)) &&
-                     instr_fllowing->Imm20JValue() == 0 &&
-                     instr_fllowing->RdValue() == kRegCode_zero_reg));
+  // It is still worth asserting the marker is complete.
+  // 1: j 0x0
+  Instruction* instr_following = instr + kInstrSize;
+  DCHECK(!result || (IsJal(*reinterpret_cast<Instr*>(instr_following)) &&
+                     instr_following->Imm20JValue() == 0 &&
+                     instr_following->RdValue() == kRegCode_zero_reg));
 #endif
   return result;
 }
@@ -3021,9 +3021,9 @@ void ConstantPool::EmitPrologue(Alignment require_alignment) {
 
 int ConstantPool::PrologueSize(Jump require_jump) const {
   // Prologue is:
-  //   j   over  ;; if require_jump
-  //   ld x0, t3, #pool_size
-  //   j xzr
+  //   j over  ;; if require_jump
+  //   ld x0, x0, #pool_size
+  //   j 0x0
   int prologue_size = require_jump == Jump::kRequired ? kInstrSize : 0;
   prologue_size += 2 * kInstrSize;
   return prologue_size;
@@ -3034,7 +3034,7 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
                                                  const ConstantPoolKey& key) {
   Instr instr_auipc = assm_->instr_at(load_offset);
   Instr instr_ld = assm_->instr_at(load_offset + 4);
-  // Instruction to patch must be 'ld t3, t3, offset' with offset == kInstrSize.
+  // Instruction to patch must be 'ld rd, offset(rd)' with 'offset == 0'.
   DCHECK(assm_->IsAuipc(instr_auipc));
   DCHECK(assm_->IsLd(instr_ld));
   DCHECK_EQ(assm_->LdOffset(instr_ld), 0);
