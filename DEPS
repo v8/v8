@@ -47,7 +47,7 @@ vars = {
   'gn_version': 'git_revision:dba01723a441c358d843a575cb7720d54ddcdf92',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:173195137e006c3bbbd2394409e3d752f8b3c62f',
+  'luci_go': 'git_revision:a3a1f3a2e925eb44367c62783877c922c9ef7289',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -85,9 +85,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6273d81b0ca0184ad0e663181cd143d890efa279',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '94367a1d1483f2321ca8cefb470dc9e8742d5c2a',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c91f5f62e284fa45ab7da18e91d3eedd96a38459',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ae1b2b19ef3118866b3237ef9f0c85fba855118c',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'cd9f9a9495b1978ded709c248e467e7f5a74ea0a',
   'third_party/instrumented_libraries':
@@ -181,7 +181,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '00b0b51faf614e4fcfe0cb7d353eab17d201e0cc',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ca2c40743faf25ae3fdac8ba1813c33473a254ee',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -195,7 +195,7 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '23ef29555ef4789f555f1ba8c51b4c52975f0907',
   'third_party/google_benchmark/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '86da5ec294d09842f93fadb391d91f59709b7269',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '835951aa44c2f802b4d563d533eac34565848eb0',
   },
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '11b6b3e5971d760bd2d310f77643f55a818a6d25',
@@ -235,7 +235,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'CMJyNq6nZ3RoBUYmon01iRJ7MYYfVl4ds1kgbGFcNRMC'
+              'version': 'KmvDYKZZ-xQz7ZzzSKBh3HrWPpQv89vfFY9mBp6RDq4C'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
