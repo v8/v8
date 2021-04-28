@@ -73,28 +73,33 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifndef USE_SIMULATOR
   // Probe for additional features at runtime.
   base::CPU cpu;
-  if (cpu.part() == base::CPU::kPPCPower9) {
+  if (cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << MODULO);
   }
 #if V8_TARGET_ARCH_PPC64
   if (cpu.part() == base::CPU::kPPCPower8 ||
-      cpu.part() == base::CPU::kPPCPower9) {
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << FPR_GPR_MOV);
   }
   // V8 PPC Simd implementations need P9 at a minimum.
-  if (cpu.part() == base::CPU::kPPCPower9) {
+  if (cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << SIMD);
   }
 #endif
   if (cpu.part() == base::CPU::kPPCPower6 ||
       cpu.part() == base::CPU::kPPCPower7 ||
       cpu.part() == base::CPU::kPPCPower8 ||
-      cpu.part() == base::CPU::kPPCPower9) {
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << LWSYNC);
   }
   if (cpu.part() == base::CPU::kPPCPower7 ||
       cpu.part() == base::CPU::kPPCPower8 ||
-      cpu.part() == base::CPU::kPPCPower9) {
+      cpu.part() == base::CPU::kPPCPower9 ||
+      cpu.part() == base::CPU::kPPCPower10) {
     supported_ |= (1u << ISELECT);
     supported_ |= (1u << VSX);
   }

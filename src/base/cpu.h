@@ -70,6 +70,7 @@ class V8_BASE_EXPORT CPU final {
     kPPCPower7,
     kPPCPower8,
     kPPCPower9,
+    kPPCPower10,
     kPPCG4,
     kPPCG5,
     kPPCPA6T
