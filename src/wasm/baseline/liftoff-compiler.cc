@@ -5818,9 +5818,8 @@ class LiftoffCompiler {
 
   void LoadNullValue(Register null, LiftoffRegList pinned) {
     LOAD_INSTANCE_FIELD(null, IsolateRoot, kSystemPointerSize, pinned);
-    __ LoadTaggedPointer(null, null, no_reg,
-                         IsolateData::root_slot_offset(RootIndex::kNullValue),
-                         pinned);
+    __ LoadFullPointer(null, null,
+                       IsolateData::root_slot_offset(RootIndex::kNullValue));
   }
 
   void LoadExceptionSymbol(Register dst, LiftoffRegList pinned,
