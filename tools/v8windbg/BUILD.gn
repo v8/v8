@@ -54,10 +54,10 @@ v8_shared_library("v8windbg") {
 
   deps = [
     ":v8windbg_base",
+    "../../:v8_flags",
+    "../../:v8_libbase",
+    "../../:v8_shared_internal_headers",
     "../debug_helper:v8_debug_helper",
-    "//:v8_flags",
-    "//:v8_libbase",
-    "//:v8_shared_internal_headers",
   ]
 }
 
