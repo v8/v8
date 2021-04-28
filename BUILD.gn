@@ -2284,9 +2284,8 @@ if (v8_generate_external_defines_header) {
 v8_header_set("v8_shared_internal_headers") {
   visibility = [
     ":*",
-    "test/cctest:*",
-    "test/unittests:*",
-    "tools/debug_helper/:*",
+    "test/*",
+    "tools/*",
   ]
   configs = [ ":internal_config" ]
 
@@ -2303,7 +2302,10 @@ v8_header_set("v8_shared_internal_headers") {
 }
 
 v8_header_set("v8_flags") {
-  visibility = [ ":*" ]
+  visibility = [
+    ":*",
+    "tools/*",
+  ]
 
   configs = [ ":internal_config" ]
 
