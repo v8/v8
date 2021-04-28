@@ -1,5 +1,5 @@
 #############################################################################
-# UBSan blacklist.
+# UBSan ignorelist.
 
 # Bug 8735: PropertyCallbackInfo<void> vs PropertyCallbackInfo<T>.
 fun:*v8*internal*PropertyCallbackArguments*CallAccessorSetter*
