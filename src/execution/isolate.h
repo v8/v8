@@ -1684,8 +1684,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
-  void SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine);
+  // TODO(wasm): Replace all uses by {WasmEngine::GetWasmEngine}?
+  wasm::WasmEngine* wasm_engine() const { return wasm_engine_; }
+  void SetWasmEngine(wasm::WasmEngine* engine);
 
   void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2135,7 +2136,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t elements_deletion_counter_ = 0;
 
 #if V8_ENABLE_WEBASSEMBLY
-  std::shared_ptr<wasm::WasmEngine> wasm_engine_;
+  wasm::WasmEngine* wasm_engine_ = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;

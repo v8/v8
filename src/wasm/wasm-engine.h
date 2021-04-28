@@ -357,10 +357,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
 
-  // Returns a reference to the WasmEngine shared by the entire process. Try to
-  // use {Isolate::wasm_engine} instead if it is available, which encapsulates
-  // engine lifetime decisions during Isolate bootstrapping.
-  static std::shared_ptr<WasmEngine> GetWasmEngine();
+  // Returns a reference to the WasmEngine shared by the entire process.
+  static WasmEngine* GetWasmEngine();
 
  private:
   struct CurrentGCInfo;

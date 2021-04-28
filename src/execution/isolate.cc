@@ -2692,9 +2692,10 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void Isolate::SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine) {
+void Isolate::SetWasmEngine(wasm::WasmEngine* engine) {
   DCHECK_NULL(wasm_engine_);  // Only call once before {Init}.
-  wasm_engine_ = std::move(engine);
+  DCHECK_NOT_NULL(engine);
+  wasm_engine_ = engine;
   wasm_engine_->AddIsolate(this);
 }
 
@@ -3136,10 +3137,7 @@ void Isolate::Deinit() {
   if (logfile != nullptr) base::Fclose(logfile);
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (wasm_engine_) {
-    wasm_engine_->RemoveIsolate(this);
-    wasm_engine_.reset();
-  }
+  wasm_engine_->RemoveIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TearDownEmbeddedBlob();
@@ -3617,11 +3615,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   isolate_data_.external_reference_table()->Init(this);
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Setup the wasm engine.
-  if (wasm_engine_ == nullptr) {
-    SetWasmEngine(wasm::WasmEngine::GetWasmEngine());
-  }
-  DCHECK_NOT_NULL(wasm_engine_);
+  SetWasmEngine(wasm::WasmEngine::GetWasmEngine());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   if (setup_delegate_ == nullptr) {

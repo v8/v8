@@ -1561,24 +1561,29 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 
 namespace {
 
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::shared_ptr<WasmEngine>,
-                                GetSharedWasmEngine)
+WasmEngine* global_wasm_engine = nullptr;
 
 }  // namespace
 
 // static
 void WasmEngine::InitializeOncePerProcess() {
-  *GetSharedWasmEngine() = std::make_shared<WasmEngine>();
+  DCHECK_NULL(global_wasm_engine);
+  global_wasm_engine = new WasmEngine();
 }
 
 // static
 void WasmEngine::GlobalTearDown() {
-  GetSharedWasmEngine()->reset();
+  // Note: This can be called multiple times in a row (see
+  // test-api/InitializeAndDisposeMultiple). This is fine, as
+  // {global_wasm_engine} will be nullptr then.
+  delete global_wasm_engine;
+  global_wasm_engine = nullptr;
 }
 
 // static
-std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
-  return *GetSharedWasmEngine();
+WasmEngine* WasmEngine::GetWasmEngine() {
+  DCHECK_NOT_NULL(global_wasm_engine);
+  return global_wasm_engine;
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.
