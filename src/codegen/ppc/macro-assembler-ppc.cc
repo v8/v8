@@ -1604,17 +1604,6 @@ void MacroAssembler::InvokeFunction(Register function,
                      actual_parameter_count, flag);
 }
 
-void MacroAssembler::MaybeDropFrames() {
-  // Check whether we need to drop frames to restart a function on the stack.
-  ExternalReference restart_fp =
-      ExternalReference::debug_restart_fp_address(isolate());
-  Move(r4, restart_fp);
-  LoadP(r4, MemOperand(r4));
-  cmpi(r4, Operand::Zero());
-  Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,
-       ne);
-}
-
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);

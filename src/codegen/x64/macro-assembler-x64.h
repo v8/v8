@@ -681,9 +681,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
-  // Frame restart support.
-  void MaybeDropFrames();
-
   // Enter specific kind of exit frame; either in normal or
   // debug mode. Expects the number of arguments in register rax and
   // sets up the number of arguments in register rdi and the pointer

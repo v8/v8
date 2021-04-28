@@ -220,7 +220,6 @@
   'cpu-profiler/enable-disable': [SKIP],
   'cpu-profiler/record-cpu-profile': [SKIP],
   'cpu-profiler/stop-without-preceeding-start': [SKIP],
-  'debugger/access-obsolete-frame': [SKIP],
   'debugger/asm-js-breakpoint-before-exec': [SKIP],
   'debugger/asm-js-breakpoint-during-exec': [SKIP],
   'debugger/asm-js-stack': [SKIP],

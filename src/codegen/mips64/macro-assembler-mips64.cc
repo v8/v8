@@ -4688,14 +4688,6 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
   }
 }
 
-void MacroAssembler::MaybeDropFrames() {
-  // Check whether we need to drop frames to restart a function on the stack.
-  li(a1, ExternalReference::debug_restart_fp_address(isolate()));
-  Ld(a1, MemOperand(a1));
-  Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,
-       ne, a1, Operand(zero_reg));
-}
-
 // ---------------------------------------------------------------------------
 // Exception handling.
 

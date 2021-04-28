@@ -2776,7 +2776,7 @@ IGNITION_HANDLER(ThrowIfNotSuperConstructor, InterpreterAssembler) {
 // Call runtime to handle debugger statement.
 IGNITION_HANDLER(Debugger, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  CallStub(CodeFactory::HandleDebuggerStatement(isolate()), context);
+  CallRuntime(Runtime::kHandleDebuggerStatement, context);
   Dispatch();
 }
 
@@ -2791,7 +2791,6 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
         Runtime::kDebugBreakOnBytecode, context, accumulator);               \
     TNode<Object> return_value = Projection<0>(result_pair);                 \
     TNode<IntPtrT> original_bytecode = SmiUntag(Projection<1>(result_pair)); \
-    MaybeDropFrames(context);                                                \
     SetAccumulator(return_value);                                            \
     DispatchToBytecodeWithOptionalStarLookahead(original_bytecode);          \
   }

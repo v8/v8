@@ -267,7 +267,7 @@ domain Debugger
       BreakpointId breakpointId
 
   # Restarts particular call frame from the beginning.
-  command restartFrame
+  deprecated command restartFrame
     parameters
       # Call frame identifier to evaluate on.
       CallFrameId callFrameId

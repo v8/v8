@@ -1901,9 +1901,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // ---- Code generation helpers ----
 
-  // Frame restart support
-  void MaybeDropFrames();
-
   // ---------------------------------------------------------------------------
   // Support functions.
 

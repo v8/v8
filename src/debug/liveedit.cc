@@ -1190,42 +1190,6 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   result->script = ToApiHandle<v8::debug::Script>(new_script);
 }
 
-void LiveEdit::InitializeThreadLocal(Debug* debug) {
-  debug->thread_local_.restart_fp_ = 0;
-}
-
-bool LiveEdit::RestartFrame(JavaScriptFrame* frame) {
-  if (!LiveEdit::kFrameDropperSupported) return false;
-  Isolate* isolate = frame->isolate();
-  StackFrameId break_frame_id = isolate->debug()->break_frame_id();
-  bool break_frame_found = break_frame_id == StackFrameId::NO_ID;
-  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-    StackFrame* current = it.frame();
-    break_frame_found = break_frame_found || break_frame_id == current->id();
-    if (current->fp() == frame->fp()) {
-      if (break_frame_found) {
-        isolate->debug()->ScheduleFrameRestart(current);
-        return true;
-      } else {
-        return false;
-      }
-    }
-    if (!break_frame_found) continue;
-    if (current->is_exit() || current->is_builtin_exit()) {
-      return false;
-    }
-    if (!current->is_java_script()) continue;
-    std::vector<Handle<SharedFunctionInfo>> shareds;
-    JavaScriptFrame::cast(current)->GetFunctions(&shareds);
-    for (auto& shared : shareds) {
-      if (IsResumableFunction(shared->kind())) {
-        return false;
-      }
-    }
-  }
-  return false;
-}
-
 void LiveEdit::CompareStrings(Isolate* isolate, Handle<String> s1,
                               Handle<String> s2,
                               std::vector<SourceChangeRange>* diffs) {

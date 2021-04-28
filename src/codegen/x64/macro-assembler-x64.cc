@@ -2705,20 +2705,6 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-void MacroAssembler::MaybeDropFrames() {
-  // Check whether we need to drop frames to restart a function on the stack.
-  ExternalReference restart_fp =
-      ExternalReference::debug_restart_fp_address(isolate());
-  Load(rbx, restart_fp);
-  testq(rbx, rbx);
-
-  Label dont_drop;
-  j(zero, &dont_drop, Label::kNear);
-  Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET);
-
-  bind(&dont_drop);
-}
-
 void TurboAssembler::PrepareForTailCall(Register callee_args_count,
                                         Register caller_args_count,
                                         Register scratch0, Register scratch1) {

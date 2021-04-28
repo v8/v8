@@ -352,7 +352,6 @@ void Debug::ThreadInit() {
   thread_local_.return_value_ = Smi::zero();
   thread_local_.last_breakpoint_id_ = 0;
   clear_suspended_generator();
-  thread_local_.restart_fp_ = kNullAddress;
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
   thread_local_.break_on_next_function_call_ = false;
@@ -439,9 +438,6 @@ void Debug::Unload() {
 }
 
 void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
-  // Initialize LiveEdit.
-  LiveEdit::InitializeThreadLocal(this);
-
   // Just continue if breaks are disabled or debugger cannot be loaded.
   if (break_disabled()) return;
 
@@ -1873,27 +1869,6 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   return location.IsReturn();
 }
 
-void Debug::ScheduleFrameRestart(StackFrame* frame) {
-  // Set a target FP for the FrameDropperTrampoline builtin to drop to once
-  // we return from the debugger.
-  DCHECK(frame->is_java_script());
-  // Only reschedule to a frame further below a frame we already scheduled for.
-  if (frame->fp() <= thread_local_.restart_fp_) return;
-  // If the frame is optimized, trigger a deopt and jump into the
-  // FrameDropperTrampoline in the deoptimizer.
-  thread_local_.restart_fp_ = frame->fp();
-
-  // Reset break frame ID to the frame below the restarted frame.
-  StackTraceFrameIterator it(isolate_);
-  thread_local_.break_frame_id_ = StackFrameId::NO_ID;
-  for (StackTraceFrameIterator it(isolate_); !it.done(); it.Advance()) {
-    if (it.frame()->fp() > thread_local_.restart_fp_) {
-      thread_local_.break_frame_id_ = it.frame()->id();
-      return;
-    }
-  }
-}
-
 Handle<FixedArray> Debug::GetLoadedScripts() {
   isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
                                       GarbageCollectionReason::kDebugger);
@@ -2245,8 +2220,6 @@ void Debug::UpdateHookOnFunctionCall() {
 }
 
 void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
-  // Initialize LiveEdit.
-  LiveEdit::InitializeThreadLocal(this);
   // Ignore debug break during bootstrapping.
   if (isolate_->bootstrapper()->IsActive()) return;
   // Just continue if breaks are disabled.

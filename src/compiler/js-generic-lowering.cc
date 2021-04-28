@@ -1444,7 +1444,7 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
 }
 
 void JSGenericLowering::LowerJSDebugger(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kHandleDebuggerStatement);
+  ReplaceWithRuntimeCall(node, Runtime::kHandleDebuggerStatement);
 }
 
 Zone* JSGenericLowering::zone() const { return graph()->zone(); }

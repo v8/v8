@@ -253,11 +253,6 @@ constexpr auto ResumeGeneratorDescriptor::registers() {
 }
 
 // static
-constexpr auto FrameDropperTrampolineDescriptor::registers() {
-  return RegisterArray(a1);  // loaded new FP
-}
-
-// static
 constexpr auto RunMicrotasksEntryDescriptor::registers() {
   return RegisterArray(a0, a1);
 }

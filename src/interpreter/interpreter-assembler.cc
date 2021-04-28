@@ -1310,26 +1310,6 @@ void InterpreterAssembler::AbortIfWordNotEqual(TNode<WordT> lhs,
   BIND(&ok);
 }
 
-void InterpreterAssembler::MaybeDropFrames(TNode<Context> context) {
-  TNode<ExternalReference> restart_fp_address =
-      ExternalConstant(ExternalReference::debug_restart_fp_address(isolate()));
-
-  TNode<IntPtrT> restart_fp = Load<IntPtrT>(restart_fp_address);
-  TNode<IntPtrT> null = IntPtrConstant(0);
-
-  Label ok(this), drop_frames(this);
-  Branch(IntPtrEqual(restart_fp, null), &ok, &drop_frames);
-
-  BIND(&drop_frames);
-  // We don't expect this call to return since the frame dropper tears down
-  // the stack and jumps into the function on the target frame to restart it.
-  CallStub(CodeFactory::FrameDropperTrampoline(isolate()), context, restart_fp);
-  Abort(AbortReason::kUnexpectedReturnFromFrameDropper);
-  Goto(&ok);
-
-  BIND(&ok);
-}
-
 void InterpreterAssembler::OnStackReplacement(TNode<Context> context,
                                               TNode<IntPtrT> relative_jump) {
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));

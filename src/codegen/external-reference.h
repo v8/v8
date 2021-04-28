@@ -62,7 +62,6 @@ class StatsCounter;
   V(is_profiling_address, "Isolate::is_profiling")                             \
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
-  V(debug_restart_fp_address, "Debug::restart_fp_address()")                   \
   V(fast_c_call_caller_fp_address,                                             \
     "IsolateData::fast_c_call_caller_fp_address")                              \
   V(fast_c_call_caller_pc_address,                                             \

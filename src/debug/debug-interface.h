@@ -476,7 +476,6 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
   virtual v8::Local<v8::Function> GetFunction() const = 0;
   virtual std::unique_ptr<ScopeIterator> GetScopeIterator() const = 0;
 
-  virtual bool Restart() = 0;
   virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
                                              bool throw_on_side_effect) = 0;
 };

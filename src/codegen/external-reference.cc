@@ -1017,11 +1017,6 @@ ExternalReference ExternalReference::debug_suspended_generator_address(
   return ExternalReference(isolate->debug()->suspended_generator_address());
 }
 
-ExternalReference ExternalReference::debug_restart_fp_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug()->restart_fp_address());
-}
-
 ExternalReference ExternalReference::fast_c_call_caller_fp_address(
     Isolate* isolate) {
   return ExternalReference(

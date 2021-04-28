@@ -555,19 +555,6 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   }
 }
 
-void MacroAssembler::MaybeDropFrames() {
-  // Check whether we need to drop frames to restart a function on the stack.
-  Label dont_drop;
-  ExternalReference restart_fp =
-      ExternalReference::debug_restart_fp_address(isolate());
-  mov(eax, ExternalReferenceAsOperand(restart_fp, eax));
-  test(eax, eax);
-  j(zero, &dont_drop, Label::kNear);
-
-  Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET);
-  bind(&dont_drop);
-}
-
 void TurboAssembler::Cvtsi2ss(XMMRegister dst, Operand src) {
   xorps(dst, dst);
   cvtsi2ss(dst, src);

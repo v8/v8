@@ -69,7 +69,6 @@ namespace internal {
   V(EphemeronKeyBarrier)                 \
   V(FastNewObject)                       \
   V(ForInPrepare)                        \
-  V(FrameDropperTrampoline)              \
   V(GetIteratorStackParameter)           \
   V(GetProperty)                         \
   V(GrowArrayElements)                   \
@@ -1687,16 +1686,6 @@ class SuspendGeneratorBaselineDescriptor final
                          MachineType::IntPtr(),     // kRegisterCount
   )
   DECLARE_DESCRIPTOR(SuspendGeneratorBaselineDescriptor)
-};
-
-class FrameDropperTrampolineDescriptor final
-    : public StaticCallInterfaceDescriptor<FrameDropperTrampolineDescriptor> {
- public:
-  DEFINE_PARAMETERS(kRestartFp)
-  DEFINE_PARAMETER_TYPES(MachineType::Pointer())
-  DECLARE_DESCRIPTOR(FrameDropperTrampolineDescriptor)
-
-  static constexpr inline auto registers();
 };
 
 class RunMicrotasksEntryDescriptor final

@@ -2272,7 +2272,7 @@ void BaselineCompiler::VisitGetIterator() {
 
 void BaselineCompiler::VisitDebugger() {
   SaveAccumulatorScope accumulator_scope(&basm_);
-  CallBuiltin<Builtins::kHandleDebuggerStatement>();
+  CallRuntime(Runtime::kHandleDebuggerStatement);
 }
 
 void BaselineCompiler::VisitIncBlockCounter() {

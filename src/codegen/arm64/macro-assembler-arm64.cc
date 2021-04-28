@@ -2716,15 +2716,6 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
   IncrementCounter(counter, -value, scratch1, scratch2);
 }
 
-void MacroAssembler::MaybeDropFrames() {
-  // Check whether we need to drop frames to restart a function on the stack.
-  Mov(x1, ExternalReference::debug_restart_fp_address(isolate()));
-  Ldr(x1, MemOperand(x1));
-  Tst(x1, x1);
-  Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,
-       ne);
-}
-
 void MacroAssembler::JumpIfObjectType(Register object, Register map,
                                       Register type_reg, InstanceType type,
                                       Label* if_cond_pass, Condition cond) {

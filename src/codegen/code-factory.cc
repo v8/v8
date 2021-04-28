@@ -233,16 +233,6 @@ Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::FrameDropperTrampoline(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kFrameDropperTrampoline);
-}
-
-// static
-Callable CodeFactory::HandleDebuggerStatement(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kHandleDebuggerStatement);
-}
-
-// static
 Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
                                              ScopeType scope_type) {
   switch (scope_type) {
