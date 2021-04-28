@@ -11,13 +11,7 @@ buildconfig = "//build/config/BUILDCONFIG.gn"
 # matching these patterns (see "gn help label_pattern" for format) will have
 # their includes checked for proper dependencies when you run either
 # "gn check" or "gn gen --check".
-no_check_targets = [
-  "//:cppgc_base",
-  "//:v8_internal_headers",
-  "//src/inspector:inspector",
-  "//test/cctest:cctest_sources",
-  "//third_party/*",
-]
+check_targets = []
 
 # These are the list of GN files that run exec_script. This whitelist exists
 # to force additional review for new uses of exec_script, which is strongly
