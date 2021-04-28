@@ -787,9 +787,9 @@ class RepresentationSelector {
     // TODO(jarin,turbofan) Find a way to unify/merge this insertion with
     // InsertUnreachableIfNecessary.
     Node* unreachable = effect =
-        graph()->NewNode(jsgraph_->common()->Unreachable(), effect, control);
+        graph()->NewNode(common()->Unreachable(), effect, control);
     const Operator* dead_value =
-        jsgraph_->common()->DeadValue(GetInfo(node)->representation());
+        common()->DeadValue(GetInfo(node)->representation());
     node->ReplaceInput(0, unreachable);
     node->TrimInputCount(dead_value->ValueInputCount());
     ReplaceEffectControlUses(node, effect, control);
@@ -934,14 +934,7 @@ class RepresentationSelector {
     }
     ProcessRemainingInputs<T>(node, first_effect_index);
 
-    if (lower<T>() &&
-        // Nodes of type None may not actually be "unused", so ignore them here.
-        // That's because we typically propagate Truncation::None based on type
-        // checks that are vacuously true when the type is None.  It's really
-        // the code that does these checks and truncation propagations that is
-        // to blame, but requiring such code to rule out None types currently
-        // seems infeasible since it's so easy to forget.
-        (!NodeProperties::IsTyped(node) || !TypeOf(node).IsNone())) {
+    if (lower<T>()) {
       TRACE("disconnecting unused #%d:%s\n", node->id(),
             node->op()->mnemonic());
       DisconnectFromEffectAndControl(node);
@@ -1258,7 +1251,7 @@ class RepresentationSelector {
             DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
       }
       SparseInputMask mask = SparseInputMaskOf(node->op());
-      ChangeOp(node, jsgraph_->common()->TypedStateValues(types, mask));
+      ChangeOp(node, common()->TypedStateValues(types, mask));
     }
     SetOutput<T>(node, MachineRepresentation::kTagged);
   }
@@ -1307,9 +1300,9 @@ class RepresentationSelector {
 
         node->ReplaceInput(
             FrameState::kFrameStateStackInput,
-            jsgraph_->graph()->NewNode(jsgraph_->common()->TypedStateValues(
-                                           types, SparseInputMask::Dense()),
-                                       node.stack()));
+            jsgraph_->graph()->NewNode(
+                common()->TypedStateValues(types, SparseInputMask::Dense()),
+                node.stack()));
       }
     }
 
@@ -1348,8 +1341,7 @@ class RepresentationSelector {
           ConvertInput(node, i, UseInfo::AnyTagged());
         }
       }
-      ChangeOp(node, jsgraph_->common()->TypedObjectState(
-                         ObjectIdOf(node->op()), types));
+      ChangeOp(node, common()->TypedObjectState(ObjectIdOf(node->op()), types));
     }
     SetOutput<T>(node, MachineRepresentation::kTagged);
   }
@@ -1968,19 +1960,6 @@ class RepresentationSelector {
                  SimplifiedLowering* lowering) {
     tick_counter_->TickAndMaybeEnterSafepoint();
 
-    // Unconditionally eliminate unused pure nodes (only relevant if there's
-    // a pure operation in between two effectful ones, where the last one
-    // is unused).
-    // Note: We must not do this for constants, as they are cached and we
-    // would thus kill the cached {node} during lowering (i.e. replace all
-    // uses with Dead), but at that point some node lowering might have
-    // already taken the constant {node} from the cache (while it was not
-    // yet killed) and we would afterwards replace that use with Dead as well.
-    if (node->op()->ValueInputCount() > 0 &&
-        node->op()->HasProperty(Operator::kPure) && truncation.IsUnused()) {
-      return VisitUnused<T>(node);
-    }
-
     if (lower<T>()) {
       // Kill non-effectful operations that have a None-type input and are thus
       // dead code. Otherwise we might end up lowering the operation in a way,
@@ -1996,16 +1975,29 @@ class RepresentationSelector {
         for (int i = 0; i < node->op()->ValueInputCount(); i++) {
           Node* input = node->InputAt(i);
           if (TypeOf(input).IsNone()) {
-            MachineRepresentation rep = GetInfo(node)->representation();
-            DeferReplacement(
-                node,
-                graph()->NewNode(jsgraph_->common()->DeadValue(rep), input));
+            node->ReplaceInput(0, input);
+            node->TrimInputCount(1);
+            ChangeOp(node,
+                     common()->DeadValue(GetInfo(node)->representation()));
             return;
           }
         }
       } else {
         InsertUnreachableIfNecessary<T>(node);
       }
+    }
+
+    // Unconditionally eliminate unused pure nodes (only relevant if there's
+    // a pure operation in between two effectful ones, where the last one
+    // is unused).
+    // Note: We must not do this for constants, as they are cached and we
+    // would thus kill the cached {node} during lowering (i.e. replace all
+    // uses with Dead), but at that point some node lowering might have
+    // already taken the constant {node} from the cache (while it was not
+    // yet killed) and we would afterwards replace that use with Dead as well.
+    if (node->op()->ValueInputCount() > 0 &&
+        node->op()->HasProperty(Operator::kPure) && truncation.IsUnused()) {
+      return VisitUnused<T>(node);
     }
 
     switch (node->opcode()) {
