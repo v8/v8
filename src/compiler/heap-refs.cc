@@ -1098,14 +1098,17 @@ class AllocationSiteData : public HeapObjectData {
 class BigIntData : public HeapObjectData {
  public:
   BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object,
-             ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
-      : HeapObjectData(broker, storage, object, kind),
-        as_uint64_(object->AsUint64(nullptr)) {}
+             ObjectDataKind kind)
+      : HeapObjectData(broker, storage, object, kind) {
+    // Read length first as an artificial synchronization point.
+    object->synchronized_length();
+    as_uint64_ = object->AsUint64(nullptr);
+  }
 
   uint64_t AsUint64() const { return as_uint64_; }
 
  private:
-  const uint64_t as_uint64_;
+  uint64_t as_uint64_;
 };
 
 // Only used in JSNativeContextSpecialization.

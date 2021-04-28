@@ -418,7 +418,6 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
       // of the object changed significantly.
       heap->CreateFillerObjectAt(new_end, size_delta, ClearRecordedSlots::kNo);
     }
-    result.synchronized_set_length(new_length);
 
     // Canonicalize -0n.
     if (new_length == 0) {
@@ -426,6 +425,11 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
       // TODO(jkummerow): If we cache a canonical 0n, return that here.
     }
   }
+  // This is the synchronization point which safely allows concurrent reads of
+  // BigInt instances. It *must* be reached on every path that results in a
+  // published BigInt. No writes to the BigInt instance are allowed after this
+  // point.
+  result.synchronized_set_length(new_length);
   DCHECK_IMPLIES(result.length() > 0,
                  result.digit(result.length() - 1) != 0);  // MSD is non-zero.
 }
