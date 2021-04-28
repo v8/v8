@@ -65,6 +65,7 @@
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - dict tracking - debug - builder': 'debug_x64_dict_tracking_trybot',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
+      'V8 Linux64 - heap sandbox - debug': 'debug_x64_heap_sandbox',
       'V8 Linux64 - internal snapshot': 'release_x64_internal',
       'V8 Linux64 - debug - header includes': 'debug_x64_header_includes',
       'V8 Linux64 - shared': 'release_x64_shared_verify_heap',
@@ -215,6 +216,7 @@
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
+      'v8_linux64_heap_sandbox_compile_dbg': 'debug_x64_heap_sandbox',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_nodcheck_rel_ng': 'release_x64',
       'v8_linux64_perfetto_dbg_ng': 'debug_x64_perfetto',
@@ -538,6 +540,8 @@
       'debug_bot_no_goma', 'x64', 'gcc', 'v8_check_header_includes'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
+    'debug_x64_heap_sandbox': [
+      'debug_bot', 'x64', 'v8_enable_heap_sandbox'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_perfetto': [
@@ -843,6 +847,10 @@
 
     'v8_control_flow_integrity' : {
       'gn_args': 'v8_control_flow_integrity=true',
+    },
+
+    'v8_enable_heap_sandbox': {
+      'gn_args': 'v8_enable_heap_sandbox=true',
     },
 
     'v8_enable_lite_mode': {
