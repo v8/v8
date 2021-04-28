@@ -90,6 +90,14 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_heap_sandbox_compile_dbg",
+    bucket = "try",
+    cq_properties = {"cancel_stale": False, "includable_only": "true"},
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_builder(
     name = "v8_linux64_no_wasm_compile_rel",
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
