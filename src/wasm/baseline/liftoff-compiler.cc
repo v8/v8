@@ -4299,7 +4299,6 @@ class LiftoffCompiler {
                        std::initializer_list<LiftoffAssembler::VarState> params,
                        int position) {
     DEBUG_CODE_COMMENT(
-        // NOLINTNEXTLINE(whitespace/braces)
         (std::string{"call builtin: "} + GetRuntimeStubName(stub_id)).c_str());
     auto interface_descriptor = Builtins::CallInterfaceDescriptorFor(
         RuntimeStubIdToBuiltinName(stub_id));

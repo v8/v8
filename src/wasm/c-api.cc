@@ -455,8 +455,7 @@ struct FuncTypeImpl : ExternTypeImpl {
   ownvec<ValType> params;
   ownvec<ValType> results;
 
-  FuncTypeImpl(ownvec<ValType>& params,   // NOLINT(runtime/references)
-               ownvec<ValType>& results)  // NOLINT(runtime/references)
+  FuncTypeImpl(ownvec<ValType>& params, ownvec<ValType>& results)
       : ExternTypeImpl(EXTERN_FUNC),
         params(std::move(params)),
         results(std::move(results)) {}
@@ -507,8 +506,7 @@ struct GlobalTypeImpl : ExternTypeImpl {
   own<ValType> content;
   Mutability mutability;
 
-  GlobalTypeImpl(own<ValType>& content,  // NOLINT(runtime/references)
-                 Mutability mutability)
+  GlobalTypeImpl(own<ValType>& content, Mutability mutability)
       : ExternTypeImpl(EXTERN_GLOBAL),
         content(std::move(content)),
         mutability(mutability) {}
@@ -560,8 +558,7 @@ struct TableTypeImpl : ExternTypeImpl {
   own<ValType> element;
   Limits limits;
 
-  TableTypeImpl(own<ValType>& element,  // NOLINT(runtime/references)
-                Limits limits)
+  TableTypeImpl(own<ValType>& element, Limits limits)
       : ExternTypeImpl(EXTERN_TABLE),
         element(std::move(element)),
         limits(limits) {}
@@ -652,9 +649,7 @@ struct ImportTypeImpl {
   Name name;
   own<ExternType> type;
 
-  ImportTypeImpl(Name& module,           // NOLINT(runtime/references)
-                 Name& name,             // NOLINT(runtime/references)
-                 own<ExternType>& type)  // NOLINT(runtime/references)
+  ImportTypeImpl(Name& module, Name& name, own<ExternType>& type)
       : module(std::move(module)),
         name(std::move(name)),
         type(std::move(type)) {}
@@ -695,8 +690,7 @@ struct ExportTypeImpl {
   Name name;
   own<ExternType> type;
 
-  ExportTypeImpl(Name& name,             // NOLINT(runtime/references)
-                 own<ExternType>& type)  // NOLINT(runtime/references)
+  ExportTypeImpl(Name& name, own<ExternType>& type)
       : name(std::move(name)), type(std::move(type)) {}
 };
 
