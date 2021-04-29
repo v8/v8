@@ -693,7 +693,7 @@ void TestCompileFunctionInContextToStringImpl() {
     }                                                                      \
   } while (false)
 
-  {  // NOLINT
+  {
     CcTest::InitializeVM();
     v8::Isolate* isolate = CcTest::isolate();
     v8::HandleScope scope(isolate);

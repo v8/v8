@@ -34,7 +34,7 @@
 #include <string>
 
 #if V8_OS_POSIX
-#include <unistd.h>  // NOLINT
+#include <unistd.h>
 #endif
 
 #include "include/v8-fast-api-calls.h"
@@ -8534,12 +8534,8 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, str->Write(isolate, nullptr, 0, 0, String::NO_NULL_TERMINATION));
 }
 
-
-static void Utf16Helper(
-    LocalContext& context,  // NOLINT
-    const char* name,
-    const char* lengths_name,
-    int len) {
+static void Utf16Helper(LocalContext& context, const char* name,
+                        const char* lengths_name, int len) {
   Local<v8::Array> a = Local<v8::Array>::Cast(
       context->Global()->Get(context.local(), v8_str(name)).ToLocalChecked());
   Local<v8::Array> alens =

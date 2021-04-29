@@ -5118,11 +5118,9 @@ namespace {
 // Builds a call with the specified signature and nodes as arguments.
 // Then checks that the correct number of kArm64Poke and kArm64PokePair were
 // generated.
-void TestPokePair(
-    InstructionSelectorTest::StreamBuilder* m,  // NOLINT(runtime/references)
-    Zone* zone,
-    MachineSignature::Builder* builder,  // NOLINT(runtime/references)
-    Node* nodes[], int num_nodes, int expected_poke_pair, int expected_poke) {
+void TestPokePair(InstructionSelectorTest::StreamBuilder* m, Zone* zone,
+                  MachineSignature::Builder* builder, Node* nodes[],
+                  int num_nodes, int expected_poke_pair, int expected_poke) {
   auto call_descriptor =
       InstructionSelectorTest::StreamBuilder::MakeSimpleCallDescriptor(
           zone, builder->Build());
