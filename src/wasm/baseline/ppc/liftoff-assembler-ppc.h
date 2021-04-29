@@ -695,13 +695,18 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
 void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
                                          Register dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_f32_set_cond");
+  fcmpu(lhs, rhs);
+  Label done;
+  mov(dst, Operand(1));
+  b(liftoff::ToCondition(liftoff_cond), &done);
+  mov(dst, Operand::Zero());
+  bind(&done);
 }
 
 void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
                                          Register dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_f64_set_cond");
+  emit_f32_set_cond(liftoff_cond, dst, lhs, rhs);
 }
 
 bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
