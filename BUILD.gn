@@ -6288,9 +6288,7 @@ if (!build_with_chromium && v8_use_perfetto) {
     configs = [ ":v8_tracing_config" ]
     public_configs = [ "//third_party/perfetto/gn:public_config" ]
     deps = [
-      "//third_party/perfetto/src/trace_processor:export_json",
       "//third_party/perfetto/src/trace_processor:storage_minimal",
-      "//third_party/perfetto/src/tracing:client_api",
       "//third_party/perfetto/src/tracing/core",
 
       # TODO(skyostil): Support non-POSIX platforms.
@@ -6298,6 +6296,12 @@ if (!build_with_chromium && v8_use_perfetto) {
       "//third_party/perfetto/protos/perfetto/trace/track_event:zero",
       "//third_party/perfetto/src/tracing:in_process_backend",
       "//third_party/perfetto/src/tracing:platform_impl",
+    ]
+
+    public_deps = [
+      "//third_party/perfetto/include/perfetto/trace_processor",
+      "//third_party/perfetto/src/trace_processor:export_json",
+      "//third_party/perfetto/src/tracing:client_api",
     ]
   }
 }  # if (!build_with_chromium && v8_use_perfetto)
