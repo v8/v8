@@ -354,6 +354,12 @@ bool TryMatchAnyExtend(Arm64OperandGenerator* g, InstructionSelector* selector,
         return true;
       }
     }
+  } else if (nm.IsChangeInt32ToInt64()) {
+    // Use extended register form.
+    *opcode |= AddressingModeField::encode(kMode_Operand2_R_SXTW);
+    *left_op = g->UseRegister(left_node);
+    *right_op = g->UseRegister(right_node->InputAt(0));
+    return true;
   }
   return false;
 }

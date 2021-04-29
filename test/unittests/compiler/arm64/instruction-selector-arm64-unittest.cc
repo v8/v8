@@ -642,6 +642,21 @@ TEST_P(InstructionSelectorAddSubTest, SignedExtendHalfword) {
   ASSERT_EQ(1U, s[0]->OutputCount());
 }
 
+TEST_P(InstructionSelectorAddSubTest, SignedExtendWord) {
+  const AddSub dpi = GetParam();
+  const MachineType type = dpi.mi.machine_type;
+  if (type != MachineType::Int64()) return;
+  StreamBuilder m(this, type, type, type);
+  m.Return((m.*dpi.mi.constructor)(m.Parameter(0),
+                                   m.ChangeInt32ToInt64(m.Parameter(1))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_Operand2_R_SXTW, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorAddSubTest,
                          ::testing::ValuesIn(kAddSubInstructions));
 
