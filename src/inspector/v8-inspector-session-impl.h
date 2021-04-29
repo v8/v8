@@ -53,6 +53,9 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   v8::Local<v8::Object> createCommandLineAPI(
       v8::Local<v8::Context> context) override;
 
+  std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
+  initializeCommandLineAPIScope(int executionContextId) override;
+
   Response findInjectedScript(int contextId, InjectedScript*&);
   Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
   void reset();

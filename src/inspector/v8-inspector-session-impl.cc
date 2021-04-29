@@ -155,6 +155,20 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   m_inspector->disconnect(this);
 }
 
+std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
+V8InspectorSessionImpl::initializeCommandLineAPIScope(int executionContextId) {
+  auto scope =
+      std::make_unique<InjectedScript::ContextScope>(this, executionContextId);
+  auto result = scope->initialize();
+  if (!result.IsSuccess()) {
+    return nullptr;
+  }
+
+  scope->installCommandLineAPI();
+
+  return scope;
+}
+
 v8::Local<v8::Object> V8InspectorSessionImpl::createCommandLineAPI(
     v8::Local<v8::Context> context) {
   return inspector()->console()->createCommandLineAPI(context, sessionId());
