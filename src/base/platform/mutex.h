@@ -14,7 +14,7 @@
 #include "src/base/logging.h"
 
 #if V8_OS_POSIX
-#include <pthread.h>  // NOLINT
+#include <pthread.h>
 #endif
 
 #if V8_OS_STARBOARD
