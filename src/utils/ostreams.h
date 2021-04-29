@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
-#include <ostream>  // NOLINT
+#include <ostream>
 #include <streambuf>
 
 #include "include/v8config.h"

@@ -19,7 +19,7 @@
 #include "src/utils/vector.h"
 
 #if V8_LIBC_BIONIC
-#include <malloc.h>  // NOLINT
+#include <malloc.h>
 
 #include "src/base/platform/wrappers.h"
 #endif
