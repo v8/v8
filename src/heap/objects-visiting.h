@@ -52,8 +52,11 @@ namespace internal {
   V(SyntheticModule)                    \
   V(TransitionArray)                    \
   IF_WASM(V, WasmArray)                 \
+  IF_WASM(V, WasmExportedFunctionData)  \
+  IF_WASM(V, WasmFunctionData)          \
   IF_WASM(V, WasmIndirectFunctionTable) \
   IF_WASM(V, WasmInstanceObject)        \
+  IF_WASM(V, WasmJSFunctionData)        \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmTypeInfo)
 

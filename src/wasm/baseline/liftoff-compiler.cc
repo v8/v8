@@ -5629,9 +5629,9 @@ class LiftoffCompiler {
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
-    // Since this is a call instruction, we'll have to spill everything later
-    // anyway; do it right away so that the register state tracking doesn't
-    // get confused by the conditional builtin call below.
+    // Executing a write barrier needs temp registers; doing this on a
+    // conditional branch confuses the LiftoffAssembler's register management.
+    // Spill everything up front to work around that.
     __ SpillAllRegisters();
 
     // We limit ourselves to four registers:
@@ -5646,6 +5646,7 @@ class LiftoffCompiler {
     LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
+    // Load the WasmFunctionData.
     LiftoffRegister func_data = func_ref;
     __ LoadTaggedPointer(
         func_data.gp(), func_ref.gp(), no_reg,
@@ -5656,144 +5657,54 @@ class LiftoffCompiler {
         wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset),
         pinned);
 
-    LiftoffRegister data_type = instance;
-    __ LoadMap(data_type.gp(), func_data.gp());
-    __ Load(data_type, data_type.gp(), no_reg,
-            wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
-            LoadType::kI32Load16U, pinned);
+    // Load "ref" (instance or <instance, callable> pair) and target.
+    __ LoadTaggedPointer(
+        instance.gp(), func_data.gp(), no_reg,
+        wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset), pinned);
 
-    Label is_js_function, perform_call;
-    __ emit_i32_cond_jumpi(kEqual, &is_js_function, data_type.gp(),
-                           WASM_JS_FUNCTION_DATA_TYPE);
-    // End of {data_type}'s live range.
+    Label load_target, perform_call;
 
+    // Check if "ref" is a Tuple2.
     {
-      // Call to a WasmExportedFunction.
-
-      LiftoffRegister callee_instance = instance;
-      __ LoadTaggedPointer(callee_instance.gp(), func_data.gp(), no_reg,
-                           wasm::ObjectAccess::ToTagged(
-                               WasmExportedFunctionData::kInstanceOffset),
-                           pinned);
-      LiftoffRegister func_index = target;
-      __ LoadSmiAsInt32(func_index, func_data.gp(),
-                        wasm::ObjectAccess::ToTagged(
-                            WasmExportedFunctionData::kFunctionIndexOffset),
-                        pinned);
-      LiftoffRegister imported_function_refs = temp;
-      __ LoadTaggedPointer(imported_function_refs.gp(), callee_instance.gp(),
-                           no_reg,
-                           wasm::ObjectAccess::ToTagged(
-                               WasmInstanceObject::kImportedFunctionRefsOffset),
-                           pinned);
-      // We overwrite {imported_function_refs} here, at the cost of having
-      // to reload it later, because we don't have more registers on ia32.
-      LiftoffRegister imported_functions_num = imported_function_refs;
-      __ LoadFixedArrayLengthAsInt32(imported_functions_num,
-                                     imported_function_refs.gp(), pinned);
-
-      Label imported;
-      __ emit_cond_jump(kSignedLessThan, &imported, kI32, func_index.gp(),
-                        imported_functions_num.gp());
-
-      {
-        // Function locally defined in module.
-
-        // {func_index} is invalid from here on.
-        LiftoffRegister jump_table_start = target;
-        __ Load(jump_table_start, callee_instance.gp(), no_reg,
-                wasm::ObjectAccess::ToTagged(
-                    WasmInstanceObject::kJumpTableStartOffset),
-                kPointerLoadType, pinned);
-        LiftoffRegister jump_table_offset = temp;
-        __ LoadSmiAsInt32(jump_table_offset, func_data.gp(),
-                          wasm::ObjectAccess::ToTagged(
-                              WasmExportedFunctionData::kJumpTableOffsetOffset),
+      LiftoffRegister pair_map = temp;
+      LiftoffRegister ref_map = target;
+      __ LoadMap(ref_map.gp(), instance.gp());
+      LOAD_INSTANCE_FIELD(pair_map.gp(), IsolateRoot, kSystemPointerSize,
                           pinned);
-        __ emit_ptrsize_add(target.gp(), jump_table_start.gp(),
-                            jump_table_offset.gp());
-        __ emit_jump(&perform_call);
-      }
-
-      {
-        // Function imported to module.
-        __ bind(&imported);
-
-        LiftoffRegister imported_function_targets = temp;
-        __ Load(imported_function_targets, callee_instance.gp(), no_reg,
-                wasm::ObjectAccess::ToTagged(
-                    WasmInstanceObject::kImportedFunctionTargetsOffset),
-                kPointerLoadType, pinned);
-        // {callee_instance} is invalid from here on.
-        LiftoffRegister imported_instance = instance;
-        // Scale {func_index} to kTaggedSize.
-        __ emit_i32_shli(func_index.gp(), func_index.gp(), kTaggedSizeLog2);
-        // {func_data} is invalid from here on.
-        imported_function_refs = func_data;
-        __ LoadTaggedPointer(
-            imported_function_refs.gp(), callee_instance.gp(), no_reg,
-            wasm::ObjectAccess::ToTagged(
-                WasmInstanceObject::kImportedFunctionRefsOffset),
-            pinned);
-        __ LoadTaggedPointer(
-            imported_instance.gp(), imported_function_refs.gp(),
-            func_index.gp(),
-            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0), pinned);
-        // Scale {func_index} to kSystemPointerSize.
-        if (kSystemPointerSize == kTaggedSize * 2) {
-          __ emit_i32_add(func_index.gp(), func_index.gp(), func_index.gp());
-        } else {
-          DCHECK_EQ(kSystemPointerSize, kTaggedSize);
-        }
-        // This overwrites the contents of {func_index}, which we don't need
-        // any more.
-        __ Load(target, imported_function_targets.gp(), func_index.gp(), 0,
-                kPointerLoadType, pinned);
-        __ emit_jump(&perform_call);
-      }
-    }
-
-    {
-      // Call to a WasmJSFunction. The call target is
-      // function_data->wasm_to_js_wrapper_code()->instruction_start().
-      // The instance_node is the pair
-      // (current WasmInstanceObject, function_data->callable()).
-      __ bind(&is_js_function);
-
-      LiftoffRegister callable = temp;
-      __ LoadTaggedPointer(
-          callable.gp(), func_data.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset),
-          pinned);
-
-      // Preserve {func_data} across the call.
-      LiftoffRegList saved_regs = LiftoffRegList::ForRegs(func_data);
-      __ PushRegisters(saved_regs);
-
-      LiftoffRegister current_instance = instance;
-      __ FillInstanceInto(current_instance.gp());
-      LiftoffAssembler::VarState instance_var(kOptRef, current_instance, 0);
-      LiftoffAssembler::VarState callable_var(kOptRef, callable, 0);
-
-      CallRuntimeStub(WasmCode::kWasmAllocatePair,
-                      MakeSig::Returns(kOptRef).Params(kOptRef, kOptRef),
-                      {instance_var, callable_var}, decoder->position());
-      if (instance.gp() != kReturnRegister0) {
-        __ Move(instance.gp(), kReturnRegister0, kPointerKind);
-      }
-
-      // Restore {func_data}, which we saved across the call.
-      __ PopRegisters(saved_regs);
-
-      LiftoffRegister wrapper_code = target;
-      __ LoadTaggedPointer(wrapper_code.gp(), func_data.gp(), no_reg,
-                           wasm::ObjectAccess::ToTagged(
-                               WasmJSFunctionData::kWasmToJsWrapperCodeOffset),
+      __ LoadTaggedPointer(pair_map.gp(), pair_map.gp(), no_reg,
+                           IsolateData::root_slot_offset(RootIndex::kTuple2Map),
                            pinned);
-      __ emit_ptrsize_addi(target.gp(), wrapper_code.gp(),
-                           wasm::ObjectAccess::ToTagged(Code::kHeaderSize));
-      // Fall through to {perform_call}.
+      __ emit_cond_jump(kUnequal, &load_target, kRef, ref_map.gp(),
+                        pair_map.gp());
+
+      // Overwrite the tuple's "instance" entry with the current instance.
+      // TODO(jkummerow): Can we figure out a way to guarantee that the
+      // instance field is always precomputed?
+      LiftoffRegister current_instance = temp;
+      __ FillInstanceInto(current_instance.gp());
+      __ StoreTaggedPointer(instance.gp(), no_reg,
+                            wasm::ObjectAccess::ToTagged(Tuple2::kValue1Offset),
+                            current_instance, pinned);
+      // Fall through to {load_target}.
     }
+    // Load the call target.
+    __ bind(&load_target);
+    __ Load(
+        target, func_data.gp(), no_reg,
+        wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset),
+        kPointerLoadType, pinned);
+    LiftoffRegister null_address = temp;
+    __ LoadConstant(null_address, WasmValue::ForUintPtr(0));
+    __ emit_cond_jump(kUnequal, &perform_call, kRef, target.gp(),
+                      null_address.gp());
+    // The cached target can only be null for WasmJSFunctions.
+    __ LoadTaggedPointer(target.gp(), func_data.gp(), no_reg,
+                         wasm::ObjectAccess::ToTagged(
+                             WasmJSFunctionData::kWasmToJsWrapperCodeOffset),
+                         pinned);
+    __ emit_ptrsize_addi(target.gp(), target.gp(),
+                         wasm::ObjectAccess::ToTagged(Code::kHeaderSize));
+    // Fall through to {perform_call}.
 
     __ bind(&perform_call);
     // Now the call target is in {target}, and the right instance object

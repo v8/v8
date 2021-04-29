@@ -1944,20 +1944,32 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+// Never called directly, as WasmFunctionData is an "abstract" class.
+void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {  // NOLINT
+  os << "\n - target: " << reinterpret_cast<void*>(foreign_address());
+  os << "\n - ref: " << Brief(ref());
+}
+
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
     std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmExportedFunctionData");
+  WasmFunctionDataPrint(os);
   os << "\n - wrapper_code: " << Brief(wrapper_code());
   os << "\n - instance: " << Brief(instance());
-  os << "\n - jump_table_offset: " << jump_table_offset();
   os << "\n - function_index: " << function_index();
+  os << "\n - signature: " << Brief(signature());
+  os << "\n - wrapper_budget: " << wrapper_budget();
   os << "\n";
 }
 
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmJSFunctionData");
-  os << "\n - callable: " << Brief(callable());
+  WasmFunctionDataPrint(os);
   os << "\n - wrapper_code: " << Brief(wrapper_code());
+  os << "\n - wasm_to_js_wrapper_code: " << Brief(wasm_to_js_wrapper_code());
+  os << "\n - serialized_return_count: " << serialized_return_count();
+  os << "\n - serialized_parameter_count: " << serialized_parameter_count();
+  os << "\n - serialized signature: " << Brief(serialized_signature());
   os << "\n";
 }
 

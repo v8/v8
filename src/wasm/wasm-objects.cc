@@ -1896,30 +1896,18 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       (export_wrapper->is_builtin() &&
        export_wrapper->builtin_index() == Builtins::kGenericJSToWasmWrapper));
   int num_imported_functions = instance->module()->num_imported_functions;
-  int jump_table_offset = -1;
-  if (func_index >= num_imported_functions) {
-    uint32_t jump_table_diff =
-        instance->module_object().native_module()->GetJumpTableOffset(
-            func_index);
-    DCHECK_GE(kMaxInt, jump_table_diff);
-    jump_table_offset = static_cast<int>(jump_table_diff);
-  }
+  Handle<Object> ref =
+      func_index >= num_imported_functions
+          ? instance
+          : handle(instance->imported_function_refs().get(func_index), isolate);
+
   Factory* factory = isolate->factory();
   const wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
-  Handle<Foreign> sig_foreign =
-      factory->NewForeign(reinterpret_cast<Address>(sig));
+  Address call_target = instance->GetCallTarget(func_index);
   Handle<WasmExportedFunctionData> function_data =
-      Handle<WasmExportedFunctionData>::cast(factory->NewStruct(
-          WASM_EXPORTED_FUNCTION_DATA_TYPE, AllocationType::kOld));
-  function_data->set_wrapper_code(*export_wrapper);
-  function_data->set_instance(*instance);
-  function_data->set_jump_table_offset(jump_table_offset);
-  function_data->set_function_index(func_index);
-  function_data->set_signature(*sig_foreign);
-  function_data->set_wrapper_budget(wasm::kGenericWrapperBudget);
-  function_data->set_c_wrapper_code(Smi::zero(), SKIP_WRITE_BARRIER);
-  function_data->set_wasm_call_target(Smi::zero(), SKIP_WRITE_BARRIER);
-  function_data->set_packed_args_size(0);
+      factory->NewWasmExportedFunctionData(
+          export_wrapper, instance, call_target, ref, func_index,
+          reinterpret_cast<Address>(sig), wasm::kGenericWrapperBudget);
 
   MaybeHandle<String> maybe_name;
   bool is_asm_js_module = instance->module_object().is_asm_js();
@@ -2040,18 +2028,18 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<Code> wrapper_code =
       compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked();
 
+  // WasmJSFunctions use on-heap Code objects as call targets, so we can't
+  // cache the target address, unless the WasmJSFunction wraps a
+  // WasmExportedFunction.
+  Address call_target = kNullAddress;
+  if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
+    call_target = WasmExportedFunction::cast(*callable).GetWasmCallTarget();
+  }
+
   Factory* factory = isolate->factory();
-  Handle<WasmJSFunctionData> function_data = Handle<WasmJSFunctionData>::cast(
-      factory->NewStruct(WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));
-  function_data->set_serialized_return_count(return_count);
-  function_data->set_serialized_parameter_count(parameter_count);
-  function_data->set_serialized_signature(*serialized_sig);
-  function_data->set_callable(*callable);
-  function_data->set_wrapper_code(*wrapper_code);
-  // Use Abort() as a default value (it will never be called if not overwritten
-  // below).
-  function_data->set_wasm_to_js_wrapper_code(
-      isolate->heap()->builtin(Builtins::kAbort));
+  Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
+      call_target, callable, return_count, parameter_count, serialized_sig,
+      wrapper_code);
 
   if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
     using CK = compiler::WasmImportCallKind;
@@ -2092,7 +2080,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 }
 
 JSReceiver WasmJSFunction::GetCallable() const {
-  return shared().wasm_js_function_data().callable();
+  return JSReceiver::cast(
+      Tuple2::cast(shared().wasm_js_function_data().ref()).value2());
 }
 
 const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {

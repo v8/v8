@@ -3119,13 +3119,11 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   }
 }
 
-Node* WasmGraphBuilder::BuildLoadJumpTableOffsetFromExportedFunctionData(
+Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
     Node* function_data) {
-  Node* jump_table_offset_smi = gasm_->LoadFromObject(
-      MachineType::TaggedSigned(), function_data,
-      wasm::ObjectAccess::ToTagged(
-          WasmExportedFunctionData::kJumpTableOffsetOffset));
-  return BuildChangeSmiToIntPtr(jump_table_offset_smi);
+  return gasm_->LoadFromObject(
+      MachineType::Pointer(), function_data,
+      wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset));
 }
 
 // TODO(9495): Support CAPI function refs.
@@ -3143,77 +3141,33 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
 
   Node* function_data = gasm_->LoadFunctionDataFromJSFunction(args[0]);
 
-  Node* is_js_function =
-      gasm_->HasInstanceType(function_data, WASM_JS_FUNCTION_DATA_TYPE);
+  auto load_target = gasm_->MakeLabel();
+  auto end_label = gasm_->MakeLabel(MachineType::PointerRepresentation());
 
-  auto js_label = gasm_->MakeLabel();
-  auto end_label = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer,
-                                    MachineRepresentation::kTaggedPointer);
+  Node* instance_node = gasm_->LoadFromObject(
+      MachineType::TaggedPointer(), function_data,
+      wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset));
 
-  gasm_->GotoIf(is_js_function, &js_label);
-
+  Node* is_pair = gasm_->HasInstanceType(instance_node, TUPLE2_TYPE);
+  gasm_->GotoIfNot(is_pair, &load_target);
   {
-    // Call to a WasmExportedFunction.
-    // Load instance object corresponding to module where callee is defined.
-    Node* callee_instance = gasm_->LoadExportedFunctionInstance(function_data);
-    Node* function_index = gasm_->LoadExportedFunctionIndexAsSmi(function_data);
-
-    auto imported_label = gasm_->MakeLabel();
-
-    // Check if callee is a locally defined or imported function in its module.
-    Node* imported_function_refs = gasm_->LoadFromObject(
-        MachineType::TaggedPointer(), callee_instance,
-        wasm::ObjectAccess::ToTagged(
-            WasmInstanceObject::kImportedFunctionRefsOffset));
-    Node* imported_functions_num =
-        gasm_->LoadFixedArrayLengthAsSmi(imported_function_refs);
-    gasm_->GotoIf(gasm_->SmiLessThan(function_index, imported_functions_num),
-                  &imported_label);
-    {
-      // Function locally defined in module.
-      Node* jump_table_start =
-          gasm_->LoadFromObject(MachineType::Pointer(), callee_instance,
-                                wasm::ObjectAccess::ToTagged(
-                                    WasmInstanceObject::kJumpTableStartOffset));
-      Node* jump_table_offset =
-          BuildLoadJumpTableOffsetFromExportedFunctionData(function_data);
-      Node* jump_table_slot =
-          gasm_->IntAdd(jump_table_start, jump_table_offset);
-
-      gasm_->Goto(&end_label, jump_table_slot,
-                  callee_instance /* Unused, dummy value */);
-    }
-
-    {
-      // Function imported to module.
-      gasm_->Bind(&imported_label);
-      Node* function_index_intptr = BuildChangeSmiToIntPtr(function_index);
-
-      Node* imported_instance = gasm_->LoadFixedArrayElement(
-          imported_function_refs, function_index_intptr,
-          MachineType::TaggedPointer());
-
-      Node* imported_function_targets = gasm_->LoadFromObject(
-          MachineType::Pointer(), callee_instance,
-          wasm::ObjectAccess::ToTagged(
-              WasmInstanceObject::kImportedFunctionTargetsOffset));
-
-      Node* target_node = gasm_->LoadFromObject(
-          MachineType::Pointer(), imported_function_targets,
-          gasm_->IntMul(function_index_intptr,
-                        gasm_->IntPtrConstant(kSystemPointerSize)));
-
-      gasm_->Goto(&end_label, target_node, imported_instance);
-    }
+    // Overwrite the tuple's "instance" entry with the current instance.
+    // TODO(jkummerow): Can we avoid this, by guaranteeing that it's always
+    // pre-populated?
+    gasm_->StoreToObject(
+        ObjectAccess(MachineType::TaggedPointer(), kFullWriteBarrier),
+        instance_node, wasm::ObjectAccess::ToTagged(Tuple2::kValue1Offset),
+        GetInstance());
+    gasm_->Goto(&load_target);
   }
 
+  gasm_->Bind(&load_target);
+  Node* target = BuildLoadCallTargetFromExportedFunctionData(function_data);
+  Node* is_null_target = gasm_->WordEqual(target, gasm_->IntPtrConstant(0));
+  gasm_->GotoIfNot(is_null_target, &end_label, target);
   {
-    // Call to a WasmJSFunction. The call target is
-    // function_data->wasm_to_js_wrapper_code()->instruction_start().
-    // The instance_node is the pair
-    // (current WasmInstanceObject, function_data->callable()).
-    gasm_->Bind(&js_label);
-
+    // Compute the call target from the (on-heap) wrapper code. The cached
+    // target can only be null for WasmJSFunctions.
     Node* wrapper_code = gasm_->LoadFromObject(
         MachineType::TaggedPointer(), function_data,
         wasm::ObjectAccess::ToTagged(
@@ -3221,23 +3175,12 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
     Node* call_target = gasm_->IntAdd(
         wrapper_code,
         gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(Code::kHeaderSize)));
-
-    Node* callable = gasm_->LoadFromObject(
-        MachineType::TaggedPointer(), function_data,
-        wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset));
-    // TODO(manoskouk): Find an elegant way to avoid allocating this pair for
-    // every call.
-    Node* function_instance_node =
-        gasm_->CallBuiltin(Builtins::kWasmAllocatePair, Operator::kEliminatable,
-                           GetInstance(), callable);
-
-    gasm_->Goto(&end_label, call_target, function_instance_node);
+    gasm_->Goto(&end_label, call_target);
   }
 
   gasm_->Bind(&end_label);
 
   args[0] = end_label.PhiAt(0);
-  Node* instance_node = end_label.PhiAt(1);
 
   const UseRetpoline use_retpoline =
       untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline;
@@ -6582,15 +6525,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         wasm::kNoCodePosition, function_index, kCallContinues);
       } else {
         // Call to a wasm function defined in this module.
-        // The call target is the jump table slot for that function.
-        Node* jump_table_start =
-            LOAD_INSTANCE_FIELD(JumpTableStart, MachineType::Pointer());
-        Node* jump_table_offset =
-            BuildLoadJumpTableOffsetFromExportedFunctionData(function_data);
-        Node* jump_table_slot =
-            gasm_->IntAdd(jump_table_start, jump_table_offset);
-        args[0] = jump_table_slot;
-
+        // The (cached) call target is the jump table slot for that function.
+        args[0] = BuildLoadCallTargetFromExportedFunctionData(function_data);
         BuildWasmCall(sig_, VectorOf(args), VectorOf(rets),
                       wasm::kNoCodePosition, nullptr, kNoRetpoline,
                       frame_state);
@@ -7082,9 +7018,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Load the original callable from the closure.
     Node* func_data = gasm_->LoadFunctionDataFromJSFunction(closure);
-    Node* callable = gasm_->LoadFromObject(
+    Node* pair = gasm_->LoadFromObject(
         MachineType::AnyTagged(), func_data,
-        wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset));
+        wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kRefOffset));
+    Node* callable = gasm_->LoadFromObject(
+        MachineType::AnyTagged(), pair,
+        wasm::ObjectAccess::ToTagged(Tuple2::kValue2Offset));
 
     // Call the underlying closure.
     base::SmallVector<Node*, 16> args(wasm_count + 7);

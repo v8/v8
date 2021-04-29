@@ -555,6 +555,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
                                        Handle<Map> opt_parent);
+  Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
+      Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
+      Address call_target, Handle<Object> ref, int func_index,
+      Address sig_address, int wrapper_budget);
+  // {opt_call_target} is kNullAddress for JavaScript functions, and
+  // non-null for exported Wasm functions.
+  Handle<WasmJSFunctionData> NewWasmJSFunctionData(
+      Address opt_call_target, Handle<JSReceiver> callable, int return_count,
+      int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
+      Handle<Code> wrapper_code);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       Handle<String> name, Handle<WasmExportedFunctionData> data);

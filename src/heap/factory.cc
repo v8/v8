@@ -1388,6 +1388,51 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
   return handle(result, isolate());
 }
 
+Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
+    Address opt_call_target, Handle<JSReceiver> callable, int return_count,
+    int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
+    Handle<Code> wrapper_code) {
+  Handle<Tuple2> pair = NewTuple2(null_value(), callable, AllocationType::kOld);
+  Map map = *wasm_js_function_data_map();
+  WasmJSFunctionData result =
+      WasmJSFunctionData::cast(AllocateRawWithImmortalMap(
+          map.instance_size(), AllocationType::kOld, map));
+  DisallowGarbageCollection no_gc;
+  result.AllocateExternalPointerEntries(isolate());
+  result.set_foreign_address(isolate(), opt_call_target);
+  result.set_ref(*pair);
+  result.set_serialized_return_count(return_count);
+  result.set_serialized_parameter_count(parameter_count);
+  result.set_serialized_signature(*serialized_sig);
+  result.set_wrapper_code(*wrapper_code);
+  // Default value, will be overwritten by the caller.
+  result.set_wasm_to_js_wrapper_code(
+      isolate()->heap()->builtin(Builtins::kAbort));
+  return handle(result, isolate());
+}
+
+Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
+    Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
+    Address call_target, Handle<Object> ref, int func_index,
+    Address sig_address, int wrapper_budget) {
+  Handle<Foreign> sig_foreign = NewForeign(sig_address);
+  Map map = *wasm_exported_function_data_map();
+  WasmExportedFunctionData result =
+      WasmExportedFunctionData::cast(AllocateRawWithImmortalMap(
+          map.instance_size(), AllocationType::kOld, map));
+  DisallowGarbageCollection no_gc;
+  result.set_foreign_address(isolate(), call_target);
+  result.set_ref(*ref);
+  result.set_wrapper_code(*export_wrapper);
+  result.set_instance(*instance);
+  result.set_function_index(func_index);
+  result.set_signature(*sig_foreign);
+  result.set_wrapper_budget(wrapper_budget);
+  result.set_c_wrapper_code(Smi::zero(), SKIP_WRITE_BARRIER);
+  result.set_packed_args_size(0);
+  return handle(result, isolate());
+}
+
 Handle<SharedFunctionInfo>
 Factory::NewSharedFunctionInfoForWasmExportedFunction(
     Handle<String> name, Handle<WasmExportedFunctionData> data) {

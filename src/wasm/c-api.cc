@@ -1356,26 +1356,6 @@ i::Handle<i::Object> WasmRefToV8(i::Isolate* isolate, const Ref* ref) {
   return impl(ref)->v8_object();
 }
 
-i::Handle<i::Object> CallTargetForCaching(i::Isolate* isolate,
-                                          i::Address real_call_target) {
-  if (i::kTaggedSize == i::kInt32Size) {
-    return isolate->factory()->NewForeign(real_call_target);
-  } else {
-    // 64-bit uncompressed platform.
-    return i::handle(i::Smi((real_call_target << i::kSmiTagSize) | i::kSmiTag),
-                     isolate);
-  }
-}
-
-i::Address CallTargetFromCache(i::Object cached_call_target) {
-  if (i::kTaggedSize == i::kInt32Size) {
-    return i::Foreign::cast(cached_call_target).foreign_address();
-  } else {
-    // 64-bit uncompressed platform.
-    return cached_call_target.ptr() >> i::kSmiTagSize;
-  }
-}
-
 void PrepareFunctionData(i::Isolate* isolate,
                          i::Handle<i::WasmExportedFunctionData> function_data,
                          const i::wasm::FunctionSig* sig,
@@ -1389,12 +1369,6 @@ void PrepareFunctionData(i::Isolate* isolate,
   // Compute packed args size.
   function_data->set_packed_args_size(
       i::wasm::CWasmArgumentsPacker::TotalSize(sig));
-  // Get call target (function table offset), and wrap it as a cacheable object
-  // (pseudo-Smi or Foreign, depending on platform).
-  i::Handle<i::Object> call_target = CallTargetForCaching(
-      isolate,
-      function_data->instance().GetCallTarget(function_data->function_index()));
-  function_data->set_wasm_call_target(*call_target);
 }
 
 void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
@@ -1531,8 +1505,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   PrepareFunctionData(isolate, function_data, sig, instance->module());
   i::Handle<i::Code> wrapper_code = i::Handle<i::Code>(
       i::Code::cast(function_data->c_wrapper_code()), isolate);
-  i::Address call_target =
-      CallTargetFromCache(function_data->wasm_call_target());
+  i::Address call_target = function_data->foreign_address();
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
   PushArgs(sig, args, &packer, store);

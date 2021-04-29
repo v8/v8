@@ -3248,28 +3248,14 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       thread_in_wasm_flag_addr,
       MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
   __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
-
-  Register jump_table_start = thread_in_wasm_flag_addr;
-  __ movq(jump_table_start,
-          MemOperand(wasm_instance,
-                     wasm::ObjectAccess::ToTagged(
-                         WasmInstanceObject::kJumpTableStartOffset)));
   thread_in_wasm_flag_addr = no_reg;
 
-  Register jump_table_offset = function_data;
-  __ LoadAnyTaggedField(
-      jump_table_offset,
-      MemOperand(
-          function_data,
-          WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag));
-
-  // Change from smi to integer.
-  __ SmiUntag(jump_table_offset);
-
-  Register function_entry = jump_table_offset;
-  __ addq(function_entry, jump_table_start);
-  jump_table_offset = no_reg;
-  jump_table_start = no_reg;
+  Register function_entry = function_data;
+  __ movq(function_entry,
+          MemOperand(function_data,
+                     wasm::ObjectAccess::ToTagged(
+                         WasmExportedFunctionData::kForeignAddressOffset)));
+  function_data = no_reg;
 
   // We set the indicating value for the GC to the proper one for Wasm call.
   constexpr int kWasmCallGCScanSlotCount = 0;
@@ -3354,6 +3340,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // Param conversion builtins.
   // -------------------------------------------
   __ bind(&convert_param);
+  // Restore function_data register (which was clobbered by the code above,
+  // but was valid when jumping here earlier).
+  function_data = rdi;
   // The order of pushes is important. We want the heap objects, that should be
   // scanned by GC, to be on the top of the stack.
   // We have to set the indicating value for the GC to the number of values on
