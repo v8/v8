@@ -14,8 +14,10 @@ namespace cppgc {
 namespace internal {
 
 MarkingVerifierBase::MarkingVerifierBase(
-    HeapBase& heap, std::unique_ptr<cppgc::Visitor> visitor)
+    HeapBase& heap, VerificationState& verification_state,
+    std::unique_ptr<cppgc::Visitor> visitor)
     : ConservativeTracingVisitor(heap, *heap.page_backend(), *visitor.get()),
+      verification_state_(verification_state),
       visitor_(std::move(visitor)) {}
 
 void MarkingVerifierBase::Run(Heap::Config::StackState stack_state) {
@@ -36,23 +38,38 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
         "MarkingVerifier: Encountered unmarked object.\n"
         "#\n"
         "# Hint:\n"
-        "#   %s\n"
-        "#     \\-> %s",
-        parent_->GetName().value, child_header.GetName().value);
+        "#   %s (%p)\n"
+        "#     \\-> %s (%p)",
+        parent_ ? parent_->GetName().value : "Stack",
+        parent_ ? parent_->Payload() : nullptr, child_header.GetName().value,
+        child_header.Payload());
   }
 }
 
 void MarkingVerifierBase::VisitInConstructionConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
-  CHECK(header.IsMarked());
   if (in_construction_objects_->find(&header) !=
       in_construction_objects_->end())
     return;
   in_construction_objects_->insert(&header);
+
+  // Stack case: Parent is stack and this is merely ensuring that the object
+  // itself is marked. If the object is marked, then it is being processed by
+  // the on-heap phase.
+  if (verification_state_.IsParentOnStack()) {
+    verification_state_.VerifyMarked(header.Payload());
+    return;
+  }
+
+  // Heap case: Dispatching parent object that must be marked (pre-condition).
+  CHECK(header.IsMarked());
   callback(this, header);
 }
 
 void MarkingVerifierBase::VisitPointer(const void* address) {
+  // Entry point for stack walk. The conservative visitor dispatches as follows:
+  // - Fully constructed objects: Visit()
+  // - Objects in construction: VisitInConstructionConservatively()
   TraceConservativelyIfNeeded(address);
 }
 
@@ -62,7 +79,7 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader* header) {
 
   DCHECK(!header->IsFree());
 
-  SetCurrentParent(header);
+  verification_state_.SetCurrentParent(header);
 
   if (!header->IsInConstruction()) {
     header->Trace(visitor_.get());
@@ -70,6 +87,8 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader* header) {
     // Dispatches to conservative tracing implementation.
     TraceConservativelyIfNeeded(*header);
   }
+
+  verification_state_.SetCurrentParent(nullptr);
 
   return true;
 }
@@ -112,12 +131,8 @@ class VerificationVisitor final : public cppgc::Visitor {
 }  // namespace
 
 MarkingVerifier::MarkingVerifier(HeapBase& heap_base)
-    : MarkingVerifierBase(heap_base,
+    : MarkingVerifierBase(heap_base, state_,
                           std::make_unique<VerificationVisitor>(state_)) {}
-
-void MarkingVerifier::SetCurrentParent(const HeapObjectHeader* parent) {
-  state_.SetCurrentParent(parent);
-}
 
 }  // namespace internal
 }  // namespace cppgc
