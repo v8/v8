@@ -38,7 +38,13 @@ class WebSnapshotSerializerDeserializer {
   inline bool has_error() const { return error_message_ != nullptr; }
   const char* error_message() const { return error_message_; }
 
-  enum ValueType : uint8_t { STRING_ID, OBJECT_ID, FUNCTION_ID };
+  enum ValueType : uint8_t {
+    INTEGER,
+    DOUBLE,
+    STRING_ID,
+    OBJECT_ID,
+    FUNCTION_ID
+  };
 
   // The maximum count of items for each value type (strings, objects etc.)
   static constexpr uint32_t kMaxItemCount =

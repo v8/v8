@@ -302,6 +302,9 @@ void ValueSerializer::WriteZigZag(T value) {
               (value >> (8 * sizeof(T) - 1)));
 }
 
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void ValueSerializer::WriteZigZag(int32_t value);
+
 void ValueSerializer::WriteDouble(double value) {
   // Warning: this uses host endianness.
   WriteRawBytes(&value, sizeof(value));
@@ -1214,6 +1217,9 @@ Maybe<T> ValueDeserializer::ReadZigZag() {
   return Just(static_cast<T>((unsigned_value >> 1) ^
                              -static_cast<T>(unsigned_value & 1)));
 }
+
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) Maybe<int32_t> ValueDeserializer::ReadZigZag();
 
 Maybe<double> ValueDeserializer::ReadDouble() {
   // Warning: this uses host endianness.
