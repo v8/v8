@@ -108,6 +108,11 @@
   'SpacesTest.WriteBarrierInYoungGenerationFromSpace': [SKIP],
   # Requires a second isolate
   'ValueSerializerTest.DecodeArrayBufferOOM': [SKIP],
+  # Performs GC
+  'APIExceptionTest.ExceptionMessageDoesNotKeepContextAlive': [SKIP],
+  'LocalHeapTest.GCEpilogue': [SKIP],
+  'UnifiedHeapDetachedTest.AllocationBeforeConfigureHeap': [SKIP],
+  'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
 }], # third_party_heap
 
 ]

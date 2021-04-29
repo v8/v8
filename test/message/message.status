@@ -85,4 +85,11 @@
   'wasm-trace-memory': [SKIP],
   'wasm-trace-memory-liftoff': [SKIP],
 }],  # no_simd_hardware == True
+
+################################################################################
+['third_party_heap', {
+  # Performs GC
+  'weakref-finalizationregistry-error': [SKIP],
+}], # third_party_heap
+
 ]
