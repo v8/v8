@@ -522,7 +522,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
                                  GetInstancePrototype(isolate, parent),
                                  JSFunction);
       CHECK(parent_prototype->IsHeapObject());
-      JSObject::ForceSetPrototype(Handle<JSObject>::cast(prototype),
+      JSObject::ForceSetPrototype(isolate, Handle<JSObject>::cast(prototype),
                                   Handle<HeapObject>::cast(parent_prototype));
     }
   }
@@ -612,7 +612,8 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   object_map->set_may_have_interesting_symbols(true);
 
   Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(object_map);
-  JSObject::ForceSetPrototype(object, isolate->factory()->null_value());
+  JSObject::ForceSetPrototype(isolate, object,
+                              isolate->factory()->null_value());
 
   return object;
 }

@@ -3117,10 +3117,9 @@ void JSObject::MigrateToMap(Isolate* isolate, Handle<JSObject> object,
   // When adding code here, add a DisallowGarbageCollection too.
 }
 
-void JSObject::ForceSetPrototype(Handle<JSObject> object,
+void JSObject::ForceSetPrototype(Isolate* isolate, Handle<JSObject> object,
                                  Handle<HeapObject> proto) {
   // object.__proto__ = proto;
-  Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map = Handle<Map>(object->map(), isolate);
   Handle<Map> new_map = Map::Copy(isolate, old_map, "ForceSetPrototype");
   Map::SetPrototype(isolate, new_map, proto);

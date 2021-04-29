@@ -620,7 +620,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Forces a prototype without any of the checks that the regular SetPrototype
   // would do.
-  static void ForceSetPrototype(Handle<JSObject> object,
+  static void ForceSetPrototype(Isolate* isolate, Handle<JSObject> object,
                                 Handle<HeapObject> proto);
 
   // Convert the object to use the canonical dictionary

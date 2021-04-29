@@ -364,7 +364,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   ReadOnlyRoots roots(isolate_);
   Handle<JSGlobalProxy> global_proxy(env->global_proxy(), isolate_);
   global_proxy->set_native_context(roots.null_value());
-  JSObject::ForceSetPrototype(global_proxy, isolate_->factory()->null_value());
+  JSObject::ForceSetPrototype(isolate_, global_proxy,
+                              isolate_->factory()->null_value());
   global_proxy->map().SetConstructor(roots.null_value());
   if (FLAG_track_detached_contexts) {
     isolate_->AddDetachedContext(env);
@@ -921,10 +922,11 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
       isolate()->object_function(), AllocationType::kOld);
   native_context()->set_initial_generator_prototype(
       *generator_object_prototype);
-  JSObject::ForceSetPrototype(generator_object_prototype, iterator_prototype);
+  JSObject::ForceSetPrototype(isolate(), generator_object_prototype,
+                              iterator_prototype);
   Handle<JSObject> generator_function_prototype = factory()->NewJSObject(
       isolate()->object_function(), AllocationType::kOld);
-  JSObject::ForceSetPrototype(generator_function_prototype, empty);
+  JSObject::ForceSetPrototype(isolate(), generator_function_prototype, empty);
 
   InstallToStringTag(isolate(), generator_function_prototype,
                      "GeneratorFunction");
@@ -1032,7 +1034,7 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   InstallToStringTag(isolate(), async_from_sync_iterator_prototype,
                      "Async-from-Sync Iterator");
 
-  JSObject::ForceSetPrototype(async_from_sync_iterator_prototype,
+  JSObject::ForceSetPrototype(isolate(), async_from_sync_iterator_prototype,
                               async_iterator_prototype);
 
   Handle<Map> async_from_sync_iterator_map = factory()->NewMap(
@@ -1049,7 +1051,8 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
       isolate()->object_function(), AllocationType::kOld);
 
   // %AsyncGenerator% / %AsyncGeneratorFunction%.prototype
-  JSObject::ForceSetPrototype(async_generator_function_prototype, empty);
+  JSObject::ForceSetPrototype(isolate(), async_generator_function_prototype,
+                              empty);
 
   // The value of AsyncGeneratorFunction.prototype.prototype is the
   //     %AsyncGeneratorPrototype% intrinsic object.
@@ -1067,7 +1070,7 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
                      "AsyncGeneratorFunction");
 
   // %AsyncGeneratorPrototype%
-  JSObject::ForceSetPrototype(async_generator_object_prototype,
+  JSObject::ForceSetPrototype(isolate(), async_generator_object_prototype,
                               async_iterator_prototype);
   native_context()->set_initial_async_generator_prototype(
       *async_generator_object_prototype);
@@ -1110,7 +1113,7 @@ void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
   // %AsyncFunctionPrototype% intrinsic
   Handle<JSObject> async_function_prototype = factory()->NewJSObject(
       isolate()->object_function(), AllocationType::kOld);
-  JSObject::ForceSetPrototype(async_function_prototype, empty);
+  JSObject::ForceSetPrototype(isolate(), async_function_prototype, empty);
 
   InstallToStringTag(isolate(), async_function_prototype, "AsyncFunction");
 
@@ -1367,7 +1370,7 @@ void Genesis::HookUpGlobalProxy(Handle<JSGlobalProxy> global_proxy) {
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
   Handle<JSObject> global_object(
       JSObject::cast(native_context()->global_object()), isolate());
-  JSObject::ForceSetPrototype(global_proxy, global_object);
+  JSObject::ForceSetPrototype(isolate(), global_proxy, global_object);
   global_proxy->set_native_context(*native_context());
   DCHECK(native_context()->global_proxy() == *global_proxy);
 }
@@ -1838,7 +1841,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSObject> array_iterator_prototype =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
-    JSObject::ForceSetPrototype(array_iterator_prototype, iterator_prototype);
+    JSObject::ForceSetPrototype(isolate(), array_iterator_prototype,
+                                iterator_prototype);
     CHECK_NE(array_iterator_prototype->map().ptr(),
              isolate_->initial_object_prototype()->map().ptr());
     array_iterator_prototype->map().set_instance_type(
@@ -2154,7 +2158,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSObject> string_iterator_prototype =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
-    JSObject::ForceSetPrototype(string_iterator_prototype, iterator_prototype);
+    JSObject::ForceSetPrototype(isolate(), string_iterator_prototype,
+                                iterator_prototype);
     CHECK_NE(string_iterator_prototype->map().ptr(),
              isolate_->initial_object_prototype()->map().ptr());
     string_iterator_prototype->map().set_instance_type(
@@ -2632,7 +2637,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSObject> regexp_string_iterator_prototype = factory->NewJSObject(
         isolate()->object_function(), AllocationType::kOld);
-    JSObject::ForceSetPrototype(regexp_string_iterator_prototype,
+    JSObject::ForceSetPrototype(isolate(), regexp_string_iterator_prototype,
                                 iterator_prototype);
 
     InstallToStringTag(isolate(), regexp_string_iterator_prototype,
@@ -3231,7 +3236,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             native_context()->initial_iterator_prototype(), isolate());
         Handle<JSObject> prototype = factory->NewJSObject(
             isolate()->object_function(), AllocationType::kOld);
-        JSObject::ForceSetPrototype(prototype, iterator_prototype);
+        JSObject::ForceSetPrototype(isolate(), prototype, iterator_prototype);
         // #sec-%segmentiteratorprototype%.@@tostringtag
         //
         // %SegmentIteratorPrototype% [ @@toStringTag ]
@@ -4170,7 +4175,7 @@ void Genesis::InitializeIteratorFunctions() {
         isolate, generator_function_function,
         Context::GENERATOR_FUNCTION_FUNCTION_INDEX);
 
-    JSObject::ForceSetPrototype(generator_function_function,
+    JSObject::ForceSetPrototype(isolate, generator_function_function,
                                 isolate->function_function());
     JSObject::AddProperty(
         isolate, generator_function_prototype, factory->constructor_string(),
@@ -4199,7 +4204,7 @@ void Genesis::InitializeIteratorFunctions() {
         isolate, async_generator_function_function,
         Context::ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX);
 
-    JSObject::ForceSetPrototype(async_generator_function_function,
+    JSObject::ForceSetPrototype(isolate, async_generator_function_function,
                                 isolate->function_function());
 
     JSObject::AddProperty(
@@ -4215,7 +4220,7 @@ void Genesis::InitializeIteratorFunctions() {
     // Setup %SetIteratorPrototype%.
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), AllocationType::kOld);
-    JSObject::ForceSetPrototype(prototype, iterator_prototype);
+    JSObject::ForceSetPrototype(isolate, prototype, iterator_prototype);
 
     InstallToStringTag(isolate, prototype, factory->SetIterator_string());
 
@@ -4248,7 +4253,7 @@ void Genesis::InitializeIteratorFunctions() {
     // Setup %MapIteratorPrototype%.
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), AllocationType::kOld);
-    JSObject::ForceSetPrototype(prototype, iterator_prototype);
+    JSObject::ForceSetPrototype(isolate, prototype, iterator_prototype);
 
     InstallToStringTag(isolate, prototype, factory->MapIterator_string());
 
@@ -4297,7 +4302,7 @@ void Genesis::InitializeIteratorFunctions() {
     async_function_constructor->shared().DontAdaptArguments();
     async_function_constructor->shared().set_length(1);
     native_context->set_async_function_constructor(*async_function_constructor);
-    JSObject::ForceSetPrototype(async_function_constructor,
+    JSObject::ForceSetPrototype(isolate, async_function_constructor,
                                 isolate->function_function());
 
     JSObject::AddProperty(
@@ -5095,7 +5100,7 @@ bool Genesis::ConfigureGlobalObjects(
     }
   }
 
-  JSObject::ForceSetPrototype(global_proxy, global_object);
+  JSObject::ForceSetPrototype(isolate(), global_proxy, global_object);
 
   native_context()->set_array_buffer_map(
       native_context()->array_buffer_fun().initial_map());
@@ -5260,7 +5265,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
   // Transfer the prototype (new map is needed).
   Handle<HeapObject> proto(from->map().prototype(), isolate());
-  JSObject::ForceSetPrototype(to, proto);
+  JSObject::ForceSetPrototype(isolate(), to, proto);
 }
 
 Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
@@ -5493,7 +5498,7 @@ Genesis::Genesis(Isolate* isolate,
   global_proxy->set_native_context(ReadOnlyRoots(heap()).null_value());
 
   // Configure the hidden prototype chain of the global proxy.
-  JSObject::ForceSetPrototype(global_proxy, global_object);
+  JSObject::ForceSetPrototype(isolate, global_proxy, global_object);
   global_proxy->map().SetConstructor(*global_constructor);
 
   global_proxy_ = global_proxy;
