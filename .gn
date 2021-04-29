@@ -16,7 +16,7 @@ no_check_targets = [
   "//:v8_internal_headers",
   "//src/inspector:inspector",
   "//test/cctest:cctest_sources",
-  "//third_party/*",
+  "//third_party/icu:*",
 ]
 
 # These are the list of GN files that run exec_script. This whitelist exists
