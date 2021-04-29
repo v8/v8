@@ -308,8 +308,6 @@ TEST_F(GCStackTest, IteratePointersFindsParameterNesting8) {
 
 #ifdef FOR_ALL_CALLEE_SAVED_REGS
 
-// Note: the test is brittle and can fail on some archs/configurations (see
-// below).
 TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
   auto scanner = std::make_unique<StackScanner>();
 
@@ -329,32 +327,17 @@ TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
 // Moves |local_scanner->needle()| into a callee-saved register, leaving the
 // callee-saved register as the only register referencing the needle.
 // (Ignoring implementation-dependent dirty registers/stack.)
-//
-// Subtle: between the first inline assembly and the IteratePointers() call the
-// compiler can clobber the tested register. Moving this tricky part into a
-// noninlinable lambda allows to reduce pressure from the register allocator and
-// thereby avoid such clobbering.
-#define KEEP_ALIVE_FROM_CALLEE_SAVED(reg)                                  \
-  {                                                                        \
-    local_scanner->Reset();                                                \
-    const bool found = [local_scanner, local_stack]() V8_NOINLINE {        \
-      /* This moves the temporary into the callee-saved register. */       \
-      asm volatile("mov %0, %%" reg                                        \
-                   :                                                       \
-                   : "r"(local_scanner->needle())                          \
-                   : "memory", reg);                                       \
-      /* Register is unprotected from here till the actual invocation. The \
-       * compiler is free to clobber the register which makes the test     \
-       * fail. */                                                          \
-      local_stack->IteratePointers(local_scanner);                         \
-      /* Clear out the register again */                                   \
-      asm volatile("mov $0, %%" reg : : : "memory", reg);                  \
-      return local_scanner->found();                                       \
-    }();                                                                   \
-    EXPECT_TRUE(found)                                                     \
-        << "pointer in callee-saved register not found. register: " << reg \
-        << std::endl;                                                      \
-  }
+#define KEEP_ALIVE_FROM_CALLEE_SAVED(reg)                                \
+  local_scanner->Reset();                                                \
+  /* This moves the temporary into the calee-saved register. */          \
+  asm("mov %0, %%" reg : : "r"(local_scanner->needle()) : reg);          \
+  /* Register is unprotected from here till the actual invocation. */    \
+  local_stack->IteratePointers(local_scanner);                           \
+  EXPECT_TRUE(local_scanner->found())                                    \
+      << "pointer in callee-saved register not found. register: " << reg \
+      << std::endl;                                                      \
+  /* Clear out the register again */                                     \
+  asm("mov $0, %%" reg : : : reg);
 
   FOR_ALL_CALLEE_SAVED_REGS(KEEP_ALIVE_FROM_CALLEE_SAVED)
 #undef KEEP_ALIVE_FROM_CALLEE_SAVED
