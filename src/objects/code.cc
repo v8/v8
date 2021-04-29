@@ -414,7 +414,7 @@ void print_pc(std::ostream& os, int pc) {
 }
 }  // anonymous namespace
 
-void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
+void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
   if (length() == 0) {
     os << "Deoptimization Input Data invalidated by lazy deoptimization\n";
     return;

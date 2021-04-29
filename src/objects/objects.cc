@@ -1907,11 +1907,9 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
   return os;
 }
 
-void Smi::SmiPrint(std::ostream& os) const {  // NOLINT
-  os << value();
-}
+void Smi::SmiPrint(std::ostream& os) const { os << value(); }
 
-void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
+void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   os << AsHex::Address(this->ptr()) << " ";
 
   if (IsString()) {
@@ -4542,9 +4540,7 @@ void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {
 }
 
 // Reserve space for statics needing saving and restoring.
-int Relocatable::ArchiveSpacePerThread() {
-  return sizeof(Relocatable*);  // NOLINT
-}
+int Relocatable::ArchiveSpacePerThread() { return sizeof(Relocatable*); }
 
 // Archive statics that are thread-local.
 char* Relocatable::ArchiveState(Isolate* isolate, char* to) {

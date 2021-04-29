@@ -409,7 +409,7 @@ class String : public TorqueGeneratedString<String, Name> {
   const char* PrefixForDebugPrint() const;
   const char* SuffixForDebugPrint() const;
   void StringShortPrint(StringStream* accumulator);
-  void PrintUC16(std::ostream& os, int start = 0, int end = -1);  // NOLINT
+  void PrintUC16(std::ostream& os, int start = 0, int end = -1);
   void PrintUC16(StringStream* accumulator, int start, int end);
 
   // Dispatched behavior.

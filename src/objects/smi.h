@@ -87,7 +87,7 @@ class Smi : public Object {
   DECL_CAST(Smi)
 
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
+  V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;
   DECL_VERIFIER(Smi)
 
   // Since this is a constexpr, "calling" it is just as efficient

@@ -703,11 +703,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_PRINTER(JSObject)
   DECL_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
-  bool PrintProperties(std::ostream& os);  // NOLINT
-  void PrintElements(std::ostream& os);    // NOLINT
+  bool PrintProperties(std::ostream& os);
+  void PrintElements(std::ostream& os);
 #endif
 #if defined(DEBUG) || defined(OBJECT_PRINT)
-  void PrintTransitions(std::ostream& os);  // NOLINT
+  void PrintTransitions(std::ostream& os);
 #endif
 
   static void PrintElementsTransition(FILE* file, Handle<JSObject> object,

@@ -374,7 +374,7 @@ void String::StringShortPrint(StringStream* accumulator) {
   accumulator->Put('>');
 }
 
-void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
+void String::PrintUC16(std::ostream& os, int start, int end) {
   if (end < 0) end = length();
   StringCharacterStream stream(*this, start);
   for (int i = start; i < end && stream.HasMore(); i++) {

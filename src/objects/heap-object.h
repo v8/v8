@@ -163,9 +163,9 @@ class HeapObject : public Object {
       const DisallowGarbageCollection& promise);
 
   // Dispatched behavior.
-  void HeapObjectShortPrint(std::ostream& os);  // NOLINT
+  void HeapObjectShortPrint(std::ostream& os);
 #ifdef OBJECT_PRINT
-  void PrintHeader(std::ostream& os, const char* id);  // NOLINT
+  void PrintHeader(std::ostream& os, const char* id);
 #endif
   DECL_PRINTER(HeapObject)
   EXPORT_DECL_VERIFIER(HeapObject)

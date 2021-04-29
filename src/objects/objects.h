@@ -602,7 +602,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Prints this object without details to a message accumulator.
   V8_EXPORT_PRIVATE void ShortPrint(StringStream* accumulator) const;
 
-  V8_EXPORT_PRIVATE void ShortPrint(std::ostream& os) const;  // NOLINT
+  V8_EXPORT_PRIVATE void ShortPrint(std::ostream& os) const;
 
   inline static Object cast(Object object) { return object; }
   inline static Object unchecked_cast(Object object) { return object; }
@@ -615,10 +615,10 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_EXPORT_PRIVATE void Print() const;
 
   // Prints this object with details.
-  V8_EXPORT_PRIVATE void Print(std::ostream& os) const;  // NOLINT
+  V8_EXPORT_PRIVATE void Print(std::ostream& os) const;
 #else
   void Print() const { ShortPrint(); }
-  void Print(std::ostream& os) const { ShortPrint(os); }  // NOLINT
+  void Print(std::ostream& os) const { ShortPrint(os); }
 #endif
 
   // For use with std::unordered_set.

@@ -604,7 +604,7 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
                       static_cast<base::Atomic8>(value));
 
 #ifdef OBJECT_PRINT
-#define DECL_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
+#define DECL_PRINTER(Name) void Name##Print(std::ostream& os);
 #else
 #define DECL_PRINTER(Name)
 #endif
