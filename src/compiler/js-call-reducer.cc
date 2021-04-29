@@ -4130,6 +4130,21 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
               ? ConvertReceiverMode::kNullOrUndefined
               : ConvertReceiverMode::kNotNullOrUndefined;
 
+      // TODO(jgruber): Inline this block below once TryGet is guaranteed to
+      // succeed.
+      FixedArrayRef bound_arguments = function.bound_arguments();
+      const int bound_arguments_length = bound_arguments.length();
+      static constexpr int kInlineSize = 16;  // Arbitrary.
+      base::SmallVector<Node*, kInlineSize> args;
+      for (int i = 0; i < bound_arguments_length; ++i) {
+        base::Optional<ObjectRef> maybe_arg = bound_arguments.TryGet(i);
+        if (!maybe_arg.has_value()) {
+          TRACE_BROKER_MISSING(broker(), "bound argument");
+          return NoChange();
+        }
+        args.emplace_back(jsgraph()->Constant(maybe_arg.value()));
+      }
+
       // Patch {node} to use [[BoundTargetFunction]] and [[BoundThis]].
       NodeProperties::ReplaceValueInput(
           node, jsgraph()->Constant(function.bound_target_function()),
@@ -4138,10 +4153,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
                                         JSCallNode::ReceiverIndex());
 
       // Insert the [[BoundArguments]] for {node}.
-      FixedArrayRef bound_arguments = function.bound_arguments();
-      for (int i = 0; i < bound_arguments.length(); ++i) {
-        node->InsertInput(graph()->zone(), i + 2,
-                          jsgraph()->Constant(bound_arguments.get(i)));
+      for (int i = 0; i < bound_arguments_length; ++i) {
+        node->InsertInput(graph()->zone(), i + 2, args[i]);
         arity++;
       }
 
@@ -4828,6 +4841,20 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
       ObjectRef bound_target_function = function.bound_target_function();
       FixedArrayRef bound_arguments = function.bound_arguments();
+      const int bound_arguments_length = bound_arguments.length();
+
+      // TODO(jgruber): Inline this block below once TryGet is guaranteed to
+      // succeed.
+      static constexpr int kInlineSize = 16;  // Arbitrary.
+      base::SmallVector<Node*, kInlineSize> args;
+      for (int i = 0; i < bound_arguments_length; ++i) {
+        base::Optional<ObjectRef> maybe_arg = bound_arguments.TryGet(i);
+        if (!maybe_arg.has_value()) {
+          TRACE_BROKER_MISSING(broker(), "bound argument");
+          return NoChange();
+        }
+        args.emplace_back(jsgraph()->Constant(maybe_arg.value()));
+      }
 
       // Patch {node} to use [[BoundTargetFunction]].
       node->ReplaceInput(n.TargetIndex(),
@@ -4844,9 +4871,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
                            new_target));
 
       // Insert the [[BoundArguments]] for {node}.
-      for (int i = 0; i < bound_arguments.length(); ++i) {
-        node->InsertInput(graph()->zone(), n.ArgumentIndex(i),
-                          jsgraph()->Constant(bound_arguments.get(i)));
+      for (int i = 0; i < bound_arguments_length; ++i) {
+        node->InsertInput(graph()->zone(), n.ArgumentIndex(i), args[i]);
         arity++;
       }
 

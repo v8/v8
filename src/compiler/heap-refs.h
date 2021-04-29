@@ -91,15 +91,13 @@ enum class RefSerializationKind {
   /* Subtypes of Context */                                               \
   V(NativeContext, RefSerializationKind::kSerialized)                     \
   /* Subtypes of FixedArray */                                            \
-  V(Context, RefSerializationKind::kSerialized)                           \
   V(ObjectBoilerplateDescription, RefSerializationKind::kNeverSerialized) \
-  V(ScopeInfo, RefSerializationKind::kNeverSerialized)                    \
-  V(ScriptContextTable, RefSerializationKind::kSerialized)                \
+  V(ScriptContextTable, RefSerializationKind::kBackgroundSerialized)      \
   /* Subtypes of String */                                                \
   V(InternalizedString, RefSerializationKind::kNeverSerialized)           \
   /* Subtypes of FixedArrayBase */                                        \
   V(BytecodeArray, RefSerializationKind::kNeverSerialized)                \
-  V(FixedArray, RefSerializationKind::kSerialized)                        \
+  V(FixedArray, RefSerializationKind::kBackgroundSerialized)              \
   V(FixedDoubleArray, RefSerializationKind::kNeverSerialized)             \
   /* Subtypes of Name */                                                  \
   V(String, RefSerializationKind::kNeverSerialized)                       \
@@ -114,6 +112,7 @@ enum class RefSerializationKind {
   V(CallHandlerInfo, RefSerializationKind::kNeverSerialized)              \
   V(Cell, RefSerializationKind::kNeverSerialized)                         \
   V(Code, RefSerializationKind::kNeverSerialized)                         \
+  V(Context, RefSerializationKind::kSerialized)                           \
   V(DescriptorArray, RefSerializationKind::kNeverSerialized)              \
   V(FeedbackCell, RefSerializationKind::kNeverSerialized)                 \
   V(FeedbackVector, RefSerializationKind::kNeverSerialized)               \
@@ -125,6 +124,7 @@ enum class RefSerializationKind {
   V(Name, RefSerializationKind::kNeverSerialized)                         \
   V(PropertyCell, RefSerializationKind::kBackgroundSerialized)            \
   V(RegExpBoilerplateDescription, RefSerializationKind::kNeverSerialized) \
+  V(ScopeInfo, RefSerializationKind::kNeverSerialized)                    \
   V(SharedFunctionInfo, RefSerializationKind::kNeverSerialized)           \
   V(SourceTextModule, RefSerializationKind::kSerialized)                  \
   V(TemplateObjectDescription, RefSerializationKind::kNeverSerialized)    \
@@ -538,13 +538,6 @@ class NameRef : public HeapObjectRef {
   bool IsUniqueName() const;
 };
 
-class ScriptContextTableRef : public HeapObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(ScriptContextTable, HeapObjectRef)
-
-  Handle<ScriptContextTable> object() const;
-};
-
 class DescriptorArrayRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(DescriptorArray, HeapObjectRef)
@@ -763,14 +756,6 @@ class ArrayBoilerplateDescriptionRef : public HeapObjectRef {
   int constants_elements_length() const;
 };
 
-class ObjectBoilerplateDescriptionRef : public HeapObjectRef {
- public:
-  using HeapObjectRef::HeapObjectRef;
-  Handle<ObjectBoilerplateDescription> object() const;
-
-  int size() const;
-};
-
 class FixedArrayRef : public FixedArrayBaseRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FixedArray, FixedArrayBaseRef)
@@ -778,6 +763,12 @@ class FixedArrayRef : public FixedArrayBaseRef {
   Handle<FixedArray> object() const;
 
   ObjectRef get(int i) const;
+
+  // As above but may fail if Ref construction is not possible (e.g. for
+  // serialized types on the background thread).
+  // TODO(jgruber): Remove once all Ref types are never-serialized or
+  // background-serialized and can thus be created on background threads.
+  base::Optional<ObjectRef> TryGet(int i) const;
 };
 
 class FixedDoubleArrayRef : public FixedArrayBaseRef {
@@ -811,6 +802,22 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
   // Exception handler table.
   Address handler_table_address() const;
   int handler_table_size() const;
+};
+
+class ScriptContextTableRef : public FixedArrayRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(ScriptContextTable, FixedArrayRef)
+
+  Handle<ScriptContextTable> object() const;
+};
+
+class ObjectBoilerplateDescriptionRef : public FixedArrayRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(ObjectBoilerplateDescription, FixedArrayRef)
+
+  Handle<ObjectBoilerplateDescription> object() const;
+
+  int size() const;
 };
 
 class JSArrayRef : public JSObjectRef {

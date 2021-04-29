@@ -638,20 +638,6 @@ class ArrayBoilerplateDescriptionData : public HeapObjectData {
   int const constants_elements_length_;
 };
 
-class ObjectBoilerplateDescriptionData : public HeapObjectData {
- public:
-  ObjectBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
-                                   Handle<ObjectBoilerplateDescription> object)
-      : HeapObjectData(broker, storage, object), size_(object->size()) {
-    DCHECK(!broker->is_concurrent_inlining());
-  }
-
-  int size() const { return size_; }
-
- private:
-  int const size_;
-};
-
 class JSDataViewData : public JSObjectData {
  public:
   JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
@@ -1106,14 +1092,6 @@ class BigIntData : public HeapObjectData {
 
  private:
   const uint64_t as_uint64_;
-};
-
-// Only used in JSNativeContextSpecialization.
-class ScriptContextTableData : public HeapObjectData {
- public:
-  ScriptContextTableData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<ScriptContextTable> object)
-      : HeapObjectData(broker, storage, object) {}
 };
 
 struct PropertyDescriptor {
@@ -1706,16 +1684,32 @@ class FixedArrayBaseData : public HeapObjectData {
 class FixedArrayData : public FixedArrayBaseData {
  public:
   FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<FixedArray> object);
+                 Handle<FixedArray> object, ObjectDataKind kind)
+      : FixedArrayBaseData(broker, storage, object, kind) {}
+};
 
-  // Creates all elements of the fixed array.
-  void SerializeContents(JSHeapBroker* broker);
+class ObjectBoilerplateDescriptionData : public FixedArrayData {
+ public:
+  ObjectBoilerplateDescriptionData(
+      JSHeapBroker* broker, ObjectData** storage,
+      Handle<ObjectBoilerplateDescription> object,
+      ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
+      : FixedArrayData(broker, storage, object, kind), size_(object->size()) {
+    DCHECK(!broker->is_concurrent_inlining());
+  }
 
-  ObjectData* Get(int i) const;
+  int size() const { return size_; }
 
  private:
-  bool serialized_contents_ = false;
-  ZoneVector<ObjectData*> contents_;
+  int const size_;
+};
+
+// Only used in JSNativeContextSpecialization.
+class ScriptContextTableData : public FixedArrayData {
+ public:
+  ScriptContextTableData(JSHeapBroker* broker, ObjectData** storage,
+                         Handle<ScriptContextTable> object, ObjectDataKind kind)
+      : FixedArrayData(broker, storage, object, kind) {}
 };
 
 JSDataViewData::JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
@@ -1762,9 +1756,6 @@ bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
 
   DCHECK_NULL(bound_arguments_);
   bound_arguments_ = broker->GetOrCreateData(function->bound_arguments());
-  if (!bound_arguments_->should_access_heap()) {
-    bound_arguments_->AsFixedArray()->SerializeContents(broker);
-  }
 
   DCHECK_NULL(bound_this_);
   bound_this_ = broker->GetOrCreateData(function->bound_this());
@@ -1779,29 +1770,6 @@ JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
       inobject_fields_(broker->zone()),
       own_constant_elements_(broker->zone()),
       own_properties_(broker->zone()) {}
-
-FixedArrayData::FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
-                               Handle<FixedArray> object)
-    : FixedArrayBaseData(broker, storage, object,
-                         ObjectDataKind::kSerializedHeapObject),
-      contents_(broker->zone()) {}
-
-void FixedArrayData::SerializeContents(JSHeapBroker* broker) {
-  if (serialized_contents_) return;
-  serialized_contents_ = true;
-
-  TraceScope tracer(broker, this, "FixedArrayData::SerializeContents");
-  Handle<FixedArray> array = Handle<FixedArray>::cast(object());
-  CHECK_EQ(array->length(), length());
-  CHECK(contents_.empty());
-  contents_.reserve(static_cast<size_t>(length()));
-
-  for (int i = 0; i < length(); i++) {
-    Handle<Object> value(array->get(i), broker->isolate());
-    contents_.push_back(broker->GetOrCreateData(value));
-  }
-  TRACE(broker, "Copied " << contents_.size() << " elements");
-}
 
 class FixedDoubleArrayData : public FixedArrayBaseData {
  public:
@@ -2427,7 +2395,6 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
     // do not need to be serialized because we only need to store the elements
     // reference to the allocated object.
   } else if (boilerplate->HasSmiOrObjectElements()) {
-    elements_->AsFixedArray()->SerializeContents(broker);
     Handle<FixedArray> fast_elements =
         Handle<FixedArray>::cast(elements_object);
     int length = elements_object->length();
@@ -3252,12 +3219,13 @@ int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
   return data()->AsArrayBoilerplateDescription()->constants_elements_length();
 }
 
-ObjectRef FixedArrayRef::get(int i) const {
-  if (data_->should_access_heap()) {
-    return ObjectRef(broker(),
-                     broker()->CanonicalPersistentHandle(object()->get(i)));
-  }
-  return ObjectRef(broker(), data()->AsFixedArray()->Get(i));
+ObjectRef FixedArrayRef::get(int i) const { return TryGet(i).value(); }
+
+base::Optional<ObjectRef> FixedArrayRef::TryGet(int i) const {
+  ObjectData* data = broker()->TryGetOrCreateData(
+      broker()->CanonicalPersistentHandle(object()->get(i, kRelaxedLoad)));
+  if (data == nullptr) return {};
+  return ObjectRef{broker(), data};
 }
 
 Float64 FixedDoubleArrayRef::GetFromImmutableFixedDoubleArray(int i) const {
@@ -4169,12 +4137,6 @@ int FixedArrayBaseRef::length() const {
   return data()->AsFixedArrayBase()->length();
 }
 
-ObjectData* FixedArrayData::Get(int i) const {
-  CHECK_LT(i, static_cast<int>(contents_.size()));
-  CHECK_NOT_NULL(contents_[i]);
-  return contents_[i];
-}
-
 PropertyDetails DescriptorArrayRef::GetPropertyDetails(
     InternalIndex descriptor_index) const {
   if (data_->should_access_heap()) {
@@ -4260,18 +4222,9 @@ bool NameRef::IsUniqueName() const {
 }
 
 void RegExpBoilerplateDescriptionRef::Serialize() {
-  if (data_->should_access_heap()) {
-    // Even if the regexp boilerplate object itself is no longer serialized,
-    // the `data` still is and thus we need to make sure to visit it.
-    // TODO(jgruber,v8:7790): Remove once it is no longer a serialized type.
-    STATIC_ASSERT(IsSerializedRef<FixedArray>());
-    FixedArrayRef data_ref{
-        broker(), broker()->CanonicalPersistentHandle(object()->data())};
-  } else {
-    CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-    HeapObjectRef::data()->AsRegExpBoilerplateDescription()->Serialize(
-        broker());
-  }
+  if (data_->should_access_heap()) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  HeapObjectRef::data()->AsRegExpBoilerplateDescription()->Serialize(broker());
 }
 
 Handle<Object> ObjectRef::object() const {
