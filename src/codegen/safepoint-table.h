@@ -135,7 +135,7 @@ class SafepointTable {
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
 
-  void PrintEntry(unsigned index, std::ostream& os) const;  // NOLINT
+  void PrintEntry(unsigned index, std::ostream& os) const;
 
  private:
   SafepointTable(Address instruction_start, Address safepoint_table_address,

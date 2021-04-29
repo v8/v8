@@ -410,7 +410,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
-  ~CpuFeatureScope() {  // NOLINT (modernize-use-equals-default)
+  ~CpuFeatureScope() {
     // Define a destructor to avoid unused variable warnings.
   }
 #endif

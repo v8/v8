@@ -437,7 +437,7 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   return "unknown relocation type";
 }
 
-void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
+void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
   os << reinterpret_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
     os << "  (" << data() << ")";
