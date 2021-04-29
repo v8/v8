@@ -1975,7 +1975,10 @@ action("v8_dump_build_config") {
 v8_source_set("v8_snapshot") {
   visibility = [ ":*" ]  # Targets in this file can depend on this.
 
-  deps = []
+  deps = [
+    ":v8_internal_headers",
+    ":v8_libbase",
+  ]
   public_deps = [
     # This should be public so downstream targets can declare the snapshot
     # output file as their inputs.
