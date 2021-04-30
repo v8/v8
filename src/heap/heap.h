@@ -751,7 +751,7 @@ class Heap {
 
   size_t backing_store_bytes() const { return backing_store_bytes_; }
 
-  void CompactWeakArrayLists(AllocationType allocation);
+  void CompactWeakArrayLists();
 
   V8_EXPORT_PRIVATE void AddRetainedMap(Handle<NativeContext> context,
                                         Handle<Map> map);

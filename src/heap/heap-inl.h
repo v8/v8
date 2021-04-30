@@ -465,7 +465,12 @@ bool Heap::InToPage(HeapObject heap_object) {
   return BasicMemoryChunk::FromHeapObject(heap_object)->IsToPage();
 }
 
-bool Heap::InOldSpace(Object object) { return old_space_->Contains(object); }
+bool Heap::InOldSpace(Object object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
+    return object.IsHeapObject() &&
+           third_party_heap::Heap::InOldSpace(object.ptr());
+  return old_space_->Contains(object);
+}
 
 // static
 Heap* Heap::FromWritableHeapObject(HeapObject obj) {

@@ -198,8 +198,10 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
         // have recorded slots in free space.
         isolate->heap()->ClearRecordedSlot(*receiver,
                                            receiver->RawField(index.offset()));
-        MemoryChunk* chunk = MemoryChunk::FromHeapObject(*receiver);
-        chunk->InvalidateRecordedSlots(*receiver);
+        if (!FLAG_enable_third_party_heap) {
+          MemoryChunk* chunk = MemoryChunk::FromHeapObject(*receiver);
+          chunk->InvalidateRecordedSlots(*receiver);
+        }
       }
     }
   }
