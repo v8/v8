@@ -41,6 +41,8 @@ if (v8_enable_google_benchmark) {
       "src/src/json_reporter.cc",
       "src/src/log.h",
       "src/src/mutex.h",
+      "src/src/perf_counters.cc",
+      "src/src/perf_counters.h",
       "src/src/re.h",
       "src/src/reporter.cc",
       "src/src/sleep.cc",
