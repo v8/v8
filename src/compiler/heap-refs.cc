@@ -2946,15 +2946,11 @@ void MapData::SerializeForElementStore(JSHeapBroker* broker) {
   // constructing MapRefs, but it involves non-trivial refactoring and this
   // method should go away anyway once the compiler is fully concurrent.
   MapRef map(broker, this);
-  for (MapRef prototype_map = map;;) {
-    prototype_map.SerializePrototype();
-    prototype_map = prototype_map.prototype().map();
-    if (prototype_map.oddball_type() == OddballType::kNull ||
-        !map.prototype().IsJSObject() || !prototype_map.is_stable() ||
-        !IsFastElementsKind(prototype_map.elements_kind())) {
-      return;
-    }
-  }
+  do {
+    map.SerializePrototype();
+    map = map.prototype().map();
+  } while (map.IsJSObjectMap() && map.is_stable() &&
+           IsFastElementsKind(map.elements_kind()));
 }
 
 bool MapRef::HasOnlyStablePrototypesWithFastElements(
@@ -2962,7 +2958,7 @@ bool MapRef::HasOnlyStablePrototypesWithFastElements(
   DCHECK_NOT_NULL(prototype_maps);
   MapRef prototype_map = prototype().map();
   while (prototype_map.oddball_type() != OddballType::kNull) {
-    if (!prototype().IsJSObject() || !prototype_map.is_stable() ||
+    if (!prototype_map.IsJSObjectMap() || !prototype_map.is_stable() ||
         !IsFastElementsKind(prototype_map.elements_kind())) {
       return false;
     }
