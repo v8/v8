@@ -50,9 +50,6 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   int contextGroupId() const { return m_contextGroupId; }
   int sessionId() const { return m_sessionId; }
 
-  v8::Local<v8::Object> createCommandLineAPI(
-      v8::Local<v8::Context> context) override;
-
   std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
   initializeCommandLineAPIScope(int executionContextId) override;
 

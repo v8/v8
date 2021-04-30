@@ -169,11 +169,6 @@ V8InspectorSessionImpl::initializeCommandLineAPIScope(int executionContextId) {
   return scope;
 }
 
-v8::Local<v8::Object> V8InspectorSessionImpl::createCommandLineAPI(
-    v8::Local<v8::Context> context) {
-  return inspector()->console()->createCommandLineAPI(context, sessionId());
-}
-
 protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
     const String16& name) {
   protocol::DictionaryValue* state = m_state->getObject(name);
