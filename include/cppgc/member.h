@@ -79,9 +79,8 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   template <typename U, typename OtherBarrierPolicy, typename OtherWeaknessTag,
             typename OtherCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicMember(  // NOLINT
-      BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
-                  OtherCheckingPolicy>&& other) noexcept
+  BasicMember(BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
+                          OtherCheckingPolicy>&& other) noexcept
       : BasicMember(other.Get()) {
     other.Clear();
   }
@@ -90,10 +89,9 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
             typename PersistentLocationPolicy,
             typename PersistentCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicMember(  // NOLINT
-      const BasicPersistent<U, PersistentWeaknessPolicy,
-                            PersistentLocationPolicy, PersistentCheckingPolicy>&
-          p)
+  BasicMember(const BasicPersistent<U, PersistentWeaknessPolicy,
+                                    PersistentLocationPolicy,
+                                    PersistentCheckingPolicy>& p)
       : BasicMember(p.Get()) {}
 
   // Copy assignment.
@@ -161,7 +159,7 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   }
 
   explicit operator bool() const { return Get(); }
-  operator T*() const { return Get(); }  // NOLINT
+  operator T*() const { return Get(); }
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }
 

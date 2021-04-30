@@ -596,7 +596,7 @@ template <class T> class PersistentBase {
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
-  PersistentBase(const PersistentBase& other) = delete;  // NOLINT
+  PersistentBase(const PersistentBase& other) = delete;
   void operator=(const PersistentBase&) = delete;
 
  private:
@@ -708,7 +708,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
     return *this;
   }
   template <class S, class M2>
-  V8_INLINE Persistent& operator=(const Persistent<S, M2>& that) { // NOLINT
+  V8_INLINE Persistent& operator=(const Persistent<S, M2>& that) {
     Copy(that);
     return *this;
   }
@@ -723,7 +723,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
 
   // TODO(dcarney): this is pretty useless, fix or remove
   template <class S>
-  V8_INLINE static Persistent<T>& Cast(const Persistent<S>& that) {  // NOLINT
+  V8_INLINE static Persistent<T>& Cast(const Persistent<S>& that) {
 #ifdef V8_ENABLE_CHECKS
     // If we're going to perform the type check then we have to check
     // that the handle isn't empty before doing the checked cast.
@@ -734,7 +734,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
 
   // TODO(dcarney): this is pretty useless, fix or remove
   template <class S>
-  V8_INLINE Persistent<S>& As() const {  // NOLINT
+  V8_INLINE Persistent<S>& As() const {
     return Persistent<S>::Cast(*this);
   }
 
@@ -803,7 +803,7 @@ class Global : public PersistentBase<T> {
   /**
    * Pass allows returning uniques from functions, etc.
    */
-  Global Pass() { return static_cast<Global&&>(*this); }  // NOLINT
+  Global Pass() { return static_cast<Global&&>(*this); }
 
   /*
    * For compatibility with Chromium's base::Bind (base::Passed).
@@ -3278,7 +3278,7 @@ class V8_EXPORT String : public Name {
    */
   bool IsExternalOneByte() const;
 
-  class V8_EXPORT ExternalStringResourceBase {  // NOLINT
+  class V8_EXPORT ExternalStringResourceBase {
    public:
     virtual ~ExternalStringResourceBase() = default;
 
@@ -3981,8 +3981,7 @@ class V8_EXPORT Object : public Value {
   //
   // Returns true on success.
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineProperty(
-      Local<Context> context, Local<Name> key,
-      PropertyDescriptor& descriptor);  // NOLINT(runtime/references)
+      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               Local<Value> key);
@@ -5348,7 +5347,7 @@ class V8_EXPORT ArrayBuffer : public Object {
    * Note that it is unsafe to call back into V8 from any of the allocator
    * functions.
    */
-  class V8_EXPORT Allocator { // NOLINT
+  class V8_EXPORT Allocator {
    public:
     virtual ~Allocator() = default;
 
@@ -7034,7 +7033,7 @@ class V8_EXPORT AccessorSignature : public Data {
 /**
  * Ignore
  */
-class V8_EXPORT Extension {  // NOLINT
+class V8_EXPORT Extension {
  public:
   // Note that the strings passed into this constructor must live as long
   // as the Extension itself.
@@ -7912,17 +7911,16 @@ using UnhandledExceptionCallback =
 /**
  * Interface for iterating through all external resources in the heap.
  */
-class V8_EXPORT ExternalResourceVisitor {  // NOLINT
+class V8_EXPORT ExternalResourceVisitor {
  public:
   virtual ~ExternalResourceVisitor() = default;
   virtual void VisitExternalString(Local<String> string) {}
 };
 
-
 /**
  * Interface for iterating through all the persistent handles in the heap.
  */
-class V8_EXPORT PersistentHandleVisitor {  // NOLINT
+class V8_EXPORT PersistentHandleVisitor {
  public:
   virtual ~PersistentHandleVisitor() = default;
   virtual void VisitPersistentHandle(Persistent<Value>* value,
