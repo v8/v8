@@ -2890,7 +2890,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
   outp += v8::internal::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.begin());
   return instr_len;
-}  // NOLINT (function is too long)
+}
 
 //------------------------------------------------------------------------------
 
