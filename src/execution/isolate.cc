@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 #include <atomic>
-#include <fstream>  // NOLINT(readability/streams)
+#include <fstream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -2709,7 +2709,6 @@ void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-// NOLINTNEXTLINE
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 #if defined(USE_SIMULATOR)
   delete simulator_;
@@ -3585,7 +3584,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   metrics_recorder_ = std::make_shared<metrics::Recorder>();
 
-  {  // NOLINT
+  {
     // Ensure that the thread has a valid stack guard.  The v8::Locker object
     // will ensure this too, but we don't have to use lockers if we are only
     // using one thread.

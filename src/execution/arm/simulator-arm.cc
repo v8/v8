@@ -42,7 +42,7 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 // SScanF not being implemented in a platform independent way through
 // ::v8::internal::OS in the same way as SNPrintF is that the
 // Windows C Run-Time Library does not provide vsscanf.
-#define SScanF sscanf  // NOLINT
+#define SScanF sscanf
 
 // The ArmDebugger class is used by the simulator while debugging simulated ARM
 // code.

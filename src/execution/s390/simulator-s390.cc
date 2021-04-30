@@ -34,7 +34,7 @@ namespace internal {
 // SScanF not being implemented in a platform independent way through
 // ::v8::internal::OS in the same way as SNPrintF is that the
 // Windows C Run-Time Library does not provide vsscanf.
-#define SScanF sscanf  // NOLINT
+#define SScanF sscanf
 
 const Simulator::fpr_t Simulator::fp_zero;
 
@@ -1560,7 +1560,7 @@ void Simulator::EvalTableInit() {
   EvalTable[CZXT] = &Simulator::Evaluate_CZXT;
   EvalTable[CDZT] = &Simulator::Evaluate_CDZT;
   EvalTable[CXZT] = &Simulator::Evaluate_CXZT;
-}  // NOLINT
+}
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   static base::OnceType once = V8_ONCE_INIT;
