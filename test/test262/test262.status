@@ -588,15 +588,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=11689
   'built-ins/BigInt/wrapper-object-ordinary-toprimitive': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11688
-  'language/future-reserved-words/implements': [FAIL],
-  'language/future-reserved-words/interface': [FAIL],
-  'language/future-reserved-words/private': [FAIL],
-  'language/future-reserved-words/protected': [FAIL],
-  'language/future-reserved-words/public': [FAIL],
-  'language/future-reserved-words/package': [FAIL],
-  'language/future-reserved-words/static': [FAIL],
-
    # https://bugs.chromium.org/p/v8/issues/detail?id=11690
   'language/module-code/export-expname-binding-index': [FAIL],
 
