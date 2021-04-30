@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/ast/ast-source-ranges.h"
+#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/compiler.h"
@@ -1774,7 +1775,7 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
   int return_position = stmt->end_position();
-  if (return_position == kNoSourcePosition) {
+  if (return_position == ReturnStatement::kFunctionLiteralReturnPosition) {
     return_position = info()->literal()->return_position();
   }
   if (stmt->is_async_return()) {

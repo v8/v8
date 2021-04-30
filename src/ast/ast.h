@@ -629,6 +629,11 @@ class ReturnStatement final : public JumpStatement {
     return type() == kSyntheticAsyncReturn;
   }
 
+  // This constant is used to indicate that the return position
+  // from the FunctionLiteral should be used when emitting code.
+  static constexpr int kFunctionLiteralReturnPosition = -2;
+  STATIC_ASSERT(kFunctionLiteralReturnPosition == kNoSourcePosition - 1);
+
   int end_position() const { return end_position_; }
 
  private:
@@ -2857,20 +2862,22 @@ class AstNodeFactory final {
     return zone_->New<BreakStatement>(target, pos);
   }
 
-  ReturnStatement* NewReturnStatement(Expression* expression, int pos,
-                                      int end_position = kNoSourcePosition) {
+  ReturnStatement* NewReturnStatement(
+      Expression* expression, int pos,
+      int end_position = ReturnStatement::kFunctionLiteralReturnPosition) {
     return zone_->New<ReturnStatement>(expression, ReturnStatement::kNormal,
                                        pos, end_position);
   }
 
-  ReturnStatement* NewAsyncReturnStatement(
-      Expression* expression, int pos, int end_position = kNoSourcePosition) {
+  ReturnStatement* NewAsyncReturnStatement(Expression* expression, int pos,
+                                           int end_position) {
     return zone_->New<ReturnStatement>(
         expression, ReturnStatement::kAsyncReturn, pos, end_position);
   }
 
   ReturnStatement* NewSyntheticAsyncReturnStatement(
-      Expression* expression, int pos, int end_position = kNoSourcePosition) {
+      Expression* expression, int pos,
+      int end_position = ReturnStatement::kFunctionLiteralReturnPosition) {
     return zone_->New<ReturnStatement>(
         expression, ReturnStatement::kSyntheticAsyncReturn, pos, end_position);
   }

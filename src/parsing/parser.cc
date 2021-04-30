@@ -751,8 +751,8 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
       kNoSourcePosition, FunctionSyntaxKind::kWrapped, LanguageMode::kSloppy,
       arguments_for_wrapped_function);
 
-  Statement* return_statement = factory()->NewReturnStatement(
-      function_literal, kNoSourcePosition, kNoSourcePosition);
+  Statement* return_statement =
+      factory()->NewReturnStatement(function_literal, kNoSourcePosition);
   body->Add(return_statement);
 }
 
@@ -2011,8 +2011,8 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
 
     Expression* reject_call = factory()->NewCallRuntime(
         Runtime::kInlineAsyncGeneratorReject, reject_args, kNoSourcePosition);
-    catch_block = IgnoreCompletion(
-        factory()->NewReturnStatement(reject_call, kNoSourcePosition));
+    catch_block = IgnoreCompletion(factory()->NewReturnStatement(
+        reject_call, kNoSourcePosition, kNoSourcePosition));
   }
 
   {
@@ -2878,8 +2878,8 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block,
     reject_promise = factory()->NewCallRuntime(
         Runtime::kInlineAsyncFunctionReject, args, kNoSourcePosition);
   }
-  Block* catch_block = IgnoreCompletion(
-      factory()->NewReturnStatement(reject_promise, kNoSourcePosition));
+  Block* catch_block = IgnoreCompletion(factory()->NewReturnStatement(
+      reject_promise, kNoSourcePosition, kNoSourcePosition));
 
   // Treat the exception for REPL mode scripts as UNCAUGHT. This will
   // keep the corresponding JSMessageObject alive on the Isolate. The
