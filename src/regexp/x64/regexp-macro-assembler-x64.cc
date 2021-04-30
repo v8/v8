@@ -356,8 +356,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Isolate.
     __ LoadAddress(arg_reg_4, ExternalReference::isolate_address(isolate()));
 
-    { // NOLINT: Can't find a way to open this scope without confusing the
-      // linter.
+    {
       AllowExternalCallThatCantCauseGC scope(&masm_);
       ExternalReference compare =
           unicode ? ExternalReference::re_case_insensitive_compare_unicode(
