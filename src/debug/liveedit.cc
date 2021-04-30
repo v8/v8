@@ -902,10 +902,10 @@ class FunctionDataMap : public ThreadVisitor {
   std::map<FuncId, FunctionData> map_;
 };
 
-bool CanPatchScript(
-    const LiteralMap& changed, Handle<Script> script, Handle<Script> new_script,
-    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
-    debug::LiveEditResult* result) {
+bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
+                    Handle<Script> new_script,
+                    FunctionDataMap& function_data_map,
+                    debug::LiveEditResult* result) {
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
     function_data_map.Lookup(script, mapping.first, &data);
