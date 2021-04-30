@@ -877,6 +877,7 @@
   'test-typedarrays/SpeciesProto': [SKIP],
   'test-wasm-serialization/*': [SKIP],
   'test-wasm-shared-engine/*': [SKIP],
+  'test-shared-heap/*': [SKIP],
   # Performs GC or expects OOM
   'test-alloc/StressHandles': [SKIP],
   'test-alloc/StressJS': [SKIP],
@@ -1169,6 +1170,7 @@
   'test-code-pages/LargeCodeObject': [SKIP],
   'test-code-pages/OptimizedCodeWithCodeRange': [SKIP],
   'test-code-pages/Sorted': [SKIP],
+  'test-code-pages/CodeRangeCorrectContents': [SKIP],
 }], # third_party_heap
 
 ]
