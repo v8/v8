@@ -969,8 +969,7 @@ const char* BitsetType::Name(bitset bits) {
   }
 }
 
-void BitsetType::Print(std::ostream& os,  // NOLINT
-                       bitset bits) {
+void BitsetType::Print(std::ostream& os, bitset bits) {
   DisallowGarbageCollection no_gc;
   const char* name = Name(bits);
   if (name != nullptr) {

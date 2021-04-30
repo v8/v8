@@ -4,7 +4,7 @@
 
 #include "src/compiler/pipeline.h"
 
-#include <fstream>  // NOLINT(readability/streams)
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>

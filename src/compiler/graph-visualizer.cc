@@ -421,7 +421,7 @@ std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
 
 class GraphC1Visualizer {
  public:
-  GraphC1Visualizer(std::ostream& os, Zone* zone);  // NOLINT
+  GraphC1Visualizer(std::ostream& os, Zone* zone);
   GraphC1Visualizer(const GraphC1Visualizer&) = delete;
   GraphC1Visualizer& operator=(const GraphC1Visualizer&) = delete;
 

@@ -2862,7 +2862,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_REDUCE_OP_CASE(kArm64I8x16AllTrue, Uminv, kFormatB, 16B);
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}
 
 #undef SIMD_UNOP_CASE
 #undef SIMD_BINOP_CASE

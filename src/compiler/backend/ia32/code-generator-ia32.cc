@@ -4189,7 +4189,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}
 
 static Condition FlagsConditionToCondition(FlagsCondition condition) {
   switch (condition) {

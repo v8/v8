@@ -3652,7 +3652,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}
 
 void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
                             Instruction* instr, FlagsCondition condition,

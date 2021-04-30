@@ -43,7 +43,7 @@ namespace internal {
 namespace compiler {
 
 // Shorter lambda declarations with less visual clutter.
-#define _ [&]()  // NOLINT(whitespace/braces)
+#define _ [&]()
 
 class JSCallReducerAssembler : public JSGraphAssembler {
  protected:

@@ -1849,7 +1849,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       UNIMPLEMENTED();
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}
 
 #define UNSUPPORTED_COND(opcode, condition)                                    \
   StdoutStream{} << "Unsupported " << #opcode << " condition: \"" << condition \

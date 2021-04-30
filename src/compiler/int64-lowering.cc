@@ -1030,7 +1030,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
     default: { DefaultLowering(node); }
   }
-}  // NOLINT(readability/fn_size)
+}
 
 void Int64Lowering::LowerComparison(Node* node, const Operator* high_word_op,
                                     const Operator* low_word_op) {

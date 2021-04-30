@@ -1852,7 +1852,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // TODO(rossberg): Check.
       break;
   }
-}  // NOLINT(readability/fn_size)
+}
 
 void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
                    CodeType code_type) {
