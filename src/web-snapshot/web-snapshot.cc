@@ -398,8 +398,22 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
   DCHECK(object->IsHeapObject());
   switch (HeapObject::cast(*object).map().instance_type()) {
     case ODDBALL_TYPE:
-      // TODO(v8:11525): Implement.
-      UNREACHABLE();
+      switch (Oddball::cast(*object).kind()) {
+        case Oddball::kFalse:
+          serializer.WriteUint32(ValueType::FALSE_CONSTANT);
+          return;
+        case Oddball::kTrue:
+          serializer.WriteUint32(ValueType::TRUE_CONSTANT);
+          return;
+        case Oddball::kNull:
+          serializer.WriteUint32(ValueType::NULL_CONSTANT);
+          return;
+        case Oddball::kUndefined:
+          serializer.WriteUint32(ValueType::UNDEFINED_CONSTANT);
+          return;
+        default:
+          UNREACHABLE();
+      }
     case HEAP_NUMBER_TYPE:
       // TODO(v8:11525): Handle possible endianness mismatch.
       serializer.WriteUint32(ValueType::DOUBLE);
@@ -846,6 +860,26 @@ void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
     return;
   }
   switch (value_type) {
+    case ValueType::FALSE_CONSTANT: {
+      value = handle(ReadOnlyRoots(isolate_).false_value(), isolate_);
+      representation = Representation::Tagged();
+      break;
+    }
+    case ValueType::TRUE_CONSTANT: {
+      value = handle(ReadOnlyRoots(isolate_).true_value(), isolate_);
+      representation = Representation::Tagged();
+      break;
+    }
+    case ValueType::NULL_CONSTANT: {
+      value = handle(ReadOnlyRoots(isolate_).null_value(), isolate_);
+      representation = Representation::Tagged();
+      break;
+    }
+    case ValueType::UNDEFINED_CONSTANT: {
+      value = handle(ReadOnlyRoots(isolate_).undefined_value(), isolate_);
+      representation = Representation::Tagged();
+      break;
+    }
     case ValueType::INTEGER: {
       Maybe<int32_t> number = deserializer_->ReadZigZag<int32_t>();
       if (number.IsNothing()) {

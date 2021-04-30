@@ -39,6 +39,10 @@ class WebSnapshotSerializerDeserializer {
   const char* error_message() const { return error_message_; }
 
   enum ValueType : uint8_t {
+    FALSE_CONSTANT,
+    TRUE_CONSTANT,
+    NULL_CONSTANT,
+    UNDEFINED_CONSTANT,
     INTEGER,
     DOUBLE,
     STRING_ID,

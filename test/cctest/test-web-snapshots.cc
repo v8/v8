@@ -140,6 +140,36 @@ TEST(Numbers) {
                            kObjectCount);
 }
 
+TEST(Oddballs) {
+  const char* snapshot_source =
+      "var foo = {'a': false,\n"
+      "           'b': true,\n"
+      "           'c': null,\n"
+      "           'd': undefined,\n"
+      "}";
+  const char* test_source = "foo";
+  uint32_t kStringCount = 5;  // 'foo', 'a', ..., 'd'
+  uint32_t kMapCount = 1;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 1;
+  std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
+      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
+        Local<Value> a = result->Get(new_context, v8_str("a")).ToLocalChecked();
+        CHECK(a->IsFalse());
+        Local<Value> b = result->Get(new_context, v8_str("b")).ToLocalChecked();
+        CHECK(b->IsTrue());
+        Local<Value> c = result->Get(new_context, v8_str("c")).ToLocalChecked();
+        CHECK(c->IsNull());
+        Local<Value> d = result->Get(new_context, v8_str("d")).ToLocalChecked();
+        CHECK(d->IsUndefined());
+      };
+  TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
+                           kMapCount, kContextCount, kFunctionCount,
+                           kObjectCount);
+}
+
 TEST(Function) {
   const char* snapshot_source =
       "var foo = {'key': function() { return '11525'; }};";
