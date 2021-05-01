@@ -85,9 +85,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8cc66170453ac1ee0d82bf6c89e07ce1287c23ce',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f292eb8cc4494a6b5f3197aab331b6694fe3d841',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0d1afc97295c538cf179214fd98ec3c2cca85c8f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f663e543389de90c5573825a654721b367c31633',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'cd9f9a9495b1978ded709c248e467e7f5a74ea0a',
   'third_party/instrumented_libraries':
@@ -181,7 +181,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'bbfed50cf91d86dc24b07f292741f2b20d7d0697',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '00b6ebab8b4ec3aa2376e3f2dd51a4547d31c492',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -195,7 +195,7 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '23ef29555ef4789f555f1ba8c51b4c52975f0907',
   'third_party/google_benchmark/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '64cb55e91067860548cb95e012a38f2e5b71e026',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'ba9a763def4eca056d03b1ece2946b2d4ef6dfcb',
   },
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '11b6b3e5971d760bd2d310f77643f55a818a6d25',
@@ -235,7 +235,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'kswh0qF56RoEDBXJbyo1IWPAJ9F7WGAvMHGyWGbpBtUC'
+              'version': 'BGSmhPgYrPBnQ9dUEMh0QHNL988lWdkmpI87DIIfwkoC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -252,7 +252,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ba668f13d135f1d01faf9b03c9a05f5877ac3f51',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7bc447f6ed0b0759946fae69a09e191e89b0aef2',
   'tools/luci-go': {
       'packages': [
         {
