@@ -1762,6 +1762,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   };
 
   void UseAsSharedIsolate() {
+    // When pointer compression is on with a per-Isolate cage, allocation in the
+    // shared Isolate can point into the per-Isolate RO heap as the offsets are
+    // constant across Isolates.
+    //
+    // When pointer compression is on with a shared cage or when pointer
+    // compression is off, a shared RO heap is required. Otherwise a shared
+    // allocation requested by a client Isolate could point into the client
+    // Isolate's RO space (e.g. an RO map) whose pages gets unmapped when it is
+    // disposed.
+    CHECK(COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL || V8_SHARED_RO_HEAP_BOOL);
     DCHECK(!is_shared_);
     DCHECK_NULL(shared_isolate_);
     is_shared_ = true;
