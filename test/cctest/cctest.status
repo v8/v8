@@ -1173,4 +1173,11 @@
   'test-code-pages/CodeRangeCorrectContents': [SKIP],
 }], # third_party_heap
 
+################################################################################
+['variant == always_sparkplug', {
+  # SFI deduplication tests check compilation state, which always_sparkplug
+  # can break.
+  'test-web-snapshots/SFIDeduplication*': [SKIP],
+}],
+
 ]

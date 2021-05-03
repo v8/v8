@@ -200,6 +200,13 @@ TEST(OptimizedCodeWithCodePages) {
       Handle<JSFunction> foo =
           Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
+      // If there is baseline code, check that it's only due to
+      // --always-sparkplug (if this check fails, we'll have to re-think this
+      // test).
+      if (foo->shared().HasBaselineData()) {
+        CHECK(FLAG_always_sparkplug);
+        return;
+      }
       AbstractCode abstract_code = foo->abstract_code(i_isolate);
       // We don't produce optimized code when run with --no-opt.
       if (!abstract_code.IsCode() && FLAG_opt == false) return;
