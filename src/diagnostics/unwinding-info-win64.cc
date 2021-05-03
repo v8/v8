@@ -464,24 +464,27 @@ static decltype(
     &::RtlDeleteGrowableFunctionTable) delete_growable_function_table_func =
     nullptr;
 
+void LoadNtdllUnwindingFunctionsOnce() {
+  // Load functions from the ntdll.dll module.
+  HMODULE ntdll_module =
+      LoadLibraryEx(L"ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+  DCHECK_NOT_NULL(ntdll_module);
+
+  // This fails on Windows 7.
+  add_growable_function_table_func =
+      reinterpret_cast<decltype(&::RtlAddGrowableFunctionTable)>(
+          ::GetProcAddress(ntdll_module, "RtlAddGrowableFunctionTable"));
+  DCHECK_IMPLIES(IsWindows8OrGreater(), add_growable_function_table_func);
+
+  delete_growable_function_table_func =
+      reinterpret_cast<decltype(&::RtlDeleteGrowableFunctionTable)>(
+          ::GetProcAddress(ntdll_module, "RtlDeleteGrowableFunctionTable"));
+  DCHECK_IMPLIES(IsWindows8OrGreater(), delete_growable_function_table_func);
+}
+
 void LoadNtdllUnwindingFunctions() {
-  base::CallOnce(&load_ntdll_unwinding_functions_once, []() {
-    // Load functions from the ntdll.dll module.
-    HMODULE ntdll_module =
-        LoadLibraryEx(L"ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-    DCHECK_NOT_NULL(ntdll_module);
-
-    // This fails on Windows 7.
-    add_growable_function_table_func =
-        reinterpret_cast<decltype(&::RtlAddGrowableFunctionTable)>(
-            ::GetProcAddress(ntdll_module, "RtlAddGrowableFunctionTable"));
-    DCHECK_IMPLIES(IsWindows8OrGreater(), add_growable_function_table_func);
-
-    delete_growable_function_table_func =
-        reinterpret_cast<decltype(&::RtlDeleteGrowableFunctionTable)>(
-            ::GetProcAddress(ntdll_module, "RtlDeleteGrowableFunctionTable"));
-    DCHECK_IMPLIES(IsWindows8OrGreater(), delete_growable_function_table_func);
-  });
+  base::CallOnce(&load_ntdll_unwinding_functions_once,
+                 &LoadNtdllUnwindingFunctionsOnce);
 }
 
 bool AddGrowableFunctionTable(PVOID* DynamicTable,
