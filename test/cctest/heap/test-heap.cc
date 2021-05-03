@@ -365,6 +365,8 @@ TEST(Tagging) {
 
 
 TEST(GarbageCollection) {
+  if (FLAG_single_generation) return;
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1557,7 +1559,7 @@ TEST(TestInternalWeakLists) {
   // Some flags turn Scavenge collections into Mark-sweep collections
   // and hence are incompatible with this test case.
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
   FLAG_retain_maps_for_n_gc = 0;
 
@@ -2501,7 +2503,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
@@ -2551,7 +2553,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking) {
+      FLAG_stress_incremental_marking || FLAG_single_generation) {
     return;
   }
   v8::HandleScope scope(CcTest::isolate());
@@ -2632,7 +2634,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2679,7 +2681,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2718,7 +2720,7 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2756,7 +2758,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
@@ -2806,7 +2808,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
@@ -2856,7 +2858,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
@@ -6635,7 +6637,7 @@ Isolate* oom_isolate = nullptr;
 
 void OOMCallback(const char* location, bool is_heap_oom) {
   Heap* heap = oom_isolate->heap();
-  size_t kSlack = heap->new_space()->Capacity();
+  size_t kSlack = heap->new_space() ? heap->new_space()->Capacity() : 0;
   CHECK_LE(heap->OldGenerationCapacity(), kHeapLimit + kSlack);
   CHECK_LE(heap->memory_allocator()->Size(), heap->MaxReserved() + kSlack);
   base::OS::ExitProcess(0);
@@ -6798,8 +6800,10 @@ size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
   state->oom_triggered = true;
   state->old_generation_capacity_at_oom = heap->OldGenerationCapacity();
   state->memory_allocator_size_at_oom = heap->memory_allocator()->Size();
-  state->new_space_capacity_at_oom = heap->new_space()->Capacity();
-  state->new_lo_space_size_at_oom = heap->new_lo_space()->Size();
+  state->new_space_capacity_at_oom =
+      heap->new_space() ? heap->new_space()->Capacity() : 0;
+  state->new_lo_space_size_at_oom =
+      heap->new_lo_space() ? heap->new_lo_space()->Size() : 0;
   state->current_heap_limit = current_heap_limit;
   state->initial_heap_limit = initial_heap_limit;
   return initial_heap_limit + 100 * MB;
@@ -7442,6 +7446,7 @@ TEST(LongTaskStatsFullIncremental) {
 }
 
 TEST(LongTaskStatsYoung) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(CcTest::isolate());

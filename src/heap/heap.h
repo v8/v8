@@ -199,7 +199,7 @@ class StrongRootsEntry {
 
 class AllocationResult {
  public:
-  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
+  static inline AllocationResult Retry(AllocationSpace space) {
     return AllocationResult(space);
   }
 
@@ -517,6 +517,9 @@ class Heap {
   inline Address* NewSpaceAllocationLimitAddress();
   inline Address* OldSpaceAllocationTopAddress();
   inline Address* OldSpaceAllocationLimitAddress();
+
+  size_t NewSpaceSize();
+  size_t NewSpaceCapacity();
 
   // Move len non-weak tagged elements from src_slot to dst_slot of dst_object.
   // The source and destination memory ranges can overlap.
@@ -1370,9 +1373,9 @@ class Heap {
     survived_since_last_expansion_ += survived;
   }
 
-  inline void UpdateNewSpaceAllocationCounter();
+  void UpdateNewSpaceAllocationCounter();
 
-  inline size_t NewSpaceAllocationCounter();
+  V8_EXPORT_PRIVATE size_t NewSpaceAllocationCounter();
 
   // This should be used only for testing.
   void set_new_space_allocation_counter(size_t new_value) {

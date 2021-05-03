@@ -308,8 +308,10 @@ void GCTracer::StartInSafepoint() {
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
-  current_.young_object_size =
-      heap_->new_space()->Size() + heap_->new_lo_space()->SizeOfObjects();
+  size_t new_space_size = (heap_->new_space() ? heap_->new_space()->Size() : 0);
+  size_t new_lo_space_size =
+      (heap_->new_lo_space() ? heap_->new_lo_space()->SizeOfObjects() : 0);
+  current_.young_object_size = new_space_size + new_lo_space_size;
 }
 
 void GCTracer::ResetIncrementalMarkingCounters() {

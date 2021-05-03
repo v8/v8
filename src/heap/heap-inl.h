@@ -158,14 +158,6 @@ Address* Heap::OldSpaceAllocationLimitAddress() {
   return old_space_->allocation_limit_address();
 }
 
-void Heap::UpdateNewSpaceAllocationCounter() {
-  new_space_allocation_counter_ = NewSpaceAllocationCounter();
-}
-
-size_t Heap::NewSpaceAllocationCounter() {
-  return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
-}
-
 inline const base::AddressRegion& Heap::code_region() {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return tp_heap_->GetCodeRange();
@@ -186,7 +178,8 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
     if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
-      return AllocationResult::Retry();
+      AllocationSpace space = FLAG_single_generation ? OLD_SPACE : NEW_SPACE;
+      return AllocationResult::Retry(space);
     }
   }
 #endif
@@ -292,10 +285,9 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_EQ(gc_state(), NOT_IN_GC);
   Heap* heap = isolate()->heap();
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-      allocation == AllocationType::kYoung &&
+  if (allocation == AllocationType::kYoung &&
       alignment == AllocationAlignment::kWordAligned &&
-      size <= MaxRegularHeapObjectSize(allocation)) {
+      size <= MaxRegularHeapObjectSize(allocation) && !FLAG_single_generation) {
     Address* top = heap->NewSpaceAllocationTopAddress();
     Address* limit = heap->NewSpaceAllocationLimitAddress();
     if ((*limit - *top >= static_cast<unsigned>(size)) &&
@@ -400,7 +392,9 @@ void Heap::FinalizeExternalString(String string) {
   ext_string.DisposeResource(isolate());
 }
 
-Address Heap::NewSpaceTop() { return new_space_->top(); }
+Address Heap::NewSpaceTop() {
+  return new_space_ ? new_space_->top() : kNullAddress;
+}
 
 bool Heap::InYoungGeneration(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
@@ -589,9 +583,14 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
 bool Heap::IsPendingAllocation(HeapObject object) {
   // TODO(ulan): Optimize this function to perform 3 loads at most.
   Address addr = object.address();
-  Address top = new_space_->original_top_acquire();
-  Address limit = new_space_->original_limit_relaxed();
-  if (top <= addr && addr < limit) return true;
+  Address top, limit;
+
+  if (new_space_) {
+    top = new_space_->original_top_acquire();
+    limit = new_space_->original_limit_relaxed();
+    if (top <= addr && addr < limit) return true;
+  }
+
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
@@ -600,7 +599,7 @@ bool Heap::IsPendingAllocation(HeapObject object) {
     if (top <= addr && addr < limit) return true;
   }
   if (addr == lo_space_->pending_object()) return true;
-  if (addr == new_lo_space_->pending_object()) return true;
+  if (new_lo_space_ && addr == new_lo_space_->pending_object()) return true;
   if (addr == code_lo_space_->pending_object()) return true;
   return false;
 }

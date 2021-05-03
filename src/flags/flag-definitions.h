@@ -416,13 +416,13 @@ DEFINE_BOOL_READONLY(enable_unconditional_write_barriers,
                      "always use full write barriers")
 
 #ifdef V8_ENABLE_SINGLE_GENERATION
-#define V8_GENERATION_BOOL true
+#define V8_SINGLE_GENERATION_BOOL true
 #else
-#define V8_GENERATION_BOOL false
+#define V8_SINGLE_GENERATION_BOOL false
 #endif
 
 DEFINE_BOOL_READONLY(
-    single_generation, V8_GENERATION_BOOL,
+    single_generation, V8_SINGLE_GENERATION_BOOL,
     "allocate all objects from young generation to old generation")
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING

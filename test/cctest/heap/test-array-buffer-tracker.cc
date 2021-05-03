@@ -392,6 +392,7 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -413,6 +414,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
+  if (FLAG_single_generation) return;
   FLAG_concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;

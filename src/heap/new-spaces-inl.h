@@ -112,7 +112,7 @@ AllocationResult NewSpace::AllocateFastUnaligned(int size_in_bytes,
                                                  AllocationOrigin origin) {
   Address top = allocation_info_.top();
   if (allocation_info_.limit() < top + size_in_bytes) {
-    return AllocationResult::Retry();
+    return AllocationResult::Retry(NEW_SPACE);
   }
 
   HeapObject obj = HeapObject::FromAddress(top);
@@ -137,7 +137,7 @@ AllocationResult NewSpace::AllocateFastAligned(
 
   if (allocation_info_.limit() - top <
       static_cast<uintptr_t>(aligned_size_in_bytes)) {
-    return AllocationResult::Retry();
+    return AllocationResult::Retry(NEW_SPACE);
   }
 
   HeapObject obj = HeapObject::FromAddress(top);

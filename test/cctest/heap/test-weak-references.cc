@@ -350,6 +350,8 @@ TEST(EmptyWeakArray) {
 }
 
 TEST(WeakArraysBasic) {
+  if (FLAG_single_generation) return;
+
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -363,7 +365,7 @@ TEST(WeakArraysBasic) {
   CHECK(!array->IsFixedArray());
   CHECK_EQ(array->length(), length);
 
-  if (!FLAG_single_generation) CHECK(Heap::InYoungGeneration(*array));
+  CHECK(Heap::InYoungGeneration(*array));
 
   for (int i = 0; i < length; ++i) {
     HeapObject heap_object;
@@ -419,6 +421,8 @@ TEST(WeakArraysBasic) {
 }
 
 TEST(WeakArrayListBasic) {
+  if (FLAG_single_generation) return;
+
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

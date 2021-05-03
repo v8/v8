@@ -151,6 +151,7 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
 }
 
 void MarkingVerifier::VerifyMarking(NewSpace* space) {
+  if (!space) return;
   Address end = space->top();
   // The bottom position is at the start of its page. Allows us to use
   // page->area_start() as start of range on all pages.
@@ -173,6 +174,7 @@ void MarkingVerifier::VerifyMarking(PagedSpace* space) {
 }
 
 void MarkingVerifier::VerifyMarking(LargeObjectSpace* lo_space) {
+  if (!lo_space) return;
   LargeObjectSpaceObjectIterator it(lo_space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsBlackOrGrey(obj)) {
@@ -313,6 +315,7 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
 }
 
 void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
+  if (!space) return;
   PageRange range(space->first_allocatable_address(), space->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* page = *(it++);
@@ -559,6 +562,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
 }
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
+  if (!space) return;
   for (Page* p : PageRange(space->first_allocatable_address(), space->top())) {
     CHECK(non_atomic_marking_state()->bitmap(p)->IsClean());
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
@@ -566,6 +570,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
 }
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
+  if (!space) return;
   LargeObjectSpaceObjectIterator it(space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     CHECK(non_atomic_marking_state()->IsWhite(obj));
@@ -874,9 +879,14 @@ void MarkCompactCollector::Prepare() {
       [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
 
   // All objects are guaranteed to be initialized in atomic pause
-  heap()->new_lo_space()->ResetPendingObject();
-  DCHECK_EQ(heap()->new_space()->top(),
-            heap()->new_space()->original_top_acquire());
+  if (heap()->new_lo_space()) {
+    heap()->new_lo_space()->ResetPendingObject();
+  }
+
+  if (heap()->new_space()) {
+    DCHECK_EQ(heap()->new_space()->top(),
+              heap()->new_space()->original_top_acquire());
+  }
 }
 
 void MarkCompactCollector::FinishConcurrentMarking() {
@@ -2862,18 +2872,23 @@ static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
 void MarkCompactCollector::EvacuatePrologue() {
   // New space.
   NewSpace* new_space = heap()->new_space();
-  // Append the list of new space pages to be processed.
-  for (Page* p :
-       PageRange(new_space->first_allocatable_address(), new_space->top())) {
-    new_space_evacuation_pages_.push_back(p);
+
+  if (new_space) {
+    // Append the list of new space pages to be processed.
+    for (Page* p :
+         PageRange(new_space->first_allocatable_address(), new_space->top())) {
+      new_space_evacuation_pages_.push_back(p);
+    }
+    new_space->Flip();
+    new_space->ResetLinearAllocationArea();
+
+    DCHECK_EQ(new_space->Size(), 0);
   }
-  new_space->Flip();
-  new_space->ResetLinearAllocationArea();
 
-  DCHECK_EQ(new_space->Size(), 0);
-
-  heap()->new_lo_space()->Flip();
-  heap()->new_lo_space()->ResetPendingObject();
+  if (heap()->new_lo_space()) {
+    heap()->new_lo_space()->Flip();
+    heap()->new_lo_space()->ResetPendingObject();
+  }
 
   // Old space.
   DCHECK(old_space_evacuation_pages_.empty());
@@ -2884,18 +2899,27 @@ void MarkCompactCollector::EvacuatePrologue() {
 
 void MarkCompactCollector::EvacuateEpilogue() {
   aborted_evacuation_candidates_.clear();
+
   // New space.
-  heap()->new_space()->set_age_mark(heap()->new_space()->top());
-  DCHECK_IMPLIES(FLAG_always_promote_young_mc,
-                 heap()->new_space()->Size() == 0);
+  if (heap()->new_space()) {
+    heap()->new_space()->set_age_mark(heap()->new_space()->top());
+    DCHECK_IMPLIES(FLAG_always_promote_young_mc,
+                   heap()->new_space()->Size() == 0);
+  }
+
   // Deallocate unmarked large objects.
   heap()->lo_space()->FreeUnmarkedObjects();
   heap()->code_lo_space()->FreeUnmarkedObjects();
-  heap()->new_lo_space()->FreeUnmarkedObjects();
+  if (heap()->new_lo_space()) {
+    heap()->new_lo_space()->FreeUnmarkedObjects();
+  }
+
   // Old space. Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
+
   // Give pages that are queued to be freed back to the OS.
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
+
 #ifdef DEBUG
   // Old-to-old slot sets must be empty after evacuation.
   for (Page* p : *heap()->old_space()) {
@@ -3295,19 +3319,21 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   // Promote young generation large objects.
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
-      heap()->incremental_marking()->non_atomic_marking_state();
+  if (heap()->new_lo_space()) {
+    IncrementalMarking::NonAtomicMarkingState* marking_state =
+        heap()->incremental_marking()->non_atomic_marking_state();
 
-  for (auto it = heap()->new_lo_space()->begin();
-       it != heap()->new_lo_space()->end();) {
-    LargePage* current = *it;
-    it++;
-    HeapObject object = current->GetObject();
-    DCHECK(!marking_state->IsGrey(object));
-    if (marking_state->IsBlack(object)) {
-      heap_->lo_space()->PromoteNewLargeObject(current);
-      current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
-      evacuation_items.emplace_back(ParallelWorkItem{}, current);
+    for (auto it = heap()->new_lo_space()->begin();
+         it != heap()->new_lo_space()->end();) {
+      LargePage* current = *it;
+      it++;
+      HeapObject object = current->GetObject();
+      DCHECK(!marking_state->IsGrey(object));
+      if (marking_state->IsBlack(object)) {
+        heap_->lo_space()->PromoteNewLargeObject(current);
+        current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+        evacuation_items.emplace_back(ParallelWorkItem{}, current);
+      }
     }
   }
 
@@ -3464,7 +3490,7 @@ void MarkCompactCollector::Evacuate() {
 
   UpdatePointersAfterEvacuation();
 
-  {
+  if (heap()->new_space()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
     if (!heap()->new_space()->Rebalance()) {
       heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
@@ -3836,6 +3862,8 @@ MarkCompactCollector::CreateRememberedSetUpdatingItem(
 
 int MarkCompactCollectorBase::CollectToSpaceUpdatingItems(
     std::vector<std::unique_ptr<UpdatingItem>>* items) {
+  if (!heap()->new_space()) return 0;
+
   // Seed to space pages.
   const Address space_start = heap()->new_space()->first_allocatable_address();
   const Address space_end = heap()->new_space()->top();

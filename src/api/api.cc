@@ -8560,10 +8560,11 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
     }
   } else {
     i::Space* space = heap->space(static_cast<int>(index));
-    space_statistics->space_size_ = space->CommittedMemory();
-    space_statistics->space_used_size_ = space->SizeOfObjects();
-    space_statistics->space_available_size_ = space->Available();
-    space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
+    space_statistics->space_size_ = space ? space->CommittedMemory() : 0;
+    space_statistics->space_used_size_ = space ? space->SizeOfObjects() : 0;
+    space_statistics->space_available_size_ = space ? space->Available() : 0;
+    space_statistics->physical_space_size_ =
+        space ? space->CommittedPhysicalMemory() : 0;
   }
   return true;
 }
