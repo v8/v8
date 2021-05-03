@@ -7,11 +7,11 @@ import {LogEntry} from '../log/log.mjs';
 
 import {FocusEvent} from './events.mjs';
 import {groupBy, LazyTable} from './helper.mjs';
-import {DOM, V8CustomElement} from './helper.mjs';
+import {CollapsableElement, DOM} from './helper.mjs';
 
 DOM.defineCustomElement('view/list-panel',
                         (templateText) =>
-                            class ListPanel extends V8CustomElement {
+                            class ListPanel extends CollapsableElement {
   _selectedLogEntries = [];
   _displayedLogEntries = [];
   _timeline;
@@ -21,7 +21,7 @@ DOM.defineCustomElement('view/list-panel',
 
   constructor() {
     super(templateText);
-    this.groupKey.addEventListener('change', e => this.update());
+    this.groupKey.addEventListener('change', e => this.requestUpdate());
     this.showAllRadio.onclick = _ => this._showEntries(this._timeline);
     this.showTimerangeRadio.onclick = _ =>
         this._showEntries(this._timeline.selectionOrSelf);
@@ -72,9 +72,11 @@ DOM.defineCustomElement('view/list-panel',
   get showAllRadio() {
     return this.$('#show-all');
   }
+
   get showTimerangeRadio() {
     return this.$('#show-timerange');
   }
+
   get showSelectionRadio() {
     return this.$('#show-selection');
   }
@@ -95,7 +97,7 @@ DOM.defineCustomElement('view/list-panel',
 
   _showEntries(entries) {
     this._displayedLogEntries = entries;
-    this.update();
+    this.requestUpdate();
   }
 
   _update() {

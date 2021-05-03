@@ -112,7 +112,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   _updateChunks() {
     this._chunks =
         this._timeline.chunks(this.nofChunks, this._legend.filterPredicate);
-    this.update();
+    this.requestUpdate();
   }
 
   get chunks() {
