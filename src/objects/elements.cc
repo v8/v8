@@ -3003,23 +3003,25 @@ class TypedElementsAccessor
 
   static void SetImpl(ElementType* data_ptr, size_t entry, ElementType value) {
     // The JavaScript memory model allows for racy reads and writes to a
-    // SharedArrayBuffer's backing store. Using relaxed atomics is not strictly
-    // required for JavaScript, but will avoid undefined behaviour in C++ and is
-    // unlikely to introduce noticable overhead.
+    // SharedArrayBuffer's backing store. ThreadSanitizer will catch these
+    // racy accesses and warn about them, so we disable TSAN for these reads
+    // and writes using annotations.
+    //
+    // We don't use relaxed atomics here, as it is not a requirement of the
+    // JavaScript memory model to have tear-free reads of overlapping accesses,
+    // and using relaxed atomics may introduce overhead.
+    TSAN_ANNOTATE_IGNORE_WRITES_BEGIN;
     if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
-      uint32_t words[2];
-      CHECK_EQ(sizeof(words), sizeof(value));
-      memcpy(words, &value, sizeof(value));
-      for (size_t word : {0, 1}) {
-        STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
-        reinterpret_cast<std::atomic<uint32_t>*>(data_ptr + entry)[word].store(
-            words[word], std::memory_order_relaxed);
-      }
+      // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
+      // fields (external pointers, doubles and BigInt data) are only
+      // kTaggedSize aligned so we have to use unaligned pointer friendly way of
+      // accessing them in order to avoid undefined behavior in C++ code.
+      base::WriteUnalignedValue<ElementType>(
+          reinterpret_cast<Address>(data_ptr + entry), value);
     } else {
-      STATIC_ASSERT(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
-      reinterpret_cast<std::atomic<ElementType>*>(data_ptr + entry)
-          ->store(value, std::memory_order_relaxed);
+      data_ptr[entry] = value;
     }
+    TSAN_ANNOTATE_IGNORE_WRITES_END;
   }
 
   static Handle<Object> GetInternalImpl(Handle<JSObject> holder,
@@ -3040,25 +3042,26 @@ class TypedElementsAccessor
 
   static ElementType GetImpl(ElementType* data_ptr, size_t entry) {
     // The JavaScript memory model allows for racy reads and writes to a
-    // SharedArrayBuffer's backing store. Using relaxed atomics is not strictly
-    // required for JavaScript, but will avoid undefined behaviour in C++ and is
-    // unlikely to introduce noticable overhead.
+    // SharedArrayBuffer's backing store. ThreadSanitizer will catch these
+    // racy accesses and warn about them, so we disable TSAN for these reads
+    // and writes using annotations.
+    //
+    // We don't use relaxed atomics here, as it is not a requirement of the
+    // JavaScript memory model to have tear-free reads of overlapping accesses,
+    // and using relaxed atomics may introduce overhead.
+    TSAN_ANNOTATE_IGNORE_READS_BEGIN;
     ElementType result;
     if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
-      uint32_t words[2];
-      for (size_t word : {0, 1}) {
-        STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
-        words[word] =
-            reinterpret_cast<std::atomic<uint32_t>*>(data_ptr + entry)[word]
-                .load(std::memory_order_relaxed);
-      }
-      CHECK_EQ(sizeof(words), sizeof(result));
-      memcpy(&result, words, sizeof(result));
+      // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
+      // fields (external pointers, doubles and BigInt data) are only
+      // kTaggedSize aligned so we have to use unaligned pointer friendly way of
+      // accessing them in order to avoid undefined behavior in C++ code.
+      result = base::ReadUnalignedValue<ElementType>(
+          reinterpret_cast<Address>(data_ptr + entry));
     } else {
-      STATIC_ASSERT(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
-      result = reinterpret_cast<std::atomic<ElementType>*>(data_ptr + entry)
-                   ->load(std::memory_order_relaxed);
+      result = data_ptr[entry];
     }
+    TSAN_ANNOTATE_IGNORE_READS_END;
     return result;
   }
 
