@@ -1340,7 +1340,7 @@ const Operator* SimplifiedOperatorBuilder::TierUpCheck() {
 }
 
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
-  DCHECK(type.IsRange());
+  DCHECK(type.CanBeAsserted());
   return zone()->New<Operator1<Type>>(IrOpcode::kAssertType,
                                       Operator::kNoThrow | Operator::kNoDeopt,
                                       "AssertType", 1, 0, 0, 1, 0, 0, type);
