@@ -854,11 +854,7 @@ DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
 DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
                   "trace wasm native heap events")
 DEFINE_BOOL(wasm_write_protect_code_memory, false,
-            "write protect code memory on the wasm native heap with mprotect")
-DEFINE_BOOL(wasm_memory_protection_keys, false,
-            "protect wasm code memory with Intel PKU if available, no "
-            "protection without support; fallback to mprotect by adding "
-            "--wasm-write-protect-code-memory (under development)")
+            "write protect code memory on the wasm native heap")
 DEFINE_DEBUG_BOOL(trace_wasm_serialization, false,
                   "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,

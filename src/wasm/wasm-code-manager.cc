@@ -26,7 +26,6 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
-#include "src/wasm/memory-protection-key.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
@@ -1686,20 +1685,8 @@ NativeModule::~NativeModule() {
 
 WasmCodeManager::WasmCodeManager(size_t max_committed)
     : max_committed_code_space_(max_committed),
-      critical_committed_code_space_(max_committed / 2),
-      memory_protection_key_(FLAG_wasm_memory_protection_keys
-                                 ? AllocateMemoryProtectionKey()
-                                 : kNoMemoryProtectionKey) {
+      critical_committed_code_space_(max_committed / 2) {
   DCHECK_LE(max_committed, FLAG_wasm_max_code_space * MB);
-}
-
-WasmCodeManager::~WasmCodeManager() {
-  // No more committed code space.
-  DCHECK_EQ(0, total_committed_code_space_.load());
-
-  if (FLAG_wasm_memory_protection_keys) {
-    FreeMemoryProtectionKey(memory_protection_key_);
-  }
 }
 
 #if defined(V8_OS_WIN64)

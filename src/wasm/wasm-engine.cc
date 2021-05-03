@@ -18,7 +18,6 @@
 #include "src/strings/string-hasher-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/function-compiler.h"
-#include "src/wasm/memory-protection-key.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
@@ -989,15 +988,6 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
-
-  // Record memory protection key support.
-  if (FLAG_wasm_memory_protection_keys) {
-    auto* histogram =
-        isolate->counters()->wasm_memory_protection_keys_support();
-    bool has_mpk =
-        code_manager()->memory_protection_key_ != kNoMemoryProtectionKey;
-    histogram->AddSample(has_mpk ? 1 : 0);
-  }
 
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
