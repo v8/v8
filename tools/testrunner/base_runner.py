@@ -358,7 +358,7 @@ class BaseTestRunner(object):
 
     # Progress
     parser.add_option("-p", "--progress",
-                      choices=PROGRESS_INDICATORS.keys(), default="mono",
+                      choices=list(PROGRESS_INDICATORS), default="mono",
                       help="The style of progress indicator (verbose, dots, "
                            "color, mono)")
     parser.add_option("--json-test-results",
