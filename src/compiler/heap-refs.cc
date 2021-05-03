@@ -1084,7 +1084,7 @@ class AllocationSiteData : public HeapObjectData {
 class BigIntData : public HeapObjectData {
  public:
   BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object,
-             ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
+             ObjectDataKind kind)
       : HeapObjectData(broker, storage, object, kind),
         as_uint64_(object->AsUint64(nullptr)) {}
 

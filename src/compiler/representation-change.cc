@@ -1104,7 +1104,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       HeapObjectMatcher m(node);
       if (m.HasResolvedValue() && m.Ref(broker_).IsBigInt() &&
           use_info.truncation().IsUsedAsWord64()) {
-        auto bigint = m.Ref(broker_).AsBigInt();
+        BigIntRef bigint = m.Ref(broker_).AsBigInt();
         return jsgraph()->Int64Constant(
             static_cast<int64_t>(bigint.AsUint64()));
       }

@@ -108,7 +108,7 @@ enum class RefSerializationKind {
   V(AccessorInfo, RefSerializationKind::kNeverSerialized)                 \
   V(AllocationSite, RefSerializationKind::kSerialized)                    \
   V(ArrayBoilerplateDescription, RefSerializationKind::kNeverSerialized)  \
-  V(BigInt, RefSerializationKind::kPossiblyBackgroundSerialized)          \
+  V(BigInt, RefSerializationKind::kBackgroundSerialized)                  \
   V(CallHandlerInfo, RefSerializationKind::kNeverSerialized)              \
   V(Cell, RefSerializationKind::kNeverSerialized)                         \
   V(Code, RefSerializationKind::kNeverSerialized)                         \
