@@ -308,16 +308,6 @@ TEST_F(GCStackTest, IteratePointersFindsParameterNesting8) {
 
 #ifdef FOR_ALL_CALLEE_SAVED_REGS
 
-namespace {
-#if !defined(V8_OS_WIN)
-__attribute__((visibility("hidden")))
-#endif
-extern "C" void
-IteratePointersNoMangling(Stack* stack, StackVisitor* visitor) {
-  stack->IteratePointers(visitor);
-}
-}  // namespace
-
 TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
   auto scanner = std::make_unique<StackScanner>();
 
@@ -334,35 +324,22 @@ TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
   auto* local_stack = GetStack();
   auto* local_scanner = scanner.get();
 
-#define MOVE_TO_REG_AND_CALL_IMPL(needle_reg, arg1, arg2)           \
-  asm volatile("mov %0, %%" needle_reg "\n mov %1, %%" arg1         \
-               "\n mov %2, %%" arg2                                 \
-               "\n call %P3"                                        \
-               "\n mov $0, %%" needle_reg                           \
-               :                                                    \
-               : "r"(local_scanner->needle()), "r"(local_stack),    \
-                 "r"(local_scanner), "i"(IteratePointersNoMangling) \
-               : "memory", needle_reg, arg1, arg2, "cc");
-
-#ifdef V8_OS_WIN
-#define MOVE_TO_REG_AND_CALL(reg) MOVE_TO_REG_AND_CALL_IMPL(reg, "rcx", "rdx")
-#else  // !V8_OS_WIN
-#define MOVE_TO_REG_AND_CALL(reg) MOVE_TO_REG_AND_CALL_IMPL(reg, "rdi", "rsi")
-#endif  // V8_OS_WIN
-
 // Moves |local_scanner->needle()| into a callee-saved register, leaving the
 // callee-saved register as the only register referencing the needle.
 // (Ignoring implementation-dependent dirty registers/stack.)
-#define KEEP_ALIVE_FROM_CALLEE_SAVED(reg)                                     \
-  local_scanner->Reset();                                                     \
-  [local_stack, local_scanner]() V8_NOINLINE { MOVE_TO_REG_AND_CALL(reg) }(); \
-  EXPECT_TRUE(local_scanner->found())                                         \
-      << "pointer in callee-saved register not found. register: " << reg      \
-      << std::endl;
+#define KEEP_ALIVE_FROM_CALLEE_SAVED(reg)                                \
+  local_scanner->Reset();                                                \
+  /* This moves the temporary into the calee-saved register. */          \
+  asm("mov %0, %%" reg : : "r"(local_scanner->needle()) : reg);          \
+  /* Register is unprotected from here till the actual invocation. */    \
+  local_stack->IteratePointers(local_scanner);                           \
+  EXPECT_TRUE(local_scanner->found())                                    \
+      << "pointer in callee-saved register not found. register: " << reg \
+      << std::endl;                                                      \
+  /* Clear out the register again */                                     \
+  asm("mov $0, %%" reg : : : reg);
 
   FOR_ALL_CALLEE_SAVED_REGS(KEEP_ALIVE_FROM_CALLEE_SAVED)
-#undef MOVE_TO_REG_AND_CALL
-#undef MOVE_TO_REG_AND_CALL_IMPL
 #undef KEEP_ALIVE_FROM_CALLEE_SAVED
 #undef FOR_ALL_CALLEE_SAVED_REGS
 }
