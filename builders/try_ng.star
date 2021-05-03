@@ -109,6 +109,14 @@ try_ng_pair(
 )
 
 try_ng_pair(
+    name = "v8_linux64_heap_sandbox_dbg",
+    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
     name = "v8_linux64_fuzzilli",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},

@@ -142,7 +142,7 @@ experiment_builder(
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
-experiment_builder(
+experiment_builder_pair(
     name = "V8 Linux64 - heap sandbox - debug",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
