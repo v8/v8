@@ -6958,6 +6958,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     BuildModifyThreadInWasmFlag(true);
 
+    Node* old_effect = effect();
     Node* exception_branch = graph()->NewNode(
         mcgraph()->common()->Branch(BranchHint::kTrue),
         gasm_->WordEqual(return_value, mcgraph()->IntPtrConstant(0)),
@@ -6974,9 +6975,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->Call(call_descriptor, call_target, return_value);
     TerminateThrow(effect(), control());
 
-    SetEffectControl(
-        return_value,
-        graph()->NewNode(mcgraph()->common()->IfTrue(), exception_branch));
+    SetEffectControl(old_effect, graph()->NewNode(mcgraph()->common()->IfTrue(),
+                                                  exception_branch));
     DCHECK_LT(sig_->return_count(), wasm::kV8MaxWasmFunctionReturns);
     size_t return_count = sig_->return_count();
     if (return_count == 0) {
