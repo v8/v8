@@ -311,7 +311,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
     }
     maybe_result =
-        Compiler::GetOptimizedCodeForOSR(function, osr_offset, frame);
+        Compiler::GetOptimizedCodeForOSR(isolate, function, osr_offset, frame);
   }
 
   // Check whether we ended up with usable optimized code.

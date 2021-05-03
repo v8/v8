@@ -1150,14 +1150,13 @@ enum class GetOptimizedCodeResultHandling {
 };
 
 MaybeHandle<Code> GetOptimizedCode(
-    Handle<JSFunction> function, ConcurrencyMode mode, CodeKind code_kind,
-    BytecodeOffset osr_offset = BytecodeOffset::None(),
+    Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
+    CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
     JavaScriptFrame* osr_frame = nullptr,
     GetOptimizedCodeResultHandling result_handling =
         GetOptimizedCodeResultHandling::kDefault) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
-  Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
 
   // Make sure we clear the optimization marker on the function so that we
@@ -1241,13 +1240,16 @@ MaybeHandle<Code> GetOptimizedCode(
 // addition to non-concurrent compiles to increase coverage in mjsunit tests
 // (where most interesting compiles are non-concurrent). The result of the
 // compilation is thrown out.
-void SpawnDuplicateConcurrentJobForStressTesting(Handle<JSFunction> function,
+void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
+                                                 Handle<JSFunction> function,
                                                  ConcurrencyMode mode,
                                                  CodeKind code_kind) {
-  DCHECK(FLAG_stress_concurrent_inlining && FLAG_concurrent_recompilation &&
-         mode == ConcurrencyMode::kNotConcurrent);
-  USE(GetOptimizedCode(function, ConcurrencyMode::kConcurrent, code_kind,
-                       BytecodeOffset::None(), nullptr,
+  DCHECK(FLAG_stress_concurrent_inlining &&
+         isolate->concurrent_recompilation_enabled() &&
+         mode == ConcurrencyMode::kNotConcurrent &&
+         isolate->node_observer() == nullptr);
+  USE(GetOptimizedCode(isolate, function, ConcurrencyMode::kConcurrent,
+                       code_kind, BytecodeOffset::None(), nullptr,
                        GetOptimizedCodeResultHandling::kDiscardForTesting));
 }
 
@@ -1967,15 +1969,16 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
     const CodeKind code_kind = CodeKindForTopTier();
     const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
 
-    if (FLAG_stress_concurrent_inlining && FLAG_concurrent_recompilation &&
+    if (FLAG_stress_concurrent_inlining &&
+        isolate->concurrent_recompilation_enabled() &&
         concurrency_mode == ConcurrencyMode::kNotConcurrent &&
         isolate->node_observer() == nullptr) {
-      SpawnDuplicateConcurrentJobForStressTesting(function, concurrency_mode,
-                                                  code_kind);
+      SpawnDuplicateConcurrentJobForStressTesting(isolate, function,
+                                                  concurrency_mode, code_kind);
     }
 
     Handle<Code> maybe_code;
-    if (GetOptimizedCode(function, concurrency_mode, code_kind)
+    if (GetOptimizedCode(isolate, function, concurrency_mode, code_kind)
             .ToHandle(&maybe_code)) {
       code = maybe_code;
     }
@@ -2072,14 +2075,16 @@ bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  if (FLAG_stress_concurrent_inlining && FLAG_concurrent_recompilation &&
+  if (FLAG_stress_concurrent_inlining &&
+      isolate->concurrent_recompilation_enabled() &&
       mode == ConcurrencyMode::kNotConcurrent &&
       isolate->node_observer() == nullptr) {
-    SpawnDuplicateConcurrentJobForStressTesting(function, mode, code_kind);
+    SpawnDuplicateConcurrentJobForStressTesting(isolate, function, mode,
+                                                code_kind);
   }
 
   Handle<Code> code;
-  if (!GetOptimizedCode(function, mode, code_kind).ToHandle(&code)) {
+  if (!GetOptimizedCode(isolate, function, mode, code_kind).ToHandle(&code)) {
     // Optimization failed, get the existing code. We could have optimized code
     // from a lower tier here. Unoptimized code must exist already if we are
     // optimizing.
@@ -3183,12 +3188,13 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static
-MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
+MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Isolate* isolate,
+                                                   Handle<JSFunction> function,
                                                    BytecodeOffset osr_offset,
                                                    JavaScriptFrame* osr_frame) {
   DCHECK(!osr_offset.IsNone());
   DCHECK_NOT_NULL(osr_frame);
-  return GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent,
+  return GetOptimizedCode(isolate, function, ConcurrencyMode::kNotConcurrent,
                           CodeKindForOSR(), osr_offset, osr_frame);
 }
 
