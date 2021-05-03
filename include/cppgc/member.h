@@ -24,8 +24,11 @@ namespace internal {
 // BasicMember on casting to the right type as needed.
 class MemberBase {
  protected:
+  struct AtomicInitializerTag {};
+
   MemberBase() = default;
   explicit MemberBase(const void* value) : raw_(value) {}
+  MemberBase(const void* value, AtomicInitializerTag) { SetRawAtomic(value); }
 
   const void** GetRawSlot() const { return &raw_; }
   const void* GetRaw() const { return raw_; }
@@ -61,6 +64,20 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
     this->CheckPointer(Get());
   }
   BasicMember(T& raw) : BasicMember(&raw) {}  // NOLINT
+  // Atomic ctor. Using the AtomicInitializerTag forces BasicMember to
+  // initialize using atomic assignments. This is required for preventing
+  // data races with concurrent marking.
+  using AtomicInitializerTag = MemberBase::AtomicInitializerTag;
+  BasicMember(std::nullptr_t, AtomicInitializerTag atomic)
+      : MemberBase(nullptr, atomic) {}
+  BasicMember(SentinelPointer s, AtomicInitializerTag atomic)
+      : MemberBase(s, atomic) {}
+  BasicMember(T* raw, AtomicInitializerTag atomic) : MemberBase(raw, atomic) {
+    InitializingWriteBarrier();
+    this->CheckPointer(Get());
+  }
+  BasicMember(T& raw, AtomicInitializerTag atomic)
+      : BasicMember(&raw, atomic) {}
   // Copy ctor.
   BasicMember(const BasicMember& other) : BasicMember(other.Get()) {}
   // Allow heterogeneous construction.

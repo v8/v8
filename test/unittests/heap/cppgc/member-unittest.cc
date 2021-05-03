@@ -10,6 +10,7 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/persistent.h"
+#include "include/cppgc/sentinel-pointer.h"
 #include "include/cppgc/type-traits.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -110,6 +111,40 @@ TEST_F(MemberTest, Empty) {
   EmptyTest<Member>();
   EmptyTest<WeakMember>();
   EmptyTest<UntracedMember>();
+}
+
+template <template <typename> class MemberType>
+void AtomicCtorTest(cppgc::Heap* heap) {
+  {
+    GCed* gced = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+    MemberType<GCed> member(gced,
+                            typename MemberType<GCed>::AtomicInitializerTag());
+    EXPECT_EQ(gced, member.Get());
+  }
+  {
+    GCed gced;
+    MemberType<GCed> member(gced,
+                            typename MemberType<GCed>::AtomicInitializerTag());
+    EXPECT_EQ(&gced, member.Get());
+  }
+  {
+    MemberType<GCed> member(nullptr,
+                            typename MemberType<GCed>::AtomicInitializerTag());
+    EXPECT_FALSE(member.Get());
+  }
+  {
+    SentinelPointer s;
+    MemberType<GCed> member(s,
+                            typename MemberType<GCed>::AtomicInitializerTag());
+    EXPECT_EQ(s, member.Get());
+  }
+}
+
+TEST_F(MemberTest, AtomicCtor) {
+  cppgc::Heap* heap = GetHeap();
+  AtomicCtorTest<Member>(heap);
+  AtomicCtorTest<WeakMember>(heap);
+  AtomicCtorTest<UntracedMember>(heap);
 }
 
 template <template <typename> class MemberType>
