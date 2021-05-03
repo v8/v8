@@ -24,12 +24,9 @@ using heap::base::StackVisitor;
 namespace {
 
 class GCStackTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    stack_.reset(new Stack(v8::base::Stack::GetStackStart()));
-  }
-
-  void TearDown() override { stack_.reset(); }
+ public:
+  GCStackTest()
+      : stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())) {}
 
   Stack* GetStack() const { return stack_.get(); }
 
@@ -111,7 +108,7 @@ namespace {
 // Prevent inlining as that would allow the compiler to prove that the parameter
 // must not actually be materialized.
 //
-// Parameter positiosn are explicit to test various calling conventions.
+// Parameter positions are explicit to test various calling conventions.
 V8_NOINLINE void* RecursivelyPassOnParameterImpl(void* p1, void* p2, void* p3,
                                                  void* p4, void* p5, void* p6,
                                                  void* p7, void* p8,
