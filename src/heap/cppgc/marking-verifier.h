@@ -40,7 +40,7 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   MarkingVerifierBase(const MarkingVerifierBase&) = delete;
   MarkingVerifierBase& operator=(const MarkingVerifierBase&) = delete;
 
-  void Run(Heap::Config::StackState);
+  void Run(Heap::Config::StackState, uintptr_t);
 
  protected:
   MarkingVerifierBase(HeapBase&, VerificationState&,

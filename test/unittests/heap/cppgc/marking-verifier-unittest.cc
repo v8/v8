@@ -22,10 +22,10 @@ class MarkingVerifierTest : public testing::TestWithHeap {
  public:
   using StackState = Heap::Config::StackState;
 
-  void VerifyMarking(HeapBase& heap, StackState stack_state) {
+  V8_NOINLINE void VerifyMarking(HeapBase& heap, StackState stack_state) {
     Heap::From(GetHeap())->object_allocator().ResetLinearAllocationBuffers();
     MarkingVerifier verifier(heap);
-    verifier.Run(stack_state);
+    verifier.Run(stack_state, v8::base::Stack::GetCurrentStackPosition());
   }
 };
 

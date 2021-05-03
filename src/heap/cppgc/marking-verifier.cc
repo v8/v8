@@ -20,12 +20,21 @@ MarkingVerifierBase::MarkingVerifierBase(
       verification_state_(verification_state),
       visitor_(std::move(visitor)) {}
 
-void MarkingVerifierBase::Run(Heap::Config::StackState stack_state) {
+void MarkingVerifierBase::Run(Heap::Config::StackState stack_state,
+                              uintptr_t stack_end) {
   Traverse(&heap_.raw_heap());
   if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
-    heap_.stack()->IteratePointers(this);
-    CHECK_EQ(in_construction_objects_stack_, in_construction_objects_heap_);
+    heap_.stack()->IteratePointersUnsafe(this, stack_end);
+    // The objects found through the unsafe iteration are only a subset of the
+    // regular iteration as they miss objects held alive only from callee-saved
+    // registers that are never pushed on the stack and SafeStack.
+    CHECK_LE(in_construction_objects_stack_.size(),
+             in_construction_objects_heap_.size());
+    for (auto* header : in_construction_objects_stack_) {
+      CHECK_NE(in_construction_objects_heap_.end(),
+               in_construction_objects_heap_.find(header));
+    }
   }
 }
 

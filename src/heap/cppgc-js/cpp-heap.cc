@@ -376,7 +376,7 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   UnifiedHeapMarkingVerifier verifier(*this);
-  verifier.Run(stack_state_of_prev_gc_);
+  verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc());
 #endif
 
   {
@@ -436,6 +436,8 @@ void CppHeap::CollectGarbageForTesting(
 
   // Finish sweeping in case it is still running.
   sweeper().FinishIfRunning();
+
+  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
 
   if (isolate_) {
     // Go through EmbedderHeapTracer API and perform a unified heap collection.

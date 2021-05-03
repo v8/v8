@@ -79,7 +79,7 @@ void IterateSafeStackIfNecessary(StackVisitor* visitor) {
 #if defined(__has_feature)
 #if __has_feature(safe_stack)
   // Source:
-  // https://github.com/llvm/llvm-project/blob/master/compiler-rt/lib/safestack/safestack.cpp
+  // https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/safestack/safestack.cpp
   constexpr size_t kSafeStackAlignmentBytes = 16;
   void* stack_end = __builtin___get_unsafe_stack_ptr();
   void* stack_start = __builtin___get_unsafe_stack_top();
@@ -135,6 +135,11 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.
   IterateSafeStackIfNecessary(visitor);
+}
+
+void Stack::IteratePointersUnsafe(StackVisitor* visitor,
+                                  uintptr_t stack_end) const {
+  IteratePointersImpl(this, visitor, reinterpret_cast<intptr_t*>(stack_end));
 }
 
 }  // namespace base
