@@ -413,6 +413,10 @@ class V8_EXPORT_PRIVATE Type {
            (Is(Type::PlainNumber()) && Min() == Max());
   }
 
+  bool CanBeAsserted() const {
+    return IsRange() || (Is(Type::Integral32()) && !IsNone());
+  }
+
   const HeapConstantType* AsHeapConstant() const;
   const OtherNumberConstantType* AsOtherNumberConstant() const;
   const RangeType* AsRange() const;

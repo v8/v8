@@ -5867,11 +5867,10 @@ Node* EffectControlLinearizer::CallBuiltin(Builtins::Name builtin,
 Node* EffectControlLinearizer::LowerAssertType(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAssertType);
   Type type = OpParameter<Type>(node->op());
-  DCHECK(type.IsRange());
-  auto range = type.AsRange();
+  CHECK(type.CanBeAsserted());
   Node* const input = node->InputAt(0);
-  Node* const min = __ NumberConstant(range->Min());
-  Node* const max = __ NumberConstant(range->Max());
+  Node* const min = __ NumberConstant(type.Min());
+  Node* const max = __ NumberConstant(type.Max());
   CallBuiltin(Builtins::kCheckNumberInRange, node->op()->properties(), input,
               min, max, __ SmiConstant(node->id()));
   return input;
