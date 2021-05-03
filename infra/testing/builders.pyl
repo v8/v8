@@ -413,6 +413,14 @@
       {'name': 'v8testing'},
     ],
   },
+  'v8_linux64_heap_sandbox_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
   'v8_linux64_msan_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -1249,6 +1257,14 @@
     },
     'tests': [
       {'name': 'v8testing'},
+    ],
+  },
+  'V8 Linux64 - heap sandbox - debug': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'V8 Linux64 - internal snapshot': {
