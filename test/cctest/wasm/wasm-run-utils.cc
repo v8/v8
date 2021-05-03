@@ -21,9 +21,10 @@ namespace wasm {
 
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import,
-    TestExecutionTier tier, RuntimeExceptionSupport exception_support)
+    TestExecutionTier tier, RuntimeExceptionSupport exception_support,
+    Isolate* isolate)
     : test_module_(std::make_shared<WasmModule>()),
-      isolate_(CcTest::InitIsolateOnce()),
+      isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
       runtime_exception_support_(exception_support) {
@@ -460,11 +461,9 @@ void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
   graph()->SetEnd(graph()->NewNode(common()->End(1), r));
 }
 
-Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
+Handle<Code> WasmFunctionWrapper::GetWrapperCode(Isolate* isolate) {
   Handle<Code> code;
   if (!code_.ToHandle(&code)) {
-    Isolate* isolate = CcTest::InitIsolateOnce();
-
     auto call_descriptor = compiler::Linkage::GetSimplifiedCDescriptor(
         zone(), signature_, CallDescriptor::kInitializeRootRegister);
 

@@ -619,7 +619,7 @@ class InitializedHandleScopeImpl;
 
 class V8_NODISCARD InitializedHandleScope {
  public:
-  InitializedHandleScope();
+  explicit InitializedHandleScope(i::Isolate* isolate = nullptr);
   ~InitializedHandleScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.

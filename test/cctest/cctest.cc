@@ -245,8 +245,8 @@ class V8_NODISCARD InitializedHandleScopeImpl {
   i::HandleScope handle_scope_;
 };
 
-InitializedHandleScope::InitializedHandleScope()
-    : main_isolate_(CcTest::InitIsolateOnce()),
+InitializedHandleScope::InitializedHandleScope(i::Isolate* isolate)
+    : main_isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       initialized_handle_scope_impl_(
           new InitializedHandleScopeImpl(main_isolate_)) {}
 

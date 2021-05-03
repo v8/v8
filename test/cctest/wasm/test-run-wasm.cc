@@ -2421,18 +2421,47 @@ WASM_EXEC_TEST(Regular_Factorial) {
   }
 }
 
+namespace {
+// TODO(cleanup): Define in cctest.h and re-use where appropriate.
+class IsolateScope {
+ public:
+  IsolateScope() {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    isolate_ = v8::Isolate::New(create_params);
+    isolate_->Enter();
+  }
+
+  ~IsolateScope() {
+    isolate_->Exit();
+    isolate_->Dispose();
+  }
+
+  v8::Isolate* isolate() { return isolate_; }
+  Isolate* i_isolate() { return reinterpret_cast<Isolate*>(isolate_); }
+
+ private:
+  v8::Isolate* isolate_;
+};
+}  // namespace
+
 // Tail-recursive variation on factorial:
 // fact(N) => f(N,1).
 //
 // f(N,X) where N=<1 => X
 // f(N,X) => f(N-1,X*N).
 
-WASM_EXEC_TEST(ReturnCall_Factorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport,
+                                   isolate_scope.i_isolate());
 
   WasmFunctionCompiler& fact_aux_fn =
       r.NewFunction<uint32_t, uint32_t, uint32_t>("fact_aux");
@@ -2460,12 +2489,17 @@ WASM_EXEC_TEST(ReturnCall_Factorial) {
 // g(X,0) => X.
 // g(X,N) => f(N-1,X*N).
 
-WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport,
+                                   isolate_scope.i_isolate());
 
   WasmFunctionCompiler& f_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("f");
   WasmFunctionCompiler& g_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("g");
@@ -2502,12 +2536,17 @@ WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
 // f(N,X,_) where N=<1 => X
 // f(N,X,F) => F(N-1,X*N,F).
 
-WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport,
+                                   isolate_scope.i_isolate());
 
   TestSignatures sigs;
 
@@ -2546,12 +2585,17 @@ WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
 // sum(N,k) where N<1 =>k.
 // sum(N,k) => sum(N-1,k+N).
 
-WASM_EXEC_TEST(ReturnCall_Sum) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<int32_t, int32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
+                                 kRuntimeExceptionSupport,
+                                 isolate_scope.i_isolate());
   TestSignatures sigs;
 
   WasmFunctionCompiler& sum_aux_fn = r.NewFunction(sigs.i_ii(), "sum_aux");
@@ -2583,12 +2627,17 @@ WASM_EXEC_TEST(ReturnCall_Sum) {
 // b3(N,_,_,k) where N<1 =>k.
 // b3(N,_,_,k) => b1(N-1,k+N).
 
-WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
+UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<int32_t, int32_t> r(execution_tier);
+  IsolateScope isolate_scope;
+  LocalContext current(isolate_scope.isolate());
+
+  WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
+                                 kRuntimeExceptionSupport,
+                                 isolate_scope.i_isolate());
   TestSignatures sigs;
 
   WasmFunctionCompiler& b1_fn = r.NewFunction(sigs.i_ii(), "b1");
