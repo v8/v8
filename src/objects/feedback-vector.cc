@@ -1417,52 +1417,6 @@ std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
   return types_for_position;
 }
 
-namespace {
-
-Handle<JSObject> ConvertToJSObject(Isolate* isolate,
-                                   Handle<SimpleNumberDictionary> feedback) {
-  Handle<JSObject> type_profile =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  for (int index = SimpleNumberDictionary::kElementsStartIndex;
-       index < feedback->length();
-       index += SimpleNumberDictionary::kEntrySize) {
-    int key_index = index + SimpleNumberDictionary::kEntryKeyIndex;
-    Object key = feedback->get(key_index);
-    if (key.IsSmi()) {
-      int value_index = index + SimpleNumberDictionary::kEntryValueIndex;
-
-      Handle<ArrayList> position_specific_types(
-          ArrayList::cast(feedback->get(value_index)), isolate);
-
-      int position = Smi::ToInt(key);
-      JSObject::AddDataElement(
-          type_profile, position,
-          isolate->factory()->NewJSArrayWithElements(
-              ArrayList::Elements(isolate, position_specific_types)),
-          PropertyAttributes::NONE);
-    }
-  }
-  return type_profile;
-}
-}  // namespace
-
-JSObject FeedbackNexus::GetTypeProfile() const {
-  DCHECK(IsTypeProfileKind(kind()));
-  Isolate* isolate = GetIsolate();
-
-  MaybeObject const feedback = GetFeedback();
-
-  if (feedback == UninitializedSentinel()) {
-    return *isolate->factory()->NewJSObject(isolate->object_function());
-  }
-
-  return *ConvertToJSObject(isolate,
-                            handle(SimpleNumberDictionary::cast(
-                                       feedback->GetHeapObjectAssumeStrong()),
-                                   isolate));
-}
-
 void FeedbackNexus::ResetTypeProfile() {
   DCHECK(IsTypeProfileKind(kind()));
   SetFeedback(UninitializedSentinel());
