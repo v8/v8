@@ -66,31 +66,35 @@ class Differencer {
  public:
   explicit Differencer(Comparator::Input* input)
       : input_(input), len1_(input->GetLength1()), len2_(input->GetLength2()) {
-    buffer_ = NewArray<int>(len1_ * len2_);
-  }
-  ~Differencer() {
-    DeleteArray(buffer_);
   }
 
   void Initialize() {
-    int array_size = len1_ * len2_;
-    for (int i = 0; i < array_size; i++) {
-      buffer_[i] = kEmptyCellValue;
-    }
   }
 
   // Makes sure that result for the full problem is calculated and stored
   // in the table together with flags showing a path through subproblems.
   void FillTable() {
-    CompareUpToTail(0, 0);
+    // Determine common prefix to skip.
+    int minLen = std::min(len1_, len2_);
+    while (prefixLen_ < minLen && input_->Equals(prefixLen_, prefixLen_)) {
+      ++prefixLen_;
+    }
+
+    // Pre-fill common suffix in the table.
+    for (int pos1 = len1_, pos2 = len2_; pos1 > prefixLen_ &&
+                                         pos2 > prefixLen_ &&
+                                         input_->Equals(--pos1, --pos2);) {
+      set_value4_and_dir(pos1, pos2, 0, EQ);
+    }
+
+    CompareUpToTail(prefixLen_, prefixLen_);
   }
 
   void SaveResult(Comparator::Output* chunk_writer) {
     ResultWriter writer(chunk_writer);
 
-    int pos1 = 0;
-    int pos2 = 0;
-    while (true) {
+    if (prefixLen_) writer.eq(prefixLen_);
+    for (int pos1 = prefixLen_, pos2 = prefixLen_; true;) {
       if (pos1 < len1_) {
         if (pos2 < len2_) {
           Direction dir = get_direction(pos1, pos2);
@@ -128,9 +132,10 @@ class Differencer {
 
  private:
   Comparator::Input* input_;
-  int* buffer_;
+  std::map<std::pair<int, int>, int> buffer_;
   int len1_;
   int len2_;
+  int prefixLen_ = 0;
 
   enum Direction {
     EQ = 0,
@@ -144,51 +149,51 @@ class Differencer {
   // Computes result for a subtask and optionally caches it in the buffer table.
   // All results values are shifted to make space for flags in the lower bits.
   int CompareUpToTail(int pos1, int pos2) {
-    if (pos1 < len1_) {
-      if (pos2 < len2_) {
-        int cached_res = get_value4(pos1, pos2);
-        if (cached_res == kEmptyCellValue) {
-          Direction dir;
-          int res;
-          if (input_->Equals(pos1, pos2)) {
-            res = CompareUpToTail(pos1 + 1, pos2 + 1);
-            dir = EQ;
-          } else {
-            int res1 = CompareUpToTail(pos1 + 1, pos2) +
-                (1 << kDirectionSizeBits);
-            int res2 = CompareUpToTail(pos1, pos2 + 1) +
-                (1 << kDirectionSizeBits);
-            if (res1 == res2) {
-              res = res1;
-              dir = SKIP_ANY;
-            } else if (res1 < res2) {
-              res = res1;
-              dir = SKIP1;
-            } else {
-              res = res2;
-              dir = SKIP2;
-            }
-          }
-          set_value4_and_dir(pos1, pos2, res, dir);
-          cached_res = res;
-        }
-        return cached_res;
-      } else {
-        return (len1_ - pos1) << kDirectionSizeBits;
-      }
-    } else {
+    if (pos1 == len1_) {
       return (len2_ - pos2) << kDirectionSizeBits;
     }
+    if (pos2 == len2_) {
+      return (len1_ - pos1) << kDirectionSizeBits;
+    }
+    int res = get_value4(pos1, pos2);
+    if (res != kEmptyCellValue) {
+      return res;
+    }
+    Direction dir;
+    if (input_->Equals(pos1, pos2)) {
+      res = CompareUpToTail(pos1 + 1, pos2 + 1);
+      dir = EQ;
+    } else {
+      int res1 = CompareUpToTail(pos1 + 1, pos2) + (1 << kDirectionSizeBits);
+      int res2 = CompareUpToTail(pos1, pos2 + 1) + (1 << kDirectionSizeBits);
+      if (res1 == res2) {
+        res = res1;
+        dir = SKIP_ANY;
+      } else if (res1 < res2) {
+        res = res1;
+        dir = SKIP1;
+      } else {
+        res = res2;
+        dir = SKIP2;
+      }
+    }
+    set_value4_and_dir(pos1, pos2, res, dir);
+    return res;
   }
 
-  inline int& get_cell(int i1, int i2) {
-    return buffer_[i1 + i2 * len1_];
+  inline int get_cell(int i1, int i2) {
+    auto it = buffer_.find(std::make_pair(i1, i2));
+    return it == buffer_.end() ? kEmptyCellValue : it->second;
+  }
+
+  inline void set_cell(int i1, int i2, int value) {
+    buffer_.insert(std::make_pair(std::make_pair(i1, i2), value));
   }
 
   // Each cell keeps a value plus direction. Value is multiplied by 4.
   void set_value4_and_dir(int i1, int i2, int value4, Direction dir) {
     DCHECK_EQ(0, value4 & kDirectionMask);
-    get_cell(i1, i2) = value4 | dir;
+    set_cell(i1, i2, value4 | dir);
   }
 
   int get_value4(int i1, int i2) {
@@ -214,10 +219,10 @@ class Differencer {
         : chunk_writer_(chunk_writer), pos1_(0), pos2_(0),
           pos1_begin_(-1), pos2_begin_(-1), has_open_chunk_(false) {
     }
-    void eq() {
+    void eq(int len = 1) {
       FlushChunk();
-      pos1_++;
-      pos2_++;
+      pos1_ += len;
+      pos2_ += len;
     }
     void skip1(int len1) {
       StartChunk();
