@@ -384,13 +384,11 @@ AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
 
 base::Optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     Handle<Map> map, AccessMode access_mode) const {
-  ObjectData* data = broker()->TryGetOrCreateData(map);
-  if (data == nullptr) return {};
-
   // Check if it is safe to inline element access for the {map}.
-  MapRef map_ref(broker(), data);
-  if (!CanInlineElementAccess(map_ref)) return base::nullopt;
-  ElementsKind const elements_kind = map_ref.elements_kind();
+  base::Optional<MapRef> map_ref = TryMakeRef(broker(), *map);
+  if (!map_ref.has_value()) return {};
+  if (!CanInlineElementAccess(*map_ref)) return base::nullopt;
+  ElementsKind const elements_kind = map_ref->elements_kind();
   return ElementAccessInfo({{map}, zone()}, elements_kind, zone());
 }
 
@@ -448,23 +446,22 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
 
-  ObjectData* data = broker()->TryGetOrCreateData(map);
-  if (data == nullptr) return Invalid();
-  MapRef map_ref(broker(), data);
+  base::Optional<MapRef> map_ref = TryMakeRef(broker(), *map);
+  if (!map_ref.has_value()) return Invalid();
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
-  if (!map_ref.TrySerializeOwnDescriptor(descriptor)) {
+  if (!map_ref->TrySerializeOwnDescriptor(descriptor)) {
     return Invalid();
   }
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     unrecorded_dependencies.push_back(
-        dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
+        dependencies()->FieldRepresentationDependencyOffTheRecord(*map_ref,
                                                                   descriptor));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     unrecorded_dependencies.push_back(
-        dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
+        dependencies()->FieldRepresentationDependencyOffTheRecord(*map_ref,
                                                                   descriptor));
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
@@ -482,15 +479,15 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       // about the contents now.
     }
     unrecorded_dependencies.push_back(
-        dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
+        dependencies()->FieldRepresentationDependencyOffTheRecord(*map_ref,
                                                                   descriptor));
     if (descriptors_field_type->IsClass()) {
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map = broker()->CanonicalPersistentHandle(
           descriptors_field_type->AsClass());
-      ObjectData* data = broker()->TryGetOrCreateData(map);
-      if (data == nullptr) return Invalid();
-      field_type = Type::For(MapRef(broker(), data));
+      base::Optional<MapRef> maybe_ref = TryMakeRef(broker(), *map);
+      if (!maybe_ref.has_value()) return Invalid();
+      field_type = Type::For(*maybe_ref);
       field_map = MaybeHandle<Map>(map);
     }
   } else {
@@ -499,7 +496,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   // TODO(turbofan): We may want to do this only depending on the use
   // of the access info.
   unrecorded_dependencies.push_back(
-      dependencies()->FieldTypeDependencyOffTheRecord(map_ref, descriptor));
+      dependencies()->FieldTypeDependencyOffTheRecord(*map_ref, descriptor));
 
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
@@ -510,7 +507,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     // of turboprop.
     constness = PropertyConstness::kMutable;
   } else {
-    constness = dependencies()->DependOnFieldConstness(map_ref, descriptor);
+    constness = dependencies()->DependOnFieldConstness(*map_ref, descriptor);
   }
   // TODO(v8:11670): Make FindFieldOwner and friends robust wrt concurrency.
   Handle<Map> field_owner_map = broker()->CanonicalPersistentHandle(
@@ -864,12 +861,9 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Walk up the prototype chain.
-    ObjectData* data = broker()->TryGetOrCreateData(map, false);
-    if (data == nullptr) return Invalid();
-
-    if (!MapRef(broker(), data).TrySerializePrototype()) {
-      return Invalid();
-    }
+    base::Optional<MapRef> map_ref = TryMakeRef(broker(), *map);
+    if (!map_ref.has_value()) return Invalid();
+    if (!map_ref->TrySerializePrototype()) return Invalid();
 
     // Acquire synchronously the map's prototype's map to guarantee that every
     // time we use it, we use the same Map.
@@ -1022,28 +1016,26 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
   if (feedback.transition_groups().empty()) return base::nullopt;
 
   DCHECK(!feedback.transition_groups().front().empty());
-  ObjectData* data = broker()->TryGetOrCreateData(
-      feedback.transition_groups().front().front());
-  if (data == nullptr) return {};
-  MapRef first_map(broker(), data);
-  InstanceType instance_type = first_map.instance_type();
-  ElementsKind elements_kind = first_map.elements_kind();
+  Handle<Map> first_map = feedback.transition_groups().front().front();
+  base::Optional<MapRef> first_map_ref = TryMakeRef(broker(), *first_map);
+  if (!first_map_ref.has_value()) return {};
+  InstanceType instance_type = first_map_ref->instance_type();
+  ElementsKind elements_kind = first_map_ref->elements_kind();
 
   ZoneVector<Handle<Map>> maps(zone());
   for (auto const& group : feedback.transition_groups()) {
     for (Handle<Map> map_handle : group) {
-      ObjectData* data = broker()->TryGetOrCreateData(map_handle);
-      if (data == nullptr) return {};
-      MapRef map(broker(), data);
-      if (map.instance_type() != instance_type ||
-          !CanInlineElementAccess(map)) {
+      base::Optional<MapRef> map = TryMakeRef(broker(), *map_handle);
+      if (!map.has_value()) return {};
+      if (map->instance_type() != instance_type ||
+          !CanInlineElementAccess(*map)) {
         return base::nullopt;
       }
-      if (!GeneralizeElementsKind(elements_kind, map.elements_kind())
+      if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
                .To(&elements_kind)) {
         return base::nullopt;
       }
-      maps.push_back(map.object());
+      maps.push_back(map->object());
     }
   }
 
@@ -1119,27 +1111,27 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
 
-  ObjectData* data = broker()->TryGetOrCreateData(transition_map);
-  if (data == nullptr) return Invalid();
-  MapRef transition_map_ref(broker(), data);
+  base::Optional<MapRef> transition_map_ref =
+      TryMakeRef(broker(), *transition_map);
+  if (!transition_map_ref.has_value()) return Invalid();
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    if (!transition_map_ref.TrySerializeOwnDescriptor(number)) {
+    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
       return Invalid();
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            transition_map_ref, number));
+            *transition_map_ref, number));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
-    if (!transition_map_ref.TrySerializeOwnDescriptor(number)) {
+    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
       return Invalid();
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            transition_map_ref, number));
+            *transition_map_ref, number));
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
@@ -1149,33 +1141,28 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
       // Store is not safe if the field type was cleared.
       return Invalid();
     }
-    if (!transition_map_ref.TrySerializeOwnDescriptor(number)) {
+    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
       return Invalid();
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            transition_map_ref, number));
+            *transition_map_ref, number));
     if (descriptors_field_type->IsClass()) {
       unrecorded_dependencies.push_back(
-          dependencies()->FieldTypeDependencyOffTheRecord(transition_map_ref,
+          dependencies()->FieldTypeDependencyOffTheRecord(*transition_map_ref,
                                                           number));
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map = broker()->CanonicalPersistentHandle(
           descriptors_field_type->AsClass());
-      ObjectData* data = broker()->TryGetOrCreateData(map);
-      if (data == nullptr) return Invalid();
-      field_type = Type::For(MapRef(broker(), data));
-      field_map = MaybeHandle<Map>(map);
+      base::Optional<MapRef> map_ref = TryMakeRef(broker(), *map);
+      if (!map_ref.has_value()) return Invalid();
+      field_type = Type::For(*map_ref);
+      field_map = map;
     }
   }
-  {
-    ObjectData* data = broker()->TryGetOrCreateData(transition_map);
-    if (data == nullptr) return Invalid();
-    unrecorded_dependencies.push_back(
-        dependencies()->TransitionDependencyOffTheRecord(
-            MapRef(broker(), data)));
-  }
-  transition_map_ref.SerializeBackPointer();  // For BuildPropertyStore.
+  unrecorded_dependencies.push_back(
+      dependencies()->TransitionDependencyOffTheRecord(*transition_map_ref));
+  transition_map_ref->SerializeBackPointer();  // For BuildPropertyStore.
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.

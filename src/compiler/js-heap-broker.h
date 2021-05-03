@@ -11,6 +11,7 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
 #include "src/compiler/serializer-hints.h"
@@ -556,6 +557,27 @@ class V8_NODISCARD UnparkedScopeIfNeeded {
  private:
   base::Optional<UnparkedScope> unparked_scope;
 };
+
+// Usage:
+//
+//  base::Optional<FooRef> ref = TryMakeRef(broker, o);
+//  if (!ref.has_value()) return {};  // bailout
+//
+// or
+//
+//  FooRef ref = MakeRef(broker, o);
+template <class T>
+base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
+    JSHeapBroker* broker, T object) {
+  ObjectData* data = broker->TryGetOrCreateData(object);
+  if (data == nullptr) return {};
+  return {typename ref_traits<T>::ref_type(broker, data)};
+}
+
+template <class T>
+typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, T object) {
+  return TryMakeRef(broker, object).value();
+}
 
 }  // namespace compiler
 }  // namespace internal

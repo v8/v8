@@ -40,7 +40,12 @@ struct WasmModule;
 
 namespace compiler {
 
+class CompilationDependencies;
+struct FeedbackSource;
+class JSHeapBroker;
 class ObjectData;
+class PerIsolateCompilerCache;
+class PropertyAccessInfo;
 
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
@@ -131,15 +136,21 @@ enum class RefSerializationKind {
   /* Subtypes of Object */                                                \
   V(HeapObject, RefSerializationKind::kBackgroundSerialized)
 
-class CompilationDependencies;
-struct FeedbackSource;
-class JSHeapBroker;
-class ObjectData;
-class PerIsolateCompilerCache;
-class PropertyAccessInfo;
 #define FORWARD_DECL(Name, ...) class Name##Ref;
 HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
+
+template <class T>
+struct ref_traits;
+
+#define REF_TRAITS(Name, Kind)                                           \
+  template <>                                                            \
+  struct ref_traits<Name> {                                              \
+    using ref_type = Name##Ref;                                          \
+    static constexpr RefSerializationKind ref_serialization_kind = Kind; \
+  };
+HEAP_BROKER_OBJECT_LIST(REF_TRAITS)
+#undef REF_TYPE
 
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
