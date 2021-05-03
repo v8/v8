@@ -102,6 +102,7 @@
       # FYI.
       'V8 iOS - sim': 'release_x64_ios_simulator',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
+      'V8 Linux64 - debug - single generation - builder': 'debug_x64_single_generation',
       'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
       'V8 Linux64 - pointer compression without dchecks':
           'release_x64_pointer_compression_without_dchecks',
@@ -223,6 +224,7 @@
       'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
+      'v8_linux64_single_generation_dbg_ng': 'debug_x64_single_generation',
       'v8_linux64_no_wasm_compile_rel': 'release_x64_webassembly_disabled',
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
@@ -546,6 +548,8 @@
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_perfetto': [
       'debug_bot', 'x64', 'perfetto'],
+    'debug_x64_single_generation': [
+      'debug_bot', 'x64', 'v8_enable_single_generation'],
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
     'debug_x64_dict_tracking_trybot': [
@@ -876,7 +880,10 @@
     'v8_disable_pointer_compression': {
       'gn_args': 'v8_enable_pointer_compression=false',
     },
-
+    'v8_enable_single_generation': {
+      'gn_args': 'v8_enable_single_generation=true ' 
+                 'v8_disable_write_barriers=true',
+    },
     'v8_enable_test_features': {
       'gn_args': 'v8_enable_test_features=true',
     },
