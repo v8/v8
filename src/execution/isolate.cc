@@ -1404,11 +1404,13 @@ Object Isolate::StackOverflow() {
       MessageFormatter::TemplateString(MessageTemplate::kStackOverflow));
   Handle<Object> options = factory()->undefined_value();
   Handle<Object> no_caller;
-  Handle<Object> exception;
+  Handle<JSObject> exception;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       this, exception,
       ErrorUtils::Construct(this, fun, fun, msg, options, SKIP_NONE, no_caller,
                             ErrorUtils::StackTraceCollection::kSimple));
+  JSObject::AddProperty(this, exception, factory()->wasm_uncatchable_symbol(),
+                        factory()->true_value(), NONE);
 
   Throw(*exception);
 

@@ -3106,9 +3106,6 @@ class WasmInterpreterInternals {
     // it to 0 here such that we report the same position as in compiled code.
     frames_.back().pc = 0;
     isolate_->StackOverflow();
-    if (FLAG_experimental_wasm_eh) {
-      possible_nondeterminism_ = true;
-    }
     if (HandleException(isolate_) == WasmInterpreter::HANDLED) {
       ReloadFromFrameOnException(decoder, target, pc, limit);
       return true;
