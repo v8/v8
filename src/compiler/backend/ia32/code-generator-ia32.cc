@@ -1938,44 +1938,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F64x2Min: {
-      Operand src1 = i.InputOperand(1);
       XMMRegister dst = i.OutputSimd128Register(),
-                  src = i.InputSimd128Register(0),
-                  tmp = i.TempSimd128Register(0);
+                  src0 = i.InputSimd128Register(0),
+                  src1 = i.InputSimd128Register(1);
       // The minpd instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform minpd in both orders, merge the resuls, and adjust.
-      __ Movupd(tmp, src1);
-      __ Minpd(tmp, tmp, src);
-      __ Minpd(dst, src, src1);
+      __ Movapd(kScratchDoubleReg, src1);
+      __ Minpd(kScratchDoubleReg, kScratchDoubleReg, src0);
+      __ Minpd(dst, src0, src1);
       // propagate -0's and NaNs, which may be non-canonical.
-      __ Orpd(tmp, dst);
+      __ Orpd(kScratchDoubleReg, dst);
       // Canonicalize NaNs by quieting and clearing the payload.
-      __ Cmpunordpd(dst, dst, tmp);
-      __ Orpd(tmp, dst);
+      __ Cmpunordpd(dst, dst, kScratchDoubleReg);
+      __ Orpd(kScratchDoubleReg, dst);
       __ Psrlq(dst, byte{13});
-      __ Andnpd(dst, tmp);
+      __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
     case kIA32F64x2Max: {
-      Operand src1 = i.InputOperand(1);
       XMMRegister dst = i.OutputSimd128Register(),
-                  src = i.InputSimd128Register(0),
-                  tmp = i.TempSimd128Register(0);
+                  src0 = i.InputSimd128Register(0),
+                  src1 = i.InputSimd128Register(1);
       // The maxpd instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform maxpd in both orders, merge the resuls, and adjust.
-      __ Movupd(tmp, src1);
-      __ Maxpd(tmp, tmp, src);
-      __ Maxpd(dst, src, src1);
+      __ Movapd(kScratchDoubleReg, src1);
+      __ Maxpd(kScratchDoubleReg, kScratchDoubleReg, src0);
+      __ Maxpd(dst, src0, src1);
       // Find discrepancies.
-      __ Xorpd(dst, tmp);
+      __ Xorpd(dst, kScratchDoubleReg);
       // Propagate NaNs, which may be non-canonical.
-      __ Orpd(tmp, dst);
+      __ Orpd(kScratchDoubleReg, dst);
       // Propagate sign discrepancy and (subtle) quiet NaNs.
-      __ Subpd(tmp, tmp, dst);
+      __ Subpd(kScratchDoubleReg, kScratchDoubleReg, dst);
       // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ Cmpunordpd(dst, dst, tmp);
+      __ Cmpunordpd(dst, dst, kScratchDoubleReg);
       __ Psrlq(dst, byte{13});
-      __ Andnpd(dst, tmp);
+      __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
     case kIA32F64x2Eq: {
