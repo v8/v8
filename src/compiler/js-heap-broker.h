@@ -579,7 +579,9 @@ template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
     JSHeapBroker* broker, Handle<T> object) {
-  return TryMakeRef(broker, *object);
+  ObjectData* data = broker->TryGetOrCreateData(object);
+  if (data == nullptr) return {};
+  return {typename ref_traits<T>::ref_type(broker, data)};
 }
 
 template <class T,
@@ -592,7 +594,7 @@ template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
                                          Handle<T> object) {
-  return MakeRef(broker, *object);
+  return TryMakeRef(broker, object).value();
 }
 
 }  // namespace compiler

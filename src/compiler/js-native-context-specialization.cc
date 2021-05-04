@@ -412,14 +412,14 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     return NoChange();
   }
 
-  JSObjectRef receiver_ref(broker(), receiver);
+  JSObjectRef receiver_ref = MakeRef(broker(), receiver);
   MapRef receiver_map = receiver_ref.map();
 
   PropertyAccessInfo access_info = PropertyAccessInfo::Invalid(graph()->zone());
   if (broker()->is_concurrent_inlining()) {
     access_info = broker()->GetPropertyAccessInfo(
         receiver_map,
-        NameRef(broker(), isolate()->factory()->has_instance_symbol()),
+        MakeRef(broker(), isolate()->factory()->has_instance_symbol()),
         AccessMode::kLoad, dependencies());
   } else {
     AccessInfoFactory access_info_factory(broker(), dependencies(),
@@ -462,7 +462,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     Handle<JSObject> holder;
     bool found_on_proto = access_info.holder().ToHandle(&holder);
     JSObjectRef holder_ref =
-        found_on_proto ? JSObjectRef(broker(), holder) : receiver_ref;
+        found_on_proto ? MakeRef(broker(), holder) : receiver_ref;
     base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
         access_info.field_representation(), access_info.field_index());
     if (!constant.has_value() || !constant->IsHeapObject() ||
@@ -472,7 +472,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     if (found_on_proto) {
       dependencies()->DependOnStablePrototypeChains(
           access_info.lookup_start_object_maps(), kStartAtPrototype,
-          JSObjectRef(broker(), holder));
+          MakeRef(broker(), holder));
     }
 
     // Check that {constructor} is actually {receiver}.
@@ -743,7 +743,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
     for (auto map : resolution_maps) {
       MapRef map_ref(broker(), map);
       access_infos.push_back(broker()->GetPropertyAccessInfo(
-          map_ref, NameRef(broker(), isolate()->factory()->then_string()),
+          map_ref, MakeRef(broker(), isolate()->factory()->then_string()),
           AccessMode::kLoad, dependencies()));
     }
   }
@@ -870,7 +870,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         simplified()->CheckMaps(
             CheckMapsFlag::kNone,
             ZoneHandleSet<Map>(
-                HeapObjectRef(broker(), global_proxy()).map().object())),
+                MakeRef(broker(), global_proxy()).map().object())),
         lookup_start_object, effect, control);
   }
 
@@ -1040,7 +1040,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     return Replace(value);
   } else if (feedback.IsPropertyCell()) {
     return ReduceGlobalAccess(node, nullptr, nullptr, nullptr,
-                              NameRef(broker(), p.name()), AccessMode::kLoad,
+                              MakeRef(broker(), p.name()), AccessMode::kLoad,
                               nullptr, feedback.property_cell());
   } else {
     DCHECK(feedback.IsMegamorphic());
@@ -1071,7 +1071,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     return Replace(value);
   } else if (feedback.IsPropertyCell()) {
     return ReduceGlobalAccess(node, nullptr, nullptr, value,
-                              NameRef(broker(), p.name()), AccessMode::kStore,
+                              MakeRef(broker(), p.name()), AccessMode::kStore,
                               nullptr, feedback.property_cell());
   } else {
     DCHECK(feedback.IsMegamorphic());
@@ -1473,7 +1473,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   JSLoadNamedNode n(node);
   NamedAccess const& p = n.Parameters();
   Node* const receiver = n.object();
-  NameRef name(broker(), p.name());
+  NameRef name = MakeRef(broker(), p.name());
 
   // Check if we have a constant receiver.
   HeapObjectMatcher m(receiver);
@@ -1516,7 +1516,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamedFromSuper(
     Node* node) {
   JSLoadNamedFromSuperNode n(node);
   NamedAccess const& p = n.Parameters();
-  NameRef name(broker(), p.name());
+  NameRef name = MakeRef(broker(), p.name());
 
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, nullptr, name, jsgraph()->Dead(),
@@ -1611,7 +1611,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   JSStoreNamedNode n(node);
   NamedAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, nullptr, NameRef(broker(), p.name()),
+  return ReducePropertyAccess(node, nullptr, MakeRef(broker(), p.name()),
                               n.value(), FeedbackSource(p.feedback()),
                               AccessMode::kStore);
 }
@@ -1620,7 +1620,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
   JSStoreNamedOwnNode n(node);
   StoreNamedOwnParameters const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, nullptr, NameRef(broker(), p.name()),
+  return ReducePropertyAccess(node, nullptr, MakeRef(broker(), p.name()),
                               n.value(), FeedbackSource(p.feedback()),
                               AccessMode::kStoreInLiteral);
 }
@@ -2234,7 +2234,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     // For fast mode holders we recorded dependencies in BuildPropertyLoad.
     for (const Handle<Map> map : access_info.lookup_start_object_maps()) {
       dependencies()->DependOnConstantInDictionaryPrototypeChain(
-          MapRef{broker(), map}, NameRef{broker(), access_info.name()},
+          MakeRef(broker(), map), MakeRef(broker(), access_info.name()),
           constant, PropertyKind::kAccessor);
     }
   }
@@ -2367,7 +2367,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
       !access_info.HasDictionaryHolder()) {
     dependencies()->DependOnStablePrototypeChains(
         access_info.lookup_start_object_maps(), kStartAtPrototype,
-        JSObjectRef(broker(), holder));
+        MakeRef(broker(), holder));
   }
 
   // Generate the actual property access.
@@ -2418,7 +2418,7 @@ JSNativeContextSpecialization::BuildPropertyTest(
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
         access_info.lookup_start_object_maps(), kStartAtPrototype,
-        JSObjectRef(broker(), holder));
+        MakeRef(broker(), holder));
   }
 
   Node* value = access_info.IsNotFound() ? jsgraph()->FalseConstant()
@@ -2462,7 +2462,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
     dependencies()->DependOnStablePrototypeChains(
         access_info.lookup_start_object_maps(), kStartAtPrototype,
-        JSObjectRef(broker(), holder));
+        MakeRef(broker(), holder));
   }
 
   DCHECK(!access_info.IsNotFound());

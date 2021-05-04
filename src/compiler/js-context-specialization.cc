@@ -40,7 +40,7 @@ Reduction JSContextSpecialization::ReduceParameter(Node* node) {
     // Constant-fold the function parameter {node}.
     Handle<JSFunction> function;
     if (closure().ToHandle(&function)) {
-      Node* value = jsgraph()->Constant(JSFunctionRef(broker_, function));
+      Node* value = jsgraph()->Constant(MakeRef(broker_, function));
       return Replace(value);
     }
   }
@@ -103,7 +103,7 @@ base::Optional<ContextRef> GetSpecializationContext(
     Maybe<OuterContext> maybe_outer) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
-      HeapObjectRef object(broker, HeapConstantOf(node->op()));
+      HeapObjectRef object = MakeRef(broker, HeapConstantOf(node->op()));
       if (object.IsContext()) return object.AsContext();
       break;
     }
@@ -112,7 +112,7 @@ base::Optional<ContextRef> GetSpecializationContext(
       if (maybe_outer.To(&outer) && IsContextParameter(node) &&
           *distance >= outer.distance) {
         *distance -= outer.distance;
-        return ContextRef(broker, outer.context);
+        return MakeRef(broker, outer.context);
       }
       break;
     }
@@ -231,7 +231,7 @@ base::Optional<ContextRef> GetModuleContext(JSHeapBroker* broker, Node* node,
 
   switch (context->opcode()) {
     case IrOpcode::kHeapConstant: {
-      HeapObjectRef object(broker, HeapConstantOf(context->op()));
+      HeapObjectRef object = MakeRef(broker, HeapConstantOf(context->op()));
       if (object.IsContext()) {
         return find_context(object.AsContext());
       }
@@ -240,7 +240,7 @@ base::Optional<ContextRef> GetModuleContext(JSHeapBroker* broker, Node* node,
     case IrOpcode::kParameter: {
       OuterContext outer;
       if (maybe_context.To(&outer) && IsContextParameter(context)) {
-        return find_context(ContextRef(broker, outer.context));
+        return find_context(MakeRef(broker, outer.context));
       }
       break;
     }

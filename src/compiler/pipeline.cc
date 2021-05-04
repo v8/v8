@@ -1340,7 +1340,7 @@ struct GraphBuilderPhase {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
 
-    JSFunctionRef closure(data->broker(), data->info()->closure());
+    JSFunctionRef closure = MakeRef(data->broker(), data->info()->closure());
     CallFrequency frequency(1.0f);
     BuildGraphFromBytecode(
         data->broker(), temp_zone, closure.shared(),
@@ -1550,8 +1550,8 @@ struct SerializationPhase {
         data->zone_stats(), data->broker(), data->dependencies(),
         data->info()->closure(), flags, data->info()->osr_offset());
     if (data->specialization_context().IsJust()) {
-      ContextRef(data->broker(),
-                 data->specialization_context().FromJust().context);
+      MakeRef(data->broker(),
+              data->specialization_context().FromJust().context);
     }
     if (FLAG_turbo_concurrent_get_property_access_info) {
       data->broker()->ClearCachedPropertyAccessInfos();

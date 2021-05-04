@@ -238,7 +238,7 @@ struct HeapObjectMatcherImpl final
   }
 
   HeapObjectRef Ref(JSHeapBroker* broker) const {
-    return HeapObjectRef(broker, this->ResolvedValue());
+    return MakeRef(broker, this->ResolvedValue());
   }
 };
 

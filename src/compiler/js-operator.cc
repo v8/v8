@@ -8,6 +8,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator.h"
 #include "src/handles/handles-inl.h"
@@ -41,7 +42,7 @@ FeedbackCellRef JSCreateClosureNode::GetFeedbackCellRefChecked(
     JSHeapBroker* broker) const {
   HeapObjectMatcher m(feedback_cell());
   CHECK(m.HasResolvedValue());
-  return FeedbackCellRef(broker, m.ResolvedValue());
+  return MakeRef(broker, Handle<FeedbackCell>::cast(m.ResolvedValue()));
 }
 
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {

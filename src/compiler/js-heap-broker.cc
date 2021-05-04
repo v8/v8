@@ -14,6 +14,7 @@
 #include "src/ic/handler-configuration.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/feedback-cell.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
@@ -142,7 +143,7 @@ void JSHeapBroker::SetTargetNativeContextRef(
           target_native_context_->object().equals(native_context) &&
           target_native_context_->is_unserialized_heap_object()));
   target_native_context_ =
-      NativeContextRef(this, CanonicalPersistentHandle(*native_context));
+      MakeRef(this, CanonicalPersistentHandle(*native_context));
 }
 
 void JSHeapBroker::CollectArrayAndObjectPrototypes() {
@@ -169,7 +170,7 @@ StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
   switch (kind) {
 #define TYPED_ARRAY_STRING_TAG(Type, type, TYPE, ctype) \
   case ElementsKind::TYPE##_ELEMENTS:                   \
-    return StringRef(this, isolate()->factory()->Type##Array_string());
+    return MakeRef(this, isolate()->factory()->Type##Array_string());
     TYPED_ARRAYS(TYPED_ARRAY_STRING_TAG)
 #undef TYPED_ARRAY_STRING_TAG
     default:
@@ -691,12 +692,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
         isolate(), target_native_context().script_context_table().object(),
         script_context_index);
     {
-      ObjectRef contents(this,
-                         handle(context->get(context_slot_index), isolate()));
+      ObjectRef contents =
+          MakeRef(this, handle(context->get(context_slot_index), isolate()));
       CHECK(!contents.equals(
-          ObjectRef(this, isolate()->factory()->the_hole_value())));
+          MakeRef<Object>(this, isolate()->factory()->the_hole_value())));
     }
-    ContextRef context_ref(this, context);
+    ContextRef context_ref = MakeRef(this, context);
     if (immutable) {
       context_ref.get(context_slot_index,
                       SerializationPolicy::kSerializeIfNeeded);
@@ -708,11 +709,11 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   CHECK(feedback_value->IsPropertyCell());
   // The wanted name belongs (or did belong) to a property on the global
   // object and the feedback is the cell holding its value.
-  PropertyCellRef cell(this, Handle<PropertyCell>::cast(feedback_value));
-  ObjectRef(
-      this,
-      CanonicalPersistentHandle(
-          Handle<PropertyCell>::cast(feedback_value)->value(kAcquireLoad)));
+  PropertyCellRef cell =
+      MakeRef(this, Handle<PropertyCell>::cast(feedback_value));
+  MakeRef(this,
+          CanonicalPersistentHandle(
+              Handle<PropertyCell>::cast(feedback_value)->value(kAcquireLoad)));
   return *zone()->New<GlobalAccessFeedback>(cell, nexus.kind());
 }
 
@@ -753,7 +754,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
     MaybeHandle<JSObject> maybe_constructor = nexus.GetConstructorFeedback();
     Handle<JSObject> constructor;
     if (maybe_constructor.ToHandle(&constructor)) {
-      optional_constructor = JSObjectRef(this, constructor);
+      optional_constructor = MakeRef(this, constructor);
     }
   }
   return *zone()->New<InstanceOfFeedback>(optional_constructor, nexus.kind());
@@ -769,7 +770,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  AllocationSiteRef site(this, handle(object, isolate()));
+  AllocationSiteRef site =
+      MakeRef(this, handle(AllocationSite::cast(object), isolate()));
   if (site.IsFastLiteral()) {
     site.SerializeBoilerplate();
   }
@@ -787,7 +789,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  RegExpBoilerplateDescriptionRef boilerplate(this, handle(object, isolate()));
+  RegExpBoilerplateDescriptionRef boilerplate = MakeRef(
+      this, handle(RegExpBoilerplateDescription::cast(object), isolate()));
   boilerplate.Serialize();
   return *zone()->New<RegExpLiteralFeedback>(boilerplate, nexus.kind());
 }
@@ -802,7 +805,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  JSArrayRef array(this, handle(object, isolate()));
+  JSArrayRef array = MakeRef(this, handle(JSArray::cast(object), isolate()));
   return *zone()->New<TemplateObjectFeedback>(array, nexus.kind());
 }
 
@@ -822,7 +825,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
     if (maybe_target->GetHeapObject(&target_object)) {
-      target_ref = HeapObjectRef(this, handle(target_object, isolate()));
+      target_ref = MakeRef(this, handle(target_object, isolate()));
     }
   }
   float frequency = nexus.ComputeCallFrequency();
@@ -1060,7 +1063,7 @@ base::Optional<NameRef> JSHeapBroker::GetNameFeedback(
     FeedbackNexus const& nexus) {
   Name raw_name = nexus.GetName();
   if (raw_name.is_null()) return base::nullopt;
-  return NameRef(this, handle(raw_name, isolate()));
+  return MakeRef(this, handle(raw_name, isolate()));
 }
 
 PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(

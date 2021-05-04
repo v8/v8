@@ -580,38 +580,38 @@ bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
 }
 
 bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_,
       broker_->isolate()->factory()->array_buffer_detaching_protector()));
 }
 
 bool CompilationDependencies::DependOnArrayIteratorProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->array_iterator_protector()));
 }
 
 bool CompilationDependencies::DependOnArraySpeciesProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->array_species_protector()));
 }
 
 bool CompilationDependencies::DependOnNoElementsProtector() {
-  return DependOnProtector(PropertyCellRef(
-      broker_, broker_->isolate()->factory()->no_elements_protector()));
+  return DependOnProtector(
+      MakeRef(broker_, broker_->isolate()->factory()->no_elements_protector()));
 }
 
 bool CompilationDependencies::DependOnPromiseHookProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_hook_protector()));
 }
 
 bool CompilationDependencies::DependOnPromiseSpeciesProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_species_protector()));
 }
 
 bool CompilationDependencies::DependOnPromiseThenProtector() {
-  return DependOnProtector(PropertyCellRef(
+  return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_then_protector()));
 }
 

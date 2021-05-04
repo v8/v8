@@ -593,8 +593,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     Node* length =
         graph()->NewNode(simplified()->NumberAdd(), left_length, right_length);
 
-    PropertyCellRef string_length_protector(
-        broker(), factory()->string_length_protector());
+    PropertyCellRef string_length_protector =
+        MakeRef(broker(), factory()->string_length_protector());
     string_length_protector.SerializeAsProtector();
 
     if (string_length_protector.value().AsSmi() ==
@@ -1172,8 +1172,8 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   JSLoadNamedNode n(node);
   Node* receiver = n.object();
   Type receiver_type = NodeProperties::GetType(receiver);
-  NameRef name(broker(), NamedAccessOf(node->op()).name());
-  NameRef length_str(broker(), factory()->length_string());
+  NameRef name = MakeRef(broker(), NamedAccessOf(node->op()).name());
+  NameRef length_str = MakeRef(broker(), factory()->length_string());
   // Optimize "length" property of strings.
   if (name.equals(length_str) && receiver_type.Is(Type::String())) {
     Node* value = graph()->NewNode(simplified()->StringLength(), receiver);
@@ -1715,7 +1715,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
         JSCreateClosureNode{target}.Parameters();
     shared = SharedFunctionInfoRef(broker(), ccp.shared_info());
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
-    FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));
+    FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
     base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
     if (feedback_vector.has_value()) {
       shared = feedback_vector->shared_function_info();

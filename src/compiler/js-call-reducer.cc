@@ -2644,8 +2644,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
       return inference.NoChange();
     }
     ReadOnlyRoots roots(isolate());
-    StringRef length_string(broker(), roots.length_string_handle());
-    StringRef name_string(broker(), roots.name_string_handle());
+    StringRef length_string = MakeRef(broker(), roots.length_string_handle());
+    StringRef name_string = MakeRef(broker(), roots.name_string_handle());
 
     base::Optional<ObjectRef> length_value(
         receiver_map.GetStrongValue(kLengthIndex));
@@ -4182,7 +4182,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     CreateClosureParameters const& p = JSCreateClosureNode{target}.Parameters();
     return ReduceJSCall(node, SharedFunctionInfoRef(broker(), p.shared_info()));
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
-    FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));
+    FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
     if (cell.shared_function_info().has_value()) {
       return ReduceJSCall(node, *cell.shared_function_info());
     } else {
@@ -4266,8 +4266,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     // Try to further reduce the JSCall {node}.
     return Changed(node).FollowedBy(ReduceJSCall(node));
   } else if (feedback_target.has_value() && feedback_target->IsFeedbackCell()) {
-    FeedbackCellRef feedback_cell(
-        broker(), feedback_target.value().AsFeedbackCell().object());
+    FeedbackCellRef feedback_cell =
+        MakeRef(broker(), feedback_target.value().AsFeedbackCell().object());
     if (feedback_cell.value().has_value()) {
       // Check that {target} is a closure with given {feedback_cell},
       // which uniquely identifies a given function inside a native context.
@@ -7741,7 +7741,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     for (auto map : regexp_maps) {
       MapRef map_ref(broker(), map);
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
-          map_ref, NameRef(broker(), isolate()->factory()->exec_string()),
+          map_ref, MakeRef(broker(), isolate()->factory()->exec_string()),
           AccessMode::kLoad, dependencies());
       access_infos.push_back(access_info);
     }
@@ -7763,7 +7763,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     // Do not reduce if the exec method is not on the prototype chain.
     if (!ai_exec.holder().ToHandle(&holder)) return inference.NoChange();
 
-    JSObjectRef holder_ref(broker(), holder);
+    JSObjectRef holder_ref = MakeRef(broker(), holder);
 
     // Bail out if the exec method is not the original one.
     base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
@@ -7776,7 +7776,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     // Add proper dependencies on the {regexp}s [[Prototype]]s.
     dependencies()->DependOnStablePrototypeChains(
         ai_exec.lookup_start_object_maps(), kStartAtPrototype,
-        JSObjectRef(broker(), holder));
+        MakeRef(broker(), holder));
   } else {
     // TODO(v8:11457) Support dictionary mode protoypes here.
     return inference.NoChange();

@@ -49,7 +49,7 @@ SerializerTester::SerializerTester(const char* source)
   // Update handle to the corresponding serialized Handle in the broker.
   function =
       broker_->FindCanonicalPersistentHandleForTesting<JSFunction>(*function);
-  function_ = JSFunctionRef(broker(), function);
+  function_ = MakeRef(broker(), function);
 }
 
 TEST(SerializeEmptyFunction) {
@@ -90,7 +90,7 @@ void CheckForSerializedInlinee(const char* source, int argc = 0,
   Handle<FeedbackVector> fv(
       tester.broker()->FindCanonicalPersistentHandleForTesting<FeedbackVector>(
           g_func->feedback_vector()));
-  FeedbackVectorRef g_fv(tester.broker(), fv);
+  FeedbackVectorRef g_fv = MakeRef(tester.broker(), fv);
   CHECK(tester.broker()->IsSerializedForCompilation(g_sfi, g_fv));
 }
 

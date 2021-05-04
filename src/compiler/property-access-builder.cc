@@ -153,7 +153,8 @@ Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
   DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
   DCHECK(access_info.IsDictionaryProtoDataConstant());
 
-  JSObjectRef holder(broker(), access_info.holder().ToHandleChecked());
+  JSObjectRef holder =
+      MakeRef(broker(), access_info.holder().ToHandleChecked());
   base::Optional<ObjectRef> value =
       holder.GetOwnDictionaryProperty(access_info.dictionary_index());
 
@@ -171,7 +172,7 @@ Node* PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
       DCHECK(map->IsJSObjectMap());
     }
     dependencies()->DependOnConstantInDictionaryPrototypeChain(
-        MapRef{broker(), map}, NameRef{broker(), access_info.name()},
+        MakeRef(broker(), map), MakeRef(broker(), access_info.name()),
         value.value(), PropertyKind::kData);
   }
 
@@ -206,7 +207,7 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
     holder = m.Ref(broker()).AsJSObject().object();
   }
 
-  JSObjectRef holder_ref(broker(), holder);
+  JSObjectRef holder_ref = MakeRef(broker(), holder);
   base::Optional<ObjectRef> value = holder_ref.GetOwnFastDataProperty(
       access_info.field_representation(), access_info.field_index());
   if (!value.has_value()) {

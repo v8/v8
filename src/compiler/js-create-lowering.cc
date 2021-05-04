@@ -622,7 +622,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   {
     Handle<AllocationSite> site;
     if (p.site().ToHandle(&site)) {
-      site_ref = AllocationSiteRef(broker(), site);
+      site_ref = MakeRef(broker(), site);
     }
   }
   AllocationType allocation = AllocationType::kYoung;
@@ -650,8 +650,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     allocation = dependencies()->DependOnPretenureMode(*site_ref);
     dependencies()->DependOnElementsKind(*site_ref);
   } else {
-    PropertyCellRef array_constructor_protector(
-        broker(), factory()->array_constructor_protector());
+    PropertyCellRef array_constructor_protector =
+        MakeRef(broker(), factory()->array_constructor_protector());
     array_constructor_protector.SerializeAsProtector();
     can_inline_call = array_constructor_protector.value().AsSmi() ==
                       Protectors::kProtectorValid;
@@ -922,7 +922,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   CreateClosureParameters const& p = n.Parameters();
   SharedFunctionInfoRef shared(broker(), p.shared_info());
   FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
-  HeapObjectRef code(broker(), p.code());
+  HeapObjectRef code = MakeRef(broker(), p.code());
   Effect effect = n.effect();
   Control control = n.control();
   Node* context = n.context();
@@ -1212,7 +1212,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
-  ScopeInfoRef scope_info(broker(), parameters.scope_info());
+  ScopeInfoRef scope_info = MakeRef(broker(), parameters.scope_info());
   int slot_count = parameters.slot_count();
   ScopeType scope_type = parameters.scope_type();
 
@@ -1252,7 +1252,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
-  ScopeInfoRef scope_info(broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info = MakeRef(broker(), ScopeInfoOf(node->op()));
   Node* extension = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1273,7 +1273,7 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateCatchContext, node->opcode());
-  ScopeInfoRef scope_info(broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info = MakeRef(broker(), ScopeInfoOf(node->op()));
   Node* exception = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1294,7 +1294,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
-  ScopeInfoRef scope_info(broker(), ScopeInfoOf(node->op()));
+  ScopeInfoRef scope_info = MakeRef(broker(), ScopeInfoOf(node->op()));
   int const context_length = scope_info.ContextLength();
 
   // Use inline allocation for block contexts up to a size limit.
