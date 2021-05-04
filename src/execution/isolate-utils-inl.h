@@ -77,14 +77,10 @@ V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
 #else
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
-#ifndef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  // TODO(syg): Share RO space across Isolates for shared cage; need to fix
-  // Symbol::Description.
   if (chunk->InReadOnlySpace()) {
     *isolate = nullptr;
     return false;
   }
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   *isolate = Isolate::FromHeap(chunk->GetHeap());
   return true;
 #endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP

@@ -100,6 +100,31 @@ UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
   isolate1->Dispose();
   isolate2->Dispose();
 }
+
+#ifdef V8_SHARED_RO_HEAP
+UNINITIALIZED_TEST(SharedPtrComprCageImpliesSharedReadOnlyHeap) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
+
+  CHECK_EQ(i_isolate1->read_only_heap(), i_isolate2->read_only_heap());
+
+  // Spot check that some read-only roots are the same.
+  CHECK_EQ(ReadOnlyRoots(i_isolate1).the_hole_value(),
+           ReadOnlyRoots(i_isolate2).the_hole_value());
+  CHECK_EQ(ReadOnlyRoots(i_isolate1).code_map(),
+           ReadOnlyRoots(i_isolate2).code_map());
+  CHECK_EQ(ReadOnlyRoots(i_isolate1).exception(),
+           ReadOnlyRoots(i_isolate2).exception());
+
+  isolate1->Dispose();
+  isolate2->Dispose();
+}
+#endif  // V8_SHARED_RO_HEAP
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 }  // namespace internal

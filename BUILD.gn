@@ -419,7 +419,8 @@ if (v8_enable_short_builtin_calls &&
   v8_enable_short_builtin_calls = false
 }
 if (v8_enable_shared_ro_heap == "") {
-  v8_enable_shared_ro_heap = !v8_enable_pointer_compression
+  v8_enable_shared_ro_heap = !v8_enable_pointer_compression ||
+                             v8_enable_pointer_compression_shared_cage
 }
 
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
@@ -442,10 +443,6 @@ assert(!v8_enable_map_packing || !v8_enable_pointer_compression,
 
 assert(!v8_enable_map_packing || v8_current_cpu == "x64",
        "Map packing is only supported on x64")
-
-assert(
-    !v8_enable_pointer_compression_shared_cage || !v8_enable_shared_ro_heap,
-    "Sharing read-only heap is not yet supported when sharing a pointer compression cage")
 
 assert(!v8_use_multi_snapshots || !v8_control_flow_integrity,
        "Control-flow integrity does not support multisnapshots")

@@ -145,22 +145,41 @@ int Code::OffHeapInstructionSize() const {
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
+namespace {
+
+// Helper function for getting an EmbeddedData that can handle un-embedded
+// builtins when short builtin calls are enabled.
+inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(Code code) {
+#if defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+  // GetIsolateFromWritableObject(*this) works for both read-only and writable
+  // objects when pointer compression is enabled with a per-Isolate cage.
+  return EmbeddedData::FromBlob(GetIsolateFromWritableObject(code));
+#elif defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+  // When pointer compression is enabled with a shared cage, there is also a
+  // shared CodeRange. When short builtin calls are enabled, there is a single
+  // copy of the re-embedded builtins in the shared CodeRange, so use that if
+  // it's present.
+  CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+  return (code_range && code_range->embedded_blob_code_copy() != nullptr)
+             ? EmbeddedData::FromBlob(code_range)
+             : EmbeddedData::FromBlob();
+#else
+  // Otherwise there is a single copy of the blob across all Isolates, use the
+  // global atomic variables.
+  return EmbeddedData::FromBlob();
+#endif
+}
+
+}  // namespace
+
 Address Code::OffHeapInstructionStart() const {
   DCHECK(is_off_heap_trampoline());
   if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
     return raw_instruction_size();
   }
-  // TODO(11527): pass Isolate as an argument.
-  // GetIsolateFromWritableObject(*this) works for both read-only and writable
-  // objects here because short builtin calls feature requires pointer
-  // compression.
-  // We don't have to check the Isolate::is_short_builtin_calls_enabled() value
-  // because if the short builtin calls wasn't actually enabled because of not
-  // enough memory, the FromBlob(isolate) would still be the correct one to use.
-  EmbeddedData d =
-      FLAG_short_builtin_calls
-          ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))
-          : EmbeddedData::FromBlob();
+
+  // TODO(11527): pass Isolate as an argument for getting the EmbeddedData.
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.InstructionStartOfBuiltin(builtin_index());
 }
 
@@ -169,17 +188,9 @@ Address Code::OffHeapInstructionEnd() const {
   if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
     return raw_instruction_size();
   }
-  // TODO(11527): pass Isolate as an argument.
-  // GetIsolateFromWritableObject(*this) works for both read-only and writable
-  // objects here because short builtin calls feature requires pointer
-  // compression.
-  // We don't have to check the Isolate::is_short_builtin_calls_enabled() value
-  // because if the short builtin calls wasn't actually enabled because of not
-  // enough memory, the FromBlob(isolate) would still be the correct one to use.
-  EmbeddedData d =
-      FLAG_short_builtin_calls
-          ? EmbeddedData::FromBlob(GetIsolateFromWritableObject(*this))
-          : EmbeddedData::FromBlob();
+
+  // TODO(11527): pass Isolate as an argument for getting the EmbeddedData.
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.InstructionStartOfBuiltin(builtin_index()) +
          d.InstructionSizeOfBuiltin(builtin_index());
 }
