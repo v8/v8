@@ -1862,8 +1862,13 @@ int BuiltinFrame::ComputeParametersCount() const {
 #if V8_ENABLE_WEBASSEMBLY
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                       int index) const {
-  wasm::WasmCodeRefScope code_ref_scope;
   PrintIndex(accumulator, mode, index);
+  if (function_index() == wasm::kAnonymousFuncIndex) {
+    accumulator->Add("Anonymous wasm wrapper [pc: %p]\n",
+                     reinterpret_cast<void*>(pc()));
+    return;
+  }
+  wasm::WasmCodeRefScope code_ref_scope;
   accumulator->Add("WASM [");
   accumulator->PrintName(script().name());
   Address instruction_start = isolate()
@@ -1907,7 +1912,7 @@ WasmModuleObject WasmFrame::module_object() const {
   return wasm_instance().module_object();
 }
 
-uint32_t WasmFrame::function_index() const {
+int WasmFrame::function_index() const {
   wasm::WasmCodeRefScope code_ref_scope;
   return wasm_code()->index();
 }

@@ -246,8 +246,10 @@ Handle<String> WasmModuleObject::GetFunctionName(
       .ToHandleChecked();
 }
 
-Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
-    uint32_t func_index) {
+Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(int func_index) {
+  if (func_index == wasm::kAnonymousFuncIndex) {
+    return Vector<const uint8_t>({nullptr, 0});
+  }
   DCHECK_GT(module()->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
   wasm::WireBytesRef name_ref =

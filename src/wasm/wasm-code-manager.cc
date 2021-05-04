@@ -1162,7 +1162,7 @@ WasmCode* NativeModule::PublishCodeLocked(
   // guaranteed to be valid.
   WasmCodeRefScope::AddRef(code);
 
-  if (code->IsAnonymous() || code->index() < module_->num_imported_functions) {
+  if (code->index() < static_cast<int>(module_->num_imported_functions)) {
     return code;
   }
 

@@ -176,7 +176,7 @@ class WasmModuleObject : public JSObject {
   // given index.
   // Meant to be used for debugging or frame printing.
   // Does not allocate, hence gc-safe.
-  Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
+  Vector<const uint8_t> GetRawFunctionName(int func_index);
 
   // Extract a portion of the wire bytes as UTF-8 string, optionally
   // internalized. (Prefer to internalize early if the string will be used for a

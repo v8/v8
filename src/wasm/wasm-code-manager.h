@@ -161,11 +161,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return {reloc_info().end(), static_cast<size_t>(source_positions_size_)};
   }
 
-  // TODO(clemensb): Make this return int.
-  uint32_t index() const {
-    DCHECK_LE(0, index_);
-    return index_;
-  }
+  int index() const { return index_; }
   // Anonymous functions are functions that don't carry an index.
   bool IsAnonymous() const { return index_ == kAnonymousFuncIndex; }
   Kind kind() const { return KindField::decode(flags_); }
