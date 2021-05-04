@@ -141,7 +141,7 @@ bytecodes: [
                 B(Star8),
                 B(Mov), R(0), R(6),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
-  /*   57 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [85],
@@ -303,7 +303,7 @@ bytecodes: [
                 B(Star8),
                 B(Mov), R(0), R(6),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
-  /*   68 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [85],
@@ -469,7 +469,7 @@ bytecodes: [
                 B(Star8),
                 B(Mov), R(0), R(6),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
-  /*  114 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [85],
@@ -599,7 +599,7 @@ bytecodes: [
                 B(Star6),
                 B(Mov), R(0), R(4),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
-  /*   96 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,

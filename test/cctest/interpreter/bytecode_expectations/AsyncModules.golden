@@ -67,7 +67,7 @@ bytecodes: [
                 B(Star6),
                 B(Mov), R(0), R(4),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
-  /*   10 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [20],
@@ -142,7 +142,7 @@ bytecodes: [
                 B(Star6),
                 B(Mov), R(0), R(4),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
-  /*   21 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [20],
@@ -223,7 +223,7 @@ bytecodes: [
                 B(Star7),
                 B(Mov), R(0), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(5), U8(3),
-  /*   54 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [27],
@@ -305,7 +305,7 @@ bytecodes: [
                 B(Star7),
                 B(Mov), R(0), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(5), U8(3),
-  /*   49 S> */ B(Return),
+                B(Return),
 ]
 constant pool: [
   Smi [30],
