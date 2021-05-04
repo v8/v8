@@ -385,7 +385,7 @@ AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
 base::Optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     Handle<Map> map, AccessMode access_mode) const {
   // Check if it is safe to inline element access for the {map}.
-  base::Optional<MapRef> map_ref = TryMakeRef(broker(), *map);
+  base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
   if (!map_ref.has_value()) return {};
   if (!CanInlineElementAccess(*map_ref)) return base::nullopt;
   ElementsKind const elements_kind = map_ref->elements_kind();
@@ -446,7 +446,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
 
-  base::Optional<MapRef> map_ref = TryMakeRef(broker(), *map);
+  base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
   if (!map_ref.has_value()) return Invalid();
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
@@ -485,7 +485,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map = broker()->CanonicalPersistentHandle(
           descriptors_field_type->AsClass());
-      base::Optional<MapRef> maybe_ref = TryMakeRef(broker(), *map);
+      base::Optional<MapRef> maybe_ref = TryMakeRef(broker(), map);
       if (!maybe_ref.has_value()) return Invalid();
       field_type = Type::For(*maybe_ref);
       field_map = MaybeHandle<Map>(map);
@@ -861,7 +861,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Walk up the prototype chain.
-    base::Optional<MapRef> map_ref = TryMakeRef(broker(), *map);
+    base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
     if (!map_ref.has_value()) return Invalid();
     if (!map_ref->TrySerializePrototype()) return Invalid();
 
@@ -1017,7 +1017,7 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
 
   DCHECK(!feedback.transition_groups().front().empty());
   Handle<Map> first_map = feedback.transition_groups().front().front();
-  base::Optional<MapRef> first_map_ref = TryMakeRef(broker(), *first_map);
+  base::Optional<MapRef> first_map_ref = TryMakeRef(broker(), first_map);
   if (!first_map_ref.has_value()) return {};
   InstanceType instance_type = first_map_ref->instance_type();
   ElementsKind elements_kind = first_map_ref->elements_kind();
@@ -1025,7 +1025,7 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
   ZoneVector<Handle<Map>> maps(zone());
   for (auto const& group : feedback.transition_groups()) {
     for (Handle<Map> map_handle : group) {
-      base::Optional<MapRef> map = TryMakeRef(broker(), *map_handle);
+      base::Optional<MapRef> map = TryMakeRef(broker(), map_handle);
       if (!map.has_value()) return {};
       if (map->instance_type() != instance_type ||
           !CanInlineElementAccess(*map)) {
@@ -1112,7 +1112,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   MaybeHandle<Map> field_map;
 
   base::Optional<MapRef> transition_map_ref =
-      TryMakeRef(broker(), *transition_map);
+      TryMakeRef(broker(), transition_map);
   if (!transition_map_ref.has_value()) return Invalid();
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
@@ -1154,7 +1154,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map = broker()->CanonicalPersistentHandle(
           descriptors_field_type->AsClass());
-      base::Optional<MapRef> map_ref = TryMakeRef(broker(), *map);
+      base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
       if (!map_ref.has_value()) return Invalid();
       field_type = Type::For(*map_ref);
       field_map = map;

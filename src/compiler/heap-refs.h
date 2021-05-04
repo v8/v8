@@ -140,6 +140,8 @@ enum class RefSerializationKind {
 HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
+class ObjectRef;
+
 template <class T>
 struct ref_traits;
 
@@ -151,6 +153,16 @@ struct ref_traits;
   };
 HEAP_BROKER_OBJECT_LIST(REF_TRAITS)
 #undef REF_TYPE
+
+template <>
+struct ref_traits<Object> {
+  using ref_type = ObjectRef;
+  // Note: While a bit awkward, this artificial ref serialization kind value is
+  // okay: smis are never-serialized, and we never create raw non-smi
+  // ObjectRefs (they would at least be HeapObjectRefs instead).
+  static constexpr RefSerializationKind ref_serialization_kind =
+      RefSerializationKind::kNeverSerialized;
+};
 
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
