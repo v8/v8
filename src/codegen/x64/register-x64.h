@@ -215,7 +215,7 @@ constexpr Register kAllocateSizeRegister = rdx;
 constexpr Register kSpeculationPoisonRegister = r12;
 constexpr Register kInterpreterAccumulatorRegister = rax;
 constexpr Register kInterpreterBytecodeOffsetRegister = r9;
-constexpr Register kInterpreterBytecodeArrayRegister = r12;
+constexpr Register kInterpreterBytecodeArrayRegister = r11;
 constexpr Register kInterpreterDispatchTableRegister = r15;
 
 constexpr Register kJavaScriptCallArgCountRegister = rax;
