@@ -55,6 +55,7 @@ bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
   for (int i = 0; i < table.synchronized_used(); i++) {
     Context context = table.get_context(i);
     DCHECK(context.IsScriptContext());
+    result->is_repl_mode = context.scope_info().IsReplModeScope();
     int slot_index = ScopeInfo::ContextSlotIndex(
         context.scope_info(), name, &result->mode, &result->init_flag,
         &result->maybe_assigned_flag, &is_static_flag);

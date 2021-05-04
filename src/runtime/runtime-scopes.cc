@@ -859,7 +859,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
                                LanguageMode::kSloppy, lookup_flags));
 }
 
-RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLet) {
+RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);

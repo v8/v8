@@ -358,6 +358,9 @@ class ScriptContextTable : public FixedArray {
   struct LookupResult {
     int context_index;
     int slot_index;
+    // repl_mode flag is needed to disable inlining of 'const' variables in REPL
+    // mode.
+    bool is_repl_mode;
     VariableMode mode;
     InitializationFlag init_flag;
     MaybeAssignedFlag maybe_assigned_flag;

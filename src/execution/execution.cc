@@ -190,8 +190,12 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
         Handle<Context> context = ScriptContextTable::GetContext(
             isolate, script_context, lookup.context_index);
-        // If we are trying to re-declare a REPL-mode let as a let, allow it.
-        if (!(mode == VariableMode::kLet && lookup.mode == VariableMode::kLet &&
+        // If we are trying to re-declare a REPL-mode let as a let or REPL-mode
+        // const as a const, allow it.
+        if (!(((mode == VariableMode::kLet &&
+                lookup.mode == VariableMode::kLet) ||
+               (mode == VariableMode::kConst &&
+                lookup.mode == VariableMode::kConst)) &&
               scope_info->IsReplModeScope() &&
               context->scope_info().IsReplModeScope())) {
           // ES#sec-globaldeclarationinstantiation 5.b:
