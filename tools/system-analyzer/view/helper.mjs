@@ -299,20 +299,23 @@ export class LazyTable {
     } else {
       table.replaceChild(DOM.tbody(), table.tBodies[0]);
     }
-    if (!table.tFoot) {
-      const td = table.appendChild(DOM.element('tfoot'))
-                     .appendChild(DOM.tr())
-                     .appendChild(DOM.td());
-      for (let count of [10, 100]) {
-        const button = DOM.element('button');
-        button.innerText = `+${count}`;
-        button.onclick = (e) => this._addMoreRows(count);
-        td.appendChild(button);
-      }
-      td.setAttribute('colspan', 100);
-    }
+    if (!table.tFoot) this._addFooter();
     table.tFoot.addEventListener('click', this._clickHandler);
     this._addMoreRows();
+  }
+
+  _addFooter() {
+    const td = DOM.td();
+    td.setAttribute('colspan', 100);
+    for (let addCount of [10, 100, 250, 500]) {
+      const button = DOM.element('button');
+      button.innerText = `+${addCount}`;
+      button.onclick = (e) => this._addMoreRows(addCount);
+      td.appendChild(button);
+    }
+    this._table.appendChild(DOM.element('tfoot'))
+        .appendChild(DOM.tr())
+        .appendChild(td);
   }
 
   _addMoreRows(count = undefined) {

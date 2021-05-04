@@ -180,7 +180,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
         node.ondblclick = this._chunkDoubleClickHandler;
       }
       const style = node.style;
-      style.left = `${((chunk.start - start) * this._timeToPixel) | 0}px`;
+      style.left = `${i * kChunkWidth}px`;
       style.height = `${height | 0}px`;
       style.backgroundImage = this._createBackgroundImage(chunk);
       node.chunk = chunk;

@@ -30,11 +30,13 @@ found in the LICENSE file. -->
     text-align: left;
     cursor: -webkit-zoom-in;
     color: rgba(var(--border-color), 1);
+    user-select: none;
   }
 
   .toggle::before {
     content: "▶";
   }
+
   .open .toggle::before {
     content: "▼";
   }

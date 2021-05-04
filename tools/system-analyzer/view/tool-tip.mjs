@@ -19,6 +19,7 @@ DOM.defineCustomElement(
             this.requestUpdate(true);
           }
         });
+        document.addEventListener('click', (e) => this.hide());
       }
 
       _update() {

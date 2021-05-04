@@ -5,7 +5,7 @@
 import {Script, SourcePosition} from '../../profile.mjs';
 import {LogEntry} from '../log/log.mjs';
 
-import {FocusEvent} from './events.mjs';
+import {FocusEvent, ToolTipEvent} from './events.mjs';
 import {groupBy, LazyTable} from './helper.mjs';
 import {CollapsableElement, DOM} from './helper.mjs';
 
@@ -18,6 +18,7 @@ DOM.defineCustomElement('view/list-panel',
 
   _detailsClickHandler = this._handleDetailsClick.bind(this);
   _logEntryClickHandler = this._handleLogEntryClick.bind(this);
+  _logEntryMouseOverHandler = this._logEntryMouseOverHandler.bind(this);
 
   constructor() {
     super(templateText);
@@ -125,6 +126,12 @@ DOM.defineCustomElement('view/list-panel',
     this.dispatchEvent(new FocusEvent(group.key));
   }
 
+  _logEntryMouseOverHandler(e) {
+    const group = e.currentTarget.group;
+    this.dispatchEvent(
+        new ToolTipEvent(group.key.toStringLong(), e.currentTarget));
+  }
+
   _handleDetailsClick(event) {
     event.stopPropagation();
     const tr = event.target.parentNode;
@@ -184,6 +191,7 @@ DOM.defineCustomElement('view/list-panel',
       const valueTd = tr.appendChild(DOM.td(`${group.key}`, 'key'));
       if (this._isClickable(group.key)) {
         tr.onclick = this._logEntryClickHandler;
+        tr.onmouseover = this._logEntryMouseOverHandler;
         valueTd.classList.add('clickable');
       }
       return tr;
