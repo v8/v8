@@ -11,7 +11,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addMemory(16, 32, false);
   builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
   // Generate function 1 (out of 1).
-  builder.addFunction(undefined, 0 /* sig */)
+  builder.addFunction('main', 0 /* sig */)
     .addBodyWithEnd([
 // signature: i_iii
 // body:

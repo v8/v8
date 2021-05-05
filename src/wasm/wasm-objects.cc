@@ -226,7 +226,7 @@ MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
   wasm::WireBytesRef name =
       module_object->module()->lazily_generated_names.LookupFunctionName(
           wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
-          func_index, VectorOf(module_object->module()->export_table));
+          func_index);
   if (!name.is_set()) return {};
   return ExtractUtf8StringFromModuleBytes(isolate, module_object, name,
                                           kNoInternalize);
@@ -253,8 +253,8 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(int func_index) {
   DCHECK_GT(module()->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
   wasm::WireBytesRef name_ref =
-      module()->lazily_generated_names.LookupFunctionName(
-          wire_bytes, func_index, VectorOf(module()->export_table));
+      module()->lazily_generated_names.LookupFunctionName(wire_bytes,
+                                                          func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return Vector<const uint8_t>::cast(name);
 }

@@ -2388,8 +2388,7 @@ bool FindNameSection(Decoder* decoder) {
 }  // namespace
 
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names,
-                         const Vector<const WasmExport> export_table) {
+                         std::unordered_map<uint32_t, WireBytesRef>* names) {
   DCHECK_NOT_NULL(names);
   DCHECK(names->empty());
 
@@ -2419,13 +2418,6 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
           names->insert(std::make_pair(function_index, name));
         }
       }
-    }
-  }
-
-  // Extract from export table.
-  for (const WasmExport& exp : export_table) {
-    if (exp.kind == kExternalFunction && names->count(exp.index) == 0) {
-      names->insert(std::make_pair(exp.index, exp.name));
     }
   }
 }

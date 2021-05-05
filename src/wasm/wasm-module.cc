@@ -32,13 +32,12 @@ namespace internal {
 namespace wasm {
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
-    const ModuleWireBytes& wire_bytes, uint32_t function_index,
-    Vector<const WasmExport> export_table) const {
+    const ModuleWireBytes& wire_bytes, uint32_t function_index) const {
   base::MutexGuard lock(&mutex_);
   if (!function_names_) {
     function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
     DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
-                        function_names_.get(), export_table);
+                        function_names_.get());
   }
   auto it = function_names_->find(function_index);
   if (it == function_names_->end()) return WireBytesRef();
@@ -179,7 +178,7 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
                                         const WasmModule* module) const {
   return GetNameOrNull(module->lazily_generated_names.LookupFunctionName(
-      *this, function->func_index, VectorOf(module->export_table)));
+      *this, function->func_index));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {

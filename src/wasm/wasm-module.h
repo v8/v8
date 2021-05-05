@@ -192,8 +192,7 @@ struct ModuleWireBytes;
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
  public:
   WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
-                                  uint32_t function_index,
-                                  Vector<const WasmExport> export_table) const;
+                                  uint32_t function_index) const;
 
   void AddForTesting(int function_index, WireBytesRef name);
 

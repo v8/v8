@@ -158,8 +158,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
   wasm::ModuleWireBytes wire_bytes =
       wasm::ModuleWireBytes(frame->native_module()->wire_bytes());
   wasm::WireBytesRef name_ref =
-      module->lazily_generated_names.LookupFunctionName(
-          wire_bytes, func_index, VectorOf(module->export_table));
+      module->lazily_generated_names.LookupFunctionName(wire_bytes, func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
 
   wasm::WasmCode* code = frame->wasm_code();
