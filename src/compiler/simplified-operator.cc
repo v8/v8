@@ -1346,6 +1346,12 @@ const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
                                       "AssertType", 1, 0, 0, 1, 0, 0, type);
 }
 
+const Operator* SimplifiedOperatorBuilder::VerifyType() {
+  return zone()->New<Operator>(IrOpcode::kVerifyType,
+                               Operator::kNoThrow | Operator::kNoDeopt,
+                               "VerifyType", 1, 0, 0, 1, 0, 0);
+}
+
 const Operator* SimplifiedOperatorBuilder::CheckIf(
     DeoptimizeReason reason, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {

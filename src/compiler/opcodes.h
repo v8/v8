@@ -490,7 +490,8 @@
   V(TransitionAndStoreNumberElement)    \
   V(TransitionElementsKind)             \
   V(TypeOf)                             \
-  V(UpdateInterruptBudget)
+  V(UpdateInterruptBudget)              \
+  V(VerifyType)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   V(SpeculativeBigIntAdd)                           \

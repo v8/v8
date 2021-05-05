@@ -1086,6 +1086,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // Abort if the value input does not inhabit the given type
   const Operator* AssertType(Type type);
 
+  // Abort if the value does not match the node's computed type after
+  // SimplifiedLowering.
+  const Operator* VerifyType();
+
   const Operator* DateNow();
 
   // Represents the inputs necessary to construct a fast and a slow API call.

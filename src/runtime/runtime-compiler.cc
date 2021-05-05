@@ -231,6 +231,14 @@ RUNTIME_FUNCTION(Runtime_ObserveNode) {
   return *obj;
 }
 
+RUNTIME_FUNCTION(Runtime_VerifyType) {
+  // %VerifyType has no effect in the interpreter.
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+  return *obj;
+}
+
 static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function) {
   // Keep track of whether we've succeeded in optimizing.

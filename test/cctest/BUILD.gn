@@ -127,6 +127,7 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
     "compiler/test-sloppy-equality.cc",
+    "compiler/test-verify-type.cc",
     "compiler/value-helper.cc",
     "compiler/value-helper.h",
     "disasm-regex-helper.cc",

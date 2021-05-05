@@ -2359,6 +2359,10 @@ Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeVerifyType(Node* node) {
+  return TypeOrNone(node->InputAt(0));
+}
+
 // Heap constants.
 
 Type Typer::Visitor::TypeConstant(Handle<Object> value) {

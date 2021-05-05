@@ -218,6 +218,7 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kGetOptimizationStatus:
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
+    case Runtime::kVerifyType:
       return !FLAG_allow_natives_for_differential_fuzzing;
     case Runtime::kCompileBaseline:
     case Runtime::kBaselineOsr:

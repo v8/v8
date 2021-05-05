@@ -3936,6 +3936,21 @@ class RepresentationSelector {
       case IrOpcode::kAssertType:
         return VisitUnop<T>(node, UseInfo::AnyTagged(),
                             MachineRepresentation::kTagged);
+      case IrOpcode::kVerifyType: {
+        Type inputType = TypeOf(node->InputAt(0));
+        VisitUnop<T>(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged,
+                     inputType);
+        if (lower<T>()) {
+          CHECK_IMPLIES(!FLAG_fuzzing, inputType.CanBeAsserted());
+          if (inputType.CanBeAsserted()) {
+            ChangeOp(node, simplified()->AssertType(inputType));
+          } else {
+            DeferReplacement(node, node->InputAt(0));
+          }
+        }
+        return;
+      }
+
       default:
         FATAL(
             "Representation inference: unsupported opcode %i (%s), node #%i\n.",

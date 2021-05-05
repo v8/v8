@@ -308,7 +308,7 @@ const CallParameters& CallParametersOf(const Operator* op);
 
 // Defines the arity and the ID for a runtime function call. This is used as a
 // parameter by JSCallRuntime operators.
-class CallRuntimeParameters final {
+class V8_EXPORT_PRIVATE CallRuntimeParameters final {
  public:
   CallRuntimeParameters(Runtime::FunctionId id, size_t arity)
       : id_(id), arity_(arity) {}
@@ -328,8 +328,8 @@ size_t hash_value(CallRuntimeParameters const&);
 
 std::ostream& operator<<(std::ostream&, CallRuntimeParameters const&);
 
-const CallRuntimeParameters& CallRuntimeParametersOf(const Operator* op);
-
+V8_EXPORT_PRIVATE const CallRuntimeParameters& CallRuntimeParametersOf(
+    const Operator* op);
 
 // Defines the location of a context slot relative to a specific scope. This is
 // used as a parameter by JSLoadContext and JSStoreContext operators and allows
