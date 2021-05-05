@@ -627,10 +627,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // OrdinaryHasInstance on bound functions turns into a recursive invocation
     // of the instanceof operator again.
     JSBoundFunctionRef function = m.Ref(broker()).AsJSBoundFunction();
-    if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for JSBoundFunction " << function);
-      return NoChange();
-    }
+    if (!function.serialized()) return NoChange();
 
     JSReceiverRef bound_target_function = function.bound_target_function();
 
@@ -650,10 +647,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // Optimize if we currently know the "prototype" property.
 
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for JSFunction " << function);
-      return NoChange();
-    }
+    if (!function.serialized()) return NoChange();
 
     // TODO(neis): Remove the has_prototype_slot condition once the broker is
     // always enabled.
@@ -1478,10 +1472,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         name.equals(ObjectRef(broker(), factory()->prototype_string()))) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-        TRACE_BROKER_MISSING(broker(), "data for function " << function);
-        return NoChange();
-      }
+      if (!function.serialized()) return NoChange();
       // TODO(neis): Remove the has_prototype_slot condition once the broker is
       // always enabled.
       if (!function.map().has_prototype_slot() || !function.has_prototype() ||
@@ -1790,12 +1781,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     if (!IsTypedArrayElementsKind(access_info.elements_kind())) continue;
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
-    if (typed_array.has_value()) {
-      if (typed_array->ShouldHaveBeenSerialized() &&
-          !typed_array->serialized()) {
-        TRACE_BROKER_MISSING(broker(), "data for typed array " << *typed_array);
-        return NoChange();
-      }
+    if (typed_array.has_value() && !typed_array->serialized()) {
+      return NoChange();
     }
   }
 

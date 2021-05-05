@@ -2715,10 +2715,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   HeapObjectMatcher m(target);
   if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "Serialize call on function " << function);
-      return NoChange();
-    }
+    if (!function.serialized()) return NoChange();
     context = jsgraph()->Constant(function.context());
   } else {
     context = effect = graph()->NewNode(
@@ -4063,11 +4060,7 @@ bool ShouldUseCallICFeedback(Node* node) {
 }  // namespace
 
 bool JSCallReducer::IsBuiltinOrApiFunction(JSFunctionRef function) const {
-  if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-    TRACE_BROKER_MISSING(broker(), "data for function " << function);
-    return false;
-  }
-
+  if (!function.serialized()) return false;
   // TODO(neis): Add a way to check if function template info isn't serialized
   // and add a warning in such cases. Currently we can't tell if function
   // template info doesn't exist or wasn't serialized.
@@ -4091,10 +4084,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-        TRACE_BROKER_MISSING(broker(), "data for function " << function);
-        return NoChange();
-      }
+      if (!function.serialized()) return NoChange();
 
       // Don't inline cross native context.
       if (!function.native_context().equals(native_context())) {
@@ -4104,10 +4094,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       return ReduceJSCall(node, function.shared());
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-        TRACE_BROKER_MISSING(broker(), "data for function " << function);
-        return NoChange();
-      }
+      if (!function.serialized()) return NoChange();
 
       ObjectRef bound_this = function.bound_this();
       ConvertReceiverMode const convert_mode =
@@ -4752,11 +4739,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-        TRACE_BROKER_MISSING(broker(),
-                             "function, not serialized: " << function);
-        return NoChange();
-      }
+      if (!function.serialized()) return NoChange();
 
       // Do not reduce constructors with break points.
       // If this state changes during background compilation, the compilation
@@ -4818,12 +4801,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
-        TRACE_BROKER_MISSING(broker(),
-                             "function, not serialized: " << function);
-        return NoChange();
-      }
-
+      if (!function.serialized()) return NoChange();
       ObjectRef bound_target_function = function.bound_target_function();
       FixedArrayRef bound_arguments = function.bound_arguments();
       const int bound_arguments_length = bound_arguments.length();

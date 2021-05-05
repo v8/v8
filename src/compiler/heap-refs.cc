@@ -2479,12 +2479,6 @@ bool ObjectRef::equals(const ObjectRef& other) const {
   return data_->object().is_identical_to(other.data_->object());
 }
 
-bool ObjectRef::ShouldHaveBeenSerialized() const {
-  return broker()->mode() == JSHeapBroker::kSerialized &&
-         (data()->kind() == kSerializedHeapObject ||
-          data()->kind() == kBackgroundSerializedHeapObject);
-}
-
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 
 ContextRef ContextRef::previous(size_t* depth,
@@ -4353,12 +4347,16 @@ void JSFunctionRef::SerializeCodeAndFeedback() {
 
 bool JSBoundFunctionRef::serialized() const {
   if (data_->should_access_heap()) return true;
-  return data()->AsJSBoundFunction()->serialized();
+  if (data_->AsJSBoundFunction()->serialized()) return true;
+  TRACE_BROKER_MISSING(broker(), "data for JSBoundFunction " << this);
+  return false;
 }
 
 bool JSFunctionRef::serialized() const {
   if (data_->should_access_heap()) return true;
-  return data()->AsJSFunction()->serialized();
+  if (data_->AsJSFunction()->serialized()) return true;
+  TRACE_BROKER_MISSING(broker(), "data for JSFunction " << this);
+  return false;
 }
 
 bool JSFunctionRef::serialized_code_and_feedback() const {
@@ -4499,13 +4497,11 @@ void JSTypedArrayRef::Serialize() {
 }
 
 bool JSTypedArrayRef::serialized() const {
-  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
-  return data()->AsJSTypedArray()->serialized();
-}
-
-bool JSTypedArrayRef::ShouldHaveBeenSerialized() const {
-  if (broker()->is_concurrent_inlining()) return false;
-  return ObjectRef::ShouldHaveBeenSerialized();
+  if (data_->should_access_heap()) return true;
+  if (broker()->is_concurrent_inlining()) return true;
+  if (data_->AsJSTypedArray()->serialized()) return true;
+  TRACE_BROKER_MISSING(broker(), "data for JSTypedArray " << this);
+  return false;
 }
 
 bool JSBoundFunctionRef::Serialize() {
