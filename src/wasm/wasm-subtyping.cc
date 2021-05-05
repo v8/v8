@@ -91,6 +91,26 @@ class TypeJudgementCache {
     type_equivalence_cache_.erase(
         std::make_tuple(type1, type2, module1, module2));
   }
+  void delete_module(const WasmModule* module) {
+    for (auto iterator = type_equivalence_cache_.begin();
+         iterator != type_equivalence_cache_.end();) {
+      if (std::get<2>(*iterator) == module ||
+          std::get<3>(*iterator) == module) {
+        iterator = type_equivalence_cache_.erase(iterator);
+      } else {
+        iterator++;
+      }
+    }
+    for (auto iterator = subtyping_cache_.begin();
+         iterator != subtyping_cache_.end();) {
+      if (std::get<2>(*iterator) == module ||
+          std::get<3>(*iterator) == module) {
+        iterator = subtyping_cache_.erase(iterator);
+      } else {
+        iterator++;
+      }
+    }
+  }
 
  private:
   Zone zone_;
@@ -433,6 +453,14 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
 
   return EquivalentIndices(type1.ref_index(), type2.ref_index(), module1,
                            module2);
+}
+
+void DeleteCachedTypeJudgementsForModule(const WasmModule* module) {
+  // Accessing the caches for subtyping and equivalence from multiple background
+  // threads is protected by a lock.
+  base::RecursiveMutexGuard type_cache_access(
+      TypeJudgementCache::instance()->type_cache_mutex());
+  TypeJudgementCache::instance()->delete_module(module);
 }
 
 }  // namespace wasm

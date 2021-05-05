@@ -93,6 +93,10 @@ V8_INLINE bool IsHeapSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
                      ValueType::Ref(supertype_index, kNonNullable), module);
 }
 
+// Call this function in {module}'s destructor to avoid spurious cache hits in
+// case another WasmModule gets allocated in the same address later.
+void DeleteCachedTypeJudgementsForModule(const WasmModule* module);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

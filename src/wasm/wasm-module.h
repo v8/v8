@@ -347,6 +347,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
   WasmModule(const WasmModule&) = delete;
+  ~WasmModule();
   WasmModule& operator=(const WasmModule&) = delete;
 };
 

@@ -24,6 +24,7 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8 {
 namespace internal {
@@ -198,6 +199,8 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
 
 WasmModule::WasmModule(std::unique_ptr<Zone> signature_zone)
     : signature_zone(std::move(signature_zone)) {}
+
+WasmModule::~WasmModule() { DeleteCachedTypeJudgementsForModule(this); }
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
