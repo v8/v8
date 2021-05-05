@@ -716,7 +716,7 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 void JSGenericLowering::LowerJSGetTemplateObject(Node* node) {
   JSGetTemplateObjectNode n(node);
   GetTemplateObjectParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared(broker(), p.shared());
+  SharedFunctionInfoRef shared = MakeRef(broker(), p.shared());
   TemplateObjectDescriptionRef description = MakeRef(broker(), p.description());
 
   DCHECK_EQ(node->op()->ControlInputCount(), 1);

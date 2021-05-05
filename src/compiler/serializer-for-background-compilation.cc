@@ -1148,7 +1148,7 @@ Hints SerializerForBackgroundCompilation::Run() {
 
   TRACE_BROKER_MEMORY(broker(), "[serializer start] Broker zone usage: "
                                     << broker()->zone()->allocation_size());
-  SharedFunctionInfoRef shared(broker(), function().shared());
+  SharedFunctionInfoRef shared = MakeRef(broker(), function().shared());
   FeedbackVectorRef feedback_vector_ref = MakeRef(broker(), feedback_vector());
   if (!broker()->ShouldBeSerializedForCompilation(shared, feedback_vector_ref,
                                                   arguments_)) {
@@ -2277,7 +2277,7 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
   if (!target_template_info.has_call_code()) return;
   target_template_info.SerializeCallCode();
 
-  SharedFunctionInfoRef target_ref(broker(), target);
+  SharedFunctionInfoRef target_ref = MakeRef(broker(), target);
   target_ref.SerializeFunctionTemplateInfo();
 
   if (target_template_info.accept_any_receiver() &&
@@ -2313,7 +2313,7 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
 void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
     FunctionTemplateInfoRef target, Handle<Map> receiver) {
   if (!receiver->is_access_check_needed()) {
-    MapRef receiver_map(broker(), receiver);
+    MapRef receiver_map = MakeRef(broker(), receiver);
     TRACE_BROKER(broker(), "Serializing holder for target: " << target);
     target.LookupHolderOfExpectedType(receiver_map,
                                       SerializationPolicy::kSerializeIfNeeded);
@@ -2361,10 +2361,10 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         if (arguments.size() >= 1) {
           ProcessMapHintsForPromises(arguments[0]);
         }
-        SharedFunctionInfoRef(
+        MakeRef(
             broker(),
             broker()->isolate()->factory()->promise_catch_finally_shared_fun());
-        SharedFunctionInfoRef(
+        MakeRef(
             broker(),
             broker()->isolate()->factory()->promise_then_finally_shared_fun());
       }
@@ -2501,16 +2501,14 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               kMissingArgumentsAreUnknown, result_hints);
         }
       }
-      SharedFunctionInfoRef(
-          broker(), broker()
-                        ->isolate()
-                        ->factory()
-                        ->promise_capability_default_reject_shared_fun());
-      SharedFunctionInfoRef(
-          broker(), broker()
-                        ->isolate()
-                        ->factory()
-                        ->promise_capability_default_resolve_shared_fun());
+      MakeRef(broker(), broker()
+                            ->isolate()
+                            ->factory()
+                            ->promise_capability_default_reject_shared_fun());
+      MakeRef(broker(), broker()
+                            ->isolate()
+                            ->factory()
+                            ->promise_capability_default_resolve_shared_fun());
 
       break;
     case Builtins::kFunctionPrototypeCall:
@@ -2612,7 +2610,7 @@ void SerializerForBackgroundCompilation::ProcessHintsForOrdinaryHasInstance(
 void SerializerForBackgroundCompilation::ProcessHintsForHasInPrototypeChain(
     Hints const& instance_hints) {
   auto processMap = [&](Handle<Map> map_handle) {
-    MapRef map(broker(), map_handle);
+    MapRef map = MakeRef(broker(), map_handle);
     while (map.IsJSObjectMap()) {
       map.SerializePrototype();
       map = map.prototype().map();
@@ -2656,11 +2654,11 @@ void SerializerForBackgroundCompilation::ProcessMapHintsForPromises(
     if (!constant->IsJSPromise()) continue;
     Handle<Map> map(Handle<HeapObject>::cast(constant)->map(),
                     broker()->isolate());
-    MapRef(broker(), map).SerializePrototype();
+    MakeRef(broker(), map).SerializePrototype();
   }
   for (auto map : receiver_hints.maps()) {
     if (!map->IsJSPromiseMap()) continue;
-    MapRef(broker(), map).SerializePrototype();
+    MakeRef(broker(), map).SerializePrototype();
   }
 }
 
@@ -2689,7 +2687,7 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
     Handle<JSObject> regexp(Handle<JSObject>::cast(hint));
     Handle<Map> regexp_map(regexp->map(), broker()->isolate());
     PropertyAccessInfo ai_exec =
-        ProcessMapForRegExpTest(MapRef(broker(), regexp_map));
+        ProcessMapForRegExpTest(MakeRef(broker(), regexp_map));
     Handle<JSObject> holder;
     if (ai_exec.IsFastDataConstant() && !ai_exec.holder().ToHandle(&holder)) {
       // The property is on the object itself.
@@ -2702,7 +2700,7 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
 
   for (auto map : regexp_hints.maps()) {
     if (!map->IsJSRegExpMap()) continue;
-    ProcessMapForRegExpTest(MapRef(broker(), map));
+    ProcessMapForRegExpTest(MakeRef(broker(), map));
   }
 }
 
@@ -2732,7 +2730,7 @@ void SerializerForBackgroundCompilation::ProcessHintsForFunctionBind(
 
   for (auto map : receiver_hints.maps()) {
     if (!map->IsJSFunctionMap()) continue;
-    MapRef map_ref(broker(), map);
+    MapRef map_ref = MakeRef(broker(), map);
     ProcessMapForFunctionBind(map_ref);
   }
 }
@@ -2890,7 +2888,7 @@ void SerializerForBackgroundCompilation::ProcessCheckContextExtensions(
     ProcessContextAccess(context_hints, Context::EXTENSION_INDEX, i,
                          kSerializeSlot);
   }
-  SharedFunctionInfoRef shared(broker(), function().shared());
+  SharedFunctionInfoRef shared = MakeRef(broker(), function().shared());
   shared.SerializeScopeInfoChain();
 }
 
@@ -3105,7 +3103,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
       if (access_info.IsDataField() || access_info.IsFastDataConstant()) {
         Handle<Map> transition_map;
         if (access_info.transition_map().ToHandle(&transition_map)) {
-          MapRef map_ref(broker(), transition_map);
+          MapRef map_ref = MakeRef(broker(), transition_map);
           TRACE_BROKER(broker(), "Propagating transition map "
                                      << map_ref << " to receiver hints.");
           receiver->AddMap(transition_map, zone(), broker_, false);
@@ -3235,7 +3233,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
     Hints* receiver, NamedAccessFeedback const& feedback,
     AccessMode access_mode, Hints* result_hints) {
   for (Handle<Map> map : feedback.maps()) {
-    MapRef map_ref(broker(), map);
+    MapRef map_ref = MakeRef(broker(), map);
     TRACE_BROKER(broker(), "Propagating feedback map "
                                << map_ref << " to receiver hints.");
     receiver->AddMap(map, zone(), broker_, false);
@@ -3243,7 +3241,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
 
   for (Handle<Map> map :
        GetRelevantReceiverMaps(broker()->isolate(), receiver->maps())) {
-    MapRef map_ref(broker(), map);
+    MapRef map_ref = MakeRef(broker(), map);
     ProcessMapForNamedPropertyAccess(receiver, map_ref, map_ref,
                                      feedback.name(), access_mode,
                                      base::nullopt, result_hints);
@@ -3279,9 +3277,9 @@ void SerializerForBackgroundCompilation::ProcessNamedSuperAccess(
   MapHandles receiver_maps =
       GetRelevantReceiverMaps(broker()->isolate(), receiver->maps());
   for (Handle<Map> receiver_map : receiver_maps) {
-    MapRef receiver_map_ref(broker(), receiver_map);
+    MapRef receiver_map_ref = MakeRef(broker(), receiver_map);
     for (Handle<Map> feedback_map : feedback.maps()) {
-      MapRef feedback_map_ref(broker(), feedback_map);
+      MapRef feedback_map_ref = MakeRef(broker(), feedback_map);
       ProcessMapForNamedPropertyAccess(
           receiver, receiver_map_ref, feedback_map_ref, feedback.name(),
           access_mode, base::nullopt, result_hints);
@@ -3289,7 +3287,7 @@ void SerializerForBackgroundCompilation::ProcessNamedSuperAccess(
   }
   if (receiver_maps.empty()) {
     for (Handle<Map> feedback_map : feedback.maps()) {
-      MapRef feedback_map_ref(broker(), feedback_map);
+      MapRef feedback_map_ref = MakeRef(broker(), feedback_map);
       ProcessMapForNamedPropertyAccess(
           receiver, base::nullopt, feedback_map_ref, feedback.name(),
           access_mode, base::nullopt, result_hints);
@@ -3302,7 +3300,7 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
     ElementAccessFeedback const& feedback, AccessMode access_mode) {
   for (auto const& group : feedback.transition_groups()) {
     for (Handle<Map> map_handle : group) {
-      MapRef map(broker(), map_handle);
+      MapRef map = MakeRef(broker(), map_handle);
       switch (access_mode) {
         case AccessMode::kHas:
         case AccessMode::kLoad:
@@ -3362,7 +3360,7 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
 
   // For JSNativeContextSpecialization::InferRootMap
   for (Handle<Map> map : receiver.maps()) {
-    MapRef map_ref(broker(), map);
+    MapRef map_ref = MakeRef(broker(), map);
     map_ref.SerializeRootMap();
   }
 }

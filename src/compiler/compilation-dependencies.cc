@@ -697,7 +697,7 @@ void CompilationDependencies::DependOnStablePrototypeChains(
     MapContainer const& receiver_maps, WhereToStart start,
     base::Optional<JSObjectRef> last_prototype) {
   for (auto map : receiver_maps) {
-    MapRef receiver_map(broker_, map);
+    MapRef receiver_map = MakeRef(broker_, map);
     if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
     if (receiver_map.IsPrimitiveMap()) {
       // Perform the implicit ToObject for primitives here.

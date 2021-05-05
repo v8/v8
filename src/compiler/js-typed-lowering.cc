@@ -1629,10 +1629,10 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 
     // Patch {node} to an indirect call via the {function}s construct stub.
     bool use_builtin_construct_stub = function.shared().construct_as_builtin();
-    CodeRef code(broker(),
-                 use_builtin_construct_stub
-                     ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
-                     : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
+    CodeRef code = MakeRef(
+        broker(), use_builtin_construct_stub
+                      ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
+                      : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
     STATIC_ASSERT(JSConstructNode::TargetIndex() == 0);
     STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
     node->RemoveInput(n.FeedbackVectorIndex());
@@ -1713,7 +1713,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   } else if (target->opcode() == IrOpcode::kJSCreateClosure) {
     CreateClosureParameters const& ccp =
         JSCreateClosureNode{target}.Parameters();
-    shared = SharedFunctionInfoRef(broker(), ccp.shared_info());
+    shared = MakeRef(broker(), ccp.shared_info());
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
     base::Optional<FeedbackVectorRef> feedback_vector = cell.value();

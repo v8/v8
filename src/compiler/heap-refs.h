@@ -275,6 +275,8 @@ class HeapObjectType {
 
 // Constructors are carefully defined such that we do a type check on
 // the outermost Ref class in the inheritance chain only.
+//
+// Note this macro changes public/protected/private state.
 // TODO(jgruber): Remove DEFINE_REF_CONSTRUCTOR once all types use the new
 // pattern based on TryMakeRef.
 #define DEFINE_REF_CONSTRUCTOR(Name, Base)                                  \
@@ -686,7 +688,7 @@ class BigIntRef : public HeapObjectRef {
 
 class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(Map, HeapObjectRef)
+  DEFINE_REF_CONSTRUCTOR2(Map, HeapObjectRef)
 
   Handle<Map> object() const;
 
@@ -933,7 +935,7 @@ class ScopeInfoRef : public HeapObjectRef {
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(SharedFunctionInfo, HeapObjectRef)
+  DEFINE_REF_CONSTRUCTOR2(SharedFunctionInfo, HeapObjectRef)
 
   Handle<SharedFunctionInfo> object() const;
 
@@ -1058,7 +1060,7 @@ class JSGlobalProxyRef : public JSObjectRef {
 
 class CodeRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(Code, HeapObjectRef)
+  DEFINE_REF_CONSTRUCTOR2(Code, HeapObjectRef)
 
   Handle<Code> object() const;
 

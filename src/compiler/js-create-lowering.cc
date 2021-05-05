@@ -151,8 +151,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
   Node* const control = graph()->start();
   FrameStateInfo state_info = frame_state.frame_state_info();
-  SharedFunctionInfoRef shared(broker(),
-                               state_info.shared_info().ToHandleChecked());
+  SharedFunctionInfoRef shared =
+      MakeRef(broker(), state_info.shared_info().ToHandleChecked());
 
   // Use the ArgumentsAccessStub for materializing both mapped and unmapped
   // arguments object, but only for non-inlined (i.e. outermost) frames.
@@ -404,7 +404,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     int parameter_count_no_receiver = shared.internal_formal_parameter_count();
     int length = parameter_count_no_receiver +
                  shared.GetBytecodeArray().register_count();
-    MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+    MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
     AllocationBuilder ab(jsgraph(), effect, control);
     if (!ab.CanAllocateArray(length, fixed_array_map)) {
       return NoChange();
@@ -775,7 +775,7 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Create the register file.
-  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+  MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
   AllocationBuilder ab(jsgraph(), effect, control);
   CHECK(ab.CanAllocateArray(register_count, fixed_array_map));
   ab.AllocateArray(register_count, fixed_array_map);
@@ -879,7 +879,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
   CreateBoundFunctionParameters const& p =
       CreateBoundFunctionParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  MapRef const map(broker(), p.map());
+  MapRef const map = MakeRef(broker(), p.map());
   Node* bound_target_function = NodeProperties::GetValueInput(node, 0);
   Node* bound_this = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -888,7 +888,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
   // Create the [[BoundArguments]] for the result.
   Node* bound_arguments = jsgraph()->EmptyFixedArrayConstant();
   if (arity > 0) {
-    MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+    MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
     AllocationBuilder ab(jsgraph(), effect, control);
     CHECK(ab.CanAllocateArray(arity, fixed_array_map));
     ab.AllocateArray(arity, fixed_array_map);
@@ -920,7 +920,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   JSCreateClosureNode n(node);
   CreateClosureParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared(broker(), p.shared_info());
+  SharedFunctionInfoRef shared = MakeRef(broker(), p.shared_info());
   FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
   HeapObjectRef code = MakeRef(broker(), p.code());
   Effect effect = n.effect();
@@ -931,7 +931,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   // seen more than one instantiation, this simplifies the generated code and
   // also serves as a heuristic of which allocation sites benefit from it.
   if (!feedback_cell.map().equals(
-          MapRef(broker(), factory()->many_closures_cell_map()))) {
+          MakeRef(broker(), factory()->many_closures_cell_map()))) {
     return NoChange();
   }
 
@@ -1037,7 +1037,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   Node* length = jsgraph()->Constant(2);
 
   AllocationBuilder aa(jsgraph(), effect, graph()->start());
-  aa.AllocateArray(2, MapRef(broker(), factory()->fixed_array_map()));
+  aa.AllocateArray(2, MakeRef(broker(), factory()->fixed_array_map()));
   aa.Store(AccessBuilder::ForFixedArrayElement(PACKED_ELEMENTS),
            jsgraph()->ZeroConstant(), key);
   aa.Store(AccessBuilder::ForFixedArrayElement(PACKED_ELEMENTS),
@@ -1357,7 +1357,7 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   if (instance_map.is_dictionary_map()) {
     DCHECK_EQ(prototype_const.map().oddball_type(), OddballType::kNull);
     // Allocate an empty NameDictionary as backing store for the properties.
-    MapRef map(broker(), factory()->name_dictionary_map());
+    MapRef map = MakeRef(broker(), factory()->name_dictionary_map());
     int capacity =
         NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
     DCHECK(base::bits::IsPowerOfTwo(capacity));
@@ -1433,7 +1433,7 @@ Node* JSCreateLowering::TryAllocateArguments(Node* effect, Node* control,
   auto parameters_it = parameters_access.begin_without_receiver();
 
   // Actually allocate the backing store.
-  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+  MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
   AllocationBuilder ab(jsgraph(), effect, control);
   if (!ab.CanAllocateArray(argument_count, fixed_array_map)) {
     return nullptr;
@@ -1464,7 +1464,7 @@ Node* JSCreateLowering::TryAllocateRestArguments(Node* effect, Node* control,
       parameters_access.begin_without_receiver_and_skip(start_index);
 
   // Actually allocate the backing store.
-  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+  MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
   AllocationBuilder ab(jsgraph(), effect, control);
   if (!ab.CanAllocateArray(num_elements, fixed_array_map)) {
     return nullptr;
@@ -1499,14 +1499,14 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   int mapped_count = std::min(argument_count, parameter_count);
   *has_aliased_arguments = true;
 
-  MapRef sloppy_arguments_elements_map(
-      broker(), factory()->sloppy_arguments_elements_map());
+  MapRef sloppy_arguments_elements_map =
+      MakeRef(broker(), factory()->sloppy_arguments_elements_map());
   if (!AllocationBuilder::CanAllocateSloppyArgumentElements(
           mapped_count, sloppy_arguments_elements_map)) {
     return nullptr;
   }
 
-  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+  MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
   if (!AllocationBuilder::CanAllocateArray(argument_count, fixed_array_map)) {
     return nullptr;
   }
@@ -1564,8 +1564,8 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   }
 
   int mapped_count = parameter_count;
-  MapRef sloppy_arguments_elements_map(
-      broker(), factory()->sloppy_arguments_elements_map());
+  MapRef sloppy_arguments_elements_map =
+      MakeRef(broker(), factory()->sloppy_arguments_elements_map());
   if (!AllocationBuilder::CanAllocateSloppyArgumentElements(
           mapped_count, sloppy_arguments_elements_map)) {
     return nullptr;
@@ -1620,7 +1620,7 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(capacity, MapRef(broker(), elements_map), allocation);
+  a.AllocateArray(capacity, MakeRef(broker(), elements_map), allocation);
   for (int i = 0; i < capacity; ++i) {
     Node* index = jsgraph()->Constant(i);
     a.Store(access, index, value);
@@ -1645,7 +1645,7 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(capacity, MapRef(broker(), elements_map), allocation);
+  a.AllocateArray(capacity, MakeRef(broker(), elements_map), allocation);
   for (int i = 0; i < capacity; ++i) {
     Node* index = jsgraph()->Constant(i);
     a.Store(access, index, values[i]);
@@ -1699,7 +1699,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
       AllocationBuilder builder(jsgraph(), effect, control);
       builder.Allocate(HeapNumber::kSize, allocation);
       builder.Store(AccessBuilder::ForMap(),
-                    MapRef(broker(), factory()->heap_number_map()));
+                    MakeRef(broker(), factory()->heap_number_map()));
       builder.Store(AccessBuilder::ForHeapNumberValue(),
                     jsgraph()->Constant(number));
       value = effect = builder.Finish();

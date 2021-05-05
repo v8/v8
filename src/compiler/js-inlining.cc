@@ -475,7 +475,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (!shared_info.has_value()) return NoChange();
   DCHECK(shared_info->IsInlineable());
 
-  SharedFunctionInfoRef outer_shared_info(broker(), info_->shared_info());
+  SharedFunctionInfoRef outer_shared_info =
+      MakeRef(broker(), info_->shared_info());
 
   // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSConstruct &&

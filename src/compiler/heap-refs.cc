@@ -2869,7 +2869,7 @@ base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
     Handle<Map> instance_map;
     if (Map::TryGetObjectCreateMap(broker()->isolate(), object())
             .ToHandle(&instance_map)) {
-      return MapRef(broker(), instance_map);
+      return MakeRef(broker(), instance_map);
     } else {
       return base::Optional<MapRef>();
     }
@@ -2877,7 +2877,7 @@ base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
   ObjectData* map_data = data()->AsJSObject()->object_create_map(broker());
   if (map_data == nullptr) return base::Optional<MapRef>();
   if (map_data->should_access_heap()) {
-    return MapRef(broker(), map_data->object());
+    return MakeRef(broker(), Handle<Map>::cast(map_data->object()));
   }
   return MapRef(broker(), map_data->AsMap());
 }
@@ -4367,7 +4367,7 @@ bool JSFunctionRef::serialized_code_and_feedback() const {
 
 CodeRef JSFunctionRef::code() const {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return CodeRef(broker(), broker()->CanonicalPersistentHandle(
+    return MakeRef(broker(), broker()->CanonicalPersistentHandle(
                                  object()->code(kAcquireLoad)));
   }
 

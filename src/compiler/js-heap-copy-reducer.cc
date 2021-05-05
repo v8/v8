@@ -55,8 +55,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSCreateArguments: {
       Node* const frame_state = NodeProperties::GetFrameStateInput(node);
       FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
-      SharedFunctionInfoRef shared(broker(),
-                                   state_info.shared_info().ToHandleChecked());
+      MakeRef(broker(), state_info.shared_info().ToHandleChecked());
       break;
     }
     case IrOpcode::kJSCreateBlockContext: {

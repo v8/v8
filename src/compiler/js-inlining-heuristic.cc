@@ -124,7 +124,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     JSCreateClosureNode n(callee);
     CreateClosureParameters const& p = n.Parameters();
     FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
-    SharedFunctionInfoRef shared_info(broker(), p.shared_info());
+    SharedFunctionInfoRef shared_info = MakeRef(broker(), p.shared_info());
     out.shared_info = shared_info;
     if (feedback_cell.value().has_value() &&
         CanConsiderForInlining(broker(), shared_info, *feedback_cell.value())) {

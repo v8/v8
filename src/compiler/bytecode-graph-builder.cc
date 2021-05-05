@@ -2298,7 +2298,9 @@ void BytecodeGraphBuilder::VisitPopContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateClosure() {
-  SharedFunctionInfoRef shared_info(broker(), GetConstantForIndexOperand(0));
+  SharedFunctionInfoRef shared_info =
+      MakeRef(broker(),
+              Handle<SharedFunctionInfo>::cast(GetConstantForIndexOperand(0)));
   AllocationType allocation =
       interpreter::CreateClosureFlags::PretenuredBit::decode(
           bytecode_iterator().GetFlagOperand(2))

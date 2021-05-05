@@ -36,7 +36,7 @@ namespace {
 
 bool HasNumberMaps(JSHeapBroker* broker, ZoneVector<Handle<Map>> const& maps) {
   for (auto map : maps) {
-    MapRef map_ref(broker, map);
+    MapRef map_ref = MakeRef(broker, map);
     if (map_ref.IsHeapNumberMap()) return true;
   }
   return false;
@@ -45,7 +45,7 @@ bool HasNumberMaps(JSHeapBroker* broker, ZoneVector<Handle<Map>> const& maps) {
 bool HasOnlyJSArrayMaps(JSHeapBroker* broker,
                         ZoneVector<Handle<Map>> const& maps) {
   for (auto map : maps) {
-    MapRef map_ref(broker, map);
+    MapRef map_ref = MakeRef(broker, map);
     if (!map_ref.IsJSArrayMap()) return false;
   }
   return true;
@@ -228,13 +228,13 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
 
   // Create the JSAsyncFunctionObject based on the SharedFunctionInfo
   // extracted from the top-most frame in {frame_state}.
-  SharedFunctionInfoRef shared(
+  SharedFunctionInfoRef shared = MakeRef(
       broker(),
       FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked());
   DCHECK(shared.is_compiled());
   int register_count = shared.internal_formal_parameter_count() +
                        shared.GetBytecodeArray().register_count();
-  MapRef fixed_array_map(broker(), factory()->fixed_array_map());
+  MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
   AllocationBuilder ab(jsgraph(), effect, control);
   if (!ab.CanAllocateArray(register_count, fixed_array_map)) {
     return NoChange();
@@ -540,7 +540,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
   bool all = true;
   bool none = true;
   for (size_t i = 0; i < receiver_maps.size(); ++i) {
-    MapRef map(broker(), receiver_maps[i]);
+    MapRef map = MakeRef(broker(), receiver_maps[i]);
     if (result == NodeProperties::kUnreliableMaps && !map.is_stable()) {
       return kMayBeInPrototypeChain;
     }
@@ -741,7 +741,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   } else {
     // Obtain pre-computed access infos from the broker.
     for (auto map : resolution_maps) {
-      MapRef map_ref(broker(), map);
+      MapRef map_ref = MakeRef(broker(), map);
       access_infos.push_back(broker()->GetPropertyAccessInfo(
           map_ref, MakeRef(broker(), isolate()->factory()->then_string()),
           AccessMode::kLoad, dependencies()));
@@ -1193,7 +1193,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // contexts' global proxy, and turn that into a direct access to the
   // corresponding global object instead.
   if (lookup_start_object_maps.size() == 1) {
-    MapRef lookup_start_object_map(broker(), lookup_start_object_maps[0]);
+    MapRef lookup_start_object_map =
+        MakeRef(broker(), lookup_start_object_maps[0]);
     if (lookup_start_object_map.equals(
             broker()->target_native_context().global_proxy_object().map()) &&
         !broker()->target_native_context().global_object().IsDetached()) {
@@ -1206,7 +1207,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   {
     ZoneVector<PropertyAccessInfo> access_infos_for_feedback(zone());
     for (Handle<Map> map_handle : lookup_start_object_maps) {
-      MapRef map(broker(), map_handle);
+      MapRef map = MakeRef(broker(), map_handle);
       if (map.is_deprecated()) continue;
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
           map, feedback.name(), access_mode, dependencies(),
@@ -1674,7 +1675,7 @@ void JSNativeContextSpecialization::RemoveImpossibleMaps(
     maps->erase(
         std::remove_if(maps->begin(), maps->end(),
                        [root_map, this](Handle<Map> map) {
-                         MapRef map_ref(broker(), map);
+                         MapRef map_ref = MakeRef(broker(), map);
                          return map_ref.is_abandoned_prototype_map() ||
                                 (map_ref.FindRootMap().has_value() &&
                                  !map_ref.FindRootMap()->equals(*root_map));
@@ -1763,7 +1764,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     ZoneVector<MapRef> prototype_maps(zone());
     for (ElementAccessInfo const& access_info : access_infos) {
       for (Handle<Map> map : access_info.lookup_start_object_maps()) {
-        MapRef receiver_map(broker(), map);
+        MapRef receiver_map = MakeRef(broker(), map);
         // If the {receiver_map} has a prototype and its elements backing
         // store is either holey, or we have a potentially growing store,
         // then we need to check that all prototypes have stable maps with
@@ -1810,11 +1811,11 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     ElementAccessInfo access_info = access_infos.front();
 
     // Perform possible elements kind transitions.
-    MapRef transition_target(broker(),
-                             access_info.lookup_start_object_maps().front());
+    MapRef transition_target =
+        MakeRef(broker(), access_info.lookup_start_object_maps().front());
     for (auto source : access_info.transition_sources()) {
       DCHECK_EQ(access_info.lookup_start_object_maps().size(), 1);
-      MapRef transition_source(broker(), source);
+      MapRef transition_source = MakeRef(broker(), source);
       effect = graph()->NewNode(
           simplified()->TransitionElementsKind(ElementsTransition(
               IsSimpleMapChangeTransition(transition_source.elements_kind(),
@@ -1862,10 +1863,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       Node* this_control = fallthrough_control;
 
       // Perform possible elements kind transitions.
-      MapRef transition_target(broker(),
-                               access_info.lookup_start_object_maps().front());
+      MapRef transition_target =
+          MakeRef(broker(), access_info.lookup_start_object_maps().front());
       for (auto source : access_info.transition_sources()) {
-        MapRef transition_source(broker(), source);
+        MapRef transition_source = MakeRef(broker(), source);
         DCHECK_EQ(access_info.lookup_start_object_maps().size(), 1);
         this_effect = graph()->NewNode(
             simplified()->TransitionElementsKind(ElementsTransition(
@@ -2513,7 +2514,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
           a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
                      Type::OtherInternal());
           a.Store(AccessBuilder::ForMap(),
-                  MapRef(broker(), factory()->heap_number_map()));
+                  MakeRef(broker(), factory()->heap_number_map()));
           FieldAccess value_field_access = AccessBuilder::ForHeapNumberValue();
           value_field_access.const_field_info = field_access.const_field_info;
           a.Store(value_field_access, value);
@@ -2620,7 +2621,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
     if (access_info.transition_map().ToHandle(&transition_map)) {
       // Check if we need to grow the properties backing store
       // with this transitioning store.
-      MapRef transition_map_ref(broker(), transition_map);
+      MapRef transition_map_ref = MakeRef(broker(), transition_map);
       MapRef original_map = transition_map_ref.GetBackPointer().AsMap();
       if (original_map.UnusedPropertyFields() == 0) {
         DCHECK(!field_index.is_inobject());
@@ -3470,7 +3471,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
   for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
+    MapRef receiver_map = MakeRef(broker(), map);
     ObjectRef receiver_prototype = receiver_map.prototype();
     if (!receiver_prototype.IsJSObject() ||
         !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
@@ -3496,7 +3497,7 @@ bool JSNativeContextSpecialization::InferMaps(
     // For untrusted maps, we can still use the information
     // if the maps are stable.
     for (size_t i = 0; i < map_set.size(); ++i) {
-      MapRef map(broker(), map_set[i]);
+      MapRef map = MakeRef(broker(), map_set[i]);
       if (!map.is_stable()) return false;
     }
     for (size_t i = 0; i < map_set.size(); ++i) {

@@ -466,7 +466,7 @@ ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   for (auto const& group : transition_groups()) {
     for (Handle<Map> map : group) {
-      if (!MapRef(broker, map).IsStringMap()) return false;
+      if (!MakeRef(broker, map).IsStringMap()) return false;
     }
   }
   return true;
@@ -996,7 +996,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (Handle<Map> map : maps) {
-    MapRef map_ref(this, map);
+    MapRef map_ref = MakeRef(this, map);
     map_ref.SerializeRootMap();
 
     if (CanInlineElementAccess(map_ref) &&

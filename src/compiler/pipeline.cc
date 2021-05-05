@@ -2650,7 +2650,8 @@ bool PipelineImpl::CreateGraph() {
 
   // Determine the Typer operation flags.
   {
-    SharedFunctionInfoRef shared_info(data->broker(), info()->shared_info());
+    SharedFunctionInfoRef shared_info =
+        MakeRef(data->broker(), info()->shared_info());
     if (is_sloppy(shared_info.language_mode()) &&
         shared_info.IsUserJavaScript()) {
       // Sloppy mode functions always have an Object for this.

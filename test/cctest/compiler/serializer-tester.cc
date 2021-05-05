@@ -86,7 +86,7 @@ void CheckForSerializedInlinee(const char* source, int argc = 0,
       tester.broker()
           ->FindCanonicalPersistentHandleForTesting<SharedFunctionInfo>(
               g_func->shared()));
-  SharedFunctionInfoRef g_sfi(tester.broker(), sfi);
+  SharedFunctionInfoRef g_sfi = MakeRef(tester.broker(), sfi);
   Handle<FeedbackVector> fv(
       tester.broker()->FindCanonicalPersistentHandleForTesting<FeedbackVector>(
           g_func->feedback_vector()));
