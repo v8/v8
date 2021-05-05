@@ -3003,25 +3003,45 @@ class TypedElementsAccessor
 
   static void SetImpl(ElementType* data_ptr, size_t entry, ElementType value) {
     // The JavaScript memory model allows for racy reads and writes to a
-    // SharedArrayBuffer's backing store. ThreadSanitizer will catch these
-    // racy accesses and warn about them, so we disable TSAN for these reads
-    // and writes using annotations.
-    //
-    // We don't use relaxed atomics here, as it is not a requirement of the
-    // JavaScript memory model to have tear-free reads of overlapping accesses,
-    // and using relaxed atomics may introduce overhead.
-    TSAN_ANNOTATE_IGNORE_WRITES_BEGIN;
-    if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
-      // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
-      // fields (external pointers, doubles and BigInt data) are only
-      // kTaggedSize aligned so we have to use unaligned pointer friendly way of
-      // accessing them in order to avoid undefined behavior in C++ code.
-      base::WriteUnalignedValue<ElementType>(
-          reinterpret_cast<Address>(data_ptr + entry), value);
+    // SharedArrayBuffer's backing store. Using relaxed atomics is not strictly
+    // required for JavaScript, but will avoid undefined behaviour in C++ and is
+    // unlikely to introduce noticable overhead.
+    // TODO(ishell, v8:8875): Independent of pointer compression, 8-byte size
+    // fields (external pointers, doubles and BigInt data) are not always 8-byte
+    // aligned. Thus we have to store them wordwise. This is relying on
+    // undefined behaviour in C++, since {data_ptr} is not aligned to
+    // {alignof(ElementType)}.
+    if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr + entry),
+                  alignof(std::atomic<ElementType>))) {
+      // Use a single relaxed atomic store.
+      STATIC_ASSERT(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
+      DCHECK(IsAligned(reinterpret_cast<uintptr_t>(data_ptr),
+                       alignof(std::atomic<ElementType>)));
+      reinterpret_cast<std::atomic<ElementType>*>(data_ptr + entry)
+          ->store(value, std::memory_order_relaxed);
     } else {
-      data_ptr[entry] = value;
+      // Some static CHECKs (are optimized out if succeeding) to ensure that
+      // {data_ptr} is at least four byte aligned, and {std::atomic<uint32_t>}
+      // has size and alignment of four bytes, such that we can cast the
+      // {data_ptr} to it.
+      CHECK_LE(kInt32Size, alignof(ElementType));
+      CHECK_EQ(kInt32Size, alignof(std::atomic<uint32_t>));
+      CHECK_EQ(kInt32Size, sizeof(std::atomic<uint32_t>));
+      // And dynamically check that we indeed have at least four byte alignment.
+      DCHECK(IsAligned(reinterpret_cast<uintptr_t>(data_ptr), kInt32Size));
+      // Store as multiple 32-bit words. Make {kNumWords} >= 1 to avoid compiler
+      // warnings for the empty array or memcpy to an empty object.
+      constexpr size_t kNumWords =
+          std::max(size_t{1}, sizeof(ElementType) / kInt32Size);
+      uint32_t words[kNumWords];
+      CHECK_EQ(sizeof(words), sizeof(value));
+      memcpy(words, &value, sizeof(value));
+      for (size_t word = 0; word < kNumWords; ++word) {
+        STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
+        reinterpret_cast<std::atomic<uint32_t>*>(data_ptr + entry)[word].store(
+            words[word], std::memory_order_relaxed);
+      }
     }
-    TSAN_ANNOTATE_IGNORE_WRITES_END;
   }
 
   static Handle<Object> GetInternalImpl(Handle<JSObject> holder,
@@ -3042,26 +3062,45 @@ class TypedElementsAccessor
 
   static ElementType GetImpl(ElementType* data_ptr, size_t entry) {
     // The JavaScript memory model allows for racy reads and writes to a
-    // SharedArrayBuffer's backing store. ThreadSanitizer will catch these
-    // racy accesses and warn about them, so we disable TSAN for these reads
-    // and writes using annotations.
-    //
-    // We don't use relaxed atomics here, as it is not a requirement of the
-    // JavaScript memory model to have tear-free reads of overlapping accesses,
-    // and using relaxed atomics may introduce overhead.
-    TSAN_ANNOTATE_IGNORE_READS_BEGIN;
+    // SharedArrayBuffer's backing store. Using relaxed atomics is not strictly
+    // required for JavaScript, but will avoid undefined behaviour in C++ and is
+    // unlikely to introduce noticable overhead.
     ElementType result;
-    if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
-      // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
-      // fields (external pointers, doubles and BigInt data) are only
-      // kTaggedSize aligned so we have to use unaligned pointer friendly way of
-      // accessing them in order to avoid undefined behavior in C++ code.
-      result = base::ReadUnalignedValue<ElementType>(
-          reinterpret_cast<Address>(data_ptr + entry));
+    // TODO(ishell, v8:8875): Independent of pointer compression, 8-byte size
+    // fields (external pointers, doubles and BigInt data) are not always 8-byte
+    // aligned. Thus we have to load them wordwise. This is relying on undefined
+    // behaviour in C++, since {data_ptr} is not aligned to
+    // {alignof(ElementType)}.
+    if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr + entry),
+                  alignof(std::atomic<ElementType>))) {
+      // Use a single relaxed atomic load.
+      STATIC_ASSERT(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
+      result = reinterpret_cast<std::atomic<ElementType>*>(data_ptr + entry)
+                   ->load(std::memory_order_relaxed);
     } else {
-      result = data_ptr[entry];
+      // Some static CHECKs (are optimized out if succeeding) to ensure that
+      // {data_ptr} is at least four byte aligned, and {std::atomic<uint32_t>}
+      // has size and alignment of four bytes, such that we can cast the
+      // {data_ptr} to it.
+      CHECK_LE(kInt32Size, alignof(ElementType));
+      CHECK_EQ(kInt32Size, alignof(std::atomic<uint32_t>));
+      CHECK_EQ(kInt32Size, sizeof(std::atomic<uint32_t>));
+      // And dynamically check that we indeed have at least four byte alignment.
+      DCHECK(IsAligned(reinterpret_cast<uintptr_t>(data_ptr), kInt32Size));
+      // Load in multiple 32-bit words. Make {kNumWords} >= 1 to avoid compiler
+      // warnings for the empty array or memcpy to an empty object.
+      constexpr size_t kNumWords =
+          std::max(size_t{1}, sizeof(ElementType) / kInt32Size);
+      uint32_t words[kNumWords];
+      for (size_t word = 0; word < kNumWords; ++word) {
+        STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
+        words[word] =
+            reinterpret_cast<std::atomic<uint32_t>*>(data_ptr + entry)[word]
+                .load(std::memory_order_relaxed);
+      }
+      CHECK_EQ(sizeof(words), sizeof(result));
+      memcpy(&result, words, sizeof(result));
     }
-    TSAN_ANNOTATE_IGNORE_READS_END;
     return result;
   }
 
