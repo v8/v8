@@ -463,10 +463,4 @@ in_category(
         properties = {"builder_group": "client.v8"},
         close_tree = False,
     ),
-    main_multibranch_builder(
-        name = "V8 Linux gcc",
-        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
-        use_goma = GOMA.NO,
-    ),
 )

@@ -95,6 +95,16 @@ experiment_builder(
 )
 
 experiment_builder(
+    name = "V8 Linux64 - gcov coverage",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov"},
+    use_goma = GOMA.NO,
+    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+)
+
+experiment_builder(
     name = "V8 Linux64 - Fuzzilli",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
@@ -132,16 +142,6 @@ experiment_builder_pair(
     to_notify = ["ishell@chromium.org"],
 )
 
-experiment_builder(
-    name = "V8 Linux64 - gcov coverage",
-    bucket = "ci",
-    triggered_by = ["v8-trigger"],
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov"},
-    use_goma = GOMA.NO,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
-)
-
 experiment_builder_pair(
     name = "V8 Linux64 - heap sandbox - debug",
     bucket = "ci",
@@ -160,6 +160,17 @@ experiment_builder(
     properties = {"builder_group": "client.v8", "track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
     use_goma = GOMA.DEFAULT,
     to_notify = ["clemensb@chromium.org", "v8-waterfall-sheriff@grotations.appspotmail.com"],
+)
+
+experiment_builder(
+    name = "V8 Linux gcc",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
+    use_goma = GOMA.NO,
+    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
 experiment_builder(
