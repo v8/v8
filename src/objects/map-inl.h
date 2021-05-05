@@ -281,15 +281,28 @@ void Map::set_instance_size(int value) {
 }
 
 int Map::inobject_properties_start_or_constructor_function_index() const {
-  return ReadField<byte>(
-      kInObjectPropertiesStartOrConstructorFunctionIndexOffset);
+  if (V8_CONCURRENT_MARKING_BOOL) {
+    // TODO(solanes, v8:7790, v8:11353): Make this and the setter non-atomic
+    // when TSAN sees the map's store synchronization.
+    return RELAXED_READ_BYTE_FIELD(
+        *this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset);
+  } else {
+    return ReadField<byte>(
+        kInObjectPropertiesStartOrConstructorFunctionIndexOffset);
+  }
 }
 
 void Map::set_inobject_properties_start_or_constructor_function_index(
     int value) {
   CHECK_LT(static_cast<unsigned>(value), 256);
-  WriteField<byte>(kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
-                   static_cast<byte>(value));
+  if (V8_CONCURRENT_MARKING_BOOL) {
+    RELAXED_WRITE_BYTE_FIELD(
+        *this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
+        static_cast<byte>(value));
+  } else {
+    WriteField<byte>(kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
+                     static_cast<byte>(value));
+  }
 }
 
 int Map::GetInObjectPropertiesStartInWords() const {
