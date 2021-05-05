@@ -259,17 +259,18 @@ Reduction JSContextSpecialization::ReduceJSGetImportMeta(Node* node) {
   ContextRef context = maybe_context.value();
   SourceTextModuleRef module =
       context.get(Context::EXTENSION_INDEX).value().AsSourceTextModule();
-  ObjectRef import_meta = module.import_meta();
-  if (import_meta.IsJSObject()) {
-    Node* import_meta_const = jsgraph()->Constant(import_meta);
-    ReplaceWithValue(node, import_meta_const);
-    return Changed(import_meta_const);
-  } else {
-    DCHECK(import_meta.IsTheHole());
+  base::Optional<ObjectRef> import_meta = module.import_meta();
+  if (!import_meta.has_value()) return NoChange();
+  if (!import_meta->IsJSObject()) {
+    DCHECK(import_meta->IsTheHole());
     // The import.meta object has not yet been created. Let JSGenericLowering
     // replace the operator with a runtime call.
     return NoChange();
   }
+
+  Node* import_meta_const = jsgraph()->Constant(*import_meta);
+  ReplaceWithValue(node, import_meta_const);
+  return Changed(import_meta_const);
 }
 
 Isolate* JSContextSpecialization::isolate() const {

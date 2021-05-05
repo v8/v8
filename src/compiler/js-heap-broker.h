@@ -571,7 +571,10 @@ template <class T,
 base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
     JSHeapBroker* broker, T object) {
   ObjectData* data = broker->TryGetOrCreateData(object);
-  if (data == nullptr) return {};
+  if (data == nullptr) {
+    TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(object));
+    return {};
+  }
   return {typename ref_traits<T>::ref_type(broker, data)};
 }
 
@@ -580,7 +583,10 @@ template <class T,
 base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
     JSHeapBroker* broker, Handle<T> object) {
   ObjectData* data = broker->TryGetOrCreateData(object);
-  if (data == nullptr) return {};
+  if (data == nullptr) {
+    TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(*object));
+    return {};
+  }
   return {typename ref_traits<T>::ref_type(broker, data)};
 }
 

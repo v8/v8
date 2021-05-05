@@ -4002,7 +4002,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
 }
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+  if (data_->should_access_heap()) {
     return MakeRef(broker(), broker()->CanonicalPersistentHandle(
                                  object()->GetCell(cell_index)));
   }
@@ -4012,9 +4012,9 @@ base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
   return CellRef(broker(), cell);
 }
 
-ObjectRef SourceTextModuleRef::import_meta() const {
+base::Optional<ObjectRef> SourceTextModuleRef::import_meta() const {
   if (data_->should_access_heap()) {
-    return MakeRef(
+    return TryMakeRef(
         broker(), broker()->CanonicalPersistentHandle(object()->import_meta()));
   }
   return ObjectRef(broker(),

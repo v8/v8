@@ -131,7 +131,7 @@ enum class RefSerializationKind {
   V(RegExpBoilerplateDescription, RefSerializationKind::kNeverSerialized) \
   V(ScopeInfo, RefSerializationKind::kNeverSerialized)                    \
   V(SharedFunctionInfo, RefSerializationKind::kNeverSerialized)           \
-  V(SourceTextModule, RefSerializationKind::kSerialized)                  \
+  V(SourceTextModule, RefSerializationKind::kNeverSerialized)             \
   V(TemplateObjectDescription, RefSerializationKind::kNeverSerialized)    \
   /* Subtypes of Object */                                                \
   V(HeapObject, RefSerializationKind::kBackgroundSerialized)
@@ -975,7 +975,7 @@ class SourceTextModuleRef : public HeapObjectRef {
   void Serialize();
 
   base::Optional<CellRef> GetCell(int cell_index) const;
-  ObjectRef import_meta() const;
+  base::Optional<ObjectRef> import_meta() const;
 };
 
 class TemplateObjectDescriptionRef : public HeapObjectRef {
