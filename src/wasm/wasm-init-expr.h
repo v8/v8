@@ -9,6 +9,8 @@
 #ifndef V8_WASM_WASM_INIT_EXPR_H_
 #define V8_WASM_WASM_INIT_EXPR_H_
 
+#include <memory>
+
 #include "src/wasm/value-type.h"
 
 namespace v8 {
