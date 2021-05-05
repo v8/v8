@@ -2498,7 +2498,7 @@ ContextRef ContextRef::previous(size_t* depth,
       current = Context::cast(current.unchecked_previous());
       (*depth)--;
     }
-    return ContextRef(broker(), broker()->CanonicalPersistentHandle(current));
+    return MakeRef(broker(), broker()->CanonicalPersistentHandle(current));
   }
 
   if (*depth == 0) return *this;
@@ -2891,8 +2891,8 @@ INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
   if (data_->should_access_heap()) {
-    return MapRef(broker(),
-                  Map::AsElementsKind(broker()->isolate(), object(), kind));
+    return MakeRef(broker(),
+                   Map::AsElementsKind(broker()->isolate(), object(), kind));
   }
   if (kind == elements_kind()) return *this;
   const ZoneVector<ObjectData*>& elements_kind_generalizations =
@@ -2981,25 +2981,25 @@ OddballType MapRef::oddball_type() const {
     return OddballType::kNone;
   }
   Factory* f = broker()->isolate()->factory();
-  if (equals(MapRef(broker(), f->undefined_map()))) {
+  if (equals(MakeRef(broker(), f->undefined_map()))) {
     return OddballType::kUndefined;
   }
-  if (equals(MapRef(broker(), f->null_map()))) {
+  if (equals(MakeRef(broker(), f->null_map()))) {
     return OddballType::kNull;
   }
-  if (equals(MapRef(broker(), f->boolean_map()))) {
+  if (equals(MakeRef(broker(), f->boolean_map()))) {
     return OddballType::kBoolean;
   }
-  if (equals(MapRef(broker(), f->the_hole_map()))) {
+  if (equals(MakeRef(broker(), f->the_hole_map()))) {
     return OddballType::kHole;
   }
-  if (equals(MapRef(broker(), f->uninitialized_map()))) {
+  if (equals(MakeRef(broker(), f->uninitialized_map()))) {
     return OddballType::kUninitialized;
   }
-  DCHECK(equals(MapRef(broker(), f->termination_exception_map())) ||
-         equals(MapRef(broker(), f->arguments_marker_map())) ||
-         equals(MapRef(broker(), f->optimized_out_map())) ||
-         equals(MapRef(broker(), f->stale_register_map())));
+  DCHECK(equals(MakeRef(broker(), f->termination_exception_map())) ||
+         equals(MakeRef(broker(), f->arguments_marker_map())) ||
+         equals(MakeRef(broker(), f->optimized_out_map())) ||
+         equals(MakeRef(broker(), f->stale_register_map())));
   return OddballType::kOther;
 }
 
@@ -3103,7 +3103,7 @@ NameRef MapRef::GetPropertyKey(InternalIndex descriptor_index) const {
 bool MapRef::IsFixedCowArrayMap() const {
   Handle<Map> fixed_cow_array_map =
       ReadOnlyRoots(broker()->isolate()).fixed_cow_array_map_handle();
-  return equals(MapRef(broker(), fixed_cow_array_map));
+  return equals(MakeRef(broker(), fixed_cow_array_map));
 }
 
 bool MapRef::IsPrimitiveMap() const {
