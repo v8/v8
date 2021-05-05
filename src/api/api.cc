@@ -5930,6 +5930,7 @@ void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
 
 void V8::SetIsCrossOriginIsolated() {
   i::FLAG_harmony_sharedarraybuffer = true;
+  i::FLAG_enable_sharedarraybuffer_per_context = false;
 #if V8_ENABLE_WEBASSEMBLY
   i::FLAG_experimental_wasm_threads = true;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -8996,13 +8997,18 @@ CALLBACK_SETTER(WasmSimdEnabledCallback, WasmSimdEnabledCallback,
 CALLBACK_SETTER(WasmExceptionsEnabledCallback, WasmExceptionsEnabledCallback,
                 wasm_exceptions_enabled_callback)
 
+CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
+                SharedArrayBufferConstructorEnabledCallback,
+                sharedarraybuffer_constructor_enabled_callback)
+
 void Isolate::InstallConditionalFeatures(Local<Context> context) {
+  v8::HandleScope handle_scope(this);
+  v8::Context::Scope context_scope(context);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->InstallConditionalFeatures(Utils::OpenHandle(*context));
 #if V8_ENABLE_WEBASSEMBLY
   if (i::FLAG_expose_wasm) {
-    v8::HandleScope handle_scope(this);
-    v8::Context::Scope context_scope(context);
-    i::WasmJs::InstallConditionalFeatures(reinterpret_cast<i::Isolate*>(this),
-                                          Utils::OpenHandle(*context));
+    i::WasmJs::InstallConditionalFeatures(isolate, Utils::OpenHandle(*context));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
