@@ -88,6 +88,10 @@ class TestWithHeap : public TestWithPlatform {
     return allocation_handle_;
   }
 
+  cppgc::HeapHandle& GetHeapHandle() const {
+    return GetHeap()->GetHeapHandle();
+  }
+
   std::unique_ptr<MarkerBase>& GetMarkerRef() {
     return Heap::From(GetHeap())->marker_;
   }

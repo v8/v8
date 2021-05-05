@@ -58,7 +58,7 @@ TEST_F(ExplicitManagementTest, FreeRegularObjectToLAB) {
   ASSERT_EQ(lab.start(), header.PayloadEnd());
   const size_t lab_size_before_free = lab.size();
   const size_t allocated_size_before = AllocatedObjectSize();
-  subtle::FreeUnreferencedObject(o);
+  subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_EQ(lab.start(), reinterpret_cast<Address>(needle));
   EXPECT_EQ(lab_size_before_free + size, lab.size());
   // LAB is included in allocated object size, so no change is expected.
@@ -78,7 +78,7 @@ TEST_F(ExplicitManagementTest, FreeRegularObjectToFreeList) {
   ResetLinearAllocationBuffers();
   ASSERT_EQ(lab.start(), nullptr);
   const size_t allocated_size_before = AllocatedObjectSize();
-  subtle::FreeUnreferencedObject(o);
+  subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_EQ(lab.start(), nullptr);
   EXPECT_EQ(allocated_size_before - size, AllocatedObjectSize());
   EXPECT_TRUE(space->free_list().ContainsForTesting({needle, size}));
@@ -95,7 +95,7 @@ TEST_F(ExplicitManagementTest, FreeLargeObject) {
   const size_t size = LargePage::From(page)->PayloadSize();
   EXPECT_TRUE(heap->page_backend()->Lookup(needle));
   const size_t allocated_size_before = AllocatedObjectSize();
-  subtle::FreeUnreferencedObject(o);
+  subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_FALSE(heap->page_backend()->Lookup(needle));
   EXPECT_EQ(allocated_size_before - size, AllocatedObjectSize());
 }
@@ -107,18 +107,12 @@ TEST_F(ExplicitManagementTest, FreeBailsOutDuringGC) {
   auto* heap = BasePage::FromPayload(o)->heap();
   heap->SetInAtomicPauseForTesting(true);
   const size_t allocated_size_before = AllocatedObjectSize();
-  subtle::FreeUnreferencedObject(o);
+  subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_EQ(allocated_size_before, AllocatedObjectSize());
   heap->SetInAtomicPauseForTesting(false);
   ResetLinearAllocationBuffers();
-  subtle::FreeUnreferencedObject(o);
+  subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_EQ(snapshot_before, AllocatedObjectSize());
-}
-
-TEST_F(ExplicitManagementTest, FreeNull) {
-  DynamicallySized* o = nullptr;
-  // Noop.
-  subtle::FreeUnreferencedObject(o);
 }
 
 TEST_F(ExplicitManagementTest, GrowAtLAB) {

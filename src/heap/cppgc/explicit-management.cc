@@ -16,31 +16,27 @@ namespace internal {
 
 namespace {
 
-std::pair<bool, BasePage*> CanModifyObject(void* object) {
-  // object is guaranteed to be of type GarbageCollected, so getting the
-  // BasePage is okay for regular and large objects.
-  auto* base_page = BasePage::FromPayload(object);
-  auto* heap = base_page->heap();
+bool InGC(HeapHandle& heap_handle) {
+  const auto& heap = HeapBase::From(heap_handle);
   // Whenever the GC is active, avoid modifying the object as it may mess with
   // state that the GC needs.
-  const bool in_gc = heap->in_atomic_pause() || heap->marker() ||
-                     heap->sweeper().IsSweepingInProgress();
-  return {!in_gc, base_page};
+  return heap.in_atomic_pause() || heap.marker() ||
+         heap.sweeper().IsSweepingInProgress();
 }
 
 }  // namespace
 
-void FreeUnreferencedObject(void* object) {
-  bool can_free;
-  BasePage* base_page;
-  std::tie(can_free, base_page) = CanModifyObject(object);
-  if (!can_free) {
+void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
+  if (InGC(heap_handle)) {
     return;
   }
 
   auto& header = HeapObjectHeader::FromPayload(object);
   header.Finalize();
 
+  // `object` is guaranteed to be of type GarbageCollected, so getting the
+  // BasePage is okay for regular and large objects.
+  BasePage* base_page = BasePage::FromPayload(object);
   if (base_page->is_large()) {  // Large object.
     base_page->space()->RemovePage(base_page);
     base_page->heap()->stats_collector()->NotifyExplicitFree(
@@ -121,10 +117,11 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
 }  // namespace
 
 bool Resize(void* object, size_t new_object_size) {
-  bool can_resize;
-  BasePage* base_page;
-  std::tie(can_resize, base_page) = CanModifyObject(object);
-  if (!can_resize) {
+  // `object` is guaranteed to be of type GarbageCollected, so getting the
+  // BasePage is okay for regular and large objects.
+  BasePage* base_page = BasePage::FromPayload(object);
+
+  if (InGC(*base_page->heap())) {
     return false;
   }
 
