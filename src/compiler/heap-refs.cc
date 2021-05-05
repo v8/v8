@@ -1162,9 +1162,8 @@ class MapData : public HeapObjectData {
   void SerializePrototype(JSHeapBroker* broker) {
     CHECK(TrySerializePrototype(broker));
   }
-  bool serialized_prototype() const { return serialized_prototype_; }
   ObjectData* prototype() const {
-    CHECK(serialized_prototype_);
+    DCHECK_EQ(serialized_prototype_, prototype_ != nullptr);
     return prototype_;
   }
 
@@ -2935,7 +2934,7 @@ void MapData::SerializeForElementStore(JSHeapBroker* broker) {
   MapRef map(broker, this);
   do {
     map.SerializePrototype();
-    map = map.prototype().map();
+    map = map.prototype().value().map();
   } while (map.IsJSObjectMap() && map.is_stable() &&
            IsFastElementsKind(map.elements_kind()));
 }
@@ -2943,14 +2942,14 @@ void MapData::SerializeForElementStore(JSHeapBroker* broker) {
 bool MapRef::HasOnlyStablePrototypesWithFastElements(
     ZoneVector<MapRef>* prototype_maps) {
   DCHECK_NOT_NULL(prototype_maps);
-  MapRef prototype_map = prototype().map();
+  MapRef prototype_map = prototype().value().map();
   while (prototype_map.oddball_type() != OddballType::kNull) {
     if (!prototype_map.IsJSObjectMap() || !prototype_map.is_stable() ||
         !IsFastElementsKind(prototype_map.elements_kind())) {
       return false;
     }
     prototype_maps->push_back(prototype_map);
-    prototype_map = prototype_map.prototype().map();
+    prototype_map = prototype_map.prototype().value().map();
   }
   return true;
 }
@@ -3363,7 +3362,6 @@ BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, is_undetectable,
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
 BIMODAL_ACCESSOR_C(Map, int, NextFreePropertyIndex)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
-BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, prototype)
 BIMODAL_ACCESSOR_WITH_FLAG_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR_WITH_FLAG(Map, Object, GetConstructor)
 BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
@@ -3454,23 +3452,16 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
     if (policy == SerializationPolicy::kSerializeIfNeeded) {
       receiver_map.SerializePrototype();
     }
-    if (!receiver_map.serialized_prototype()) return not_found;
-    if (receiver_map.prototype().IsNull()) return not_found;
+    base::Optional<HeapObjectRef> prototype = receiver_map.prototype();
+    if (!prototype.has_value()) return not_found;
+    if (prototype->IsNull()) return not_found;
 
-    JSObject raw_prototype = JSObject::cast(*receiver_map.prototype().object());
+    JSObject raw_prototype = JSObject::cast(*prototype->object());
     if (!expected_receiver_type.IsTemplateFor(raw_prototype.map())) {
       return not_found;
     }
-    Handle<JSObject> prototype =
-        broker()->CanonicalPersistentHandle(raw_prototype);
-    base::Optional<JSObjectRef> prototype_ref = TryMakeRef(broker(), prototype);
-    if (prototype_ref.has_value()) {
-      return HolderLookupResult(CallOptimization::kHolderFound, prototype_ref);
-    }
-
-    TRACE_BROKER_MISSING(broker(),
-                         "holder for receiver with map " << receiver_map);
-    return not_found;
+    return HolderLookupResult(CallOptimization::kHolderFound,
+                              prototype->AsJSObject());
   }
 
   FunctionTemplateInfoData* fti_data = data()->AsFunctionTemplateInfo();
@@ -3583,6 +3574,16 @@ DescriptorArrayRef MapRef::instance_descriptors() const {
   }
 
   return DescriptorArrayRef(broker(), data()->AsMap()->instance_descriptors());
+}
+
+base::Optional<HeapObjectRef> MapRef::prototype() const {
+  IF_ACCESS_FROM_HEAP_WITH_FLAG(HeapObject, prototype);
+  ObjectData* prototype_data = data()->AsMap()->prototype();
+  if (prototype_data == nullptr) {
+    TRACE_BROKER_MISSING(broker(), "prototype for map " << *this);
+    return {};
+  }
+  return HeapObjectRef(broker(), prototype_data);
 }
 
 void MapRef::SerializeRootMap() {
@@ -4459,12 +4460,6 @@ bool MapRef::TrySerializePrototype() {
 }
 
 void MapRef::SerializePrototype() { CHECK(TrySerializePrototype()); }
-
-bool MapRef::serialized_prototype() const {
-  if (data_->should_access_heap()) return true;
-  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
-  return data()->AsMap()->serialized_prototype();
-}
 
 void SourceTextModuleRef::Serialize() {
   if (data_->should_access_heap()) return;

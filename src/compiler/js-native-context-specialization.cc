@@ -364,19 +364,15 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   }
   JSFunctionRef function = m.Ref(broker()).AsJSFunction();
   MapRef function_map = function.map();
-  if (function_map.ShouldHaveBeenSerialized() &&
-      !function_map.serialized_prototype()) {
-    TRACE_BROKER_MISSING(broker(), "data for map " << function_map);
-    return NoChange();
-  }
-  HeapObjectRef function_prototype = function_map.prototype();
+  base::Optional<HeapObjectRef> function_prototype = function_map.prototype();
+  if (!function_prototype.has_value()) return NoChange();
 
   // We can constant-fold the super constructor access if the
   // {function}s map is stable, i.e. we can use a code dependency
   // to guard against [[Prototype]] changes of {function}.
   if (function_map.is_stable()) {
     dependencies()->DependOnStableMap(function_map);
-    Node* value = jsgraph()->Constant(function_prototype);
+    Node* value = jsgraph()->Constant(*function_prototype);
     ReplaceWithValue(node, value);
     return Replace(value);
   }
@@ -552,15 +548,13 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         all = false;
         break;
       }
-      if (map.ShouldHaveBeenSerialized() && !map.serialized_prototype()) {
-        TRACE_BROKER_MISSING(broker(), "prototype data for map " << map);
-        return kMayBeInPrototypeChain;
-      }
-      if (map.prototype().equals(prototype)) {
+      base::Optional<HeapObjectRef> map_prototype = map.prototype();
+      if (!map_prototype.has_value()) return kMayBeInPrototypeChain;
+      if (map_prototype->equals(prototype)) {
         none = false;
         break;
       }
-      map = map.prototype().map();
+      map = map_prototype->map();
       // TODO(v8:11457) Support dictionary mode protoypes here.
       if (!map.is_stable() || map.is_dictionary_map())
         return kMayBeInPrototypeChain;
@@ -3472,7 +3466,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   // native contexts, as the global Array protector works isolate-wide).
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map = MakeRef(broker(), map);
-    ObjectRef receiver_prototype = receiver_map.prototype();
+    ObjectRef receiver_prototype = receiver_map.prototype().value();
     if (!receiver_prototype.IsJSObject() ||
         !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
       return false;

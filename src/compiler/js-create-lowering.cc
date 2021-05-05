@@ -1326,7 +1326,7 @@ base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
                                           HeapObjectRef prototype) {
   MapRef standard_map =
       broker->target_native_context().object_function().initial_map();
-  if (prototype.equals(standard_map.prototype())) {
+  if (prototype.equals(standard_map.prototype().value())) {
     return standard_map;
   }
   if (prototype.map().oddball_type() == OddballType::kNull) {

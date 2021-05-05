@@ -2595,25 +2595,17 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   MapRef first_receiver_map = MakeRef(broker(), receiver_maps[0]);
   bool const is_constructor = first_receiver_map.is_constructor();
 
-  if (first_receiver_map.ShouldHaveBeenSerialized() &&
-      !first_receiver_map.serialized_prototype()) {
-    TRACE_BROKER_MISSING(broker(),
-                         "serialized prototype on map " << first_receiver_map);
-    return inference.NoChange();
-  }
-  ObjectRef const prototype = first_receiver_map.prototype();
+  base::Optional<HeapObjectRef> const prototype =
+      first_receiver_map.prototype();
+  if (!prototype.has_value()) return inference.NoChange();
+
   for (Handle<Map> const map : receiver_maps) {
     MapRef receiver_map = MakeRef(broker(), map);
-
-    if (receiver_map.ShouldHaveBeenSerialized() &&
-        !receiver_map.serialized_prototype()) {
-      TRACE_BROKER_MISSING(broker(),
-                           "serialized prototype on map " << receiver_map);
-      return inference.NoChange();
-    }
+    base::Optional<HeapObjectRef> map_prototype = receiver_map.prototype();
+    if (!map_prototype.has_value()) return inference.NoChange();
 
     // Check for consistency among the {receiver_maps}.
-    if (!receiver_map.prototype().equals(prototype) ||
+    if (!map_prototype->equals(*prototype) ||
         receiver_map.is_constructor() != is_constructor ||
         !InstanceTypeChecker::IsJSFunctionOrBoundFunction(
             receiver_map.instance_type())) {
@@ -2669,7 +2661,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   MapRef map = is_constructor
                    ? native_context().bound_function_with_constructor_map()
                    : native_context().bound_function_without_constructor_map();
-  if (!map.prototype().equals(prototype)) return inference.NoChange();
+  if (!map.prototype().value().equals(*prototype)) return inference.NoChange();
 
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
@@ -2796,23 +2788,16 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   MapHandles const& object_maps = inference.GetMaps();
 
   MapRef candidate_map = MakeRef(broker(), object_maps[0]);
-  if (candidate_map.ShouldHaveBeenSerialized() &&
-      !candidate_map.serialized_prototype()) {
-    TRACE_BROKER_MISSING(broker(), "prototype for map " << candidate_map);
-    return inference.NoChange();
-  }
-  ObjectRef candidate_prototype = candidate_map.prototype();
+  base::Optional<HeapObjectRef> candidate_prototype = candidate_map.prototype();
+  if (!candidate_prototype.has_value()) return inference.NoChange();
 
   // Check if we can constant-fold the {candidate_prototype}.
   for (size_t i = 0; i < object_maps.size(); ++i) {
     MapRef object_map = MakeRef(broker(), object_maps[i]);
-    if (object_map.ShouldHaveBeenSerialized() &&
-        !object_map.serialized_prototype()) {
-      TRACE_BROKER_MISSING(broker(), "prototype for map " << object_map);
-      return inference.NoChange();
-    }
+    base::Optional<HeapObjectRef> map_prototype = object_map.prototype();
+    if (!map_prototype.has_value()) return inference.NoChange();
     if (IsSpecialReceiverInstanceType(object_map.instance_type()) ||
-        !object_map.prototype().equals(candidate_prototype)) {
+        !map_prototype->equals(*candidate_prototype)) {
       // We exclude special receivers, like JSProxy or API objects that
       // might require access checks here; we also don't want to deal
       // with hidden prototypes at this point.
@@ -2825,7 +2810,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   if (!inference.RelyOnMapsViaStability(dependencies())) {
     return inference.NoChange();
   }
-  Node* value = jsgraph()->Constant(candidate_prototype);
+  Node* value = jsgraph()->Constant(*candidate_prototype);
   ReplaceWithValue(node, value);
   return Replace(value);
 }
@@ -6526,13 +6511,9 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map = MakeRef(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return false;
-    if (receiver_map.ShouldHaveBeenSerialized() &&
-        !receiver_map.serialized_prototype()) {
-      TRACE_BROKER_MISSING(broker(), "prototype for map " << receiver_map);
-      return false;
-    }
-    if (!receiver_map.prototype().equals(
-            native_context().promise_prototype())) {
+    base::Optional<HeapObjectRef> prototype = receiver_map.prototype();
+    if (!prototype.has_value() ||
+        !prototype->equals(native_context().promise_prototype())) {
       return false;
     }
   }

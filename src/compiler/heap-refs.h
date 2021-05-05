@@ -689,10 +689,12 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   void SerializeBackPointer();
   HeapObjectRef GetBackPointer() const;
 
-  bool TrySerializePrototype();
   void SerializePrototype();
-  bool serialized_prototype() const;
-  HeapObjectRef prototype() const;
+  // TODO(neis): We should be able to remove TrySerializePrototype once
+  // concurrent-inlining is always on. Then we can also change the return type
+  // of prototype() back to HeapObjectRef.
+  bool TrySerializePrototype();
+  base::Optional<HeapObjectRef> prototype() const;
 
   void SerializeForElementLoad();
 

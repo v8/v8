@@ -1366,7 +1366,7 @@ void SerializerForBackgroundCompilation::VisitGetSuperConstructor(
     MapRef map = MakeRef(broker(), handle(HeapObject::cast(*constant).map(),
                                           broker()->isolate()));
     map.SerializePrototype();
-    ObjectRef proto = map.prototype();
+    ObjectRef proto = map.prototype().value();
     if (proto.IsHeapObject() && proto.AsHeapObject().map().is_constructor()) {
       result_hints.AddConstant(proto.object(), zone(), broker());
     }
@@ -2613,7 +2613,7 @@ void SerializerForBackgroundCompilation::ProcessHintsForHasInPrototypeChain(
     MapRef map = MakeRef(broker(), map_handle);
     while (map.IsJSObjectMap()) {
       map.SerializePrototype();
-      map = map.prototype().map();
+      map = map.prototype().value().map();
     }
   };
 
