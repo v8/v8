@@ -306,7 +306,7 @@ try_ng_pair(
     name = "v8_linux_gcc_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 2700,
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
