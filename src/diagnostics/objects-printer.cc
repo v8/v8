@@ -1784,7 +1784,7 @@ void ClassPositions::ClassPositionsPrint(std::ostream& os) {  // NOLINT
 void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
     std::ostream& os) {  // NOLINT
   PrintHeader(os, "ArrayBoilerplateDescription");
-  os << "\n - elements kind: " << elements_kind();
+  os << "\n - elements kind: " << ElementsKindToString(elements_kind());
   os << "\n - constant elements: " << Brief(constant_elements());
   os << "\n";
 }
