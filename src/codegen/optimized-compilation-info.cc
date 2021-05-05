@@ -99,11 +99,11 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       if (FLAG_function_context_specialization) {
         set_function_context_specializing();
       }
+      if (FLAG_turbo_splitting) set_splitting();
       V8_FALLTHROUGH;
     case CodeKind::TURBOPROP:
       set_called_with_code_start_register();
       set_switch_jump_table();
-      if (FLAG_turbo_splitting) set_splitting();
       if (FLAG_untrusted_code_mitigations) set_poison_register_arguments();
       // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
       if (FLAG_analyze_environment_liveness) set_analyze_environment_liveness();
