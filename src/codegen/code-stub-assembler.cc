@@ -7721,15 +7721,25 @@ TNode<Object> CodeStubAssembler::OrdinaryToPrimitive(
 TNode<Uint32T> CodeStubAssembler::DecodeWord32(TNode<Word32T> word32,
                                                uint32_t shift, uint32_t mask) {
   DCHECK_EQ((mask >> shift) << shift, mask);
-  return Unsigned(Word32And(Word32Shr(word32, static_cast<int>(shift)),
-                            Int32Constant(mask >> shift)));
+  if ((std::numeric_limits<uint32_t>::max() >> shift) ==
+      ((std::numeric_limits<uint32_t>::max() & mask) >> shift)) {
+    return Unsigned(Word32Shr(word32, static_cast<int>(shift)));
+  } else {
+    return Unsigned(Word32And(Word32Shr(word32, static_cast<int>(shift)),
+                              Int32Constant(mask >> shift)));
+  }
 }
 
 TNode<UintPtrT> CodeStubAssembler::DecodeWord(TNode<WordT> word, uint32_t shift,
                                               uintptr_t mask) {
   DCHECK_EQ((mask >> shift) << shift, mask);
-  return Unsigned(WordAnd(WordShr(word, static_cast<int>(shift)),
-                          IntPtrConstant(mask >> shift)));
+  if ((std::numeric_limits<uintptr_t>::max() >> shift) ==
+      ((std::numeric_limits<uintptr_t>::max() & mask) >> shift)) {
+    return Unsigned(WordShr(word, static_cast<int>(shift)));
+  } else {
+    return Unsigned(WordAnd(WordShr(word, static_cast<int>(shift)),
+                            IntPtrConstant(mask >> shift)));
+  }
 }
 
 TNode<Word32T> CodeStubAssembler::UpdateWord32(TNode<Word32T> word,
