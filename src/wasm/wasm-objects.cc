@@ -463,10 +463,9 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     default:
       DCHECK(!table->instance().IsUndefined());
       // TODO(7748): Relax this once we have struct/array/i31ref tables.
-      DCHECK_EQ(WasmInstanceObject::cast(table->instance())
-                    .module()
-                    ->type_kinds[table->type().ref_index()],
-                wasm::kWasmFunctionTypeCode);
+      DCHECK(WasmInstanceObject::cast(table->instance())
+                 .module()
+                 ->has_signature(table->type().ref_index()));
       SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
       return;
   }
@@ -509,18 +508,16 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
       UNREACHABLE();
     default:
       DCHECK(!table->instance().IsUndefined());
-      if (WasmInstanceObject::cast(table->instance())
-              .module()
-              ->has_signature(entry_index)) {
-        if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
-            WasmJSFunction::IsWasmJSFunction(*entry) ||
-            WasmCapiFunction::IsWasmCapiFunction(*entry)) {
-          return entry;
-        }
-        break;
+      // TODO(7748): Relax this once we have struct/array/i31ref tables.
+      DCHECK(WasmInstanceObject::cast(table->instance())
+                 .module()
+                 ->has_signature(table->type().ref_index()));
+      if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
+          WasmJSFunction::IsWasmJSFunction(*entry) ||
+          WasmCapiFunction::IsWasmCapiFunction(*entry)) {
+        return entry;
       }
-      // TODO(7748): Implement once we have a story for struct/arrays in JS.
-      UNIMPLEMENTED();
+      break;
   }
 
   // {entry} is not a valid entry in the table. It has to be a placeholder

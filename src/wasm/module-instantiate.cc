@@ -20,6 +20,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-subtyping.h"
+#include "src/wasm/wasm-value.h"
 
 #define TRACE(...)                                      \
   do {                                                  \
@@ -1907,10 +1908,10 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
   const WasmModule* module = instance->module();
   for (size_t i = 0; i < count; ++i) {
-    uint32_t func_index = elem_segment.entries[src + i];
+    const WasmInitExpr* init = &elem_segment.entries[src + i];
     int entry_index = static_cast<int>(dst + i);
 
-    if (func_index == WasmElemSegment::kNullIndex) {
+    if (init->kind() == WasmInitExpr::kRefNullConst) {
       if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
         IndirectFunctionTableEntry(instance, table_index, entry_index).clear();
       }
@@ -1919,6 +1920,18 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
       continue;
     }
 
+    if (init->kind() == WasmInitExpr::kGlobalGet) {
+      WasmTableObject::Set(
+          isolate, table_object, entry_index,
+          WasmInstanceObject::GetGlobalValue(
+              instance, module->globals[init->immediate().index])
+              .to_ref());
+      continue;
+    }
+
+    DCHECK_EQ(init->kind(), WasmInitExpr::kRefFuncConst);
+
+    const uint32_t func_index = init->immediate().index;
     const WasmFunction* function = &module->functions[func_index];
 
     // Update the local dispatch table first if necessary.

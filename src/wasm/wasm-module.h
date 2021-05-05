@@ -19,7 +19,7 @@
 #include "src/wasm/signature-map.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-init-expr.h"
 
 namespace v8 {
 
@@ -107,30 +107,34 @@ struct WasmDataSegment {
 
 // Static representation of wasm element segment (table initializer).
 struct WasmElemSegment {
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmElemSegment);
-
   // Construct an active segment.
-  WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
-      : type(kWasmFuncRef),
+  WasmElemSegment(ValueType type, uint32_t table_index, WasmInitExpr offset)
+      : type(type),
         table_index(table_index),
         offset(std::move(offset)),
         status(kStatusActive) {}
 
   // Construct a passive or declarative segment, which has no table index or
   // offset.
-  explicit WasmElemSegment(bool declarative)
-      : type(kWasmFuncRef),
+  WasmElemSegment(ValueType type, bool declarative)
+      : type(type),
         table_index(0),
         status(declarative ? kStatusDeclarative : kStatusPassive) {}
 
-  // Used in the {entries} vector to represent a `ref.null` entry in a passive
-  // segment.
-  V8_EXPORT_PRIVATE static const uint32_t kNullIndex = ~0u;
+  // Construct a passive or declarative segment, which has no table index or
+  // offset.
+  WasmElemSegment()
+      : type(kWasmBottom), table_index(0), status(kStatusActive) {}
+
+  WasmElemSegment(const WasmElemSegment&) = delete;
+  WasmElemSegment(WasmElemSegment&&) V8_NOEXCEPT = default;
+  WasmElemSegment& operator=(const WasmElemSegment&) = delete;
+  WasmElemSegment& operator=(WasmElemSegment&&) V8_NOEXCEPT = default;
 
   ValueType type;
   uint32_t table_index;
   WasmInitExpr offset;
-  std::vector<uint32_t> entries;
+  std::vector<WasmInitExpr> entries;
   enum Status {
     kStatusActive,      // copied automatically during instantiation.
     kStatusPassive,     // copied explicitly after instantiation.

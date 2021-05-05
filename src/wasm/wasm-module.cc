@@ -21,6 +21,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
@@ -29,9 +30,6 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-// static
-const uint32_t WasmElemSegment::kNullIndex;
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
     const ModuleWireBytes& wire_bytes, uint32_t function_index,

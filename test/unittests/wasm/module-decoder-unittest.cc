@@ -1848,8 +1848,10 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
       ONE_EMPTY_BODY,
   };
 
-  EXPECT_FAILURE_WITH_MSG(
-      data, "Invalid element segment. Table 0 is not a super-type of funcref");
+  EXPECT_FAILURE_WITH_MSG(data,
+                          "An active element segment with function indices as "
+                          "elements must reference a table of type funcref. "
+                          "Instead, table 0 of type externref is referenced.");
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
