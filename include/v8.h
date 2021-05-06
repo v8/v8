@@ -7590,10 +7590,6 @@ using WasmSimdEnabledCallback = bool (*)(Local<Context> context);
 // --- Callback for checking if WebAssembly exceptions are enabled ---
 using WasmExceptionsEnabledCallback = bool (*)(Local<Context> context);
 
-// --- Callback for checking if the SharedArrayBuffer constructor is enabled ---
-using SharedArrayBufferConstructorEnabledCallback =
-    bool (*)(Local<Context> context);
-
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -9542,9 +9538,6 @@ class V8_EXPORT Isolate {
   void SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback);
 
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
-
-  void SetSharedArrayBufferConstructorEnabledCallback(
-      SharedArrayBufferConstructorEnabledCallback callback);
 
   /**
    * This function can be called by the embedder to signal V8 that the dynamic

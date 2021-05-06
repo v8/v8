@@ -2577,29 +2577,6 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   abort_on_uncaught_exception_callback_ = callback;
 }
 
-void Isolate::InstallConditionalFeatures(Handle<Context> context) {
-  Handle<JSGlobalObject> global = handle(context->global_object(), this);
-  Handle<String> sab_name = factory()->SharedArrayBuffer_string();
-  if (!JSReceiver::HasProperty(global, sab_name).FromMaybe(true)) {
-    if (IsSharedArrayBufferConstructorEnabled(context)) {
-      JSObject::AddProperty(this, global, factory()->SharedArrayBuffer_string(),
-                            shared_array_buffer_fun(), DONT_ENUM);
-    }
-  }
-}
-
-bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
-  if (!FLAG_harmony_sharedarraybuffer) return false;
-
-  if (!FLAG_enable_sharedarraybuffer_per_context) return true;
-
-  if (sharedarraybuffer_constructor_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return sharedarraybuffer_constructor_enabled_callback()(api_context);
-  }
-  return false;
-}
-
 bool Isolate::IsWasmSimdEnabled(Handle<Context> context) {
 #if V8_ENABLE_WEBASSEMBLY
   if (wasm_simd_enabled_callback()) {
