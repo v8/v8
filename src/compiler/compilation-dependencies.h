@@ -97,6 +97,10 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(const AllocationSiteRef& site);
 
+  // HeapNumber::value() when read from the background thread may be
+  // invalid, and must be checked at the end of compilation.
+  void DependOnHeapNumberValue(Handle<HeapNumber> number, uint64_t value);
+
   // For each given map, depend on the stability of (the maps of) all prototypes
   // up to (and including) the {last_prototype}.
   template <class MapContainer>

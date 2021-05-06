@@ -25,6 +25,13 @@ uint64_t HeapNumber::value_as_bits() const {
   return base::ReadUnalignedValue<uint64_t>(field_address(kValueOffset));
 }
 
+uint64_t HeapNumber::value_as_bits_relaxed() const {
+  return static_cast<uint64_t>(RELAXED_READ_UINT32_FIELD(*this, kValueOffset)) |
+         (static_cast<uint64_t>(
+              RELAXED_READ_UINT32_FIELD(*this, kValueOffset + kUInt32Size))
+          << 32);
+}
+
 void HeapNumber::set_value_as_bits(uint64_t bits) {
   base::WriteUnalignedValue<uint64_t>(field_address(kValueOffset), bits);
 }

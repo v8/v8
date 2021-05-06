@@ -123,7 +123,7 @@ enum class RefSerializationKind {
   V(FeedbackVector, RefSerializationKind::kNeverSerialized)               \
   V(FixedArrayBase, RefSerializationKind::kBackgroundSerialized)          \
   V(FunctionTemplateInfo, RefSerializationKind::kNeverSerialized)         \
-  V(HeapNumber, RefSerializationKind::kPossiblyBackgroundSerialized)      \
+  V(HeapNumber, RefSerializationKind::kBackgroundSerialized)              \
   V(JSReceiver, RefSerializationKind::kBackgroundSerialized)              \
   V(Map, RefSerializationKind::kBackgroundSerialized)                     \
   V(Name, RefSerializationKind::kNeverSerialized)                         \

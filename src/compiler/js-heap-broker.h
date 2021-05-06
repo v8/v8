@@ -348,6 +348,16 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   RootIndexMap const& root_index_map() { return root_index_map_; }
 
+  CompilationDependencies* dependencies() const {
+    DCHECK_NOT_NULL(dependencies_);
+    return dependencies_;
+  }
+
+  void set_dependencies(CompilationDependencies* dependencies) {
+    DCHECK_NULL(dependencies_);
+    dependencies_ = dependencies;
+  }
+
   class MapUpdaterMutexDepthScope final {
    public:
     explicit MapUpdaterMutexDepthScope(JSHeapBroker* ptr)
@@ -441,6 +451,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   Isolate* const isolate_;
   Zone* const zone_ = nullptr;
+  CompilationDependencies* dependencies_ = nullptr;
   base::Optional<NativeContextRef> target_native_context_;
   RefsMap* refs_;
   RootIndexMap root_index_map_;

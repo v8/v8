@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/codegen/code-factory.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/protectors-inl.h"
@@ -72,8 +73,10 @@ namespace {
 
 bool IsReadOnlyHeapObject(Object object) {
   DisallowGarbageCollection no_gc;
+  // HeapNumber is excluded because we have a uniform background
+  // serialization treatment for it.
   return (object.IsCode() && Code::cast(object).is_builtin()) ||
-         (object.IsHeapObject() &&
+         (object.IsHeapObject() && !object.IsHeapNumber() &&
           ReadOnlyHeap::Contains(HeapObject::cast(object)));
 }
 
@@ -754,18 +757,29 @@ class RegExpBoilerplateDescriptionData : public HeapObjectData {
   int flags_;
 };
 
+// for HeapNumber, we should always read from the Data object, which records
+// the one time we read the value, possibly on main thread (in the case of
+// bytecode serialization), or possibly on the background thread. The read of
+// this value has no guarantee of being correct. Therefore, instantiation of
+// a HeapNumberData must be associated with the creation of a compilation
+// dependency which will check later on the main thread if the bits of the
+// heap number are exactly correct.
 class HeapNumberData : public HeapObjectData {
  public:
   HeapNumberData(JSHeapBroker* broker, ObjectData** storage,
                  Handle<HeapNumber> object,
                  ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
-      : HeapObjectData(broker, storage, object, kind),
-        value_(object->value()) {}
+      : HeapObjectData(broker, storage, object, kind) {
+    const uint64_t value_as_bits = object->value_as_bits_relaxed();
+    STATIC_ASSERT(sizeof(value_) == sizeof(value_as_bits));
+    value_ = *reinterpret_cast<const double*>(&value_as_bits);
+    broker->dependencies()->DependOnHeapNumberValue(object, value_as_bits);
+  }
 
   double value() const { return value_; }
 
  private:
-  double const value_;
+  double value_;
 };
 
 class ContextData : public HeapObjectData {
@@ -3294,7 +3308,15 @@ BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
 
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 
-BIMODAL_ACCESSOR_C(HeapNumber, double, value)
+double HeapNumberRef::value() const {
+  if (data_->should_access_heap()) {
+    // TODO(mvstanton): it would make things simpler to eliminate the
+    // kUnserializedHeapObject case, even for OSR compiles.
+    CHECK_EQ(data_->kind(), kUnserializedHeapObject);
+    return object()->value();
+  }
+  return ObjectRef::data()->AsHeapNumber()->value();
+}
 
 // These JSBoundFunction fields are immutable after initialization. Moreover,
 // as long as JSObjects are still serialized on the main thread, all
