@@ -2270,10 +2270,9 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
         Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver}) {
     ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(b));
   }
-  FunctionTemplateInfoRef target_template_info = MakeRef(
-      broker(),
-      Handle<FunctionTemplateInfo>::cast(broker()->CanonicalPersistentHandle(
-          target->function_data(kAcquireLoad))));
+  FunctionTemplateInfoRef target_template_info =
+      MakeRef(broker(),
+              FunctionTemplateInfo::cast(target->function_data(kAcquireLoad)));
   if (!target_template_info.has_call_code()) return;
   target_template_info.SerializeCallCode();
 
@@ -3039,9 +3038,8 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
         // For JSCallReducer::ReduceCallApiFunction.
         Handle<SharedFunctionInfo> sfi = function.shared().object();
         if (sfi->IsApiFunction()) {
-          FunctionTemplateInfoRef fti_ref = MakeRef(
-              broker(),
-              broker()->CanonicalPersistentHandle(sfi->get_api_func_data()));
+          FunctionTemplateInfoRef fti_ref =
+              MakeRef(broker(), sfi->get_api_func_data());
           if (fti_ref.has_call_code()) {
             fti_ref.SerializeCallCode();
             ProcessReceiverMapForApiCall(fti_ref, receiver_map->object());
@@ -3055,9 +3053,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
       function.Serialize();
     } else {
       FunctionTemplateInfoRef fti = MakeRef(
-          broker(),
-          Handle<FunctionTemplateInfo>::cast(
-              broker()->CanonicalPersistentHandle(access_info.constant())));
+          broker(), FunctionTemplateInfo::cast(*access_info.constant()));
       if (fti.has_call_code()) fti.SerializeCallCode();
     }
   } else if (access_info.IsModuleExport()) {

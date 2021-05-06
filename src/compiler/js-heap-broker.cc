@@ -142,8 +142,7 @@ void JSHeapBroker::SetTargetNativeContextRef(
          (mode() == kSerializing &&
           target_native_context_->object().equals(native_context) &&
           target_native_context_->is_unserialized_heap_object()));
-  target_native_context_ =
-      MakeRef(this, CanonicalPersistentHandle(*native_context));
+  target_native_context_ = MakeRef(this, *native_context);
 }
 
 void JSHeapBroker::CollectArrayAndObjectPrototypes() {
@@ -712,8 +711,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   PropertyCellRef cell =
       MakeRef(this, Handle<PropertyCell>::cast(feedback_value));
   MakeRef(this,
-          CanonicalPersistentHandle(
-              Handle<PropertyCell>::cast(feedback_value)->value(kAcquireLoad)));
+          Handle<PropertyCell>::cast(feedback_value)->value(kAcquireLoad));
   return *zone()->New<GlobalAccessFeedback>(cell, nexus.kind());
 }
 
