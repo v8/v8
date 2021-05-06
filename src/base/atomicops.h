@@ -294,6 +294,32 @@ inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
 }
 
 #endif  // defined(V8_HOST_ARCH_64_BIT)
+
+inline void Relaxed_Memcpy(volatile Atomic8* dst, volatile const Atomic8* src,
+                           size_t bytes) {
+  constexpr size_t kAtomicWordSize = sizeof(AtomicWord);
+  while (bytes > 0 &&
+         !IsAligned(reinterpret_cast<uintptr_t>(dst), kAtomicWordSize)) {
+    Relaxed_Store(dst++, Relaxed_Load(src++));
+    --bytes;
+  }
+  if (IsAligned(reinterpret_cast<uintptr_t>(src), kAtomicWordSize)) {
+    DCHECK(IsAligned(reinterpret_cast<uintptr_t>(dst), kAtomicWordSize));
+    while (bytes >= kAtomicWordSize) {
+      Relaxed_Store(
+          reinterpret_cast<volatile AtomicWord*>(dst),
+          Relaxed_Load(reinterpret_cast<const volatile AtomicWord*>(src)));
+      dst += kAtomicWordSize;
+      src += kAtomicWordSize;
+      bytes -= kAtomicWordSize;
+    }
+  }
+  while (bytes > 0) {
+    Relaxed_Store(dst++, Relaxed_Load(src++));
+    --bytes;
+  }
+}
+
 }  // namespace base
 }  // namespace v8
 

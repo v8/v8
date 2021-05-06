@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/atomicops.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
@@ -108,7 +109,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
       offheap_copy.resize(bytes);
       data_copy_ptr = &offheap_copy[0];
     }
-    std::memcpy(data_copy_ptr, static_cast<void*>(array->DataPtr()), bytes);
+    base::Relaxed_Memcpy(static_cast<base::Atomic8*>(data_copy_ptr),
+                         static_cast<base::Atomic8*>(array->DataPtr()), bytes);
   }
 
   DisallowGarbageCollection no_gc;
@@ -147,7 +149,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
     DCHECK_NOT_NULL(data_copy_ptr);
     DCHECK_NE(array_copy.is_null(), offheap_copy.empty());
     const size_t bytes = array->byte_length();
-    std::memcpy(static_cast<void*>(array->DataPtr()), data_copy_ptr, bytes);
+    base::Relaxed_Memcpy(static_cast<base::Atomic8*>(array->DataPtr()),
+                         static_cast<base::Atomic8*>(data_copy_ptr), bytes);
   }
 
   return *array;
