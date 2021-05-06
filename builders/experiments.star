@@ -162,6 +162,16 @@ experiment_builder(
     to_notify = ["clemensb@chromium.org", "v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
+experiment_builder_pair(
+    name = "V8 Linux64 - debug - single generation",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.DEFAULT,
+    to_notify = ["dinfuehr@chromium.org", "v8-waterfall-sheriff@grotations.appspotmail.com"],
+)
+
 experiment_builder(
     name = "V8 Linux gcc",
     bucket = "ci",
