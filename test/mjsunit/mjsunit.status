@@ -603,6 +603,7 @@
   'regress/regress-430201': [SKIP],
   'regress/regress-500980': [PASS, SLOW],
   'wasm/shared-memory-worker-stress': [PASS, SLOW],
+  'compiler/regress-crbug-11564': [PASS, SLOW],
 
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
