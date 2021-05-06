@@ -173,7 +173,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLengthProperty(
     Handle<JSArray> array = Handle<JSArray>::cast(receiver);
     if (!JSArray::HasReadOnlyLength(array)) {
       DCHECK_LE(length, kMaxUInt32);
-      JSArray::SetLength(array, static_cast<uint32_t>(length));
+      MAYBE_RETURN_NULL(
+          JSArray::SetLength(array, static_cast<uint32_t>(length)));
       return receiver;
     }
   }
@@ -385,7 +386,9 @@ BUILTIN(ArrayPush) {
   }
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  uint32_t new_length = accessor->Push(array, &args, to_add);
+  uint32_t new_length;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, new_length, accessor->Push(array, &args, to_add));
   return *isolate->factory()->NewNumberFromUint((new_length));
 }
 
@@ -468,7 +471,8 @@ BUILTIN(ArrayPop) {
   Handle<Object> result;
   if (IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
     // Fast Elements Path
-    result = array->GetElementsAccessor()->Pop(array);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, array->GetElementsAccessor()->Pop(array));
   } else {
     // Use Slow Lookup otherwise
     uint32_t new_length = len - 1;
@@ -483,7 +487,9 @@ BUILTIN(ArrayPop) {
                                 isolate->factory()->length_string(),
                                 Object::TypeOf(isolate, array), array));
     }
-    JSArray::SetLength(array, new_length);
+    bool set_len_ok;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, set_len_ok, JSArray::SetLength(array, new_length));
   }
 
   return *result;
@@ -595,7 +601,8 @@ BUILTIN(ArrayShift) {
 
   if (CanUseFastArrayShift(isolate, receiver)) {
     Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-    return *array->GetElementsAccessor()->Shift(array);
+    RETURN_RESULT_OR_FAILURE(isolate,
+                             array->GetElementsAccessor()->Shift(array));
   }
 
   return GenericArrayShift(isolate, receiver, length);
@@ -623,7 +630,9 @@ BUILTIN(ArrayUnshift) {
   DCHECK(!JSArray::HasReadOnlyLength(array));
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  int new_length = accessor->Unshift(array, &args, to_add);
+  uint32_t new_length;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, new_length, accessor->Unshift(array, &args, to_add));
   return Smi::FromInt(new_length);
 }
 

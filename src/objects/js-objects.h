@@ -440,10 +440,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                           const char* name, Handle<Object> value,
                           PropertyAttributes attributes);
 
-  V8_EXPORT_PRIVATE static void AddDataElement(Handle<JSObject> receiver,
-                                               uint32_t index,
-                                               Handle<Object> value,
-                                               PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE static Maybe<bool> AddDataElement(
+      Handle<JSObject> receiver, uint32_t index, Handle<Object> value,
+      PropertyAttributes attributes);
 
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.

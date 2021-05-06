@@ -4849,9 +4849,9 @@ static ElementsKind BestFittingFastElementsKind(JSObject object) {
 }
 
 // static
-void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
-                              Handle<Object> value,
-                              PropertyAttributes attributes) {
+Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
+                                     Handle<Object> value,
+                                     PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 
   DCHECK(object->map(isolate).is_extensible());
@@ -4894,13 +4894,15 @@ void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   }
   to = GetMoreGeneralElementsKind(kind, to);
   ElementsAccessor* accessor = ElementsAccessor::ForKind(to);
-  accessor->Add(object, index, value, attributes, new_capacity);
+  MAYBE_RETURN(accessor->Add(object, index, value, attributes, new_capacity),
+               Nothing<bool>());
 
   if (object->IsJSArray(isolate) && index >= old_length) {
     Handle<Object> new_length =
         isolate->factory()->NewNumberFromUint(index + 1);
     JSArray::cast(*object).set_length(*new_length);
   }
+  return Just(true);
 }
 
 template <AllocationSiteUpdateMode update_or_check>
@@ -4967,7 +4969,15 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
     DCHECK((IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
            (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
     uint32_t c = static_cast<uint32_t>(object->elements().length());
-    ElementsAccessor::ForKind(to_kind)->GrowCapacityAndConvert(object, c);
+    if (ElementsAccessor::ForKind(to_kind)
+            ->GrowCapacityAndConvert(object, c)
+            .IsNothing()) {
+      // TODO(victorgomes): Temporarily forcing a fatal error here in case of
+      // overflow, until all users of TransitionElementsKind can handle
+      // exceptions.
+      FATAL("Fatal JavaScript invalid array size transitioning elements kind.");
+      UNREACHABLE();
+    }
   }
 }
 
