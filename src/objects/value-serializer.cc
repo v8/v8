@@ -1548,7 +1548,7 @@ MaybeHandle<JSArray> ValueDeserializer::ReadSparseJSArray() {
   HandleScope scope(isolate_);
   Handle<JSArray> array =
       isolate_->factory()->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND);
-  JSArray::SetLength(array, length);
+  MAYBE_RETURN(JSArray::SetLength(array, length), MaybeHandle<JSArray>());
   AddObjectWithID(id, array);
 
   uint32_t num_properties;
@@ -2321,7 +2321,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
 
         Handle<JSArray> js_array =
             isolate_->factory()->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND);
-        JSArray::SetLength(js_array, length);
+        MAYBE_RETURN_NULL(JSArray::SetLength(js_array, length));
         size_t begin_properties =
             stack.size() - 2 * static_cast<size_t>(num_properties);
         if (num_properties &&

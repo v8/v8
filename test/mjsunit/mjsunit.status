@@ -196,6 +196,7 @@
   'regress/regress-crbug-808192': [SKIP],
   'regress/regress-crbug-941743': [SKIP],
   'regress/regress-create-exception': [SKIP],
+  'regress/regress-crbug-1201626': [SKIP],
 
   # These tests run out of stack space in debug mode.
   'big-array-literal': [SKIP],
@@ -533,6 +534,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639
   # The failed allocation causes an asan/msan/tsan error
   'es6/typedarray-construct-offset-not-smi': [SKIP],
+
+  # Skip slow tests.
+  'regress/regress-crbug-1201626': [SKIP],
 
   # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
   'regress/regress-1132': [SKIP],

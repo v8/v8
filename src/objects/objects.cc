@@ -2899,8 +2899,9 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     }
 
     Handle<JSObject> receiver_obj = Handle<JSObject>::cast(receiver);
-    JSObject::AddDataElement(receiver_obj, it->array_index(), value,
-                             attributes);
+    MAYBE_RETURN(JSObject::AddDataElement(receiver_obj, it->array_index(),
+                                          value, attributes),
+                 Nothing<bool>());
     JSObject::ValidateElements(*receiver_obj);
     return Just(true);
   } else {
@@ -3418,7 +3419,7 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
     // (Not needed.)
   }
   // Most of steps 16 through 19 is implemented by JSArray::SetLength.
-  JSArray::SetLength(a, new_len);
+  MAYBE_RETURN(JSArray::SetLength(a, new_len), Nothing<bool>());
   // Steps 19d-ii, 20.
   if (!new_writable) {
     PropertyDescriptor readonly;
@@ -5102,13 +5103,13 @@ void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
       array, length, capacity, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 }
 
-void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
+Maybe<bool> JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   // We should never end in here with a pixel or external array.
   DCHECK(array->AllowsSetLength());
   if (array->SetLengthWouldNormalize(new_length)) {
     JSObject::NormalizeElements(array);
   }
-  array->GetElementsAccessor()->SetLength(array, new_length);
+  return array->GetElementsAccessor()->SetLength(array, new_length);
 }
 
 // ES6: 9.5.2 [[SetPrototypeOf]] (V)
