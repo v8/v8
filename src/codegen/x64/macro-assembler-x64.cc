@@ -371,19 +371,27 @@ void TurboAssembler::SaveRegisters(RegList registers) {
   }
 }
 
-void TurboAssembler::LoadExternalPointerField(Register destination,
-                                              Operand field_operand,
-                                              ExternalPointerTag tag) {
+void TurboAssembler::LoadExternalPointerField(
+    Register destination, Operand field_operand, ExternalPointerTag tag,
+    Register scratch, IsolateRootLocation isolateRootLocation) {
 #ifdef V8_HEAP_SANDBOX
-  LoadAddress(kScratchRegister,
-              ExternalReference::external_pointer_table_address(isolate()));
-  movq(kScratchRegister,
-       Operand(kScratchRegister, Internals::kExternalPointerTableBufferOffset));
+  DCHECK(!field_operand.AddressUsesRegister(scratch));
+  if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
+    DCHECK(root_array_available_);
+    movq(scratch, Operand(kRootRegister,
+                          IsolateData::external_pointer_table_offset() +
+                              Internals::kExternalPointerTableBufferOffset));
+  } else {
+    DCHECK(isolateRootLocation == IsolateRootLocation::kInScratchRegister);
+    movq(scratch,
+         Operand(scratch, IsolateData::external_pointer_table_offset() +
+                              Internals::kExternalPointerTableBufferOffset));
+  }
   movl(destination, field_operand);
-  movq(destination, Operand(kScratchRegister, destination, times_8, 0));
+  movq(destination, Operand(scratch, destination, times_8, 0));
   if (tag != 0) {
-    movq(kScratchRegister, Immediate64(tag));
-    xorq(destination, kScratchRegister);
+    movq(scratch, Immediate64(tag));
+    xorq(destination, scratch);
   }
 #else
   movq(destination, field_operand);

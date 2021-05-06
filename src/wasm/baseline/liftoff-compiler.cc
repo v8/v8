@@ -5688,10 +5688,21 @@ class LiftoffCompiler {
     }
     // Load the call target.
     __ bind(&load_target);
+
+#ifdef V8_HEAP_SANDBOX
+    LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
+    __ LoadExternalPointerField(
+        target.gp(),
+        FieldOperand(func_data.gp(), WasmFunctionData::kForeignAddressOffset),
+        kForeignForeignAddressTag, temp.gp(),
+        TurboAssembler::IsolateRootLocation::kInScratchRegister);
+#else
     __ Load(
         target, func_data.gp(), no_reg,
         wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset),
         kPointerLoadType, pinned);
+#endif
+
     LiftoffRegister null_address = temp;
     __ LoadConstant(null_address, WasmValue::ForUintPtr(0));
     __ emit_cond_jump(kUnequal, &perform_call, kRef, target.gp(),

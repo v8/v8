@@ -1421,6 +1421,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
       WasmExportedFunctionData::cast(AllocateRawWithImmortalMap(
           map.instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
+  result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), call_target);
   result.set_ref(*ref);
   result.set_wrapper_code(*export_wrapper);

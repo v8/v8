@@ -76,6 +76,13 @@ class IsolateData final {
     return kBuiltinsTableOffset - kIsolateRootBias;
   }
 
+  // Root-register-relative offset of the external pointer table.
+#ifdef V8_HEAP_SANDBOX
+  static constexpr int external_pointer_table_offset() {
+    return kExternalPointerTableOffset - kIsolateRootBias;
+  }
+#endif
+
   static constexpr int fast_c_call_caller_fp_offset() {
     return kFastCCallCallerFPOffset - kIsolateRootBias;
   }

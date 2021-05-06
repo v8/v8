@@ -3121,9 +3121,26 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
 Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
     Node* function_data) {
+  // TODO(saelo) move this code into a common LoadExternalPointer routine?
+#ifdef V8_HEAP_SANDBOX
+  Node* index = gasm_->LoadFromObject(
+      MachineType::Pointer(), function_data,
+      wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset));
+
+  Node* isolate_root = BuildLoadIsolateRoot();
+  Node* table =
+      gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
+                            IsolateData::external_pointer_table_offset() +
+                                Internals::kExternalPointerTableBufferOffset);
+  Node* offset = gasm_->Int32Mul(index, gasm_->Int32Constant(8));
+  Node* decoded_ptr = gasm_->Load(MachineType::Pointer(), table, offset);
+  Node* tag = gasm_->IntPtrConstant(kForeignForeignAddressTag);
+  return gasm_->WordXor(decoded_ptr, tag);
+#else
   return gasm_->LoadFromObject(
       MachineType::Pointer(), function_data,
       wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset));
+#endif
 }
 
 // TODO(9495): Support CAPI function refs.

@@ -2925,7 +2925,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ LoadExternalPointerField(
       signature,
       FieldOperand(foreign_signature, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag);
+      kForeignForeignAddressTag, kScratchRegister);
   foreign_signature = no_reg;
   Register return_count = r8;
   __ movq(return_count,
@@ -3256,11 +3256,14 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   thread_in_wasm_flag_addr = no_reg;
 
   Register function_entry = function_data;
-  __ movq(function_entry,
-          MemOperand(function_data,
-                     wasm::ObjectAccess::ToTagged(
-                         WasmExportedFunctionData::kForeignAddressOffset)));
+  Register scratch = r12;
+  __ LoadExternalPointerField(
+      function_entry,
+      FieldOperand(function_data,
+                   WasmExportedFunctionData::kForeignAddressOffset),
+      kForeignForeignAddressTag, scratch);
   function_data = no_reg;
+  scratch = no_reg;
 
   // We set the indicating value for the GC to the proper one for Wasm call.
   constexpr int kWasmCallGCScanSlotCount = 0;
@@ -4120,7 +4123,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ LoadExternalPointerField(
       api_function_address,
       FieldOperand(scratch, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag);
+      kForeignForeignAddressTag, kScratchRegister);
 
   // +3 is to skip prolog, return address and name handle.
   Operand return_value_operand(
