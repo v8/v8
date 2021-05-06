@@ -3999,6 +3999,15 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       WriteDW(ra_val + rb_val, get_simd_register_by_lane<int64_t>(xs, 0));
       break;
     }
+    case XXBRQ: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      __int128 xb_val = *reinterpret_cast<__int128*>(get_simd_register(b).int8);
+      __int128 xb_val_reversed = __builtin_bswap128(xb_val);
+      simdr_t simdr_xb = *reinterpret_cast<simdr_t*>(&xb_val_reversed);
+      set_simd_register(t, simdr_xb);
+      break;
+    }
 #define VSPLT(type)                                       \
   uint32_t uim = instr->Bits(20, 16);                     \
   int vrt = instr->RTValue();                             \

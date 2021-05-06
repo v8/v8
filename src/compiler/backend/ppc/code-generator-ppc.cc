@@ -3178,24 +3178,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1),
-                      tempFPReg1 = i.ToSimd128Register(instr->TempAt(0)),
-                      tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));
+                      tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       // Saturate the indices to 5 bits. Input indices more than 31 should
       // return 0.
-      __ xxspltib(tempFPReg2, Operand(31));
-      __ vminub(tempFPReg2, src1, tempFPReg2);
-      __ addi(sp, sp, Operand(-16));
-      __ stxvd(src0, MemOperand(r0, sp));
-      __ ldbrx(r0, MemOperand(r0, sp));
-      __ li(ip, Operand(8));
-      __ ldbrx(ip, MemOperand(ip, sp));
-      __ stdx(ip, MemOperand(r0, sp));
-      __ li(ip, Operand(8));
-      __ stdx(r0, MemOperand(ip, sp));
-      __ lxvd(kScratchSimd128Reg, MemOperand(r0, sp));
-      __ addi(sp, sp, Operand(16));
-      __ vxor(tempFPReg1, tempFPReg1, tempFPReg1);
-      __ vperm(dst, kScratchSimd128Reg, tempFPReg1, tempFPReg2);
+      __ xxspltib(tempFPReg1, Operand(31));
+      __ vminub(tempFPReg1, src1, tempFPReg1);
+      //  input needs to be reversed.
+      __ xxbrq(dst, src0);
+      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vperm(dst, dst, kScratchSimd128Reg, tempFPReg1);
       break;
     }
     case kPPC_F64x2Qfma: {
