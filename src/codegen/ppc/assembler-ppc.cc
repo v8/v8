@@ -57,6 +57,8 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 bool CpuFeatures::SupportsWasmSimd128() {
 #if V8_ENABLE_WEBASSEMBLY
   return CpuFeatures::IsSupported(SIMD);
+#else
+  return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
