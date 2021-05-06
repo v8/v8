@@ -1148,7 +1148,7 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
  public:
   explicit constexpr FastApiCallNode(Node* node)
       : SimplifiedNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kFastApiCall);
+    DCHECK_EQ(IrOpcode::kFastApiCall, node->opcode());
   }
 
   const FastApiCallParameters& Parameters() const {
@@ -1220,7 +1220,7 @@ class TierUpCheckNode final : public SimplifiedNodeWrapperBase {
  public:
   explicit constexpr TierUpCheckNode(Node* node)
       : SimplifiedNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kTierUpCheck);
+    DCHECK_EQ(IrOpcode::kTierUpCheck, node->opcode());
   }
 
 #define INPUTS(V)                                       \
@@ -1237,7 +1237,7 @@ class UpdateInterruptBudgetNode final : public SimplifiedNodeWrapperBase {
  public:
   explicit constexpr UpdateInterruptBudgetNode(Node* node)
       : SimplifiedNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kUpdateInterruptBudget);
+    DCHECK_EQ(IrOpcode::kUpdateInterruptBudget, node->opcode());
   }
 
   int delta() const { return OpParameter<int>(node()->op()); }

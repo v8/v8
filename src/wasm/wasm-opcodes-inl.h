@@ -629,16 +629,12 @@ constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
     case kNumericPrefix:
       return impl::kCachedSigs[impl::kNumericExprSigTable[opcode & 0xFF]];
     default:
-#if V8_HAS_CXX14_CONSTEXPR
       UNREACHABLE();  // invalid prefix.
-#else
-      return nullptr;
-#endif
   }
 }
 
 constexpr const FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
-  CONSTEXPR_DCHECK(opcode < impl::kSimpleAsmjsExprSigTable.size());
+  DCHECK_GT(impl::kSimpleAsmjsExprSigTable.size(), opcode);
   return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode]];
 }
 

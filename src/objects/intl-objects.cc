@@ -90,7 +90,7 @@ inline constexpr uint16_t ToLatin1Lower(uint16_t ch) {
 
 // Does not work for U+00DF (sharp-s), U+00B5 (micron), U+00FF.
 inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
-  CONSTEXPR_DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
+  DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
   return ch &
          ~((IsAsciiLower(ch) || (((ch & 0xE0) == 0xE0) && ch != 0xF7)) << 5);
 }

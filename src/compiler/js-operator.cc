@@ -23,7 +23,7 @@ namespace {
 
 // Returns properties for the given binary op.
 constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
-  CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(opcode));
+  DCHECK(JSOperator::IsBinaryWithFeedback(opcode));
   return opcode == IrOpcode::kJSStrictEqual ? Operator::kPure
                                             : Operator::kNoProperties;
 }

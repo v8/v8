@@ -2850,7 +2850,7 @@ constexpr InstructionCode EncodeCallDescriptorFlags(
   // Note: Not all bits of `flags` are preserved.
   STATIC_ASSERT(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
                 MiscField::kSize);
-  CONSTEXPR_DCHECK(Instruction::IsCallWithDescriptorFlags(opcode));
+  DCHECK(Instruction::IsCallWithDescriptorFlags(opcode));
   return opcode | MiscField::encode(flags & MiscField::kMax);
 }
 

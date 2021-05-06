@@ -89,7 +89,7 @@ constexpr int SwissNameDictionary::CtrlTableSize(int capacity) {
 
 // static
 constexpr int SwissNameDictionary::SizeFor(int capacity) {
-  CONSTEXPR_DCHECK(IsValidCapacity(capacity));
+  DCHECK(IsValidCapacity(capacity));
   return PropertyDetailsTableStartOffset(capacity) + capacity;
 }
 
@@ -98,7 +98,7 @@ constexpr int SwissNameDictionary::SizeFor(int capacity) {
 // Similar to Abseil's CapacityToGrowth.
 // static
 constexpr int SwissNameDictionary::MaxUsableCapacity(int capacity) {
-  CONSTEXPR_DCHECK(IsValidCapacity(capacity));
+  DCHECK(IsValidCapacity(capacity));
 
   if (Group::kWidth == 8 && capacity == 4) {
     // If the group size is 16 we can fully utilize capacity 4: There will be
@@ -443,7 +443,7 @@ int SwissNameDictionary::GetMetaTableField(ByteArray meta_table,
 }
 
 constexpr int SwissNameDictionary::MetaTableSizePerEntryFor(int capacity) {
-  CONSTEXPR_DCHECK(IsValidCapacity(capacity));
+  DCHECK(IsValidCapacity(capacity));
 
   // See the STATIC_ASSERTs on |kMax1ByteMetaTableCapacity| and
   // |kMax2ByteMetaTableCapacity| in the .cc file for an explanation of these
@@ -458,7 +458,7 @@ constexpr int SwissNameDictionary::MetaTableSizePerEntryFor(int capacity) {
 }
 
 constexpr int SwissNameDictionary::MetaTableSizeFor(int capacity) {
-  CONSTEXPR_DCHECK(IsValidCapacity(capacity));
+  DCHECK(IsValidCapacity(capacity));
 
   int per_entry_size = MetaTableSizePerEntryFor(capacity);
 
@@ -660,7 +660,7 @@ constexpr int SwissNameDictionary::MaxCapacity() {
       sizeof(uint32_t);
 
   int result = (FixedArray::kMaxSize - const_size) / per_entry_size;
-  CONSTEXPR_DCHECK(result <= Smi::kMaxValue);
+  DCHECK_GE(Smi::kMaxValue, result);
 
   return result;
 }

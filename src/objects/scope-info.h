@@ -313,7 +313,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   }
   static constexpr int ConvertOffsetToIndex(int offset) {
     int index = (offset - HeapObject::kHeaderSize) / kTaggedSize;
-    CONSTEXPR_DCHECK(OffsetOfElementAt(index) == offset);
+    DCHECK_EQ(OffsetOfElementAt(index), offset);
     return index;
   }
 

@@ -310,10 +310,6 @@ path. Add it with -I<path> to the command line
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
 # define V8_HAS_COMPUTED_GOTO 1
 
-// Whether constexpr has full C++14 semantics, in particular that non-constexpr
-// code is allowed as long as it's not executed for any constexpr instantiation.
-# define V8_HAS_CXX14_CONSTEXPR 1
-
 #elif defined(__GNUC__)
 
 # define V8_CC_GNU 1
@@ -350,11 +346,6 @@ path. Add it with -I<path> to the command line
 
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
 #define V8_HAS_COMPUTED_GOTO 1
-
-// Whether constexpr has full C++14 semantics, in particular that non-constexpr
-// code is allowed as long as it's not executed for any constexpr instantiation.
-// GCC only supports this since version 6.
-# define V8_HAS_CXX14_CONSTEXPR (V8_GNUC_PREREQ(6, 0, 0))
 
 #endif
 

@@ -649,8 +649,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Return true if |bytecode| is an accumulator load without effects,
   // e.g. LdaConstant, LdaTrue, Ldar.
   static constexpr bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode) {
-    CONSTEXPR_DCHECK(Bytecode::kLdar <
-                     Bytecode::kLdaImmutableCurrentContextSlot);
+    STATIC_ASSERT(Bytecode::kLdar < Bytecode::kLdaImmutableCurrentContextSlot);
     return bytecode >= Bytecode::kLdar &&
            bytecode <= Bytecode::kLdaImmutableCurrentContextSlot;
   }
@@ -658,7 +657,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns true if |bytecode| is a compare operation without external effects
   // (e.g., Type cooersion).
   static constexpr bool IsCompareWithoutEffects(Bytecode bytecode) {
-    CONSTEXPR_DCHECK(Bytecode::kTestReferenceEqual < Bytecode::kTestTypeOf);
+    STATIC_ASSERT(Bytecode::kTestReferenceEqual < Bytecode::kTestTypeOf);
     return bytecode >= Bytecode::kTestReferenceEqual &&
            bytecode <= Bytecode::kTestTypeOf;
   }

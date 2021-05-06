@@ -468,7 +468,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   V8_INLINE static constexpr int SizeFor(int length) {
     // TODO(v8:9287): This is a workaround for GCMole build failures.
     int result = kElementsOffset + length * kTaggedSize;
-    CONSTEXPR_DCHECK(TorqueGeneratedContext::SizeFor(length) == result);
+    DCHECK_EQ(TorqueGeneratedContext::SizeFor(length), result);
     return result;
   }
 

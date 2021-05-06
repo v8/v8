@@ -26,7 +26,7 @@ class Smi : public Object {
   // in that we want them to be constexprs.
   constexpr Smi() : Object() {}
   explicit constexpr Smi(Address ptr) : Object(ptr) {
-    CONSTEXPR_DCHECK(HAS_SMI_TAG(ptr));
+    DCHECK(HAS_SMI_TAG(ptr));
   }
 
   // Returns the integer value.
@@ -43,7 +43,7 @@ class Smi : public Object {
 
   // Convert a value to a Smi object.
   static inline constexpr Smi FromInt(int value) {
-    CONSTEXPR_DCHECK(Smi::IsValid(value));
+    DCHECK(Smi::IsValid(value));
     return Smi(Internals::IntToSmi(value));
   }
 
@@ -69,8 +69,8 @@ class Smi : public Object {
 
   // Returns whether value can be represented in a Smi.
   static inline bool constexpr IsValid(intptr_t value) {
-    CONSTEXPR_DCHECK(Internals::IsValidSmi(value) ==
-                     (value >= kMinValue && value <= kMaxValue));
+    DCHECK_EQ(Internals::IsValidSmi(value),
+              value >= kMinValue && value <= kMaxValue);
     return Internals::IsValidSmi(value);
   }
 

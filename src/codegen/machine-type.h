@@ -354,12 +354,7 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
     case MachineRepresentation::kCompressed:
       return kTaggedSizeLog2;
     default:
-#if V8_HAS_CXX14_CONSTEXPR
       UNREACHABLE();
-#else
-      // Return something for older compilers.
-      return -1;
-#endif
   }
 }
 

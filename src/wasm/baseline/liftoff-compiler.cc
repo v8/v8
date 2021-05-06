@@ -151,12 +151,7 @@ constexpr LiftoffCondition GetCompareCondition(WasmOpcode opcode) {
     case kExprI32GeU:
       return kUnsignedGreaterEqual;
     default:
-#if V8_HAS_CXX14_CONSTEXPR
       UNREACHABLE();
-#else
-      // We need to return something for old compilers here.
-      return kEqual;
-#endif
   }
 }
 

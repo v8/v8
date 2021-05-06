@@ -7,6 +7,7 @@
 
 #include <utility>
 
+#include "src/base/logging.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/register-arch.h"
 
@@ -125,8 +126,8 @@ struct FirstInvalidRegisterHelper {
     if (!std::get<Index>(regs).is_valid()) {
       // All registers after the first invalid one have to also be invalid (this
       // DCHECK will be checked recursively).
-      CONSTEXPR_DCHECK((FirstInvalidRegisterHelper<N, Index + 1>::Call(regs)) ==
-                       Index + 1);
+      DCHECK_EQ((FirstInvalidRegisterHelper<N, Index + 1>::Call(regs)),
+                Index + 1);
       return Index;
     }
     return FirstInvalidRegisterHelper<N, Index + 1>::Call(regs);
