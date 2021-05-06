@@ -403,19 +403,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       FieldMemOperand(r4, JSGeneratorObject::kParametersAndRegistersOffset));
   {
     Label done_loop, loop;
-    __ mr(r9, r6);
-
     __ bind(&loop);
-    __ subi(r9, r9, Operand(1));
-    __ cmpi(r9, Operand::Zero());
+    __ subi(r6, r6, Operand(1));
+    __ cmpi(r6, Operand::Zero());
     __ blt(&done_loop);
-    __ ShiftLeftImm(r10, r9, Operand(kTaggedSizeLog2));
+    __ ShiftLeftImm(r10, r6, Operand(kTaggedSizeLog2));
     __ add(scratch, r5, r10);
     __ LoadAnyTaggedField(scratch,
                           FieldMemOperand(scratch, FixedArray::kHeaderSize));
     __ Push(scratch);
     __ b(&loop);
-
     __ bind(&done_loop);
 
     // Push receiver.
