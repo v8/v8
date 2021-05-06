@@ -727,6 +727,11 @@ class InstructionBase {
     kUnsupported = -1
   };
 
+  inline bool IsIllegalInstruction() const {
+    uint8_t FirstHalfWord = *reinterpret_cast<const uint16_t*>(this);
+    return FirstHalfWord == 0;
+  }
+
   inline bool IsShortInstruction() const {
     uint8_t FirstByte = *reinterpret_cast<const uint8_t*>(this);
     return (FirstByte & 0x03) <= C2;
