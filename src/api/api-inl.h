@@ -175,8 +175,7 @@ class V8_NODISCARD CallDepthScope {
     }
     if (!escaped_) isolate_->thread_local_top()->DecrementCallDepth(this);
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
-// TODO(jochen): This should be #ifdef DEBUG
-#ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
+#ifdef DEBUG
     if (do_callback) {
       if (microtask_queue && microtask_queue->microtasks_policy() ==
                                  v8::MicrotasksPolicy::kScoped) {

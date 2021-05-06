@@ -211,10 +211,6 @@ declare_args() {
                       (is_linux || is_chromeos || is_mac)) ||
                      (v8_current_cpu == "ppc64" && (is_linux || is_chromeos))
 
-  # Temporary flag to allow embedders to update their microtasks scopes
-  # while rolling in a new version of V8.
-  v8_check_microtasks_scopes_consistency = ""
-
   # Enable mitigations for executing untrusted code.
   # Disabled by default on ia32 due to conflicting requirements with embedded
   # builtins. Enabled by default on Android since it doesn't support
@@ -347,10 +343,6 @@ if (v8_enable_snapshot_code_comments) {
 }
 if (v8_enable_debug_code == "") {
   v8_enable_debug_code = v8_enable_debugging_features
-}
-if (v8_check_microtasks_scopes_consistency == "") {
-  v8_check_microtasks_scopes_consistency =
-      v8_enable_debugging_features || dcheck_always_on
 }
 if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
@@ -801,9 +793,6 @@ config("features") {
   }
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
-  }
-  if (v8_check_microtasks_scopes_consistency) {
-    defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
   if (v8_use_multi_snapshots) {
     defines += [ "V8_MULTI_SNAPSHOTS" ]

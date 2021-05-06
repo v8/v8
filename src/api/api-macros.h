@@ -126,7 +126,3 @@
   EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, Nothing<T>())
 
 #define RETURN_ESCAPED(value) return handle_scope.Escape(value);
-
-// TODO(jochen): This should be #ifdef DEBUG
-#ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
-#endif
