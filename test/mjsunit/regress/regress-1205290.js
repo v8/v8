@@ -9,14 +9,15 @@ function waitForWorker() {
 function onmessage([sab, lock]) {
   const i32a = new Int32Array(sab);
   Atomics.store(lock, 0, 1);
-  for (let j = 1; j < 5000; ++j) {
+  for (let j = 1; j < 1000; ++j) {
     for (let i = 0; i < i32a.length; ++i) {
       i32a[i] = j;
     }
   }
 }
 const worker = new Worker(`onmessage = ${onmessage}`, {type: 'string'});
-const arr = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 2000));
+const arr =
+    new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 100));
 worker.postMessage([arr.buffer, sync_arr]);
 
 waitForWorker();
