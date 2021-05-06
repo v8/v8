@@ -4328,11 +4328,15 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
   Handle<JSReceiver> import_assertions_object_receiver =
       Handle<JSReceiver>::cast(import_assertions_object);
 
-  Handle<FixedArray> assertion_keys =
-      KeyAccumulator::GetKeys(import_assertions_object_receiver,
-                              KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
-                              GetKeysConversion::kConvertToString)
-          .ToHandleChecked();
+  Handle<FixedArray> assertion_keys;
+  if (!KeyAccumulator::GetKeys(import_assertions_object_receiver,
+                               KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
+                               GetKeysConversion::kConvertToString)
+           .ToHandle(&assertion_keys)) {
+    // This happens if the assertions object is a Proxy whose ownKeys() or
+    // getOwnPropertyDescriptor() trap throws.
+    return MaybeHandle<FixedArray>();
+  }
 
   // The assertions will be passed to the host in the form: [key1,
   // value1, key2, value2, ...].
