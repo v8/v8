@@ -237,6 +237,11 @@ class JSFunction : public JSFunctionOrBoundFunction {
       Isolate* isolate, Handle<JSFunction> constructor,
       Handle<JSReceiver> new_target);
 
+  // Like GetDerivedMap, but returns a map with a RAB / GSAB ElementsKind.
+  static V8_WARN_UNUSED_RESULT Handle<Map> GetDerivedRabGsabMap(
+      Isolate* isolate, Handle<JSFunction> constructor,
+      Handle<JSReceiver> new_target);
+
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
   // map. Otherwise, the prototype is put in the initial map field

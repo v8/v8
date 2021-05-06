@@ -151,8 +151,7 @@ using MapHandles = std::vector<Handle<Map>>;
 //      | Byte     | [bit_field2]                                    |
 //      |          |   - new_target_is_base (bit 0)                  |
 //      |          |   - is_immutable_proto (bit 1)                  |
-//      |          |   - unused bit (bit 2)                          |
-//      |          |   - elements_kind (bits 3..7)                   |
+//      |          |   - elements_kind (bits 2..7)                   |
 // +----+----------+-------------------------------------------------+
 // | Int           | [bit_field3]                                    |
 // |               |   - enum_length (bit 0..9)                      |
@@ -416,6 +415,8 @@ class Map : public HeapObject {
   inline bool has_fast_sloppy_arguments_elements() const;
   inline bool has_fast_string_wrapper_elements() const;
   inline bool has_typed_array_elements() const;
+  inline bool has_rab_gsab_typed_array_elements() const;
+  inline bool has_typed_array_or_rab_gsab_typed_array_elements() const;
   inline bool has_dictionary_elements() const;
   inline bool has_any_nonextensible_elements() const;
   inline bool has_nonextensible_elements() const;

@@ -330,6 +330,8 @@ namespace internal {
     "Expected letters optionally connected with underscores or hyphens for "   \
     "a location, got %")                                                       \
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \
+  T(InvalidArrayBufferMaxLength, "Invalid array buffer max length")            \
+  T(InvalidArrayBufferResizeLength, "%: Invalid length parameter")             \
   T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
   T(Invalid, "Invalid % : %")                                                  \
   T(InvalidArrayLength, "Invalid array length")                                \

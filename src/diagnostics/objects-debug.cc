@@ -1437,7 +1437,7 @@ void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
 
 void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSTypedArrayVerify(*this, isolate);
-  CHECK_LE(length(), JSTypedArray::kMaxLength);
+  CHECK_LE(GetLength(), JSTypedArray::kMaxLength);
 }
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {
@@ -1805,6 +1805,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       {
         info->number_of_objects_with_fast_elements_++;

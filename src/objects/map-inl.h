@@ -239,7 +239,7 @@ FixedArrayBase Map::GetInitialElements() const {
   if (has_fast_elements() || has_fast_string_wrapper_elements() ||
       has_any_nonextensible_elements()) {
     result = GetReadOnlyRoots().empty_fixed_array();
-  } else if (has_typed_array_elements()) {
+  } else if (has_typed_array_or_rab_gsab_typed_array_elements()) {
     result = GetReadOnlyRoots().empty_byte_array();
   } else if (has_dictionary_elements()) {
     result = GetReadOnlyRoots().empty_slow_element_dictionary();
@@ -591,6 +591,14 @@ bool Map::has_fast_string_wrapper_elements() const {
 
 bool Map::has_typed_array_elements() const {
   return IsTypedArrayElementsKind(elements_kind());
+}
+
+bool Map::has_rab_gsab_typed_array_elements() const {
+  return IsRabGsabTypedArrayElementsKind(elements_kind());
+}
+
+bool Map::has_typed_array_or_rab_gsab_typed_array_elements() const {
+  return IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind());
 }
 
 bool Map::has_dictionary_elements() const {

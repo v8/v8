@@ -235,6 +235,8 @@ class Genesis {
   enum ArrayBufferKind {
     ARRAY_BUFFER,
     SHARED_ARRAY_BUFFER,
+    RESIZABLE_ARRAY_BUFFER,
+    GROWABLE_SHARED_ARRAY_BUFFER
   };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
                                        ArrayBufferKind array_buffer_kind);
@@ -244,7 +246,8 @@ class Genesis {
 
   Handle<JSFunction> InstallTypedArray(const char* name,
                                        ElementsKind elements_kind,
-                                       InstanceType type);
+                                       InstanceType type,
+                                       int rab_gsab_initial_map_index);
   void InitializeNormalizedMapCaches();
 
   enum ExtensionTraversalState { UNVISITED, VISITED, INSTALLED };
@@ -3290,6 +3293,25 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallSpeciesGetter(isolate_, shared_array_buffer_fun);
   }
 
+  {  // R e s i z a b l e A r r a y B u f f e r
+    Handle<String> name = factory->ResizableArrayBuffer_string();
+    Handle<JSFunction> resizable_array_buffer_fun =
+        CreateArrayBuffer(name, RESIZABLE_ARRAY_BUFFER);
+    InstallWithIntrinsicDefaultProto(isolate_, resizable_array_buffer_fun,
+                                     Context::RESIZABLE_ARRAY_BUFFER_FUN_INDEX);
+    InstallSpeciesGetter(isolate_, resizable_array_buffer_fun);
+  }
+
+  {  // G r o w a b l e S h a r e d A r r a y B u f f e r
+    Handle<String> name = factory->GrowableSharedArrayBuffer_string();
+    Handle<JSFunction> growable_shared_array_buffer_fun =
+        CreateArrayBuffer(name, GROWABLE_SHARED_ARRAY_BUFFER);
+    InstallWithIntrinsicDefaultProto(
+        isolate_, growable_shared_array_buffer_fun,
+        Context::GROWABLE_SHARED_ARRAY_BUFFER_FUN_INDEX);
+    InstallSpeciesGetter(isolate_, growable_shared_array_buffer_fun);
+  }
+
   {  // -- A t o m i c s
     Handle<JSObject> atomics_object =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
@@ -3419,12 +3441,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {// -- T y p e d A r r a y s
-#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype)                          \
-  {                                                                           \
-    Handle<JSFunction> fun = InstallTypedArray(                               \
-        #Type "Array", TYPE##_ELEMENTS, TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE); \
-    InstallWithIntrinsicDefaultProto(isolate_, fun,                           \
-                                     Context::TYPE##_ARRAY_FUN_INDEX);        \
+#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype)                         \
+  {                                                                          \
+    Handle<JSFunction> fun = InstallTypedArray(                              \
+        #Type "Array", TYPE##_ELEMENTS, TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE, \
+        Context::RAB_GSAB_##TYPE##_ARRAY_MAP_INDEX);                         \
+    InstallWithIntrinsicDefaultProto(isolate_, fun,                          \
+                                     Context::TYPE##_ARRAY_FUN_INDEX);       \
   }
   TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
@@ -4055,7 +4078,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
 Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
                                               ElementsKind elements_kind,
-                                              InstanceType type) {
+                                              InstanceType type,
+                                              int rab_gsab_initial_map_index) {
   Handle<JSObject> global =
       Handle<JSObject>(native_context()->global_object(), isolate());
 
@@ -4092,6 +4116,15 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   prototype->map().set_instance_type(JS_TYPED_ARRAY_PROTOTYPE_TYPE);
 
   InstallConstant(isolate(), prototype, "BYTES_PER_ELEMENT", bytes_per_element);
+
+  // RAB / GSAB backed TypedArrays don't have separate constructors, but they
+  // have their own maps. Create the corresponding map here.
+  Handle<Map> rab_gsab_initial_map = factory()->NewMap(
+      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
+      GetCorrespondingRabGsabElementsKind(elements_kind), 0);
+  native_context()->set(rab_gsab_initial_map_index, *rab_gsab_initial_map);
+  Map::SetPrototype(isolate(), rab_gsab_initial_map, prototype);
+
   return result;
 }
 
@@ -4553,6 +4586,19 @@ void Genesis::InitializeGlobal_harmony_intl_locale_info() {
 
 #endif  // V8_INTL_SUPPORT
 
+void Genesis::InitializeGlobal_harmony_rab_gsab() {
+  if (!FLAG_harmony_rab_gsab) return;
+
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+
+  JSObject::AddProperty(isolate_, global, "ResizableArrayBuffer",
+                        isolate()->resizable_array_buffer_fun(), DONT_ENUM);
+
+  JSObject::AddProperty(isolate_, global, "GrowableSharedArrayBuffer",
+                        isolate()->growable_shared_array_buffer_fun(),
+                        DONT_ENUM);
+}
+
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%
@@ -4595,6 +4641,28 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(
       SimpleInstallFunction(isolate(), prototype, "slice",
                             Builtins::kSharedArrayBufferPrototypeSlice, 2,
                             true);
+      break;
+    case RESIZABLE_ARRAY_BUFFER:
+      SimpleInstallGetter(isolate(), prototype, factory()->byte_length_string(),
+                          Builtins::kResizableArrayBufferPrototypeGetByteLength,
+                          false);
+      SimpleInstallGetter(
+          isolate(), prototype, factory()->max_byte_length_string(),
+          Builtins::kResizableArrayBufferPrototypeGetMaxByteLength, false);
+      SimpleInstallFunction(isolate(), prototype, "resize",
+                            Builtins::kResizableArrayBufferPrototypeResize, 1,
+                            true);
+      break;
+    case GROWABLE_SHARED_ARRAY_BUFFER:
+      SimpleInstallGetter(
+          isolate(), prototype, factory()->byte_length_string(),
+          Builtins::kGrowableSharedArrayBufferPrototypeGetByteLength, true);
+      SimpleInstallGetter(
+          isolate(), prototype, factory()->max_byte_length_string(),
+          Builtins::kGrowableSharedArrayBufferPrototypeGetMaxByteLength, false);
+      SimpleInstallFunction(isolate(), prototype, "grow",
+                            Builtins::kGrowableSharedArrayBufferPrototypeGrow,
+                            1, true);
       break;
   }
 

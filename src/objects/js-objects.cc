@@ -4220,10 +4220,15 @@ bool JSObject::HasEnumerableElements() {
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      TYPED_ARRAYS(TYPED_ARRAY_CASE) {
+        size_t length = JSTypedArray::cast(object).length();
+        return length > 0;
+      }
+
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       {
-        size_t length = JSTypedArray::cast(object).length();
+        size_t length = JSTypedArray::cast(object).GetLength();
         return length > 0;
       }
     case DICTIONARY_ELEMENTS: {
@@ -5025,6 +5030,7 @@ int JSObject::GetFastElementsUsage() {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       UNREACHABLE();
   }

@@ -140,6 +140,7 @@ const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
     return #Type "Array";
 
     TYPED_ARRAYS(ELEMENTS_KIND_CASE)
+    RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE(ELEMENTS_KIND_CASE)
 #undef ELEMENTS_KIND_CASE
 
     default:

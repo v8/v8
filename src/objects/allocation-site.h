@@ -70,9 +70,9 @@ class AllocationSite : public Struct {
   bool IsNested();
 
   // transition_info bitfields, for constructed array transition info.
-  using ElementsKindBits = base::BitField<ElementsKind, 0, 5>;
-  using DoNotInlineBit = base::BitField<bool, 5, 1>;
-  // Unused bits 6-30.
+  using ElementsKindBits = base::BitField<ElementsKind, 0, 6>;
+  using DoNotInlineBit = base::BitField<bool, 6, 1>;
+  // Unused bits 7-30.
 
   // Bitfields for pretenure_data
   using MementoFoundCountBits = base::BitField<int, 0, 26>;

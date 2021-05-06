@@ -768,6 +768,11 @@ namespace internal {
   ASM(RegExpInterpreterTrampoline, CCall)                                      \
   ASM(RegExpExperimentalTrampoline, CCall)                                     \
                                                                                \
+  /* ResizableArrayBuffer & GrowableSharedArrayBuffer */                       \
+  CPP(ResizableArrayBufferPrototypeResize)                                     \
+  CPP(GrowableSharedArrayBufferPrototypeGrow)                                  \
+  CPP(GrowableSharedArrayBufferPrototypeGetByteLength)                         \
+                                                                               \
   /* Set */                                                                    \
   TFJ(SetConstructor, kDontAdaptArgumentsSentinel)                             \
   TFJ(SetPrototypeHas, 1, kReceiver, kKey)                                     \

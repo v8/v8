@@ -2086,9 +2086,9 @@ void AccessorAssembler::EmitElementLoad(
     Label* if_hole, Label* rebox_double, TVariable<Float64T>* var_double_value,
     Label* unimplemented_elements_kind, Label* out_of_bounds, Label* miss,
     ExitPoint* exit_point, LoadAccessMode access_mode) {
-  Label if_typed_array(this), if_fast(this), if_fast_packed(this),
-      if_fast_holey(this), if_fast_double(this), if_fast_holey_double(this),
-      if_nonfast(this), if_dictionary(this);
+  Label if_rab_gsab_typed_array(this), if_typed_array(this), if_fast(this),
+      if_fast_packed(this), if_fast_holey(this), if_fast_double(this),
+      if_fast_holey_double(this), if_nonfast(this), if_dictionary(this);
   Branch(Int32GreaterThan(elements_kind,
                           Int32Constant(LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)),
          &if_nonfast, &if_fast);
@@ -2169,7 +2169,16 @@ void AccessorAssembler::EmitElementLoad(
 
   BIND(&if_nonfast);
   {
-    STATIC_ASSERT(LAST_ELEMENTS_KIND == LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+    Label uint8_elements(this), int8_elements(this), uint16_elements(this),
+        int16_elements(this), uint32_elements(this), int32_elements(this),
+        float32_elements(this), float64_elements(this), bigint64_elements(this),
+        biguint64_elements(this);
+    STATIC_ASSERT(LAST_ELEMENTS_KIND ==
+                  LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+    GotoIf(Int32GreaterThanOrEqual(
+               elements_kind,
+               Int32Constant(FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
+           &if_rab_gsab_typed_array);
     GotoIf(Int32GreaterThanOrEqual(
                elements_kind,
                Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
@@ -2195,88 +2204,129 @@ void AccessorAssembler::EmitElementLoad(
       exit_point->Return(access_mode == LoadAccessMode::kHas ? TrueConstant()
                                                              : value);
     }
-
-    BIND(&if_typed_array);
     {
-      Comment("typed elements");
-      // Check if buffer has been detached.
-      TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(object));
-      GotoIf(IsDetachedBuffer(buffer), miss);
+      TVARIABLE(RawPtrT, data_ptr);
+      BIND(&if_rab_gsab_typed_array);
+      {
+        Comment("rab gsab typed elements");
+        Label variable_length(this), normal(this), length_check_ok(this);
 
-      // Bounds check.
-      TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
-      GotoIfNot(UintPtrLessThan(intptr_index, length), out_of_bounds);
-      if (access_mode == LoadAccessMode::kHas) {
-        exit_point->Return(TrueConstant());
-      } else {
-        TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(CAST(object));
+        TNode<JSTypedArray> array = CAST(object);
+        TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
 
-        Label uint8_elements(this), int8_elements(this), uint16_elements(this),
-            int16_elements(this), uint32_elements(this), int32_elements(this),
-            float32_elements(this), float64_elements(this),
-            bigint64_elements(this), biguint64_elements(this);
-        Label* elements_kind_labels[] = {
-            &uint8_elements,    &uint8_elements,    &int8_elements,
-            &uint16_elements,   &int16_elements,    &uint32_elements,
-            &int32_elements,    &float32_elements,  &float64_elements,
-            &bigint64_elements, &biguint64_elements};
-        int32_t elements_kinds[] = {
-            UINT8_ELEMENTS,    UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
-            UINT16_ELEMENTS,   INT16_ELEMENTS,         UINT32_ELEMENTS,
-            INT32_ELEMENTS,    FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS,
-            BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS};
-        const size_t kTypedElementsKindCount =
-            LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-            FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
-        DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
-        DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
-        Switch(elements_kind, miss, elements_kinds, elements_kind_labels,
-               kTypedElementsKindCount);
+        // Bounds check (incl. detachedness check).
+        TNode<UintPtrT> length =
+            LoadVariableLengthJSTypedArrayLength(array, buffer, miss);
+        Branch(UintPtrLessThan(intptr_index, length), &length_check_ok,
+               out_of_bounds);
+        BIND(&length_check_ok);
+        {
+          if (access_mode == LoadAccessMode::kHas) {
+            exit_point->Return(TrueConstant());
+          } else {
+            data_ptr = LoadJSTypedArrayDataPtr(array);
+            Label* elements_kind_labels[] = {
+                &uint8_elements,    &uint8_elements,    &int8_elements,
+                &uint16_elements,   &int16_elements,    &uint32_elements,
+                &int32_elements,    &float32_elements,  &float64_elements,
+                &bigint64_elements, &biguint64_elements};
+            int32_t elements_kinds[] = {
+                RAB_GSAB_UINT8_ELEMENTS,    RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+                RAB_GSAB_INT8_ELEMENTS,     RAB_GSAB_UINT16_ELEMENTS,
+                RAB_GSAB_INT16_ELEMENTS,    RAB_GSAB_UINT32_ELEMENTS,
+                RAB_GSAB_INT32_ELEMENTS,    RAB_GSAB_FLOAT32_ELEMENTS,
+                RAB_GSAB_FLOAT64_ELEMENTS,  RAB_GSAB_BIGINT64_ELEMENTS,
+                RAB_GSAB_BIGUINT64_ELEMENTS};
+            const size_t kTypedElementsKindCount =
+                LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+                FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
+            DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
+            DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
+            Switch(elements_kind, miss, elements_kinds, elements_kind_labels,
+                   kTypedElementsKindCount);
+          }
+        }
+      }
+      BIND(&if_typed_array);
+      {
+        Comment("typed elements");
+        // Check if buffer has been detached.
+        TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(object));
+        GotoIf(IsDetachedBuffer(buffer), miss);
+
+        // Bounds check.
+        TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
+        GotoIfNot(UintPtrLessThan(intptr_index, length), out_of_bounds);
+        if (access_mode == LoadAccessMode::kHas) {
+          exit_point->Return(TrueConstant());
+        } else {
+          data_ptr = LoadJSTypedArrayDataPtr(CAST(object));
+
+          Label* elements_kind_labels[] = {
+              &uint8_elements,    &uint8_elements,    &int8_elements,
+              &uint16_elements,   &int16_elements,    &uint32_elements,
+              &int32_elements,    &float32_elements,  &float64_elements,
+              &bigint64_elements, &biguint64_elements};
+          int32_t elements_kinds[] = {
+              UINT8_ELEMENTS,    UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
+              UINT16_ELEMENTS,   INT16_ELEMENTS,         UINT32_ELEMENTS,
+              INT32_ELEMENTS,    FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS,
+              BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS};
+          const size_t kTypedElementsKindCount =
+              LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+              FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
+          DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
+          DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
+          Switch(elements_kind, miss, elements_kinds, elements_kind_labels,
+                 kTypedElementsKindCount);
+        }
+      }
+      if (access_mode != LoadAccessMode::kHas) {
         BIND(&uint8_elements);
         {
           Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.
-          TNode<Int32T> element = Load<Uint8T>(data_ptr, intptr_index);
+          TNode<Int32T> element = Load<Uint8T>(data_ptr.value(), intptr_index);
           exit_point->Return(SmiFromInt32(element));
         }
         BIND(&int8_elements);
         {
           Comment("INT8_ELEMENTS");
-          TNode<Int32T> element = Load<Int8T>(data_ptr, intptr_index);
+          TNode<Int32T> element = Load<Int8T>(data_ptr.value(), intptr_index);
           exit_point->Return(SmiFromInt32(element));
         }
         BIND(&uint16_elements);
         {
           Comment("UINT16_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(1));
-          TNode<Int32T> element = Load<Uint16T>(data_ptr, index);
+          TNode<Int32T> element = Load<Uint16T>(data_ptr.value(), index);
           exit_point->Return(SmiFromInt32(element));
         }
         BIND(&int16_elements);
         {
           Comment("INT16_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(1));
-          TNode<Int32T> element = Load<Int16T>(data_ptr, index);
+          TNode<Int32T> element = Load<Int16T>(data_ptr.value(), index);
           exit_point->Return(SmiFromInt32(element));
         }
         BIND(&uint32_elements);
         {
           Comment("UINT32_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(2));
-          TNode<Uint32T> element = Load<Uint32T>(data_ptr, index);
+          TNode<Uint32T> element = Load<Uint32T>(data_ptr.value(), index);
           exit_point->Return(ChangeUint32ToTagged(element));
         }
         BIND(&int32_elements);
         {
           Comment("INT32_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(2));
-          TNode<Int32T> element = Load<Int32T>(data_ptr, index);
+          TNode<Int32T> element = Load<Int32T>(data_ptr.value(), index);
           exit_point->Return(ChangeInt32ToTagged(element));
         }
         BIND(&float32_elements);
         {
           Comment("FLOAT32_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(2));
-          TNode<Float32T> element = Load<Float32T>(data_ptr, index);
+          TNode<Float32T> element = Load<Float32T>(data_ptr.value(), index);
           *var_double_value = ChangeFloat32ToFloat64(element);
           Goto(rebox_double);
         }
@@ -2284,7 +2334,7 @@ void AccessorAssembler::EmitElementLoad(
         {
           Comment("FLOAT64_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(3));
-          TNode<Float64T> element = Load<Float64T>(data_ptr, index);
+          TNode<Float64T> element = Load<Float64T>(data_ptr.value(), index);
           *var_double_value = element;
           Goto(rebox_double);
         }
@@ -2292,13 +2342,13 @@ void AccessorAssembler::EmitElementLoad(
         {
           Comment("BIGINT64_ELEMENTS");
           exit_point->Return(LoadFixedTypedArrayElementAsTagged(
-              data_ptr, Unsigned(intptr_index), BIGINT64_ELEMENTS));
+              data_ptr.value(), Unsigned(intptr_index), BIGINT64_ELEMENTS));
         }
         BIND(&biguint64_elements);
         {
           Comment("BIGUINT64_ELEMENTS");
           exit_point->Return(LoadFixedTypedArrayElementAsTagged(
-              data_ptr, Unsigned(intptr_index), BIGUINT64_ELEMENTS));
+              data_ptr.value(), Unsigned(intptr_index), BIGUINT64_ELEMENTS));
         }
       }
     }

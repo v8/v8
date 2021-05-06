@@ -2812,6 +2812,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
 
   Handle<Object> to_assign = value;
   // Convert the incoming value to a number for storing into typed arrays.
+  // TODO(v8:11111): Support RAB / GSAB.
   if (it->IsElement() && receiver->IsJSObject() &&
       JSObject::cast(*receiver).HasTypedArrayElements()) {
     ElementsKind elements_kind = JSObject::cast(*receiver).GetElementsKind();

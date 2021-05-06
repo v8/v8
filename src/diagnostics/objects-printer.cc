@@ -508,7 +508,7 @@ void JSObject::PrintElements(std::ostream& os) {
 
 #define PRINT_ELEMENTS(Type, type, TYPE, elementType)                         \
   case TYPE##_ELEMENTS: {                                                     \
-    size_t length = JSTypedArray::cast(*this).length();                       \
+    size_t length = JSTypedArray::cast(*this).GetLength();                    \
     bool is_on_heap = JSTypedArray::cast(*this).is_on_heap();                 \
     const elementType* data_ptr =                                             \
         static_cast<const elementType*>(JSTypedArray::cast(*this).DataPtr()); \
@@ -516,6 +516,7 @@ void JSObject::PrintElements(std::ostream& os) {
     break;                                                                    \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
+      RAB_GSAB_TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
 
     case DICTIONARY_ELEMENTS:
@@ -572,7 +573,7 @@ static void JSObjectPrintBody(std::ostream& os, JSObject obj,
   os << "}\n";
 
   if (print_elements) {
-    size_t length = obj.IsJSTypedArray() ? JSTypedArray::cast(obj).length()
+    size_t length = obj.IsJSTypedArray() ? JSTypedArray::cast(obj).GetLength()
                                          : obj.elements().length();
     if (length > 0) obj.PrintElements(os);
   }
@@ -1391,6 +1392,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
+  if (is_resizable()) os << "\n - resizable";
   JSObjectPrintBody(os, *this, !was_detached());
 }
 
@@ -1399,7 +1401,7 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {
   os << "\n - buffer: " << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
-  os << "\n - length: " << length();
+  os << "\n - length: " << GetLength();
   os << "\n - data_ptr: " << DataPtr();
   Tagged_t base_ptr = static_cast<Tagged_t>(base_pointer().ptr());
   os << "\n   - base_pointer: "
@@ -1411,6 +1413,8 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {
     return;
   }
   if (WasDetached()) os << "\n - detached";
+  if (is_length_tracking()) os << "\n - length-tracking";
+  if (is_backed_by_rab()) os << "\n - backed-by-rab";
   JSObjectPrintBody(os, *this, !WasDetached());
 }
 

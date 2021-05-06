@@ -1696,7 +1696,7 @@ extern transitioning runtime SetOwnPropertyIgnoreAttributes(
 
 namespace runtime {
 extern runtime
-GetDerivedMap(Context, JSFunction, JSReceiver): Map;
+GetDerivedMap(Context, JSFunction, JSReceiver, JSAny): Map;
 }
 extern macro IsDeprecatedMap(Map): bool;
 

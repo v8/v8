@@ -889,9 +889,11 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
       // External arrays are always dense.
       return length;
+
+#undef TYPED_ARRAY_CASE
     case NO_ELEMENTS:
       return 0;
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -965,9 +967,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-      {
+      TYPED_ARRAYS(TYPED_ARRAY_CASE) {
         size_t length = Handle<JSTypedArray>::cast(object)->length();
         if (range <= length) {
           length = range;
@@ -983,6 +983,11 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
         if (length == range) return;  // All indices accounted for already.
         break;
       }
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      // TODO(v8:11111): Support RAB / GSAB.
+      UNREACHABLE();
+
+#undef TYPED_ARRAY_CASE
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       DisallowGarbageCollection no_gc;
@@ -1208,8 +1213,11 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       break;
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
       return IterateElementsSlow(isolate, receiver, length, visitor);
+      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      // TODO(v8:11111): Support RAB / GSAB.
+      UNREACHABLE();
+#undef TYPED_ARRAY_CASE
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
       // |array| is guaranteed to be an array or typed array.

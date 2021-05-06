@@ -1266,7 +1266,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsAnyNonextensibleElementsKind(elements_kind) ||
-         IsTypedArrayElementsKind(elements_kind));
+         IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
   bool convert_hole_to_undefined =
       (elements_kind == HOLEY_SMI_ELEMENTS ||
        elements_kind == HOLEY_ELEMENTS) &&
@@ -1382,7 +1382,7 @@ bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
   if (receiver->IsJSArray()) {
     length = JSArray::cast(*receiver).length().Number();
   } else if (receiver->IsJSTypedArray()) {
-    length = JSTypedArray::cast(*receiver).length();
+    length = JSTypedArray::cast(*receiver).GetLength();
   } else if (receiver->IsJSObject()) {
     length = JSObject::cast(*receiver).elements().length();
   } else if (receiver->IsString()) {
@@ -2032,7 +2032,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
             "unsupported combination of arrays (potentially read-only length)");
         return;
 
-      } else if (map->has_typed_array_elements()) {
+      } else if (map->has_typed_array_or_rab_gsab_typed_array_elements()) {
         DCHECK(!IsStoreInArrayLiteralICKind(kind()));
         external_arrays++;
       }
@@ -2086,7 +2086,9 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
              receiver_map->has_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
     code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();
-    if (receiver_map->has_typed_array_elements()) return code;
+    if (receiver_map->has_typed_array_elements()) {
+      return code;
+    }
   } else if (IsStoreInArrayLiteralICKind(kind())) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
@@ -2095,7 +2097,9 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK(DICTIONARY_ELEMENTS == receiver_map->elements_kind() ||
-           receiver_map->has_frozen_elements());
+           receiver_map->has_frozen_elements() ||
+           receiver_map->has_rab_gsab_typed_array_elements());
+    // TODO(v8:11111): Add fast paths for RAB / GSAB.
     code = StoreHandler::StoreSlow(isolate(), store_mode);
   }
 

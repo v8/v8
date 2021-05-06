@@ -59,6 +59,17 @@
 //     - Uint8ClampedElementsAccessor
 //     - BigUint64ElementsAccessor
 //     - BigInt64ElementsAccessor
+//     - RabGsabUint8ElementsAccessor
+//     - RabGsabInt8ElementsAccessor
+//     - RabGsabUint16ElementsAccessor
+//     - RabGsabInt16ElementsAccessor
+//     - RabGsabUint32ElementsAccessor
+//     - RabGsabInt32ElementsAccessor
+//     - RabGsabFloat32ElementsAccessor
+//     - RabGsabFloat64ElementsAccessor
+//     - RabGsabUint8ClampedElementsAccessor
+//     - RabGsabBigUint64ElementsAccessor
+//     - RabGsabBigInt64ElementsAccessor
 //   - DictionaryElementsAccessor
 //   - SloppyArgumentsElementsAccessor
 //     - FastSloppyArgumentsElementsAccessor
@@ -129,7 +140,19 @@ enum Where { AT_START, AT_END };
   V(Float64ElementsAccessor, FLOAT64_ELEMENTS, ByteArray)                     \
   V(Uint8ClampedElementsAccessor, UINT8_CLAMPED_ELEMENTS, ByteArray)          \
   V(BigUint64ElementsAccessor, BIGUINT64_ELEMENTS, ByteArray)                 \
-  V(BigInt64ElementsAccessor, BIGINT64_ELEMENTS, ByteArray)
+  V(BigInt64ElementsAccessor, BIGINT64_ELEMENTS, ByteArray)                   \
+  V(RabGsabUint8ElementsAccessor, RAB_GSAB_UINT8_ELEMENTS, ByteArray)         \
+  V(RabGsabInt8ElementsAccessor, RAB_GSAB_INT8_ELEMENTS, ByteArray)           \
+  V(RabGsabUint16ElementsAccessor, RAB_GSAB_UINT16_ELEMENTS, ByteArray)       \
+  V(RabGsabInt16ElementsAccessor, RAB_GSAB_INT16_ELEMENTS, ByteArray)         \
+  V(RabGsabUint32ElementsAccessor, RAB_GSAB_UINT32_ELEMENTS, ByteArray)       \
+  V(RabGsabInt32ElementsAccessor, RAB_GSAB_INT32_ELEMENTS, ByteArray)         \
+  V(RabGsabFloat32ElementsAccessor, RAB_GSAB_FLOAT32_ELEMENTS, ByteArray)     \
+  V(RabGsabFloat64ElementsAccessor, RAB_GSAB_FLOAT64_ELEMENTS, ByteArray)     \
+  V(RabGsabUint8ClampedElementsAccessor, RAB_GSAB_UINT8_CLAMPED_ELEMENTS,     \
+    ByteArray)                                                                \
+  V(RabGsabBigUint64ElementsAccessor, RAB_GSAB_BIGUINT64_ELEMENTS, ByteArray) \
+  V(RabGsabBigInt64ElementsAccessor, RAB_GSAB_BIGINT64_ELEMENTS, ByteArray)
 
 template <ElementsKind Kind>
 class ElementsKindTraits {
@@ -2520,6 +2543,7 @@ class FastSmiOrObjectElementsAccessor
       case SLOW_STRING_WRAPPER_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
+        RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
         // This function is currently only used for JSArrays with non-zero
         // length.
@@ -2935,6 +2959,7 @@ class FastDoubleElementsAccessor
       case NO_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
+        RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
         // This function is currently only used for JSArrays with non-zero
         // length.
@@ -3056,7 +3081,7 @@ class TypedElementsAccessor
   static void SetImpl(Handle<JSObject> holder, InternalIndex entry,
                       Object value) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(holder);
-    DCHECK_LE(entry.raw_value(), typed_array->length());
+    DCHECK_LE(entry.raw_value(), typed_array->GetLength());
     SetImpl(static_cast<ElementType*>(typed_array->DataPtr()),
             entry.raw_value(), FromObject(value));
   }
@@ -3108,7 +3133,7 @@ class TypedElementsAccessor
                                         InternalIndex entry) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(holder);
     Isolate* isolate = typed_array->GetIsolate();
-    DCHECK_LE(entry.raw_value(), typed_array->length());
+    DCHECK_LT(entry.raw_value(), typed_array->GetLength());
     DCHECK(!typed_array->WasDetached());
     ElementType elem = GetImpl(
         static_cast<ElementType*>(typed_array->DataPtr()), entry.raw_value());
@@ -3208,8 +3233,7 @@ class TypedElementsAccessor
 
   static size_t GetCapacityImpl(JSObject holder, FixedArrayBase backing_store) {
     JSTypedArray typed_array = JSTypedArray::cast(holder);
-    if (typed_array.WasDetached()) return 0;
-    return typed_array.length();
+    return typed_array.GetLength();
   }
 
   static size_t NumberOfElementsImpl(JSObject receiver,
@@ -3970,9 +3994,225 @@ Handle<Object> TypedElementsAccessor<BIGUINT64_ELEMENTS, uint64_t>::ToHandle(
   return BigInt::FromUint64(isolate, value);
 }
 
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_INT8_ELEMENTS, int8_t>::ToHandle(
+    Isolate* isolate, int8_t value) {
+  return handle(Smi::FromInt(value), isolate);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT8_ELEMENTS,
+                                     uint8_t>::ToHandle(Isolate* isolate,
+                                                        uint8_t value) {
+  return handle(Smi::FromInt(value), isolate);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_INT16_ELEMENTS,
+                                     int16_t>::ToHandle(Isolate* isolate,
+                                                        int16_t value) {
+  return handle(Smi::FromInt(value), isolate);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT16_ELEMENTS,
+                                     uint16_t>::ToHandle(Isolate* isolate,
+                                                         uint16_t value) {
+  return handle(Smi::FromInt(value), isolate);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_INT32_ELEMENTS,
+                                     int32_t>::ToHandle(Isolate* isolate,
+                                                        int32_t value) {
+  return isolate->factory()->NewNumberFromInt(value);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT32_ELEMENTS,
+                                     uint32_t>::ToHandle(Isolate* isolate,
+                                                         uint32_t value) {
+  return isolate->factory()->NewNumberFromUint(value);
+}
+
+// static
+template <>
+float TypedElementsAccessor<RAB_GSAB_FLOAT32_ELEMENTS, float>::FromScalar(
+    double value) {
+  return DoubleToFloat32(value);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT32_ELEMENTS,
+                                     float>::ToHandle(Isolate* isolate,
+                                                      float value) {
+  return isolate->factory()->NewNumber(value);
+}
+
+// static
+template <>
+double TypedElementsAccessor<RAB_GSAB_FLOAT64_ELEMENTS, double>::FromScalar(
+    double value) {
+  return value;
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT64_ELEMENTS,
+                                     double>::ToHandle(Isolate* isolate,
+                                                       double value) {
+  return isolate->factory()->NewNumber(value);
+}
+
+// static
+template <>
+uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+                              uint8_t>::FromScalar(int value) {
+  if (value < 0x00) return 0x00;
+  if (value > 0xFF) return 0xFF;
+  return static_cast<uint8_t>(value);
+}
+
+// static
+template <>
+uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+                              uint8_t>::FromScalar(uint32_t value) {
+  // We need this special case for Uint32 -> Uint8Clamped, because the highest
+  // Uint32 values will be negative as an int, clamping to 0, rather than 255.
+  if (value > 0xFF) return 0xFF;
+  return static_cast<uint8_t>(value);
+}
+
+// static
+template <>
+uint8_t TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+                              uint8_t>::FromScalar(double value) {
+  // Handle NaNs and less than zero values which clamp to zero.
+  if (!(value > 0)) return 0;
+  if (value > 0xFF) return 0xFF;
+  return static_cast<uint8_t>(lrint(value));
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+                                     uint8_t>::ToHandle(Isolate* isolate,
+                                                        uint8_t value) {
+  return handle(Smi::FromInt(value), isolate);
+}
+
+// static
+template <>
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+    int value) {
+  UNREACHABLE();
+}
+
+// static
+template <>
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+    uint32_t value) {
+  UNREACHABLE();
+}
+
+// static
+template <>
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+    double value) {
+  UNREACHABLE();
+}
+
+// static
+template <>
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+    int64_t value) {
+  return value;
+}
+
+// static
+template <>
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromScalar(
+    uint64_t value) {
+  return static_cast<int64_t>(value);
+}
+
+// static
+template <>
+int64_t TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS, int64_t>::FromObject(
+    Object value, bool* lossless) {
+  return BigInt::cast(value).AsInt64(lossless);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_BIGINT64_ELEMENTS,
+                                     int64_t>::ToHandle(Isolate* isolate,
+                                                        int64_t value) {
+  return BigInt::FromInt64(isolate, value);
+}
+
+// static
+template <>
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
+                               uint64_t>::FromScalar(int value) {
+  UNREACHABLE();
+}
+
+// static
+template <>
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
+                               uint64_t>::FromScalar(uint32_t value) {
+  UNREACHABLE();
+}
+
+// static
+template <>
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
+                               uint64_t>::FromScalar(double value) {
+  UNREACHABLE();
+}
+
+// static
+template <>
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
+                               uint64_t>::FromScalar(int64_t value) {
+  return static_cast<uint64_t>(value);
+}
+
+// static
+template <>
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
+                               uint64_t>::FromScalar(uint64_t value) {
+  return value;
+}
+
+// static
+template <>
+uint64_t TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
+                               uint64_t>::FromObject(Object value,
+                                                     bool* lossless) {
+  return BigInt::cast(value).AsUint64(lossless);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_BIGUINT64_ELEMENTS,
+                                     uint64_t>::ToHandle(Isolate* isolate,
+                                                         uint64_t value) {
+  return BigInt::FromUint64(isolate, value);
+}
+
 #define FIXED_ELEMENTS_ACCESSOR(Type, type, TYPE, ctype) \
   using Type##ElementsAccessor = TypedElementsAccessor<TYPE##_ELEMENTS, ctype>;
 TYPED_ARRAYS(FIXED_ELEMENTS_ACCESSOR)
+RAB_GSAB_TYPED_ARRAYS(FIXED_ELEMENTS_ACCESSOR)
 #undef FIXED_ELEMENTS_ACCESSOR
 
 template <typename Subclass, typename ArgumentsAccessor, typename KindTraits>

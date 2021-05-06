@@ -112,6 +112,8 @@ enum ContextLookupFlags {
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
   V(ASYNC_GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map,                           \
     async_generator_object_prototype_map)                                      \
+  V(GROWABLE_SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction,                        \
+    growable_shared_array_buffer_fun)                                          \
   V(INITIAL_ARRAY_ITERATOR_MAP_INDEX, Map, initial_array_iterator_map)         \
   V(INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX, JSObject,                          \
     initial_array_iterator_prototype)                                          \
@@ -210,6 +212,18 @@ enum ContextLookupFlags {
   V(PROXY_MAP_INDEX, Map, proxy_map)                                           \
   V(PROXY_REVOCABLE_RESULT_MAP_INDEX, Map, proxy_revocable_result_map)         \
   V(PROMISE_PROTOTYPE_INDEX, JSObject, promise_prototype)                      \
+  V(RAB_GSAB_UINT8_ARRAY_MAP_INDEX, Map, rab_gsab_uint8_array_map)             \
+  V(RAB_GSAB_INT8_ARRAY_MAP_INDEX, Map, rab_gsab_int8_array_map)               \
+  V(RAB_GSAB_UINT16_ARRAY_MAP_INDEX, Map, rab_gsab_uint16_array_map)           \
+  V(RAB_GSAB_INT16_ARRAY_MAP_INDEX, Map, rab_gsab_int16_array_map)             \
+  V(RAB_GSAB_UINT32_ARRAY_MAP_INDEX, Map, rab_gsab_uint32_array_map)           \
+  V(RAB_GSAB_INT32_ARRAY_MAP_INDEX, Map, rab_gsab_int32_array_map)             \
+  V(RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX, Map, rab_gsab_float32_array_map)         \
+  V(RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX, Map, rab_gsab_float64_array_map)         \
+  V(RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX, Map,                               \
+    rab_gsab_uint8_clamped_array_map)                                          \
+  V(RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX, Map, rab_gsab_biguint64_array_map)     \
+  V(RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX, Map, rab_gsab_bigint64_array_map)       \
   V(RECORDER_CONTEXT_ID, Object, recorder_context_id)                          \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
@@ -226,6 +240,7 @@ enum ContextLookupFlags {
   V(REGEXP_SPLIT_FUNCTION_INDEX, JSFunction, regexp_split_function)            \
   V(INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                   \
     initial_regexp_string_iterator_prototype_map)                              \
+  V(RESIZABLE_ARRAY_BUFFER_FUN_INDEX, JSFunction, resizable_array_buffer_fun)  \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_EXECUTION_CALLBACK_INDEX, Object, script_execution_callback)        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \

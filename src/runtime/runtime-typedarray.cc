@@ -53,6 +53,15 @@ RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   return *holder->GetBuffer();
 }
 
+RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
+
+  CHECK_EQ(0, array_buffer->byte_length());
+  size_t byte_length = array_buffer->GetBackingStore()->byte_length();
+  return *isolate->factory()->NewNumberFromSize(byte_length);
+}
 
 namespace {
 

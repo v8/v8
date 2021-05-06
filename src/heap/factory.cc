@@ -2518,7 +2518,8 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
                   isolate());
   auto result =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  result->Setup(SharedFlag::kNotShared, std::move(backing_store));
+  result->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+                std::move(backing_store));
   return result;
 }
 
@@ -2536,18 +2537,32 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
                   isolate());
   auto array_buffer =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  array_buffer->Setup(SharedFlag::kNotShared, std::move(backing_store));
+  array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+                      std::move(backing_store));
   return array_buffer;
 }
 
 Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
     std::shared_ptr<BackingStore> backing_store) {
-  Handle<Map> map(
-      isolate()->native_context()->shared_array_buffer_fun().initial_map(),
-      isolate());
+  Handle<Map> map;
+  if (backing_store->is_resizable()) {
+    DCHECK(FLAG_harmony_rab_gsab);
+    map = Handle<Map>(isolate()
+                          ->native_context()
+                          ->growable_shared_array_buffer_fun()
+                          .initial_map(),
+                      isolate());
+  } else {
+    map = Handle<Map>(
+        isolate()->native_context()->shared_array_buffer_fun().initial_map(),
+        isolate());
+  }
   auto result = Handle<JSArrayBuffer>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
-  result->Setup(SharedFlag::kShared, std::move(backing_store));
+  ResizableFlag resizable = backing_store->is_resizable()
+                                ? ResizableFlag::kResizable
+                                : ResizableFlag::kNotResizable;
+  result->Setup(SharedFlag::kShared, resizable, std::move(backing_store));
   return result;
 }
 
@@ -2602,6 +2617,7 @@ void Factory::TypeAndSizeForElementsKind(ElementsKind kind,
     *element_size = sizeof(ctype);                \
     break;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     default:
@@ -2684,6 +2700,8 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   raw.AllocateExternalPointerEntries(isolate());
   raw.set_length(length);
   raw.SetOffHeapDataPtr(isolate(), buffer->backing_store(), byte_offset);
+  raw.set_is_length_tracking(false);
+  raw.set_is_backed_by_rab(!buffer->is_shared() && buffer->is_resizable());
   return typed_array;
 }
 
