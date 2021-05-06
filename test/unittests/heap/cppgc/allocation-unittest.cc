@@ -90,5 +90,45 @@ TEST_F(CppgcAllocationTest,
   EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsFree());
 }
 
+namespace {
+class LargeObject : public GarbageCollected<LargeObject> {
+ public:
+  static constexpr size_t kDataSize = kLargeObjectSizeThreshold + 1;
+  static size_t destructor_calls;
+
+  explicit LargeObject(bool check) {
+    if (!check) return;
+    for (size_t i = 0; i < LargeObject::kDataSize; ++i) {
+      EXPECT_EQ(0, data[i]);
+    }
+  }
+  ~LargeObject() { ++destructor_calls; }
+  void Trace(Visitor*) const {}
+
+  char data[kDataSize];
+};
+size_t LargeObject::destructor_calls = 0u;
+}  // namespace
+
+TEST_F(CppgcAllocationTest, LargePagesAreZeroedOut) {
+  static constexpr size_t kNumObjects = 1u;
+  LargeObject::destructor_calls = 0u;
+  std::vector<void*> pages;
+  for (size_t i = 0; i < kNumObjects; ++i) {
+    auto* obj = MakeGarbageCollected<LargeObject>(GetAllocationHandle(), false);
+    pages.push_back(obj);
+    memset(obj->data, 0xff, LargeObject::kDataSize);
+  }
+  PreciseGC();
+  EXPECT_EQ(kNumObjects, LargeObject::destructor_calls);
+  bool reused_page = false;
+  for (size_t i = 0; i < kNumObjects; ++i) {
+    auto* obj = MakeGarbageCollected<LargeObject>(GetAllocationHandle(), true);
+    if (std::find(pages.begin(), pages.end(), obj) != pages.end())
+      reused_page = true;
+  }
+  EXPECT_TRUE(reused_page);
+}
+
 }  // namespace internal
 }  // namespace cppgc
