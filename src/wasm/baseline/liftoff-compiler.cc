@@ -593,8 +593,7 @@ class LiftoffCompiler {
     }
   }
 
-  // TODO(ahaas): Make this function constexpr once GCC allows it.
-  LiftoffRegList RegsUnusedByParams() {
+  constexpr static LiftoffRegList RegsUnusedByParams() {
     LiftoffRegList regs = kGpCacheRegList;
     for (auto reg : kGpParamRegisters) {
       regs.clear(reg);
@@ -619,8 +618,9 @@ class LiftoffCompiler {
       // For reference type parameters we have to use registers that were not
       // used for parameters because some reference type stack parameters may
       // get processed before some value type register parameters.
+      static constexpr auto kRegsUnusedByParams = RegsUnusedByParams();
       LiftoffRegister reg = is_reference(reg_kind)
-                                ? __ GetUnusedRegister(RegsUnusedByParams())
+                                ? __ GetUnusedRegister(kRegsUnusedByParams)
                                 : __ GetUnusedRegister(rc, pinned);
       __ LoadCallerFrameSlot(reg, -location.AsCallerFrameSlot(), reg_kind);
       return reg;
