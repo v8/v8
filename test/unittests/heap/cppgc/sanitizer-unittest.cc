@@ -4,6 +4,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "src/base/macros.h"
+#include "src/base/sanitizer/asan.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,6 +32,28 @@ TEST_F(LsanTest, LeakDetectionDoesNotFindMemoryRetainedFromManaged) {
 }
 
 #endif  // LEAK_SANITIZER
+
+#ifdef V8_USE_ADDRESS_SANITIZER
+
+using AsanTest = testing::TestWithHeap;
+
+class ObjectPoisoningInDestructor final
+    : public GarbageCollected<ObjectPoisoningInDestructor> {
+ public:
+  ~ObjectPoisoningInDestructor() {
+    ASAN_POISON_MEMORY_REGION(this, sizeof(ObjectPoisoningInDestructor));
+  }
+  void Trace(cppgc::Visitor*) const {}
+
+  void* dummy{0};
+};
+
+TEST_F(AsanTest, ObjectPoisoningInDestructor) {
+  MakeGarbageCollected<ObjectPoisoningInDestructor>(GetAllocationHandle());
+  PreciseGC();
+}
+
+#endif  // V8_USE_ADDRESS_SANITIZER
 
 }  // namespace internal
 }  // namespace cppgc

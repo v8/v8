@@ -161,9 +161,6 @@ class DeferredFinalizationBuilder final {
       result_.unfinalized_objects.push_back({header});
       found_finalizer_ = true;
     } else {
-      // Unmarked memory may have been poisoned. In the non-concurrent case this
-      // is taken care of by finalizing a header.
-      ASAN_UNPOISON_MEMORY_REGION(header, size);
       SetMemoryInaccessible(header, size);
     }
   }

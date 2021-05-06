@@ -16,6 +16,9 @@
 namespace cppgc {
 namespace internal {
 
+V8_NOINLINE DISABLE_ASAN void NoSanitizeMemset(void* address, char c,
+                                               size_t bytes);
+
 inline void ZapMemory(void* address, size_t size) {
   // The lowest bit of the zapped value should be 0 so that zapped object are
   // never viewed as fully constructed objects.
@@ -53,7 +56,7 @@ V8_INLINE void SetMemoryInaccessible(void* address, size_t size) {
 
 #elif defined(V8_USE_ADDRESS_SANITIZER)
 
-  memset(address, 0, size);
+  NoSanitizeMemset(address, 0, size);
   ASAN_POISON_MEMORY_REGION(address, size);
 
 #elif DEBUG
