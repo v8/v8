@@ -3881,6 +3881,7 @@ TEST(ContextIsolation) {
 // Tests that when a native context that's being filtered is moved, we continue
 // to track its execution.
 TEST(ContextFilterMovedNativeContext) {
+  if (i::FLAG_enable_third_party_heap) return;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_manual_evacuation_candidates_selection = true;
   LocalContext env;

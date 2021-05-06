@@ -286,6 +286,7 @@ bool SequentialUnmapperTest::old_flag_;
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
+  if (FLAG_enable_third_party_heap) return;
   Page* page = allocator()->AllocatePage(
       MemoryChunkLayout::AllocatableMemoryInDataPage(),
       static_cast<PagedSpace*>(heap()->old_space()),
@@ -314,6 +315,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
+  if (FLAG_enable_third_party_heap) return;
   Page* page = allocator()->AllocatePage(
       MemoryChunkLayout::AllocatableMemoryInDataPage(),
       static_cast<PagedSpace*>(heap()->old_space()),

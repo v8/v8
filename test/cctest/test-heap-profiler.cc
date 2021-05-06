@@ -1837,6 +1837,7 @@ TEST(NativeSnapshotObjectId) {
 }
 
 TEST(NativeSnapshotObjectIdMoving) {
+  if (i::FLAG_enable_third_party_heap) return;
   // Required to allow moving specific objects.
   i::FLAG_manual_evacuation_candidates_selection = true;
 

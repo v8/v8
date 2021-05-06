@@ -382,12 +382,14 @@ void Heap::RegisterExternalString(String string) {
 
 void Heap::FinalizeExternalString(String string) {
   DCHECK(string.IsExternalString());
-  Page* page = Page::FromHeapObject(string);
   ExternalString ext_string = ExternalString::cast(string);
 
-  page->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kExternalString,
-      ext_string.ExternalPayloadSize());
+  if (!FLAG_enable_third_party_heap) {
+    Page* page = Page::FromHeapObject(string);
+    page->DecrementExternalBackingStoreBytes(
+        ExternalBackingStoreType::kExternalString,
+        ext_string.ExternalPayloadSize());
+  }
 
   ext_string.DisposeResource(isolate());
 }
