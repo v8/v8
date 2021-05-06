@@ -680,7 +680,7 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   for (int i = 0; i < nofMappedParameters; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
-    Object mapped = elements.mapped_entries(i);
+    Object mapped = elements.mapped_entries(i, kRelaxedLoad);
     if (mapped.IsTheHole(isolate)) {
       // Slow sloppy arguments can be holey.
       if (!is_fast) continue;

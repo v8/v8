@@ -448,7 +448,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
      << "\n    1: arguments_store: " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
   for (int i = 0; i < elements.length(); i++) {
-    Object mapped_entry = elements.mapped_entries(i);
+    Object mapped_entry = elements.mapped_entries(i, kRelaxedLoad);
     os << "\n    " << i << ": param(" << i << "): " << Brief(mapped_entry);
     if (mapped_entry.IsTheHole()) {
       os << " in the arguments_store[" << i << "]";
@@ -1741,7 +1741,7 @@ void SourceTextModule::SourceTextModulePrint(std::ostream& os) {
   os << "\n - script: " << Brief(script);
   os << "\n - origin: " << Brief(script.GetNameOrSourceURL());
   os << "\n - requested_modules: " << Brief(requested_modules());
-  os << "\n - import_meta: " << Brief(import_meta());
+  os << "\n - import_meta: " << Brief(import_meta(kAcquireLoad));
   os << "\n - cycle_root: " << Brief(cycle_root());
   os << "\n - async_evaluating_ordinal: " << async_evaluating_ordinal();
   os << "\n";

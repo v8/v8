@@ -2475,7 +2475,8 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module.set_status(Module::kUninstantiated);
   module.set_exception(roots.the_hole_value(), SKIP_WRITE_BARRIER);
   module.set_top_level_capability(roots.undefined_value(), SKIP_WRITE_BARRIER);
-  module.set_import_meta(roots.the_hole_value(), SKIP_WRITE_BARRIER);
+  module.set_import_meta(roots.the_hole_value(), kReleaseStore,
+                         SKIP_WRITE_BARRIER);
   module.set_dfs_index(-1);
   module.set_dfs_ancestor_index(-1);
   module.set_flags(0);
@@ -3069,7 +3070,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
       NewStructInternal<DebugInfo>(DEBUG_INFO_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo raw_shared = *shared;
-  debug_info.set_flags(DebugInfo::kNone);
+  debug_info.set_flags(DebugInfo::kNone, kRelaxedStore);
   debug_info.set_shared(raw_shared);
   debug_info.set_debugger_hints(0);
   DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info.debugging_id());

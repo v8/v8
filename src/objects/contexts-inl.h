@@ -55,15 +55,17 @@ NEVER_READ_ONLY_SPACE_IMPL(Context)
 
 CAST_ACCESSOR(NativeContext)
 
-V8_INLINE Object Context::get(int index) const { return elements(index); }
+V8_INLINE Object Context::get(int index) const {
+  return elements(index, kRelaxedLoad);
+}
 V8_INLINE Object Context::get(PtrComprCageBase cage_base, int index) const {
-  return elements(cage_base, index);
+  return elements(cage_base, index, kRelaxedLoad);
 }
 V8_INLINE void Context::set(int index, Object value) {
-  set_elements(index, value);
+  set_elements(index, value, kRelaxedStore);
 }
 V8_INLINE void Context::set(int index, Object value, WriteBarrierMode mode) {
-  set_elements(index, value, mode);
+  set_elements(index, value, kRelaxedStore, mode);
 }
 
 void Context::set_scope_info(ScopeInfo scope_info, WriteBarrierMode mode) {

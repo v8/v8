@@ -4408,7 +4408,7 @@ void Isolate::SetHostImportModuleDynamicallyCallback(
 
 MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     Handle<SourceTextModule> module) {
-  CHECK(module->import_meta().IsTheHole(this));
+  CHECK(module->import_meta(kAcquireLoad).IsTheHole(this));
   Handle<JSObject> import_meta = factory()->NewJSObjectWithNullProto();
   if (host_initialize_import_meta_object_callback_ != nullptr) {
     v8::Local<v8::Context> api_context =

@@ -1349,7 +1349,8 @@ void Debug::PrepareFunctionForDebugExecution(
   DCHECK(shared->is_compiled());
   DCHECK(shared->HasDebugInfo());
   Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
-  if (debug_info->flags() & DebugInfo::kPreparedForDebugExecution) return;
+  if (debug_info->flags(kRelaxedLoad) & DebugInfo::kPreparedForDebugExecution)
+    return;
 
   if (shared->HasBytecodeArray()) {
     SharedFunctionInfo::InstallDebugBytecode(shared, isolate_);
@@ -1368,8 +1369,9 @@ void Debug::PrepareFunctionForDebugExecution(
     redirect_visitor.VisitThread(isolate_, isolate_->thread_local_top());
     isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
   }
-  debug_info->set_flags(debug_info->flags() |
-                        DebugInfo::kPreparedForDebugExecution);
+  debug_info->set_flags(
+      debug_info->flags(kRelaxedLoad) | DebugInfo::kPreparedForDebugExecution,
+      kRelaxedStore);
 }
 
 void Debug::InstallDebugBreakTrampoline() {
@@ -1749,10 +1751,10 @@ void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
   Handle<FixedArray> break_points(
       factory->NewFixedArray(DebugInfo::kEstimatedNofBreakPointsInFunction));
 
-  int flags = debug_info->flags();
+  int flags = debug_info->flags(kRelaxedLoad);
   flags |= DebugInfo::kHasBreakInfo;
   if (CanBreakAtEntry(shared)) flags |= DebugInfo::kCanBreakAtEntry;
-  debug_info->set_flags(flags);
+  debug_info->set_flags(flags, kRelaxedStore);
   debug_info->set_break_points(*break_points);
 
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
@@ -1779,7 +1781,9 @@ void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
 
   DCHECK(!debug_info->HasCoverageInfo());
 
-  debug_info->set_flags(debug_info->flags() | DebugInfo::kHasCoverageInfo);
+  debug_info->set_flags(
+      debug_info->flags(kRelaxedLoad) | DebugInfo::kHasCoverageInfo,
+      kRelaxedStore);
   debug_info->set_coverage_info(*coverage_info);
 }
 

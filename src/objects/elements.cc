@@ -4232,7 +4232,7 @@ class SloppyArgumentsElementsAccessor
     if (entry.as_uint32() < length) {
       // Read context mapped entry.
       DisallowGarbageCollection no_gc;
-      Object probe = elements->mapped_entries(entry.as_uint32());
+      Object probe = elements->mapped_entries(entry.as_uint32(), kRelaxedLoad);
       DCHECK(!probe.IsTheHole(isolate));
       Context context = elements->context();
       int context_entry = Smi::ToInt(probe);
@@ -4268,7 +4268,7 @@ class SloppyArgumentsElementsAccessor
     if (entry.as_uint32() < length) {
       // Store context mapped entry.
       DisallowGarbageCollection no_gc;
-      Object probe = elements.mapped_entries(entry.as_uint32());
+      Object probe = elements.mapped_entries(entry.as_uint32(), kRelaxedLoad);
       DCHECK(!probe.IsTheHole());
       Context context = Context::cast(elements.context());
       int context_entry = Smi::ToInt(probe);
@@ -4401,7 +4401,7 @@ class SloppyArgumentsElementsAccessor
                                  size_t index) {
     uint32_t length = elements.length();
     if (index >= length) return false;
-    return !elements.mapped_entries(static_cast<uint32_t>(index))
+    return !elements.mapped_entries(static_cast<uint32_t>(index), kRelaxedLoad)
                 .IsTheHole(isolate);
   }
 
@@ -4456,7 +4456,8 @@ class SloppyArgumentsElementsAccessor
     uint32_t length = elements->length();
 
     for (uint32_t i = 0; i < length; ++i) {
-      if (elements->mapped_entries(i).IsTheHole(isolate)) continue;
+      if (elements->mapped_entries(i, kRelaxedLoad).IsTheHole(isolate))
+        continue;
       if (convert == GetKeysConversion::kConvertToString) {
         Handle<String> index_string = isolate->factory()->Uint32ToString(i);
         list->set(insertion_index, *index_string);
@@ -4621,7 +4622,7 @@ class SlowSloppyArgumentsElementsAccessor
         Handle<SloppyArgumentsElements>::cast(store);
     uint32_t length = elements->length();
     if (entry.as_uint32() < length) {
-      Object probe = elements->mapped_entries(entry.as_uint32());
+      Object probe = elements->mapped_entries(entry.as_uint32(), kRelaxedLoad);
       DCHECK(!probe.IsTheHole(isolate));
       Context context = elements->context();
       int context_entry = Smi::ToInt(probe);

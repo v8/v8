@@ -182,14 +182,15 @@ bool FeedbackVector::IsOfLegacyType(MaybeObject value) {
 #endif  // DEBUG
 
 MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {
-  MaybeObject value = raw_feedback_slots(GetIndex(slot));
+  MaybeObject value = raw_feedback_slots(GetIndex(slot), kRelaxedLoad);
   DCHECK(!IsOfLegacyType(value));
   return value;
 }
 
 MaybeObject FeedbackVector::Get(PtrComprCageBase cage_base,
                                 FeedbackSlot slot) const {
-  MaybeObject value = raw_feedback_slots(cage_base, GetIndex(slot));
+  MaybeObject value =
+      raw_feedback_slots(cage_base, GetIndex(slot), kRelaxedLoad);
   DCHECK(!IsOfLegacyType(value));
   return value;
 }

@@ -11,6 +11,7 @@
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/torque/cc-generator.h"
+#include "src/torque/cfg.h"
 #include "src/torque/constants.h"
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
@@ -4250,15 +4251,47 @@ void CppClassGenerator::GenerateFieldAccessors(
   }
 
   hdr_ << "  inline " << type_name << " " << name << "("
-       << (indexed ? "int i" : "") << ") const;\n";
+       << (indexed ? "int i" : "");
+  switch (class_field.read_synchronization) {
+    case FieldSynchronization::kNone:
+      break;
+    case FieldSynchronization::kRelaxed:
+      hdr_ << (indexed ? ", RelaxedLoadTag" : "RelaxedLoadTag");
+      break;
+    case FieldSynchronization::kAcquireRelease:
+      hdr_ << (indexed ? ", AcquireLoadTag" : "AcquireLoadTag");
+      break;
+  }
+  hdr_ << ") const;\n";
   if (can_contain_heap_objects) {
     hdr_ << "  inline " << type_name << " " << name
-         << "(PtrComprCageBase cage_base" << (indexed ? ", int i" : "")
-         << ") const;\n";
+         << "(PtrComprCageBase cage_base" << (indexed ? ", int i" : "");
+    switch (class_field.read_synchronization) {
+      case FieldSynchronization::kNone:
+        break;
+      case FieldSynchronization::kRelaxed:
+        hdr_ << ", RelaxedLoadTag";
+        break;
+      case FieldSynchronization::kAcquireRelease:
+        hdr_ << ", AcquireLoadTag";
+        break;
+    }
+
+    hdr_ << ") const;\n";
   }
   hdr_ << "  inline void set_" << name << "(" << (indexed ? "int i, " : "")
-       << type_name << " value"
-       << (can_contain_heap_objects
+       << type_name << " value";
+  switch (class_field.write_synchronization) {
+    case FieldSynchronization::kNone:
+      break;
+    case FieldSynchronization::kRelaxed:
+      hdr_ << ", RelaxedStoreTag";
+      break;
+    case FieldSynchronization::kAcquireRelease:
+      hdr_ << ", ReleaseStoreTag";
+      break;
+  }
+  hdr_ << (can_contain_heap_objects
                ? ", WriteBarrierMode mode = UPDATE_WRITE_BARRIER"
                : "")
        << ");\n\n";
@@ -4268,10 +4301,32 @@ void CppClassGenerator::GenerateFieldAccessors(
   if (can_contain_heap_objects) {
     inl_ << "template <class D, class P>\n";
     inl_ << type_name << " " << gen_name_ << "<D, P>::" << name << "("
-         << (indexed ? "int i" : "") << ") const {\n";
+         << (indexed ? "int i" : "");
+    switch (class_field.read_synchronization) {
+      case FieldSynchronization::kNone:
+        break;
+      case FieldSynchronization::kRelaxed:
+        inl_ << (indexed ? ", RelaxedLoadTag" : "RelaxedLoadTag");
+        break;
+      case FieldSynchronization::kAcquireRelease:
+        inl_ << (indexed ? ", AcquireLoadTag" : "AcquireLoadTag");
+        break;
+    }
+    inl_ << ") const {\n";
     inl_ << "  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);\n";
     inl_ << "  return " << gen_name_ << "::" << name << "(cage_base"
-         << (indexed ? ", i" : "") << ");\n";
+         << (indexed ? ", i" : "");
+    switch (class_field.read_synchronization) {
+      case FieldSynchronization::kNone:
+        break;
+      case FieldSynchronization::kRelaxed:
+        inl_ << ", kRelaxedLoad";
+        break;
+      case FieldSynchronization::kAcquireRelease:
+        inl_ << ", kAcquireLoad";
+        break;
+    }
+    inl_ << ");\n";
     inl_ << "}\n";
   }
 
@@ -4281,6 +4336,18 @@ void CppClassGenerator::GenerateFieldAccessors(
   if (can_contain_heap_objects) inl_ << "PtrComprCageBase cage_base";
   if (can_contain_heap_objects && indexed) inl_ << ", ";
   if (indexed) inl_ << "int i";
+  switch (class_field.read_synchronization) {
+    case FieldSynchronization::kNone:
+      break;
+    case FieldSynchronization::kRelaxed:
+      inl_ << ((can_contain_heap_objects || indexed) ? ", RelaxedLoadTag"
+                                                     : "RelaxedLoadTag");
+      break;
+    case FieldSynchronization::kAcquireRelease:
+      inl_ << ((can_contain_heap_objects || indexed) ? ", AcquireLoadTag"
+                                                     : "AcquireLoadTag");
+      break;
+  }
   inl_ << ") const {\n";
 
   inl_ << "  " << type_name << " value;\n";
@@ -4295,6 +4362,16 @@ void CppClassGenerator::GenerateFieldAccessors(
     inl_ << "int i, ";
   }
   inl_ << type_name << " value";
+  switch (class_field.write_synchronization) {
+    case FieldSynchronization::kNone:
+      break;
+    case FieldSynchronization::kRelaxed:
+      inl_ << ", RelaxedStoreTag";
+      break;
+    case FieldSynchronization::kAcquireRelease:
+      inl_ << ", ReleaseStoreTag";
+      break;
+  }
   if (can_contain_heap_objects) {
     inl_ << ", WriteBarrierMode mode";
   }
@@ -4368,10 +4445,10 @@ void CppClassGenerator::EmitLoadFieldStatement(
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
     if (class_field.read_synchronization ==
         FieldSynchronization::kAcquireRelease) {
-      ReportError("Torque doesn't support @acquireRead on untagged data");
+      ReportError("Torque doesn't support @cppAcquireRead on untagged data");
     } else if (class_field.read_synchronization ==
                FieldSynchronization::kRelaxed) {
-      ReportError("Torque doesn't support @relaxedRead on untagged data");
+      ReportError("Torque doesn't support @cppRelaxedRead on untagged data");
     }
     inl_ << "this->template ReadField<" << type_name << ">(" << offset
          << ");\n";
@@ -4665,11 +4742,33 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
             // TODO(turbofan): Print struct fields too.
             impl << "\" <struct field printing still unimplemented>\";\n";
           } else {
-            impl << "this->" << f.name_and_type.name << "();\n";
+            impl << "this->" << f.name_and_type.name;
+            switch (f.read_synchronization) {
+              case FieldSynchronization::kNone:
+                impl << "();\n";
+                break;
+              case FieldSynchronization::kRelaxed:
+                impl << "(kRelaxedLoad);\n";
+                break;
+              case FieldSynchronization::kAcquireRelease:
+                impl << "(kAcquireLoad);\n";
+                break;
+            }
           }
         } else {
           impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << "
-               << "Brief(this->" << f.name_and_type.name << "());\n";
+               << "Brief(this->" << f.name_and_type.name;
+          switch (f.read_synchronization) {
+            case FieldSynchronization::kNone:
+              impl << "());\n";
+              break;
+            case FieldSynchronization::kRelaxed:
+              impl << "(kRelaxedLoad));\n";
+              break;
+            case FieldSynchronization::kAcquireRelease:
+              impl << "(kAcquireLoad));\n";
+              break;
+          }
         }
       }
     }

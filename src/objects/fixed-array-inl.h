@@ -444,7 +444,7 @@ MaybeObject WeakFixedArray::Get(int index) const {
 
 MaybeObject WeakFixedArray::Get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return objects(cage_base, index);
+  return objects(cage_base, index, kRelaxedLoad);
 }
 
 void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
@@ -479,7 +479,7 @@ MaybeObject WeakArrayList::Get(int index) const {
 
 MaybeObject WeakArrayList::Get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
-  return objects(cage_base, index);
+  return objects(cage_base, index, kRelaxedLoad);
 }
 
 void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
