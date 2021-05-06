@@ -744,9 +744,11 @@ void NewSpace::Verify(Isolate* isolate) {
     CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
   }
 
+  if (!FLAG_concurrent_array_buffer_sweeping) {
     size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
     CHECK_EQ(bytes,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
+  }
 
   // Check semi-spaces.
   CHECK_EQ(from_space_.id(), kFromSpace);

@@ -731,7 +731,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   }
   CHECK(allocation_pointer_found_in_space);
 
-  if (identity() == OLD_SPACE) {
+  if (identity() == OLD_SPACE && !FLAG_concurrent_array_buffer_sweeping) {
     size_t bytes = heap()->array_buffer_sweeper()->old().BytesSlow();
     CHECK_EQ(bytes,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));

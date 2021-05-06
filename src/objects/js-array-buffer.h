@@ -167,7 +167,7 @@ class ArrayBufferExtension : public Malloced {
   std::atomic<GcState> young_gc_state_;
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_;
-  std::size_t accounting_length_;
+  std::atomic<size_t> accounting_length_;
 
   GcState young_gc_state() {
     return young_gc_state_.load(std::memory_order_relaxed);
@@ -205,10 +205,16 @@ class ArrayBufferExtension : public Malloced {
   std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
   BackingStore* backing_store_raw() { return backing_store_.get(); }
 
-  size_t accounting_length() { return accounting_length_; }
+  size_t accounting_length() {
+    return accounting_length_.load(std::memory_order_relaxed);
+  }
 
   void set_accounting_length(size_t accounting_length) {
-    accounting_length_ = accounting_length;
+    accounting_length_.store(accounting_length, std::memory_order_relaxed);
+  }
+
+  size_t ClearAccountingLength() {
+    return accounting_length_.exchange(0, std::memory_order_relaxed);
   }
 
   std::shared_ptr<BackingStore> RemoveBackingStore() {

@@ -4009,6 +4009,11 @@ void Heap::AppendArrayBufferExtension(JSArrayBuffer object,
   array_buffer_sweeper_->Append(object, extension);
 }
 
+void Heap::DetachArrayBufferExtension(JSArrayBuffer object,
+                                      ArrayBufferExtension* extension) {
+  return array_buffer_sweeper_->Detach(object, extension);
+}
+
 void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
   initial_max_old_generation_size_threshold_ =
       initial_max_old_generation_size_ * threshold_percent;

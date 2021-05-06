@@ -704,6 +704,8 @@ class Heap {
 
   void AppendArrayBufferExtension(JSArrayBuffer object,
                                   ArrayBufferExtension* extension);
+  void DetachArrayBufferExtension(JSArrayBuffer object,
+                                  ArrayBufferExtension* extension);
 
   GlobalSafepoint* safepoint() { return safepoint_.get(); }
 

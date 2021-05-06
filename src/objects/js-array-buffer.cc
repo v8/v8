@@ -86,9 +86,12 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
   }
 
   Isolate* const isolate = GetIsolate();
-  if (backing_store()) {
-    std::shared_ptr<BackingStore> backing_store;
-      backing_store = RemoveExtension();
+  ArrayBufferExtension* extension = this->extension();
+
+  if (extension) {
+    DisallowGarbageCollection disallow_gc;
+    isolate->heap()->DetachArrayBufferExtension(*this, extension);
+    std::shared_ptr<BackingStore> backing_store = RemoveExtension();
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
 
