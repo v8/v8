@@ -84,21 +84,8 @@ class CodeRange final : public VirtualMemoryCage {
                                  const uint8_t* embedded_blob_code,
                                  size_t embedded_blob_code_size);
 
-#ifdef V8_OS_WIN64
-  // 64-bit Windows needs to track how many Isolates are using the CodeRange for
-  // registering and unregistering of unwind info. Note that even though
-  // CodeRanges are used with std::shared_ptr, std::shared_ptr::use_count should
-  // not be used for synchronization as it's usually implemented with a relaxed
-  // read.
-  uint32_t AtomicIncrementUnwindInfoUseCount() {
-    return unwindinfo_use_count_.fetch_add(1, std::memory_order_acq_rel);
-  }
-
-  uint32_t AtomicDecrementUnwindInfoUseCount() {
-    return unwindinfo_use_count_.fetch_sub(1, std::memory_order_acq_rel);
-  }
-#endif  // V8_OS_WIN64
-
+  // Initializes the process-wide code range if RequiresProcessWideCodeRange()
+  // is true.
   static void InitializeProcessWideCodeRangeOnce(
       v8::PageAllocator* page_allocator, size_t requested_size);
 
@@ -110,10 +97,6 @@ class CodeRange final : public VirtualMemoryCage {
   // Used when short builtin calls are enabled, where embedded builtins are
   // copied into the CodeRange so calls can be nearer.
   uint8_t* embedded_blob_code_copy_ = nullptr;
-
-#ifdef V8_OS_WIN64
-  std::atomic<uint32_t> unwindinfo_use_count_{0};
-#endif
 };
 
 }  // namespace internal
