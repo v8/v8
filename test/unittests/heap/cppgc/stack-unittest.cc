@@ -276,20 +276,20 @@ namespace {
 // to make sure that:
 // 1) there is no .plt indirection (i.e. visibility is hidden);
 // 2) stack is realigned in the function prologue.
-V8_NOINLINE
+extern "C" V8_NOINLINE
 #if defined(__clang__)
-__attribute__((used))
+    __attribute__((used))
 #if !defined(V8_OS_WIN)
-__attribute__((visibility("hidden")))
+    __attribute__((visibility("hidden")))
 #endif  // !defined(V8_OS_WIN)
 #ifdef __has_attribute
 #if __has_attribute(force_align_arg_pointer)
-__attribute__((force_align_arg_pointer))
+    __attribute__((force_align_arg_pointer))
 #endif  // __has_attribute(force_align_arg_pointer)
 #endif  //  __has_attribute
 #endif  // defined(__clang__)
-extern "C" void
-IteratePointersNoMangling(Stack* stack, StackVisitor* visitor) {
+    void
+    IteratePointersNoMangling(Stack* stack, StackVisitor* visitor) {
   stack->IteratePointers(visitor);
 }
 }  // namespace
