@@ -4525,6 +4525,32 @@ void Genesis::InitializeGlobal_harmony_relative_indexing_methods() {
   }
 }
 
+#ifdef V8_INTL_SUPPORT
+
+void Genesis::InitializeGlobal_harmony_intl_locale_info() {
+  if (!FLAG_harmony_intl_locale_info) return;
+  Handle<JSObject> prototype(
+      JSObject::cast(native_context()->intl_locale_function().prototype()),
+      isolate_);
+  SimpleInstallGetter(isolate(), prototype, factory()->calendars_string(),
+                      Builtins::kLocalePrototypeCalendars, true);
+  SimpleInstallGetter(isolate(), prototype, factory()->collations_string(),
+                      Builtins::kLocalePrototypeCollations, true);
+  SimpleInstallGetter(isolate(), prototype, factory()->hourCycles_string(),
+                      Builtins::kLocalePrototypeHourCycles, true);
+  SimpleInstallGetter(isolate(), prototype,
+                      factory()->numberingSystems_string(),
+                      Builtins::kLocalePrototypeNumberingSystems, true);
+  SimpleInstallGetter(isolate(), prototype, factory()->textInfo_string(),
+                      Builtins::kLocalePrototypeTextInfo, true);
+  SimpleInstallGetter(isolate(), prototype, factory()->timeZones_string(),
+                      Builtins::kLocalePrototypeTimeZones, true);
+  SimpleInstallGetter(isolate(), prototype, factory()->weekInfo_string(),
+                      Builtins::kLocalePrototypeWeekInfo, true);
+}
+
+#endif  // V8_INTL_SUPPORT
+
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%

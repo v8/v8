@@ -276,9 +276,10 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_import_assertions, "harmony import assertions")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                             \
-  HARMONY_INPROGRESS_BASE(V)                              \
-  V(harmony_intl_displaynames_date_types, "Intl.DisplayNames date types")
+#define HARMONY_INPROGRESS(V)                                             \
+  HARMONY_INPROGRESS_BASE(V)                                              \
+  V(harmony_intl_displaynames_date_types, "Intl.DisplayNames date types") \
+  V(harmony_intl_locale_info, "Intl locale info")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
