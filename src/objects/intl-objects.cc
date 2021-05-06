@@ -479,12 +479,7 @@ Handle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
                         field_type_string, NONE);
 
   JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
-  // TODO(victorgomes): Temporarily forcing a fatal error here in case of
-  // overflow, until Intl::AddElement can handle exceptions.
-  if (JSObject::AddDataElement(array, index, element, NONE).IsNothing()) {
-    FATAL("Fatal JavaScript invalid array size when adding element");
-    UNREACHABLE();
-  }
+  JSObject::AddDataElement(array, index, element, NONE);
   return element;
 }
 
@@ -1574,9 +1569,9 @@ std::vector<std::string> BestFitSupportedLocales(
 }
 
 // ecma262 #sec-createarrayfromlist
-MaybeHandle<JSArray> CreateArrayFromList(Isolate* isolate,
-                                         std::vector<std::string> elements,
-                                         PropertyAttributes attr) {
+Handle<JSArray> CreateArrayFromList(Isolate* isolate,
+                                    std::vector<std::string> elements,
+                                    PropertyAttributes attr) {
   Factory* factory = isolate->factory();
   // Let array be ! ArrayCreate(0).
   Handle<JSArray> array = factory->NewJSArray(0);
@@ -1589,11 +1584,10 @@ MaybeHandle<JSArray> CreateArrayFromList(Isolate* isolate,
     const std::string& part = elements[i];
     Handle<String> value =
         factory->NewStringFromUtf8(CStrVector(part.c_str())).ToHandleChecked();
-    MAYBE_RETURN(JSObject::AddDataElement(array, i, value, attr),
-                 MaybeHandle<JSArray>());
+    JSObject::AddDataElement(array, i, value, attr);
   }
   // 5. Return array.
-  return MaybeHandle<JSArray>(array);
+  return array;
 }
 
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
