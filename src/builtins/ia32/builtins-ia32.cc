@@ -646,15 +646,12 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
            FieldOperand(edx, JSGeneratorObject::kParametersAndRegistersOffset));
     {
       Label done_loop, loop;
-      __ mov(edi, ecx);
-
       __ bind(&loop);
-      __ dec(edi);
+      __ dec(ecx);
       __ j(less, &done_loop);
       __ Push(
-          FieldOperand(ebx, edi, times_tagged_size, FixedArray::kHeaderSize));
+          FieldOperand(ebx, ecx, times_tagged_size, FixedArray::kHeaderSize));
       __ jmp(&loop);
-
       __ bind(&done_loop);
     }
 
