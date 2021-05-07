@@ -46,6 +46,10 @@ class V8_EXPORT_PRIVATE BasePage {
   Address PayloadEnd();
   ConstAddress PayloadEnd() const;
 
+  // Returns the size of live objects on the page at the last GC.
+  // The counter is update after sweeping.
+  size_t AllocatedBytesAtLastGC() const;
+
   // |address| must refer to real object.
   template <AccessMode = AccessMode::kNonAtomic>
   HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
@@ -169,6 +173,12 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     return (PayloadStart() <= address) && (address < PayloadEnd());
   }
 
+  size_t AllocatedBytesAtLastGC() const { return allocated_bytes_at_last_gc_; }
+
+  void SetAllocatedBytesAtLastGC(size_t bytes) {
+    allocated_bytes_at_last_gc_ = bytes;
+  }
+
   PlatformAwareObjectStartBitmap& object_start_bitmap() {
     return object_start_bitmap_;
   }
@@ -180,6 +190,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   NormalPage(HeapBase* heap, BaseSpace* space);
   ~NormalPage();
 
+  size_t allocated_bytes_at_last_gc_ = 0;
   PlatformAwareObjectStartBitmap object_start_bitmap_;
 };
 
@@ -214,6 +225,8 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
     DCHECK_GT(payload_size_, sizeof(HeapObjectHeader));
     return payload_size_ - sizeof(HeapObjectHeader);
   }
+
+  size_t AllocatedBytesAtLastGC() const { return ObjectSize(); }
 
   bool PayloadContains(ConstAddress address) const {
     return (PayloadStart() <= address) && (address < PayloadEnd());

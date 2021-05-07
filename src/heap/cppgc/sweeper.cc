@@ -194,6 +194,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
   bitmap.Clear();
 
   size_t largest_new_free_list_entry = 0;
+  size_t live_bytes = 0;
 
   Address start_of_gap = page->PayloadStart();
   for (Address begin = page->PayloadStart(), end = page->PayloadEnd();
@@ -226,6 +227,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
     bitmap.SetBit(begin);
     begin += size;
     start_of_gap = begin;
+    live_bytes += size;
   }
 
   if (start_of_gap != page->PayloadStart() &&
@@ -234,6 +236,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
         start_of_gap, static_cast<size_t>(page->PayloadEnd() - start_of_gap));
     bitmap.SetBit(start_of_gap);
   }
+  page->SetAllocatedBytesAtLastGC(live_bytes);
 
   const bool is_empty = (start_of_gap == page->PayloadStart());
   return builder.GetResult(is_empty, largest_new_free_list_entry);

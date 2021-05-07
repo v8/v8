@@ -5,6 +5,7 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 
 #include <cstdint>
+#include <numeric>
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
@@ -63,6 +64,25 @@ cppgc::HeapStatistics CppHeap::CollectStatistics(
     cppgc::HeapStatistics::DetailLevel detail_level) {
   return internal::CppHeap::From(this)->AsBase().CollectStatistics(
       detail_level);
+}
+
+void CppHeap::CollectCustomSpaceStatisticsAtLastGC(
+    std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+    std::unique_ptr<CustomSpaceStatisticsReceiver> receiver) {
+  cppgc::internal::HeapBase& heap_base =
+      internal::CppHeap::From(this)->AsBase();
+  // TODO(1181269): Use tasks to help the sweeper incrementally instead of
+  // finalizing atomically.
+  heap_base.sweeper().FinishIfRunning();
+  for (auto custom_space_index : custom_spaces) {
+    const cppgc::internal::BaseSpace* space =
+        heap_base.raw_heap().CustomSpace(custom_space_index);
+    size_t allocated_bytes = std::accumulate(
+        space->begin(), space->end(), 0, [](size_t sum, auto* page) {
+          return sum + page->AllocatedBytesAtLastGC();
+        });
+    receiver->AllocatedBytes(custom_space_index, allocated_bytes);
+  }
 }
 
 void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
