@@ -418,6 +418,16 @@ DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_marking)
 DEFINE_BOOL_READONLY(enable_third_party_heap, V8_ENABLE_THIRD_PARTY_HEAP_BOOL,
                      "Use third-party heap")
 
+#ifdef V8_ALLOCATION_FOLDING
+#define V8_ALLOCATION_FOLDING_BOOL true
+#else
+#define V8_ALLOCATION_FOLDING_BOOL false
+#endif
+
+DEFINE_BOOL_READONLY(enable_allocation_folding, V8_ALLOCATION_FOLDING_BOOL,
+                     "Use allocation folding globally")
+DEFINE_NEG_NEG_IMPLICATION(enable_allocation_folding, turbo_allocation_folding)
+
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define V8_DISABLE_WRITE_BARRIERS_BOOL true
 #else
