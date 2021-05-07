@@ -26,6 +26,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/memory-protection-key.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module-sourcemap.h"
@@ -844,12 +845,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   WasmCodeManager(const WasmCodeManager&) = delete;
   WasmCodeManager& operator=(const WasmCodeManager&) = delete;
 
-#ifdef DEBUG
-  ~WasmCodeManager() {
-    // No more committed code space.
-    DCHECK_EQ(0, total_committed_code_space_.load());
-  }
-#endif
+  ~WasmCodeManager();
 
 #if defined(V8_OS_WIN64)
   bool CanRegisterUnwindInfoForNonABICompliantCodeRange() const;
@@ -904,6 +900,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // currently committed space plus 50% of the available code space on creation
   // and updated after each GC.
   std::atomic<size_t> critical_committed_code_space_;
+
+  const int memory_protection_key_;
 
   mutable base::Mutex native_modules_mutex_;
 
