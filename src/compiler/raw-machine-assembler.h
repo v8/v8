@@ -178,7 +178,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
       MachineType type, Node* base, Node* offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     CHECK_EQ(needs_poisoning, LoadSensitivity::kSafe);
-    DCHECK_IMPLIES(IsMapOffsetConstantMinusTag(offset),
+    DCHECK_IMPLIES(V8_MAP_PACKING_BOOL && IsMapOffsetConstantMinusTag(offset),
                    type == MachineType::MapInHeader());
     ObjectAccess access = {type, WriteBarrierKind::kNoWriteBarrier};
     Node* load = AddNode(simplified()->LoadFromObject(access), base, offset);
