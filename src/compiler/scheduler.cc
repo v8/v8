@@ -727,6 +727,8 @@ class SpecialRPONumberer : public ZoneObject {
     return empty_;
   }
 
+  bool HasLoopBlocks() const { return loops_.size() != 0; }
+
  private:
   using Backedge = std::pair<BasicBlock*, size_t>;
 
@@ -1382,6 +1384,11 @@ class ScheduleEarlyNodeVisitor {
 
 
 void Scheduler::ScheduleEarly() {
+  if (!special_rpo_->HasLoopBlocks()) {
+    TRACE("--- NO LOOPS SO SKIPPING SCHEDULE EARLY --------------------\n");
+    return;
+  }
+
   TRACE("--- SCHEDULE EARLY -----------------------------------------\n");
   if (FLAG_trace_turbo_scheduler) {
     TRACE("roots: ");
@@ -1459,6 +1466,7 @@ class ScheduleLateNodeVisitor {
     // The schedule early block dominates the schedule late block.
     BasicBlock* min_block = scheduler_->GetData(node)->minimum_block_;
     DCHECK_EQ(min_block, BasicBlock::GetCommonDominator(block, min_block));
+
     TRACE(
         "Schedule late of #%d:%s is id:%d at loop depth %d, minimum = id:%d\n",
         node->id(), node->op()->mnemonic(), block->id().ToInt(),
@@ -1470,6 +1478,7 @@ class ScheduleLateNodeVisitor {
     BasicBlock* hoist_block = GetHoistBlock(block);
     if (hoist_block &&
         hoist_block->dominator_depth() >= min_block->dominator_depth()) {
+      DCHECK(scheduler_->special_rpo_->HasLoopBlocks());
       do {
         TRACE("  hoisting #%d:%s to block id:%d\n", node->id(),
               node->op()->mnemonic(), hoist_block->id().ToInt());
@@ -1599,6 +1608,7 @@ class ScheduleLateNodeVisitor {
   }
 
   BasicBlock* GetHoistBlock(BasicBlock* block) {
+    if (!scheduler_->special_rpo_->HasLoopBlocks()) return nullptr;
     if (block->IsLoopHeader()) return block->dominator();
     // We have to check to make sure that the {block} dominates all
     // of the outgoing blocks.  If it doesn't, then there is a path
