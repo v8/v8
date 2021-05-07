@@ -114,7 +114,6 @@ def led_users(*, pool_realm, builder_realms, groups):
     luci.realm(
         name = pool_realm,
         bindings = [luci.binding(
-            realm = pool_realm,
             roles = "role/swarming.poolUser",
             groups = groups,
         )],
