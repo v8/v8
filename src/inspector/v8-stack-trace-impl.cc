@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/tracing/trace-event.h"
@@ -175,7 +176,8 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
 }
 
 StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
-    : m_functionName(toProtocolString(isolate, v8Frame->GetFunctionName())),
+    : m_functionName(
+          toProtocolString(isolate, v8::debug::GetFunctionDebugName(v8Frame))),
       m_scriptId(v8Frame->GetScriptId()),
       m_sourceURL(
           toProtocolString(isolate, v8Frame->GetScriptNameOrSourceURL())),

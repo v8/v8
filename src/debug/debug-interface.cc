@@ -12,6 +12,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/regexp/regexp-stack.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -41,6 +42,20 @@ void SetInspector(Isolate* isolate, v8_inspector::V8Inspector* inspector) {
 
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate) {
   return reinterpret_cast<i::Isolate*>(isolate)->inspector();
+}
+
+Local<String> GetFunctionDebugName(Local<StackFrame> frame) {
+#if V8_ENABLE_WEBASSEMBLY
+  auto info = Utils::OpenHandle(*frame);
+  if (info->IsWasm()) {
+    auto isolate = info->GetIsolate();
+    auto instance = handle(info->GetWasmInstance(), isolate);
+    auto func_index = info->GetWasmFunctionIndex();
+    return Utils::ToLocal(
+        i::GetWasmFunctionDebugName(isolate, instance, func_index));
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return frame->GetFunctionName();
 }
 
 void SetBreakOnNextFunctionCall(Isolate* isolate) {

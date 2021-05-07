@@ -27,6 +27,7 @@
 #include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -1488,10 +1489,7 @@ Handle<Script> FrameSummary::WasmFrameSummary::script() const {
 }
 
 Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
-  Handle<WasmModuleObject> module_object(wasm_instance()->module_object(),
-                                         isolate());
-  return WasmModuleObject::GetFunctionName(isolate(), module_object,
-                                           function_index());
+  return GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
 }
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {

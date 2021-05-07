@@ -323,15 +323,7 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<String> GetName(Isolate* isolate,
                                 Handle<WasmInstanceObject> instance,
                                 uint32_t index) {
-    Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-    MaybeHandle<String> name =
-        WasmModuleObject::GetFunctionNameOrNull(isolate, module_object, index);
-    if (name.is_null()) {
-      name = GetNameFromImportsAndExportsOrNull(
-          isolate, instance, wasm::ImportExportKindCode::kExternalFunction,
-          index);
-    }
-    return GetNameOrDefault(isolate, name, "$func", index);
+    return GetWasmFunctionDebugName(isolate, instance, index);
   }
 };
 
@@ -1048,6 +1040,24 @@ Handle<JSObject> GetWasmDebugProxy(WasmFrame* frame) {
 
 std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
   return std::make_unique<DebugWasmScopeIterator>(frame);
+}
+
+Handle<String> GetWasmFunctionDebugName(Isolate* isolate,
+                                        Handle<WasmInstanceObject> instance,
+                                        uint32_t func_index) {
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  MaybeHandle<String> maybe_name = WasmModuleObject::GetFunctionNameOrNull(
+      isolate, module_object, func_index);
+  if (module_object->is_asm_js()) {
+    // In case of asm.js, we use the names from the function declarations.
+    return maybe_name.ToHandleChecked();
+  }
+  if (maybe_name.is_null()) {
+    maybe_name = GetNameFromImportsAndExportsOrNull(
+        isolate, instance, wasm::ImportExportKindCode::kExternalFunction,
+        func_index);
+  }
+  return GetNameOrDefault(isolate, maybe_name, "$func", func_index);
 }
 
 Handle<ArrayList> AddWasmInstanceObjectInternalProperties(

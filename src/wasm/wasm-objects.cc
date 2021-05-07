@@ -232,20 +232,6 @@ MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
                                           kNoInternalize);
 }
 
-Handle<String> WasmModuleObject::GetFunctionName(
-    Isolate* isolate, Handle<WasmModuleObject> module_object,
-    uint32_t func_index) {
-  MaybeHandle<String> name =
-      GetFunctionNameOrNull(isolate, module_object, func_index);
-  if (!name.is_null()) return name.ToHandleChecked();
-  EmbeddedVector<char, 32> buffer;
-  DCHECK_GE(func_index, module_object->module()->num_imported_functions);
-  int length = SNPrintF(buffer, "func%u", func_index);
-  return isolate->factory()
-      ->NewStringFromOneByte(Vector<uint8_t>::cast(buffer.SubVector(0, length)))
-      .ToHandleChecked();
-}
-
 Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(int func_index) {
   if (func_index == wasm::kAnonymousFuncIndex) {
     return Vector<const uint8_t>({nullptr, 0});

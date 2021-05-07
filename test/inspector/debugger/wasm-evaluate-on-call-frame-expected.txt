@@ -5,7 +5,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > instance = Instance
 > module = Module
 
@@ -14,7 +14,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > globals = Globals
 > typeof globals = "object"
 > Object.keys(globals) = Array(2)
@@ -27,7 +27,7 @@ Debugger paused in main.
 > globals["$global3"] = i64 {2n}
 > $global3 = i64 {2n}
 Stepping twice in main.
-Debugger paused in main.
+Debugger paused in $main.
 > globals[0] = i32 {0}
 > globals[1] = i32 {1}
 > globals[2] = i64 {2n}
@@ -51,7 +51,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > functions = Functions
 > typeof functions = "object"
 > Object.keys(functions) = Array(4)
@@ -73,7 +73,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > locals = Locals
 > typeof locals = "object"
 > Object.keys(locals) = Array(2)
@@ -85,7 +85,7 @@ Debugger paused in main.
 > locals["$var2"] = i32 {0}
 > $var2 = i32 {0}
 Stepping twice in main.
-Debugger paused in main.
+Debugger paused in $main.
 > locals[0] = i32 {3}
 > locals[1] = i32 {6}
 > locals[2] = i32 {42}
@@ -99,7 +99,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > memories = Memories
 > typeof memories = "object"
 > Object.keys(memories) = Array(1)
@@ -112,7 +112,7 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > tables = Tables
 > typeof tables = "object"
 > Object.keys(tables) = Array(1)
@@ -125,12 +125,12 @@ Compile module.
 Set breakpoint in main.
 Instantiate module.
 Call main.
-Debugger paused in main.
+Debugger paused in $main.
 > stack = Stack
 > typeof stack = "object"
 > Object.keys(stack) = Array(0)
 Stepping twice in main.
-Debugger paused in main.
+Debugger paused in $main.
 > stack = Stack
 > Object.keys(stack) = Array(2)
 > stack[0] = i32 {5}

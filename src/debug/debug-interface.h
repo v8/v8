@@ -38,6 +38,13 @@ int GetContextId(Local<Context> context);
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
+// Returns the debug name for the function, which is supposed to be used
+// by the debugger and the developer tools. This can thus be different from
+// the name returned by the StackFrame::GetFunctionName() method. For example,
+// in case of WebAssembly, the debug name is WAT-compatible and thus always
+// preceeded by a dollar ('$').
+Local<String> GetFunctionDebugName(Local<StackFrame> frame);
+
 // Schedule a debugger break to happen when function is called inside given
 // isolate.
 V8_EXPORT_PRIVATE void SetBreakOnNextFunctionCall(Isolate* isolate);
