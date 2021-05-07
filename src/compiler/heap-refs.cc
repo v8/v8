@@ -3570,7 +3570,9 @@ DescriptorArrayRef MapRef::instance_descriptors() const {
 }
 
 base::Optional<HeapObjectRef> MapRef::prototype() const {
-  IF_ACCESS_FROM_HEAP_WITH_FLAG(HeapObject, prototype);
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return TryMakeRef(broker(), HeapObject::cast(object()->prototype()));
+  }
   ObjectData* prototype_data = data()->AsMap()->prototype();
   if (prototype_data == nullptr) {
     TRACE_BROKER_MISSING(broker(), "prototype for map " << *this);
