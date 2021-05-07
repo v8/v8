@@ -65,7 +65,28 @@ class CodeRange final : public VirtualMemoryCage {
  public:
   V8_EXPORT_PRIVATE ~CodeRange();
 
-  uint8_t* embedded_blob_code_copy() const { return embedded_blob_code_copy_; }
+  uint8_t* embedded_blob_code_copy() const {
+    // remap_embedded_builtins_mutex_ is designed to protect write contention to
+    // embedded_blob_code_copy_. It is safe to be read without taking the
+    // mutex. It is read to check if short builtins ought to be enabled because
+    // a shared CodeRange has already remapped builtins and to find where the
+    // instruction stream for a builtin is.
+    //
+    // For the first, this racing with an Isolate calling RemapEmbeddedBuiltins
+    // may result in disabling short builtins, which is not a correctness issue.
+    //
+    // For the second, this racing with an Isolate calling RemapEmbeddedBuiltins
+    // may result in an already running Isolate that did not have short builtins
+    // enabled (due to max old generation size) to switch over to using remapped
+    // builtins, which is also not a correctness issue as the remapped builtins
+    // are byte-equivalent.
+    //
+    // Both these scenarios should be rare. The initial Isolate is usually
+    // created by itself, i.e. without contention. Additionally, the first
+    // Isolate usually remaps builtins on machines with enough memory, not
+    // subsequent Isolates in the same process.
+    return embedded_blob_code_copy_.load(std::memory_order_relaxed);
+  }
 
   bool InitReservation(v8::PageAllocator* page_allocator, size_t requested);
 
@@ -96,7 +117,11 @@ class CodeRange final : public VirtualMemoryCage {
  private:
   // Used when short builtin calls are enabled, where embedded builtins are
   // copied into the CodeRange so calls can be nearer.
-  uint8_t* embedded_blob_code_copy_ = nullptr;
+  std::atomic<uint8_t*> embedded_blob_code_copy_{nullptr};
+
+  // When sharing a CodeRange among Isolates, calls to RemapEmbeddedBuiltins may
+  // race during Isolate::Init.
+  base::Mutex remap_embedded_builtins_mutex_;
 };
 
 }  // namespace internal

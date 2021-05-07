@@ -101,6 +101,48 @@ UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
   isolate2->Dispose();
 }
 
+namespace {
+constexpr int kIsolatesToAllocate = 25;
+
+class IsolateAllocatingThread final : public v8::base::Thread {
+ public:
+  IsolateAllocatingThread()
+      : v8::base::Thread(base::Thread::Options("IsolateAllocatingThread")) {}
+
+  void Run() override {
+    std::vector<v8::Isolate*> isolates;
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+    for (int i = 0; i < kIsolatesToAllocate; i++) {
+      isolates.push_back(v8::Isolate::New(create_params));
+    }
+
+    for (auto* isolate : isolates) {
+      isolate->Dispose();
+    }
+  }
+};
+}  // namespace
+
+UNINITIALIZED_TEST(SharedPtrComprCageRace) {
+  // Make a bunch of Isolates concurrently as a smoke test against races during
+  // initialization and de-initialization.
+
+  std::vector<std::unique_ptr<IsolateAllocatingThread>> threads;
+  constexpr int kThreads = 10;
+
+  for (int i = 0; i < kThreads; i++) {
+    auto thread = std::make_unique<IsolateAllocatingThread>();
+    CHECK(thread->Start());
+    threads.push_back(std::move(thread));
+  }
+
+  for (auto& thread : threads) {
+    thread->Join();
+  }
+}
+
 #ifdef V8_SHARED_RO_HEAP
 UNINITIALIZED_TEST(SharedPtrComprCageImpliesSharedReadOnlyHeap) {
   v8::Isolate::CreateParams create_params;

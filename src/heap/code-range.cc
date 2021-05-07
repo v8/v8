@@ -97,17 +97,21 @@ void CodeRange::Free() {
 uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
                                           const uint8_t* embedded_blob_code,
                                           size_t embedded_blob_code_size) {
+  base::MutexGuard guard(&remap_embedded_builtins_mutex_);
+
   const base::AddressRegion& code_region = reservation()->region();
   CHECK_NE(code_region.begin(), kNullAddress);
   CHECK(!code_region.is_empty());
 
-  if (embedded_blob_code_copy_) {
-    DCHECK(code_region.contains(
-        reinterpret_cast<Address>(embedded_blob_code_copy_),
-        embedded_blob_code_size));
-    SLOW_DCHECK(memcmp(embedded_blob_code, embedded_blob_code_copy_,
+  uint8_t* embedded_blob_code_copy =
+      embedded_blob_code_copy_.load(std::memory_order_relaxed);
+  if (embedded_blob_code_copy) {
+    DCHECK(
+        code_region.contains(reinterpret_cast<Address>(embedded_blob_code_copy),
+                             embedded_blob_code_size));
+    SLOW_DCHECK(memcmp(embedded_blob_code, embedded_blob_code_copy,
                        embedded_blob_code_size) == 0);
-    return embedded_blob_code_copy_;
+    return embedded_blob_code_copy;
   }
 
   const size_t kAllocatePageSize = page_allocator()->AllocatePageSize();
@@ -117,10 +121,12 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   // Allocate the re-embedded code blob in the end.
   void* hint = reinterpret_cast<void*>(code_region.end() - allocate_code_size);
 
-  void* embedded_blob_copy = page_allocator()->AllocatePages(
-      hint, allocate_code_size, kAllocatePageSize, PageAllocator::kNoAccess);
+  embedded_blob_code_copy =
+      reinterpret_cast<uint8_t*>(page_allocator()->AllocatePages(
+          hint, allocate_code_size, kAllocatePageSize,
+          PageAllocator::kNoAccess));
 
-  if (!embedded_blob_copy) {
+  if (!embedded_blob_code_copy) {
     V8::FatalProcessOutOfMemory(
         isolate, "Can't allocate space for re-embedded builtins");
   }
@@ -128,21 +134,22 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   size_t code_size =
       RoundUp(embedded_blob_code_size, page_allocator()->CommitPageSize());
 
-  if (!page_allocator()->SetPermissions(embedded_blob_copy, code_size,
+  if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
                                         PageAllocator::kReadWrite)) {
     V8::FatalProcessOutOfMemory(isolate,
                                 "Re-embedded builtins: set permissions");
   }
-  memcpy(embedded_blob_copy, embedded_blob_code, embedded_blob_code_size);
+  memcpy(embedded_blob_code_copy, embedded_blob_code, embedded_blob_code_size);
 
-  if (!page_allocator()->SetPermissions(embedded_blob_copy, code_size,
+  if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
                                         PageAllocator::kReadExecute)) {
     V8::FatalProcessOutOfMemory(isolate,
                                 "Re-embedded builtins: set permissions");
   }
 
-  embedded_blob_code_copy_ = reinterpret_cast<uint8_t*>(embedded_blob_copy);
-  return embedded_blob_code_copy_;
+  embedded_blob_code_copy_.store(embedded_blob_code_copy,
+                                 std::memory_order_relaxed);
+  return embedded_blob_code_copy;
 }
 
 // static
