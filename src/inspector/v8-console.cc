@@ -557,8 +557,9 @@ void V8Console::monitorFunctionCallback(
   else
     builder.append(functionName);
   builder.append(
-      " called\" + (arguments.length > 0 ? \" with arguments: \" + "
-      "Array.prototype.join.call(arguments, \", \") : \"\")) && false");
+      " called\" + (typeof arguments !== \"undefined\" && arguments.length > 0 "
+      "? \" with arguments: \" + Array.prototype.join.call(arguments, \", \") "
+      ": \"\")) && false");
   setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::MonitorCommandBreakpointSource,
                         toV8String(info.GetIsolate(), builder.toString()),
