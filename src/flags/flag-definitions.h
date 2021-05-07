@@ -340,6 +340,13 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 DEFINE_BOOL(builtin_subclassing, true,
             "subclassing support in built-in methods")
 
+// If the following flag is set to `true`, the SharedArrayBuffer constructor is
+// enabled per context depending on the callback set via
+// `SetSharedArrayBufferConstructorEnabledCallback`. If no callback is set, the
+// SharedArrayBuffer constructor is disabled.
+DEFINE_BOOL(enable_sharedarraybuffer_per_context, false,
+            "enable the SharedArrayBuffer constructor per context")
+
 #ifdef V8_INTL_SUPPORT
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #endif
