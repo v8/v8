@@ -699,7 +699,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map.instance_size();
+    return WasmStruct::GcSafeSize(map);
   }
 };
 

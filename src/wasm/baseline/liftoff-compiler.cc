@@ -4812,6 +4812,17 @@ class LiftoffCompiler {
       StoreObjectField(obj.gp(), no_reg, offset, value, pinned, field_kind);
       pinned.clear(value);
     }
+    if (imm.struct_type->field_count() == 0) {
+      static_assert(Heap::kMinObjectSizeInTaggedWords == 2 &&
+                        WasmStruct::kHeaderSize == kTaggedSize,
+                    "empty structs need exactly one padding field");
+      ValueKind field_kind = ValueKind::kRef;
+      LiftoffRegister value = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LoadNullValue(value.gp(), pinned);
+      StoreObjectField(obj.gp(), no_reg, WasmStruct::kHeaderSize, value, pinned,
+                       field_kind);
+      pinned.clear(value);
+    }
     __ PushRegister(kRef, obj);
   }
 

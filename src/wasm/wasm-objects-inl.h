@@ -423,6 +423,20 @@ wasm::StructType* WasmStruct::GcSafeType(Map map) {
   return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
 }
 
+int WasmStruct::Size(const wasm::StructType* type) {
+  // Object size must fit into a Smi (because of filler objects), and its
+  // computation must not overflow.
+  STATIC_ASSERT(Smi::kMaxValue <= kMaxInt);
+  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
+                  Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
+}
+
+int WasmStruct::GcSafeSize(Map map) {
+  wasm::StructType* type = GcSafeType(map);
+  return Size(type);
+}
+
 wasm::StructType* WasmStruct::type() const { return type(map()); }
 
 ObjectSlot WasmStruct::RawField(int raw_offset) {

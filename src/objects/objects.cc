@@ -2361,6 +2361,9 @@ int HeapObject::SizeFromMap(Map map) const {
         CoverageInfo::unchecked_cast(*this).slot_count());
   }
 #if V8_ENABLE_WEBASSEMBLY
+  if (instance_type == WASM_STRUCT_TYPE) {
+    return WasmStruct::GcSafeSize(map);
+  }
   if (instance_type == WASM_ARRAY_TYPE) {
     return WasmArray::GcSafeSizeFor(map, WasmArray::cast(*this).length());
   }

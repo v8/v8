@@ -117,6 +117,8 @@ extern class AsmWasmData extends Struct {
 extern class WasmTypeInfo extends Foreign {
   supertypes: FixedArray;
   subtypes: ArrayList;
+  // In bytes, used for struct allocation.
+  instance_size: Smi;
 }
 
 @generateCppClass

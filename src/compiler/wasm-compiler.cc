@@ -5526,6 +5526,16 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
   for (uint32_t i = 0; i < type->field_count(); i++) {
     gasm_->StoreStructField(s, type, i, fields[i]);
   }
+  if (type->field_count() == 0) {
+    static_assert(Heap::kMinObjectSizeInTaggedWords == 2 &&
+                      WasmStruct::kHeaderSize == kTaggedSize,
+                  "empty structs need exactly one padding field");
+    wasm::ValueType fake_type = wasm::kWasmAnyRef;
+    Node* padding_offset = gasm_->IntPtrConstant(
+        wasm::ObjectAccess::ToTagged(WasmStruct::kHeaderSize));
+    gasm_->StoreToObject(ObjectAccessForGCStores(fake_type), s, padding_offset,
+                         RefNull());
+  }
   return s;
 }
 
