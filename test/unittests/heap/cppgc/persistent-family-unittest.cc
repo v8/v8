@@ -340,13 +340,13 @@ void NullStateAssignment(cppgc::Heap* heap) {
     PersistentType<GCed> p =
         MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
-    p = static_cast<GCed*>(0);
+    p = static_cast<GCed*>(nullptr);
     EXPECT_EQ(nullptr, p.Get());
     EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   }
 }
 
-TEST_F(PersistentTest, NullStateAssignemnt) {
+TEST_F(PersistentTest, NullStateAssignment) {
   auto* heap = GetHeap();
   NullStateAssignment<Persistent>(heap);
   NullStateAssignment<WeakPersistent>(heap);

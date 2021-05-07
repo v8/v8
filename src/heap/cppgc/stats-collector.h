@@ -256,7 +256,7 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
   void NotifyAllocation(size_t);
   void NotifyExplicitFree(size_t);
-  // Safepoints should only be invoked when garabge collections are possible.
+  // Safepoints should only be invoked when garbage collections are possible.
   // This is necessary as increments and decrements are reported as close to
   // their actual allocation/reclamation as possible.
   void NotifySafePointForConservativeCollection();
