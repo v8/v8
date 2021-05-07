@@ -172,7 +172,7 @@ in_category(
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         executable = "recipe:v8/node_integration_ng",
-        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
         notifies = ["beta/stable notifier"],
