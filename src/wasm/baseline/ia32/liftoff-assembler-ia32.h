@@ -3890,13 +3890,13 @@ void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
   XMMRegister tmp = liftoff::kScratchDoubleReg;
-  int32_t shift = rhs & 63;
+  byte shift = rhs & 63;
 
   // Set up a mask [0x80000000,0,0x80000000,0].
   Pcmpeqb(tmp, tmp);
   Psllq(tmp, tmp, byte{63});
 
-  Psrlq(tmp, tmp, byte{shift});
+  Psrlq(tmp, tmp, shift);
   liftoff::EmitSimdShiftOpImm<&Assembler::vpsrlq, &Assembler::psrlq, 6>(
       this, dst, lhs, rhs);
   Pxor(dst.fp(), tmp);
