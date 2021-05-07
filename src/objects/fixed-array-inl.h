@@ -48,8 +48,6 @@ SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
-SYNCHRONIZED_SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
-
 Object FixedArrayBase::unchecked_synchronized_length() const {
   return ACQUIRE_READ_FIELD(*this, kLengthOffset);
 }
@@ -248,9 +246,7 @@ inline int FixedArray::AllocatedSize() {
 inline int WeakFixedArray::AllocatedSize() {
   return SizeFor(synchronized_length());
 }
-inline int WeakArrayList::AllocatedSize() {
-  return SizeFor(synchronized_capacity());
-}
+inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>

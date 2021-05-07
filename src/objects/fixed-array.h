@@ -376,9 +376,6 @@ class WeakArrayList
 
   V8_EXPORT_PRIVATE bool IsFull();
 
-  // Get and set the capacity using acquire loads and release stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(capacity)
-
   int AllocatedSize();
 
   class BodyDescriptor;
