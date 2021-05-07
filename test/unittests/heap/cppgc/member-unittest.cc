@@ -506,5 +506,51 @@ TEST_F(MemberHeapTest, ConstWeakRefIsClearedOnGC) {
   EXPECT_FALSE(persistent->weak_member());
 }
 
+#if V8_ENABLE_CHECKS
+
+namespace {
+class MemberHeapDeathTest : public testing::TestWithHeap {};
+
+class LinkedNode final : public GarbageCollected<LinkedNode> {
+ public:
+  explicit LinkedNode(LinkedNode* next) : next_(next) {}
+  void Trace(Visitor* v) const { v->Trace(next_); }
+
+  void SetNext(LinkedNode* next) { next_ = next; }
+
+ private:
+  Member<LinkedNode> next_;
+};
+
+}  // namespace
+
+TEST_F(MemberHeapDeathTest, AssignDifferentHeapValues) {
+  auto* o1 = MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr);
+  auto* o2 = MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), o1);
+  {
+    auto tmp_heap = cppgc::Heap::Create(platform_);
+    auto* o3 = MakeGarbageCollected<LinkedNode>(tmp_heap->GetAllocationHandle(),
+                                                nullptr);
+    EXPECT_DEATH_IF_SUPPORTED(o2->SetNext(o3), "");
+  }
+}
+
+#ifdef CPPGC_CAGED_HEAP
+
+TEST_F(MemberHeapDeathTest, VerificationStateDoesNotRequireValue) {
+  // For caged heap setups the verification state is constructed from Member
+  // itself and does not require an initial value.
+  auto* o1 = MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr);
+  {
+    auto tmp_heap = cppgc::Heap::Create(platform_);
+    EXPECT_DEATH_IF_SUPPORTED(
+        MakeGarbageCollected<LinkedNode>(tmp_heap->GetAllocationHandle(), o1),
+        "");
+  }
+}
+
+#endif  // CPPGC_CAGED_HEAP
+#endif  // V8_ENABLE_CHECKS
+
 }  // namespace internal
 }  // namespace cppgc

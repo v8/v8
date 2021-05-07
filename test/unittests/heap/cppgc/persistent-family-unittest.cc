@@ -74,12 +74,12 @@ template <typename T>
 using LocalizedPersistent =
     internal::BasicPersistent<T, internal::StrongPersistentPolicy,
                               internal::KeepLocationPolicy,
-                              internal::DefaultCheckingPolicy>;
+                              internal::DefaultPersistentCheckingPolicy>;
 
 template <typename T>
 using LocalizedCrossThreadPersistent = internal::BasicCrossThreadPersistent<
     T, internal::StrongCrossThreadPersistentPolicy,
-    internal::KeepLocationPolicy, internal::DefaultCheckingPolicy>;
+    internal::KeepLocationPolicy, internal::DisabledCheckingPolicy>;
 
 class RootVisitor final : public VisitorBase {
  public:

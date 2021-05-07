@@ -139,7 +139,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
     GetNode()->UpdateOwner(this);
     other.SetValue(nullptr);
     other.SetNode(nullptr);
-    this->CheckPointer(GetValue());
+    this->CheckPointer(Get());
     return *this;
   }
 
