@@ -9,9 +9,7 @@
 #include <type_traits>
 
 #include "cppgc/internal/write-barrier.h"
-#include "cppgc/sentinel-pointer.h"
 #include "cppgc/source-location.h"
-#include "cppgc/type-traits.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
@@ -50,45 +48,14 @@ struct NoWriteBarrierPolicy {
   static void AssigningBarrier(const void*, const void*) {}
 };
 
-class V8_EXPORT EnabledCheckingPolicyBase {
+class V8_EXPORT EnabledCheckingPolicy {
  protected:
-  EnabledCheckingPolicyBase() = default;
-  explicit EnabledCheckingPolicyBase(void* state) : state_(state) {}
-
-  template <typename T>
-  void CheckPointer(const T* ptr) {
-    if (!ptr || (kSentinelPointer == ptr)) return;
-
-    CheckPointersImplTrampoline<T>::Call(this, ptr);
-  }
+  EnabledCheckingPolicy();
+  void CheckPointer(const void* ptr);
 
  private:
-  void CheckPointerImpl(const void* ptr, bool points_to_payload);
-
-  template <typename T, bool = IsCompleteV<T>>
-  struct CheckPointersImplTrampoline {
-    static void Call(EnabledCheckingPolicyBase* policy, const T* ptr) {
-      policy->CheckPointerImpl(ptr, false);
-    }
-  };
-
-  template <typename T>
-  struct CheckPointersImplTrampoline<T, true> {
-    static void Call(EnabledCheckingPolicyBase* policy, const T* ptr) {
-      policy->CheckPointerImpl(ptr, IsGarbageCollectedTypeV<T>);
-    }
-  };
-
-  void* state_ = nullptr;
+  void* impl_;
 };
-
-class V8_EXPORT EnabledMemberCheckingPolicy : public EnabledCheckingPolicyBase {
- protected:
-  EnabledMemberCheckingPolicy();
-};
-
-class V8_EXPORT EnabledPersistentCheckingPolicy
-    : public EnabledCheckingPolicyBase {};
 
 class DisabledCheckingPolicy {
  protected:
@@ -96,11 +63,9 @@ class DisabledCheckingPolicy {
 };
 
 #if V8_ENABLE_CHECKS
-using DefaultMemberCheckingPolicy = EnabledMemberCheckingPolicy;
-using DefaultPersistentCheckingPolicy = EnabledPersistentCheckingPolicy;
+using DefaultCheckingPolicy = EnabledCheckingPolicy;
 #else
-using DefaultMemberCheckingPolicy = DisabledCheckingPolicy;
-using DefaultPersistentCheckingPolicy = DisabledCheckingPolicy;
+using DefaultCheckingPolicy = DisabledCheckingPolicy;
 #endif
 
 class KeepLocationPolicy {
@@ -168,10 +133,10 @@ template <typename T, typename WeaknessPolicy,
 class BasicCrossThreadPersistent;
 template <typename T, typename WeaknessPolicy,
           typename LocationPolicy = DefaultLocationPolicy,
-          typename CheckingPolicy = DefaultPersistentCheckingPolicy>
+          typename CheckingPolicy = DefaultCheckingPolicy>
 class BasicPersistent;
 template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
-          typename CheckingPolicy = DefaultMemberCheckingPolicy>
+          typename CheckingPolicy = DefaultCheckingPolicy>
 class BasicMember;
 
 }  // namespace internal
