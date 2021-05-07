@@ -3985,6 +3985,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // Note: This is not an issue in production because we don't clear SFI's
       // there (that only happens in mksnapshot and in --stress-snapshot mode).
       i::FLAG_incremental_marking = false;
+      // The RO heap also cannot be shared, as it serializes and deserializes
+      // while the original Isolate is still running.
+      //
+      // TODO(v8:11750): Decouple serialization and deserialization steps.
+      i::FLAG_disable_shared_ro_heap_for_testing = true;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--nostress-snapshot") == 0 ||
                strcmp(argv[i], "--no-stress-snapshot") == 0) {

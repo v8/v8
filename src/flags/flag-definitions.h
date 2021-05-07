@@ -375,6 +375,9 @@ DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #define V8_SHARED_RO_HEAP_BOOL false
 #endif
 
+DEFINE_BOOL(disable_shared_ro_heap_for_testing, false,
+            "disables sharing of the read-only heap for testing")
+
 DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
             "enables trade-off of performance for memory savings")
 
