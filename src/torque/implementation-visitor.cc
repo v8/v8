@@ -17,6 +17,7 @@
 #include "src/torque/global-context.h"
 #include "src/torque/parameter-difference.h"
 #include "src/torque/server-data.h"
+#include "src/torque/source-positions.h"
 #include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 #include "src/torque/types.h"
@@ -25,6 +26,10 @@
 namespace v8 {
 namespace internal {
 namespace torque {
+
+namespace {
+const char* BuiltinIncludesMarker = "// __BUILTIN_INCLUDES_MARKER__\n";
+}  // namespace
 
 VisitResult ImplementationVisitor::Visit(Expression* expr) {
   CurrentSourcePosition::Scope scope(expr->pos);
@@ -76,11 +81,17 @@ void ImplementationVisitor::BeginGeneratedFiles() {
         out << "#include " << StringLiteralQuote(include_path) << "\n";
       }
 
-      for (SourceId file : SourceFileMap::AllSources()) {
-        out << "#include \"torque-generated/" +
-                   SourceFileMap::PathFromV8RootWithoutExtension(file) +
-                   "-tq-csa.h\"\n";
-      }
+      out << "// Required Builtins:\n";
+      out << "#include \"torque-generated/" +
+                 SourceFileMap::PathFromV8RootWithoutExtension(file) +
+                 "-tq-csa.h\"\n";
+      // Now that required include files are collected while generting the file,
+      // we only know the full set at the end. Insert a marker here that is
+      // replaced with the list of includes at the very end.
+      // TODO(nicohartmann@): This is not the most beautiful way to do this,
+      // replace once the cpp file builder is available, where this can be
+      // handled easily.
+      out << BuiltinIncludesMarker;
       out << "\n";
 
       out << "namespace v8 {\n"
@@ -1737,7 +1748,23 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
     GlobalContext::PerFileStreams& streams =
         GlobalContext::GeneratedPerFile(file);
 
-    WriteFile(base_filename + "-tq-csa.cc", streams.csa_ccfile.str());
+    std::string csa_cc = streams.csa_ccfile.str();
+    // Insert missing builtin includes where the marker is.
+    {
+      auto pos = csa_cc.find(BuiltinIncludesMarker);
+      CHECK_NE(pos, std::string::npos);
+      std::string includes;
+      for (const SourceId& include : streams.required_builtin_includes) {
+        std::string include_file =
+            SourceFileMap::PathFromV8RootWithoutExtension(include);
+        includes += "#include \"torque-generated/";
+        includes += include_file;
+        includes += "-tq-csa.h\"\n";
+      }
+      csa_cc.replace(pos, strlen(BuiltinIncludesMarker), std::move(includes));
+    }
+
+    WriteFile(base_filename + "-tq-csa.cc", std::move(csa_cc));
     WriteFile(base_filename + "-tq-csa.h", streams.csa_headerfile.str());
     WriteFile(base_filename + "-tq.inc",
               streams.class_definition_headerfile.str());
@@ -2362,6 +2389,10 @@ LocationReference ImplementationVisitor::GetLocationReference(
     }
   }
   Value* value = Declarations::LookupValue(name);
+  CHECK(value->Position().source.IsValid());
+  if (auto stream = CurrentFileStreams::Get()) {
+    stream->required_builtin_includes.insert(value->Position().source);
+  }
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(expr->name->pos, value->name()->pos);
   }
@@ -2617,6 +2648,11 @@ VisitResult ImplementationVisitor::GenerateCall(
     Callable* callable, base::Optional<LocationReference> this_reference,
     Arguments arguments, const TypeVector& specialization_types,
     bool is_tailcall) {
+  CHECK(callable->Position().source.IsValid());
+  if (auto stream = CurrentFileStreams::Get()) {
+    stream->required_builtin_includes.insert(callable->Position().source);
+  }
+
   const Type* return_type = callable->signature().return_type;
 
   if (is_tailcall) {
@@ -3122,8 +3158,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   TypeVector argument_types = arguments.parameters.ComputeTypeVector();
   DCHECK_EQ(expr->method->namespace_qualification.size(), 0);
   QualifiedName qualified_name = QualifiedName(method_name);
-  Callable* callable = nullptr;
-  callable = LookupMethod(method_name, target_type, arguments, {});
+  Callable* callable = LookupMethod(method_name, target_type, arguments, {});
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(expr->method->name->pos,
                                       callable->IdentifierPosition());
