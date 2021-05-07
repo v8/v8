@@ -284,6 +284,15 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow,
                               SideEffectType::kHasSideEffect, &add_all_c_func));
+
+    // To test function overloads.
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "overloaded_add_all",
+        FunctionTemplate::NewWithCFunctionOverloads(
+            isolate, FastCApiObject::AddAllSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, {&add_all_c_func}));
+
     CFunction add_32bit_int_c_func =
         CFunction::Make(FastCApiObject::Add32BitIntFastCallback);
     api_obj_ctor->PrototypeTemplate()->Set(

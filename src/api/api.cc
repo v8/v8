@@ -1185,7 +1185,7 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
       Utils::OpenHandle(*prototype_provider);
   Utils::ApiCheck(self->GetPrototypeTemplate().IsUndefined(i_isolate),
                   "v8::FunctionTemplate::SetPrototypeProviderTemplate",
-                  "Protoype must be undefiend");
+                  "Protoype must be undefined");
   Utils::ApiCheck(self->GetParentTemplate().IsUndefined(i_isolate),
                   "v8::FunctionTemplate::SetPrototypeProviderTemplate",
                   "Prototype provider must be empty");
@@ -1218,7 +1218,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    const CFunction* c_function = nullptr) {
+    const std::vector<const CFunction*>& c_function_overloads = {}) {
   i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
       i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1243,7 +1243,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
-                                        c_function);
+                                        c_function_overloads);
   }
   return Utils::ToLocal(obj);
 }
@@ -1257,10 +1257,29 @@ Local<FunctionTemplate> FunctionTemplate::New(
   // function templates when the isolate is created for serialization.
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  auto templ = FunctionTemplateNew(i_isolate, callback, data, signature, length,
-                                   behavior, false, Local<Private>(),
-                                   side_effect_type, c_function);
-  return templ;
+  return FunctionTemplateNew(
+      i_isolate, callback, data, signature, length, behavior, false,
+      Local<Private>(), side_effect_type,
+      c_function ? std::vector<const CFunction*>{c_function}
+                 : std::vector<const CFunction*>{});
+}
+
+Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
+    Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
+    v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
+    SideEffectType side_effect_type,
+    const std::vector<const CFunction*>& c_function_overloads) {
+  // Multiple overloads not supported yet.
+  Utils::ApiCheck(c_function_overloads.size() == 1,
+                  "v8::FunctionTemplate::NewWithCFunctionOverloads",
+                  "Function overloads not supported yet.");
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, FunctionTemplate, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  return FunctionTemplateNew(i_isolate, callback, data, signature, length,
+                             behavior, false, Local<Private>(),
+                             side_effect_type, c_function_overloads);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCache(
@@ -1291,10 +1310,10 @@ Local<AccessorSignature> AccessorSignature::New(
     (obj)->setter(*foreign);                                  \
   } while (false)
 
-void FunctionTemplate::SetCallHandler(FunctionCallback callback,
-                                      v8::Local<Value> data,
-                                      SideEffectType side_effect_type,
-                                      const CFunction* c_function) {
+void FunctionTemplate::SetCallHandler(
+    FunctionCallback callback, v8::Local<Value> data,
+    SideEffectType side_effect_type,
+    const std::vector<const CFunction*>& c_function_overloads) {
   auto info = Utils::OpenHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetCallHandler");
   i::Isolate* isolate = info->GetIsolate();
@@ -1310,13 +1329,20 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
   obj->set_data(*Utils::OpenHandle(*data));
   // Blink passes CFunction's constructed with the default constructor
   // for non-fast calls, so we should check the address too.
-  if (c_function != nullptr && c_function->GetAddress()) {
-    i::FunctionTemplateInfo::SetCFunction(
-        isolate, info,
-        i::handle(*FromCData(isolate, c_function->GetAddress()), isolate));
-    i::FunctionTemplateInfo::SetCSignature(
-        isolate, info,
-        i::handle(*FromCData(isolate, c_function->GetTypeInfo()), isolate));
+  if (!c_function_overloads.empty()) {
+    // Multiple overloads not supported yet.
+    Utils::ApiCheck(c_function_overloads.size() == 1,
+                    "v8::FunctionTemplate::SetCallHandler",
+                    "Function overloads not supported yet.");
+    const CFunction* c_function = c_function_overloads[0];
+    if (c_function != nullptr && c_function->GetAddress()) {
+      i::FunctionTemplateInfo::SetCFunction(
+          isolate, info,
+          i::handle(*FromCData(isolate, c_function->GetAddress()), isolate));
+      i::FunctionTemplateInfo::SetCSignature(
+          isolate, info,
+          i::handle(*FromCData(isolate, c_function->GetTypeInfo()), isolate));
+    }
   }
   info->set_call_code(*obj, kReleaseStore);
 }

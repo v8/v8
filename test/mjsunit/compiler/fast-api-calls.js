@@ -178,3 +178,15 @@ assertEquals(add_32bit_int_result, add_32bit_int_mismatch(false, -42, 45));
 assertOptimized(add_32bit_int_mismatch);
 assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(0, fast_c_api.slow_call_count());
+
+// Test function overloads
+function overloaded_add_all(should_fallback = false) {
+  return fast_c_api.overloaded_add_all(should_fallback,
+    -42, 45, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER,
+    max_safe_float * 0.5, Math.PI);
+}
+
+%PrepareFunctionForOptimization(overloaded_add_all);
+assertEquals(add_all_result, overloaded_add_all());
+%OptimizeFunctionOnNextCall(overloaded_add_all);
+assertEquals(add_all_result, overloaded_add_all());
