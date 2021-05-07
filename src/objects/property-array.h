@@ -19,9 +19,6 @@ class PropertyArray : public HeapObject {
   // [length]: length of the array.
   inline int length() const;
 
-  // Get the length using acquire loads.
-  inline int synchronized_length() const;
-
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.
   inline void initialize_length(int length);
