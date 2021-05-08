@@ -474,8 +474,9 @@
     'release_x64_cfi_clusterfuzz': [
       'release_bot', 'x64', 'cfi_clusterfuzz'],
     'release_x64_fuzzilli': [
-      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_verify_heap',
-      'v8_verify_csa', 'v8_enable_verify_predictable', 'fuzzilli'],
+      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
+      'v8_verify_heap', 'v8_verify_csa', 'v8_enable_verify_predictable',
+      'fuzzilli'],
     'release_x64_msvc': [
       'release_bot_no_goma', 'x64', 'minimal_symbols', 'msvc'],
     'release_x64_correctness_fuzzer' : [
@@ -485,8 +486,8 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc_coverage': [
-      'release_bot_no_goma', 'x64', 'coverage', 'gcc', 'no_custom_libcxx',
-      'no_sysroot'],
+      'release_bot_no_goma', 'x64', 'coverage', 'gcc', 'lld',
+      'no_custom_libcxx', 'no_sysroot'],
     'release_x64_ios_simulator': [
       'release_bot', 'x64', 'ios_simulator'],
     'release_x64_internal': [
@@ -539,7 +540,7 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot_no_goma', 'x64', 'gcc', 'v8_check_header_includes'],
+      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'v8_check_header_includes'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_heap_sandbox': [
@@ -580,9 +581,9 @@
       'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
     'release_x86_gcc': [
-      'release_bot_no_goma', 'x86', 'gcc', 'v8_check_header_includes'],
+      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'v8_check_header_includes'],
     'release_x86_gcc_minimal_symbols': [
-      'release_bot_no_goma', 'x86', 'gcc', 'minimal_symbols',
+      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'minimal_symbols',
       'v8_check_header_includes'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
@@ -718,6 +719,10 @@
 
     'ios_simulator': {
       'gn_args': 'target_cpu="x64" target_os="ios"',
+    },
+
+    'lld': {
+      'gn_args': 'use_lld=true',
     },
 
     'lsan': {
