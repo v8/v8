@@ -44,10 +44,10 @@ vars = {
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:dfd036f3be5422c7b61cf16369bde28b3a8cccc8',
+  'gn_version': 'git_revision:281c994dc67772cc2a6f5c5fa1c4bafb9dcb733e',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:1b257aacd4934e5a8b2508b240ffc7d866df9273',
+  'luci_go': 'git_revision:fa78eb7ab25ca5d574c0741c8c1a02d6fd7ed66d',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -85,9 +85,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c844180242cb01fd21f29882e88f03366a6f286c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b3205257587a39cb84986dc02a558a49b0447e1d',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e77e3c879a3f795161d3efa096c9caa33c7a0c2b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b865acd3f2d8cd305f87215154351620354d075f',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'cd9f9a9495b1978ded709c248e467e7f5a74ea0a',
   'third_party/instrumented_libraries':
@@ -195,7 +195,7 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '23ef29555ef4789f555f1ba8c51b4c52975f0907',
   'third_party/google_benchmark/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'a2e8a8a9db0d842929514377759ae83da8a76da6',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '0852c79f3511dec3115e72d19d99ec8146404cc5',
   },
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '11b6b3e5971d760bd2d310f77643f55a818a6d25',
@@ -235,7 +235,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'IFKk3HKRVi_NvWa_9abMZahaAGY7hGQ0MzuloLf6TkgC'
+              'version': 'H-kH9WxQErL_AR-Nu_ZL8hbu1D-rZmdQQUaYZYm3AOUC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
