@@ -355,7 +355,7 @@ def printtest(flags):
   resultTo = "local +=" if tryResultToLocal else "return"
   if tryReturns and not (tryThrows and not tryFirstReturns):
     write(  "      {} 4 + {increaseAndReturn15};".format(resultTo, **fragments))
-    if result == None:
+    if result is None:
       counter += 1
       if tryResultToLocal:
         local += 19
@@ -363,19 +363,19 @@ def printtest(flags):
         result = ("return", 19)
   if tryThrows:
     write(  "      {} 4 + {increaseAndThrow42};".format(resultTo, **fragments))
-    if result == None:
+    if result is None:
       counter += 1
       result = ("throw", 42)
   if tryReturns and tryThrows and not tryFirstReturns:
     write(  "      {} 4 + {increaseAndReturn15};".format(resultTo, **fragments))
-    if result == None:
+    if result is None:
       counter += 1
       if tryResultToLocal:
         local += 19
       else:
         result = ("return", 19)
   write(    "      counter++;")
-  if result == None:
+  if result is None:
     counter += 1
 
   if doCatch:
@@ -426,15 +426,15 @@ def printtest(flags):
 
   write(    "    }")
   write(    "    counter++;")
-  if result == None:
+  if result is None:
     counter += 1
   if endReturnLocal:
     write(  "    return 5 + local;")
-    if result == None:
+    if result is None:
       result = ('return', 5 + local)
   write(    "  }")
 
-  if result == None:
+  if result is None:
     write(  "  resetOptAndAssertResultEquals(undefined, f);")
   else:
     tag, value = result
@@ -467,7 +467,7 @@ def rotateshard():
     return
   if FILE != None:
     finishshard()
-    assert FILE == None
+    assert FILE is None
   FILE = open(SHARD_FILENAME_TEMPLATE.format(shard=SHARD_NUM), 'w')
   write_shard_header()
   NUM_TESTS_IN_SHARD = 0

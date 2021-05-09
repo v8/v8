@@ -863,7 +863,7 @@ class CustomMachineConfiguration:
         with open(cpu_device, 'r') as f:
           # We assume the governors of all CPUs are set to the same value
           val = f.readline().strip()
-          if ret == None:
+          if ret is None:
             ret = val
           elif ret != val:
             raise Exception('CPU cores have differing governor settings')
@@ -1001,7 +1001,7 @@ def Main(argv):
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
-  if args.binary_override_path == None:
+  if args.binary_override_path is None:
     args.shell_dir = find_build_directory(
         os.path.join(workspace, args.outdir), args.arch)
     default_binary_name = 'd8'

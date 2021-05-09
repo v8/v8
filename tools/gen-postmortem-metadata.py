@@ -721,7 +721,7 @@ def emit_config():
                 bklass = get_base_class(klassname);
                 if (bklass != 'Object'):
                         continue;
-                if (pklass == None):
+                if (pklass is None):
                         continue;
 
                 consts.append({
