@@ -44,10 +44,10 @@ vars = {
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:281c994dc67772cc2a6f5c5fa1c4bafb9dcb733e',
+  'gn_version': 'git_revision:39a87c0b36310bdf06b692c098f199a0d97fc810',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:fa78eb7ab25ca5d574c0741c8c1a02d6fd7ed66d',
+  'luci_go': 'git_revision:66f9c8541b85c7f6efc63e75e68d660d4fb30752',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -85,7 +85,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b3205257587a39cb84986dc02a558a49b0447e1d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b3b05abd2bbc39ad99f4abfee0d870c36e36c7ab',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b865acd3f2d8cd305f87215154351620354d075f',
   'third_party/icu':
@@ -119,9 +119,9 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '8fa87946779682841e21e2da977eccfb6cb3bded',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '5f51521620a9229a8e7956a5a302031d3fc28b5f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '767de317f97343db64af048e3d198ab8b10fee5d',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd6f21e01ceaa70347605dbce8cc3b95b3fab9462',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '7846d256355e40273f7cc192c8f5893e8665a1f9',
   'buildtools/win': {
     'packages': [
       {
