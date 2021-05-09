@@ -533,7 +533,6 @@ allFlagCombinations = [
 ]
 
 if __name__ == '__main__':
-  global MODE
   if sys.argv[1:] == []:
     MODE = 'stdout'
     print("// Printing all shards together to stdout.")
