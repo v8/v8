@@ -33,14 +33,12 @@ import argparse
 import datetime
 import httplib
 import glob
-import imp
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
-import textwrap
 import time
 import urllib
 import urllib2

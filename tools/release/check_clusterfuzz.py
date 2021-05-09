@@ -19,7 +19,6 @@ from __future__ import print_function
 import argparse
 import httplib
 import json
-import os
 import re
 import sys
 import urllib

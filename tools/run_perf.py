@@ -104,9 +104,7 @@ The test flags are passed to the js test file after '--'.
 
 # for py2/py3 compatibility
 from __future__ import print_function
-from functools import reduce
 
-from collections import OrderedDict
 import copy
 import json
 import logging

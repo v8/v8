@@ -52,8 +52,6 @@ import multiprocessing
 from subprocess import PIPE
 
 from testrunner.local import statusfile
-from testrunner.local import testsuite
-from testrunner.local import utils
 
 # Special LINT rules diverging from default and reason.
 # build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
@@ -486,7 +484,7 @@ class SourceProcessor(SourceFileProcessor):
 
   # Overwriting the one in the parent class.
   def FindFilesIn(self, path):
-    if os.path.exists(path+'/.git'):
+    if exists(path+'/.git'):
       output = subprocess.Popen('git ls-files --full-name',
                                 stdout=PIPE, cwd=path, shell=True)
       result = []
@@ -495,7 +493,7 @@ class SourceProcessor(SourceFileProcessor):
           if self.IgnoreDir(dir_part):
             break
         else:
-          if (self.IsRelevant(file) and os.path.exists(file)
+          if (self.IsRelevant(file) and exists(file)
               and not self.IgnoreFile(file)):
             result.append(join(path, file))
       if output.wait() == 0:
@@ -705,7 +703,7 @@ class StatusFilesProcessor(SourceFileProcessor):
           suitename = os.path.basename(suitepath)
           status_file = os.path.join(
               test_path, suitename, suitename + ".status")
-          if os.path.exists(status_file):
+          if exists(status_file):
             status_files.add(status_file)
         return status_files
 
@@ -719,7 +717,7 @@ class StatusFilesProcessor(SourceFileProcessor):
           if not os.path.isdir(join(test_path, pieces[0])):
             continue
           status_file = join(test_path, pieces[0], pieces[0] + ".status")
-          if not os.path.exists(status_file):
+          if not exists(status_file):
             continue
           status_files.add(status_file)
     return status_files

@@ -10,7 +10,6 @@ the source and header files directly in V8's src directory."""
 # for py2/py3 compatibility
 from __future__ import print_function
 
-import subprocess
 import sys
 import re
 from subprocess import Popen, PIPE

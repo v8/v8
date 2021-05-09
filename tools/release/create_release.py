@@ -6,11 +6,8 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
-import argparse
 import os
 import sys
-import tempfile
-import urllib2
 
 from common_includes import *
 

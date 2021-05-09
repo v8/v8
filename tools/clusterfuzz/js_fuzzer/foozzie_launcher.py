@@ -9,7 +9,6 @@ Launcher for the foozzie differential-fuzzing harness. Wraps foozzie
 with Python2 for backwards-compatibility when bisecting.
 """
 
-import os
 import re
 import subprocess
 import sys

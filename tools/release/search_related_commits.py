@@ -7,10 +7,11 @@
 from __future__ import print_function
 
 import argparse
-import operator
-import os
 import re
-from sets import Set
+try:
+  from sets import Set
+except ImportError: # py3 doesn't support importing the sets module
+  Set = set
 from subprocess import Popen, PIPE
 import sys
 
