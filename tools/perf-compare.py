@@ -189,7 +189,6 @@ class ResultTableRenderer:
 
   def FlushOutput(self):
     string_data = "\n".join(self.print_output_)
-    print_output = []
     if self.output_file_:
       # create a file
       with open(self.output_file_, "w") as text_file:

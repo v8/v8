@@ -1032,9 +1032,6 @@ def Main(argv):
   # Ensure all arguments have absolute path before we start changing current
   # directory.
   args.suite = map(os.path.abspath, args.suite)
-
-  prev_aslr = None
-  prev_cpu_gov = None
   platform = Platform.GetPlatform(args)
 
   result_tracker = ResultTracker()

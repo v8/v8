@@ -585,9 +585,6 @@ def parse_field(call):
         kind = call[0:idx];
         rest = call[idx + 1: len(call) - 1];
         args = re.split('\s*,\s*', rest);
-
-        consts = [];
-
         klass = args[0];
         field = args[1];
         dtype = None

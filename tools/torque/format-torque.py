@@ -134,7 +134,6 @@ def Main():
     return arg in ['-i', '-l', '-il']
 
   should_format = lint = False
-  use_stdout = True
 
   flag, files = sys.argv[1], sys.argv[2:]
   if is_option(flag):

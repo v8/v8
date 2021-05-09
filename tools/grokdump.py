@@ -1042,7 +1042,6 @@ class MinidumpReader(object):
   #
   def _LoadSymbolsFrom(self, symfile, baseaddr):
     print("Loading symbols from %s" % (symfile))
-    funcs = []
     with open(symfile) as f:
       for line in f:
         result = re.match(
@@ -1574,7 +1573,6 @@ class JSFunction(HeapObject):
     self.shared = self.ObjectField(self.SharedOffset())
 
   def Print(self, p):
-    source = "\n".join("  %s" % line for line in self._GetSource().split("\n"))
     p.Print("JSFunction(%s) {" % self.heap.reader.FormatIntPtr(self.address))
     p.Indent()
     p.Print("inferred name: %s" % self.shared.inferred_name)

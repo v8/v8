@@ -272,7 +272,6 @@ def printtest(flags):
   anyAlternative = any([alternativeFn1, alternativeFn2, alternativeFn3,
       alternativeFn4, alternativeFn5])
   specificAlternative = any([alternativeFn2, alternativeFn3])
-  rareAlternative = not specificAlternative
 
   # If try returns and throws, then don't catchWithLocal, endReturnLocal, or
   # deopt, or do any alternative.
