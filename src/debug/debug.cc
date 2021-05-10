@@ -2270,12 +2270,14 @@ void Debug::PrintBreakLocation() {
   StackTraceFrameIterator iterator(isolate_);
   if (iterator.done()) return;
   CommonFrame* frame = iterator.frame();
-  FrameSummary summary = FrameSummary::GetTop(frame);
-  summary.EnsureSourcePositionsAvailable();
-  int source_position = summary.SourcePosition();
-  Handle<Object> script_obj = summary.script();
+  std::vector<FrameSummary> frames;
+  frame->Summarize(&frames);
+  int inlined_frame_index = static_cast<int>(frames.size() - 1);
+  FrameInspector inspector(frame, inlined_frame_index, isolate_);
+  int source_position = inspector.GetSourcePosition();
+  Handle<Object> script_obj = inspector.GetScript();
   PrintF("[debug] break in function '");
-  summary.FunctionName()->PrintOn(stdout);
+  inspector.GetFunctionName()->PrintOn(stdout);
   PrintF("'.\n");
   if (script_obj->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_obj);

@@ -27,7 +27,6 @@
 #include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/debug/debug-wasm-objects.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -1447,10 +1446,6 @@ Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
   return handle(function_->shared().script(), isolate());
 }
 
-Handle<String> FrameSummary::JavaScriptFrameSummary::FunctionName() const {
-  return JSFunction::GetDebugName(function_);
-}
-
 Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
   return handle(function_->context().native_context(), isolate());
 }
@@ -1486,10 +1481,6 @@ int FrameSummary::WasmFrameSummary::SourcePosition() const {
 Handle<Script> FrameSummary::WasmFrameSummary::script() const {
   return handle(wasm_instance()->module_object().script(),
                 wasm_instance()->GetIsolate());
-}
-
-Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
-  return GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
 }
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
@@ -1563,7 +1554,6 @@ FRAME_SUMMARY_DISPATCH(bool, is_subject_to_debugging)
 FRAME_SUMMARY_DISPATCH(Handle<Object>, script)
 FRAME_SUMMARY_DISPATCH(int, SourcePosition)
 FRAME_SUMMARY_DISPATCH(int, SourceStatementPosition)
-FRAME_SUMMARY_DISPATCH(Handle<String>, FunctionName)
 FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
 
 #undef FRAME_SUMMARY_DISPATCH
