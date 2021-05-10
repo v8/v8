@@ -117,11 +117,13 @@ const char* CallInterfaceDescriptor::DebugName() const {
   return "";
 }
 
-#if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64)
 bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
+  return reg.code() % 2 == 0;
+#else
   return true;
-}
 #endif
+}
 
 }  // namespace internal
 }  // namespace v8

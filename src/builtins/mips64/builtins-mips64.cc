@@ -2396,7 +2396,11 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Lbu(a1, MemOperand(a1));
     __ Branch(&push_doubles, le, a1, Operand(zero_reg));
     // Save vector registers.
-    __ MultiPushMSA(fp_regs);
+    {
+      CpuFeatureScope msa_scope(
+          masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+      __ MultiPushMSA(fp_regs);
+    }
     __ Branch(&simd_pushed);
     __ bind(&push_doubles);
     __ MultiPushFPU(fp_regs);
@@ -2420,7 +2424,11 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Lbu(a1, MemOperand(a1));
     __ Branch(&pop_doubles, le, a1, Operand(zero_reg));
     // Pop vector registers.
-    __ MultiPopMSA(fp_regs);
+    {
+      CpuFeatureScope msa_scope(
+          masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+      __ MultiPopMSA(fp_regs);
+    }
     __ Branch(&simd_popped);
     __ bind(&pop_doubles);
     __ Daddu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
