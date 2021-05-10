@@ -4,6 +4,7 @@
 
 #include "src/objects/elements.h"
 
+#include "src/base/atomicops.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
@@ -3029,6 +3030,8 @@ class FastHoleyDoubleElementsAccessor
           FastHoleyDoubleElementsAccessor,
           ElementsKindTraits<HOLEY_DOUBLE_ELEMENTS>> {};
 
+enum IsSharedBuffer : bool { kShared = true, kUnshared = false };
+
 // Super class for all external element arrays.
 template <ElementsKind Kind, typename ElementType>
 class TypedElementsAccessor
@@ -3076,50 +3079,56 @@ class TypedElementsAccessor
                       Object value) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(holder);
     DCHECK_LE(entry.raw_value(), typed_array->GetLength());
-    SetImpl(static_cast<ElementType*>(typed_array->DataPtr()),
-            entry.raw_value(), FromObject(value));
+    auto* entry_ptr =
+        static_cast<ElementType*>(typed_array->DataPtr()) + entry.raw_value();
+    auto is_shared = typed_array->buffer().is_shared() ? kShared : kUnshared;
+    SetImpl(entry_ptr, FromObject(value), is_shared);
   }
 
-  static void SetImpl(ElementType* data_ptr, size_t entry, ElementType value) {
+  static void SetImpl(ElementType* data_ptr, ElementType value,
+                      IsSharedBuffer is_shared) {
+    // TODO(ishell, v8:8875): Independent of pointer compression, 8-byte size
+    // fields (external pointers, doubles and BigInt data) are not always 8-byte
+    // aligned. This is relying on undefined behaviour in C++, since {data_ptr}
+    // is not aligned to {alignof(ElementType)}.
+    if (!is_shared) {
+      base::WriteUnalignedValue(reinterpret_cast<Address>(data_ptr), value);
+      return;
+    }
+
     // The JavaScript memory model allows for racy reads and writes to a
     // SharedArrayBuffer's backing store. Using relaxed atomics is not strictly
     // required for JavaScript, but will avoid undefined behaviour in C++ and is
     // unlikely to introduce noticable overhead.
-    // TODO(ishell, v8:8875): Independent of pointer compression, 8-byte size
-    // fields (external pointers, doubles and BigInt data) are not always 8-byte
-    // aligned. Thus we have to store them wordwise. This is relying on
-    // undefined behaviour in C++, since {data_ptr} is not aligned to
-    // {alignof(ElementType)}.
-    if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr + entry),
+    if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr),
                   alignof(std::atomic<ElementType>))) {
       // Use a single relaxed atomic store.
       STATIC_ASSERT(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
-      DCHECK(IsAligned(reinterpret_cast<uintptr_t>(data_ptr),
-                       alignof(std::atomic<ElementType>)));
-      reinterpret_cast<std::atomic<ElementType>*>(data_ptr + entry)
-          ->store(value, std::memory_order_relaxed);
-    } else {
-      // Some static CHECKs (are optimized out if succeeding) to ensure that
-      // {data_ptr} is at least four byte aligned, and {std::atomic<uint32_t>}
-      // has size and alignment of four bytes, such that we can cast the
-      // {data_ptr} to it.
-      CHECK_LE(kInt32Size, alignof(ElementType));
-      CHECK_EQ(kInt32Size, alignof(std::atomic<uint32_t>));
-      CHECK_EQ(kInt32Size, sizeof(std::atomic<uint32_t>));
-      // And dynamically check that we indeed have at least four byte alignment.
-      DCHECK(IsAligned(reinterpret_cast<uintptr_t>(data_ptr), kInt32Size));
-      // Store as multiple 32-bit words. Make {kNumWords} >= 1 to avoid compiler
-      // warnings for the empty array or memcpy to an empty object.
-      constexpr size_t kNumWords =
-          std::max(size_t{1}, sizeof(ElementType) / kInt32Size);
-      uint32_t words[kNumWords];
-      CHECK_EQ(sizeof(words), sizeof(value));
-      memcpy(words, &value, sizeof(value));
-      for (size_t word = 0; word < kNumWords; ++word) {
-        STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
-        reinterpret_cast<std::atomic<uint32_t>*>(data_ptr + entry)[word].store(
-            words[word], std::memory_order_relaxed);
-      }
+      reinterpret_cast<std::atomic<ElementType>*>(data_ptr)->store(
+          value, std::memory_order_relaxed);
+      return;
+    }
+
+    // Some static CHECKs (are optimized out if succeeding) to ensure that
+    // {data_ptr} is at least four byte aligned, and {std::atomic<uint32_t>}
+    // has size and alignment of four bytes, such that we can cast the
+    // {data_ptr} to it.
+    CHECK_LE(kInt32Size, alignof(ElementType));
+    CHECK_EQ(kInt32Size, alignof(std::atomic<uint32_t>));
+    CHECK_EQ(kInt32Size, sizeof(std::atomic<uint32_t>));
+    // And dynamically check that we indeed have at least four byte alignment.
+    DCHECK(IsAligned(reinterpret_cast<uintptr_t>(data_ptr), kInt32Size));
+    // Store as multiple 32-bit words. Make {kNumWords} >= 1 to avoid compiler
+    // warnings for the empty array or memcpy to an empty object.
+    constexpr size_t kNumWords =
+        std::max(size_t{1}, sizeof(ElementType) / kInt32Size);
+    uint32_t words[kNumWords];
+    CHECK_EQ(sizeof(words), sizeof(value));
+    memcpy(words, &value, sizeof(value));
+    for (size_t word = 0; word < kNumWords; ++word) {
+      STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
+      reinterpret_cast<std::atomic<uint32_t>*>(data_ptr)[word].store(
+          words[word], std::memory_order_relaxed);
     }
   }
 
@@ -3129,8 +3138,10 @@ class TypedElementsAccessor
     Isolate* isolate = typed_array->GetIsolate();
     DCHECK_LT(entry.raw_value(), typed_array->GetLength());
     DCHECK(!typed_array->WasDetached());
-    ElementType elem = GetImpl(
-        static_cast<ElementType*>(typed_array->DataPtr()), entry.raw_value());
+    auto* element_ptr =
+        static_cast<ElementType*>(typed_array->DataPtr()) + entry.raw_value();
+    auto is_shared = typed_array->buffer().is_shared() ? kShared : kUnshared;
+    ElementType elem = GetImpl(element_ptr, is_shared);
     return ToHandle(isolate, elem);
   }
 
@@ -3139,47 +3150,53 @@ class TypedElementsAccessor
     UNREACHABLE();
   }
 
-  static ElementType GetImpl(ElementType* data_ptr, size_t entry) {
+  static ElementType GetImpl(ElementType* data_ptr, IsSharedBuffer is_shared) {
+    // TODO(ishell, v8:8875): Independent of pointer compression, 8-byte size
+    // fields (external pointers, doubles and BigInt data) are not always
+    // 8-byte aligned.
+    if (!is_shared) {
+      return base::ReadUnalignedValue<ElementType>(
+          reinterpret_cast<Address>(data_ptr));
+    }
+
     // The JavaScript memory model allows for racy reads and writes to a
     // SharedArrayBuffer's backing store. Using relaxed atomics is not strictly
     // required for JavaScript, but will avoid undefined behaviour in C++ and is
     // unlikely to introduce noticable overhead.
-    ElementType result;
-    // TODO(ishell, v8:8875): Independent of pointer compression, 8-byte size
-    // fields (external pointers, doubles and BigInt data) are not always 8-byte
-    // aligned. Thus we have to load them wordwise. This is relying on undefined
-    // behaviour in C++, since {data_ptr} is not aligned to
-    // {alignof(ElementType)}.
-    if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr + entry),
+    if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr),
                   alignof(std::atomic<ElementType>))) {
       // Use a single relaxed atomic load.
       STATIC_ASSERT(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
-      result = reinterpret_cast<std::atomic<ElementType>*>(data_ptr + entry)
-                   ->load(std::memory_order_relaxed);
-    } else {
-      // Some static CHECKs (are optimized out if succeeding) to ensure that
-      // {data_ptr} is at least four byte aligned, and {std::atomic<uint32_t>}
-      // has size and alignment of four bytes, such that we can cast the
-      // {data_ptr} to it.
-      CHECK_LE(kInt32Size, alignof(ElementType));
-      CHECK_EQ(kInt32Size, alignof(std::atomic<uint32_t>));
-      CHECK_EQ(kInt32Size, sizeof(std::atomic<uint32_t>));
-      // And dynamically check that we indeed have at least four byte alignment.
-      DCHECK(IsAligned(reinterpret_cast<uintptr_t>(data_ptr), kInt32Size));
-      // Load in multiple 32-bit words. Make {kNumWords} >= 1 to avoid compiler
-      // warnings for the empty array or memcpy to an empty object.
-      constexpr size_t kNumWords =
-          std::max(size_t{1}, sizeof(ElementType) / kInt32Size);
-      uint32_t words[kNumWords];
-      for (size_t word = 0; word < kNumWords; ++word) {
-        STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
-        words[word] =
-            reinterpret_cast<std::atomic<uint32_t>*>(data_ptr + entry)[word]
-                .load(std::memory_order_relaxed);
-      }
-      CHECK_EQ(sizeof(words), sizeof(result));
-      memcpy(&result, words, sizeof(result));
+      // Note: acquire semantics are not needed here, but clang seems to merge
+      // this atomic load with the non-atomic load above if we use relaxed
+      // semantics. This will result in TSan failures.
+      return reinterpret_cast<std::atomic<ElementType>*>(data_ptr)->load(
+          std::memory_order_acquire);
     }
+
+    // Some static CHECKs (are optimized out if succeeding) to ensure that
+    // {data_ptr} is at least four byte aligned, and {std::atomic<uint32_t>}
+    // has size and alignment of four bytes, such that we can cast the
+    // {data_ptr} to it.
+    CHECK_LE(kInt32Size, alignof(ElementType));
+    CHECK_EQ(kInt32Size, alignof(std::atomic<uint32_t>));
+    CHECK_EQ(kInt32Size, sizeof(std::atomic<uint32_t>));
+    // And dynamically check that we indeed have at least four byte alignment.
+    DCHECK(IsAligned(reinterpret_cast<uintptr_t>(data_ptr), kInt32Size));
+    // Load in multiple 32-bit words. Make {kNumWords} >= 1 to avoid compiler
+    // warnings for the empty array or memcpy to an empty object.
+    constexpr size_t kNumWords =
+        std::max(size_t{1}, sizeof(ElementType) / kInt32Size);
+    uint32_t words[kNumWords];
+    for (size_t word = 0; word < kNumWords; ++word) {
+      STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
+      words[word] =
+          reinterpret_cast<std::atomic<uint32_t>*>(data_ptr)[word].load(
+              std::memory_order_relaxed);
+    }
+    ElementType result;
+    CHECK_EQ(sizeof(words), sizeof(result));
+    memcpy(&result, words, sizeof(result));
     return result;
   }
 
@@ -3316,6 +3333,7 @@ class TypedElementsAccessor
     ElementType typed_search_value;
     ElementType* data_ptr =
         reinterpret_cast<ElementType*>(typed_array.DataPtr());
+    auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
     if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
       if (!value->IsBigInt()) return Just(false);
       bool lossless;
@@ -3331,8 +3349,8 @@ class TypedElementsAccessor
         }
         if (std::isnan(search_value)) {
           for (size_t k = start_from; k < length; ++k) {
-            double elem_k =
-                static_cast<double>(AccessorClass::GetImpl(data_ptr, k));
+            double elem_k = static_cast<double>(
+                AccessorClass::GetImpl(data_ptr + k, is_shared));
             if (std::isnan(elem_k)) return Just(true);
           }
           return Just(false);
@@ -3349,7 +3367,7 @@ class TypedElementsAccessor
     }
 
     for (size_t k = start_from; k < length; ++k) {
-      ElementType elem_k = AccessorClass::GetImpl(data_ptr, k);
+      ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) return Just(true);
     }
     return Just(false);
@@ -3401,8 +3419,9 @@ class TypedElementsAccessor
       length = typed_array.length();
     }
 
+    auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
     for (size_t k = start_from; k < length; ++k) {
-      ElementType elem_k = AccessorClass::GetImpl(data_ptr, k);
+      ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) return Just<int64_t>(k);
     }
     return Just<int64_t>(-1);
@@ -3449,8 +3468,9 @@ class TypedElementsAccessor
 
     DCHECK_LT(start_from, typed_array.length());
     size_t k = start_from;
+    auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
     do {
-      ElementType elem_k = AccessorClass::GetImpl(data_ptr, k);
+      ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) return Just<int64_t>(k);
     } while (k-- != 0);
     return Just<int64_t>(-1);
@@ -3500,12 +3520,16 @@ class TypedElementsAccessor
     size_t count = end - start;
     DCHECK_LE(count, destination.length());
     ElementType* dest_data = static_cast<ElementType*>(destination.DataPtr());
+    auto is_shared =
+        source.buffer().is_shared() || destination.buffer().is_shared()
+            ? kShared
+            : kUnshared;
     switch (source.GetElementsKind()) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                            \
   case TYPE##_ELEMENTS: {                                                    \
     ctype* source_data = reinterpret_cast<ctype*>(source.DataPtr()) + start; \
     CopyBetweenBackingStores<TYPE##_ELEMENTS, ctype>(source_data, dest_data, \
-                                                     count);                 \
+                                                     count, is_shared);      \
     break;                                                                   \
   }
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -3524,16 +3548,16 @@ class TypedElementsAccessor
   template <ElementsKind SourceKind, typename SourceElementType>
   static void CopyBetweenBackingStores(SourceElementType* source_data_ptr,
                                        ElementType* dest_data_ptr,
-                                       size_t length) {
-    DisallowGarbageCollection no_gc;
-    for (size_t i = 0; i < length; i++) {
+                                       size_t length,
+                                       IsSharedBuffer is_shared) {
+    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
       // We use scalar accessors to avoid boxing/unboxing, so there are no
       // allocations.
       SourceElementType source_elem =
           TypedElementsAccessor<SourceKind, SourceElementType>::GetImpl(
-              source_data_ptr, i);
+              source_data_ptr, is_shared);
       ElementType dest_elem = FromScalar(source_elem);
-      SetImpl(dest_data_ptr, i, dest_elem);
+      SetImpl(dest_data_ptr, dest_elem, is_shared);
     }
   }
 
@@ -3564,14 +3588,24 @@ class TypedElementsAccessor
     size_t source_byte_length = source.byte_length();
     size_t dest_byte_length = destination.byte_length();
 
+    bool source_shared = source.buffer().is_shared();
+    bool destination_shared = destination.buffer().is_shared();
+
     // We can simply copy the backing store if the types are the same, or if
     // we are converting e.g. Uint8 <-> Int8, as the binary representation
     // will be the same. This is not the case for floats or clamped Uint8,
     // which have special conversion operations.
     if (same_type || (same_size && both_are_simple)) {
       size_t element_size = source.element_size();
-      std::memmove(dest_data + offset * element_size, source_data,
-                   length * element_size);
+      if (source_shared || destination_shared) {
+        base::Relaxed_Memcpy(
+            reinterpret_cast<base::Atomic8*>(dest_data + offset * element_size),
+            reinterpret_cast<base::Atomic8*>(source_data),
+            length * element_size);
+      } else {
+        std::memmove(dest_data + offset * element_size, source_data,
+                     length * element_size);
+      }
     } else {
       std::unique_ptr<uint8_t[]> cloned_source_elements;
 
@@ -3579,17 +3613,25 @@ class TypedElementsAccessor
       if (dest_data + dest_byte_length > source_data &&
           source_data + source_byte_length > dest_data) {
         cloned_source_elements.reset(new uint8_t[source_byte_length]);
-        std::memcpy(cloned_source_elements.get(), source_data,
-                    source_byte_length);
+        if (source_shared) {
+          base::Relaxed_Memcpy(
+              reinterpret_cast<base::Atomic8*>(cloned_source_elements.get()),
+              reinterpret_cast<base::Atomic8*>(source_data),
+              source_byte_length);
+        } else {
+          std::memcpy(cloned_source_elements.get(), source_data,
+                      source_byte_length);
+        }
         source_data = cloned_source_elements.get();
       }
 
       switch (source.GetElementsKind()) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                    \
-  case TYPE##_ELEMENTS:                                              \
-    CopyBetweenBackingStores<TYPE##_ELEMENTS, ctype>(                \
-        reinterpret_cast<ctype*>(source_data),                       \
-        reinterpret_cast<ElementType*>(dest_data) + offset, length); \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                   \
+  case TYPE##_ELEMENTS:                                             \
+    CopyBetweenBackingStores<TYPE##_ELEMENTS, ctype>(               \
+        reinterpret_cast<ctype*>(source_data),                      \
+        reinterpret_cast<ElementType*>(dest_data) + offset, length, \
+        source_shared || destination_shared ? kShared : kUnshared); \
     break;
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
         default:
@@ -3645,6 +3687,9 @@ class TypedElementsAccessor
 
     ElementsKind kind = source.GetElementsKind();
 
+    auto destination_shared =
+        destination.buffer().is_shared() ? kShared : kUnshared;
+
     // When we find the hole, we normally have to look up the element on the
     // prototype chain, which is not handled here and we return false instead.
     // When the array has the original array prototype, and that prototype has
@@ -3662,17 +3707,19 @@ class TypedElementsAccessor
 
       for (size_t i = 0; i < length; i++) {
         Object elem = source_store.get(static_cast<int>(i));
-        SetImpl(dest_data, i, FromScalar(Smi::ToInt(elem)));
+        SetImpl(dest_data + i, FromScalar(Smi::ToInt(elem)),
+                destination_shared);
       }
       return true;
     } else if (kind == HOLEY_SMI_ELEMENTS) {
       FixedArray source_store = FixedArray::cast(source.elements());
       for (size_t i = 0; i < length; i++) {
         if (source_store.is_the_hole(isolate, static_cast<int>(i))) {
-          SetImpl(dest_data, i, FromObject(undefined));
+          SetImpl(dest_data + i, FromObject(undefined), destination_shared);
         } else {
           Object elem = source_store.get(static_cast<int>(i));
-          SetImpl(dest_data, i, FromScalar(Smi::ToInt(elem)));
+          SetImpl(dest_data + i, FromScalar(Smi::ToInt(elem)),
+                  destination_shared);
         }
       }
       return true;
@@ -3685,17 +3732,17 @@ class TypedElementsAccessor
         // Use the from_double conversion for this specific TypedArray type,
         // rather than relying on C++ to convert elem.
         double elem = source_store.get_scalar(static_cast<int>(i));
-        SetImpl(dest_data, i, FromScalar(elem));
+        SetImpl(dest_data + i, FromScalar(elem), destination_shared);
       }
       return true;
     } else if (kind == HOLEY_DOUBLE_ELEMENTS) {
       FixedDoubleArray source_store = FixedDoubleArray::cast(source.elements());
       for (size_t i = 0; i < length; i++) {
         if (source_store.is_the_hole(static_cast<int>(i))) {
-          SetImpl(dest_data, i, FromObject(undefined));
+          SetImpl(dest_data + i, FromObject(undefined), destination_shared);
         } else {
           double elem = source_store.get_scalar(static_cast<int>(i));
-          SetImpl(dest_data, i, FromScalar(elem));
+          SetImpl(dest_data + i, FromScalar(elem), destination_shared);
         }
       }
       return true;
