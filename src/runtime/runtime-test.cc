@@ -42,6 +42,11 @@ V8_WARN_UNUSED_RESULT Object CrashUnlessFuzzing(Isolate* isolate) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+// Returns |value| unless fuzzing is enabled, otherwise returns undefined_value.
+V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
+  return FLAG_fuzzing ? ReadOnlyRoots(isolate).undefined_value() : value;
+}
+
 // Assert that the given argument is a number within the Int32 range
 // and convert it to int32_t.  If the argument is not an Int32 we crash if not
 // in fuzzing mode.
@@ -1032,15 +1037,19 @@ RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
 RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   DisallowGarbageCollection no_gc;
 
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  if (args.length() != 1) return CrashUnlessFuzzing(isolate);
+  CONVERT_ARG_CHECKED(Object, arg, 0);
+  if (!arg.IsJSObject()) return CrashUnlessFuzzing(isolate);
+  JSObject object = JSObject::cast(arg);
+
   Heap* heap = object.GetHeap();
   AllocationMemento memento =
       heap->FindAllocationMemento<Heap::kForRuntime>(object.map(), object);
-  if (memento.is_null()) return ReadOnlyRoots(isolate).false_value();
+  if (memento.is_null())
+    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   AllocationSite site = memento.GetAllocationSite();
   heap->PretenureAllocationSiteOnNextCollection(site);
-  return ReadOnlyRoots(isolate).true_value();
+  return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
 }
 
 namespace {

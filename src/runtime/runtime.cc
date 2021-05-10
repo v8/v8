@@ -209,6 +209,7 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kOptimizeFunctionOnNextCall:
     case Runtime::kOptimizeOsr:
     case Runtime::kPrepareFunctionForOptimization:
+    case Runtime::kPretenureAllocationSite:
     case Runtime::kSetAllocationTimeout:
     case Runtime::kSimulateNewspaceFull:
       return true;
