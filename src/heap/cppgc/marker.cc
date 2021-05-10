@@ -231,6 +231,8 @@ void MarkerBase::StartMarking() {
 }
 
 void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
+  StatsCollector::EnabledScope top_stats_scope(heap().stats_collector(),
+                                               StatsCollector::kAtomicMark);
   StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
                                            StatsCollector::kMarkAtomicPrologue);
 
@@ -261,30 +263,38 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
 }
 
 void MarkerBase::LeaveAtomicPause() {
-  StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
-                                           StatsCollector::kMarkAtomicEpilogue);
-  DCHECK(!incremental_marking_handle_);
-  ResetRememberedSet(heap());
-  heap().stats_collector()->NotifyMarkingCompleted(
-      // GetOverallMarkedBytes also includes concurrently marked bytes.
-      schedule_.GetOverallMarkedBytes());
-  is_marking_ = false;
+  {
+    StatsCollector::EnabledScope top_stats_scope(heap().stats_collector(),
+                                                 StatsCollector::kAtomicMark);
+    StatsCollector::EnabledScope stats_scope(
+        heap().stats_collector(), StatsCollector::kMarkAtomicEpilogue);
+    DCHECK(!incremental_marking_handle_);
+    ResetRememberedSet(heap());
+    heap().stats_collector()->NotifyMarkingCompleted(
+        // GetOverallMarkedBytes also includes concurrently marked bytes.
+        schedule_.GetOverallMarkedBytes());
+    is_marking_ = false;
+  }
   {
     // Weakness callbacks are forbidden from allocating objects.
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_);
     ProcessWeakness();
   }
+  // TODO(chromium:1056170): It would be better if the call to Unlock was
+  // covered by some cppgc scope.
   g_process_mutex.Pointer()->Unlock();
   heap().SetStackStateOfPrevGC(config_.stack_state);
 }
 
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
   DCHECK(is_marking_);
-  StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
-                                           StatsCollector::kAtomicMark);
   EnterAtomicPause(stack_state);
-  CHECK(AdvanceMarkingWithLimits(v8::base::TimeDelta::Max(), SIZE_MAX));
-  mutator_marking_state_.Publish();
+  {
+    StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
+                                             StatsCollector::kAtomicMark);
+    CHECK(AdvanceMarkingWithLimits(v8::base::TimeDelta::Max(), SIZE_MAX));
+    mutator_marking_state_.Publish();
+  }
   LeaveAtomicPause();
 }
 

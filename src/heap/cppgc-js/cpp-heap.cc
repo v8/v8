@@ -352,8 +352,6 @@ bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
-  cppgc::internal::StatsCollector::EnabledScope stats_scope(
-      stats_collector(), cppgc::internal::StatsCollector::kAtomicMark);
   in_atomic_pause_ = true;
   if (override_stack_state_) {
     stack_state = *override_stack_state_;
@@ -369,8 +367,6 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   CHECK(in_atomic_pause_);
   CHECK(marking_done_);
   {
-    cppgc::internal::StatsCollector::EnabledScope stats_scope(
-        stats_collector(), cppgc::internal::StatsCollector::kAtomicMark);
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
   }
