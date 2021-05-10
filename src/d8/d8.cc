@@ -3971,25 +3971,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-snapshot") == 0) {
-      options.stress_snapshot = true;
-      // Incremental marking is incompatible with the stress_snapshot mode;
-      // specifically, serialization may clear bytecode arrays from shared
-      // function infos which the MarkCompactCollector (running concurrently)
-      // may still need. See also https://crbug.com/v8/10882.
-      //
-      // We thus force the implication
-      //
-      //   --stress-snapshot ~~> --no-incremental-marking
-      //
-      // Note: This is not an issue in production because we don't clear SFI's
-      // there (that only happens in mksnapshot and in --stress-snapshot mode).
-      i::FLAG_incremental_marking = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--nostress-snapshot") == 0 ||
-               strcmp(argv[i], "--no-stress-snapshot") == 0) {
-      options.stress_snapshot = false;
-      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
       no_always_opt = true;
@@ -4244,7 +4225,7 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
       DisposeModuleEmbedderData(context);
     }
     WriteLcovData(isolate, options.lcov_file);
-    if (last_run && options.stress_snapshot) {
+    if (last_run && i::FLAG_stress_snapshot) {
       static constexpr bool kClearRecompilableData = true;
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Handle<i::Context> i_context = Utils::OpenHandle(*context);

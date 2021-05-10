@@ -56,7 +56,18 @@ void ReadOnlyArtifacts::VerifyChecksum(SnapshotData* read_only_snapshot_data,
     CHECK_WITH_MSG(snapshot_checksum,
                    "Attempt to create the read-only heap after already "
                    "creating from a snapshot.");
-    CHECK_EQ(read_only_blob_checksum_, snapshot_checksum);
+    if (!FLAG_stress_snapshot) {
+      // --stress-snapshot is only intended to check how well the
+      // serializer/deserializer copes with unexpected objects, and is not
+      // intended to test whether the newly deserialized Isolate would actually
+      // work since it serializes a currently running Isolate, which is not
+      // supported. As a result, it's possible that it will create a new
+      // read-only snapshot that is not compatible with the original one (for
+      // instance due to the string table being re-ordered). Since we won't
+      // acutally use that new Isoalte, we're ok with any potential corruption.
+      // See crbug.com/1043058.
+      CHECK_EQ(read_only_blob_checksum_, snapshot_checksum);
+    }
   } else {
     // If there's no checksum, then that means the read-only heap objects are
     // being created.

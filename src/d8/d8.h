@@ -362,7 +362,6 @@ class ShellOptions {
   DisallowReassignment<bool> simulate_errors = {"simulate-errors", false};
   DisallowReassignment<bool> stress_opt = {"stress-opt", false};
   DisallowReassignment<int> stress_runs = {"stress-runs", 1};
-  DisallowReassignment<bool> stress_snapshot = {"stress-snapshot", false};
   DisallowReassignment<bool> interactive_shell = {"shell", false};
   bool test_shell = false;
   DisallowReassignment<bool> expected_to_throw = {"throws", false};

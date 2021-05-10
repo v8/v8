@@ -377,6 +377,17 @@ DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #define V8_SHARED_RO_HEAP_BOOL false
 #endif
 
+DEFINE_BOOL(stress_snapshot, false,
+            "disables sharing of the read-only heap for testing")
+// Incremental marking is incompatible with the stress_snapshot mode;
+// specifically, serialization may clear bytecode arrays from shared function
+// infos which the MarkCompactCollector (running concurrently) may still need.
+// See also https://crbug.com/v8/10882.
+//
+// Note: This is not an issue in production because we don't clear SFI's
+// there (that only happens in mksnapshot and in --stress-snapshot mode).
+DEFINE_NEG_IMPLICATION(stress_snapshot, incremental_marking)
+
 DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
             "enables trade-off of performance for memory savings")
 
