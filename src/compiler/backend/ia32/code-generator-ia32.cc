@@ -1938,21 +1938,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F64x2Min: {
-      XMMRegister dst = i.OutputSimd128Register(),
-                  src0 = i.InputSimd128Register(0),
-                  src1 = i.InputSimd128Register(1);
-      // The minpd instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform minpd in both orders, merge the resuls, and adjust.
-      __ Movapd(kScratchDoubleReg, src1);
-      __ Minpd(kScratchDoubleReg, kScratchDoubleReg, src0);
-      __ Minpd(dst, src0, src1);
-      // propagate -0's and NaNs, which may be non-canonical.
-      __ Orpd(kScratchDoubleReg, dst);
-      // Canonicalize NaNs by quieting and clearing the payload.
-      __ Cmpunordpd(dst, dst, kScratchDoubleReg);
-      __ Orpd(kScratchDoubleReg, dst);
-      __ Psrlq(dst, byte{13});
-      __ Andnpd(dst, kScratchDoubleReg);
+      __ F64x2Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kIA32F64x2Max: {

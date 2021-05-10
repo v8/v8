@@ -60,6 +60,43 @@ void SharedTurboAssembler::F64x2ExtractLane(DoubleRegister dst, XMMRegister src,
   }
 }
 
+void SharedTurboAssembler::F64x2Min(XMMRegister dst, XMMRegister lhs,
+                                    XMMRegister rhs, XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    // The minpd instruction doesn't propagate NaNs and +0's in its first
+    // operand. Perform minpd in both orders, merge the resuls, and adjust.
+    vminpd(scratch, lhs, rhs);
+    vminpd(dst, rhs, lhs);
+    // propagate -0's and NaNs, which may be non-canonical.
+    vorpd(scratch, scratch, dst);
+    // Canonicalize NaNs by quieting and clearing the payload.
+    vcmpunordpd(dst, dst, scratch);
+    vorpd(scratch, scratch, dst);
+    vpsrlq(dst, dst, byte{13});
+    vandnpd(dst, dst, scratch);
+  } else {
+    // Compare lhs with rhs, and rhs with lhs, and have the results in scratch
+    // and dst. If dst overlaps with lhs or rhs, we can save a move.
+    if (dst == lhs || dst == rhs) {
+      XMMRegister src = dst == lhs ? rhs : lhs;
+      movaps(scratch, src);
+      minpd(scratch, dst);
+      minpd(dst, src);
+    } else {
+      movaps(scratch, lhs);
+      movaps(dst, rhs);
+      minpd(scratch, rhs);
+      minpd(dst, lhs);
+    }
+    orpd(scratch, dst);
+    cmpunordpd(dst, scratch);
+    orpd(scratch, dst);
+    psrlq(dst, byte{13});
+    andnpd(dst, scratch);
+  }
+}
+
 void SharedTurboAssembler::F32x4Splat(XMMRegister dst, DoubleRegister src) {
   if (CpuFeatures::IsSupported(AVX2)) {
     CpuFeatureScope avx2_scope(this, AVX2);

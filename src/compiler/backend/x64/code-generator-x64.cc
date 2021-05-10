@@ -2415,21 +2415,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2Min: {
-      XMMRegister src1 = i.InputSimd128Register(1),
-                  dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The minpd instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform minpd in both orders, merge the resuls, and adjust.
-      __ Movapd(kScratchDoubleReg, src1);
-      __ Minpd(kScratchDoubleReg, dst);
-      __ Minpd(dst, src1);
-      // propagate -0's and NaNs, which may be non-canonical.
-      __ Orpd(kScratchDoubleReg, dst);
-      // Canonicalize NaNs by quieting and clearing the payload.
-      __ Cmpunordpd(dst, kScratchDoubleReg);
-      __ Orpd(kScratchDoubleReg, dst);
-      __ Psrlq(dst, byte{13});
-      __ Andnpd(dst, kScratchDoubleReg);
+      // Avoids a move in no-AVX case if dst = src0.
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ F64x2Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kX64F64x2Max: {

@@ -4244,30 +4244,7 @@ void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // The minpd instruction doesn't propagate NaNs and +0's in its first
-  // operand. Perform minpd in both orders, merge the results, and adjust.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vminpd(liftoff::kScratchDoubleReg, lhs.fp(), rhs.fp());
-    vminpd(dst.fp(), rhs.fp(), lhs.fp());
-  } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
-    XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movaps(liftoff::kScratchDoubleReg, src);
-    minpd(liftoff::kScratchDoubleReg, dst.fp());
-    minpd(dst.fp(), src);
-  } else {
-    movaps(liftoff::kScratchDoubleReg, lhs.fp());
-    minpd(liftoff::kScratchDoubleReg, rhs.fp());
-    movaps(dst.fp(), rhs.fp());
-    minpd(dst.fp(), lhs.fp());
-  }
-  // propagate -0's and NaNs, which may be non-canonical.
-  Orpd(liftoff::kScratchDoubleReg, dst.fp());
-  // Canonicalize NaNs by quieting and clearing the payload.
-  Cmpunordpd(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
-  Orpd(liftoff::kScratchDoubleReg, dst.fp());
-  Psrlq(dst.fp(), byte{13});
-  Andnpd(dst.fp(), liftoff::kScratchDoubleReg);
+  F64x2Min(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
