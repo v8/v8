@@ -2407,22 +2407,14 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
   Isolate* const isolate = broker->isolate();
   Handle<FixedArrayBase> elements_object(boilerplate->elements(), isolate);
 
-  // Boilerplates need special serialization - we need to make sure COW arrays
-  // are tenured. Boilerplate objects should only be reachable from their
-  // allocation site, so it is safe to assume that the elements have not been
-  // serialized yet.
+  // Boilerplate objects should only be reachable from their allocation site,
+  // so it is safe to assume that the elements have not been serialized yet.
 
   bool const empty_or_cow =
       elements_object->length() == 0 ||
       elements_object->map() == ReadOnlyRoots(isolate).fixed_cow_array_map();
   if (empty_or_cow) {
-    // We need to make sure copy-on-write elements are tenured.
-    if (ObjectInYoungGeneration(*elements_object)) {
-      elements_object = isolate->factory()->CopyAndTenureFixedCOWArray(
-          Handle<FixedArray>::cast(elements_object));
-      boilerplate->set_elements(*elements_object);
-    }
-    cow_or_empty_elements_tenured_ = true;
+    cow_or_empty_elements_tenured_ = !ObjectInYoungGeneration(*elements_object);
   }
 
   DCHECK_NULL(elements_);
@@ -3082,21 +3074,12 @@ void JSObjectRef::SerializeElements() {
   data()->AsJSObject()->SerializeElements(broker());
 }
 
-void JSObjectRef::EnsureElementsTenured() {
+bool JSObjectRef::IsElementsTenured() {
   if (data_->should_access_heap()) {
     Handle<FixedArrayBase> object_elements = elements().value().object();
-    if (ObjectInYoungGeneration(*object_elements)) {
-      // If we would like to pretenure a fixed cow array, we must ensure that
-      // the array is already in old space, otherwise we'll create too many
-      // old-to-new-space pointers (overflowing the store buffer).
-      object_elements =
-          broker()->isolate()->factory()->CopyAndTenureFixedCOWArray(
-              Handle<FixedArray>::cast(object_elements));
-      object()->set_elements(*object_elements);
-    }
-    return;
+    return !ObjectInYoungGeneration(*object_elements);
   }
-  CHECK(data()->AsJSObject()->cow_or_empty_elements_tenured());
+  return data()->AsJSObject()->cow_or_empty_elements_tenured();
 }
 
 FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
