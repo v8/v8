@@ -470,7 +470,14 @@ class RuntimeCallTimer final {
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \
   V(TestCounter2)                              \
-  V(TestCounter3)
+  V(TestCounter3)                              \
+  V(WebSnapshotDeserialize)                    \
+  V(WebSnapshotDeserialize_Contexts)           \
+  V(WebSnapshotDeserialize_Exports)            \
+  V(WebSnapshotDeserialize_Functions)          \
+  V(WebSnapshotDeserialize_Maps)               \
+  V(WebSnapshotDeserialize_Objects)            \
+  V(WebSnapshotDeserialize_Strings)
 
 #define FOR_EACH_HANDLER_COUNTER(V)               \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
