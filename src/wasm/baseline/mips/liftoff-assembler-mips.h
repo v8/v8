@@ -470,7 +470,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                              : MemOperand(dst_addr, offset_imm);
   Sw(src.gp(), dst_op);
 
-  if (skip_write_barrier) return;
+  if (skip_write_barrier || FLAG_disable_write_barriers) return;
 
   // The write barrier.
   Label write_barrier;
