@@ -613,6 +613,9 @@
 
   # BUG(v8:11702): Times out on TSAN.
   'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
+
+  # BUG(v8:11752): Flakes on TSAN.
+  'd8/d8-worker-shutdown-spawn': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
