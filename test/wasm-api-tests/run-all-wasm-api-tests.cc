@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
+#include "src/flags/flags.h"
 #include "src/trap-handler/trap-handler.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
