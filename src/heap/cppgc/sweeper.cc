@@ -665,6 +665,33 @@ class Sweeper::SweeperImpl final {
 
   bool IsSweepingInProgress() const { return is_in_progress_; }
 
+  bool PerformSweepOnMutatorThread(double deadline_in_seconds,
+                                   StatsCollector::ScopeId internal_scope_id) {
+    if (!is_in_progress_) return true;
+
+    MutatorThreadSweepingScope sweeping_in_progresss(*this);
+
+    bool sweep_complete;
+    {
+      StatsCollector::EnabledScope stats_scope(
+          stats_collector_, StatsCollector::kIncrementalSweep);
+
+      MutatorThreadSweeper sweeper(&space_states_, platform_);
+      {
+        StatsCollector::EnabledScope stats_scope(
+            stats_collector_, internal_scope_id, "deltaInSeconds",
+            deadline_in_seconds - platform_->MonotonicallyIncreasingTime());
+
+        sweep_complete = sweeper.SweepWithDeadline(deadline_in_seconds);
+      }
+      if (sweep_complete) {
+        FinalizeSweep();
+      }
+    }
+    if (sweep_complete) NotifyDone();
+    return sweep_complete;
+  }
+
  private:
   class MutatorThreadSweepingScope final {
    public:
@@ -701,33 +728,12 @@ class Sweeper::SweeperImpl final {
 
    private:
     void Run(double deadline_in_seconds) override {
-      if (handle_.IsCanceled() || !sweeper_->is_in_progress_) return;
+      if (handle_.IsCanceled()) return;
 
-      MutatorThreadSweepingScope sweeping_in_progresss(*sweeper_);
-
-      bool sweep_complete;
-      {
-        StatsCollector::EnabledScope stats_scope(
-            sweeper_->stats_collector_, StatsCollector::kIncrementalSweep);
-
-        MutatorThreadSweeper sweeper(&sweeper_->space_states_,
-                                     sweeper_->platform_);
-        {
-          StatsCollector::EnabledScope stats_scope(
-              sweeper_->stats_collector_, StatsCollector::kSweepIdleStep,
-              "idleDeltaInSeconds",
-              (deadline_in_seconds -
-               sweeper_->platform_->MonotonicallyIncreasingTime()));
-
-          sweep_complete = sweeper.SweepWithDeadline(deadline_in_seconds);
-        }
-        if (sweep_complete) {
-          sweeper_->FinalizeSweep();
-        } else {
-          sweeper_->ScheduleIncrementalSweeping();
-        }
+      if (!sweeper_->PerformSweepOnMutatorThread(
+              deadline_in_seconds, StatsCollector::kSweepIdleStep)) {
+        sweeper_->ScheduleIncrementalSweeping();
       }
-      if (sweep_complete) sweeper_->NotifyDone();
     }
 
     Handle GetHandle() const { return handle_; }
@@ -805,6 +811,11 @@ bool Sweeper::IsSweepingOnMutatorThread() const {
 
 bool Sweeper::IsSweepingInProgress() const {
   return impl_->IsSweepingInProgress();
+}
+
+bool Sweeper::PerformSweepOnMutatorThread(double deadline_in_seconds) {
+  return impl_->PerformSweepOnMutatorThread(deadline_in_seconds,
+                                            StatsCollector::kSweepInTask);
 }
 
 }  // namespace internal

@@ -52,6 +52,7 @@ namespace internal {
   V(MarkVisitRememberedSets)                \
   V(SweepInvokePreFinalizers)               \
   V(SweepIdleStep)                          \
+  V(SweepInTask)                            \
   V(SweepOnAllocation)                      \
   V(SweepFinalize)
 
