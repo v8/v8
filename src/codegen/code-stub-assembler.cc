@@ -1575,8 +1575,8 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
 
   TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
   if (external_pointer_tag != 0) {
-    TNode<UintPtrT> tag = UintPtrConstant(external_pointer_tag);
-    entry = UncheckedCast<UintPtrT>(WordXor(entry, tag));
+    TNode<UintPtrT> tag = UintPtrConstant(~external_pointer_tag);
+    entry = UncheckedCast<UintPtrT>(WordAnd(entry, tag));
   }
   return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
 #else
@@ -1604,7 +1604,7 @@ void CodeStubAssembler::StoreExternalPointerToObject(
   TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
   if (external_pointer_tag != 0) {
     TNode<UintPtrT> tag = UintPtrConstant(external_pointer_tag);
-    value = UncheckedCast<UintPtrT>(WordXor(pointer, tag));
+    value = UncheckedCast<UintPtrT>(WordOr(pointer, tag));
   }
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
                       value);

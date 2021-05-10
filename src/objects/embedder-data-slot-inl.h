@@ -90,8 +90,8 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
   Address raw_value;
 #ifdef V8_HEAP_SANDBOX
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
-  raw_value = isolate->external_pointer_table().get(index) ^
-              kEmbedderDataSlotPayloadTag;
+  raw_value = isolate->external_pointer_table().get(index) &
+              ~kEmbedderDataSlotPayloadTag;
 #else
   if (COMPRESS_POINTERS_BOOL) {
     // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
@@ -113,8 +113,8 @@ bool EmbedderDataSlot::ToAlignedPointerSafe(Isolate* isolate,
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
   Address raw_value;
   if (isolate->external_pointer_table().is_valid_index(index)) {
-    raw_value = isolate->external_pointer_table().get(index) ^
-                kEmbedderDataSlotPayloadTag;
+    raw_value = isolate->external_pointer_table().get(index) &
+                ~kEmbedderDataSlotPayloadTag;
     *out_pointer = reinterpret_cast<void*>(raw_value);
     return true;
   }
@@ -136,7 +136,7 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
         ObjectSlot(address() + kRawPayloadOffset).Relaxed_Load();
     uint32_t index = static_cast<uint32_t>(index_as_object.ptr());
     isolate->external_pointer_table().set(index,
-                                          value ^ kEmbedderDataSlotPayloadTag);
+                                          value | kEmbedderDataSlotPayloadTag);
     return true;
   }
 #endif

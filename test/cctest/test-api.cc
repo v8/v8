@@ -1453,6 +1453,9 @@ static void TestExternalPointerWrapping() {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
+  int* ptr = new int;
+  expected_ptr = ptr;
+
   v8::Local<v8::Value> data = v8::External::New(isolate, expected_ptr);
 
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
@@ -1468,6 +1471,8 @@ static void TestExternalPointerWrapping() {
                    "}\n"
                    "foo(), true")
             ->BooleanValue(isolate));
+
+  delete ptr;
 }
 
 
@@ -3049,7 +3054,9 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   int stack_allocated[100];
   CheckAlignedPointerInInternalField(obj, stack_allocated);
 
-  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  // The aligned pointer must have the top bits be zero on 64-bit machines (at
+  // least if the heap sandbox is enabled).
+  void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInInternalField(obj, huge);
 
   v8::Global<v8::Object> persistent(isolate, obj);
@@ -3125,7 +3132,9 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   CheckAlignedPointerInEmbedderData(&env, 2, stack_allocated);
   CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
 
-  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  // The aligned pointer must have the top bits be zero on 64-bit machines (at
+  // least if the heap sandbox is enabled).
+  void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInEmbedderData(&env, 3, huge);
   CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
 

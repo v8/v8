@@ -760,7 +760,7 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
       ConstFieldInfo::None(),
       false,
 #ifdef V8_HEAP_SANDBOX
-      kExternalStringResourceTag,
+      kExternalStringResourceDataTag,
 #endif
   };
   return access;

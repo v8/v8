@@ -128,22 +128,27 @@ constexpr bool HeapSandboxIsEnabled() {
 
 using ExternalPointer_t = Address;
 
-// If the heap sandbox is enabled, these tag values will be XORed with the
+// If the heap sandbox is enabled, these tag values will be ORed with the
 // external pointers in the external pointer table to prevent use of pointers of
-// the wrong type.
-enum ExternalPointerTag : Address {
-  kExternalPointerNullTag = static_cast<Address>(0ULL),
-  kArrayBufferBackingStoreTag = static_cast<Address>(1ULL << 48),
-  kTypedArrayExternalPointerTag = static_cast<Address>(2ULL << 48),
-  kDataViewDataPointerTag = static_cast<Address>(3ULL << 48),
-  kExternalStringResourceTag = static_cast<Address>(4ULL << 48),
-  kExternalStringResourceDataTag = static_cast<Address>(5ULL << 48),
-  kForeignForeignAddressTag = static_cast<Address>(6ULL << 48),
-  kNativeContextMicrotaskQueueTag = static_cast<Address>(7ULL << 48),
-  // TODO(v8:10391, saelo): Currently has to be zero so that raw zero values are
-  // also nullptr
-  kEmbedderDataSlotPayloadTag = static_cast<Address>(0ULL << 48),
+// the wrong type. When a pointer is loaded, it is ANDed with the inverse of the
+// expected type's tag. The tags are constructed in a way that guarantees that a
+// failed type check will result in one or more of the top bits of the pointer
+// to be set, rendering the pointer inacessible. This construction allows
+// performing the type check and removing GC marking bits from the pointer at
+// the same time.
+enum ExternalPointerTag : uint64_t {
+  kExternalPointerNullTag = 0x0000000000000000,
+  kArrayBufferBackingStoreTag = 0x00ff000000000000,      // 0b000000011111111
+  kTypedArrayExternalPointerTag = 0x017f000000000000,    // 0b000000101111111
+  kDataViewDataPointerTag = 0x01bf000000000000,          // 0b000000110111111
+  kExternalStringResourceTag = 0x01df000000000000,       // 0b000000111011111
+  kExternalStringResourceDataTag = 0x01ef000000000000,   // 0b000000111101111
+  kForeignForeignAddressTag = 0x01f7000000000000,        // 0b000000111110111
+  kNativeContextMicrotaskQueueTag = 0x01fb000000000000,  // 0b000000111111011
+  kEmbedderDataSlotPayloadTag = 0x01fd000000000000,      // 0b000000111111101
 };
+
+constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;
 
 #ifdef V8_31BIT_SMIS_ON_64BIT_ARCH
 using PlatformSmiTagging = SmiTagging<kApiInt32Size>;

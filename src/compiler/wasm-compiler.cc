@@ -3134,8 +3134,8 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
                                 Internals::kExternalPointerTableBufferOffset);
   Node* offset = gasm_->Int32Mul(index, gasm_->Int32Constant(8));
   Node* decoded_ptr = gasm_->Load(MachineType::Pointer(), table, offset);
-  Node* tag = gasm_->IntPtrConstant(kForeignForeignAddressTag);
-  return gasm_->WordXor(decoded_ptr, tag);
+  Node* tag = gasm_->IntPtrConstant(~kForeignForeignAddressTag);
+  return gasm_->WordAnd(decoded_ptr, tag);
 #else
   return gasm_->LoadFromObject(
       MachineType::Pointer(), function_data,

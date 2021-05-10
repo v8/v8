@@ -390,8 +390,8 @@ void TurboAssembler::LoadExternalPointerField(
   movl(destination, field_operand);
   movq(destination, Operand(scratch, destination, times_8, 0));
   if (tag != 0) {
-    movq(scratch, Immediate64(tag));
-    xorq(destination, scratch);
+    movq(scratch, Immediate64(~tag));
+    andq(destination, scratch);
   }
 #else
   movq(destination, field_operand);

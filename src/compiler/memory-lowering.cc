@@ -367,8 +367,8 @@ Node* MemoryLowering::DecodeExternalPointer(
   Node* decoded_ptr =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
   if (external_pointer_tag != 0) {
-    Node* tag = __ IntPtrConstant(external_pointer_tag);
-    decoded_ptr = __ WordXor(decoded_ptr, tag);
+    Node* tag = __ IntPtrConstant(~external_pointer_tag);
+    decoded_ptr = __ WordAnd(decoded_ptr, tag);
   }
   return decoded_ptr;
 #else
