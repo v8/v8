@@ -59,15 +59,6 @@ int V8_EXPORT_PRIVATE RegisterHandlerData(
 /// kInvalidIndex.
 void V8_EXPORT_PRIVATE ReleaseHandlerData(int index);
 
-#if V8_OS_WIN
-#define THREAD_LOCAL __declspec(thread)
-#elif V8_OS_ANDROID
-// TODO(eholk): fix this before enabling for trap handlers for Android.
-#define THREAD_LOCAL
-#else
-#define THREAD_LOCAL __thread
-#endif
-
 // Initially false, set to true if when trap handlers are enabled. Never goes
 // back to false then.
 extern bool g_is_trap_handler_enabled;
@@ -97,7 +88,7 @@ inline bool IsTrapHandlerEnabled() {
   return g_is_trap_handler_enabled;
 }
 
-extern THREAD_LOCAL int g_thread_in_wasm_code;
+extern thread_local int g_thread_in_wasm_code;
 
 // Return the address of the thread-local {g_thread_in_wasm_code} variable. This
 // pointer can be accessed and modified as long as the thread calling this
