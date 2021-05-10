@@ -1763,7 +1763,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
   MapRef elements_map = boilerplate_elements.map();
   if (boilerplate_elements.length() == 0 || elements_map.IsFixedCowArrayMap()) {
     if (allocation == AllocationType::kOld) {
-      boilerplate.EnsureElementsTenured();
+      if (!boilerplate.IsElementsTenured()) return {};
       boilerplate_elements = boilerplate.elements().value();
     }
     return jsgraph()->HeapConstant(boilerplate_elements.object());
