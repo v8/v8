@@ -71,15 +71,13 @@ enum ObjectDataKind {
 
 namespace {
 
-bool IsReadOnlyHeapObjectForCompiler(HeapObject object) {
+bool IsReadOnlyHeapObject(Object object) {
   DisallowGarbageCollection no_gc;
   // HeapNumber is excluded because we have a uniform background
   // serialization treatment for it.
-  // TODO(jgruber): Remove this compiler-specific predicate and use the plain
-  // heap predicate instead. This would involve removing the special cases for
-  // builtins and heap numbers.
   return (object.IsCode() && Code::cast(object).is_builtin()) ||
-         (!object.IsHeapNumber() && ReadOnlyHeap::Contains(object));
+         (object.IsHeapObject() && !object.IsHeapNumber() &&
+          ReadOnlyHeap::Contains(HeapObject::cast(object)));
 }
 
 }  // namespace
@@ -118,8 +116,7 @@ class ObjectData : public ZoneObject {
                       kind == kNeverSerializedHeapObject ||
                       kind == kBackgroundSerializedHeapObject);
     CHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
-                  object->IsHeapObject() && IsReadOnlyHeapObjectForCompiler(
-                                                HeapObject::cast(*object)));
+                  IsReadOnlyHeapObject(*object));
   }
 
 #define DECLARE_IS(Name, ...) bool Is##Name() const;
@@ -340,7 +337,7 @@ bool PropertyCellData::Serialize(JSHeapBroker* broker) {
     }
   }
 
-  ObjectData* value_data = broker->TryGetOrCreateData(value);
+  ObjectData* value_data = broker->TryGetOrCreateData(value, false);
   if (value_data == nullptr) {
     DCHECK(!broker->IsMainThread());
     return false;
@@ -2135,7 +2132,7 @@ base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
   it.TryLookupCachedProperty();
   if (it.state() == LookupIterator::DATA &&
       it.GetHolder<JSObject>()->IsJSGlobalObject()) {
-    return TryMakeRef(broker, it.GetPropertyCell());
+    return MakeRef(broker, it.GetPropertyCell());
   }
   return base::nullopt;
 }
@@ -2807,14 +2804,15 @@ void JSHeapBroker::ClearReconstructibleData() {
   }
 }
 
-ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
-                                             GetOrCreateDataFlags flags) {
+ObjectData* JSHeapBroker::TryGetOrCreateData(
+    Handle<Object> object, bool crash_on_error,
+    ObjectRef::BackgroundSerialization background_serialization) {
   RefsMap::Entry* entry = refs_->Lookup(object.address());
   if (entry != nullptr) return entry->value;
 
   if (mode() == JSHeapBroker::kDisabled) {
     entry = refs_->LookupOrInsert(object.address());
-    ObjectData** storage = &entry->value;
+    ObjectData** storage = &(entry->value);
     if (*storage == nullptr) {
       entry->value = zone()->New<ObjectData>(
           this, storage, object,
@@ -2829,43 +2827,24 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
   ObjectData* object_data;
   if (object->IsSmi()) {
     entry = refs_->LookupOrInsert(object.address());
-    return zone()->New<ObjectData>(this, &entry->value, object, kSmi);
-  }
-
-  DCHECK(!object->IsSmi());
-
-  const bool crash_on_error = (flags & kCrashOnError) != 0;
-  if ((flags & kAssumeMemoryFence) == 0 &&
-      ObjectMayBeUninitialized(HeapObject::cast(*object))) {
-    TRACE_BROKER_MISSING(this, "Object may be uninitialized " << *object);
-    CHECK_WITH_MSG(!crash_on_error, "Ref construction failed");
-    return nullptr;
-  }
-
-  if (IsReadOnlyHeapObjectForCompiler(HeapObject::cast(*object))) {
+    object_data = zone()->New<ObjectData>(this, &(entry->value), object, kSmi);
+  } else if (IsReadOnlyHeapObject(*object)) {
     entry = refs_->LookupOrInsert(object.address());
-    return zone()->New<ObjectData>(this, &entry->value, object,
-                                   kUnserializedReadOnlyHeapObject);
-  }
-
-  const ObjectRef::BackgroundSerialization background_serialization =
-      (flags & kAllowBackgroundSerialization) != 0
-          ? ObjectRef::BackgroundSerialization::kAllowed
-          : ObjectRef::BackgroundSerialization::kDisallowed;
-
+    object_data = zone()->New<ObjectData>(this, &(entry->value), object,
+                                          kUnserializedReadOnlyHeapObject);
 #define CREATE_DATA(Name, Kind)                                   \
-  if (object->Is##Name()) {                                       \
+  }                                                               \
+  /* NOLINTNEXTLINE(readability/braces) */                        \
+  else if (object->Is##Name()) {                                  \
     CreateDataFunctor<Kind, Name##Data, Name> f;                  \
     if (!f(this, refs_, background_serialization, object, &entry, \
            &object_data)) {                                       \
-      CHECK_WITH_MSG(!crash_on_error, "Ref construction failed"); \
+      CHECK(!crash_on_error);                                     \
       return nullptr;                                             \
-    }                                                             \
-    /* NOLINTNEXTLINE(readability/braces) */                      \
-  } else
-  HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
+    }
+    HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
-  {
+  } else {
     UNREACHABLE();
   }
   // At this point the entry pointer is not guaranteed to be valid as
@@ -3411,7 +3390,7 @@ base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
   if (data_->should_access_heap()) {
     HeapObject call_code = object()->call_code(kAcquireLoad);
     if (call_code.IsUndefined()) return base::nullopt;
-    return TryMakeRef(broker(), CallHandlerInfo::cast(call_code));
+    return MakeRef(broker(), CallHandlerInfo::cast(call_code));
   }
   ObjectData* call_code = data()->AsFunctionTemplateInfo()->call_code();
   if (!call_code) return base::nullopt;
@@ -4012,7 +3991,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
   if (data_->should_access_heap()) {
-    return TryMakeRef(broker(), object()->GetCell(cell_index));
+    return MakeRef(broker(), object()->GetCell(cell_index));
   }
   ObjectData* cell =
       data()->AsSourceTextModule()->GetCell(broker(), cell_index);
@@ -4028,26 +4007,17 @@ base::Optional<ObjectRef> SourceTextModuleRef::import_meta() const {
                    data()->AsSourceTextModule()->GetImportMeta(broker()));
 }
 
-namespace {
-
-GetOrCreateDataFlags FlagsForBackgroundSerialization(
-    ObjectRef::BackgroundSerialization v) {
-  if (v == ObjectRef::BackgroundSerialization::kAllowed) {
-    return kAllowBackgroundSerialization;
-  }
-  return {};
-}
-
-}  // namespace
-
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object,
                      BackgroundSerialization background_serialization,
                      bool check_type)
     : broker_(broker) {
   CHECK_NE(broker->mode(), JSHeapBroker::kRetired);
 
-  data_ = broker->GetOrCreateData(
-      object, FlagsForBackgroundSerialization(background_serialization));
+  data_ = broker->GetOrCreateData(object, background_serialization);
+  if (!data_) {  // TODO(mslekova): Remove once we're on the background thread.
+    object->Print();
+  }
+  CHECK_WITH_MSG(data_ != nullptr, "Object is not known to the heap broker");
 }
 
 namespace {
@@ -4094,10 +4064,9 @@ HeapObjectType HeapObjectRef::GetHeapObjectType() const {
   if (map().is_callable()) flags |= HeapObjectType::kCallable;
   return HeapObjectType(map().instance_type(), flags, map().oddball_type());
 }
-
 base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
   if (data_->should_access_heap()) {
-    return TryMakeRef(broker(), object()->boilerplate(kAcquireLoad));
+    return MakeRef(broker(), object()->boilerplate(kAcquireLoad));
   }
   ObjectData* boilerplate = data()->AsAllocationSite()->boilerplate();
   if (boilerplate) {
@@ -4113,7 +4082,7 @@ ElementsKind JSObjectRef::GetElementsKind() const {
 
 base::Optional<FixedArrayBaseRef> JSObjectRef::elements() const {
   if (data_->should_access_heap()) {
-    return TryMakeRef(broker(), object()->elements());
+    return MakeRef(broker(), object()->elements());
   }
   const JSObjectData* d = data()->AsJSObject();
   if (!d->serialized_elements()) {
@@ -4317,12 +4286,11 @@ void NativeContextData::SerializeOnBackground(JSHeapBroker* broker) {
   Handle<NativeContext> context = Handle<NativeContext>::cast(object());
 
   constexpr auto kAllowed = ObjectRef::BackgroundSerialization::kAllowed;
-#define SERIALIZE_MEMBER(type, name)                               \
-  DCHECK_NULL(name##_);                                            \
-  name##_ = broker->GetOrCreateData(                               \
-      context->name(), FlagsForBackgroundSerialization(kAllowed)); \
-  if (!name##_->should_access_heap()) {                            \
-    DCHECK(!name##_->IsJSFunction());                              \
+#define SERIALIZE_MEMBER(type, name)                            \
+  DCHECK_NULL(name##_);                                         \
+  name##_ = broker->GetOrCreateData(context->name(), kAllowed); \
+  if (!name##_->should_access_heap()) {                         \
+    DCHECK(!name##_->IsJSFunction());                           \
   }
   BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
   if (!broker->is_isolate_bootstrapping()) {
@@ -4335,8 +4303,8 @@ void NativeContextData::SerializeOnBackground(JSHeapBroker* broker) {
   int const last = Context::LAST_FUNCTION_MAP_INDEX;
   function_maps_.reserve(last + 1 - first);
   for (int i = first; i <= last; ++i) {
-    function_maps_.push_back(broker->GetOrCreateData(
-        context->get(i), FlagsForBackgroundSerialization(kAllowed)));
+    function_maps_.push_back(
+        broker->GetOrCreateData(context->get(i), kAllowed));
   }
 }
 
@@ -4373,7 +4341,7 @@ bool JSFunctionRef::serialized_code_and_feedback() const {
 
 CodeRef JSFunctionRef::code() const {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return MakeRefAssumeMemoryFence(broker(), object()->code(kAcquireLoad));
+    return MakeRef(broker(), object()->code(kAcquireLoad));
   }
 
   return CodeRef(broker(), ObjectRef::data()->AsJSFunction()->code());

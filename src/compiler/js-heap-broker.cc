@@ -227,21 +227,27 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
          array_and_object_prototypes_.end();
 }
 
-ObjectData* JSHeapBroker::TryGetOrCreateData(Object object,
-                                             GetOrCreateDataFlags flags) {
-  return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
+ObjectData* JSHeapBroker::TryGetOrCreateData(
+    Object object, bool crash_on_error,
+    ObjectRef::BackgroundSerialization background_serialization) {
+  return TryGetOrCreateData(CanonicalPersistentHandle(object), crash_on_error,
+                            background_serialization);
 }
 
-ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
-                                          GetOrCreateDataFlags flags) {
-  ObjectData* return_value = TryGetOrCreateData(object, flags | kCrashOnError);
+ObjectData* JSHeapBroker::GetOrCreateData(
+    Handle<Object> object,
+    ObjectRef::BackgroundSerialization background_serialization) {
+  ObjectData* return_value =
+      TryGetOrCreateData(object, true, background_serialization);
   DCHECK_NOT_NULL(return_value);
   return return_value;
 }
 
-ObjectData* JSHeapBroker::GetOrCreateData(Object object,
-                                          GetOrCreateDataFlags flags) {
-  return GetOrCreateData(CanonicalPersistentHandle(object), flags);
+ObjectData* JSHeapBroker::GetOrCreateData(
+    Object object,
+    ObjectRef::BackgroundSerialization background_serialization) {
+  return GetOrCreateData(CanonicalPersistentHandle(object),
+                         background_serialization);
 }
 
 bool JSHeapBroker::StackHasOverflowed() const {
@@ -253,12 +259,8 @@ bool JSHeapBroker::StackHasOverflowed() const {
 }
 
 bool JSHeapBroker::ObjectMayBeUninitialized(Handle<Object> object) const {
-  if (!object->IsHeapObject()) return false;
-  return ObjectMayBeUninitialized(HeapObject::cast(*object));
-}
-
-bool JSHeapBroker::ObjectMayBeUninitialized(HeapObject object) const {
-  return !IsMainThread() && isolate()->heap()->IsPendingAllocation(object);
+  return !IsMainThread() && object->IsHeapObject() &&
+         isolate()->heap()->IsPendingAllocation(HeapObject::cast(*object));
 }
 
 bool CanInlineElementAccess(MapRef const& map) {
