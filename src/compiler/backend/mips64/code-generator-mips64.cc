@@ -835,9 +835,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
-    case kArchStackPointerGreaterThan:
-      // Pseudo-instruction used for cmp/branch. No opcode emitted here.
+    case kArchStackPointerGreaterThan: {
+      Register lhs_register = sp;
+      uint32_t offset;
+      if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
+        lhs_register = i.TempRegister(0);
+        __ Dsubu(lhs_register, sp, offset);
+      }
+      __ Sltu(i.OutputRegister(), i.InputRegister(0), lhs_register);
       break;
+    }
     case kArchStackCheckOffset:
       __ Move(i.OutputRegister(), Smi::FromInt(GetStackCheckOffset()));
       break;
@@ -3880,13 +3887,11 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     cc = FlagsConditionToConditionCmp(condition);
-    Register lhs_register = sp;
-    uint32_t offset;
-    if (gen->ShouldApplyOffsetToStackCheck(instr, &offset)) {
-      lhs_register = i.TempRegister(0);
-      __ Dsubu(lhs_register, sp, offset);
+    DCHECK((cc == ls) || (cc == hi));
+    if (cc == ls) {
+      __ xori(i.OutputRegister(), i.OutputRegister(), 1);
     }
-    __ Branch(tlabel, cc, lhs_register, Operand(i.InputRegister(0)));
+    __ Branch(tlabel, ne, i.OutputRegister(), Operand(zero_reg));
   } else if (instr->arch_opcode() == kMips64CmpS ||
              instr->arch_opcode() == kMips64CmpD) {
     bool predicate;
@@ -4230,6 +4235,13 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       } else {
         __ Addu(result, result, 1);  // Toggle result for not equal.
       }
+    }
+    return;
+  } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
+    cc = FlagsConditionToConditionCmp(condition);
+    DCHECK((cc == ls) || (cc == hi));
+    if (cc == ls) {
+      __ xori(i.OutputRegister(), i.OutputRegister(), 1);
     }
     return;
   } else {
