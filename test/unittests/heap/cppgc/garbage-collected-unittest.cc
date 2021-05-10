@@ -84,6 +84,17 @@ TEST(GarbageCollectedTest, GarbageCollectedWithMixinTrait) {
   STATIC_ASSERT(IsGarbageCollectedWithMixinTypeV<GCWithMergedMixins>);
 }
 
+namespace {
+
+class ForwardDeclaredType;
+
+}  // namespace
+
+TEST(GarbageCollectedTest, CompleteTypeTrait) {
+  STATIC_ASSERT(IsCompleteV<GCed>);
+  STATIC_ASSERT(!IsCompleteV<ForwardDeclaredType>);
+}
+
 TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCurrentAddress) {
   GCed* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCedWithMixin* gced_with_mixin =
