@@ -2422,24 +2422,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2Max: {
-      XMMRegister src1 = i.InputSimd128Register(1),
-                  dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The maxpd instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform maxpd in both orders, merge the resuls, and adjust.
-      __ Movapd(kScratchDoubleReg, src1);
-      __ Maxpd(kScratchDoubleReg, dst);
-      __ Maxpd(dst, src1);
-      // Find discrepancies.
-      __ Xorpd(dst, kScratchDoubleReg);
-      // Propagate NaNs, which may be non-canonical.
-      __ Orpd(kScratchDoubleReg, dst);
-      // Propagate sign discrepancy and (subtle) quiet NaNs.
-      __ Subpd(kScratchDoubleReg, dst);
-      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ Cmpunordpd(dst, kScratchDoubleReg);
-      __ Psrlq(dst, byte{13});
-      __ Andnpd(dst, kScratchDoubleReg);
+      // Avoids a move in no-AVX case if dst = src0.
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ F64x2Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kX64F64x2Eq: {

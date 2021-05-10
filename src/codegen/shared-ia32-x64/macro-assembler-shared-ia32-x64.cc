@@ -97,6 +97,45 @@ void SharedTurboAssembler::F64x2Min(XMMRegister dst, XMMRegister lhs,
   }
 }
 
+void SharedTurboAssembler::F64x2Max(XMMRegister dst, XMMRegister lhs,
+                                    XMMRegister rhs, XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    // The maxpd instruction doesn't propagate NaNs and +0's in its first
+    // operand. Perform maxpd in both orders, merge the resuls, and adjust.
+    vmaxpd(scratch, lhs, rhs);
+    vmaxpd(dst, rhs, lhs);
+    // Find discrepancies.
+    vxorpd(dst, dst, scratch);
+    // Propagate NaNs, which may be non-canonical.
+    vorpd(scratch, scratch, dst);
+    // Propagate sign discrepancy and (subtle) quiet NaNs.
+    vsubpd(scratch, scratch, dst);
+    // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+    vcmpunordpd(dst, dst, scratch);
+    vpsrlq(dst, dst, byte{13});
+    vandnpd(dst, dst, scratch);
+  } else {
+    if (dst == lhs || dst == rhs) {
+      XMMRegister src = dst == lhs ? rhs : lhs;
+      movaps(scratch, src);
+      maxpd(scratch, dst);
+      maxpd(dst, src);
+    } else {
+      movaps(scratch, lhs);
+      movaps(dst, rhs);
+      maxpd(scratch, rhs);
+      maxpd(dst, lhs);
+    }
+    xorpd(dst, scratch);
+    orpd(scratch, dst);
+    subpd(scratch, dst);
+    cmpunordpd(dst, scratch);
+    psrlq(dst, byte{13});
+    andnpd(dst, scratch);
+  }
+}
+
 void SharedTurboAssembler::F32x4Splat(XMMRegister dst, DoubleRegister src) {
   if (CpuFeatures::IsSupported(AVX2)) {
     CpuFeatureScope avx2_scope(this, AVX2);
