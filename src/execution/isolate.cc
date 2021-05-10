@@ -3076,8 +3076,7 @@ void Isolate::Deinit() {
 
 #if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-      heap()->memory_allocator() && RequiresCodeRange() &&
-      heap()->code_range()->AtomicDecrementUnwindInfoUseCount() == 1) {
+      heap()->memory_allocator() && RequiresCodeRange()) {
     const base::AddressRegion& code_region = heap()->code_region();
     void* start = reinterpret_cast<void*>(code_region.begin());
     win64_unwindinfo::UnregisterNonABICompliantCodeRange(start);
@@ -3808,8 +3807,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
 #if defined(V8_OS_WIN64)
-  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-      heap()->code_range()->AtomicIncrementUnwindInfoUseCount() == 0) {
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     const base::AddressRegion& code_region = heap()->code_region();
     void* start = reinterpret_cast<void*>(code_region.begin());
     size_t size_in_bytes = code_region.size();
