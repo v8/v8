@@ -315,7 +315,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 2700,
+    execution_timeout = 3600,
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
 )
