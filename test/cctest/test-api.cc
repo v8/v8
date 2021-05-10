@@ -28192,12 +28192,12 @@ TEST(FastApiStackSlot) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
 
-  FLAG_SCOPE_EXTERNAL(opt);
-  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
-  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbo_fast_api_calls = true;
+  v8::internal::FLAG_allow_natives_syntax = true;
   // Disable --always_opt, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  UNFLAG_SCOPE_EXTERNAL(always_opt);
+  v8::internal::FLAG_always_opt = false;
 
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -28243,12 +28243,12 @@ TEST(FastApiCalls) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
 
-  FLAG_SCOPE_EXTERNAL(opt);
-  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
-  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbo_fast_api_calls = true;
+  v8::internal::FLAG_allow_natives_syntax = true;
   // Disable --always_opt, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  UNFLAG_SCOPE_EXTERNAL(always_opt);
+  v8::internal::FLAG_always_opt = false;
 
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
