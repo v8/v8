@@ -381,6 +381,7 @@ if (v8_enable_third_party_heap) {
   v8_enable_single_generation = true
   v8_enable_shared_ro_heap = false
   v8_enable_pointer_compression = false
+  v8_enable_pointer_compression_shared_cage = false
 }
 assert(!v8_enable_concurrent_marking || v8_enable_atomic_object_field_writes,
        "Concurrent marking requires atomic object field writes.")

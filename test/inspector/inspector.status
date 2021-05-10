@@ -213,6 +213,8 @@
 ################################################################################
 ['third_party_heap', {
   # Requires a second isolate
+  'debugger/command-line-api-with-arrow-function': [SKIP],
+  'regress/regress-crbug-1199919': [SKIP],
   'console/destroy-context-during-log': [SKIP],
   'console/scoped-variables': [SKIP],
   'counters/collection': [SKIP],
