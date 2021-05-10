@@ -37,6 +37,14 @@ namespace {
 constexpr size_t kPlatformMaxPages =
     std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
 
+constexpr uint64_t kNegativeGuardSize = uint64_t{2} * GB;
+
+#if V8_TARGET_ARCH_64_BIT
+constexpr uint64_t kFullGuardSize = uint64_t{10} * GB;
+#endif
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #if V8_TARGET_ARCH_MIPS64
 // MIPS64 has a user space of 2^40 bytes on most processors,
 // address space limits needs to be smaller.
@@ -48,12 +56,6 @@ constexpr size_t kAddressSpaceLimit = 0x4000000000L;  // 256 GiB
 constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4 GiB
 #else
 constexpr size_t kAddressSpaceLimit = 0xC0000000;  // 3 GiB
-#endif
-
-constexpr uint64_t kNegativeGuardSize = uint64_t{2} * GB;
-
-#if V8_TARGET_ARCH_64_BIT
-constexpr uint64_t kFullGuardSize = uint64_t{10} * GB;
 #endif
 
 std::atomic<uint64_t> reserved_address_space_{0};
@@ -75,7 +77,7 @@ enum class AllocationStatus {
 base::AddressRegion GetReservedRegion(bool has_guard_regions,
                                       void* buffer_start,
                                       size_t byte_capacity) {
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_64_BIT && V8_ENABLE_WEBASSEMBLY
   if (has_guard_regions) {
     // Guard regions always look like this:
     // |xxx(2GiB)xxx|.......(4GiB)..xxxxx|xxxxxx(4GiB)xxxxxx|
@@ -97,7 +99,7 @@ base::AddressRegion GetReservedRegion(bool has_guard_regions,
 }
 
 size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity) {
-#if V8_TARGET_ARCH_64_BIT
+#if V8_TARGET_ARCH_64_BIT && V8_ENABLE_WEBASSEMBLY
   if (has_guard_regions) return kFullGuardSize;
 #else
   DCHECK(!has_guard_regions);
@@ -110,7 +112,6 @@ void RecordStatus(Isolate* isolate, AllocationStatus status) {
   isolate->counters()->wasm_memory_allocation_result()->AddSample(
       static_cast<int>(status));
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
 #if DEBUG
@@ -301,25 +302,6 @@ void BackingStore::SetAllocatorFromIsolate(Isolate* isolate) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-bool BackingStore::ReserveAddressSpace(uint64_t num_bytes) {
-  uint64_t reservation_limit = kAddressSpaceLimit;
-  uint64_t old_count = reserved_address_space_.load(std::memory_order_relaxed);
-  while (true) {
-    if (old_count > reservation_limit) return false;
-    if (reservation_limit - old_count < num_bytes) return false;
-    if (reserved_address_space_.compare_exchange_weak(
-            old_count, old_count + num_bytes, std::memory_order_acq_rel)) {
-      return true;
-    }
-  }
-}
-
-void BackingStore::ReleaseReservation(uint64_t num_bytes) {
-  uint64_t old_reserved = reserved_address_space_.fetch_sub(num_bytes);
-  USE(old_reserved);
-  DCHECK_LE(num_bytes, old_reserved);
-}
-
 // Allocate a backing store for a Wasm memory. Always use the page allocator
 // and add guard regions.
 std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
@@ -340,6 +322,25 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
   return result;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+bool BackingStore::ReserveAddressSpace(uint64_t num_bytes) {
+  uint64_t reservation_limit = kAddressSpaceLimit;
+  uint64_t old_count = reserved_address_space_.load(std::memory_order_relaxed);
+  while (true) {
+    if (old_count > reservation_limit) return false;
+    if (reservation_limit - old_count < num_bytes) return false;
+    if (reserved_address_space_.compare_exchange_weak(
+            old_count, old_count + num_bytes, std::memory_order_acq_rel)) {
+      return true;
+    }
+  }
+}
+
+void BackingStore::ReleaseReservation(uint64_t num_bytes) {
+  uint64_t old_reserved = reserved_address_space_.fetch_sub(num_bytes);
+  USE(old_reserved);
+  DCHECK_LE(num_bytes, old_reserved);
+}
 
 std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     Isolate* isolate, size_t byte_length, size_t page_size,
@@ -415,9 +416,13 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   // Get a pointer to the start of the buffer, skipping negative guard region
   // if necessary.
+#if V8_ENABLE_WEBASSEMBLY
   byte* buffer_start = reinterpret_cast<byte*>(allocation_base) +
                        (guards ? kNegativeGuardSize : 0);
-
+#else
+  DCHECK(!guards);
+  byte* buffer_start = reinterpret_cast<byte*>(allocation_base);
+#endif
   //--------------------------------------------------------------------------
   // 3. Commit the initial pages (allow read/write).
   //--------------------------------------------------------------------------
