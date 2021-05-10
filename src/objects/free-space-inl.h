@@ -23,7 +23,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FreeSpace)
 
 RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
-int FreeSpace::Size() { return size(); }
+int FreeSpace::Size() { return size(kRelaxedLoad); }
 
 FreeSpace FreeSpace::next() {
   DCHECK(IsValid());
@@ -53,7 +53,7 @@ bool FreeSpace::IsValid() {
   CHECK_IMPLIES(!map_slot().contains_map_value(free_space_map.ptr()),
                 !heap->deserialization_complete() &&
                     map_slot().contains_map_value(kNullAddress));
-  CHECK_LE(kNextOffset + kTaggedSize, relaxed_read_size());
+  CHECK_LE(kNextOffset + kTaggedSize, size(kRelaxedLoad));
   return true;
 }
 

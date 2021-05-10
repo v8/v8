@@ -333,12 +333,16 @@
     TaggedField<Smi, offset>::Release_Store(*this, Smi::FromInt(value)); \
   }
 
+#define DECL_RELAXED_SMI_ACCESSORS(name) \
+  inline int name(RelaxedLoadTag) const; \
+  inline void set_##name(int value, RelaxedStoreTag);
+
 #define RELAXED_SMI_ACCESSORS(holder, name, offset)                      \
-  int holder::relaxed_read_##name() const {                              \
+  int holder::name(RelaxedLoadTag) const {                               \
     Smi value = TaggedField<Smi, offset>::Relaxed_Load(*this);           \
     return value.value();                                                \
   }                                                                      \
-  void holder::relaxed_write_##name(int value) {                         \
+  void holder::set_##name(int value, RelaxedStoreTag) {                  \
     TaggedField<Smi, offset>::Relaxed_Store(*this, Smi::FromInt(value)); \
   }
 

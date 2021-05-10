@@ -168,7 +168,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
   if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object);
   }
-  return static_cast<ResultType>(object.size());
+  return static_cast<ResultType>(object.size(kRelaxedLoad));
 }
 
 template <typename ConcreteVisitor>

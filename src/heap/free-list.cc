@@ -48,7 +48,7 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
   for (FreeSpace cur_node = top(); !cur_node.is_null();
        cur_node = cur_node.next()) {
     DCHECK(Page::FromHeapObject(cur_node)->CanAllocate());
-    size_t size = cur_node.size();
+    size_t size = cur_node.size(kRelaxedLoad);
     if (size >= minimum_size) {
       DCHECK_GE(available_, size);
       UpdateCountersAfterAllocation(size);
@@ -510,7 +510,7 @@ size_t FreeListCategory::SumFreeList() {
                                               ->isolate()
                                               ->root(RootIndex::kFreeSpaceMap)
                                               .ptr()));
-    sum += cur.relaxed_read_size();
+    sum += cur.size(kRelaxedLoad);
     cur = cur.next();
   }
   return sum;
