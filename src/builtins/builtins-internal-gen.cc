@@ -177,7 +177,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<BoolT> ShouldEmitRememberSet(TNode<Smi> remembered_set) {
-    return TaggedEqual(remembered_set, SmiConstant(EMIT_REMEMBERED_SET));
+    return TaggedEqual(remembered_set, SmiConstant(RememberedSetAction::kEmit));
   }
 
   template <typename Ret, typename Arg0, typename Arg1>

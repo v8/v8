@@ -485,7 +485,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
       dst_addr,
       dst_op.IsRegisterOffset() ? Operand(dst_op.regoffset().X())
                                 : Operand(dst_op.offset()),
-      EMIT_REMEMBERED_SET, kSaveFPRegs, wasm::WasmCode::kRecordWrite);
+      RememberedSetAction::kEmit, kSaveFPRegs, wasm::WasmCode::kRecordWrite);
   bind(&exit);
 }
 

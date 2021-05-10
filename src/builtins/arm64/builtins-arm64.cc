@@ -177,7 +177,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // -----------------------------------
 
     // Call the function.
-    __ InvokeFunctionWithNewTarget(x1, x3, argc, CALL_FUNCTION);
+    __ InvokeFunctionWithNewTarget(x1, x3, argc, InvokeType::kCall);
 
     // Restore the context from the frame.
     __ Ldr(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
@@ -337,7 +337,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Call the function.
   __ Mov(x0, x12);
-  __ InvokeFunctionWithNewTarget(x1, x3, x0, CALL_FUNCTION);
+  __ InvokeFunctionWithNewTarget(x1, x3, x0, InvokeType::kCall);
 
   // ----------- S t a t e -------------
   //  -- sp[0*kSystemPointerSize]: implicit receiver
@@ -968,8 +968,8 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
   __ StoreTaggedField(optimized_code,
                       FieldMemOperand(closure, JSFunction::kCodeOffset));
   __ RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
-                      kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+                      kLRHasNotBeenSaved, kDontSaveFPRegs,
+                      RememberedSetAction::kOmit, SmiCheck::kOmit);
 }
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
@@ -2623,7 +2623,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ Ldrh(x2,
           FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ InvokeFunctionCode(x1, no_reg, x2, x0, JUMP_FUNCTION);
+  __ InvokeFunctionCode(x1, no_reg, x2, x0, InvokeType::kJump);
 
   // The function is a "classConstructor", need to raise an exception.
   __ Bind(&class_constructor);

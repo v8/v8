@@ -114,7 +114,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // r6: new target
     {
       ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-      __ InvokeFunctionWithNewTarget(r4, r6, r3, CALL_FUNCTION);
+      __ InvokeFunctionWithNewTarget(r4, r6, r3, InvokeType::kCall);
     }
 
     // Restore context from the frame.
@@ -246,7 +246,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Call the function.
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-    __ InvokeFunctionWithNewTarget(r4, r6, r3, CALL_FUNCTION);
+    __ InvokeFunctionWithNewTarget(r4, r6, r3, InvokeType::kCall);
   }
 
   // ----------- S t a t e -------------
@@ -798,8 +798,8 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                       FieldMemOperand(closure, JSFunction::kCodeOffset), r0);
   __ mr(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
   __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
-                      kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+                      kLRHasNotBeenSaved, kDontSaveFPRegs,
+                      RememberedSetAction::kOmit, SmiCheck::kOmit);
 }
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
@@ -2124,7 +2124,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ LoadHalfWord(
       r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ InvokeFunctionCode(r4, no_reg, r5, r3, JUMP_FUNCTION);
+  __ InvokeFunctionCode(r4, no_reg, r5, r3, InvokeType::kJump);
 
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
