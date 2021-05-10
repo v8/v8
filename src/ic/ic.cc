@@ -774,23 +774,20 @@ void IC::SetCache(Handle<Name> name, const MaybeObjectHandle& handler) {
 }
 
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
-  Handle<Object> code;
+  Handle<Object> handler;
   if (lookup->state() == LookupIterator::ACCESS_CHECK) {
-    code = LoadHandler::LoadSlow(isolate());
+    handler = LoadHandler::LoadSlow(isolate());
   } else if (!lookup->IsFound()) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
     Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
-    code = LoadHandler::LoadFullChain(
+    handler = LoadHandler::LoadFullChain(
         isolate(), lookup_start_object_map(),
         MaybeObjectHandle(isolate()->factory()->null_value()), smi_handler);
   } else if (IsLoadGlobalIC() && lookup->state() == LookupIterator::JSPROXY) {
     // If there is proxy just install the slow stub since we need to call the
     // HasProperty trap for global loads. The ProxyGetProperty builtin doesn't
     // handle this case.
-    Handle<Smi> slow_handler = LoadHandler::LoadSlow(isolate());
-    Handle<JSProxy> holder = lookup->GetHolder<JSProxy>();
-    code = LoadHandler::LoadFromPrototype(isolate(), lookup_start_object_map(),
-                                          holder, slow_handler);
+    handler = LoadHandler::LoadSlow(isolate());
   } else {
     if (IsLoadGlobalIC()) {
       if (lookup->TryLookupCachedProperty()) {
@@ -805,12 +802,12 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
         return;
       }
     }
-    code = ComputeHandler(lookup);
+    handler = ComputeHandler(lookup);
   }
   // Can't use {lookup->name()} because the LookupIterator might be in
   // "elements" mode for keys that are strings representing integers above
   // JSArray::kMaxIndex.
-  SetCache(lookup->GetName(), code);
+  SetCache(lookup->GetName(), handler);
   TraceIC("LoadIC", lookup->GetName());
 }
 

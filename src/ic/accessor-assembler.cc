@@ -696,8 +696,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
                                     p->name(), p->slot(), p->vector());
 
     } else {
-      exit_point->ReturnCallRuntime(Runtime::kGetProperty, p->context(), holder,
-                                    p->name(), p->receiver());
+      exit_point->ReturnCallRuntime(Runtime::kGetProperty, p->context(),
+                                    p->lookup_start_object(), p->name(),
+                                    p->receiver());
     }
   }
 
