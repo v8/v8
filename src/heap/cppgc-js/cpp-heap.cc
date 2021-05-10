@@ -69,20 +69,8 @@ cppgc::HeapStatistics CppHeap::CollectStatistics(
 void CppHeap::CollectCustomSpaceStatisticsAtLastGC(
     std::vector<cppgc::CustomSpaceIndex> custom_spaces,
     std::unique_ptr<CustomSpaceStatisticsReceiver> receiver) {
-  cppgc::internal::HeapBase& heap_base =
-      internal::CppHeap::From(this)->AsBase();
-  // TODO(1181269): Use tasks to help the sweeper incrementally instead of
-  // finalizing atomically.
-  heap_base.sweeper().FinishIfRunning();
-  for (auto custom_space_index : custom_spaces) {
-    const cppgc::internal::BaseSpace* space =
-        heap_base.raw_heap().CustomSpace(custom_space_index);
-    size_t allocated_bytes = std::accumulate(
-        space->begin(), space->end(), 0, [](size_t sum, auto* page) {
-          return sum + page->AllocatedBytesAtLastGC();
-        });
-    receiver->AllocatedBytes(custom_space_index, allocated_bytes);
-  }
+  return internal::CppHeap::From(this)->CollectCustomSpaceStatisticsAtLastGC(
+      std::move(custom_spaces), std::move(receiver));
 }
 
 void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
@@ -501,6 +489,23 @@ void CppHeap::FinalizeIncrementalGarbageCollectionForTesting(
     CollectGarbageForTesting(stack_state);
   }
   sweeper_.FinishIfRunning();
+}
+
+void CppHeap::CollectCustomSpaceStatisticsAtLastGC(
+    std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+    std::unique_ptr<CustomSpaceStatisticsReceiver> receiver) {
+  // TODO(1181269): Use tasks to help the sweeper incrementally instead of
+  // finalizing atomically.
+  sweeper().FinishIfRunning();
+  for (auto custom_space_index : custom_spaces) {
+    const cppgc::internal::BaseSpace* space =
+        raw_heap().CustomSpace(custom_space_index);
+    size_t allocated_bytes = std::accumulate(
+        space->begin(), space->end(), 0, [](size_t sum, auto* page) {
+          return sum + page->AllocatedBytesAtLastGC();
+        });
+    receiver->AllocatedBytes(custom_space_index, allocated_bytes);
+  }
 }
 
 }  // namespace internal

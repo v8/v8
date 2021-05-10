@@ -60,6 +60,10 @@ class V8_EXPORT_PRIVATE CppHeap final
   void CollectGarbageForTesting(
       cppgc::internal::GarbageCollector::Config::StackState);
 
+  void CollectCustomSpaceStatisticsAtLastGC(
+      std::vector<cppgc::CustomSpaceIndex>,
+      std::unique_ptr<CustomSpaceStatisticsReceiver>);
+
   // v8::EmbedderHeapTracer interface.
   void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) final;
