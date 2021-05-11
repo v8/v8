@@ -4350,7 +4350,15 @@ void CodeGenerator::FinishCode() {}
 
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {
-  // __ EmitConstantPool();
+  int total_size = 0;
+  for (DeoptimizationExit* exit : deoptimization_exits_) {
+    total_size += (exit->kind() == DeoptimizeKind::kLazy)
+                      ? Deoptimizer::kLazyDeoptExitSize
+                      : Deoptimizer::kNonLazyDeoptExitSize;
+  }
+
+  __ CheckTrampolinePoolQuick(total_size);
+  DCHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
 }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
