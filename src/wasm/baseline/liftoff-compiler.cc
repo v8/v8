@@ -4814,8 +4814,9 @@ class LiftoffCompiler {
       ValueKind field_kind = ValueKind::kRef;
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       LoadNullValue(value.gp(), pinned);
-      StoreObjectField(obj.gp(), no_reg, WasmStruct::kHeaderSize, value, pinned,
-                       field_kind);
+      StoreObjectField(obj.gp(), no_reg,
+                       wasm::ObjectAccess::ToTagged(WasmStruct::kHeaderSize),
+                       value, pinned, field_kind);
       pinned.clear(value);
     }
     __ PushRegister(kRef, obj);
