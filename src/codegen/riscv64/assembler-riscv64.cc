@@ -747,7 +747,7 @@ bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
 }
 
 void Assembler::disassembleInstr(Instr instr) {
-  if (!FLAG_debug_riscv) return;
+  if (!FLAG_riscv_debug) return;
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   EmbeddedVector<char, 128> disasm_buffer;

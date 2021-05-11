@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 
 // UNIMPLEMENTED_ macro for RISCV.
 #ifdef DEBUG
@@ -732,12 +733,14 @@ class InstructionBase {
   }
 
   inline uint8_t InstructionSize() const {
-    return this->IsShortInstruction() ? kShortInstrSize : kInstrSize;
+    return (FLAG_riscv_c_extension && this->IsShortInstruction())
+               ? kShortInstrSize
+               : kInstrSize;
   }
 
   // Get the raw instruction bits.
   inline Instr InstructionBits() const {
-    if (this->IsShortInstruction()) {
+    if (FLAG_riscv_c_extension && this->IsShortInstruction()) {
       return 0x0000FFFF & (*reinterpret_cast<const ShortInstr*>(this));
     }
     return *reinterpret_cast<const Instr*>(this);
