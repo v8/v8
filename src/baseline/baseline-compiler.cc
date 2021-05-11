@@ -5,8 +5,9 @@
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
 #include "src/base/bits.h"
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||     \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
+    V8_TARGET_ARCH_MIPS
 
 #include <algorithm>
 #include <type_traits>
@@ -43,6 +44,10 @@
 #include "src/baseline/arm/baseline-compiler-arm-inl.h"
 #elif V8_TARGET_ARCH_RISCV64
 #include "src/baseline/riscv64/baseline-compiler-riscv64-inl.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/baseline/mips64/baseline-compiler-mips64-inl.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "src/baseline/mips/baseline-compiler-mips-inl.h"
 #else
 #error Unsupported target architecture.
 #endif

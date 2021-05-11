@@ -73,14 +73,13 @@ constexpr Register GrowArrayElementsDescriptor::KeyRegister() { return a3; }
 
 // static
 constexpr Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  return a3;
+  return a2;
 }
 
 // static
 constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
   // TODO(v8:11421): Implement on this platform.
-  return t0;
+  return a3;
 }
 
 // static
@@ -188,6 +187,9 @@ constexpr auto CompareDescriptor::registers() { return RegisterArray(a1, a0); }
 
 // static
 constexpr auto Compare_BaselineDescriptor::registers() {
+  // a1: left operand
+  // a0: right operand
+  // a2: feedback slot
   return RegisterArray(a1, a0, a2);
 }
 
