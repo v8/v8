@@ -22,6 +22,7 @@ OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObject)
 CAST_ACCESSOR(PropertyArray)
 
 SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
+SYNCHRONIZED_SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
 
 Object PropertyArray::get(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
@@ -61,6 +62,10 @@ int PropertyArray::length() const {
 void PropertyArray::initialize_length(int len) {
   DCHECK(LengthField::is_valid(len));
   set_length_and_hash(len);
+}
+
+int PropertyArray::synchronized_length() const {
+  return LengthField::decode(synchronized_length_and_hash());
 }
 
 int PropertyArray::Hash() const { return HashField::decode(length_and_hash()); }

@@ -2332,7 +2332,8 @@ int HeapObject::SizeFromMap(Map map) const {
         SwissNameDictionary::unchecked_cast(*this).Capacity());
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
-    return PropertyArray::SizeFor(PropertyArray::cast(*this).length());
+    return PropertyArray::SizeFor(
+        PropertyArray::cast(*this).synchronized_length());
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
