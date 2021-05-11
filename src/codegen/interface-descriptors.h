@@ -40,6 +40,7 @@ namespace internal {
   V(CallFunctionTemplate)                \
   V(CallTrampoline)                      \
   V(CallTrampoline_Baseline)             \
+  V(CallTrampoline_Baseline_Compact)     \
   V(CallTrampoline_WithFeedback)         \
   V(CallVarargs)                         \
   V(CallWithArrayLike)                   \
@@ -1839,6 +1840,28 @@ class BinaryOp_WithFeedbackDescriptor
                          MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kFeedbackVector
   DECLARE_DESCRIPTOR(BinaryOp_WithFeedbackDescriptor)
+};
+
+class CallTrampoline_Baseline_CompactDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CallTrampoline_Baseline_CompactDescriptor> {
+ public:
+  using ArgumentCountField = base::BitField<uint32_t, 0, 8>;
+  using SlotField = base::BitField<uintptr_t, 8, 24>;
+
+  static bool EncodeBitField(uint32_t argc, uintptr_t slot, uint32_t* out) {
+    if (ArgumentCountField::is_valid(argc) && SlotField::is_valid(slot)) {
+      *out = ArgumentCountField::encode(argc) | SlotField::encode(slot);
+      return true;
+    }
+    return false;
+  }
+
+  DEFINE_PARAMETERS_NO_CONTEXT_VARARGS(kFunction, kBitField)
+  DEFINE_PARAMETER_TYPES(
+      MachineType::AnyTagged(),  // kFunction
+      MachineType::Uint32())     // kBitField = ArgumentCountField | SlotField
+  DECLARE_DESCRIPTOR(CallTrampoline_Baseline_CompactDescriptor)
 };
 
 class CallTrampoline_BaselineDescriptor

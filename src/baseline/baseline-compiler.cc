@@ -1121,6 +1121,20 @@ void BaselineCompiler::VisitGetSuperConstructor() {
 }
 
 namespace {
+constexpr Builtins::Name ConvertReceiverModeToCompactBuiltin(
+    ConvertReceiverMode mode) {
+  switch (mode) {
+    case ConvertReceiverMode::kAny:
+      return Builtins::kCall_ReceiverIsAny_Baseline_Compact;
+      break;
+    case ConvertReceiverMode::kNullOrUndefined:
+      return Builtins::kCall_ReceiverIsNullOrUndefined_Baseline_Compact;
+      break;
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      return Builtins::kCall_ReceiverIsNotNullOrUndefined_Baseline_Compact;
+      break;
+  }
+}
 constexpr Builtins::Name ConvertReceiverModeToBuiltin(
     ConvertReceiverMode mode) {
   switch (mode) {
@@ -1140,11 +1154,20 @@ constexpr Builtins::Name ConvertReceiverModeToBuiltin(
 template <ConvertReceiverMode kMode, typename... Args>
 void BaselineCompiler::BuildCall(uint32_t slot, uint32_t arg_count,
                                  Args... args) {
-  CallBuiltin<ConvertReceiverModeToBuiltin(kMode)>(
-      RegisterOperand(0),  // kFunction
-      arg_count,           // kActualArgumentsCount
-      slot,                // kSlot
-      args...);            // Arguments
+  uint32_t bitfield;
+  if (CallTrampoline_Baseline_CompactDescriptor::EncodeBitField(arg_count, slot,
+                                                                &bitfield)) {
+    CallBuiltin<ConvertReceiverModeToCompactBuiltin(kMode)>(
+        RegisterOperand(0),  // kFunction
+        bitfield,            // kActualArgumentsCount | kSlot
+        args...);            // Arguments
+  } else {
+    CallBuiltin<ConvertReceiverModeToBuiltin(kMode)>(
+        RegisterOperand(0),  // kFunction
+        arg_count,           // kActualArgumentsCount
+        slot,                // kSlot
+        args...);            // Arguments
+  }
 }
 
 void BaselineCompiler::VisitCallAnyReceiver() {

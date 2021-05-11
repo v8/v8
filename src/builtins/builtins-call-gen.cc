@@ -64,43 +64,45 @@ void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
       masm->isolate()->builtins()->CallFunction());
 }
 
+// TODO(cbruni): Try reusing code between builtin versions to avoid binary
+// overhead.
+TF_BUILTIN(Call_ReceiverIsNullOrUndefined_Baseline_Compact,
+           CallOrConstructBuiltinsAssembler) {
+  auto receiver = UndefinedConstant();
+  CallReceiver<Descriptor>(Builtins::kCall_ReceiverIsNullOrUndefined, receiver);
+}
+
 TF_BUILTIN(Call_ReceiverIsNullOrUndefined_Baseline,
            CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-  auto context = LoadContextFromBaseline();
-  auto feedback_vector = LoadFeedbackVectorFromBaseline();
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
   auto receiver = UndefinedConstant();
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
-  TailCallBuiltin(Builtins::kCall_ReceiverIsNullOrUndefined, context, target,
-                  argc);
+  CallReceiver<Descriptor>(Builtins::kCall_ReceiverIsNullOrUndefined, argc,
+                           slot, receiver);
+}
+
+TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_Baseline_Compact,
+           CallOrConstructBuiltinsAssembler) {
+  CallReceiver<Descriptor>(Builtins::kCall_ReceiverIsNotNullOrUndefined);
 }
 
 TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_Baseline,
            CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-  auto context = LoadContextFromBaseline();
-  auto feedback_vector = LoadFeedbackVectorFromBaseline();
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
-  CodeStubArguments args(this, argc);
-  auto receiver = args.GetReceiver();
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
-  TailCallBuiltin(Builtins::kCall_ReceiverIsNotNullOrUndefined, context, target,
-                  argc);
+  CallReceiver<Descriptor>(Builtins::kCall_ReceiverIsNotNullOrUndefined, argc,
+                           slot);
+}
+
+TF_BUILTIN(Call_ReceiverIsAny_Baseline_Compact,
+           CallOrConstructBuiltinsAssembler) {
+  CallReceiver<Descriptor>(Builtins::kCall_ReceiverIsAny);
 }
 
 TF_BUILTIN(Call_ReceiverIsAny_Baseline, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-  auto context = LoadContextFromBaseline();
-  auto feedback_vector = LoadFeedbackVectorFromBaseline();
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
-  CodeStubArguments args(this, argc);
-  auto receiver = args.GetReceiver();
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
-  TailCallBuiltin(Builtins::kCall_ReceiverIsAny, context, target, argc);
+  CallReceiver<Descriptor>(Builtins::kCall_ReceiverIsAny, argc, slot);
 }
 
 TF_BUILTIN(Call_ReceiverIsNullOrUndefined_WithFeedback,
@@ -455,6 +457,41 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
                                  length, args_count, context,
                                  var_elements_kind.value());
   }
+}
+
+template <class Descriptor>
+void CallOrConstructBuiltinsAssembler::CallReceiver(
+    Builtins::Name id, base::Optional<TNode<Object>> receiver) {
+  static_assert(std::is_same<Descriptor,
+                             CallTrampoline_Baseline_CompactDescriptor>::value,
+                "Incompatible Descriptor");
+  auto bitfield = UncheckedParameter<Word32T>(Descriptor::kBitField);
+  TNode<Int32T> argc =
+      Signed(DecodeWord32<
+             CallTrampoline_Baseline_CompactDescriptor::ArgumentCountField>(
+          bitfield));
+  TNode<UintPtrT> slot = ChangeUint32ToWord(
+      DecodeWord32<CallTrampoline_Baseline_CompactDescriptor::SlotField>(
+          bitfield));
+  CallReceiver<Descriptor>(id, argc, slot, receiver);
+}
+
+template <class Descriptor>
+void CallOrConstructBuiltinsAssembler::CallReceiver(
+    Builtins::Name id, TNode<Int32T> argc, TNode<UintPtrT> slot,
+    base::Optional<TNode<Object>> maybe_receiver) {
+  auto target = Parameter<Object>(Descriptor::kFunction);
+  auto context = LoadContextFromBaseline();
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  TNode<Object> receiver;
+  if (maybe_receiver) {
+    receiver = *maybe_receiver;
+  } else {
+    CodeStubArguments args(this, argc);
+    receiver = args.GetReceiver();
+  }
+  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
+  TailCallBuiltin(id, context, target, argc);
 }
 
 TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {

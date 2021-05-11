@@ -50,8 +50,13 @@ namespace internal {
   ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
   ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
   ASM(Call_ReceiverIsAny, CallTrampoline)                                      \
+  TFC(Call_ReceiverIsNullOrUndefined_Baseline_Compact,                         \
+      CallTrampoline_Baseline_Compact)                                         \
   TFC(Call_ReceiverIsNullOrUndefined_Baseline, CallTrampoline_Baseline)        \
+  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline_Compact,                      \
+      CallTrampoline_Baseline_Compact)                                         \
   TFC(Call_ReceiverIsNotNullOrUndefined_Baseline, CallTrampoline_Baseline)     \
+  TFC(Call_ReceiverIsAny_Baseline_Compact, CallTrampoline_Baseline_Compact)    \
   TFC(Call_ReceiverIsAny_Baseline, CallTrampoline_Baseline)                    \
   TFC(Call_ReceiverIsNullOrUndefined_WithFeedback,                             \
       CallTrampoline_WithFeedback)                                             \
