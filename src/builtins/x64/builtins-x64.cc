@@ -562,7 +562,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // rdx : new_target
 
     // Clear the context before we push it when entering the internal frame.
-    __ Set(rsi, 0);
+    __ Move(rsi, 0);
 
     // Enter an internal frame.
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -1903,7 +1903,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // Function.prototype.apply() yet, we use a normal Call builtin here.
   __ bind(&no_arguments);
   {
-    __ Set(rax, 0);
+    __ Move(rax, 0);
     __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
   }
 }
@@ -2106,7 +2106,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ AllocateStackSpace(kScratchRegister);
     __ leaq(num, Operand(rax, 2));  // Number of words to copy.
                                     // +2 for receiver and return address.
-    __ Set(current, 0);
+    __ Move(current, 0);
     __ jmp(&check);
     __ bind(&copy);
     __ movq(kScratchRegister,
@@ -2124,7 +2124,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   {
     Register value = scratch;
     Register src = rbx, dest = r8, num = rcx, current = r9;
-    __ Set(current, 0);
+    __ Move(current, 0);
     Label done, push, loop;
     __ bind(&loop);
     __ cmpl(current, num);
@@ -2208,7 +2208,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ AllocateStackSpace(kScratchRegister);
       __ leaq(num, Operand(rax, 2));  // Number of words to copy.
                                       // +2 for receiver and return address.
-      __ Set(current, 0);
+      __ Move(current, 0);
       __ jmp(&check);
       __ bind(&copy);
       __ movq(kScratchRegister,
@@ -4191,7 +4191,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ movq(rax, Operand(rbp, StandardFrameConstants::kFunctionOffset));
   __ bind(&context_check);
   __ movq(arg_reg_1, rax);
-  __ Set(arg_reg_2, static_cast<int>(deopt_kind));
+  __ Move(arg_reg_2, static_cast<int>(deopt_kind));
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction

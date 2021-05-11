@@ -1737,7 +1737,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
       }
       if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 1);
+        __ Move(i.OutputRegister(1), 1);
         Label done;
         Label fail;
         __ Move(kScratchDoubleReg, static_cast<float>(INT64_MIN));
@@ -1755,7 +1755,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // INT64_MIN, then the conversion fails.
         __ j(no_overflow, &done, Label::kNear);
         __ bind(&fail);
-        __ Set(i.OutputRegister(1), 0);
+        __ Move(i.OutputRegister(1), 0);
         __ bind(&done);
       }
       break;
@@ -1766,7 +1766,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Cvttsd2siq(i.OutputRegister(0), i.InputOperand(0));
       }
       if (instr->OutputCount() > 1) {
-        __ Set(i.OutputRegister(1), 1);
+        __ Move(i.OutputRegister(1), 1);
         Label done;
         Label fail;
         __ Move(kScratchDoubleReg, static_cast<double>(INT64_MIN));
@@ -1784,31 +1784,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // INT64_MIN, then the conversion fails.
         __ j(no_overflow, &done, Label::kNear);
         __ bind(&fail);
-        __ Set(i.OutputRegister(1), 0);
+        __ Move(i.OutputRegister(1), 0);
         __ bind(&done);
       }
       break;
     case kSSEFloat32ToUint64: {
       Label fail;
-      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 0);
+      if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttss2uiq(i.OutputRegister(), i.InputDoubleRegister(0), &fail);
       } else {
         __ Cvttss2uiq(i.OutputRegister(), i.InputOperand(0), &fail);
       }
-      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 1);
+      if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 1);
       __ bind(&fail);
       break;
     }
     case kSSEFloat64ToUint64: {
       Label fail;
-      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 0);
+      if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttsd2uiq(i.OutputRegister(), i.InputDoubleRegister(0), &fail);
       } else {
         __ Cvttsd2uiq(i.OutputRegister(), i.InputOperand(0), &fail);
       }
-      if (instr->OutputCount() > 1) __ Set(i.OutputRegister(1), 1);
+      if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 1);
       __ bind(&fail);
       break;
     }
@@ -4281,7 +4281,7 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
     __ decl(rax);
     __ j(not_zero, &nodeopt, Label::kNear);
 
-    __ Set(rax, FLAG_deopt_every_n_times);
+    __ Move(rax, FLAG_deopt_every_n_times);
     __ store_rax(counter);
     __ popq(rax);
     __ popfq();
@@ -4744,7 +4744,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         if (RelocInfo::IsWasmReference(src.rmode())) {
           __ movq(dst, Immediate64(src.ToInt64(), src.rmode()));
         } else {
-          __ Set(dst, src.ToInt64());
+          __ Move(dst, src.ToInt64());
         }
         break;
       case Constant::kFloat32:
@@ -4794,7 +4794,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ movq(dst, Immediate(src.ToInt32()));
           return;
         case Constant::kInt64:
-          __ Set(dst, src.ToInt64());
+          __ Move(dst, src.ToInt64());
           return;
         default:
           break;

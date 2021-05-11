@@ -625,7 +625,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  Set(rax, num_arguments);
+  Move(rax, num_arguments);
   LoadAddress(rbx, ExternalReference::Create(f));
   Handle<Code> code =
       CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
@@ -646,7 +646,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   const Runtime::Function* function = Runtime::FunctionForId(fid);
   DCHECK_EQ(1, function->result_size);
   if (function->nargs >= 0) {
-    Set(rax, function->nargs);
+    Move(rax, function->nargs);
   }
   JumpToExternalReference(ExternalReference::Create(fid));
 }
@@ -1073,7 +1073,7 @@ void ConvertFloatToUint64(TurboAssembler* tasm, Register dst,
   // The input value is within uint64 range and the second conversion worked
   // successfully, but we still have to undo the subtraction we did
   // earlier.
-  tasm->Set(kScratchRegister, 0x8000000000000000);
+  tasm->Move(kScratchRegister, 0x8000000000000000);
   tasm->orq(dst, kScratchRegister);
   tasm->bind(&success);
 }
@@ -1095,26 +1095,6 @@ void TurboAssembler::Cvttss2uiq(Register dst, XMMRegister src, Label* fail) {
   ConvertFloatToUint64<XMMRegister, false>(this, dst, src, fail);
 }
 
-void TurboAssembler::Set(Register dst, int64_t x) {
-  if (x == 0) {
-    xorl(dst, dst);
-  } else if (is_uint32(x)) {
-    movl(dst, Immediate(static_cast<uint32_t>(x)));
-  } else if (is_int32(x)) {
-    movq(dst, Immediate(static_cast<int32_t>(x)));
-  } else {
-    movq(dst, x);
-  }
-}
-
-void TurboAssembler::Set(Operand dst, intptr_t x) {
-  if (is_int32(x)) {
-    movq(dst, Immediate(static_cast<int32_t>(x)));
-  } else {
-    Set(kScratchRegister, x);
-    movq(dst, kScratchRegister);
-  }
-}
 
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.
@@ -1122,36 +1102,6 @@ void TurboAssembler::Set(Operand dst, intptr_t x) {
 Register TurboAssembler::GetSmiConstant(Smi source) {
   Move(kScratchRegister, source);
   return kScratchRegister;
-}
-
-void TurboAssembler::Move(Register dst, Smi source) {
-  STATIC_ASSERT(kSmiTag == 0);
-  int value = source.value();
-  if (value == 0) {
-    xorl(dst, dst);
-  } else if (SmiValuesAre32Bits() || value < 0) {
-    Move(dst, source.ptr(), RelocInfo::NONE);
-  } else {
-    uint32_t uvalue = static_cast<uint32_t>(source.ptr());
-    if (uvalue <= 0xFF) {
-      // Emit shorter instructions for small Smis
-      xorl(dst, dst);
-      movb(dst, Immediate(uvalue));
-    } else {
-      movl(dst, Immediate(uvalue));
-    }
-  }
-}
-
-void TurboAssembler::Move(Register dst, ExternalReference ext) {
-  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
-  // non-isolate-independent code. In many cases it might be cheaper than
-  // embedding the relocatable value.
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadExternalReference(dst, ext);
-    return;
-  }
-  movq(dst, Immediate64(ext.address(), RelocInfo::EXTERNAL_REFERENCE));
 }
 
 void MacroAssembler::Cmp(Register dst, int32_t src) {
@@ -1375,6 +1325,39 @@ void TurboAssembler::Push(Smi source) {
 
 // ----------------------------------------------------------------------------
 
+void TurboAssembler::Move(Register dst, Smi source) {
+  STATIC_ASSERT(kSmiTag == 0);
+  int value = source.value();
+  if (value == 0) {
+    xorl(dst, dst);
+  } else if (SmiValuesAre32Bits() || value < 0) {
+    Move(dst, source.ptr(), RelocInfo::NONE);
+  } else {
+    uint32_t uvalue = static_cast<uint32_t>(source.ptr());
+    Move(dst, uvalue);
+  }
+}
+
+void TurboAssembler::Move(Operand dst, intptr_t x) {
+  if (is_int32(x)) {
+    movq(dst, Immediate(static_cast<int32_t>(x)));
+  } else {
+    Move(kScratchRegister, x);
+    movq(dst, kScratchRegister);
+  }
+}
+
+void TurboAssembler::Move(Register dst, ExternalReference ext) {
+  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+  // non-isolate-independent code. In many cases it might be cheaper than
+  // embedding the relocatable value.
+  if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadExternalReference(dst, ext);
+    return;
+  }
+  movq(dst, Immediate64(ext.address(), RelocInfo::EXTERNAL_REFERENCE));
+}
+
 void TurboAssembler::Move(Register dst, Register src) {
   if (dst != src) {
     movq(dst, src);
@@ -1382,7 +1365,13 @@ void TurboAssembler::Move(Register dst, Register src) {
 }
 
 void TurboAssembler::Move(Register dst, Operand src) { movq(dst, src); }
-void TurboAssembler::Move(Register dst, Immediate src) { movl(dst, src); }
+void TurboAssembler::Move(Register dst, Immediate src) {
+  if (src.rmode() == RelocInfo::Mode::NONE) {
+    Move(dst, src.value());
+  } else {
+    movl(dst, src);
+  }
+}
 
 void TurboAssembler::Move(XMMRegister dst, XMMRegister src) {
   if (dst != src) {
@@ -1521,7 +1510,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
   Register counter = scratch;
   Label loop, entry;
   if (order == PushArrayOrder::kReverse) {
-    Set(counter, 0);
+    Move(counter, 0);
     jmp(&entry);
     bind(&loop);
     Push(Operand(array, counter, times_system_pointer_size, 0));
@@ -2903,7 +2892,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
       // Extra words are the receiver and the return address (if a jump).
       int extra_words = type == InvokeType::kCall ? 1 : 2;
       leaq(num, Operand(rax, extra_words));  // Number of words to copy.
-      Set(current, 0);
+      Move(current, 0);
       // Fall-through to the loop body because there are non-zero words to copy.
       bind(&copy);
       movq(kScratchRegister,
@@ -3340,7 +3329,7 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {
   // TODO(turbofan): Perhaps, we want to put an lfence here.
-  Set(kSpeculationPoisonRegister, -1);
+  Move(kSpeculationPoisonRegister, -1);
 }
 
 void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,

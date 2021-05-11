@@ -81,7 +81,7 @@ inline Operand GetMemOp(LiftoffAssembler* assm, Register addr, Register offset,
   }
   // Offset immediate does not fit in 31 bits.
   Register scratch = kScratchRegister;
-  assm->Set(scratch, offset_imm);
+  assm->TurboAssembler::Move(scratch, offset_imm);
   if (offset != no_reg) assm->addq(scratch, offset);
   return Operand(addr, scratch, times_1, 0);
 }
@@ -274,7 +274,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       break;
     case kI64:
       if (RelocInfo::IsNone(rmode)) {
-        TurboAssembler::Set(reg.gp(), value.to_i64());
+        TurboAssembler::Move(reg.gp(), value.to_i64());
       } else {
         movq(reg.gp(), Immediate64(value.to_i64(), rmode));
       }
@@ -1259,7 +1259,7 @@ void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                                      int64_t imm) {
   if (!is_int32(imm)) {
-    TurboAssembler::Set(kScratchRegister, imm);
+    TurboAssembler::Move(kScratchRegister, imm);
     if (lhs.gp() == dst.gp()) {
       addq(dst.gp(), kScratchRegister);
     } else {

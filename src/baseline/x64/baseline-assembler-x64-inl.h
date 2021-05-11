@@ -200,7 +200,7 @@ void BaselineAssembler::Move(Register output, Handle<HeapObject> value) {
   __ Move(output, value);
 }
 void BaselineAssembler::Move(Register output, int32_t value) {
-  __ Move(output, Immediate(value));
+  __ Move(output, value);
 }
 void BaselineAssembler::MoveMaybeSmi(Register output, Register source) {
   __ mov_tagged(output, source);

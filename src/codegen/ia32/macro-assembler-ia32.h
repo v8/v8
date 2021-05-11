@@ -119,6 +119,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void CheckStackAlignment();
 
   // Move a constant into a destination using the most efficient encoding.
+  void Move(Register dst, int32_t x) {
+    if (x == 0) {
+      xor_(dst, dst);
+    } else {
+      mov(dst, Immediate(x));
+    }
+  }
   void Move(Register dst, const Immediate& src);
   void Move(Register dst, Smi src) { Move(dst, Immediate(src)); }
   void Move(Register dst, Handle<HeapObject> src);
@@ -492,15 +499,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   using TurboAssembler::TurboAssembler;
-
-  // Load a register with a long value as efficiently as possible.
-  void Set(Register dst, int32_t x) {
-    if (x == 0) {
-      xor_(dst, dst);
-    } else {
-      mov(dst, Immediate(x));
-    }
-  }
 
   void PushRoot(RootIndex index);
 

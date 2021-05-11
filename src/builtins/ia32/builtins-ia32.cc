@@ -1938,7 +1938,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // arguments to the receiver.
   __ bind(&no_arguments);
   {
-    __ Set(eax, 0);
+    __ Move(eax, 0);
     __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
   }
 }
@@ -2294,7 +2294,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ AllocateStackSpace(scratch);
       // Include return address and receiver.
       __ add(eax, Immediate(2));
-      __ Set(current, 0);
+      __ Move(current, 0);
       __ jmp(&check);
       // Loop.
       __ bind(&copy);

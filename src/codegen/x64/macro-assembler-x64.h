@@ -122,10 +122,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-  // Load a register with a long value as efficiently as possible.
-  void Set(Register dst, int64_t x);
-  void Set(Operand dst, intptr_t x);
-
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, RootIndex index) override;
   void LoadRoot(Operand destination, RootIndex index) {
@@ -252,6 +248,22 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 
   void LoadMap(Register destination, Register object);
 
+  void Move(Register dst, intptr_t x) {
+    if (x == 0) {
+      xorl(dst, dst);
+    } else if (is_uint8(x)) {
+      xorl(dst, dst);
+      movb(dst, Immediate(static_cast<uint32_t>(x)));
+    } else if (is_uint32(x)) {
+      movl(dst, Immediate(static_cast<uint32_t>(x)));
+    } else if (is_int32(x)) {
+      // "movq reg64, imm32" is sign extending.
+      movq(dst, Immediate(static_cast<int32_t>(x)));
+    } else {
+      movq(dst, Immediate64(x));
+    }
+  }
+  void Move(Operand dst, intptr_t x);
   void Move(Register dst, Smi source);
 
   void Move(Operand dst, Smi source) {
@@ -259,13 +271,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
     movq(dst, constant);
   }
 
-  void Move(Register dst, TaggedIndex source) {
-    movl(dst, Immediate(static_cast<uint32_t>(source.ptr())));
-  }
+  void Move(Register dst, TaggedIndex source) { Move(dst, source.ptr()); }
 
-  void Move(Operand dst, TaggedIndex source) {
-    movl(dst, Immediate(static_cast<uint32_t>(source.ptr())));
-  }
+  void Move(Operand dst, TaggedIndex source) { Move(dst, source.ptr()); }
 
   void Move(Register dst, ExternalReference ext);
 

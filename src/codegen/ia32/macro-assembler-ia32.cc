@@ -1520,7 +1520,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
       // Extra words are the receiver and the return address (if a jump).
       int extra_words = type == InvokeType::kCall ? 1 : 2;
       lea(num, Operand(eax, extra_words));  // Number of words to copy.
-      Set(current, 0);
+      Move(current, 0);
       // Fall-through to the loop body because there are non-zero words to copy.
       bind(&copy);
       mov(scratch, Operand(src, current, times_system_pointer_size, 0));

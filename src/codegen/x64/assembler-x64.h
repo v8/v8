@@ -124,6 +124,9 @@ class Immediate {
     DCHECK(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
   }
 
+  int32_t value() const { return value_; }
+  RelocInfo::Mode rmode() const { return rmode_; }
+
  private:
   const int32_t value_;
   const RelocInfo::Mode rmode_ = RelocInfo::NONE;
