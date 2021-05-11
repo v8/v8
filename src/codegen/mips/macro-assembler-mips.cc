@@ -4493,8 +4493,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   }
 
   Label done;
-  InvokePrologue(expected_parameter_count, actual_parameter_count, &done,
-                 ftype);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, type);
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
