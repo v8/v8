@@ -5781,7 +5781,7 @@ TEST(Regress598319) {
         v8::HandleScope scope(CcTest::isolate());
         Handle<JSArray> js_array = isolate->factory()->NewJSArrayWithElements(
             Handle<FixedArray>(arr.get(), isolate));
-        js_array->GetElementsAccessor()->Shift(js_array);
+        js_array->GetElementsAccessor()->Shift(js_array).Check();
       }
       break;
     }
