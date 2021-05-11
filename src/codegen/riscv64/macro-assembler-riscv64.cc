@@ -1486,7 +1486,7 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
     UseScratchRegisterScope temps(this);
     int count = li_estimate(j.immediate(), temps.hasAvailable());
     int reverse_count = li_estimate(~j.immediate(), temps.hasAvailable());
-    if (!FLAG_disable_riscv_constant_pool && count >= 4 && reverse_count >= 4) {
+    if (FLAG_riscv_constant_pool && count >= 4 && reverse_count >= 4) {
       // Ld a Address from a constant pool.
       RecordEntry((uint64_t)j.immediate(), j.rmode());
       auipc(rd, 0);
@@ -3857,7 +3857,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 void MacroAssembler::JumpToInstructionStream(Address entry) {
   // Ld a Address from a constant pool.
   // Record a value into constant pool.
-  if (FLAG_disable_riscv_constant_pool) {
+  if (!FLAG_riscv_constant_pool) {
     li(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   } else {
     RecordEntry(entry, RelocInfo::OFF_HEAP_TARGET);

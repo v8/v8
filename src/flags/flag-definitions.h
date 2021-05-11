@@ -1320,10 +1320,15 @@ DEFINE_BOOL(partial_constant_pool, true,
 DEFINE_STRING(sim_arm64_optional_features, "none",
               "enable optional features on the simulator for testing: none or "
               "all")
-DEFINE_BOOL(debug_riscv, false, "enable debug prints")
 
-DEFINE_BOOL(disable_riscv_constant_pool, false,
-            "disable constant pool (RISCV only)")
+#if defined(V8_TARGET_ARCH_RISCV64)
+DEFINE_BOOL(riscv_trap_to_simulator_debugger, false,
+            "enable simulator trap to debugger")
+DEFINE_BOOL(riscv_debug, false, "enable debug prints")
+
+DEFINE_BOOL(riscv_constant_pool, true,
+            "enable constant pool (RISCV only)")
+#endif
 
 // Controlling source positions for Torque/CSA code.
 DEFINE_BOOL(enable_source_at_csa_bind, false,

@@ -1105,7 +1105,7 @@ int64_t Simulator::get_pc() const { return registers_[pc]; }
 
 // TODO(plind): refactor this messy debug code when we do unaligned access.
 void Simulator::DieOrDebug() {
-  if ((1)) {  // Flag for this was removed.
+  if (FLAG_riscv_trap_to_simulator_debugger) {
     RiscvDebugger dbg(this);
     dbg.Debug();
   } else {

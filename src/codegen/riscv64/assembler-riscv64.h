@@ -53,7 +53,7 @@ namespace v8 {
 namespace internal {
 
 #define DEBUG_PRINTF(...) \
-  if (FLAG_debug_riscv) { \
+  if (FLAG_riscv_debug) { \
     printf(__VA_ARGS__);  \
   }
 
