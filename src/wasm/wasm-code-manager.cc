@@ -753,6 +753,26 @@ bool WasmCodeAllocator::SetWritable(bool writable) {
   return true;
 }
 
+bool WasmCodeAllocator::SetThreadWritable(bool writable) {
+  static thread_local int writable_nesting_level = 0;
+  if (writable) {
+    if (++writable_nesting_level > 1) return true;
+  } else {
+    DCHECK_GT(writable_nesting_level, 0);
+    if (--writable_nesting_level > 0) return true;
+  }
+  writable = writable_nesting_level > 0;
+
+  int key = code_manager_->memory_protection_key_;
+
+  MemoryProtectionKeyPermission permissions =
+      writable ? kNoRestrictions : kDisableWrite;
+
+  TRACE_HEAP("Setting memory protection key %d to writable: %d.\n", key,
+             writable);
+  return SetPermissionsForMemoryProtectionKey(key, permissions);
+}
+
 void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   // Zap code area and collect freed code regions.
   DisjointAllocationPool freed_regions;
@@ -1746,12 +1766,22 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
   // method.
   PageAllocator::Permission permission = PageAllocator::kReadWriteExecute;
 
-  TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
-             region.begin(), region.end());
+  bool success;
+  if (FLAG_wasm_memory_protection_keys) {
+    TRACE_HEAP(
+        "Setting rwx permissions and memory protection key %d for 0x%" PRIxPTR
+        ":0x%" PRIxPTR "\n",
+        memory_protection_key_, region.begin(), region.end());
+    success = SetPermissionsAndMemoryProtectionKey(
+        GetPlatformPageAllocator(), region, permission, memory_protection_key_);
+  } else {
+    TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
+               region.begin(), region.end());
+    success = SetPermissions(GetPlatformPageAllocator(), region.begin(),
+                             region.size(), permission);
+  }
 
-  if (!SetPermissions(GetPlatformPageAllocator(), region.begin(), region.size(),
-                      permission)) {
-    // Highly unlikely.
+  if (V8_UNLIKELY(!success)) {
     V8::FatalProcessOutOfMemory(
         nullptr,
         "WasmCodeManager::Commit: Cannot make pre-reserved region writable");
@@ -1770,8 +1800,13 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   USE(old_committed);
   TRACE_HEAP("Discarding system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  CHECK(allocator->SetPermissions(reinterpret_cast<void*>(region.begin()),
-                                  region.size(), PageAllocator::kNoAccess));
+  if (FLAG_wasm_memory_protection_keys) {
+    CHECK(SetPermissionsAndMemoryProtectionKey(
+        allocator, region, PageAllocator::kNoAccess, kNoMemoryProtectionKey));
+  } else {
+    CHECK(SetPermissions(allocator, region.begin(), region.size(),
+                         PageAllocator::kNoAccess));
+  }
 }
 
 void WasmCodeManager::AssignRange(base::AddressRegion region,
@@ -2235,14 +2270,29 @@ WasmCode* WasmCodeManager::LookupCode(Address pc) const {
 NativeModuleModificationScope::NativeModuleModificationScope(
     NativeModule* native_module)
     : native_module_(native_module) {
-  if (FLAG_wasm_write_protect_code_memory && native_module_) {
+  DCHECK_NOT_NULL(native_module_);
+  if (FLAG_wasm_memory_protection_keys) {
+    bool success = native_module_->SetThreadWritable(true);
+    if (!success && FLAG_wasm_write_protect_code_memory) {
+      // Fallback to mprotect-based write protection (much slower).
+      success = native_module_->SetWritable(true);
+      CHECK(success);
+    }
+  } else if (FLAG_wasm_write_protect_code_memory) {
     bool success = native_module_->SetWritable(true);
     CHECK(success);
   }
 }
 
 NativeModuleModificationScope::~NativeModuleModificationScope() {
-  if (FLAG_wasm_write_protect_code_memory && native_module_) {
+  if (FLAG_wasm_memory_protection_keys) {
+    bool success = native_module_->SetThreadWritable(false);
+    if (!success && FLAG_wasm_write_protect_code_memory) {
+      // Fallback to mprotect-based write protection (much slower).
+      success = native_module_->SetWritable(false);
+      CHECK(success);
+    }
+  } else if (FLAG_wasm_write_protect_code_memory) {
     bool success = native_module_->SetWritable(false);
     CHECK(success);
   }

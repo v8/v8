@@ -426,6 +426,12 @@ class WasmCodeAllocator {
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   V8_EXPORT_PRIVATE bool SetWritable(bool writable);
 
+  // Set this thread's permission of all owned code space to read-write or
+  // read-only (if {writable} is false). Uses memory protection keys.
+  // Returns true on success. Since the permission is thread-local, there is no
+  // requirement to hold any lock when calling this method.
+  bool SetThreadWritable(bool writable);
+
   // Free memory pages of all given code objects. Used for wasm code GC.
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   void FreeCode(Vector<WasmCode* const>);
@@ -575,6 +581,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool SetWritable(bool writable) {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
     return code_allocator_.SetWritable(writable);
+  }
+
+  bool SetThreadWritable(bool writable) {
+    return code_allocator_.SetThreadWritable(writable);
   }
 
   // For cctests, where we build both WasmModule and the runtime objects
