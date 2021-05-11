@@ -535,21 +535,6 @@ TEST_F(MemberHeapDeathTest, AssignDifferentHeapValues) {
   }
 }
 
-#ifdef CPPGC_CAGED_HEAP
-
-TEST_F(MemberHeapDeathTest, VerificationStateDoesNotRequireValue) {
-  // For caged heap setups the verification state is constructed from Member
-  // itself and does not require an initial value.
-  auto* o1 = MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr);
-  {
-    auto tmp_heap = cppgc::Heap::Create(platform_);
-    EXPECT_DEATH_IF_SUPPORTED(
-        MakeGarbageCollected<LinkedNode>(tmp_heap->GetAllocationHandle(), o1),
-        "");
-  }
-}
-
-#endif  // CPPGC_CAGED_HEAP
 #endif  // V8_ENABLE_CHECKS
 
 }  // namespace internal

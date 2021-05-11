@@ -50,11 +50,8 @@ struct NoWriteBarrierPolicy {
   static void AssigningBarrier(const void*, const void*) {}
 };
 
-class V8_EXPORT EnabledCheckingPolicyBase {
+class V8_EXPORT EnabledCheckingPolicy {
  protected:
-  EnabledCheckingPolicyBase() = default;
-  explicit EnabledCheckingPolicyBase(void* state) : state_(state) {}
-
   template <typename T>
   void CheckPointer(const T* ptr) {
     if (!ptr || (kSentinelPointer == ptr)) return;
@@ -67,14 +64,14 @@ class V8_EXPORT EnabledCheckingPolicyBase {
 
   template <typename T, bool = IsCompleteV<T>>
   struct CheckPointersImplTrampoline {
-    static void Call(EnabledCheckingPolicyBase* policy, const T* ptr) {
+    static void Call(EnabledCheckingPolicy* policy, const T* ptr) {
       policy->CheckPointerImpl(ptr, false);
     }
   };
 
   template <typename T>
   struct CheckPointersImplTrampoline<T, true> {
-    static void Call(EnabledCheckingPolicyBase* policy, const T* ptr) {
+    static void Call(EnabledCheckingPolicy* policy, const T* ptr) {
       policy->CheckPointerImpl(ptr, IsGarbageCollectedTypeV<T>);
     }
   };
@@ -82,22 +79,14 @@ class V8_EXPORT EnabledCheckingPolicyBase {
   void* state_ = nullptr;
 };
 
-class V8_EXPORT EnabledMemberCheckingPolicy : public EnabledCheckingPolicyBase {
- protected:
-  EnabledMemberCheckingPolicy();
-};
-
-class V8_EXPORT EnabledPersistentCheckingPolicy
-    : public EnabledCheckingPolicyBase {};
-
 class DisabledCheckingPolicy {
  protected:
   void CheckPointer(const void* raw) {}
 };
 
 #if V8_ENABLE_CHECKS
-using DefaultMemberCheckingPolicy = EnabledMemberCheckingPolicy;
-using DefaultPersistentCheckingPolicy = EnabledPersistentCheckingPolicy;
+using DefaultMemberCheckingPolicy = EnabledCheckingPolicy;
+using DefaultPersistentCheckingPolicy = EnabledCheckingPolicy;
 #else
 using DefaultMemberCheckingPolicy = DisabledCheckingPolicy;
 using DefaultPersistentCheckingPolicy = DisabledCheckingPolicy;

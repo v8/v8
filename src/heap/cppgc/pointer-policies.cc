@@ -18,39 +18,17 @@ namespace internal {
 
 namespace {
 
-#if defined(CPPGC_CAGED_HEAP) || defined(DEBUG)
+#if defined(DEBUG)
 bool IsOnStack(const void* address) {
   return v8::base::Stack::GetCurrentStackPosition() <= address &&
          address < v8::base::Stack::GetStackStart();
 }
-#endif  // defined(CPPGC_CAGED_HEAP) || defined(DEBUG)
-
-// Gets the state (HeapBase) for on-heap slots.
-void* TryGetStateFromSlot(void* slot) {
-#ifdef CPPGC_CAGED_HEAP
-  if (IsOnStack(slot)) return nullptr;
-
-  // `slot` may reside in a regular or large object. Get to the heap using the
-  // cage.
-  return reinterpret_cast<CagedHeapLocalData*>(
-             reinterpret_cast<uintptr_t>(slot) &
-             ~(api_constants::kCagedHeapReservationAlignment - 1))
-      ->heap_base;
-#else   // !CPPGC_CAGED_HEAP
-  return nullptr;
-#endif  // !CPPGC_CAGED_HEAP
-}
+#endif  // defined(DEBUG)
 
 }  // namespace
 
-// We know that Member is only allowed on heap and on-stack in rare cases. Use
-// this information to eagerly populate a verification state already on policy
-// creation.
-EnabledMemberCheckingPolicy::EnabledMemberCheckingPolicy()
-    : EnabledCheckingPolicyBase(TryGetStateFromSlot(this)) {}
-
-void EnabledCheckingPolicyBase::CheckPointerImpl(const void* ptr,
-                                                 bool points_to_payload) {
+void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
+                                             bool points_to_payload) {
   // `ptr` must not reside on stack.
   DCHECK(!IsOnStack(ptr));
   auto* base_page = BasePage::FromPayload(ptr);
