@@ -53,7 +53,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
   int bytes = list.Count() * kXRegSizeInBits / 8;
 
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
     bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
   }
@@ -70,7 +70,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
 
   int bytes = list.Count() * kXRegSizeInBits / 8;
 
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
     PushCPURegList(kCallerSavedV);
     bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
@@ -80,7 +80,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
 
 int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   int bytes = 0;
-  if (fp_mode == kSaveFPRegs) {
+  if (fp_mode == SaveFPRegsMode::kSave) {
     DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
     PopCPURegList(kCallerSavedV);
     bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
@@ -1600,8 +1600,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Mov(x1, builtin);
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs,
-                                          kArgvOnStack, builtin_exit_frame);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
+                                          ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 

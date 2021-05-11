@@ -2669,8 +2669,8 @@ void JSHeapBroker::InitializeAndStartSerializing(
     if (!data->should_access_heap()) data->AsPropertyCell()->Serialize(this);
   }
   GetOrCreateData(f->many_closures_cell());
-  GetOrCreateData(
-      CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack, true));
+  GetOrCreateData(CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
+                                      ArgvMode::kStack, true));
 
   TRACE(this, "Finished serializing standard objects");
 }

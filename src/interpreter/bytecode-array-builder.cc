@@ -725,11 +725,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(const AstRawString* name,
   DCHECK_EQ(GetTypeofModeFromSlotKind(feedback_vector_spec()->GetKind(
                 FeedbackVector::ToSlot(feedback_slot))),
             typeof_mode);
-  if (typeof_mode == INSIDE_TYPEOF) {
-    OutputLdaGlobalInsideTypeof(name_index, feedback_slot);
-  } else {
-    DCHECK_EQ(typeof_mode, NOT_INSIDE_TYPEOF);
-    OutputLdaGlobal(name_index, feedback_slot);
+  switch (typeof_mode) {
+    case TypeofMode::kInside:
+      OutputLdaGlobalInsideTypeof(name_index, feedback_slot);
+      break;
+    case TypeofMode::kNotInside:
+      OutputLdaGlobal(name_index, feedback_slot);
+      break;
   }
   return *this;
 }
@@ -774,11 +776,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupSlot(
     const AstRawString* name, TypeofMode typeof_mode) {
   size_t name_index = GetConstantPoolEntry(name);
-  if (typeof_mode == INSIDE_TYPEOF) {
-    OutputLdaLookupSlotInsideTypeof(name_index);
-  } else {
-    DCHECK_EQ(typeof_mode, NOT_INSIDE_TYPEOF);
-    OutputLdaLookupSlot(name_index);
+  switch (typeof_mode) {
+    case TypeofMode::kInside:
+      OutputLdaLookupSlotInsideTypeof(name_index);
+      break;
+    case TypeofMode::kNotInside:
+      OutputLdaLookupSlot(name_index);
+      break;
   }
   return *this;
 }
@@ -787,11 +791,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupContextSlot(
     const AstRawString* name, TypeofMode typeof_mode, int slot_index,
     int depth) {
   size_t name_index = GetConstantPoolEntry(name);
-  if (typeof_mode == INSIDE_TYPEOF) {
-    OutputLdaLookupContextSlotInsideTypeof(name_index, slot_index, depth);
-  } else {
-    DCHECK(typeof_mode == NOT_INSIDE_TYPEOF);
-    OutputLdaLookupContextSlot(name_index, slot_index, depth);
+  switch (typeof_mode) {
+    case TypeofMode::kInside:
+      OutputLdaLookupContextSlotInsideTypeof(name_index, slot_index, depth);
+      break;
+    case TypeofMode::kNotInside:
+      OutputLdaLookupContextSlot(name_index, slot_index, depth);
+      break;
   }
   return *this;
 }
@@ -800,11 +806,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupGlobalSlot(
     const AstRawString* name, TypeofMode typeof_mode, int feedback_slot,
     int depth) {
   size_t name_index = GetConstantPoolEntry(name);
-  if (typeof_mode == INSIDE_TYPEOF) {
-    OutputLdaLookupGlobalSlotInsideTypeof(name_index, feedback_slot, depth);
-  } else {
-    DCHECK(typeof_mode == NOT_INSIDE_TYPEOF);
-    OutputLdaLookupGlobalSlot(name_index, feedback_slot, depth);
+  switch (typeof_mode) {
+    case TypeofMode::kInside:
+      OutputLdaLookupGlobalSlotInsideTypeof(name_index, feedback_slot, depth);
+      break;
+    case TypeofMode::kNotInside:
+      OutputLdaLookupGlobalSlot(name_index, feedback_slot, depth);
+      break;
   }
   return *this;
 }

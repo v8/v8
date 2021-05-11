@@ -169,61 +169,61 @@ void Builtins::Generate_KeyedHasIC_PolymorphicName(
 
 void Builtins::Generate_LoadGlobalIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLoadGlobalIC(NOT_INSIDE_TYPEOF);
+  assembler.GenerateLoadGlobalIC(TypeofMode::kNotInside);
 }
 
 void Builtins::Generate_LoadGlobalICInsideTypeof(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLoadGlobalIC(INSIDE_TYPEOF);
+  assembler.GenerateLoadGlobalIC(TypeofMode::kInside);
 }
 
 void Builtins::Generate_LoadGlobalICTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLoadGlobalICTrampoline(NOT_INSIDE_TYPEOF);
+  assembler.GenerateLoadGlobalICTrampoline(TypeofMode::kNotInside);
 }
 
 void Builtins::Generate_LoadGlobalICInsideTypeofTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLoadGlobalICTrampoline(INSIDE_TYPEOF);
+  assembler.GenerateLoadGlobalICTrampoline(TypeofMode::kInside);
 }
 
 void Builtins::Generate_LoadGlobalICBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLoadGlobalICBaseline(NOT_INSIDE_TYPEOF);
+  assembler.GenerateLoadGlobalICBaseline(TypeofMode::kNotInside);
 }
 
 void Builtins::Generate_LoadGlobalICInsideTypeofBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLoadGlobalICBaseline(INSIDE_TYPEOF);
+  assembler.GenerateLoadGlobalICBaseline(TypeofMode::kInside);
 }
 
 void Builtins::Generate_LookupGlobalICBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLookupGlobalICBaseline(NOT_INSIDE_TYPEOF);
+  assembler.GenerateLookupGlobalICBaseline(TypeofMode::kNotInside);
 }
 
 void Builtins::Generate_LookupGlobalICInsideTypeofBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLookupGlobalICBaseline(INSIDE_TYPEOF);
+  assembler.GenerateLookupGlobalICBaseline(TypeofMode::kInside);
 }
 
 void Builtins::Generate_LookupContextBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLookupContextBaseline(NOT_INSIDE_TYPEOF);
+  assembler.GenerateLookupContextBaseline(TypeofMode::kNotInside);
 }
 
 void Builtins::Generate_LookupContextInsideTypeofBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLookupContextBaseline(INSIDE_TYPEOF);
+  assembler.GenerateLookupContextBaseline(TypeofMode::kInside);
 }
 
 TF_BUILTIN(DynamicCheckMaps, CodeStubAssembler) {

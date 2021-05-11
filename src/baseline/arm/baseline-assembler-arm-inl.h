@@ -351,7 +351,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          Register value) {
   __ str(value, FieldMemOperand(target, offset));
   __ RecordWriteField(target, offset, value, kLRHasNotBeenSaved,
-                      kDontSaveFPRegs);
+                      SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,

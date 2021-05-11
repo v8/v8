@@ -3077,7 +3077,7 @@ void AccessorAssembler::LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
   BIND(&no_feedback);
   {
     int ic_kind =
-        static_cast<int>((typeof_mode == INSIDE_TYPEOF)
+        static_cast<int>((typeof_mode == TypeofMode::kInside)
                              ? FeedbackSlotKind::kLoadGlobalInsideTypeof
                              : FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
     exit_point->ReturnCallStub(
@@ -3136,7 +3136,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
   TNode<Object> handler = CAST(feedback_element);
   GotoIf(TaggedEqual(handler, UninitializedSymbolConstant()), miss);
 
-  OnNonExistent on_nonexistent = typeof_mode == NOT_INSIDE_TYPEOF
+  OnNonExistent on_nonexistent = typeof_mode == TypeofMode::kNotInside
                                      ? OnNonExistent::kThrowReferenceError
                                      : OnNonExistent::kReturnUndefined;
 
@@ -4071,7 +4071,7 @@ void AccessorAssembler::GenerateLookupContextBaseline(TypeofMode typeof_mode) {
   BIND(&slowpath);
   {
     auto name = Parameter<Object>(Descriptor::kName);
-    Runtime::FunctionId function_id = typeof_mode == INSIDE_TYPEOF
+    Runtime::FunctionId function_id = typeof_mode == TypeofMode::kInside
                                           ? Runtime::kLoadLookupSlotInsideTypeof
                                           : Runtime::kLoadLookupSlot;
     TailCallRuntime(function_id, context, name);
@@ -4103,7 +4103,7 @@ void AccessorAssembler::GenerateLookupGlobalICBaseline(TypeofMode typeof_mode) {
 
   // Slow path when we have to call out to the runtime
   BIND(&slowpath);
-  Runtime::FunctionId function_id = typeof_mode == INSIDE_TYPEOF
+  Runtime::FunctionId function_id = typeof_mode == TypeofMode::kInside
                                         ? Runtime::kLoadLookupSlotInsideTypeof
                                         : Runtime::kLoadLookupSlot;
   TailCallRuntime(function_id, context, name);

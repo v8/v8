@@ -1002,7 +1002,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* LoadGlobal(const Handle<Name>& name,
                              const FeedbackSource& feedback,
-                             TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+                             TypeofMode typeof_mode = TypeofMode::kNotInside);
   const Operator* StoreGlobal(LanguageMode language_mode,
                               const Handle<Name>& name,
                               const FeedbackSource& feedback);

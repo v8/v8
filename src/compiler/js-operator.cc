@@ -339,12 +339,13 @@ bool operator!=(LoadGlobalParameters const& lhs,
 
 
 size_t hash_value(LoadGlobalParameters const& p) {
-  return base::hash_combine(p.name().location(), p.typeof_mode());
+  return base::hash_combine(p.name().location(),
+                            static_cast<int>(p.typeof_mode()));
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadGlobalParameters const& p) {
-  return os << Brief(*p.name()) << ", " << p.typeof_mode();
+  return os << Brief(*p.name()) << ", " << static_cast<int>(p.typeof_mode());
 }
 
 

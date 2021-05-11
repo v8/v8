@@ -325,7 +325,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   DCHECK_NE(target, scratch);
   DCHECK_NE(value, scratch);
   __ StoreTaggedField(FieldOperand(target, offset), value);
-  __ RecordWriteField(target, offset, value, scratch, kDontSaveFPRegs);
+  __ RecordWriteField(target, offset, value, scratch, SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,

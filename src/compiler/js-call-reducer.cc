@@ -5631,8 +5631,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
             graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
             Builtins::name(builtin_index), node->op()->properties(),
             CallDescriptor::kNeedsFrameState);
-        Node* stub_code = jsgraph()->CEntryStubConstant(1, kDontSaveFPRegs,
-                                                        kArgvOnStack, true);
+        Node* stub_code = jsgraph()->CEntryStubConstant(
+            1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, true);
         Address builtin_entry = Builtins::CppEntryOf(builtin_index);
         Node* entry = jsgraph()->ExternalConstant(
             ExternalReference::Create(builtin_entry));

@@ -320,7 +320,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   Register scratch = scratch_scope.AcquireScratch();
   DCHECK(!AreAliased(scratch, target, value));
   __ mov(FieldOperand(target, offset), value);
-  __ RecordWriteField(target, offset, value, scratch, kDontSaveFPRegs);
+  __ RecordWriteField(target, offset, value, scratch, SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,

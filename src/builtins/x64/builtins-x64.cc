@@ -689,7 +689,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ StoreTaggedField(
       FieldOperand(rdx, JSGeneratorObject::kInputOrDebugPosOffset), rax);
   __ RecordWriteField(rdx, JSGeneratorObject::kInputOrDebugPosOffset, rax, rcx,
-                      kDontSaveFPRegs);
+                      SaveFPRegsMode::kIgnore);
 
   Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r11 : no_reg;
 
@@ -838,7 +838,7 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                       optimized_code);
   __ movq(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
   __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
-                      kDontSaveFPRegs, RememberedSetAction::kOmit,
+                      SaveFPRegsMode::kIgnore, RememberedSetAction::kOmit,
                       SmiCheck::kOmit);
 }
 
@@ -3538,7 +3538,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // rsp: stack pointer  (restored after C call)
   // rsi: current context (restored)
   //
-  // If argv_mode == kArgvInRegister:
+  // If argv_mode == ArgvMode::kRegister:
   // r15: pointer to the first argument
 
 #ifdef V8_TARGET_OS_WIN
@@ -3569,15 +3569,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   int arg_stack_space =
       kArgExtraStackSpace +
       (result_size <= kMaxRegisterResultSize ? 0 : result_size);
-  if (argv_mode == kArgvInRegister) {
-    DCHECK(save_doubles == kDontSaveFPRegs);
+  if (argv_mode == ArgvMode::kRegister) {
+    DCHECK(save_doubles == SaveFPRegsMode::kIgnore);
     DCHECK(!builtin_exit_frame);
     __ EnterApiExitFrame(arg_stack_space);
     // Move argc into r12 (argv is already in r15).
     __ movq(r12, rax);
   } else {
     __ EnterExitFrame(
-        arg_stack_space, save_doubles == kSaveFPRegs,
+        arg_stack_space, save_doubles == SaveFPRegsMode::kSave,
         builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
   }
 
@@ -3641,7 +3641,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(save_doubles == kSaveFPRegs, argv_mode == kArgvOnStack);
+  __ LeaveExitFrame(save_doubles == SaveFPRegsMode::kSave,
+                    argv_mode == ArgvMode::kStack);
   __ ret(0);
 
   // Handling of exception.

@@ -760,7 +760,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CallRecordWriteStub(dst_addr,
                       actual_offset_reg == no_reg ? Operand(offset_imm)
                                                   : Operand(actual_offset_reg),
-                      RememberedSetAction::kEmit, kSaveFPRegs,
+                      RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
                       wasm::WasmCode::kRecordWrite);
   bind(&exit);
 }

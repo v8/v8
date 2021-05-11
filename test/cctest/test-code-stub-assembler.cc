@@ -102,7 +102,7 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
 
     TNode<IntPtrT> const result =
         m.UncheckedCast<IntPtrT>(m.CallCFunctionWithCallerSavedRegisters(
-            fun_constant, type_intptr, kSaveFPRegs,
+            fun_constant, type_intptr, SaveFPRegsMode::kSave,
             std::make_pair(type_intptr, m.IntPtrConstant(0)),
             std::make_pair(type_intptr, m.IntPtrConstant(1)),
             std::make_pair(type_intptr, m.IntPtrConstant(2))));
@@ -3958,7 +3958,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
     m.CallCFunctionWithCallerSavedRegisters(
         m.ExternalConstant(
             ExternalReference::smi_lexicographic_compare_function()),
-        MachineType::Int32(), kSaveFPRegs,
+        MachineType::Int32(), SaveFPRegsMode::kSave,
         std::make_pair(MachineType::Pointer(), isolate_ptr),
         std::make_pair(MachineType::TaggedSigned(), m.SmiConstant(0)),
         std::make_pair(MachineType::TaggedSigned(), m.SmiConstant(0)));

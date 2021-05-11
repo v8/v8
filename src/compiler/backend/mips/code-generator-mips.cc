@@ -171,8 +171,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? RememberedSetAction::kEmit
                                              : RememberedSetAction::kOmit;
-    SaveFPRegsMode const save_fp_mode =
-        frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
     if (must_save_lr_) {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
@@ -373,10 +374,10 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     } else {                                                                   \
       FrameScope scope(tasm(), StackFrame::MANUAL);                            \
       __ Addu(a0, i.InputRegister(0), i.InputRegister(1));                     \
-      __ PushCallerSaved(kDontSaveFPRegs, v0, v1);                             \
+      __ PushCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);                     \
       __ PrepareCallCFunction(3, 0, kScratchReg);                              \
       __ CallCFunction(ExternalReference::external(), 3, 0);                   \
-      __ PopCallerSaved(kDontSaveFPRegs, v0, v1);                              \
+      __ PopCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);                      \
     }                                                                          \
   } while (0)
 
@@ -403,10 +404,10 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     } else {                                                                   \
       FrameScope scope(tasm(), StackFrame::MANUAL);                            \
       __ Addu(a0, i.InputRegister(0), i.InputRegister(1));                     \
-      __ PushCallerSaved(kDontSaveFPRegs, v0, v1);                             \
+      __ PushCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);                     \
       __ PrepareCallCFunction(3, 0, kScratchReg);                              \
       __ CallCFunction(ExternalReference::external(), 3, 0);                   \
-      __ PopCallerSaved(kDontSaveFPRegs, v0, v1);                              \
+      __ PopCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);                      \
     }                                                                          \
   } while (0)
 
@@ -746,7 +747,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchSaveCallerRegisters: {
       fp_mode_ =
           static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode()));
-      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
+      DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
+             fp_mode_ == SaveFPRegsMode::kSave);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
       DCHECK(IsAligned(bytes, kSystemPointerSize));
@@ -759,7 +761,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRestoreCallerRegisters: {
       DCHECK(fp_mode_ ==
              static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode())));
-      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
+      DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
+             fp_mode_ == SaveFPRegsMode::kSave);
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
@@ -1929,10 +1932,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         FrameScope scope(tasm(), StackFrame::MANUAL);
         __ Addu(a0, i.InputRegister(0), i.InputRegister(1));
-        __ PushCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PushCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);
         __ PrepareCallCFunction(1, 0, kScratchReg);
         __ CallCFunction(ExternalReference::atomic_pair_load_function(), 1, 0);
-        __ PopCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PopCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);
       }
       break;
     }
@@ -1952,10 +1955,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         FrameScope scope(tasm(), StackFrame::MANUAL);
         __ Addu(a0, i.InputRegister(0), i.InputRegister(1));
-        __ PushCallerSaved(kDontSaveFPRegs);
+        __ PushCallerSaved(SaveFPRegsMode::kIgnore);
         __ PrepareCallCFunction(3, 0, kScratchReg);
         __ CallCFunction(ExternalReference::atomic_pair_store_function(), 3, 0);
-        __ PopCallerSaved(kDontSaveFPRegs);
+        __ PopCallerSaved(SaveFPRegsMode::kIgnore);
       }
       break;
     }
@@ -1993,12 +1996,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ sync();
       } else {
         FrameScope scope(tasm(), StackFrame::MANUAL);
-        __ PushCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PushCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);
         __ PrepareCallCFunction(3, 0, kScratchReg);
         __ Addu(a0, i.InputRegister(0), i.InputRegister(1));
         __ CallCFunction(ExternalReference::atomic_pair_exchange_function(), 3,
                          0);
-        __ PopCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PopCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);
       }
       break;
     case kMipsWord32AtomicPairCompareExchange: {
@@ -2023,13 +2026,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ sync();
       } else {
         FrameScope scope(tasm(), StackFrame::MANUAL);
-        __ PushCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PushCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);
         __ PrepareCallCFunction(5, 0, kScratchReg);
         __ addu(a0, i.InputRegister(0), i.InputRegister(1));
         __ sw(i.InputRegister(5), MemOperand(sp, 16));
         __ CallCFunction(
             ExternalReference::atomic_pair_compare_exchange_function(), 5, 0);
-        __ PopCallerSaved(kDontSaveFPRegs, v0, v1);
+        __ PopCallerSaved(SaveFPRegsMode::kIgnore, v0, v1);
       }
       break;
     }

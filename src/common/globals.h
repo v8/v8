@@ -466,11 +466,11 @@ inline LanguageMode stricter_language_mode(LanguageMode mode1,
 // a keyed store is of the form a[expression] = foo.
 enum class StoreOrigin { kMaybeKeyed, kNamed };
 
-enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
+enum class TypeofMode { kInside, kNotInside };
 
 // Enums used by CEntry.
-enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
-enum ArgvMode { kArgvOnStack, kArgvInRegister };
+enum class SaveFPRegsMode { kIgnore, kSave };
+enum class ArgvMode { kStack, kRegister };
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;

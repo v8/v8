@@ -243,10 +243,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                const AstRawString* name);
 
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
-                         TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+                         TypeofMode typeof_mode = TypeofMode::kNotInside);
   void BuildVariableLoadForAccumulatorValue(
       Variable* variable, HoleCheckMode hole_check_mode,
-      TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+      TypeofMode typeof_mode = TypeofMode::kNotInside);
   void BuildVariableAssignment(
       Variable* variable, Token::Value op, HoleCheckMode hole_check_mode,
       LookupHoistingMode lookup_hoisting_mode = LookupHoistingMode::kNormal);
