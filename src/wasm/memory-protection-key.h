@@ -9,6 +9,14 @@
 #ifndef V8_WASM_MEMORY_PROTECTION_KEY_H_
 #define V8_WASM_MEMORY_PROTECTION_KEY_H_
 
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+#include <sys/mman.h>  // For STATIC_ASSERT of permission values.
+#undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
+#endif
+
+#include "include/v8-platform.h"
+#include "src/base/address-region.h"
+
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -24,7 +32,7 @@ namespace wasm {
 // mprotect().
 constexpr int kNoMemoryProtectionKey = -1;
 
-// Permissions for memory protection keys on top of the permissions by mprotect.
+// Permissions for memory protection keys on top of the page's permissions.
 // NOTE: Since there is no executable bit, the executable permission cannot be
 // withdrawn by memory protection keys.
 enum MemoryProtectionKeyPermission {
@@ -32,6 +40,13 @@ enum MemoryProtectionKeyPermission {
   kDisableAccess = 1,
   kDisableWrite = 2,
 };
+
+// If sys/mman.h has PKEY support (on newer Linux distributions), ensure that
+// our definitions of the permissions is consistent with the ones in glibc.
+#if defined(PKEY_DISABLE_ACCESS)
+STATIC_ASSERT(kDisableAccess == PKEY_DISABLE_ACCESS);
+STATIC_ASSERT(kDisableWrite == PKEY_DISABLE_WRITE);
+#endif
 
 // Allocates a memory protection key on platforms with PKU support, returns
 // {kNoMemoryProtectionKey} on platforms without support or when allocation
@@ -45,6 +60,28 @@ int AllocateMemoryProtectionKey();
 // be a security issue. See
 // https://www.gnu.org/software/libc/manual/html_mono/libc.html#Memory-Protection-Keys
 void FreeMemoryProtectionKey(int key);
+
+// Associates a memory protection {key} with the given {region}.
+// If {key} is {kNoMemoryProtectionKey} this behaves like "plain"
+// {SetPermissions()} and associates the default key to the region. That is,
+// explicitly calling with {kNoMemoryProtectionKey} can be used to disassociate
+// any protection key from a region. This also means "plain" {SetPermissions()}
+// disassociates the key from a region, making the key's access restrictions
+// irrelevant/inactive for that region.
+// Returns true if changing permissions and key was successful. (Returns a bool
+// to be consistent with {SetPermissions()}).
+// The {page_permissions} are the permissions of the page, not the key. For
+// changing the permissions of the key, use
+// {SetPermissionsForMemoryProtectionKey()} instead.
+bool SetPermissionsAndMemoryProtectionKey(
+    PageAllocator* page_allocator, base::AddressRegion region,
+    PageAllocator::Permission page_permissions, int key);
+
+// Set the key's permissions and return whether this was successful.
+// Returns false on platforms without PKU support or when the operation failed,
+// e.g., because the key was invalid.
+bool SetPermissionsForMemoryProtectionKey(
+    int key, MemoryProtectionKeyPermission permissions);
 
 }  // namespace wasm
 }  // namespace internal
