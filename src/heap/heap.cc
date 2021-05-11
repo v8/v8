@@ -1657,9 +1657,6 @@ Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
-  // So far we can't collect the shared heap.
-  CHECK(!IsShared());
-
   if (V8_UNLIKELY(!deserialization_complete_)) {
     // During isolate initialization heap always grows. GC is only requested
     // if a new page allocation fails. In such a case we should crash with
@@ -2158,6 +2155,9 @@ size_t Heap::PerformGarbageCollection(
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
   SafepointScope safepoint_scope(this);
+
+  // Shared isolates cannot have any clients when running GC at the moment.
+  DCHECK_IMPLIES(IsShared(), !isolate()->HasClientIsolates());
 
   collection_barrier_->StopTimeToCollectionTimer();
 

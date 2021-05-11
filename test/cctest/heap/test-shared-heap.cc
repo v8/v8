@@ -75,5 +75,17 @@ UNINITIALIZED_TEST(ConcurrentAllocationInSharedOldSpace) {
   Isolate::Delete(shared_isolate);
 }
 
+UNINITIALIZED_TEST(SharedCollection) {
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = allocator.get();
+  Isolate* shared_isolate = Isolate::NewShared(create_params);
+
+  CcTest::CollectGarbage(OLD_SPACE, shared_isolate);
+  Isolate::Delete(shared_isolate);
+}
+
 }  // namespace internal
 }  // namespace v8

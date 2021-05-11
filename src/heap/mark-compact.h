@@ -506,6 +506,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void RecordLiveSlotsOnPage(Page* page);
 
   bool is_compacting() const { return compacting_; }
+  bool is_shared_heap() const { return is_shared_heap_; }
 
   // Ensures that sweeping is finished.
   //
@@ -742,6 +743,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // The current stage of the collector.
   CollectorState state_;
 #endif
+
+  const bool is_shared_heap_;
 
   bool was_marked_incrementally_;
 

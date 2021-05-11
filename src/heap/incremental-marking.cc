@@ -139,12 +139,14 @@ bool IncrementalMarking::WasActivated() { return was_activated_; }
 
 
 bool IncrementalMarking::CanBeActivated() {
-  // Only start incremental marking in a safe state: 1) when incremental
-  // marking is turned on, 2) when we are currently not in a GC, and
-  // 3) when we are currently not serializing or deserializing the heap.
+  // Only start incremental marking in a safe state:
+  //   1) when incremental marking is turned on
+  //   2) when we are currently not in a GC, and
+  //   3) when we are currently not serializing or deserializing the heap, and
+  //   4) not a shared heap.
   return FLAG_incremental_marking && heap_->gc_state() == Heap::NOT_IN_GC &&
          heap_->deserialization_complete() &&
-         !heap_->isolate()->serializer_enabled();
+         !heap_->isolate()->serializer_enabled() && !heap_->IsShared();
 }
 
 bool IncrementalMarking::IsBelowActivationThresholds() const {
@@ -154,6 +156,7 @@ bool IncrementalMarking::IsBelowActivationThresholds() const {
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   DCHECK(!collector_->sweeping_in_progress());
+  DCHECK(!heap_->IsShared());
 
   if (FLAG_trace_incremental_marking) {
     const size_t old_generation_size_mb =

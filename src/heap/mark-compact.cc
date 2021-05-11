@@ -244,7 +244,9 @@ class FullMarkingVerifier : public MarkingVerifier {
 
  private:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    if (BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap()) return;
+    if (!heap_->IsShared() &&
+        BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
+      return;
     CHECK(marking_state_->IsBlackOrGrey(heap_object));
   }
 
@@ -422,6 +424,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #ifdef DEBUG
       state_(IDLE),
 #endif
+      is_shared_heap_(heap->IsShared()),
       was_marked_incrementally_(false),
       evacuation_(false),
       compacting_(false),
@@ -971,7 +974,7 @@ void MarkCompactCollector::SweepArrayBufferExtensions() {
 class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
  public:
   explicit RootMarkingVisitor(MarkCompactCollector* collector)
-      : collector_(collector) {}
+      : collector_(collector), is_shared_heap_(collector->is_shared_heap()) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
@@ -993,11 +996,12 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     HeapObject heap_object = HeapObject::cast(object);
     BasicMemoryChunk* target_page =
         BasicMemoryChunk::FromHeapObject(heap_object);
-    if (target_page->InSharedHeap()) return;
+    if (!is_shared_heap_ && target_page->InSharedHeap()) return;
     collector_->MarkRootObject(root, heap_object);
   }
 
   MarkCompactCollector* const collector_;
+  const bool is_shared_heap_;
 };
 
 // This visitor is used to visit the body of special objects held alive by

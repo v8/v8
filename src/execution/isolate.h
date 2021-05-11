@@ -1776,6 +1776,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void AttachToSharedIsolate(Isolate* shared);
   void DetachFromSharedIsolate();
 
+  bool HasClientIsolates() const { return client_isolate_head_; }
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
                    bool is_shared);
