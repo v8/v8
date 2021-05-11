@@ -839,10 +839,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register lhs_register = sp;
       uint32_t offset;
       if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
-        lhs_register = i.TempRegister(0);
+        lhs_register = i.TempRegister(1);
         __ Dsubu(lhs_register, sp, offset);
       }
-      __ Sltu(i.OutputRegister(), i.InputRegister(0), lhs_register);
+      __ Sltu(i.TempRegister(0), i.InputRegister(0), lhs_register);
       break;
     }
     case kArchStackCheckOffset:
@@ -3892,9 +3892,9 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
     cc = FlagsConditionToConditionCmp(condition);
     DCHECK((cc == ls) || (cc == hi));
     if (cc == ls) {
-      __ xori(i.OutputRegister(), i.OutputRegister(), 1);
+      __ xori(i.TempRegister(0), i.TempRegister(0), 1);
     }
-    __ Branch(tlabel, ne, i.OutputRegister(), Operand(zero_reg));
+    __ Branch(tlabel, ne, i.TempRegister(0), Operand(zero_reg));
   } else if (instr->arch_opcode() == kMips64CmpS ||
              instr->arch_opcode() == kMips64CmpD) {
     bool predicate;
@@ -4244,7 +4244,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     cc = FlagsConditionToConditionCmp(condition);
     DCHECK((cc == ls) || (cc == hi));
     if (cc == ls) {
-      __ xori(i.OutputRegister(), i.OutputRegister(), 1);
+      __ xori(i.OutputRegister(), i.TempRegister(0), 1);
     }
     return;
   } else {
