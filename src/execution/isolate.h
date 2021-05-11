@@ -554,6 +554,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // new operator.
   static Isolate* New();
 
+  // Creates a new shared Isolate object.
+  static Isolate* NewShared(const v8::Isolate::CreateParams& params);
+
   // Deletes Isolate object. Must be used instead of delete operator.
   // Destroys the non-default isolates.
   // Sets default isolate into "has_been_disposed" state rather then destroying,
@@ -1767,22 +1770,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     using IsDebugActive = HasAsyncEventDelegate::Next<bool, 1>;
   };
 
-  void UseAsSharedIsolate() {
-    // When pointer compression is on with a per-Isolate cage, allocation in the
-    // shared Isolate can point into the per-Isolate RO heap as the offsets are
-    // constant across Isolates.
-    //
-    // When pointer compression is on with a shared cage or when pointer
-    // compression is off, a shared RO heap is required. Otherwise a shared
-    // allocation requested by a client Isolate could point into the client
-    // Isolate's RO space (e.g. an RO map) whose pages gets unmapped when it is
-    // disposed.
-    CHECK(COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL || V8_SHARED_RO_HEAP_BOOL);
-    DCHECK(!is_shared_);
-    DCHECK_NULL(shared_isolate_);
-    is_shared_ = true;
-  }
-
   bool is_shared() { return is_shared_; }
   Isolate* shared_isolate() { return shared_isolate_; }
 
@@ -1790,7 +1777,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void DetachFromSharedIsolate();
 
  private:
-  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
+  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
+                   bool is_shared);
   ~Isolate();
 
   bool Init(SnapshotData* startup_snapshot_data,
@@ -1800,6 +1788,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
+
+  // Common method to create an Isolate used by Isolate::New() and
+  // Isolate::NewShared().
+  static Isolate* Allocate(bool is_shared);
 
   static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
 
@@ -2180,7 +2172,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ThreadDataTable thread_data_table_;
 
   // Set to true if this isolate is used as shared heap.
-  bool is_shared_ = false;
+  const bool is_shared_;
 
   // Stores the shared isolate for this client isolate. nullptr for shared
   // isolates or when no shared isolate is used.

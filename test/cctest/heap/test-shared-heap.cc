@@ -57,17 +57,13 @@ UNINITIALIZED_TEST(ConcurrentAllocationInSharedOldSpace) {
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
-  v8::Isolate* shared_isolate = v8::Isolate::New(create_params);
-
-  Isolate* i_shared_isolate = reinterpret_cast<Isolate*>(shared_isolate);
-  i_shared_isolate->UseAsSharedIsolate();
+  Isolate* shared_isolate = Isolate::NewShared(create_params);
 
   std::vector<std::unique_ptr<SharedSpaceAllocationThread>> threads;
   const int kThreads = 4;
 
   for (int i = 0; i < kThreads; i++) {
-    auto thread =
-        std::make_unique<SharedSpaceAllocationThread>(i_shared_isolate);
+    auto thread = std::make_unique<SharedSpaceAllocationThread>(shared_isolate);
     CHECK(thread->Start());
     threads.push_back(std::move(thread));
   }
@@ -76,7 +72,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationInSharedOldSpace) {
     thread->Join();
   }
 
-  shared_isolate->Dispose();
+  Isolate::Delete(shared_isolate);
 }
 
 }  // namespace internal

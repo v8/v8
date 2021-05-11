@@ -2904,14 +2904,25 @@ std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
 // static
-Isolate* Isolate::New() {
+Isolate* Isolate::New() { return Isolate::Allocate(false); }
+
+// static
+Isolate* Isolate::NewShared(const v8::Isolate::CreateParams& params) {
+  Isolate* isolate = Isolate::Allocate(true);
+  v8::Isolate::Initialize(reinterpret_cast<v8::Isolate*>(isolate), params);
+  return isolate;
+}
+
+// static
+Isolate* Isolate::Allocate(bool is_shared) {
   // IsolateAllocator allocates the memory for the Isolate object according to
   // the given allocation mode.
   std::unique_ptr<IsolateAllocator> isolate_allocator =
       std::make_unique<IsolateAllocator>();
   // Construct Isolate object in the allocated memory.
   void* isolate_ptr = isolate_allocator->isolate_memory();
-  Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
+  Isolate* isolate =
+      new (isolate_ptr) Isolate(std::move(isolate_allocator), is_shared);
 #ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   DCHECK(IsAligned(isolate->isolate_root(), kPtrComprCageBaseAlignment));
   DCHECK_EQ(isolate->isolate_root(), isolate->cage_base());
@@ -2974,7 +2985,8 @@ v8::PageAllocator* Isolate::page_allocator() const {
   return isolate_allocator_->page_allocator();
 }
 
-Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
+Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
+                 bool is_shared)
     : isolate_data_(this, isolate_allocator->GetPtrComprCageBase()),
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
@@ -2992,7 +3004,8 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
 #endif
       next_module_async_evaluating_ordinal_(
           SourceTextModule::kFirstAsyncEvaluatingOrdinal),
-      cancelable_task_manager_(new CancelableTaskManager()) {
+      cancelable_task_manager_(new CancelableTaskManager()),
+      is_shared_(is_shared) {
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
 
@@ -3001,6 +3014,18 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
   thread_manager_ = new ThreadManager(this);
 
   handle_scope_data_.Initialize();
+
+  // When pointer compression is on with a per-Isolate cage, allocation in the
+  // shared Isolate can point into the per-Isolate RO heap as the offsets are
+  // constant across Isolates.
+  //
+  // When pointer compression is on with a shared cage or when pointer
+  // compression is off, a shared RO heap is required. Otherwise a shared
+  // allocation requested by a client Isolate could point into the client
+  // Isolate's RO space (e.g. an RO map) whose pages gets unmapped when it is
+  // disposed.
+  CHECK_IMPLIES(is_shared_, COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL ||
+                                V8_SHARED_RO_HEAP_BOOL);
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value) \
   name##_ = (initial_value);
