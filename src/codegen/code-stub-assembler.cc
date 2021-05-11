@@ -14065,18 +14065,8 @@ TNode<BoolT> CodeStubAssembler::
   return IsSetWord32(flags, mask);
 }
 
-TNode<BoolT> CodeStubAssembler::
-    IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
-        TNode<Uint32T> flags) {
-  return Word32NotEqual(flags, Int32Constant(0));
-}
-
 TNode<BoolT> CodeStubAssembler::NeedsAnyPromiseHooks(TNode<Uint32T> flags) {
-  uint32_t mask = Isolate::PromiseHookFields::HasContextPromiseHook::kMask |
-                  Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
-                  Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask |
-                  Isolate::PromiseHookFields::IsDebugActive::kMask;
-  return IsSetWord32(flags, mask);
+  return Word32NotEqual(flags, Int32Constant(0));
 }
 
 TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {

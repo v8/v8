@@ -3570,13 +3570,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
         PromiseHookFlags());
   }
-  TNode<BoolT> IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
-      TNode<Uint32T> flags);
-  TNode<BoolT>
-  IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
-    return IsAnyPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
-        PromiseHookFlags());
-  }
 
   TNode<BoolT> NeedsAnyPromiseHooks(TNode<Uint32T> flags);
   TNode<BoolT> NeedsAnyPromiseHooks() {
