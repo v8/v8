@@ -1138,7 +1138,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+          arg[0] = bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
@@ -1157,7 +1157,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+          arg[0] = bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
@@ -3913,8 +3913,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     case STVX: {
       DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
       GET_ADDRESS(ra, rb, ra_val, rb_val)
-      __int128 vrs_val =
-          *(reinterpret_cast<__int128*>(get_simd_register(vrs).int8));
+      __int128 vrs_val = bit_cast<__int128>(get_simd_register(vrs).int8);
       WriteQW((ra_val + rb_val) & 0xFFFFFFFFFFFFFFF0, vrs_val);
       break;
     }
@@ -3946,8 +3945,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
       GET_ADDRESS(ra, rb, ra_val, rb_val)
       intptr_t addr = ra_val + rb_val;
-      __int128 vrs_val =
-          *(reinterpret_cast<__int128*>(get_simd_register(vrs).int8));
+      __int128 vrs_val = bit_cast<__int128>(get_simd_register(vrs).int8);
       WriteQW(addr, vrs_val);
       break;
     }
@@ -4002,9 +4000,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     case XXBRQ: {
       int t = instr->RTValue();
       int b = instr->RBValue();
-      __int128 xb_val = *reinterpret_cast<__int128*>(get_simd_register(b).int8);
+      __int128 xb_val = bit_cast<__int128>(get_simd_register(b).int8);
       __int128 xb_val_reversed = __builtin_bswap128(xb_val);
-      simdr_t simdr_xb = *reinterpret_cast<simdr_t*>(&xb_val_reversed);
+      simdr_t simdr_xb = bit_cast<simdr_t>(xb_val_reversed);
       set_simd_register(t, simdr_xb);
       break;
     }
@@ -4775,7 +4773,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DECODE_VX_INSTRUCTION(t, a, b, T)
       uint16_t result_bits = 0;
       unsigned __int128 src_bits =
-          *(reinterpret_cast<__int128*>(get_simd_register(a).int8));
+          bit_cast<__int128>(get_simd_register(a).int8);
       for (int i = 0; i < kSimd128Size; i++) {
         result_bits <<= 1;
         uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(b, i);
@@ -5007,7 +5005,7 @@ void Simulator::CallInternal(Address entry) {
   // Prepare to execute the code at entry
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // entry is the function descriptor
-    set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+    set_pc(*(bit_cast<intptr_t*>(entry)));
   } else {
     // entry is the instruction address
     set_pc(static_cast<intptr_t>(entry));
