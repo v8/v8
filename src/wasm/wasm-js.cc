@@ -2241,15 +2241,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Exception
   if (enabled_features.has_eh()) {
-    Handle<String> exception_name = v8_str(isolate, "Exception");
-    Handle<JSFunction> exception_constructor =
-        CreateFunc(isolate, exception_name, WebAssemblyException, true,
-                   SideEffectType::kHasSideEffect);
-    exception_constructor->shared().set_length(1);
-    JSObject::AddProperty(isolate, webassembly, exception_name,
-                          exception_constructor, DONT_ENUM);
-    // Install the constructor on the context unconditionally so that it is also
-    // available when the feature is enabled via the origin trial.
+    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
+        isolate, webassembly, "Exception", WebAssemblyException);
     context->set_wasm_exception_constructor(*exception_constructor);
     SetDummyInstanceTemplate(isolate, exception_constructor);
     JSFunction::EnsureHasInitialMap(exception_constructor);
@@ -2321,12 +2314,8 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
     // Setup Exception
     Handle<String> exception_name = v8_str(isolate, "Exception");
     if (!JSObject::HasProperty(webassembly, exception_name).FromMaybe(true)) {
-      Handle<JSFunction> exception_constructor =
-          CreateFunc(isolate, exception_name, WebAssemblyException, true,
-                     SideEffectType::kHasSideEffect);
-      exception_constructor->shared().set_length(1);
-      JSObject::AddProperty(isolate, webassembly, exception_name,
-                            exception_constructor, DONT_ENUM);
+      Handle<JSFunction> exception_constructor = InstallConstructorFunc(
+          isolate, webassembly, "Exception", WebAssemblyException);
       // Install the constructor on the context.
       context->set_wasm_exception_constructor(*exception_constructor);
       SetDummyInstanceTemplate(isolate, exception_constructor);
