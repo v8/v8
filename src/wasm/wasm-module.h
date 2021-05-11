@@ -16,6 +16,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/utils/vector.h"
+#include "src/wasm/branch-hint-map.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
@@ -338,6 +339,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmException> exceptions;
   std::vector<WasmElemSegment> elem_segments;
   std::vector<WasmCompilationHint> compilation_hints;
+  BranchHintInfo branch_hints;
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module

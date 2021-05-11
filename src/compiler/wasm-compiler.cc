@@ -1312,6 +1312,11 @@ Node* WasmGraphBuilder::BranchExpectFalse(Node* cond, Node** true_node,
   return gasm_->Branch(cond, true_node, false_node, BranchHint::kFalse);
 }
 
+Node* WasmGraphBuilder::BranchExpectTrue(Node* cond, Node** true_node,
+                                         Node** false_node) {
+  return gasm_->Branch(cond, true_node, false_node, BranchHint::kTrue);
+}
+
 Node* WasmGraphBuilder::Select(Node *cond, Node* true_node,
                                Node* false_node, wasm::ValueType type) {
   MachineOperatorBuilder* m = mcgraph()->machine();
@@ -7761,7 +7766,7 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
                            source_positions);
   wasm::VoidResult graph_construction_result = wasm::BuildTFGraph(
       allocator, env->enabled_features, env->module, &builder, detected,
-      func_body, loop_infos, node_origins);
+      func_body, loop_infos, node_origins, func_index);
   if (graph_construction_result.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "

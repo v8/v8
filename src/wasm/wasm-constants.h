@@ -101,10 +101,11 @@ enum SectionCode : int8_t {
   kDebugInfoSectionCode,          // DWARF section .debug_info
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
   kCompilationHintsSectionCode,   // Compilation hints section
+  kBranchHintsSectionCode,        // Branch hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kCompilationHintsSectionCode,
+  kLastKnownModuleSection = kBranchHintsSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 

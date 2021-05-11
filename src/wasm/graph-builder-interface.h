@@ -32,7 +32,7 @@ BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,
              const WasmModule* module, compiler::WasmGraphBuilder* builder,
              WasmFeatures* detected, const FunctionBody& body,
              std::vector<compiler::WasmLoopInfo>* loop_infos,
-             compiler::NodeOriginTable* node_origins);
+             compiler::NodeOriginTable* node_origins, int func_index);
 
 }  // namespace wasm
 }  // namespace internal

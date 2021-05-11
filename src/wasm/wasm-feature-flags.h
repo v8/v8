@@ -37,7 +37,12 @@
   /* Relaxed SIMD proposal. */                                                 \
   /* https://github.com/WebAssembly/relaxed-simd */                            \
   /* V8 side owner: zhin */                                                    \
-  V(relaxed_simd, "relaxed simd", false)
+  V(relaxed_simd, "relaxed simd", false)                                       \
+                                                                               \
+  /* Branch Hinting proposal. */                                               \
+  /* https://github.com/WebAssembly/branch-hinting */                          \
+  /* V8 side owner: jkummerow */                                               \
+  V(branch_hinting, "branch hinting", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

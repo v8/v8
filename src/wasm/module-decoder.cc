@@ -34,6 +34,7 @@ namespace {
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
+constexpr char kBranchHintsString[] = "branchHints";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 
@@ -95,6 +96,8 @@ const char* SectionName(SectionCode code) {
       return kExternalDebugInfoString;
     case kCompilationHintsSectionCode:
       return kCompilationHintsString;
+    case kBranchHintsSectionCode:
+      return kBranchHintsString;
     default:
       return "<unknown>";
   }
@@ -144,6 +147,7 @@ SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
       {StaticCharVector(kNameString), kNameSectionCode},
       {StaticCharVector(kSourceMappingURLString), kSourceMappingURLSectionCode},
       {StaticCharVector(kCompilationHintsString), kCompilationHintsSectionCode},
+      {StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
       {StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode}};
@@ -432,6 +436,13 @@ class ModuleDecoderImpl : public Decoder {
         // first occurrence after function section and before code section are
         // ignored.
         break;
+      case kBranchHintsSectionCode:
+        // TODO(yuri): report out of place branch hints section as a
+        // warning.
+        // Be lenient with placement of compilation hints section. All except
+        // first occurrence after function section and before code section are
+        // ignored.
+        break;
       default:
         next_ordered_section_ = section_code + 1;
         break;
@@ -492,6 +503,15 @@ class ModuleDecoderImpl : public Decoder {
       case kCompilationHintsSectionCode:
         if (enabled_features_.has_compilation_hints()) {
           DecodeCompilationHintsSection();
+        } else {
+          // Ignore this section when feature was disabled. It is an optional
+          // custom section anyways.
+          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+        }
+        break;
+      case kBranchHintsSectionCode:
+        if (enabled_features_.has_branch_hinting()) {
+          DecodeBranchHintsSection();
         } else {
           // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
@@ -1147,6 +1167,82 @@ class ModuleDecoderImpl : public Decoder {
     // @TODO(frgossen) Skip the whole compilation hints section in the outer
     // decoder if inner decoder was used.
     // consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeBranchHintsSection() {
+    TRACE("DecodeBranchHints module+%d\n", static_cast<int>(pc_ - start_));
+    if (!has_seen_unordered_section(kBranchHintsSectionCode)) {
+      set_seen_unordered_section(kBranchHintsSectionCode);
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_, buffer_offset_);
+      BranchHintInfo branch_hints;
+
+      uint32_t func_count = inner.consume_u32v("number of functions");
+      // Keep track of the previous function index to validate the ordering
+      int64_t last_func_idx = -1;
+      for (uint32_t i = 0; i < func_count; i++) {
+        uint32_t func_idx = inner.consume_u32v("function index");
+        if (int64_t(func_idx) <= last_func_idx) {
+          inner.errorf("Invalid function index: %d", func_idx);
+          break;
+        }
+        last_func_idx = func_idx;
+        uint8_t reserved = inner.consume_u8("reserved byte");
+        if (reserved != 0x0) {
+          inner.errorf("Invalid reserved byte: %#x", reserved);
+          break;
+        }
+        uint32_t num_hints = inner.consume_u32v("number of hints");
+        BranchHintMap func_branch_hints;
+        TRACE("DecodeBranchHints[%d] module+%d\n", func_idx,
+              static_cast<int>(inner.pc() - inner.start()));
+        // Keep track of the previous branch offset to validate the ordering
+        int64_t last_br_off = -1;
+        for (uint32_t j = 0; j < num_hints; ++j) {
+          uint32_t br_dir = inner.consume_u32v("branch direction");
+          uint32_t br_off = inner.consume_u32v("branch instruction offset");
+          if (int64_t(br_off) <= last_br_off) {
+            inner.errorf("Invalid branch offset: %d", br_off);
+            break;
+          }
+          last_br_off = br_off;
+          TRACE("DecodeBranchHints[%d][%d] module+%d\n", func_idx, br_off,
+                static_cast<int>(inner.pc() - inner.start()));
+          WasmBranchHint hint;
+          switch (br_dir) {
+            case 0:
+              hint = WasmBranchHint::kUnlikely;
+              break;
+            case 1:
+              hint = WasmBranchHint::kLikely;
+              break;
+            default:
+              hint = WasmBranchHint::kNoHint;
+              inner.errorf(inner.pc(), "Invalid branch hint %#x", br_dir);
+              break;
+          }
+          if (!inner.ok()) {
+            break;
+          }
+          func_branch_hints.insert(br_off, hint);
+        }
+        if (!inner.ok()) {
+          break;
+        }
+        branch_hints.emplace(func_idx, std::move(func_branch_hints));
+      }
+      // Extra unexpected bytes are an error.
+      if (inner.more()) {
+        inner.errorf("Unexpected extra bytes: %d\n",
+                     static_cast<int>(inner.pc() - inner.start()));
+      }
+      // If everything went well, accept the hints for the module.
+      if (inner.ok()) {
+        module_->branch_hints = std::move(branch_hints);
+      }
+    }
+    // Skip the whole branch hints section in the outer decoder.
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
   void DecodeDataCountSection() {

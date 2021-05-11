@@ -9,6 +9,7 @@
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
+#include "src/wasm/branch-hint-map.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
@@ -108,10 +109,18 @@ class WasmGraphBuildingInterface {
         : ControlBase(std::forward<Args>(args)...) {}
   };
 
-  explicit WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder)
-      : builder_(builder) {}
+  explicit WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
+                                      int func_index)
+      : builder_(builder), func_index_(func_index) {}
 
   void StartFunction(FullDecoder* decoder) {
+    // Get the branch hints map for this function (if available)
+    if (decoder->module_) {
+      auto branch_hints_it = decoder->module_->branch_hints.find(func_index_);
+      if (branch_hints_it != decoder->module_->branch_hints.end()) {
+        branch_hints_ = &branch_hints_it->second;
+      }
+    }
     // The first '+ 1' is needed by TF Start node, the second '+ 1' is for the
     // instance parameter.
     builder_->Start(static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
@@ -243,7 +252,21 @@ class WasmGraphBuildingInterface {
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     TFNode* if_true = nullptr;
     TFNode* if_false = nullptr;
-    builder_->BranchNoHint(cond.node, &if_true, &if_false);
+    WasmBranchHint hint = WasmBranchHint::kNoHint;
+    if (branch_hints_) {
+      hint = branch_hints_->GetHintFor(decoder->pc_relative_offset());
+    }
+    switch (hint) {
+      case WasmBranchHint::kNoHint:
+        builder_->BranchNoHint(cond.node, &if_true, &if_false);
+        break;
+      case WasmBranchHint::kUnlikely:
+        builder_->BranchExpectFalse(cond.node, &if_true, &if_false);
+        break;
+      case WasmBranchHint::kLikely:
+        builder_->BranchExpectTrue(cond.node, &if_true, &if_false);
+        break;
+    }
     SsaEnv* merge_env = ssa_env_;
     SsaEnv* false_env = Split(decoder->zone(), ssa_env_);
     false_env->control = if_false;
@@ -476,7 +499,21 @@ class WasmGraphBuildingInterface {
     SsaEnv* fenv = ssa_env_;
     SsaEnv* tenv = Split(decoder->zone(), fenv);
     fenv->SetNotMerged();
-    builder_->BranchNoHint(cond.node, &tenv->control, &fenv->control);
+    WasmBranchHint hint = WasmBranchHint::kNoHint;
+    if (branch_hints_) {
+      hint = branch_hints_->GetHintFor(decoder->pc_relative_offset());
+    }
+    switch (hint) {
+      case WasmBranchHint::kNoHint:
+        builder_->BranchNoHint(cond.node, &tenv->control, &fenv->control);
+        break;
+      case WasmBranchHint::kUnlikely:
+        builder_->BranchExpectFalse(cond.node, &tenv->control, &fenv->control);
+        break;
+      case WasmBranchHint::kLikely:
+        builder_->BranchExpectTrue(cond.node, &tenv->control, &fenv->control);
+        break;
+    }
     builder_->SetControl(fenv->control);
     SetEnv(tenv);
     BrOrRet(decoder, depth, 1);
@@ -1067,6 +1104,8 @@ class WasmGraphBuildingInterface {
  private:
   SsaEnv* ssa_env_ = nullptr;
   compiler::WasmGraphBuilder* builder_;
+  int func_index_;
+  const BranchHintMap* branch_hints_ = nullptr;
   // Tracks loop data for loop unrolling.
   std::vector<compiler::WasmLoopInfo> loop_infos_;
 
@@ -1498,10 +1537,11 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           compiler::WasmGraphBuilder* builder,
                           WasmFeatures* detected, const FunctionBody& body,
                           std::vector<compiler::WasmLoopInfo>* loop_infos,
-                          compiler::NodeOriginTable* node_origins) {
+                          compiler::NodeOriginTable* node_origins,
+                          int func_index) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kFullValidation, WasmGraphBuildingInterface> decoder(
-      &zone, module, enabled, detected, body, builder);
+      &zone, module, enabled, detected, body, builder, func_index);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);
   }

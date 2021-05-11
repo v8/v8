@@ -2328,7 +2328,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
+  inline uint32_t pc_relative_offset() const {
+    return this->pc_offset() - first_instruction_offset;
+  }
+
  private:
+  uint32_t first_instruction_offset = 0;
   Interface interface_;
 
   // The value stack, stored as individual pointers for maximum performance.
@@ -3479,6 +3484,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StartFunctionBody, c);
     }
 
+    first_instruction_offset = this->pc_offset();
     // Decode the function body.
     while (this->pc_ < this->end_) {
       // Most operations only grow the stack by at least one element (unary and
