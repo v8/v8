@@ -195,6 +195,12 @@ class Assembler : public AssemblerBase {
 
   void MaybeEmitOutOfLineConstantPool() { EmitConstantPool(); }
 
+  inline void CheckTrampolinePoolQuick(int extra_space = 0) {
+    if (pc_offset() >= next_trampoline_check_ - extra_space) {
+      CheckTrampolinePool();
+    }
+  }
+
   // Label operations & relative jumps (PPUM Appendix D)
   //
   // Takes a branch opcode (cc) and a label (L) and generates
@@ -1334,12 +1340,6 @@ class Assembler : public AssemblerBase {
   }
 
   inline void UntrackBranch();
-  void CheckTrampolinePoolQuick() {
-    if (pc_offset() >= next_trampoline_check_) {
-      CheckTrampolinePool();
-    }
-  }
-
   // Instruction generation
   void a_form(Instr instr, DoubleRegister frt, DoubleRegister fra,
               DoubleRegister frb, RCBit r);

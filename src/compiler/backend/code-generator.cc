@@ -416,23 +416,29 @@ void CodeGenerator::AssembleCode() {
     std::sort(deoptimization_exits_.begin(), deoptimization_exits_.end(), cmp);
   }
 
-  for (DeoptimizationExit* exit : deoptimization_exits_) {
-    if (exit->emitted()) continue;
-    if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
-      exit->set_deoptimization_id(next_deoptimization_id_++);
-    }
-    result_ = AssembleDeoptimizerCall(exit);
-    if (result_ != kSuccess) return;
+  {
+#ifdef V8_TARGET_ARCH_PPC64
+    v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
+        tasm());
+#endif
+    for (DeoptimizationExit* exit : deoptimization_exits_) {
+      if (exit->emitted()) continue;
+      if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
+        exit->set_deoptimization_id(next_deoptimization_id_++);
+      }
+      result_ = AssembleDeoptimizerCall(exit);
+      if (result_ != kSuccess) return;
 
-    // UpdateDeoptimizationInfo expects lazy deopts to be visited in pc_offset
-    // order, which is always the case since they are added to
-    // deoptimization_exits_ in that order, and the optional sort operation
-    // above preserves that order.
-    if (exit->kind() == DeoptimizeKind::kLazy) {
-      int trampoline_pc = exit->label()->pos();
-      last_updated = safepoints()->UpdateDeoptimizationInfo(
-          exit->pc_offset(), trampoline_pc, last_updated,
-          exit->deoptimization_id());
+      // UpdateDeoptimizationInfo expects lazy deopts to be visited in pc_offset
+      // order, which is always the case since they are added to
+      // deoptimization_exits_ in that order, and the optional sort operation
+      // above preserves that order.
+      if (exit->kind() == DeoptimizeKind::kLazy) {
+        int trampoline_pc = exit->label()->pos();
+        last_updated = safepoints()->UpdateDeoptimizationInfo(
+            exit->pc_offset(), trampoline_pc, last_updated,
+            exit->deoptimization_id());
+      }
     }
   }
 
