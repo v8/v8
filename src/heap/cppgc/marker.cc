@@ -191,7 +191,7 @@ MarkerBase::~MarkerBase() {
     MarkingWorklists::EphemeronPairItem item;
     while (mutator_marking_state_.discovered_ephemeron_pairs_worklist().Pop(
         &item)) {
-      DCHECK(!HeapObjectHeader::FromPayload(item.key).IsMarked());
+      DCHECK(!HeapObjectHeader::FromObject(item.key).IsMarked());
     }
 #else
     marking_worklists_.discovered_ephemeron_pairs_worklist()->Clear();
@@ -472,7 +472,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               mutator_marking_state_.marking_worklist(),
               [this](const MarkingWorklists::MarkingItem& item) {
                 const HeapObjectHeader& header =
-                    HeapObjectHeader::FromPayload(item.base_object_payload);
+                    HeapObjectHeader::FromObject(item.base_object_payload);
                 DCHECK(!header.IsInConstruction<AccessMode::kNonAtomic>());
                 DCHECK(header.IsMarked<AccessMode::kNonAtomic>());
                 mutator_marking_state_.AccountMarkedBytes(header);

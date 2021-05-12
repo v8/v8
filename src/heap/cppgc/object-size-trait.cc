@@ -13,7 +13,7 @@ namespace internal {
 // static
 size_t BaseObjectSizeTrait::GetObjectSizeForGarbageCollected(
     const void* object) {
-  const auto& header = HeapObjectHeader::FromPayload(object);
+  const auto& header = HeapObjectHeader::FromObject(object);
   return header.IsLargeObject()
              ? static_cast<const LargePage*>(BasePage::FromPayload(&header))
                    ->ObjectSize()

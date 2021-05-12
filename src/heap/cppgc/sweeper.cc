@@ -200,7 +200,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
   for (Address begin = page->PayloadStart(), end = page->PayloadEnd();
        begin != end;) {
     HeapObjectHeader* header = reinterpret_cast<HeapObjectHeader*>(begin);
-    const size_t size = header->GetSize();
+    const size_t size = header->AllocatedSize();
     // Check if this is a free list entry.
     if (header->IsFree<kAtomicAccess>()) {
       SetMemoryInaccessible(header, std::min(kFreeListEntrySize, size));
@@ -290,7 +290,7 @@ class SweepFinalizer final {
 
     // Call finalizers.
     for (HeapObjectHeader* object : page_state->unfinalized_objects) {
-      const size_t size = object->GetSize();
+      const size_t size = object->AllocatedSize();
       object->Finalize();
       SetMemoryInaccessible(object, size);
     }

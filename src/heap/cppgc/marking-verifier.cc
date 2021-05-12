@@ -40,7 +40,7 @@ void MarkingVerifierBase::Run(Heap::Config::StackState stack_state,
 
 void VerificationState::VerifyMarked(const void* base_object_payload) const {
   const HeapObjectHeader& child_header =
-      HeapObjectHeader::FromPayload(base_object_payload);
+      HeapObjectHeader::FromObject(base_object_payload);
 
   if (!child_header.IsMarked()) {
     FATAL(
@@ -50,8 +50,8 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
         "#   %s (%p)\n"
         "#     \\-> %s (%p)",
         parent_ ? parent_->GetName().value : "Stack",
-        parent_ ? parent_->Payload() : nullptr, child_header.GetName().value,
-        child_header.Payload());
+        parent_ ? parent_->ObjectStart() : nullptr,
+        child_header.GetName().value, child_header.ObjectStart());
   }
 }
 
@@ -66,7 +66,7 @@ void MarkingVerifierBase::VisitInConstructionConservatively(
   // itself is marked. If the object is marked, then it is being processed by
   // the on-heap phase.
   if (verification_state_.IsParentOnStack()) {
-    verification_state_.VerifyMarked(header.Payload());
+    verification_state_.VerifyMarked(header.ObjectStart());
     return;
   }
 

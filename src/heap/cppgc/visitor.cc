@@ -29,15 +29,15 @@ namespace {
 
 void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
                          const HeapObjectHeader& header) {
-  Address* payload = reinterpret_cast<Address*>(header.Payload());
+  Address* object = reinterpret_cast<Address*>(header.ObjectStart());
   const size_t object_size =
       header.IsLargeObject()
           ? LargePage::From(BasePage::FromPayload(&header))->ObjectSize()
           : header.ObjectSize();
   for (size_t i = 0; i < (object_size / sizeof(Address)); ++i) {
-    Address maybe_ptr = payload[i];
+    Address maybe_ptr = object[i];
 #if defined(MEMORY_SANITIZER)
-    // |payload| may be uninitialized by design or just contain padding bytes.
+    // |object| may be uninitialized by design or just contain padding bytes.
     // Copy into a local variable that is not poisoned for conservative marking.
     // Copy into a temporary variable to maintain the original MSAN state.
     MSAN_MEMORY_IS_INITIALIZED(&maybe_ptr, sizeof(maybe_ptr));
@@ -81,8 +81,8 @@ void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
 void ConservativeTracingVisitor::VisitFullyConstructedConservatively(
     HeapObjectHeader& header) {
   visitor_.Visit(
-      header.Payload(),
-      {header.Payload(),
+      header.ObjectStart(),
+      {header.ObjectStart(),
        GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
 }
 

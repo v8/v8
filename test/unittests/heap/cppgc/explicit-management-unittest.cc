@@ -51,11 +51,11 @@ TEST_F(ExplicitManagementTest, FreeRegularObjectToLAB) {
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
   const auto* space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
   const auto& lab = space->linear_allocation_buffer();
-  auto& header = HeapObjectHeader::FromPayload(o);
-  const size_t size = header.GetSize();
+  auto& header = HeapObjectHeader::FromObject(o);
+  const size_t size = header.AllocatedSize();
   Address needle = reinterpret_cast<Address>(&header);
   // Test checks freeing to LAB.
-  ASSERT_EQ(lab.start(), header.PayloadEnd());
+  ASSERT_EQ(lab.start(), header.ObjectEnd());
   const size_t lab_size_before_free = lab.size();
   const size_t allocated_size_before = AllocatedObjectSize();
   subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
@@ -71,8 +71,8 @@ TEST_F(ExplicitManagementTest, FreeRegularObjectToFreeList) {
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
   const auto* space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
   const auto& lab = space->linear_allocation_buffer();
-  auto& header = HeapObjectHeader::FromPayload(o);
-  const size_t size = header.GetSize();
+  auto& header = HeapObjectHeader::FromObject(o);
+  const size_t size = header.AllocatedSize();
   Address needle = reinterpret_cast<Address>(&header);
   // Test checks freeing to free list.
   ResetLinearAllocationBuffers();
@@ -118,7 +118,7 @@ TEST_F(ExplicitManagementTest, FreeBailsOutDuringGC) {
 TEST_F(ExplicitManagementTest, GrowAtLAB) {
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
-  auto& header = HeapObjectHeader::FromPayload(o);
+  auto& header = HeapObjectHeader::FromObject(o);
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   constexpr size_t kFirstDelta = 8;
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kFirstDelta)));
@@ -141,7 +141,7 @@ TEST_F(ExplicitManagementTest, GrowAtLAB) {
 TEST_F(ExplicitManagementTest, GrowShrinkAtLAB) {
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
-  auto& header = HeapObjectHeader::FromPayload(o);
+  auto& header = HeapObjectHeader::FromObject(o);
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   constexpr size_t kDelta = 27;
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kDelta)));
@@ -158,12 +158,12 @@ TEST_F(ExplicitManagementTest, ShrinkFreeList) {
   const auto* space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
   // Force returning to free list by removing the LAB.
   ResetLinearAllocationBuffers();
-  auto& header = HeapObjectHeader::FromPayload(o);
+  auto& header = HeapObjectHeader::FromObject(o);
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o), header.ObjectSize());
   EXPECT_TRUE(space->free_list().ContainsForTesting(
-      {header.PayloadEnd(), ObjectAllocator::kSmallestSpaceSize}));
+      {header.ObjectEnd(), ObjectAllocator::kSmallestSpaceSize}));
 }
 
 TEST_F(ExplicitManagementTest, ShrinkFreeListBailoutAvoidFragmentation) {
@@ -173,14 +173,14 @@ TEST_F(ExplicitManagementTest, ShrinkFreeListBailoutAvoidFragmentation) {
   const auto* space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
   // Force returning to free list by removing the LAB.
   ResetLinearAllocationBuffers();
-  auto& header = HeapObjectHeader::FromPayload(o);
+  auto& header = HeapObjectHeader::FromObject(o);
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(
                 size_of_o + ObjectAllocator::kSmallestSpaceSize - 1),
             header.ObjectSize());
   EXPECT_FALSE(space->free_list().ContainsForTesting(
-      {header.Payload() + RoundUp<kAllocationGranularity>(size_of_o),
+      {header.ObjectStart() + RoundUp<kAllocationGranularity>(size_of_o),
        ObjectAllocator::kSmallestSpaceSize - 1}));
 }
 

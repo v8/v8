@@ -56,7 +56,7 @@ V8_NOINLINE T access(volatile const T& t) {
 
 TEST_F(MarkingVerifierTest, DoesntDieOnMarkedOnStackReference) {
   GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(object).TryMarkAtomic();
+  HeapObjectHeader::FromObject(object).TryMarkAtomic();
   VerifyMarking(Heap::From(GetHeap())->AsBase(),
                 StackState::kMayContainHeapPointers);
   access(object);
@@ -64,17 +64,17 @@ TEST_F(MarkingVerifierTest, DoesntDieOnMarkedOnStackReference) {
 
 TEST_F(MarkingVerifierTest, DoesntDieOnMarkedMember) {
   Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(parent.Get()).TryMarkAtomic();
+  HeapObjectHeader::FromObject(parent.Get()).TryMarkAtomic();
   parent->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
-  HeapObjectHeader::FromPayload(parent->child()).TryMarkAtomic();
+  HeapObjectHeader::FromObject(parent->child()).TryMarkAtomic();
   VerifyMarking(Heap::From(GetHeap())->AsBase(), StackState::kNoHeapPointers);
 }
 
 TEST_F(MarkingVerifierTest, DoesntDieOnMarkedWeakMember) {
   Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(parent.Get()).TryMarkAtomic();
+  HeapObjectHeader::FromObject(parent.Get()).TryMarkAtomic();
   parent->SetWeakChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
-  HeapObjectHeader::FromPayload(parent->weak_child()).TryMarkAtomic();
+  HeapObjectHeader::FromObject(parent->weak_child()).TryMarkAtomic();
   VerifyMarking(Heap::From(GetHeap())->AsBase(), StackState::kNoHeapPointers);
 }
 
@@ -94,7 +94,7 @@ class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
 TEST_F(MarkingVerifierTest, DoesntDieOnInConstructionOnObject) {
   MakeGarbageCollected<GCedWithCallback>(
       GetAllocationHandle(), [this](GCedWithCallback* obj) {
-        HeapObjectHeader::FromPayload(obj).TryMarkAtomic();
+        HeapObjectHeader::FromObject(obj).TryMarkAtomic();
         VerifyMarking(Heap::From(GetHeap())->AsBase(),
                       StackState::kMayContainHeapPointers);
       });
@@ -164,7 +164,7 @@ TEST_F(MarkingVerifierDeathTest, DieOnUnmarkedOnStackReference) {
 
 TEST_F(MarkingVerifierDeathTest, DieOnUnmarkedMember) {
   Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(parent.Get()).TryMarkAtomic();
+  HeapObjectHeader::FromObject(parent.Get()).TryMarkAtomic();
   parent->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
   EXPECT_DEATH_IF_SUPPORTED(VerifyMarking(Heap::From(GetHeap())->AsBase(),
                                           StackState::kNoHeapPointers),
@@ -173,7 +173,7 @@ TEST_F(MarkingVerifierDeathTest, DieOnUnmarkedMember) {
 
 TEST_F(MarkingVerifierDeathTest, DieOnUnmarkedWeakMember) {
   Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(parent.Get()).TryMarkAtomic();
+  HeapObjectHeader::FromObject(parent.Get()).TryMarkAtomic();
   parent->SetWeakChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
   EXPECT_DEATH_IF_SUPPORTED(VerifyMarking(Heap::From(GetHeap())->AsBase(),
                                           StackState::kNoHeapPointers),

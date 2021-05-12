@@ -171,20 +171,20 @@ TEST_F(GCHeapTest, AllocateWithAdditionalBytes) {
   static constexpr size_t kAdditionalBytes = 10u * kAllocationGranularity;
   {
     Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle());
-    EXPECT_LE(kBaseSize, HeapObjectHeader::FromPayload(object).GetSize());
+    EXPECT_LE(kBaseSize, HeapObjectHeader::FromObject(object).AllocatedSize());
   }
   {
     Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle(),
                                             AdditionalBytes(kAdditionalBytes));
     EXPECT_LE(kBaseSize + kAdditionalBytes,
-              HeapObjectHeader::FromPayload(object).GetSize());
+              HeapObjectHeader::FromObject(object).AllocatedSize());
   }
   {
     Foo* object = MakeGarbageCollected<Foo>(
         GetAllocationHandle(),
         AdditionalBytes(kAdditionalBytes * kAdditionalBytes));
     EXPECT_LE(kBaseSize + kAdditionalBytes * kAdditionalBytes,
-              HeapObjectHeader::FromPayload(object).GetSize());
+              HeapObjectHeader::FromObject(object).AllocatedSize());
   }
 }
 
@@ -196,10 +196,11 @@ TEST_F(GCHeapTest, AllocatedSizeDependOnAdditionalBytes) {
   Foo* object_with_more_bytes = MakeGarbageCollected<Foo>(
       GetAllocationHandle(),
       AdditionalBytes(kAdditionalBytes * kAdditionalBytes));
-  EXPECT_LT(HeapObjectHeader::FromPayload(object).GetSize(),
-            HeapObjectHeader::FromPayload(object_with_bytes).GetSize());
-  EXPECT_LT(HeapObjectHeader::FromPayload(object_with_bytes).GetSize(),
-            HeapObjectHeader::FromPayload(object_with_more_bytes).GetSize());
+  EXPECT_LT(HeapObjectHeader::FromObject(object).AllocatedSize(),
+            HeapObjectHeader::FromObject(object_with_bytes).AllocatedSize());
+  EXPECT_LT(
+      HeapObjectHeader::FromObject(object_with_bytes).AllocatedSize(),
+      HeapObjectHeader::FromObject(object_with_more_bytes).AllocatedSize());
 }
 
 TEST_F(GCHeapTest, Epoch) {
@@ -369,7 +370,7 @@ TEST_F(GCHeapDeathTest, LargeChainOfNewStates) {
 TEST_F(GCHeapTest, IsHeapObjectAliveForConstPointer) {
   // Regression test: http://crbug.com/661363.
   GCed<64>* object = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
-  HeapObjectHeader& header = HeapObjectHeader::FromPayload(object);
+  HeapObjectHeader& header = HeapObjectHeader::FromObject(object);
   LivenessBroker broker = internal::LivenessBrokerFactory::Create();
   EXPECT_TRUE(header.TryMarkAtomic());
   EXPECT_TRUE(broker.IsHeapObjectAlive(object));

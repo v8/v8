@@ -123,7 +123,7 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
       ->object_start_bitmap()
       .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(header));
 
-  return header->Payload();
+  return header->ObjectStart();
 }
 
 }  // namespace internal

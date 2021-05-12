@@ -56,12 +56,12 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
   // Header checks.
   const HeapObjectHeader* header = nullptr;
   if (points_to_payload) {
-    header = &HeapObjectHeader::FromPayload(ptr);
+    header = &HeapObjectHeader::FromObject(ptr);
   } else if (!heap->sweeper().IsSweepingInProgress()) {
     // Mixin case.
     header = &base_page->ObjectHeaderFromInnerAddress(ptr);
-    DCHECK_LE(header->Payload(), ptr);
-    DCHECK_GT(header->PayloadEnd(), ptr);
+    DCHECK_LE(header->ObjectStart(), ptr);
+    DCHECK_GT(header->ObjectEnd(), ptr);
   }
   if (header) {
     DCHECK(!header->IsFree());

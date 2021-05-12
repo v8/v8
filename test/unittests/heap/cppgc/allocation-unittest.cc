@@ -87,7 +87,7 @@ TEST_F(CppgcAllocationTest,
        ConservativeGCDuringAllocationDoesNotReclaimObject) {
   CallbackInCtor* obj = MakeGarbageCollected<CallbackInCtor>(
       GetAllocationHandle(), [this]() { ConservativeGC(); });
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsFree());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(obj).IsFree());
 }
 
 namespace {

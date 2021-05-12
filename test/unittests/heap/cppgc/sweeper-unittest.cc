@@ -58,7 +58,7 @@ class SweeperTest : public testing::TestWithHeap {
   }
 
   void MarkObject(void* payload) {
-    HeapObjectHeader& header = HeapObjectHeader::FromPayload(payload);
+    HeapObjectHeader& header = HeapObjectHeader::FromObject(payload);
     header.TryMarkAtomic();
   }
 
@@ -196,10 +196,10 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
   MarkObject(object4);
 
   Address object2_start =
-      reinterpret_cast<Address>(&HeapObjectHeader::FromPayload(object2));
+      reinterpret_cast<Address>(&HeapObjectHeader::FromObject(object2));
   Address object3_end =
-      reinterpret_cast<Address>(&HeapObjectHeader::FromPayload(object3)) +
-      HeapObjectHeader::FromPayload(object3).GetSize();
+      reinterpret_cast<Address>(&HeapObjectHeader::FromObject(object3)) +
+      HeapObjectHeader::FromObject(object3).AllocatedSize();
 
   const BasePage* page = BasePage::FromPayload(object2);
   const FreeList& freelist = NormalPageSpace::From(page->space())->free_list();
@@ -249,8 +249,8 @@ TEST_F(SweeperTest, UnmarkObjects) {
       MakeGarbageCollected<GCed<kLargeObjectSizeThreshold * 2>>(
           GetAllocationHandle());
 
-  auto& normal_object_header = HeapObjectHeader::FromPayload(normal_object);
-  auto& large_object_header = HeapObjectHeader::FromPayload(large_object);
+  auto& normal_object_header = HeapObjectHeader::FromObject(normal_object);
+  auto& large_object_header = HeapObjectHeader::FromObject(large_object);
 
   normal_object_header.TryMarkAtomic();
   large_object_header.TryMarkAtomic();

@@ -27,7 +27,7 @@ class UnmarkedObjectsPoisoner : public HeapVisitor<UnmarkedObjectsPoisoner> {
         header->IsLargeObject()
             ? LargePage::From(BasePage::FromPayload(header))->ObjectSize()
             : header->ObjectSize();
-    ASAN_POISON_MEMORY_REGION(header->Payload(), size);
+    ASAN_POISON_MEMORY_REGION(header->ObjectStart(), size);
     return true;
   }
 };

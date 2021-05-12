@@ -111,7 +111,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     bool operator!=(IteratorImpl other) const { return !(*this == other); }
 
     IteratorImpl& operator++() {
-      const size_t size = p_->GetSize();
+      const size_t size = p_->AllocatedSize();
       DCHECK_EQ(0, (size & (sizeof(T) - 1)));
       p_ += (size / sizeof(T));
       if (reinterpret_cast<ConstAddress>(p_) == lab_start_) {
@@ -264,7 +264,7 @@ const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
   DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
-                         header->GetSize<AccessMode::kAtomic>());
+                         header->AllocatedSize<AccessMode::kAtomic>());
   return header;
 }
 

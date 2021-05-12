@@ -130,7 +130,7 @@ void MovableReferences::AddOrFilter(MovableReference* slot) {
            interior_movable_references_.find(slot));
   interior_movable_references_.emplace(slot, nullptr);
 #if DEBUG
-  interior_slot_to_object_.emplace(slot, slot_header.Payload());
+  interior_slot_to_object_.emplace(slot, slot_header.ObjectStart());
 #endif  // DEBUG
 }
 
@@ -145,8 +145,8 @@ void MovableReferences::Relocate(Address from, Address to) {
   // find the corresponding slot A.x. Object A may be moved already and the
   // memory may have been freed, which would result in a crash.
   if (!interior_movable_references_.empty()) {
-    const HeapObjectHeader& header = HeapObjectHeader::FromPayload(to);
-    const size_t size = header.GetSize() - sizeof(HeapObjectHeader);
+    const HeapObjectHeader& header = HeapObjectHeader::FromObject(to);
+    const size_t size = header.ObjectSize();
     RelocateInteriorReferences(from, to, size);
   }
 
@@ -330,7 +330,7 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
        header_address < page->PayloadEnd();) {
     HeapObjectHeader* header =
         reinterpret_cast<HeapObjectHeader*>(header_address);
-    size_t size = header->GetSize();
+    size_t size = header->AllocatedSize();
     DCHECK_GT(size, 0u);
     DCHECK_LT(size, kPageSize);
 

@@ -210,7 +210,7 @@ UnifiedHeapMarker::UnifiedHeapMarker(Key key, Heap* v8_heap,
 
 void UnifiedHeapMarker::AddObject(void* object) {
   mutator_marking_state_.MarkAndPush(
-      cppgc::internal::HeapObjectHeader::FromPayload(object));
+      cppgc::internal::HeapObjectHeader::FromObject(object));
 }
 
 }  // namespace
