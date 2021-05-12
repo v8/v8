@@ -148,9 +148,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // These exist to provide portability between 32 and 64bit
   void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void LoadP(Register dst, const MemOperand& mem, Register scratch = no_reg) {
-    LoadU64(dst, mem, no_reg);
-  }
   void LoadPU(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadWordArith(Register dst, const MemOperand& mem,
                      Register scratch = no_reg);
