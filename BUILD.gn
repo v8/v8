@@ -2321,6 +2321,7 @@ v8_header_set("v8_internal_headers") {
     "src/api/api-arguments-inl.h",
     "src/api/api-arguments.h",
     "src/api/api-inl.h",
+    "src/api/api-macros-undef.h",
     "src/api/api-macros.h",
     "src/api/api-natives.h",
     "src/api/api.h",
@@ -2432,6 +2433,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/common-operator-reducer.h",
     "src/compiler/common-operator.h",
     "src/compiler/compilation-dependencies.h",
+    "src/compiler/compilation-dependency.h",
     "src/compiler/compiler-source-position-table.h",
     "src/compiler/constant-folding-reducer.h",
     "src/compiler/control-equivalence.h",
@@ -2498,6 +2500,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/persistent-map.h",
     "src/compiler/pipeline-statistics.h",
     "src/compiler/pipeline.h",
+    "src/compiler/processed-feedback.h",
     "src/compiler/property-access-builder.h",
     "src/compiler/raw-machine-assembler.h",
     "src/compiler/redundancy-elimination.h",
@@ -2565,6 +2568,7 @@ v8_header_set("v8_internal_headers") {
     "src/execution/interrupts-scope.h",
     "src/execution/isolate-data.h",
     "src/execution/isolate-inl.h",
+    "src/execution/isolate-utils-inl.h",
     "src/execution/isolate-utils.h",
     "src/execution/isolate.h",
     "src/execution/local-isolate-inl.h",
@@ -2641,11 +2645,13 @@ v8_header_set("v8_internal_headers") {
     "src/heap/list.h",
     "src/heap/local-allocator-inl.h",
     "src/heap/local-allocator.h",
+    "src/heap/local-factory-inl.h",
     "src/heap/local-factory.h",
     "src/heap/local-heap-inl.h",
     "src/heap/local-heap.h",
     "src/heap/mark-compact-inl.h",
     "src/heap/mark-compact.h",
+    "src/heap/marking-barrier-inl.h",
     "src/heap/marking-barrier.h",
     "src/heap/marking-visitor-inl.h",
     "src/heap/marking-visitor.h",
@@ -2815,6 +2821,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-array-inl.h",
     "src/objects/js-array.h",
     "src/objects/js-collection-inl.h",
+    "src/objects/js-collection-iterator-inl.h",
     "src/objects/js-collection-iterator.h",
     "src/objects/js-collection.h",
     "src/objects/js-function-inl.h",
@@ -2831,6 +2838,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-regexp-string-iterator-inl.h",
     "src/objects/js-regexp-string-iterator.h",
     "src/objects/js-regexp.h",
+    "src/objects/js-segments-inl.h",
+    "src/objects/js-segments.h",
     "src/objects/js-weak-refs-inl.h",
     "src/objects/js-weak-refs.h",
     "src/objects/keys.h",
@@ -2882,6 +2891,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/property.h",
     "src/objects/prototype-info-inl.h",
     "src/objects/prototype-info.h",
+    "src/objects/prototype-inl.h",
     "src/objects/prototype.h",
     "src/objects/regexp-match-info.h",
     "src/objects/scope-info-inl.h",
@@ -2893,6 +2903,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/slots-atomic-inl.h",
     "src/objects/slots-inl.h",
     "src/objects/slots.h",
+    "src/objects/source-text-module-inl.h",
     "src/objects/source-text-module.h",
     "src/objects/stack-frame-info-inl.h",
     "src/objects/stack-frame-info.h",
@@ -2931,6 +2942,7 @@ v8_header_set("v8_internal_headers") {
     "src/parsing/expression-scope.h",
     "src/parsing/func-name-inferrer.h",
     "src/parsing/import-assertions.h",
+    "src/parsing/keywords-gen.h",
     "src/parsing/literal-buffer.h",
     "src/parsing/parse-info.h",
     "src/parsing/parser-base.h",
@@ -2943,6 +2955,7 @@ v8_header_set("v8_internal_headers") {
     "src/parsing/preparser.h",
     "src/parsing/rewriter.h",
     "src/parsing/scanner-character-streams.h",
+    "src/parsing/scanner-inl.h",
     "src/parsing/scanner.h",
     "src/parsing/token.h",
     "src/profiler/allocation-tracker.h",
@@ -3119,6 +3132,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-module.h",
       "src/wasm/wasm-objects-inl.h",
       "src/wasm/wasm-objects.h",
+      "src/wasm/wasm-opcodes-inl.h",
       "src/wasm/wasm-opcodes.h",
       "src/wasm/wasm-result.h",
       "src/wasm/wasm-serialization.h",
@@ -3312,8 +3326,6 @@ v8_header_set("v8_internal_headers") {
     ]
   } else if (v8_current_cpu == "ppc") {
     sources += [  ### gcmole(arch:ppc) ###
-      "src/baseline/ppc/baseline-assembler-ppc-inl.h",
-      "src/baseline/ppc/baseline-compiler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.h",
       "src/codegen/ppc/constants-ppc.h",
@@ -3329,8 +3341,6 @@ v8_header_set("v8_internal_headers") {
     ]
   } else if (v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc64) ###
-      "src/baseline/ppc/baseline-assembler-ppc-inl.h",
-      "src/baseline/ppc/baseline-compiler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.h",
       "src/codegen/ppc/constants-ppc.h",
@@ -4045,6 +4055,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/value-type.cc",
       "src/wasm/wasm-code-manager.cc",
       "src/wasm/wasm-debug.cc",
+      "src/wasm/wasm-debug.h",
       "src/wasm/wasm-engine.cc",
       "src/wasm/wasm-external-refs.cc",
       "src/wasm/wasm-features.cc",
@@ -4065,7 +4076,10 @@ v8_source_set("v8_base_without_compiler") {
   if (v8_enable_third_party_heap) {
     sources += v8_third_party_heap_files
   } else {
-    sources += [ "src/heap/third-party/heap-api-stub.cc" ]
+    sources += [
+      "src/heap/third-party/heap-api-stub.cc",
+      "src/heap/third-party/heap-api.h",
+    ]
   }
 
   if (v8_enable_conservative_stack_scanning) {
@@ -4437,6 +4451,7 @@ v8_source_set("torque_base") {
     "src/torque/instructions.cc",
     "src/torque/instructions.h",
     "src/torque/parameter-difference.h",
+    "src/torque/runtime-macro-shims.h",
     "src/torque/server-data.cc",
     "src/torque/server-data.h",
     "src/torque/source-positions.cc",
