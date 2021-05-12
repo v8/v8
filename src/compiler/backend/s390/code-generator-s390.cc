@@ -3280,11 +3280,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_S128Const: {
-      for (int index = 0, j = 0; index < 2; index++, j = +2) {
-        __ mov(index < 1 ? ip : r0, Operand(i.InputInt32(j)));
-        __ iihf(index < 1 ? ip : r0, Operand(i.InputInt32(j + 1)));
-      }
-      __ vlvgp(i.OutputSimd128Register(), r0, ip);
+      uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
+      uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
+      __ mov(r0, Operand(low));
+      __ mov(ip, Operand(high));
+      __ vlvgp(i.OutputSimd128Register(), ip, r0);
       break;
     }
     case kS390_S128Zero: {

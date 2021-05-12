@@ -2795,15 +2795,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_S128Const: {
-      Simd128Register dst = i.OutputSimd128Register();
-      constexpr int lane_width_in_bytes = 8;
       uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
       __ mov(r0, Operand(low));
       __ mov(ip, Operand(high));
-      __ mtvsrd(dst, ip);
-      __ mtvsrd(kScratchSimd128Reg, r0);
-      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      __ mtvsrdd(i.OutputSimd128Register(), ip, r0);
       break;
     }
     case kPPC_S128Zero: {
