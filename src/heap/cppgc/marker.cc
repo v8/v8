@@ -377,6 +377,10 @@ bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state) {
 }
 
 void MarkerBase::AdvanceMarkingOnAllocation() {
+  StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
+                                           StatsCollector::kIncrementalMark);
+  StatsCollector::EnabledScope nested_scope(heap().stats_collector(),
+                                            StatsCollector::kMarkOnAllocation);
   if (AdvanceMarkingWithLimits()) {
     // Schedule another incremental task for finalizing without a stack.
     ScheduleIncrementalMarkingTask();

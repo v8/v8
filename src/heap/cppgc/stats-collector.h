@@ -39,6 +39,7 @@ namespace internal {
   V(MarkTransitiveClosure)                  \
   V(MarkTransitiveClosureWithDeadline)      \
   V(MarkFlushEphemerons)                    \
+  V(MarkOnAllocation)                       \
   V(MarkProcessBailOutObjects)              \
   V(MarkProcessMarkingWorklist)             \
   V(MarkProcessWriteBarrierWorklist)        \
