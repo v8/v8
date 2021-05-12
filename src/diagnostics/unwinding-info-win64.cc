@@ -577,6 +577,11 @@ void UnregisterNonABICompliantCodeRange(void* start) {
       ExceptionHandlerRecord* record =
           reinterpret_cast<ExceptionHandlerRecord*>(start);
       CHECK(::RtlDeleteFunctionTable(record->runtime_function));
+
+      // Unprotect reserved page.
+      DWORD old_protect;
+      CHECK(VirtualProtect(start, sizeof(ExceptionHandlerRecord),
+                           PAGE_READWRITE, &old_protect));
     }
 #endif  // V8_OS_WIN_X64
   } else {
@@ -585,6 +590,11 @@ void UnregisterNonABICompliantCodeRange(void* start) {
     if (record->dynamic_table) {
       DeleteGrowableFunctionTable(record->dynamic_table);
     }
+
+    // Unprotect reserved page.
+    DWORD old_protect;
+    CHECK(VirtualProtect(start, sizeof(CodeRangeUnwindingRecord),
+                         PAGE_READWRITE, &old_protect));
   }
 }
 
