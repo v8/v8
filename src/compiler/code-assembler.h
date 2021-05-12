@@ -310,7 +310,6 @@ class CodeAssemblerParameterizedLabel;
   V(Word64And, Word64T, Word64T, Word64T)                               \
   V(Word64Or, Word64T, Word64T, Word64T)                                \
   V(Word64Xor, Word64T, Word64T, Word64T)                               \
-  V(Word64Ror, Word64T, Word64T, Word64T)                               \
   V(Word64Shl, Word64T, Word64T, Word64T)                               \
   V(Word64Shr, Word64T, Word64T, Word64T)                               \
   V(Word64Sar, Word64T, Word64T, Word64T)

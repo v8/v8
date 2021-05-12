@@ -191,6 +191,7 @@ const PureOperator kPureOperators[] = {
     PURE(Word64Shr, 2, 0, 1),                 // --
     PURE(Word64Sar, 2, 0, 1),                 // --
     PURE(Word64Ror, 2, 0, 1),                 // --
+    PURE(Word64RorLowerable, 2, 1, 1),        // --
     PURE(Word64Equal, 2, 0, 1),               // --
     PURE(Int32Add, 2, 0, 1),                  // --
     PURE(Int32Sub, 2, 0, 1),                  // --
@@ -252,7 +253,6 @@ const PureOperator kPureOperators[] = {
     PURE(Float64Neg, 1, 0, 1),                // --
 #undef PURE
 };
-
 
 class MachinePureOperatorTest : public TestWithZone {
  protected:

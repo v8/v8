@@ -572,6 +572,8 @@
   V(Word64Sar)                   \
   V(Word64Rol)                   \
   V(Word64Ror)                   \
+  V(Word64RolLowerable)          \
+  V(Word64RorLowerable)          \
   V(Int64Add)                    \
   V(Int64AddWithOverflow)        \
   V(Int64Sub)                    \
@@ -690,6 +692,8 @@
   V(Word64Popcnt)                        \
   V(Word64Clz)                           \
   V(Word64Ctz)                           \
+  V(Word64ClzLowerable)                  \
+  V(Word64CtzLowerable)                  \
   V(Word64ReverseBits)                   \
   V(Word64ReverseBytes)                  \
   V(Simd128ReverseBytes)                 \

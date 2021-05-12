@@ -252,6 +252,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Word64Shl, Operator::kNoProperties, 2, 0, 1)                         \
   V(Word64Shr, Operator::kNoProperties, 2, 0, 1)                         \
   V(Word64Ror, Operator::kNoProperties, 2, 0, 1)                         \
+  V(Word64RorLowerable, Operator::kNoProperties, 2, 1, 1)                \
   V(Word64Equal, Operator::kCommutative, 2, 0, 1)                        \
   V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                          \
@@ -272,6 +273,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   PURE_BINARY_OP_LIST_64(V)                                                \
   V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                           \
   V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Word64ClzLowerable, Operator::kNoProperties, 1, 1, 1)                  \
   V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                  \
   V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                  \
   V(Simd128ReverseBytes, Operator::kNoProperties, 1, 0, 1)                 \
@@ -566,8 +568,10 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
+  V(Word64CtzLowerable, Operator::kNoProperties, 1, 1, 1)   \
   V(Word32Rol, Operator::kNoProperties, 2, 0, 1)            \
   V(Word64Rol, Operator::kNoProperties, 2, 0, 1)            \
+  V(Word64RolLowerable, Operator::kNoProperties, 2, 1, 1)   \
   V(Word32ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Word64ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Int32AbsWithOverflow, Operator::kNoProperties, 1, 0, 2) \
