@@ -3234,9 +3234,6 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kSystemPointerSize) + kDoubleRegsSize;
 
-  // Get the bailout id is passed as r29 by the caller.
-  __ mr(r5, r29);
-
   __ mov(r5, Operand(Deoptimizer::kFixedExitSizeMarker));
   // Get the address of the location in the code object (r6) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
