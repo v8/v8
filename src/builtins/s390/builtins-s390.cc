@@ -3468,11 +3468,12 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
       descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kSlot);
   Register handler_arg =
       descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kHandler);
-  __ LoadP(handler_arg, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
-  __ LoadP(
+  __ LoadU64(handler_arg,
+             MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
+  __ LoadU64(
       slot_arg,
       MemOperand(handler_arg, Deoptimizer::kEagerWithResumeImmedArgs1PcOffset));
-  __ LoadP(
+  __ LoadU64(
       handler_arg,
       MemOperand(handler_arg, Deoptimizer::kEagerWithResumeImmedArgs2PcOffset));
 
