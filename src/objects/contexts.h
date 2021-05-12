@@ -445,15 +445,18 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   NEVER_READ_ONLY_SPACE
 
   // Setter and getter for elements.
+  // Note the plain accessors use relaxed semantics.
+  // TODO(jgruber): Make that explicit through tags.
   V8_INLINE Object get(int index) const;
   V8_INLINE Object get(PtrComprCageBase cage_base, int index) const;
   V8_INLINE void set(int index, Object value,
                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  // Setter and getter with synchronization semantics.
-  V8_INLINE Object synchronized_get(int index) const;
-  V8_INLINE Object synchronized_get(PtrComprCageBase cage_base,
-                                    int index) const;
-  V8_INLINE void synchronized_set(int index, Object value);
+  // Accessors with acquire-release semantics.
+  V8_INLINE Object get(int index, AcquireLoadTag) const;
+  V8_INLINE Object get(PtrComprCageBase cage_base, int index,
+                       AcquireLoadTag) const;
+  V8_INLINE void set(int index, Object value, WriteBarrierMode mode,
+                     ReleaseStoreTag);
 
   static const int kScopeInfoOffset = kElementsOffset;
   static const int kPreviousOffset = kScopeInfoOffset + kTaggedSize;
@@ -603,7 +606,8 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   inline void set_##name(type value);                     \
   inline bool is_##name(type value) const;                \
-  inline type name() const;
+  inline type name() const;                               \
+  inline type name(AcquireLoadTag) const;
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
@@ -672,6 +676,15 @@ class NativeContext : public Context {
   // TODO(neis): Move some stuff from Context here.
 
   inline void AllocateExternalPointerEntries(Isolate* isolate);
+
+  // NativeContext fields are read concurrently from background threads; any
+  // concurrent writes of affected fields must have acquire-release semantics,
+  // thus we hide the non-atomic setter. Note this doesn't protect fully since
+  // one could still use Context::set and/or write directly using offsets (e.g.
+  // from CSA/Torque).
+  void set(int index, Object value, WriteBarrierMode mode) = delete;
+  V8_INLINE void set(int index, Object value, WriteBarrierMode mode,
+                     ReleaseStoreTag);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
   DECL_GETTER(microtask_queue, MicrotaskQueue*)

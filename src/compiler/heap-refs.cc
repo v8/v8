@@ -4277,11 +4277,11 @@ void NativeContextData::SerializeOnBackground(JSHeapBroker* broker) {
   Handle<NativeContext> context = Handle<NativeContext>::cast(object());
 
   constexpr auto kAllowed = ObjectRef::BackgroundSerialization::kAllowed;
-#define SERIALIZE_MEMBER(type, name)                            \
-  DCHECK_NULL(name##_);                                         \
-  name##_ = broker->GetOrCreateData(context->name(), kAllowed); \
-  if (!name##_->should_access_heap()) {                         \
-    DCHECK(!name##_->IsJSFunction());                           \
+#define SERIALIZE_MEMBER(type, name)                                        \
+  DCHECK_NULL(name##_);                                                     \
+  name##_ = broker->GetOrCreateData(context->name(kAcquireLoad), kAllowed); \
+  if (!name##_->should_access_heap()) {                                     \
+    DCHECK(!name##_->IsJSFunction());                                       \
   }
   BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
   if (!broker->is_isolate_bootstrapping()) {
@@ -4295,7 +4295,7 @@ void NativeContextData::SerializeOnBackground(JSHeapBroker* broker) {
   function_maps_.reserve(last + 1 - first);
   for (int i = first; i <= last; ++i) {
     function_maps_.push_back(
-        broker->GetOrCreateData(context->get(i), kAllowed));
+        broker->GetOrCreateData(context->get(i, kAcquireLoad), kAllowed));
   }
 }
 

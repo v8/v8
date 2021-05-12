@@ -460,6 +460,9 @@ class ContextRef : public HeapObjectRef {
   SourceTextModuleRef GetModule(SerializationPolicy policy) const;
 };
 
+// TODO(jgruber): Don't serialize NativeContext fields once all refs can be
+// created concurrently.
+
 #define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \
   V(JSFunction, array_function)                    \
   V(JSFunction, function_prototype_apply)          \
