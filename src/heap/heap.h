@@ -1174,6 +1174,8 @@ class Heap {
 
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
+  const cppgc::EmbedderStackState* overriden_stack_state() const;
+
   // ===========================================================================
   // Embedder roots optimizations. =============================================
   // ===========================================================================

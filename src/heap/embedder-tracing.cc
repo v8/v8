@@ -76,9 +76,8 @@ void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
   if (!InUse()) return;
 
   embedder_stack_state_ = stack_state;
-  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state) {
-    remote_tracer()->NotifyEmptyEmbedderStack();
-  }
+  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
+    NotifyEmptyEmbedderStack();
 }
 
 namespace {
@@ -163,6 +162,16 @@ void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
     heap->FinalizeIncrementalMarkingAtomically(
         i::GarbageCollectionReason::kExternalFinalize);
   }
+}
+
+void LocalEmbedderHeapTracer::NotifyEmptyEmbedderStack() {
+  auto* overriden_stack_state = isolate_->heap()->overriden_stack_state();
+  if (overriden_stack_state &&
+      (*overriden_stack_state ==
+       cppgc::EmbedderStackState::kMayContainHeapPointers))
+    return;
+
+  isolate_->global_handles()->NotifyEmptyEmbedderStack();
 }
 
 bool DefaultEmbedderRootsHandler::IsRoot(

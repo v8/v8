@@ -158,6 +158,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   size_t ObjectPayloadSize() const;
 
   StackSupport stack_support() const { return stack_support_; }
+  const EmbedderStackState* override_stack_state() const {
+    return override_stack_state_.get();
+  }
 
   void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
 

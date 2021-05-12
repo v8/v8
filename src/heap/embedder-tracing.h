@@ -132,6 +132,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     return default_embedder_roots_handler_;
   }
 
+  void NotifyEmptyEmbedderStack();
+
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
 
@@ -186,11 +188,8 @@ class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
       : local_tracer_(local_tracer),
         old_stack_state_(local_tracer_->embedder_stack_state_) {
     local_tracer_->embedder_stack_state_ = stack_state;
-    if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers ==
-        stack_state) {
-      if (local_tracer->remote_tracer())
-        local_tracer->remote_tracer()->NotifyEmptyEmbedderStack();
-    }
+    if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
+      local_tracer_->NotifyEmptyEmbedderStack();
   }
 
   ~EmbedderStackStateScope() {

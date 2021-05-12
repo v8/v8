@@ -5647,6 +5647,11 @@ EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {
   return EmbedderHeapTracer::TraceFlags::kNoFlags;
 }
 
+const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {
+  const auto* cpp_heap = CppHeap::From(cpp_heap_);
+  return cpp_heap ? cpp_heap->override_stack_state() : nullptr;
+}
+
 void Heap::RegisterExternallyReferencedObject(Address* location) {
   GlobalHandles::MarkTraced(location);
   Object object(*location);

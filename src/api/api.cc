@@ -9881,7 +9881,8 @@ void EmbedderHeapTracer::SetStackStart(void* stack_start) {
 void EmbedderHeapTracer::NotifyEmptyEmbedderStack() {
   CHECK(isolate_);
   reinterpret_cast<i::Isolate*>(isolate_)
-      ->global_handles()
+      ->heap()
+      ->local_embedder_heap_tracer()
       ->NotifyEmptyEmbedderStack();
 }
 
