@@ -1130,7 +1130,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchParentFramePointer:
       if (frame_access_state()->has_frame()) {
-        __ LoadP(i.OutputRegister(), MemOperand(fp, 0));
+        __ LoadU64(i.OutputRegister(), MemOperand(fp, 0));
       } else {
         __ mr(i.OutputRegister(), fp);
       }
@@ -1228,7 +1228,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, ip));
         }
       } else {
-        __ LoadP(i.OutputRegister(), MemOperand(fp, offset), r0);
+        __ LoadU64(i.OutputRegister(), MemOperand(fp, offset), r0);
       }
       break;
     }
@@ -4142,11 +4142,11 @@ void CodeGenerator::AssembleConstructFrame() {
       // check in the condition code.
       if ((required_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
         Register scratch = ip;
-        __ LoadP(
+        __ LoadU64(
             scratch,
             FieldMemOperand(kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
-        __ LoadP(scratch, MemOperand(scratch), r0);
+        __ LoadU64(scratch, MemOperand(scratch), r0);
         __ Add(scratch, scratch, required_slots * kSystemPointerSize, r0);
         __ cmpl(sp, scratch);
         __ bge(&done);
@@ -4257,7 +4257,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count.
-      __ LoadP(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+      __ LoadU64(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();
   }
@@ -4320,10 +4320,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsRegister()) {
-      __ LoadP(g.ToRegister(destination), src, r0);
+      __ LoadU64(g.ToRegister(destination), src, r0);
     } else {
       Register temp = kScratchReg;
-      __ LoadP(temp, src, r0);
+      __ LoadU64(temp, src, r0);
       __ StoreP(temp, g.ToMemOperand(destination), r0);
     }
   } else if (source->IsConstant()) {

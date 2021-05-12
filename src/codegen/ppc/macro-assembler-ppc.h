@@ -147,7 +147,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   // These exist to provide portability between 32 and 64bit
-  void LoadP(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadP(Register dst, const MemOperand& mem, Register scratch = no_reg) {
+    LoadU64(dst, mem, no_reg);
+  }
   void LoadPU(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadWordArith(Register dst, const MemOperand& mem,
                      Register scratch = no_reg);
@@ -249,36 +252,36 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2) {
-    LoadP(src2, MemOperand(sp, 0));
-    LoadP(src1, MemOperand(sp, kSystemPointerSize));
+    LoadU64(src2, MemOperand(sp, 0));
+    LoadU64(src1, MemOperand(sp, kSystemPointerSize));
     addi(sp, sp, Operand(2 * kSystemPointerSize));
   }
 
   // Pop three registers.  Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3) {
-    LoadP(src3, MemOperand(sp, 0));
-    LoadP(src2, MemOperand(sp, kSystemPointerSize));
-    LoadP(src1, MemOperand(sp, 2 * kSystemPointerSize));
+    LoadU64(src3, MemOperand(sp, 0));
+    LoadU64(src2, MemOperand(sp, kSystemPointerSize));
+    LoadU64(src1, MemOperand(sp, 2 * kSystemPointerSize));
     addi(sp, sp, Operand(3 * kSystemPointerSize));
   }
 
   // Pop four registers.  Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3, Register src4) {
-    LoadP(src4, MemOperand(sp, 0));
-    LoadP(src3, MemOperand(sp, kSystemPointerSize));
-    LoadP(src2, MemOperand(sp, 2 * kSystemPointerSize));
-    LoadP(src1, MemOperand(sp, 3 * kSystemPointerSize));
+    LoadU64(src4, MemOperand(sp, 0));
+    LoadU64(src3, MemOperand(sp, kSystemPointerSize));
+    LoadU64(src2, MemOperand(sp, 2 * kSystemPointerSize));
+    LoadU64(src1, MemOperand(sp, 3 * kSystemPointerSize));
     addi(sp, sp, Operand(4 * kSystemPointerSize));
   }
 
   // Pop five registers.  Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3, Register src4,
            Register src5) {
-    LoadP(src5, MemOperand(sp, 0));
-    LoadP(src4, MemOperand(sp, kSystemPointerSize));
-    LoadP(src3, MemOperand(sp, 2 * kSystemPointerSize));
-    LoadP(src2, MemOperand(sp, 3 * kSystemPointerSize));
-    LoadP(src1, MemOperand(sp, 4 * kSystemPointerSize));
+    LoadU64(src5, MemOperand(sp, 0));
+    LoadU64(src4, MemOperand(sp, kSystemPointerSize));
+    LoadU64(src3, MemOperand(sp, 2 * kSystemPointerSize));
+    LoadU64(src2, MemOperand(sp, 3 * kSystemPointerSize));
+    LoadU64(src1, MemOperand(sp, 4 * kSystemPointerSize));
     addi(sp, sp, Operand(5 * kSystemPointerSize));
   }
 
@@ -739,7 +742,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // TODO(victorgomes): Remove this function once we stick with the reversed
   // arguments order.
   void LoadReceiver(Register dest, Register argc) {
-    LoadP(dest, MemOperand(sp, 0));
+    LoadU64(dest, MemOperand(sp, 0));
   }
 
   void StoreReceiver(Register rec, Register argc, Register scratch) {
