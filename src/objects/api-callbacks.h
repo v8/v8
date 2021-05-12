@@ -64,8 +64,6 @@ class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
   static int AppendUnique(Isolate* isolate, Handle<Object> descriptors,
                           Handle<FixedArray> array, int valid_descriptors);
 
-  DECL_PRINTER(AccessorInfo)
-
  private:
   inline bool HasExpectedReceiverType();
 
