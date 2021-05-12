@@ -4787,7 +4787,11 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
                                      TNode<IntPtrT> length) {
   Label finished(this);
   Label needs_barrier(this);
+#ifdef V8_DISABLE_WRITE_BARRIERS
+  const bool needs_barrier_check = false;
+#else
   const bool needs_barrier_check = !IsDoubleElementsKind(kind);
+#endif  // V8_DISABLE_WRITE_BARRIERS
 
   DCHECK(IsFastElementsKind(kind));
   CSA_ASSERT(this, IsFixedArrayWithKind(elements, kind));
@@ -4872,7 +4876,11 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
                                      WriteBarrierMode write_barrier) {
   Label finished(this);
   Label needs_barrier(this);
+#ifdef V8_DISABLE_WRITE_BARRIERS
+  const bool needs_barrier_check = false;
+#else
   const bool needs_barrier_check = !IsDoubleElementsKind(kind);
+#endif  // V8_DISABLE_WRITE_BARRIERS
 
   DCHECK(IsFastElementsKind(kind));
   CSA_ASSERT(this, IsFixedArrayWithKind(dst_elements, kind));
@@ -11123,6 +11131,8 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
 
   // Bail out if the object is not in new space.
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
+  // TODO(v8:11641): Skip TrapAllocationMemento when allocation-site
+  // tracking is disabled.
   TNode<IntPtrT> object_page = PageFromAddress(object_word);
   {
     TNode<IntPtrT> page_flags =
@@ -11180,6 +11190,7 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
 }
 
 TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
+  if (FLAG_enable_third_party_heap) Unreachable();
   return WordAnd(address, IntPtrConstant(~kPageAlignmentMask));
 }
 
