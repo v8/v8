@@ -30,8 +30,11 @@ namespace {
 void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
                          const HeapObjectHeader& header) {
   Address* payload = reinterpret_cast<Address*>(header.Payload());
-  const size_t payload_size = header.GetSize();
-  for (size_t i = 0; i < (payload_size / sizeof(Address)); ++i) {
+  const size_t object_size =
+      header.IsLargeObject()
+          ? LargePage::From(BasePage::FromPayload(&header))->ObjectSize()
+          : header.ObjectSize();
+  for (size_t i = 0; i < (object_size / sizeof(Address)); ++i) {
     Address maybe_ptr = payload[i];
 #if defined(MEMORY_SANITIZER)
     // |payload| may be uninitialized by design or just contain padding bytes.

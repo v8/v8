@@ -89,6 +89,46 @@ TEST_F(GCHeapTest, ConservativeGCRetainsObjectOnStack) {
   EXPECT_EQ(1u, Foo::destructor_callcount);
 }
 
+namespace {
+
+class GCedWithFinalizer final : public GarbageCollected<GCedWithFinalizer> {
+ public:
+  static size_t destructor_counter;
+
+  GCedWithFinalizer() { destructor_counter = 0; }
+  ~GCedWithFinalizer() { destructor_counter++; }
+  void Trace(Visitor* visitor) const {}
+};
+// static
+size_t GCedWithFinalizer::destructor_counter = 0;
+
+class LargeObjectGCDuringCtor final
+    : public GarbageCollected<LargeObjectGCDuringCtor> {
+ public:
+  static constexpr size_t kDataSize = kLargeObjectSizeThreshold + 1;
+
+  explicit LargeObjectGCDuringCtor(cppgc::Heap* heap)
+      : child_(MakeGarbageCollected<GCedWithFinalizer>(
+            heap->GetAllocationHandle())) {
+    internal::Heap::From(heap)->CollectGarbage(
+        Heap::Config::ConservativeAtomicConfig());
+  }
+
+  void Trace(Visitor* visitor) const { visitor->Trace(child_); }
+
+  char data[kDataSize];
+  Member<GCedWithFinalizer> child_;
+};
+
+}  // namespace
+
+TEST_F(GCHeapTest, ConservativeGCFromLargeObjectCtorFindsObject) {
+  GCedWithFinalizer::destructor_counter = 0;
+  MakeGarbageCollected<LargeObjectGCDuringCtor>(GetAllocationHandle(),
+                                                GetHeap());
+  EXPECT_EQ(0u, GCedWithFinalizer::destructor_counter);
+}
+
 TEST_F(GCHeapTest, ObjectPayloadSize) {
   static constexpr size_t kNumberOfObjectsPerArena = 16;
   static constexpr size_t kObjectSizes[] = {1, 32, 64, 128,
