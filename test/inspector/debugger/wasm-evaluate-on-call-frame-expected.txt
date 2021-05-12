@@ -55,18 +55,18 @@ Debugger paused in $main.
 > functions = Functions
 > typeof functions = "object"
 > Object.keys(functions) = Array(4)
-> functions[0] = function 0() { [native code] }
-> functions[1] = function 1() { [native code] }
-> functions[2] = function 2() { [native code] }
-> functions[3] = function 3() { [native code] }
-> functions[4] = function 4() { [native code] }
-> functions["$foo.bar"] = function 0() { [native code] }
-> functions["$main"] = function 1() { [native code] }
-> $main = function 1() { [native code] }
-> functions["$func2"] = function 2() { [native code] }
-> $func2 = function 2() { [native code] }
-> functions["$func4"] = function 4() { [native code] }
-> $func4 = function 4() { [native code] }
+> functions[0] = function $foo.bar() { [native code] }
+> functions[1] = function $main() { [native code] }
+> functions[2] = function $func2() { [native code] }
+> functions[3] = function $func2() { [native code] }
+> functions[4] = function $func4() { [native code] }
+> functions["$foo.bar"] = function $foo.bar() { [native code] }
+> functions["$main"] = function $main() { [native code] }
+> $main = function $main() { [native code] }
+> functions["$func2"] = function $func2() { [native code] }
+> $func2 = function $func2() { [native code] }
+> functions["$func4"] = function $func4() { [native code] }
+> $func4 = function $func4() { [native code] }
 
 Running test: testLocals
 Compile module.
