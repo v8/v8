@@ -58,6 +58,20 @@ Local<String> GetFunctionDebugName(Local<StackFrame> frame) {
   return frame->GetFunctionName();
 }
 
+Local<String> GetFunctionDescription(Local<Function> function) {
+  auto receiver = Utils::OpenHandle(*function);
+  if (receiver->IsJSBoundFunction()) {
+    return Utils::ToLocal(i::JSBoundFunction::ToString(
+        i::Handle<i::JSBoundFunction>::cast(receiver)));
+  }
+  if (receiver->IsJSFunction()) {
+    return Utils::ToLocal(
+        i::JSFunction::ToString(i::Handle<i::JSFunction>::cast(receiver)));
+  }
+  return Utils::ToLocal(
+      receiver->GetIsolate()->factory()->function_native_code_string());
+}
+
 void SetBreakOnNextFunctionCall(Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)->debug()->SetBreakOnNextFunctionCall();
 }

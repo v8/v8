@@ -45,6 +45,9 @@ v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 // preceeded by a dollar ('$').
 Local<String> GetFunctionDebugName(Local<StackFrame> frame);
 
+// Returns a debug string representation of the function.
+Local<String> GetFunctionDescription(Local<Function> function);
+
 // Schedule a debugger break to happen when function is called inside given
 // isolate.
 V8_EXPORT_PRIVATE void SetBreakOnNextFunctionCall(Isolate* isolate);

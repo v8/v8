@@ -349,14 +349,9 @@ String16 descriptionForEntry(v8::Local<v8::Context> context,
   return key.length() ? ("{" + key + " => " + value + "}") : value;
 }
 
-String16 descriptionForFunction(v8::Local<v8::Context> context,
-                                v8::Local<v8::Function> value) {
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::String> description;
-  if (!value->ToString(context).ToLocal(&description)) {
-    return descriptionForObject(isolate, value);
-  }
+String16 descriptionForFunction(v8::Local<v8::Function> value) {
+  v8::Isolate* isolate = value->GetIsolate();
+  v8::Local<v8::String> description = v8::debug::GetFunctionDescription(value);
   return toProtocolString(isolate, description);
 }
 
@@ -646,7 +641,7 @@ class FunctionMirror final : public ValueMirror {
                     .setType(RemoteObject::TypeEnum::Function)
                     .setClassName(toProtocolStringWithTypeCheck(
                         context->GetIsolate(), m_value->GetConstructorName()))
-                    .setDescription(descriptionForFunction(context, m_value))
+                    .setDescription(descriptionForFunction(m_value))
                     .build();
     }
     return Response::Success();
@@ -667,7 +662,7 @@ class FunctionMirror final : public ValueMirror {
     *preview =
         ObjectPreview::create()
             .setType(RemoteObject::TypeEnum::Function)
-            .setDescription(descriptionForFunction(context, m_value))
+            .setDescription(descriptionForFunction(m_value))
             .setOverflow(false)
             .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();
