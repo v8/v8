@@ -1877,43 +1877,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                           i.InputUint8(1));
       break;
     }
-    case kSSEF64x2ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      XMMRegister dst = i.OutputSimd128Register();
-      int8_t lane = i.InputInt8(1);
-      DoubleRegister rep = i.InputDoubleRegister(2);
-
-      // insertps takes a mask which contains (high to low):
-      // - 2 bit specifying source float element to copy
-      // - 2 bit specifying destination float element to write to
-      // - 4 bits specifying which elements of the destination to zero
-      DCHECK_LT(lane, 2);
-      if (lane == 0) {
-        __ insertps(dst, rep, 0b00000000);
-        __ insertps(dst, rep, 0b01010000);
-      } else {
-        __ insertps(dst, rep, 0b00100000);
-        __ insertps(dst, rep, 0b01110000);
-      }
-      break;
-    }
-    case kAVXF64x2ReplaceLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t lane = i.InputInt8(1);
-      DoubleRegister rep = i.InputDoubleRegister(2);
-      DCHECK_NE(dst, rep);
-
-      DCHECK_LT(lane, 2);
-      if (lane == 0) {
-        __ vinsertps(dst, src, rep, 0b00000000);
-        __ vinsertps(dst, dst, rep, 0b01010000);
-      } else {
-        __ vinsertps(dst, src, rep, 0b00100000);
-        __ vinsertps(dst, dst, rep, 0b01110000);
-      }
+    case kF64x2ReplaceLane: {
+      __ F64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputDoubleRegister(2), i.InputInt8(1));
       break;
     }
     case kIA32F64x2Sqrt: {

@@ -277,6 +277,8 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Roundps, roundps)
 
   void F64x2ExtractLane(DoubleRegister dst, XMMRegister src, uint8_t lane);
+  void F64x2ReplaceLane(XMMRegister dst, XMMRegister src, DoubleRegister rep,
+                        uint8_t lane);
   void F64x2Min(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
                 XMMRegister scratch);
   void F64x2Max(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,

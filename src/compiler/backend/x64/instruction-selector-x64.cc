@@ -3083,6 +3083,16 @@ void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
        g.Use(node->InputAt(1)));
 }
 
+void InstructionSelector::VisitF64x2ReplaceLane(Node* node) {
+  X64OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node->op());
+  // When no-AVX, define dst == src to save a move.
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kX64F64x2ReplaceLane, dst, g.UseRegister(node->InputAt(0)),
+       g.UseImmediate(lane), g.UseRegister(node->InputAt(1)));
+}
+
 #define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                               \
   void InstructionSelector::Visit##TYPE##ReplaceLane(Node* node) {          \
     X64OperandGenerator g(this);                                            \
@@ -3092,7 +3102,6 @@ void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
   }
 
 #define SIMD_TYPES_FOR_REPLACE_LANE(V) \
-  V(F64x2, kX64Pinsrq)                 \
   V(I64x2, kX64Pinsrq)                 \
   V(I32x4, kX64Pinsrd)                 \
   V(I16x8, kX64Pinsrw)                 \

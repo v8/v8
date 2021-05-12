@@ -868,6 +868,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void shufpd(XMMRegister dst, XMMRegister src, byte imm8);
 
   void movhlps(XMMRegister dst, XMMRegister src);
+  void movlhps(XMMRegister dst, XMMRegister src);
   void movlps(XMMRegister dst, Operand src);
   void movlps(Operand dst, XMMRegister src);
   void movhps(XMMRegister dst, Operand src);
@@ -1398,6 +1399,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vshufpd(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
 
   void vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vmovlhps(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vmovlps(XMMRegister dst, XMMRegister src1, Operand src2);
   void vmovlps(Operand dst, XMMRegister src);
   void vmovhps(XMMRegister dst, XMMRegister src1, Operand src2);
