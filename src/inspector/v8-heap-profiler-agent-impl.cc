@@ -379,6 +379,9 @@ Response V8HeapProfilerAgentImpl::startSampling(
   const unsigned defaultSamplingInterval = 1 << 15;
   double samplingIntervalValue =
       samplingInterval.fromMaybe(defaultSamplingInterval);
+  if (samplingIntervalValue <= 0.0) {
+    return Response::ServerError("Invalid sampling interval");
+  }
   m_state->setDouble(HeapProfilerAgentState::samplingHeapProfilerInterval,
                      samplingIntervalValue);
   m_state->setBoolean(HeapProfilerAgentState::samplingHeapProfilerEnabled,
