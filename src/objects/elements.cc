@@ -811,23 +811,17 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     Isolate* isolate = object->GetIsolate();
     Handle<FixedArrayBase> new_elements;
     // TODO(victorgomes): Retrieve native context in optimized code
-    // and remove the fatal errors.
+    // and remove the check isolate->context().is_null().
     if (IsDoubleElementsKind(kind())) {
-      if (capacity < 0 || capacity > FixedDoubleArray::kMaxLength) {
-        if (isolate->context().is_null()) {
-          FATAL("Fatal JavaScript invalid array length");
-          UNREACHABLE();
-        }
+      if (!isolate->context().is_null() &&
+          !base::IsInRange(capacity, 0, FixedDoubleArray::kMaxLength)) {
         return isolate->Throw<FixedArrayBase>(isolate->factory()->NewRangeError(
             MessageTemplate::kInvalidArrayLength));
       }
       new_elements = isolate->factory()->NewFixedDoubleArray(capacity);
     } else {
-      if (capacity < 0 || capacity > FixedArray::kMaxLength) {
-        if (isolate->context().is_null()) {
-          FATAL("Fatal JavaScript invalid array length");
-          UNREACHABLE();
-        }
+      if (!isolate->context().is_null() &&
+          !base::IsInRange(capacity, 0, FixedArray::kMaxLength)) {
         return isolate->Throw<FixedArrayBase>(isolate->factory()->NewRangeError(
             MessageTemplate::kInvalidArrayLength));
       }
