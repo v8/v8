@@ -447,9 +447,8 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;
   V8_INLINE Object get(PtrComprCageBase cage_base, int index) const;
-  V8_INLINE void set(int index, Object value);
-  // Setter with explicit barrier mode.
-  V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
+  V8_INLINE void set(int index, Object value,
+                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Setter and getter with synchronization semantics.
   V8_INLINE Object synchronized_get(int index) const;
   V8_INLINE Object synchronized_get(PtrComprCageBase cage_base,
@@ -547,8 +546,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   inline Object unchecked_previous();
   inline Context previous();
-  inline void set_previous(Context context,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Object next_context_link();
 
@@ -661,6 +658,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   // Bootstrapping-aware type checks.
   static bool IsBootstrappingOrValidParentContext(Object object, Context kid);
 #endif
+
+  friend class Factory;
+  inline void set_previous(Context context,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   TQ_OBJECT_CONSTRUCTORS(Context)
 };

@@ -1080,7 +1080,7 @@ Handle<NativeContext> Factory::NewNativeContext() {
   // The ExternalPointerTable is a C++ object.
   context.AllocateExternalPointerEntries(isolate());
   context.set_scope_info(*native_scope_info());
-  context.set_previous(Context::unchecked_cast(Smi::zero()));
+  context.set_previous(Context());
   context.set_extension(*undefined_value());
   context.set_errors_thrown(Smi::zero());
   context.set_math_random_index(Smi::zero());

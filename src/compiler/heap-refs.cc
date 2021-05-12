@@ -819,7 +819,7 @@ ObjectData* ContextData::previous(JSHeapBroker* broker,
 
 ObjectData* ContextData::GetSlot(JSHeapBroker* broker, int index,
                                  SerializationPolicy policy) {
-  CHECK_GE(index, 0);
+  DCHECK_GE(index, 0);
   auto search = slots_.find(index);
   if (search != slots_.end()) {
     return search->second;
@@ -2204,16 +2204,8 @@ class CodeData : public HeapObjectData {
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
 
-// TODO(solanes, v8:10866): Remove support for kNeverSerialized objects here
-// once broker()->is_concurrent_inlining() is removed.
-// AsFoo() methods for NeverSerialized objects should only be used with direct
-// heap access off.
 #define DEFINE_AS(Name, Kind)                                      \
   Name##Data* ObjectData::As##Name() {                             \
-    DCHECK_IMPLIES(Kind == RefSerializationKind::kNeverSerialized, \
-                   !broker()->is_concurrent_inlining());           \
-    DCHECK_IMPLIES(Kind == RefSerializationKind::kNeverSerialized, \
-                   kind_ == kSerializedHeapObject);                \
     CHECK(Is##Name());                                             \
     CHECK(kind_ == kSerializedHeapObject ||                        \
           kind_ == kBackgroundSerializedHeapObject);               \
@@ -2518,16 +2510,15 @@ ContextRef ContextRef::previous(size_t* depth,
 
 base::Optional<ObjectRef> ContextRef::get(int index,
                                           SerializationPolicy policy) const {
+  CHECK_LE(0, index);
   if (data_->should_access_heap()) {
-    Handle<Object> value(object()->get(index), broker()->isolate());
-    return ObjectRef(broker(), value);
+    if (index >= object()->length()) return {};
+    return TryMakeRef(broker(), object()->get(index));
   }
   ObjectData* optional_slot =
       data()->AsContext()->GetSlot(broker(), index, policy);
-  if (optional_slot != nullptr) {
-    return ObjectRef(broker(), optional_slot);
-  }
-  return base::nullopt;
+  if (optional_slot == nullptr) return {};
+  return ObjectRef(broker(), optional_slot);
 }
 
 SourceTextModuleRef ContextRef::GetModule(SerializationPolicy policy) const {

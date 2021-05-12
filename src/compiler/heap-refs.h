@@ -117,7 +117,7 @@ enum class RefSerializationKind {
   V(CallHandlerInfo, RefSerializationKind::kNeverSerialized)              \
   V(Cell, RefSerializationKind::kNeverSerialized)                         \
   V(Code, RefSerializationKind::kNeverSerialized)                         \
-  V(Context, RefSerializationKind::kSerialized)                           \
+  V(Context, RefSerializationKind::kNeverSerialized)                      \
   V(DescriptorArray, RefSerializationKind::kNeverSerialized)              \
   V(FeedbackCell, RefSerializationKind::kNeverSerialized)                 \
   V(FeedbackVector, RefSerializationKind::kNeverSerialized)               \
@@ -445,9 +445,9 @@ class ContextRef : public HeapObjectRef {
   Handle<Context> object() const;
 
   // {previous} decrements {depth} by 1 for each previous link successfully
-  // followed. If {depth} != 0 on function return, then it only got
-  // partway to the desired depth. If {serialize} is true, then
-  // {previous} will cache its findings.
+  // followed. If {depth} != 0 on function return, then it only got partway to
+  // the desired depth. If {serialize} is true, then {previous} will cache its
+  // findings (unless concurrent inlining is enabled).
   ContextRef previous(size_t* depth,
                       SerializationPolicy policy =
                           SerializationPolicy::kAssumeSerialized) const;
@@ -458,11 +458,6 @@ class ContextRef : public HeapObjectRef {
                      SerializationPolicy::kAssumeSerialized) const;
 
   SourceTextModuleRef GetModule(SerializationPolicy policy) const;
-
-  // We only serialize the ScopeInfo if certain Promise
-  // builtins are called.
-  void SerializeScopeInfo();
-  base::Optional<ScopeInfoRef> scope_info() const;
 };
 
 #define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \

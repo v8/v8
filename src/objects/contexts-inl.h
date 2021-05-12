@@ -61,10 +61,8 @@ V8_INLINE Object Context::get(int index) const {
 V8_INLINE Object Context::get(PtrComprCageBase cage_base, int index) const {
   return elements(cage_base, index, kRelaxedLoad);
 }
-V8_INLINE void Context::set(int index, Object value) {
-  set_elements(index, value, kRelaxedStore);
-}
 V8_INLINE void Context::set(int index, Object value, WriteBarrierMode mode) {
+  DCHECK_NE(index, PREVIOUS_INDEX);
   set_elements(index, value, kRelaxedStore, mode);
 }
 
@@ -99,7 +97,7 @@ Context Context::previous() {
   return Context::unchecked_cast(result);
 }
 void Context::set_previous(Context context, WriteBarrierMode mode) {
-  set(PREVIOUS_INDEX, context, mode);
+  set_elements(PREVIOUS_INDEX, context, kRelaxedStore, mode);
 }
 
 Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
