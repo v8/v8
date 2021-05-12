@@ -521,14 +521,18 @@ class CollectCustomSpaceStatisticsAtLastGCTask final : public v8::Task {
 
   void Run() final {
     cppgc::internal::Sweeper& sweeper = heap_.sweeper();
-    if (sweeper.PerformSweepOnMutatorThread(kStepSizeMs.InSecondsF())) {
+    if (sweeper.PerformSweepOnMutatorThread(
+            heap_.platform()->MonotonicallyIncreasingTime() +
+            kStepSizeMs.InSecondsF())) {
+      // Sweeping is done.
+      DCHECK(!sweeper.IsSweepingInProgress());
+      ReportCustomSpaceStatistics(heap_.raw_heap(), std::move(custom_spaces_),
+                                  std::move(receiver_));
+    } else {
       heap_.platform()->GetForegroundTaskRunner()->PostDelayedTask(
           std::make_unique<CollectCustomSpaceStatisticsAtLastGCTask>(
               heap_, std::move(custom_spaces_), std::move(receiver_)),
           kTaskDelayMs.InSecondsF());
-    } else {
-      ReportCustomSpaceStatistics(heap_.raw_heap(), std::move(custom_spaces_),
-                                  std::move(receiver_));
     }
   }
 
