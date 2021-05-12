@@ -104,7 +104,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   CHECK(!code_region.is_empty());
 
   uint8_t* embedded_blob_code_copy =
-      embedded_blob_code_copy_.load(std::memory_order_relaxed);
+      embedded_blob_code_copy_.load(std::memory_order_acquire);
   if (embedded_blob_code_copy) {
     DCHECK(
         code_region.contains(reinterpret_cast<Address>(embedded_blob_code_copy),
@@ -148,7 +148,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   }
 
   embedded_blob_code_copy_.store(embedded_blob_code_copy,
-                                 std::memory_order_relaxed);
+                                 std::memory_order_release);
   return embedded_blob_code_copy;
 }
 

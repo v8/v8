@@ -85,7 +85,7 @@ class CodeRange final : public VirtualMemoryCage {
     // created by itself, i.e. without contention. Additionally, the first
     // Isolate usually remaps builtins on machines with enough memory, not
     // subsequent Isolates in the same process.
-    return embedded_blob_code_copy_.load(std::memory_order_relaxed);
+    return embedded_blob_code_copy_.load(std::memory_order_acquire);
   }
 
   bool InitReservation(v8::PageAllocator* page_allocator, size_t requested);
