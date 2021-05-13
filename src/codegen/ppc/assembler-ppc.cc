@@ -1900,12 +1900,6 @@ void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
   emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
 }
 
-void Assembler::xxbrq(const Simd128Register rt, const Simd128Register rb) {
-  int BX = 1;
-  int TX = 1;
-  emit(XXBRQ | rt.code() * B21 | 31 * B16 | rb.code() * B11 | BX * B1 | TX);
-}
-
 // Pseudo instructions.
 void Assembler::nop(int type) {
   Register reg = r0;

@@ -1295,12 +1295,6 @@ void Decoder::DecodeExt5(Instruction* instr) {
 }
 
 void Decoder::DecodeExt6(Instruction* instr) {
-  switch (EXT6 | (instr->BitField(10, 2))) {
-    case XXBRQ: {
-      Format(instr, "xxbrq  'Xt, 'Xb");
-      return;
-    }
-  }
   switch (EXT6 | (instr->BitField(10, 1))) {
     case XXSPLTIB: {
       Format(instr, "xxspltib  'Xt, 'IMM8");
@@ -1316,6 +1310,16 @@ void Decoder::DecodeExt6(Instruction* instr) {
     PPC_XX3_OPCODE_LIST(DECODE_XX3_INSTRUCTIONS)
 #undef DECODE_XX3_INSTRUCTIONS
   }
+  // Some encodings have integers hard coded in the middle, handle those first.
+  switch (EXT6 | (instr->BitField(20, 16)) | (instr->BitField(10, 2))) {
+#define DECODE_XX2_B_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                              \
+    Format(instr, #name " 'Xt, 'Xb");                              \
+    return;                                                        \
+  }
+    PPC_XX2_OPCODE_B_FORM_LIST(DECODE_XX2_B_INSTRUCTIONS)
+#undef DECODE_XX2_B_INSTRUCTIONS
+  }
   switch (EXT6 | (instr->BitField(10, 2))) {
 #define DECODE_XX2_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name: {                                              \
@@ -1323,8 +1327,8 @@ void Decoder::DecodeExt6(Instruction* instr) {
     return;                                                        \
   }
     PPC_XX2_OPCODE_A_FORM_LIST(DECODE_XX2_A_INSTRUCTIONS)
-  }
 #undef DECODE_XX2_A_INSTRUCTIONS
+  }
   Unknown(instr);  // not used by V8
 }
 
