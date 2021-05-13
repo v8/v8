@@ -408,6 +408,16 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 }
 
 void Decoder::DecodeExt0(Instruction* instr) {
+  // Some encodings have integers hard coded in the middle, handle those first.
+  switch (EXT0 | (instr->BitField(20, 16)) | (instr->BitField(10, 0))) {
+#define DECODE_VX_D_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Vt, 'Vb");                                   \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_D_FORM_LIST(DECODE_VX_D_FORM__INSTRUCTIONS)
+#undef DECODE_VX_D_FORM__INSTRUCTIONS
+  }
   // Some encodings are 5-0 bits, handle those first
   switch (EXT0 | (instr->BitField(5, 0))) {
 #define DECODE_VA_A_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \

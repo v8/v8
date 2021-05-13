@@ -2859,24 +2859,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2Neg: {
-      constexpr int lane_width_in_bytes = 8;
-      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ li(kScratchReg, Operand(1));
-      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-      __ vinsertd(kScratchSimd128Reg, kScratchSimd128Reg,
-                  Operand(1 * lane_width_in_bytes));
-      // Perform negation.
-      __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vaddudm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
+      __ vnegd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_I32x4Neg: {
-      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ li(ip, Operand(1));
-      __ mtvsrd(kScratchSimd128Reg, ip);
-      __ vspltw(kScratchSimd128Reg, kScratchSimd128Reg, Operand(1));
-      __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vadduwm(i.OutputSimd128Register(), kScratchSimd128Reg, tempFPReg1);
+      __ vnegw(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_I64x2Abs: {

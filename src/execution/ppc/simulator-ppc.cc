@@ -4895,6 +4895,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_UNARY_OP(float, base::RecipSqrt)
       break;
     }
+    case VNEGW: {
+      VECTOR_UNARY_OP(int32_t, -)
+      break;
+    }
+    case VNEGD: {
+      VECTOR_UNARY_OP(int64_t, -)
+      break;
+    }
 #undef VECTOR_UNARY_OP
 #define VECTOR_ROUNDING_AVERAGE(intermediate_type, result_type)              \
   DECODE_VX_INSTRUCTION(t, a, b, T)                                          \
