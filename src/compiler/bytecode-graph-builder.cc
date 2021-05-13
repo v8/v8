@@ -433,9 +433,7 @@ class BytecodeGraphBuilder {
     return jsgraph_->simplified();
   }
   Zone* local_zone() const { return local_zone_; }
-  BytecodeArrayRef bytecode_array() const {
-    return shared_info().GetBytecodeArray();
-  }
+  BytecodeArrayRef bytecode_array() const { return bytecode_array_; }
   FeedbackVectorRef const& feedback_vector() const { return feedback_vector_; }
   const JSTypeHintLowering& type_hint_lowering() const {
     return type_hint_lowering_;
@@ -485,6 +483,7 @@ class BytecodeGraphBuilder {
   // The native context for which we optimize.
   NativeContextRef const native_context_;
   SharedFunctionInfoRef const shared_info_;
+  BytecodeArrayRef const bytecode_array_;
   FeedbackCellRef const feedback_cell_;
   FeedbackVectorRef const feedback_vector_;
   CallFrequency const invocation_frequency_;
@@ -1070,6 +1069,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       jsgraph_(jsgraph),
       native_context_(native_context),
       shared_info_(shared_info),
+      bytecode_array_(shared_info.GetBytecodeArray()),
       feedback_cell_(feedback_cell),
       feedback_vector_(feedback_cell.value()->AsFeedbackVector()),
       invocation_frequency_(invocation_frequency),
