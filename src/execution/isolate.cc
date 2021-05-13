@@ -3657,7 +3657,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     is_short_builtin_calls_enabled_ = (heap_.MaxOldGenerationSize() >=
                                        kShortBuiltinCallsOldSpaceSizeThreshold);
     if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
-      CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+      std::shared_ptr<CodeRange> code_range =
+          CodeRange::GetProcessWideCodeRange();
       if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
         is_short_builtin_calls_enabled_ = true;
       }
@@ -4973,10 +4974,7 @@ void Isolate::AddCodeRange(Address begin, size_t length_in_bytes) {
 }
 
 bool Isolate::RequiresCodeRange() const {
-  if (kPlatformRequiresCodeRange && !jitless_) return true;
-
-  return COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL &&
-         CodeRange::GetProcessWideCodeRange().get() != nullptr;
+  return kPlatformRequiresCodeRange && !jitless_;
 }
 
 v8::metrics::Recorder::ContextId Isolate::GetOrRegisterRecorderContextId(

@@ -101,49 +101,6 @@ UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
   isolate2->Dispose();
 }
 
-UNINITIALIZED_TEST(SharedPtrComprCageRemappedBuiltinsJitlessFalseToTrue) {
-  // Testing that toggling jitless from false to true use the same re-embedded
-  // builtins. Toggling jitless from false to true with shared pointer
-  // compression cage is not supported.
-
-  if (!V8_SHORT_BUILTIN_CALLS_BOOL) return;
-  FLAG_short_builtin_calls = true;
-  FLAG_jitless = false;
-
-  constexpr uint64_t kMemoryGB = 4;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  create_params.constraints.ConfigureDefaults(kMemoryGB * GB, kMemoryGB * GB);
-
-  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
-  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
-  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
-  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
-
-  CHECK_EQ(i_isolate1->embedded_blob_code(), i_isolate2->embedded_blob_code());
-  CodeRange* shared_code_range = CodeRange::GetProcessWideCodeRange().get();
-  if (shared_code_range &&
-      shared_code_range->embedded_blob_code_copy() != nullptr) {
-    CHECK_EQ(shared_code_range->embedded_blob_code_copy(),
-             i_isolate1->embedded_blob_code());
-    CHECK_EQ(shared_code_range->embedded_blob_code_copy(),
-             i_isolate2->embedded_blob_code());
-  }
-
-  FLAG_jitless = true;
-  v8::Isolate* isolate3 = v8::Isolate::New(create_params);
-  Isolate* i_isolate3 = reinterpret_cast<Isolate*>(isolate3);
-  if (shared_code_range &&
-      shared_code_range->embedded_blob_code_copy() != nullptr) {
-    CHECK_EQ(shared_code_range->embedded_blob_code_copy(),
-             i_isolate3->embedded_blob_code());
-  }
-
-  isolate1->Dispose();
-  isolate2->Dispose();
-  isolate3->Dispose();
-}
-
 namespace {
 constexpr int kIsolatesToAllocate = 25;
 
