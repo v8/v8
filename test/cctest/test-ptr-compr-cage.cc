@@ -106,8 +106,7 @@ UNINITIALIZED_TEST(SharedPtrComprCageRemappedBuiltinsJitlessFalseToTrue) {
   // builtins. Toggling jitless from false to true with shared pointer
   // compression cage is not supported.
 
-  if (!V8_SHORT_BUILTIN_CALLS_BOOL) return;
-  FLAG_short_builtin_calls = true;
+  if (!V8_SHORT_BUILTIN_CALLS_BOOL || !FLAG_short_builtin_calls) return;
   FLAG_jitless = false;
 
   constexpr uint64_t kMemoryGB = 4;

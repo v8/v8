@@ -500,9 +500,9 @@ KNOWN_OBJECTS = {
 
 # Lower 32 bits of first page addresses for various heap spaces.
 HEAP_FIRST_PAGES = {
-  0x08100000: "old_space",
-  0x08140000: "map_space",
-  0x08040000: "read_only_space",
+  0x080c0000: "old_space",
+  0x08100000: "map_space",
+  0x08000000: "read_only_space",
 }
 
 # List of known V8 Frame Markers.
