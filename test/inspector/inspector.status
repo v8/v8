@@ -119,10 +119,10 @@
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
-['(arch == mipsel or arch == mips64el) and not simd_mips', {
-  # Skip tests that fail on MIPS architectures that don't support SIMD.
-  'debugger/wasm-scope-info*': [SKIP],
-}],  # '(arch == mipsel or arch == mips64el) and not simd_mips'
+['no_simd_hardware', {
+  # Test contains SIMD value.
+  'debugger/wasm-scope-info': [SKIP],
+}], # no_simd_hardware
 
 ##############################################################################
 ['arch == riscv64', {
