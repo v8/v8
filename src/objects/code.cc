@@ -159,6 +159,7 @@ inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(Code code) {
   // shared CodeRange. When short builtin calls are enabled, there is a single
   // copy of the re-embedded builtins in the shared CodeRange, so use that if
   // it's present.
+  if (FLAG_jitless) return EmbeddedData::FromBlob();
   CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
   return (code_range && code_range->embedded_blob_code_copy() != nullptr)
              ? EmbeddedData::FromBlob(code_range)
