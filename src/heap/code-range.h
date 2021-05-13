@@ -88,21 +88,6 @@ class CodeRange final : public VirtualMemoryCage {
     return embedded_blob_code_copy_.load(std::memory_order_acquire);
   }
 
-#ifdef V8_OS_WIN64
-  // 64-bit Windows needs to track how many Isolates are using the CodeRange for
-  // registering and unregistering of unwind info. Note that even though
-  // CodeRanges are used with std::shared_ptr, std::shared_ptr::use_count should
-  // not be used for synchronization as it's usually implemented with a relaxed
-  // read.
-  uint32_t AtomicIncrementUnwindInfoUseCount() {
-    return unwindinfo_use_count_.fetch_add(1, std::memory_order_acq_rel);
-  }
-
-  uint32_t AtomicDecrementUnwindInfoUseCount() {
-    return unwindinfo_use_count_.fetch_sub(1, std::memory_order_acq_rel);
-  }
-#endif  // V8_OS_WIN64
-
   bool InitReservation(v8::PageAllocator* page_allocator, size_t requested);
 
   void Free();
@@ -120,12 +105,14 @@ class CodeRange final : public VirtualMemoryCage {
                                  const uint8_t* embedded_blob_code,
                                  size_t embedded_blob_code_size);
 
+  // Initializes the process-wide code range if RequiresProcessWideCodeRange()
+  // is true.
   static void InitializeProcessWideCodeRangeOnce(
       v8::PageAllocator* page_allocator, size_t requested_size);
 
   // If InitializeProcessWideCodeRangeOnce has been called, returns the
   // initialized CodeRange. Otherwise returns an empty std::shared_ptr.
-  V8_EXPORT_PRIVATE static std::shared_ptr<CodeRange> GetProcessWideCodeRange();
+  static std::shared_ptr<CodeRange> GetProcessWideCodeRange();
 
  private:
   // Used when short builtin calls are enabled, where embedded builtins are
@@ -135,10 +122,6 @@ class CodeRange final : public VirtualMemoryCage {
   // When sharing a CodeRange among Isolates, calls to RemapEmbeddedBuiltins may
   // race during Isolate::Init.
   base::Mutex remap_embedded_builtins_mutex_;
-
-#ifdef V8_OS_WIN64
-  std::atomic<uint32_t> unwindinfo_use_count_{0};
-#endif
 };
 
 }  // namespace internal
