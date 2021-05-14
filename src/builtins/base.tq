@@ -141,6 +141,7 @@ intrinsic %MakeLazy<T: type, A1: type, A2: type, A3: type>(
 // template, but Torque doesn't understand how to use templates for extern
 // macros, so just add whatever overload definitions you need here.
 extern macro RunLazy(Lazy<Smi>): Smi;
+extern macro RunLazy(Lazy<JSAny>): JSAny;
 
 // A Smi value containing a bitfield struct as its integer data.
 @useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;

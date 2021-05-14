@@ -113,7 +113,8 @@ TF_BUILTIN(Call_ReceiverIsNullOrUndefined_WithFeedback,
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
+  CollectCallFeedback(
+      target, [=] { return receiver; }, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsNullOrUndefined, context, target,
                   argc);
 }
@@ -126,7 +127,8 @@ TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_WithFeedback,
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
+  CollectCallFeedback(
+      target, [=] { return receiver; }, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsNotNullOrUndefined, context, target,
                   argc);
 }
@@ -138,7 +140,8 @@ TF_BUILTIN(Call_ReceiverIsAny_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
+  CollectCallFeedback(
+      target, [=] { return receiver; }, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsAny, context, target, argc);
 }
 
@@ -483,13 +486,15 @@ void CallOrConstructBuiltinsAssembler::CallReceiver(
   auto target = Parameter<Object>(Descriptor::kFunction);
   auto context = LoadContextFromBaseline();
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  TNode<Object> receiver;
-  if (maybe_receiver) {
-    receiver = *maybe_receiver;
-  } else {
-    CodeStubArguments args(this, argc);
-    receiver = args.GetReceiver();
-  }
+  LazyNode<Object> receiver = [=] {
+    if (maybe_receiver) {
+      return *maybe_receiver;
+    } else {
+      CodeStubArguments args(this, argc);
+      return args.GetReceiver();
+    }
+  };
+
   CollectCallFeedback(target, receiver, context, feedback_vector, slot);
   TailCallBuiltin(id, context, target, argc);
 }
@@ -510,7 +515,8 @@ TF_BUILTIN(CallWithArrayLike_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
+  CollectCallFeedback(
+      target, [=] { return receiver; }, context, feedback_vector, slot);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
@@ -532,8 +538,9 @@ TF_BUILTIN(CallWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
   CodeStubArguments args(this, args_count);
-  auto receiver = args.GetReceiver();
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
+  CollectCallFeedback(
+      target, [=] { return args.GetReceiver(); }, context, feedback_vector,
+      slot);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
@@ -546,7 +553,8 @@ TF_BUILTIN(CallWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  CollectCallFeedback(target, receiver, context, feedback_vector, slot);
+  CollectCallFeedback(
+      target, [=] { return receiver; }, context, feedback_vector, slot);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 

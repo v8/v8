@@ -97,13 +97,18 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
   return CreateAsyncFromSyncIterator(context, syncIterator);
 }
 
+macro GetLazyReceiver(receiver: JSAny): JSAny {
+  return receiver;
+}
+
 transitioning builtin CallIteratorWithFeedback(
     context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
     feedback: Undefined|FeedbackVector): JSAny {
   // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
   const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
   ic::CollectCallFeedback(
-      iteratorMethod, receiver, context, feedback, callSlotUnTagged);
+      iteratorMethod, %MakeLazy<JSAny, JSAny>('GetLazyReceiver', receiver),
+      context, feedback, callSlotUnTagged);
   const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
       otherwise ThrowCalledNonCallable(iteratorMethod);
   return Call(context, iteratorCallable, receiver);
