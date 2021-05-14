@@ -38,7 +38,7 @@ class BigIntBase : public PrimitiveHeapObject {
   }
 
   // For use by the GC.
-  inline int synchronized_length() const {
+  inline int length(AcquireLoadTag) const {
     int32_t bitfield = ACQUIRE_READ_INT32_FIELD(*this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }

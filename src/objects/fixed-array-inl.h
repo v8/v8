@@ -44,11 +44,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
-SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
-SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
-Object FixedArrayBase::unchecked_synchronized_length() const {
+Object FixedArrayBase::unchecked_length(AcquireLoadTag) const {
   return ACQUIRE_READ_FIELD(*this, kLengthOffset);
 }
 
@@ -240,11 +240,9 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
 // Due to left- and right-trimming, concurrent visitors need to read the length
 // with acquire semantics.
 // TODO(ulan): Acquire should not be needed anymore.
-inline int FixedArray::AllocatedSize() {
-  return SizeFor(synchronized_length());
-}
+inline int FixedArray::AllocatedSize() { return SizeFor(length(kAcquireLoad)); }
 inline int WeakFixedArray::AllocatedSize() {
-  return SizeFor(synchronized_length());
+  return SizeFor(length(kAcquireLoad));
 }
 inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
 

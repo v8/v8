@@ -2262,7 +2262,7 @@ int HeapObject::SizeFromMap(Map map) const {
   if (base::IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE,
                       LAST_FIXED_ARRAY_TYPE)) {
     return FixedArray::SizeFor(
-        FixedArray::unchecked_cast(*this).synchronized_length());
+        FixedArray::unchecked_cast(*this).length(kAcquireLoad));
   }
   if (base::IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
     if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
@@ -2273,15 +2273,15 @@ int HeapObject::SizeFromMap(Map map) const {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
     return SeqOneByteString::SizeFor(
-        SeqOneByteString::unchecked_cast(*this).synchronized_length());
+        SeqOneByteString::unchecked_cast(*this).length(kAcquireLoad));
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return ByteArray::SizeFor(
-        ByteArray::unchecked_cast(*this).synchronized_length());
+        ByteArray::unchecked_cast(*this).length(kAcquireLoad));
   }
   if (instance_type == BYTECODE_ARRAY_TYPE) {
     return BytecodeArray::SizeFor(
-        BytecodeArray::unchecked_cast(*this).synchronized_length());
+        BytecodeArray::unchecked_cast(*this).length(kAcquireLoad));
   }
   if (instance_type == FREE_SPACE_TYPE) {
     return FreeSpace::unchecked_cast(*this).size(kRelaxedLoad);
@@ -2291,11 +2291,11 @@ int HeapObject::SizeFromMap(Map map) const {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
     return SeqTwoByteString::SizeFor(
-        SeqTwoByteString::unchecked_cast(*this).synchronized_length());
+        SeqTwoByteString::unchecked_cast(*this).length(kAcquireLoad));
   }
   if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return FixedDoubleArray::SizeFor(
-        FixedDoubleArray::unchecked_cast(*this).synchronized_length());
+        FixedDoubleArray::unchecked_cast(*this).length(kAcquireLoad));
   }
   if (instance_type == FEEDBACK_METADATA_TYPE) {
     return FeedbackMetadata::SizeFor(
@@ -2309,7 +2309,7 @@ int HeapObject::SizeFromMap(Map map) const {
   if (base::IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
                       LAST_WEAK_FIXED_ARRAY_TYPE)) {
     return WeakFixedArray::SizeFor(
-        WeakFixedArray::unchecked_cast(*this).synchronized_length());
+        WeakFixedArray::unchecked_cast(*this).length(kAcquireLoad));
   }
   if (instance_type == WEAK_ARRAY_LIST_TYPE) {
     return WeakArrayList::SizeForCapacity(
@@ -2333,7 +2333,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
-        PropertyArray::cast(*this).synchronized_length());
+        PropertyArray::cast(*this).length(kAcquireLoad));
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(

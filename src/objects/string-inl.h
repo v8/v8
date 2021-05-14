@@ -92,12 +92,12 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   base::Optional<base::SharedMutexGuard<base::kShared>> mutex_guard;
 };
 
-int String::synchronized_length() const {
+int String::length(AcquireLoadTag) const {
   return base::AsAtomic32::Acquire_Load(
       reinterpret_cast<const int32_t*>(field_address(kLengthOffset)));
 }
 
-void String::synchronized_set_length(int value) {
+void String::set_length(int value, ReleaseStoreTag) {
   base::AsAtomic32::Release_Store(
       reinterpret_cast<int32_t*>(field_address(kLengthOffset)), value);
 }
@@ -827,10 +827,10 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 // Due to ThinString rewriting, concurrent visitors need to read the length with
 // acquire semantics.
 inline int SeqOneByteString::AllocatedSize() {
-  return SizeFor(synchronized_length());
+  return SizeFor(length(kAcquireLoad));
 }
 inline int SeqTwoByteString::AllocatedSize() {
-  return SizeFor(synchronized_length());
+  return SizeFor(length(kAcquireLoad));
 }
 
 void SlicedString::set_parent(String parent, WriteBarrierMode mode) {

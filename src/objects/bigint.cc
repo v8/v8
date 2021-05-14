@@ -206,7 +206,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
     bitfield = SignBits::update(bitfield, new_sign);
     RELAXED_WRITE_INT32_FIELD(*this, kBitfieldOffset, bitfield);
   }
-  inline void synchronized_set_length(int new_length) {
+  inline void set_length(int new_length, ReleaseStoreTag) {
     int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     bitfield = LengthBits::update(bitfield, new_length);
     RELEASE_WRITE_INT32_FIELD(*this, kBitfieldOffset, bitfield);
@@ -418,7 +418,7 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
       // of the object changed significantly.
       heap->CreateFillerObjectAt(new_end, size_delta, ClearRecordedSlots::kNo);
     }
-    result.synchronized_set_length(new_length);
+    result.set_length(new_length, kReleaseStore);
 
     // Canonicalize -0n.
     if (new_length == 0) {
@@ -2204,7 +2204,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
   if (sign) chars[pos++] = '-';
   // Trim any over-allocation (which can happen due to conservative estimates).
   if (pos < static_cast<int>(chars_required)) {
-    result->synchronized_set_length(pos);
+    result->set_length(pos, kReleaseStore);
     int string_size =
         SeqOneByteString::SizeFor(static_cast<int>(chars_required));
     int needed_size = SeqOneByteString::SizeFor(pos);

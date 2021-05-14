@@ -194,9 +194,10 @@ class String : public TorqueGeneratedString<String, Name> {
   const byte* AddressOfCharacterAt(int start_index,
                                    const DisallowGarbageCollection& no_gc);
 
-  // Get and set the length of the string using acquire loads and release
-  // stores.
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
+  // Forward declare the non-atomic (set_)length defined in torque.
+  using TorqueGeneratedString::length;
+  using TorqueGeneratedString::set_length;
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
 
   // Returns whether this string has only one-byte chars, i.e. all of them can
   // be one-byte encoded.  This might be the case even if the string is

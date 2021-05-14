@@ -136,13 +136,13 @@ class ConcurrentMarkingVisitor final
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object);
-    return SeqOneByteString::SizeFor(object.synchronized_length());
+    return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
   }
 
   int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object);
-    return SeqTwoByteString::SizeFor(object.synchronized_length());
+    return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
   }
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
@@ -232,9 +232,9 @@ class ConcurrentMarkingVisitor final
 
   template <typename T>
   int VisitLeftTrimmableArray(Map map, T object) {
-    // The synchronized_length() function checks that the length is a Smi.
+    // The length() function checks that the length is a Smi.
     // This is not necessarily the case if the array is being left-trimmed.
-    Object length = object.unchecked_synchronized_length();
+    Object length = object.unchecked_length(kAcquireLoad);
     if (!ShouldVisit(object)) return 0;
     // The cached length must be the actual length as the array is not black.
     // Left trimming marks the array black before over-writing the length.

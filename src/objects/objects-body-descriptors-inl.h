@@ -430,7 +430,7 @@ class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return ByteArray::SizeFor(ByteArray::cast(obj).synchronized_length());
+    return ByteArray::SizeFor(ByteArray::cast(obj).length(kAcquireLoad));
   }
 };
 
@@ -451,7 +451,7 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     return BytecodeArray::SizeFor(
-        BytecodeArray::cast(obj).synchronized_length());
+        BytecodeArray::cast(obj).length(kAcquireLoad));
   }
 };
 
@@ -464,7 +464,7 @@ class BigInt::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return BigInt::SizeFor(BigInt::cast(obj).synchronized_length());
+    return BigInt::SizeFor(BigInt::cast(obj).length(kAcquireLoad));
   }
 };
 
@@ -478,7 +478,7 @@ class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     return FixedDoubleArray::SizeFor(
-        FixedDoubleArray::cast(obj).synchronized_length());
+        FixedDoubleArray::cast(obj).length(kAcquireLoad));
   }
 };
 

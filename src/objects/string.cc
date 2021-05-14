@@ -1425,7 +1425,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
                              ClearRecordedSlots::kNo);
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
-  string->synchronized_set_length(new_length);
+  string->set_length(new_length, kReleaseStore);
 
   return string;
 }

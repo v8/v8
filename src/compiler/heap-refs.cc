@@ -3118,7 +3118,7 @@ base::Optional<int> StringRef::length() const {
           "length for kNeverSerialized non-internalized string " << *this);
       return base::nullopt;
     } else {
-      return object()->synchronized_length();
+      return object()->length(kAcquireLoad);
     }
   }
   return data()->AsString()->length();
