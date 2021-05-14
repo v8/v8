@@ -390,7 +390,7 @@ int Sweeper::RawSweep(
           free_start, free_end, p, non_empty_typed_slots, &free_ranges_map,
           &old_to_new_cleanup);
     }
-    Map map = object.synchronized_map();
+    Map map = object.map(kAcquireLoad);
     DCHECK(map.IsMap());
     int size = object.SizeFromMap(map);
     live_bytes += size;

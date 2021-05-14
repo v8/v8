@@ -731,17 +731,21 @@ void HeapObject::set_map(Map value) {
 #endif
 }
 
-DEF_GETTER(HeapObject, synchronized_map, Map) {
-  return map_word(cage_base, kAcquireLoad).ToMap();
+Map HeapObject::map(AcquireLoadTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map(cage_base, tag);
+}
+Map HeapObject::map(PtrComprCageBase cage_base, AcquireLoadTag tag) const {
+  return map_word(cage_base, tag).ToMap();
 }
 
-void HeapObject::synchronized_set_map(Map value) {
+void HeapObject::set_map(Map value, ReleaseStoreTag tag) {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !value.is_null()) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
   }
 #endif
-  set_map_word(MapWord::FromMap(value), kReleaseStore);
+  set_map_word(MapWord::FromMap(value), tag);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never

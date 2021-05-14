@@ -238,7 +238,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // the "deoptimize dependent code" mechanism.
   receiver_map->NotifyLeafMapLayoutChange(isolate);
   // Finally, perform the map rollback.
-  receiver->synchronized_set_map(*parent_map);
+  receiver->set_map(*parent_map, kReleaseStore);
 #if VERIFY_HEAP
   receiver->HeapObjectVerify(isolate);
   receiver->property_array().PropertyArrayVerify(isolate);

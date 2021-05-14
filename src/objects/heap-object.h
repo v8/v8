@@ -43,8 +43,8 @@ class HeapObject : public Object {
   inline void set_map_no_write_barrier(Map value);
 
   // Access the map using acquire load and release store.
-  DECL_GETTER(synchronized_map, Map)
-  inline void synchronized_set_map(Map value);
+  DECL_ACQUIRE_GETTER(map, Map)
+  inline void set_map(Map value, ReleaseStoreTag);
 
   // Compare-and-swaps map word using release store, returns true if the map
   // word was actually swapped.

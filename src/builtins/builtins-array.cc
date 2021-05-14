@@ -753,7 +753,7 @@ class ArrayConcatVisitor {
         array, fast_elements() ? HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     array->set_length(*length);
     array->set_elements(*storage_fixed_array());
-    array->synchronized_set_map(*map);
+    array->set_map(*map, kReleaseStore);
     return array;
   }
 

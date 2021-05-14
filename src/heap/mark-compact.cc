@@ -4630,7 +4630,7 @@ void MinorMarkCompactCollector::MakeIterable(
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                       ClearRecordedSlots::kNo);
     }
-    Map map = object.synchronized_map();
+    Map map = object.map(kAcquireLoad);
     int size = object.SizeFromMap(map);
     free_start = free_end + size;
   }
@@ -5085,7 +5085,7 @@ void MinorMarkCompactCollector::TraceFragmentation() {
           free_bytes_index++;
         }
       }
-      Map map = object.synchronized_map();
+      Map map = object.map(kAcquireLoad);
       int size = object.SizeFromMap(map);
       live_bytes += size;
       free_start = free_end + size;

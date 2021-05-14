@@ -733,8 +733,8 @@ void SharedFunctionInfo::ClearPreparseData() {
                 UncompiledDataWithPreparseData::kSize);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
                 UncompiledData::kHeaderSize);
-  data.synchronized_set_map(
-      GetReadOnlyRoots().uncompiled_data_without_preparse_data_map());
+  data.set_map(GetReadOnlyRoots().uncompiled_data_without_preparse_data_map(),
+               kReleaseStore);
 
   // Fill the remaining space with filler.
   heap->CreateFillerObjectAt(

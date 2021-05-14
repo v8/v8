@@ -127,7 +127,7 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   ThinString thin = ThinString::unchecked_cast(*this);
   thin.set_actual(internalized);
   DCHECK_GE(old_size, ThinString::kSize);
-  this->synchronized_set_map(*map);
+  this->set_map(*map, kReleaseStore);
   Address thin_end = thin.address() + ThinString::kSize;
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
@@ -200,7 +200,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
-  this->synchronized_set_map(new_map);
+  this->set_map(new_map, kReleaseStore);
 
   ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
   self.AllocateExternalPointerEntries(isolate);
@@ -277,7 +277,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
-  this->synchronized_set_map(new_map);
+  this->set_map(new_map, kReleaseStore);
 
   ExternalOneByteString self = ExternalOneByteString::cast(*this);
   self.AllocateExternalPointerEntries(isolate);

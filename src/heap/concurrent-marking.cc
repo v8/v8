@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "include/v8config.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -481,7 +482,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
             addr == new_large_object) {
           local_marking_worklists.PushOnHold(object);
         } else {
-          Map map = object.synchronized_map(isolate);
+          Map map = object.map(isolate, kAcquireLoad);
           if (is_per_context_mode) {
             Address context;
             if (native_context_inferrer.Infer(isolate, map, object, &context)) {

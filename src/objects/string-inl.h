@@ -119,7 +119,7 @@ CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalTwoByteString)
 
 StringShape::StringShape(const String str)
-    : type_(str.synchronized_map().instance_type()) {
+    : type_(str.map(kAcquireLoad).instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }

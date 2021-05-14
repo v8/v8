@@ -2210,7 +2210,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // Set up the global object as a normalized object.
   global->set_global_dictionary(*dictionary, kReleaseStore);
-  global->synchronized_set_map(raw_map);
+  global->set_map(raw_map, kReleaseStore);
 
   // Make sure result is a global object with properties in dictionary.
   DCHECK(global->IsJSGlobalObject() && !global->HasFastProperties());
@@ -2841,7 +2841,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 
   // Reset the map for the object.
   JSGlobalProxy raw = *object;
-  raw.synchronized_set_map(*map);
+  raw.set_map(*map, kReleaseStore);
 
   // Reinitialize the object from the constructor map.
   InitializeJSObjectFromMap(raw, *raw_properties_or_hash, *map);

@@ -374,7 +374,7 @@ bool AddDescriptorsByTemplate(
   }
 
   // Atomically commit the changes.
-  receiver->synchronized_set_map(*map);
+  receiver->set_map(*map, kReleaseStore);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
   }
@@ -468,7 +468,7 @@ bool AddDescriptorsByTemplate(
   }
 
   // Atomically commit the changes.
-  receiver->synchronized_set_map(*map);
+  receiver->set_map(*map, kReleaseStore);
   receiver->set_raw_properties_or_hash(*properties_dictionary);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
