@@ -252,37 +252,37 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 // These opcodes are not spec'ed (or visible) externally; the idea is
 // to use unused ranges for internal purposes.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
-  V(F64Acos, 0xc5, d_d)                \
-  V(F64Asin, 0xc6, d_d)                \
-  V(F64Atan, 0xc7, d_d)                \
-  V(F64Cos, 0xc8, d_d)                 \
-  V(F64Sin, 0xc9, d_d)                 \
-  V(F64Tan, 0xca, d_d)                 \
-  V(F64Exp, 0xcb, d_d)                 \
-  V(F64Log, 0xcc, d_d)                 \
-  V(F64Atan2, 0xcd, d_dd)              \
-  V(F64Pow, 0xce, d_dd)                \
-  V(F64Mod, 0xcf, d_dd)                \
+  V(F64Acos, 0xdc, d_d)                \
+  V(F64Asin, 0xdd, d_d)                \
+  V(F64Atan, 0xde, d_d)                \
+  V(F64Cos, 0xdf, d_d)                 \
+  V(F64Sin, 0xe0, d_d)                 \
+  V(F64Tan, 0xe1, d_d)                 \
+  V(F64Exp, 0xe2, d_d)                 \
+  V(F64Log, 0xe3, d_d)                 \
+  V(F64Atan2, 0xe4, d_dd)              \
+  V(F64Pow, 0xe5, d_dd)                \
+  V(F64Mod, 0xe6, d_dd)                \
   V(I32AsmjsDivS, 0xe7, i_ii)          \
   V(I32AsmjsDivU, 0xe8, i_ii)          \
   V(I32AsmjsRemS, 0xe9, i_ii)          \
-  V(I32AsmjsRemU, 0xd6, i_ii)          \
-  V(I32AsmjsLoadMem8S, 0xd7, i_i)      \
-  V(I32AsmjsLoadMem8U, 0xd8, i_i)      \
-  V(I32AsmjsLoadMem16S, 0xd9, i_i)     \
-  V(I32AsmjsLoadMem16U, 0xda, i_i)     \
-  V(I32AsmjsLoadMem, 0xdb, i_i)        \
-  V(F32AsmjsLoadMem, 0xdc, f_i)        \
-  V(F64AsmjsLoadMem, 0xdd, d_i)        \
-  V(I32AsmjsStoreMem8, 0xde, i_ii)     \
-  V(I32AsmjsStoreMem16, 0xdf, i_ii)    \
-  V(I32AsmjsStoreMem, 0xe0, i_ii)      \
-  V(F32AsmjsStoreMem, 0xe1, f_if)      \
-  V(F64AsmjsStoreMem, 0xe2, d_id)      \
-  V(I32AsmjsSConvertF32, 0xe3, i_f)    \
-  V(I32AsmjsUConvertF32, 0xe4, i_f)    \
-  V(I32AsmjsSConvertF64, 0xe5, i_d)    \
-  V(I32AsmjsUConvertF64, 0xe6, i_d)
+  V(I32AsmjsRemU, 0xea, i_ii)          \
+  V(I32AsmjsLoadMem8S, 0xeb, i_i)      \
+  V(I32AsmjsLoadMem8U, 0xec, i_i)      \
+  V(I32AsmjsLoadMem16S, 0xed, i_i)     \
+  V(I32AsmjsLoadMem16U, 0xee, i_i)     \
+  V(I32AsmjsLoadMem, 0xef, i_i)        \
+  V(F32AsmjsLoadMem, 0xf0, f_i)        \
+  V(F64AsmjsLoadMem, 0xf1, d_i)        \
+  V(I32AsmjsStoreMem8, 0xf2, i_ii)     \
+  V(I32AsmjsStoreMem16, 0xf3, i_ii)    \
+  V(I32AsmjsStoreMem, 0xf4, i_ii)      \
+  V(F32AsmjsStoreMem, 0xf5, f_if)      \
+  V(F64AsmjsStoreMem, 0xf6, d_id)      \
+  V(I32AsmjsSConvertF32, 0xf7, i_f)    \
+  V(I32AsmjsUConvertF32, 0xf8, i_f)    \
+  V(I32AsmjsSConvertF64, 0xf9, i_d)    \
+  V(I32AsmjsUConvertF64, 0xfa, i_d)
 
 #define FOREACH_SIMD_MEM_OPCODE(V) \
   V(S128LoadMem, 0xfd00, s_i)      \
@@ -759,10 +759,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(s_is, kWasmS128, kWasmI32, kWasmS128)
 
 #define FOREACH_PREFIX(V) \
+  V(GC, 0xfb)             \
   V(Numeric, 0xfc)        \
   V(Simd, 0xfd)           \
-  V(Atomic, 0xfe)         \
-  V(GC, 0xfb)
+  V(Atomic, 0xfe)
 
 enum WasmOpcode {
 // Declare expression opcodes.
