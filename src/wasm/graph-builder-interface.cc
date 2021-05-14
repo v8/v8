@@ -670,6 +670,19 @@ class WasmGraphBuildingInterface {
     SetEnv(false_env);
   }
 
+  void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,
+                   uint32_t depth) {
+    SsaEnv* false_env = ssa_env_;
+    SsaEnv* true_env = Split(decoder->zone(), false_env);
+    false_env->SetNotMerged();
+    builder_->BrOnNull(ref_object.node, &false_env->control,
+                       &true_env->control);
+    builder_->SetControl(false_env->control);
+    SetEnv(true_env);
+    BrOrRet(decoder, depth, 0);
+    SetEnv(false_env);
+  }
+
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     NodeVector inputs(args.size());

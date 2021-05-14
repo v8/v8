@@ -52,6 +52,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(Delegate, 0x18, _ /* eh_prototype */)       \
   V(CatchAll, 0x19, _ /* eh_prototype */)       \
   V(BrOnNull, 0xd4, _ /* gc prototype */)       \
+  V(BrOnNonNull, 0xd6, _ /* gc prototype */)    \
   V(NopForTestingUnsupportedInLiftoff, 0x16, _)
 
 // Constants, locals, globals, and calls.

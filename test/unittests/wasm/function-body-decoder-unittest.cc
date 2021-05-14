@@ -3845,6 +3845,31 @@ TEST_F(FunctionBodyDecoderTest, BrOnNull) {
                 "expected 1 elements on the stack for branch, found 0");
 }
 
+TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  const ValueType reps[] = {ValueType::Ref(HeapType::kFunc, kNonNullable),
+                            ValueType::Ref(HeapType::kFunc, kNullable)};
+  const FunctionSig sig(1, 1, reps);
+  ExpectValidates(
+      &sig,
+      {WASM_BLOCK_R(reps[0], WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0)),
+                    WASM_RETURN(WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(0))))});
+
+  // Wrong branch type.
+  ExpectFailure(
+      &sig,
+      {WASM_BLOCK_I(WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0)),
+                    WASM_RETURN(WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(0))))},
+      kAppendEnd, "type error in branch[0] (expected i32, got (ref func))");
+
+  // br_on_non_null does not leave a value on the stack.
+  ExpectFailure(&sig, {WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0))}, kAppendEnd,
+                "expected 1 elements on the stack for fallthru, found 0");
+}
+
 TEST_F(FunctionBodyDecoderTest, GCStruct) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);

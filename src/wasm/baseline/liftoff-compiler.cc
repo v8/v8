@@ -3146,6 +3146,32 @@ class LiftoffCompiler {
     __ PushRegister(kRef, ref);
   }
 
+  void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,
+                   uint32_t depth) {
+    // Before branching, materialize all constants. This avoids repeatedly
+    // materializing them for each conditional branch.
+    if (depth != decoder->control_depth() - 1) {
+      __ MaterializeMergedConstants(
+          decoder->control_at(depth)->br_merge()->arity);
+    }
+
+    Label cont_false;
+    LiftoffRegList pinned;
+    LiftoffRegister ref = pinned.set(__ PopToRegister(pinned));
+    // Put the reference back onto the stack for the branch.
+    __ PushRegister(kRef, ref);
+
+    Register null = __ GetUnusedRegister(kGpReg, pinned).gp();
+    LoadNullValue(null, pinned);
+    __ emit_cond_jump(kEqual, &cont_false, ref_object.type.kind(), ref.gp(),
+                      null);
+
+    BrOrRet(decoder, depth, 0);
+    // Drop the reference if we are not branching.
+    __ DropValues(1);
+    __ bind(&cont_false);
+  }
+
   template <ValueKind src_kind, ValueKind result_kind, typename EmitFn>
   void EmitTerOp(EmitFn fn) {
     static constexpr RegClass src_rc = reg_class_for(src_kind);

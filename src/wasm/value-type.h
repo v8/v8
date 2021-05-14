@@ -340,6 +340,13 @@ class ValueType {
     return is_packed() ? Primitive(kI32) : *this;
   }
 
+  // Returns the version of this type that does not allow null values. Handles
+  // bottom.
+  constexpr ValueType AsNonNull() const {
+    DCHECK(is_object_reference() || is_bottom());
+    return is_nullable() ? Ref(heap_type(), kNonNullable) : *this;
+  }
+
   /***************************** Field Accessors ******************************/
   constexpr ValueKind kind() const { return KindField::decode(bit_field_); }
   constexpr HeapType::Representation heap_representation() const {

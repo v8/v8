@@ -313,23 +313,23 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
   ValueType kRefTypes[] = {ref(type_index)};
   ValueType kOptRefType = optref(type_index);
   FunctionSig sig_q_v(1, 0, kRefTypes);
-  const byte l_local_index = 0;
+  const byte local_index = 0;
   const byte kTaken = tester.DefineFunction(
       tester.sigs.i_v(), {kOptRefType},
       {WASM_BLOCK_I(WASM_I32V(42),
                     // Branch will be taken.
                     // 42 left on stack outside the block (not 52).
-                    WASM_BR_ON_NULL(0, WASM_LOCAL_GET(l_local_index)),
+                    WASM_BR_ON_NULL(0, WASM_LOCAL_GET(local_index)),
                     WASM_I32V(52), WASM_BR(0)),
        kExprEnd});
 
-  const byte m_field_index = 0;
+  const byte field_index = 0;
   const byte kNotTaken = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_I(
            WASM_I32V(42),
            WASM_STRUCT_GET(
-               type_index, m_field_index,
+               type_index, field_index,
                // Branch will not be taken.
                // 52 left on stack outside the block (not 42).
                WASM_BR_ON_NULL(0, WASM_STRUCT_NEW_WITH_RTT(
@@ -341,6 +341,49 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
   tester.CompileModule();
   tester.CheckResult(kTaken, 42);
   tester.CheckResult(kNotTaken, 52);
+}
+
+WASM_COMPILED_EXEC_TEST(WasmBrOnNonNull) {
+  WasmGCTester tester(execution_tier);
+  const byte type_index =
+      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  ValueType kRefType = ref(type_index);
+  ValueType kOptRefType = optref(type_index);
+  FunctionSig sig_q_v(1, 0, &kRefType);
+  const byte field_index = 0;
+
+  const byte kTaken = tester.DefineFunction(
+      tester.sigs.i_v(), {kOptRefType, kOptRefType},
+      {WASM_LOCAL_SET(
+           0, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(52), WASM_I32V(62),
+                                       WASM_RTT_CANON(type_index))),
+       WASM_LOCAL_SET(
+           1, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(11), WASM_I32V(22),
+                                       WASM_RTT_CANON(type_index))),
+       WASM_STRUCT_GET(type_index, field_index,
+                       WASM_BLOCK_R(ref(type_index),
+                                    // Branch will be taken, and the block will
+                                    // return struct(52, 62).
+                                    WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0)),
+                                    WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(1)))),
+       kExprEnd});
+
+  const byte kNotTaken = tester.DefineFunction(
+      tester.sigs.i_v(), {kOptRefType, kOptRefType},
+      {WASM_LOCAL_SET(0, WASM_REF_NULL(type_index)),
+       WASM_LOCAL_SET(
+           1, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(11), WASM_I32V(22),
+                                       WASM_RTT_CANON(type_index))),
+       WASM_STRUCT_GET(type_index, field_index,
+                       WASM_BLOCK_R(ref(type_index),
+                                    // Branch will not be taken, and the block
+                                    // will return struct(11, 22).
+                                    WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0)),
+                                    WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(1)))),
+       kExprEnd});
+  tester.CompileModule();
+  tester.CheckResult(kTaken, 52);
+  tester.CheckResult(kNotTaken, 11);
 }
 
 WASM_COMPILED_EXEC_TEST(BrOnCast) {

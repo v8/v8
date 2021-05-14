@@ -415,6 +415,7 @@ const kWasmOpcodes = {
   'RefAsNonNull': 0xd3,
   'BrOnNull': 0xd4,
   'RefEq': 0xd5,
+  'BrOnNonNull': 0xd6
 };
 
 function defineWasmOpcode(name, value) {
