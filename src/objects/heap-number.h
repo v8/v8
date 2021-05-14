@@ -20,7 +20,6 @@ namespace internal {
 class HeapNumber
     : public TorqueGeneratedHeapNumber<HeapNumber, PrimitiveHeapObject> {
  public:
-  inline uint64_t value_as_bits_relaxed() const;
   inline uint64_t value_as_bits() const;
   inline void set_value_as_bits(uint64_t bits);
 

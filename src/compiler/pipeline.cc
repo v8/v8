@@ -183,7 +183,6 @@ class PipelineData {
             : nullptr;
     dependencies_ =
         info_->zone()->New<CompilationDependencies>(broker_, info_->zone());
-    broker_->set_dependencies(dependencies_);
   }
 
 #if V8_ENABLE_WEBASSEMBLY

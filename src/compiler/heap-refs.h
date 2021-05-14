@@ -123,7 +123,7 @@ enum class RefSerializationKind {
   V(FeedbackVector, RefSerializationKind::kNeverSerialized)               \
   V(FixedArrayBase, RefSerializationKind::kBackgroundSerialized)          \
   V(FunctionTemplateInfo, RefSerializationKind::kNeverSerialized)         \
-  V(HeapNumber, RefSerializationKind::kBackgroundSerialized)              \
+  V(HeapNumber, RefSerializationKind::kNeverSerialized)                   \
   V(JSReceiver, RefSerializationKind::kBackgroundSerialized)              \
   V(Map, RefSerializationKind::kBackgroundSerialized)                     \
   V(Name, RefSerializationKind::kNeverSerialized)                         \
@@ -429,6 +429,11 @@ class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
   int flags() const;
 };
 
+// HeapNumberRef is only created for immutable HeapNumbers. Mutable
+// HeapNumbers (those owned by in-object or backing store fields with
+// representation type Double are not exposed to the compiler through
+// HeapNumberRef. Instead, we read their value, and protect that read
+// with a field-constness Dependency.
 class HeapNumberRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(HeapNumber, HeapObjectRef)
