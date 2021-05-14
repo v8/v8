@@ -3108,15 +3108,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16Shuffle: {
-      constexpr int lane_width_in_bytes = 8;
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
-      __ mov(r0, Operand(make_uint64(i.InputUint32(3), i.InputUint32(2))));
-      __ mov(ip, Operand(make_uint64(i.InputUint32(5), i.InputUint32(4))));
-      __ mtvsrd(kScratchSimd128Reg, r0);
-      __ mtvsrd(dst, ip);
-      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      uint64_t low = make_uint64(i.InputUint32(3), i.InputUint32(2));
+      uint64_t high = make_uint64(i.InputUint32(5), i.InputUint32(4));
+      __ mov(r0, Operand(low));
+      __ mov(ip, Operand(high));
+      __ mtvsrdd(dst, ip, r0);
       __ vperm(dst, src0, src1, dst);
       break;
     }
