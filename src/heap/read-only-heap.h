@@ -81,6 +81,7 @@ class ReadOnlyHeap {
   // Returns a read-only cache entry at a particular index.
   Object cached_read_only_object(size_t i) const;
   bool read_only_object_cache_is_initialized() const;
+  size_t read_only_object_cache_size() const;
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
