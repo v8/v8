@@ -2274,9 +2274,10 @@ void ExistingCodeLogger::LogExistingFunction(
       CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, entry_point))
 
       // Fast API function.
-      Address c_function = v8::ToCData<Address>(fun_data->GetCFunction());
-      if (c_function != kNullAddress) {
-        CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, c_function))
+      int c_functions_count = fun_data->GetCFunctionsCount();
+      for (int i = 0; i < c_functions_count; i++) {
+        CALL_CODE_EVENT_HANDLER(
+            CallbackEvent(fun_name, fun_data->GetCFunction(i)))
       }
     }
   }

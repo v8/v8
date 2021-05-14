@@ -24,8 +24,7 @@ extern class FunctionTemplateRareData extends Struct {
   instance_template: ObjectTemplateInfo|Undefined;
   instance_call_handler: CallHandlerInfo|Undefined;
   access_check_info: AccessCheckInfo|Undefined;
-  c_function: Foreign|Zero;
-  c_signature: Foreign|Zero;
+  c_function_overloads: FixedArray;
 }
 
 bitfield struct FunctionTemplateInfoFlags extends uint31 {

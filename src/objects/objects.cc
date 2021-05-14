@@ -1374,12 +1374,8 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(Object object) const {
 FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   DCHECK(function_template_info->rare_data(kAcquireLoad).IsUndefined(isolate));
-  Handle<Struct> struct_obj = isolate->factory()->NewStruct(
-      FUNCTION_TEMPLATE_RARE_DATA_TYPE, AllocationType::kOld);
   Handle<FunctionTemplateRareData> rare_data =
-      i::Handle<FunctionTemplateRareData>::cast(struct_obj);
-  rare_data->set_c_function(Smi(0));
-  rare_data->set_c_signature(Smi(0));
+      isolate->factory()->NewFunctionTemplateRareData();
   function_template_info->set_rare_data(*rare_data, kReleaseStore);
   return *rare_data;
 }
@@ -6659,6 +6655,25 @@ base::Optional<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
   Object maybe_name = FunctionTemplateInfo::cast(getter).cached_property_name();
   if (maybe_name.IsTheHole(isolate)) return {};
   return Name::cast(maybe_name);
+}
+
+int FunctionTemplateInfo::GetCFunctionsCount() const {
+  i::DisallowHeapAllocation no_gc;
+  return FixedArray::cast(GetCFunctionOverloads()).length() /
+         kFunctionOverloadEntrySize;
+}
+
+Address FunctionTemplateInfo::GetCFunction(int index) const {
+  i::DisallowHeapAllocation no_gc;
+  return v8::ToCData<Address>(FixedArray::cast(GetCFunctionOverloads())
+                                  .get(index * kFunctionOverloadEntrySize));
+}
+
+const CFunctionInfo* FunctionTemplateInfo::GetCSignature(int index) const {
+  i::DisallowHeapAllocation no_gc;
+  return v8::ToCData<CFunctionInfo*>(
+      FixedArray::cast(GetCFunctionOverloads())
+          .get(index * kFunctionOverloadEntrySize + 1));
 }
 
 Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {

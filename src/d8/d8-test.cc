@@ -55,6 +55,14 @@ class FastCApiObject {
            static_cast<double>(arg_i64) + static_cast<double>(arg_u64) +
            static_cast<double>(arg_f32) + arg_f64;
   }
+  static double AddAllFastCallback_5Args(Local<Object> receiver,
+                                         bool should_fallback, int32_t arg_i32,
+                                         uint32_t arg_u32, int64_t arg_i64,
+                                         uint64_t arg_u64, float arg_f32,
+                                         FastApiCallbackOptions& options) {
+    return AddAllFastCallback(receiver, should_fallback, arg_i32, arg_u32,
+                              arg_i64, arg_u64, arg_f32, 0, options);
+  }
   static void AddAllSlowCallback(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
@@ -283,12 +291,16 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               SideEffectType::kHasSideEffect, &add_all_c_func));
 
     // To test function overloads.
+    CFunction add_all_5args_c_func =
+        CFunction::Make(FastCApiObject::AddAllFastCallback_5Args);
+    const CFunction c_function_overloads[] = {add_all_c_func,
+                                              add_all_5args_c_func};
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "overloaded_add_all",
         FunctionTemplate::NewWithCFunctionOverloads(
             isolate, FastCApiObject::AddAllSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
-            SideEffectType::kHasSideEffect, {&add_all_c_func}));
+            SideEffectType::kHasSideEffect, {c_function_overloads, 2}));
 
     CFunction add_32bit_int_c_func =
         CFunction::Make(FastCApiObject::Add32BitIntFastCallback);

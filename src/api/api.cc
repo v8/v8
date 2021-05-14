@@ -1218,7 +1218,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    const std::vector<const CFunction*>& c_function_overloads = {}) {
+    const MemorySpan<const CFunction>& c_function_overloads = {}) {
   i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
       i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1260,20 +1260,15 @@ Local<FunctionTemplate> FunctionTemplate::New(
   return FunctionTemplateNew(
       i_isolate, callback, data, signature, length, behavior, false,
       Local<Private>(), side_effect_type,
-      c_function ? std::vector<const CFunction*>{c_function}
-                 : std::vector<const CFunction*>{});
+      c_function ? MemorySpan<const CFunction>{c_function, 1}
+                 : MemorySpan<const CFunction>{});
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
     Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     SideEffectType side_effect_type,
-    const std::vector<const CFunction*>& c_function_overloads) {
-  // Multiple overloads not supported yet.
-  Utils::ApiCheck(c_function_overloads.size() == 1,
-                  "v8::FunctionTemplate::NewWithCFunctionOverloads",
-                  "Function overloads not supported yet.");
-
+    const MemorySpan<const CFunction>& c_function_overloads) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -1313,7 +1308,7 @@ Local<AccessorSignature> AccessorSignature::New(
 void FunctionTemplate::SetCallHandler(
     FunctionCallback callback, v8::Local<Value> data,
     SideEffectType side_effect_type,
-    const std::vector<const CFunction*>& c_function_overloads) {
+    const MemorySpan<const CFunction>& c_function_overloads) {
   auto info = Utils::OpenHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetCallHandler");
   i::Isolate* isolate = info->GetIsolate();
@@ -1327,22 +1322,28 @@ void FunctionTemplate::SetCallHandler(
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   obj->set_data(*Utils::OpenHandle(*data));
-  // Blink passes CFunction's constructed with the default constructor
-  // for non-fast calls, so we should check the address too.
-  if (!c_function_overloads.empty()) {
-    // Multiple overloads not supported yet.
-    Utils::ApiCheck(c_function_overloads.size() == 1,
-                    "v8::FunctionTemplate::SetCallHandler",
-                    "Function overloads not supported yet.");
-    const CFunction* c_function = c_function_overloads[0];
-    if (c_function != nullptr && c_function->GetAddress()) {
-      i::FunctionTemplateInfo::SetCFunction(
-          isolate, info,
-          i::handle(*FromCData(isolate, c_function->GetAddress()), isolate));
-      i::FunctionTemplateInfo::SetCSignature(
-          isolate, info,
-          i::handle(*FromCData(isolate, c_function->GetTypeInfo()), isolate));
+  if (c_function_overloads.size() > 0) {
+    // Stores the data for a sequence of CFunction overloads into a single
+    // FixedArray, as [address_0, signature_0, ... address_n-1, signature_n-1].
+    i::Handle<i::FixedArray> function_overloads =
+        isolate->factory()->NewFixedArray(static_cast<int>(
+            c_function_overloads.size() *
+            i::FunctionTemplateInfo::kFunctionOverloadEntrySize));
+    int function_count = static_cast<int>(c_function_overloads.size());
+    for (int i = 0; i < function_count; i++) {
+      const CFunction& c_function = c_function_overloads.data()[i];
+      i::Handle<i::Object> address =
+          FromCData(isolate, c_function.GetAddress());
+      function_overloads->set(
+          i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i, *address);
+      i::Handle<i::Object> signature =
+          FromCData(isolate, c_function.GetTypeInfo());
+      function_overloads->set(
+          i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1,
+          *signature);
     }
+    i::FunctionTemplateInfo::SetCFunctionOverloads(isolate, info,
+                                                   function_overloads);
   }
   info->set_call_code(*obj, kReleaseStore);
 }

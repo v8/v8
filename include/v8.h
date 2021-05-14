@@ -6506,7 +6506,7 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const std::vector<const CFunction*>& c_function_overloads = {});
+      const MemorySpan<const CFunction>& c_function_overloads = {});
 
   /**
    * Creates a function template backed/cached by a private property.
@@ -6539,7 +6539,7 @@ class V8_EXPORT FunctionTemplate : public Template {
   void SetCallHandler(
       FunctionCallback callback, Local<Value> data = Local<Value>(),
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const std::vector<const CFunction*>& c_function_overloads = {});
+      const MemorySpan<const CFunction>& c_function_overloads = {});
 
   /** Set the predefined length property for the FunctionTemplate. */
   void SetLength(int length);

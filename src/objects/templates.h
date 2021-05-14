@@ -12,6 +12,9 @@
 #include "src/objects/object-macros.h"
 
 namespace v8 {
+
+class CFunctionInfo;
+
 namespace internal {
 
 #include "torque-generated/src/objects/templates-tq.inc"
@@ -45,6 +48,7 @@ class FunctionTemplateRareData
     : public TorqueGeneratedFunctionTemplateRareData<FunctionTemplateRareData,
                                                      Struct> {
  public:
+  DECL_VERIFIER(FunctionTemplateRareData)
   TQ_OBJECT_CONSTRUCTORS(FunctionTemplateRareData)
 };
 
@@ -93,8 +97,7 @@ class FunctionTemplateInfo
 
   DECL_RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject)
 
-  DECL_RARE_ACCESSORS(c_function, CFunction, Object)
-  DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
+  DECL_RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray)
 #undef DECL_RARE_ACCESSORS
 
   // Begin flag bits ---------------------
@@ -152,6 +155,14 @@ class FunctionTemplateInfo
   // Helper function for cached accessors.
   static base::Optional<Name> TryGetCachedPropertyName(Isolate* isolate,
                                                        Object getter);
+  // Fast API overloads.
+  int GetCFunctionsCount() const;
+  Address GetCFunction(int index) const;
+  const CFunctionInfo* GetCSignature(int index) const;
+
+  // CFunction data for a set of overloads is stored into a FixedArray, as
+  // [address_0, signature_0, ... address_n-1, signature_n-1].
+  static const int kFunctionOverloadEntrySize = 2;
 
   // Bit position in the flag, from least significant bit position.
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()

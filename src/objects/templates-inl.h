@@ -76,8 +76,8 @@ RARE_ACCESSORS(instance_template, InstanceTemplate, HeapObject, undefined)
 RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject,
                undefined)
 RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
-RARE_ACCESSORS(c_function, CFunction, Object, Smi(0))
-RARE_ACCESSORS(c_signature, CSignature, Object, Smi(0))
+RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
+               GetReadOnlyRoots(cage_base).empty_fixed_array())
 #undef RARE_ACCESSORS
 
 bool TemplateInfo::should_cache() const {

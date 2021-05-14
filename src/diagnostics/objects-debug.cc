@@ -1746,6 +1746,12 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
+void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
+    Isolate* isolate) {
+  CHECK(c_function_overloads().IsFixedArray() ||
+        c_function_overloads().IsUndefined(isolate));
+}
+
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG

@@ -234,8 +234,10 @@ class FunctionTemplateInfoData : public HeapObjectData {
 
   void SerializeCallCode(JSHeapBroker* broker);
   ObjectData* call_code() const { return call_code_; }
-  Address c_function() const { return c_function_; }
-  const CFunctionInfo* c_signature() const { return c_signature_; }
+  ZoneVector<Address> c_functions() const { return c_functions_; }
+  ZoneVector<const CFunctionInfo*> c_signatures() const {
+    return c_signatures_;
+  }
   KnownReceiversMap& known_receivers() { return known_receivers_; }
 
  private:
@@ -244,8 +246,8 @@ class FunctionTemplateInfoData : public HeapObjectData {
   bool has_call_code_ = false;
 
   ObjectData* call_code_ = nullptr;
-  const Address c_function_;
-  const CFunctionInfo* const c_signature_;
+  ZoneVector<Address> c_functions_;
+  ZoneVector<const CFunctionInfo*> c_signatures_;
   KnownReceiversMap known_receivers_;
 };
 
@@ -265,15 +267,50 @@ class CallHandlerInfoData : public HeapObjectData {
   ObjectData* data_ = nullptr;
 };
 
+namespace {
+
+ZoneVector<Address> GetCFunctions(FixedArray function_overloads, Zone* zone) {
+  const int len = function_overloads.length() /
+                  FunctionTemplateInfo::kFunctionOverloadEntrySize;
+  ZoneVector<Address> c_functions = ZoneVector<Address>(len, zone);
+  for (int i = 0; i < len; i++) {
+    c_functions[i] = v8::ToCData<Address>(function_overloads.get(
+        FunctionTemplateInfo::kFunctionOverloadEntrySize * i));
+  }
+  return c_functions;
+}
+
+ZoneVector<const CFunctionInfo*> GetCSignatures(FixedArray function_overloads,
+                                                Zone* zone) {
+  const int len = function_overloads.length() /
+                  FunctionTemplateInfo::kFunctionOverloadEntrySize;
+  ZoneVector<const CFunctionInfo*> c_signatures =
+      ZoneVector<const CFunctionInfo*>(len, zone);
+  for (int i = 0; i < len; i++) {
+    c_signatures[i] = v8::ToCData<const CFunctionInfo*>(function_overloads.get(
+        FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1));
+  }
+  return c_signatures;
+}
+
+}  // namespace
+
 FunctionTemplateInfoData::FunctionTemplateInfoData(
     JSHeapBroker* broker, ObjectData** storage,
     Handle<FunctionTemplateInfo> object)
     : HeapObjectData(broker, storage, object),
-      c_function_(v8::ToCData<Address>(object->GetCFunction())),
-      c_signature_(v8::ToCData<CFunctionInfo*>(object->GetCSignature())),
+      c_functions_(broker->zone()),
+      c_signatures_(broker->zone()),
       known_receivers_(broker->zone()) {
   DCHECK(!broker->is_concurrent_inlining());
+
   auto function_template_info = Handle<FunctionTemplateInfo>::cast(object);
+
+  FixedArray function_overloads_array =
+      FixedArray::cast(function_template_info->GetCFunctionOverloads());
+  c_functions_ = GetCFunctions(function_overloads_array, broker->zone());
+  c_signatures_ = GetCSignatures(function_overloads_array, broker->zone());
+
   is_signature_undefined_ =
       function_template_info->signature().IsUndefined(broker->isolate());
   accept_any_receiver_ = function_template_info->accept_any_receiver();
@@ -3693,18 +3730,20 @@ Address CallHandlerInfoRef::callback() const {
   return HeapObjectRef::data()->AsCallHandlerInfo()->callback();
 }
 
-Address FunctionTemplateInfoRef::c_function() const {
+ZoneVector<Address> FunctionTemplateInfoRef::c_functions() const {
   if (data_->should_access_heap()) {
-    return v8::ToCData<Address>(object()->GetCFunction());
+    return GetCFunctions(FixedArray::cast(object()->GetCFunctionOverloads()),
+                         broker()->zone());
   }
-  return HeapObjectRef::data()->AsFunctionTemplateInfo()->c_function();
+  return HeapObjectRef::data()->AsFunctionTemplateInfo()->c_functions();
 }
 
-const CFunctionInfo* FunctionTemplateInfoRef::c_signature() const {
+ZoneVector<const CFunctionInfo*> FunctionTemplateInfoRef::c_signatures() const {
   if (data_->should_access_heap()) {
-    return v8::ToCData<CFunctionInfo*>(object()->GetCSignature());
+    return GetCSignatures(FixedArray::cast(object()->GetCFunctionOverloads()),
+                          broker()->zone());
   }
-  return HeapObjectRef::data()->AsFunctionTemplateInfo()->c_signature();
+  return HeapObjectRef::data()->AsFunctionTemplateInfo()->c_signatures();
 }
 
 bool StringRef::IsSeqString() const {

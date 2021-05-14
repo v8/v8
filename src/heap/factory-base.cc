@@ -897,6 +897,18 @@ Handle<SwissNameDictionary> FactoryBase<Impl>::NewSwissNameDictionary(
       SwissNameDictionary::CapacityFor(at_least_space_for), allocation);
 }
 
+template <typename Impl>
+Handle<FunctionTemplateRareData>
+FactoryBase<Impl>::NewFunctionTemplateRareData() {
+  auto function_template_rare_data =
+      NewStructInternal<FunctionTemplateRareData>(
+          FUNCTION_TEMPLATE_RARE_DATA_TYPE, AllocationType::kOld);
+  DisallowGarbageCollection no_gc;
+  function_template_rare_data.set_c_function_overloads(
+      *impl()->empty_fixed_array(), SKIP_WRITE_BARRIER);
+  return handle(function_template_rare_data, isolate());
+}
+
 // Instantiate FactoryBase for the two variants we want.
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) FactoryBase<Factory>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

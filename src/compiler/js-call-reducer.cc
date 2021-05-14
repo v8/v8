@@ -890,8 +890,8 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
       Node* holder, const SharedFunctionInfoRef shared, Node* target,
       const int arity, Node* effect)
       : JSCallReducerAssembler(reducer, node),
-        c_function_(function_template_info.c_function()),
-        c_signature_(function_template_info.c_signature()),
+        c_functions_(function_template_info.c_functions()),
+        c_signatures_(function_template_info.c_signatures()),
         function_template_info_(function_template_info),
         receiver_(receiver),
         holder_(holder),
@@ -899,8 +899,8 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
         target_(target),
         arity_(arity) {
     DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-    DCHECK_NE(c_function_, kNullAddress);
-    CHECK_NOT_NULL(c_signature_);
+    CHECK_GT(c_functions_.size(), 0);
+    CHECK_GT(c_signatures_.size(), 0);
     InitializeEffectControl(effect, NodeProperties::GetControlInput(node));
   }
 
@@ -909,13 +909,16 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     // C arguments include the receiver at index 0. Thus C index 1 corresponds
     // to the JS argument 0, etc.
     const int c_argument_count =
-        static_cast<int>(c_signature_->ArgumentCount());
+        static_cast<int>(c_signatures_[0]->ArgumentCount());
     CHECK_GE(c_argument_count, kReceiver);
 
     int cursor = 0;
     base::SmallVector<Node*, kInlineSize> inputs(c_argument_count + arity_ +
                                                  kExtraInputsCount);
-    inputs[cursor++] = ExternalConstant(ExternalReference::Create(c_function_));
+    // Multiple function overloads not supported yet, always call the first
+    // overload.
+    inputs[cursor++] =
+        ExternalConstant(ExternalReference::Create(c_functions_[0]));
 
     inputs[cursor++] = n.receiver();
 
@@ -987,12 +990,12 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
   TNode<Object> FastApiCall(CallDescriptor* descriptor, Node** inputs,
                             size_t inputs_size) {
     return AddNode<Object>(graph()->NewNode(
-        simplified()->FastApiCall(c_signature_, feedback(), descriptor),
+        simplified()->FastApiCall(c_signatures_[0], feedback(), descriptor),
         static_cast<int>(inputs_size), inputs));
   }
 
-  const Address c_function_;
-  const CFunctionInfo* const c_signature_;
+  const ZoneVector<Address> c_functions_;
+  const ZoneVector<const CFunctionInfo*> c_signatures_;
   const FunctionTemplateInfoRef function_template_info_;
   Node* const receiver_;
   Node* const holder_;
@@ -3539,11 +3542,13 @@ bool Has64BitIntegerParamsInSignature(const CFunctionInfo* c_signature) {
 
 bool CanOptimizeFastCall(
     const FunctionTemplateInfoRef& function_template_info) {
-  const CFunctionInfo* c_signature = function_template_info.c_signature();
+  if (function_template_info.c_functions().empty()) return false;
 
-  bool optimize_to_fast_call =
-      FLAG_turbo_fast_api_calls &&
-      function_template_info.c_function() != kNullAddress;
+  // Multiple function overloads not supported yet, always call the first
+  // overload.
+  const CFunctionInfo* c_signature = function_template_info.c_signatures()[0];
+
+  bool optimize_to_fast_call = FLAG_turbo_fast_api_calls;
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   optimize_to_fast_call =
       optimize_to_fast_call && !HasFPParamsInSignature(c_signature);
