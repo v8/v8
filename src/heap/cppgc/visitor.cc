@@ -52,8 +52,6 @@ void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
 
 void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
     const void* address) {
-  // TODO(chromium:1056170): Add page bloom filter
-
   const BasePage* page = reinterpret_cast<const BasePage*>(
       page_backend_.Lookup(static_cast<ConstAddress>(address)));
 
