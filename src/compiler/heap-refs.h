@@ -73,12 +73,6 @@ enum class RefSerializationKind {
   kNeverSerialized,
   // Can be serialized on demand from the background thread.
   kBackgroundSerialized,
-  // Behave like serialized classes, but allow lazy serialization from
-  // background threads where this is safe (e.g. for objects that are immutable
-  // and fully initialized once visible). Pass
-  // ObjectRef::BackgroundSerialization::kAllowed to the ObjectRef constructor
-  // for objects where serialization from the background thread is safe.
-  kPossiblyBackgroundSerialized,
   kSerialized,
 };
 
@@ -166,14 +160,7 @@ struct ref_traits<Object> {
 
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
-  enum class BackgroundSerialization {
-    kDisallowed,
-    kAllowed,
-  };
-
   ObjectRef(JSHeapBroker* broker, Handle<Object> object,
-            BackgroundSerialization background_serialization =
-                BackgroundSerialization::kDisallowed,
             bool check_type = true);
   ObjectRef(JSHeapBroker* broker, ObjectData* data, bool check_type = true)
       : data_(data), broker_(broker) {

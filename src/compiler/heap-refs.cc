@@ -2657,11 +2657,9 @@ namespace {
 template <RefSerializationKind Kind, class DataT, class ObjectT>
 struct CreateDataFunctor {
   bool operator()(JSHeapBroker* broker, RefsMap* refs,
-                  ObjectRef::BackgroundSerialization background_serialization,
                   Handle<Object> object, RefsMap::Entry** entry_out,
                   ObjectData** object_data_out) {
-    USE(broker, refs, background_serialization, object, entry_out,
-        object_data_out);
+    USE(broker, refs, object, entry_out, object_data_out);
     UNREACHABLE();
   }
 };
@@ -2669,7 +2667,6 @@ struct CreateDataFunctor {
 template <class DataT, class ObjectT>
 struct CreateDataFunctor<RefSerializationKind::kSerialized, DataT, ObjectT> {
   bool operator()(JSHeapBroker* broker, RefsMap* refs,
-                  ObjectRef::BackgroundSerialization background_serialization,
                   Handle<Object> object, RefsMap::Entry** entry_out,
                   ObjectData** object_data_out) {
     if (broker->mode() == JSHeapBroker::kSerializing) {
@@ -2687,7 +2684,6 @@ template <class DataT, class ObjectT>
 struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
                          ObjectT> {
   bool operator()(JSHeapBroker* broker, RefsMap* refs,
-                  ObjectRef::BackgroundSerialization background_serialization,
                   Handle<Object> object, RefsMap::Entry** entry_out,
                   ObjectData** object_data_out) {
     if (broker->is_concurrent_inlining()) {
@@ -2710,34 +2706,9 @@ struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
 };
 
 template <class DataT, class ObjectT>
-struct CreateDataFunctor<RefSerializationKind::kPossiblyBackgroundSerialized,
-                         DataT, ObjectT> {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs,
-                  ObjectRef::BackgroundSerialization background_serialization,
-                  Handle<Object> object, RefsMap::Entry** entry_out,
-                  ObjectData** object_data_out) {
-    if (broker->mode() == JSHeapBroker::kSerialized &&
-        background_serialization !=
-            ObjectRef::BackgroundSerialization::kAllowed) {
-      return false;
-    }
-    RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
-    ObjectDataKind kind = (background_serialization ==
-                           ObjectRef::BackgroundSerialization::kAllowed)
-                              ? kBackgroundSerializedHeapObject
-                              : kSerializedHeapObject;
-    *object_data_out = broker->zone()->New<DataT>(
-        broker, &entry->value, Handle<ObjectT>::cast(object), kind);
-    *entry_out = entry;
-    return true;
-  }
-};
-
-template <class DataT, class ObjectT>
 struct CreateDataFunctor<RefSerializationKind::kNeverSerialized, DataT,
                          ObjectT> {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs,
-                  ObjectRef::BackgroundSerialization, Handle<Object> object,
+  bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
                   RefsMap::Entry** entry_out, ObjectData** object_data_out) {
     // TODO(solanes, v8:10866): Remove the `(mode() == kSerializing)` case
     // below when all classes skip serialization. Same for similar spots if we
@@ -2781,9 +2752,8 @@ void JSHeapBroker::ClearReconstructibleData() {
   }
 }
 
-ObjectData* JSHeapBroker::TryGetOrCreateData(
-    Handle<Object> object, bool crash_on_error,
-    ObjectRef::BackgroundSerialization background_serialization) {
+ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
+                                             bool crash_on_error) {
   RefsMap::Entry* entry = refs_->Lookup(object.address());
   if (entry != nullptr) return entry->value;
 
@@ -2809,15 +2779,14 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(
     entry = refs_->LookupOrInsert(object.address());
     object_data = zone()->New<ObjectData>(this, &(entry->value), object,
                                           kUnserializedReadOnlyHeapObject);
-#define CREATE_DATA(Name, Kind)                                   \
-  }                                                               \
-  /* NOLINTNEXTLINE(readability/braces) */                        \
-  else if (object->Is##Name()) {                                  \
-    CreateDataFunctor<Kind, Name##Data, Name> f;                  \
-    if (!f(this, refs_, background_serialization, object, &entry, \
-           &object_data)) {                                       \
-      CHECK(!crash_on_error);                                     \
-      return nullptr;                                             \
+#define CREATE_DATA(Name, Kind)                          \
+  }                                                      \
+  /* NOLINTNEXTLINE(readability/braces) */               \
+  else if (object->Is##Name()) {                         \
+    CreateDataFunctor<Kind, Name##Data, Name> f;         \
+    if (!f(this, refs_, object, &entry, &object_data)) { \
+      CHECK(!crash_on_error);                            \
+      return nullptr;                                    \
     }
     HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
@@ -3977,12 +3946,11 @@ base::Optional<ObjectRef> SourceTextModuleRef::import_meta() const {
 }
 
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object,
-                     BackgroundSerialization background_serialization,
                      bool check_type)
     : broker_(broker) {
   CHECK_NE(broker->mode(), JSHeapBroker::kRetired);
 
-  data_ = broker->GetOrCreateData(object, background_serialization);
+  data_ = broker->GetOrCreateData(object);
   if (!data_) {  // TODO(mslekova): Remove once we're on the background thread.
     object->Print();
   }
@@ -4254,12 +4222,11 @@ void NativeContextData::SerializeOnBackground(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "NativeContextData::SerializeOnBackground");
   Handle<NativeContext> context = Handle<NativeContext>::cast(object());
 
-  constexpr auto kAllowed = ObjectRef::BackgroundSerialization::kAllowed;
-#define SERIALIZE_MEMBER(type, name)                                        \
-  DCHECK_NULL(name##_);                                                     \
-  name##_ = broker->GetOrCreateData(context->name(kAcquireLoad), kAllowed); \
-  if (!name##_->should_access_heap()) {                                     \
-    DCHECK(!name##_->IsJSFunction());                                       \
+#define SERIALIZE_MEMBER(type, name)                              \
+  DCHECK_NULL(name##_);                                           \
+  name##_ = broker->GetOrCreateData(context->name(kAcquireLoad)); \
+  if (!name##_->should_access_heap()) {                           \
+    DCHECK(!name##_->IsJSFunction());                             \
   }
   BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
   if (!broker->is_isolate_bootstrapping()) {
@@ -4273,7 +4240,7 @@ void NativeContextData::SerializeOnBackground(JSHeapBroker* broker) {
   function_maps_.reserve(last + 1 - first);
   for (int i = first; i <= last; ++i) {
     function_maps_.push_back(
-        broker->GetOrCreateData(context->get(i, kAcquireLoad), kAllowed));
+        broker->GetOrCreateData(context->get(i, kAcquireLoad)));
   }
 }
 

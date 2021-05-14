@@ -227,27 +227,19 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
          array_and_object_prototypes_.end();
 }
 
-ObjectData* JSHeapBroker::TryGetOrCreateData(
-    Object object, bool crash_on_error,
-    ObjectRef::BackgroundSerialization background_serialization) {
-  return TryGetOrCreateData(CanonicalPersistentHandle(object), crash_on_error,
-                            background_serialization);
+ObjectData* JSHeapBroker::TryGetOrCreateData(Object object,
+                                             bool crash_on_error) {
+  return TryGetOrCreateData(CanonicalPersistentHandle(object), crash_on_error);
 }
 
-ObjectData* JSHeapBroker::GetOrCreateData(
-    Handle<Object> object,
-    ObjectRef::BackgroundSerialization background_serialization) {
-  ObjectData* return_value =
-      TryGetOrCreateData(object, true, background_serialization);
+ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
+  ObjectData* return_value = TryGetOrCreateData(object, true);
   DCHECK_NOT_NULL(return_value);
   return return_value;
 }
 
-ObjectData* JSHeapBroker::GetOrCreateData(
-    Object object,
-    ObjectRef::BackgroundSerialization background_serialization) {
-  return GetOrCreateData(CanonicalPersistentHandle(object),
-                         background_serialization);
+ObjectData* JSHeapBroker::GetOrCreateData(Object object) {
+  return GetOrCreateData(CanonicalPersistentHandle(object));
 }
 
 bool JSHeapBroker::StackHasOverflowed() const {
