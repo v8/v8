@@ -47,7 +47,7 @@ vars = {
   'gn_version': 'git_revision:39a87c0b36310bdf06b692c098f199a0d97fc810',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:e03dc36a7374fdf2331886695fa8b13457e15b92',
+  'luci_go': 'git_revision:d7393d163ecb11c44626b3b221f86efdd2861565',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -85,15 +85,15 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '80d2921f477207d512b32402895c0e14fdc50c85',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '00d82806379a0b64f29a103a3bbeaf0e6c4ceea1',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f5c054ce5345942142ebb925896a16f28609060f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5974ca02629f3b391ff58ad465157a6c637b68d6',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'f022e298b4f4a782486bb6d5ce6589c998b51fe2',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '084aee04777db574038af9e9d33ca5caed577462',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9b15350d89250a57ae63cbdc9d7180797f6c8dc4',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b0912f95729164d4881525e9355f5019d31ea01b',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '99803d74e35962f63a775f29477882afd4d57d94',
   'buildtools/linux64': {
@@ -181,7 +181,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '52e67e75f6c2d0315d510a54a52ed29abe3d57f7',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'affd272f9ee374467307e6b5af1f0c3f1b0c16e8',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -235,7 +235,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'KMQBSqcXw7u61OKLUonbaZeROpW1KXX9tM-8Klzxus8C'
+              'version': 'JANUSSL6vlpZwl7eeXT1Jv3TTKfhHXjW18WlDQyun4kC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -252,7 +252,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '06d525cc6f7770fe4aa305d73eb1fadc37865070',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'f6e0cbe7b7efe0ba94157937d701077aeaab2d5b',
   'tools/luci-go': {
       'packages': [
         {
@@ -286,7 +286,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c830e4eaa2b25afa65d2dde0f1eb625a1f6c1a27',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3e6d3450728da422e14750860a479756948b7e3a',
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '9059f5cad030ba11d37818847443a53918c327b1',
   'third_party/ittapi': {
