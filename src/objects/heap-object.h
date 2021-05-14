@@ -58,12 +58,12 @@ class HeapObject : public Object {
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
-  DECL_GETTER(map_word, MapWord)
-  inline void set_map_word(MapWord map_word);
+  DECL_RELAXED_GETTER(map_word, MapWord)
+  inline void set_map_word(MapWord map_word, RelaxedStoreTag);
 
   // Access the map word using acquire load and release store.
-  DECL_GETTER(synchronized_map_word, MapWord)
-  inline void synchronized_set_map_word(MapWord map_word);
+  DECL_ACQUIRE_GETTER(map_word, MapWord)
+  inline void set_map_word(MapWord map_word, ReleaseStoreTag);
 
   // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
   // way that doesn't require passing Isolate/Heap down huge call chains or to

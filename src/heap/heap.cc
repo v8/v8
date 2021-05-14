@@ -806,13 +806,13 @@ void UpdateRetainersMapAfterScavenge(
     HeapObject retainer = pair.second;
 
     if (Heap::InFromPage(object)) {
-      MapWord map_word = object.map_word();
+      MapWord map_word = object.map_word(kRelaxedLoad);
       if (!map_word.IsForwardingAddress()) continue;
       object = map_word.ToForwardingAddress();
     }
 
     if (Heap::InFromPage(retainer)) {
-      MapWord map_word = retainer.map_word();
+      MapWord map_word = retainer.map_word(kRelaxedLoad);
       if (!map_word.IsForwardingAddress()) continue;
       retainer = map_word.ToForwardingAddress();
     }
@@ -838,7 +838,7 @@ void Heap::UpdateRetainersAfterScavenge() {
     HeapObject object = pair.first;
 
     if (Heap::InFromPage(object)) {
-      MapWord map_word = object.map_word();
+      MapWord map_word = object.map_word(kRelaxedLoad);
       if (!map_word.IsForwardingAddress()) continue;
       object = map_word.ToForwardingAddress();
     }
@@ -966,7 +966,7 @@ void Heap::MergeAllocationSitePretenuringFeedback(
   AllocationSite site;
   for (auto& site_and_count : local_pretenuring_feedback) {
     site = site_and_count.first;
-    MapWord map_word = site_and_count.first.map_word();
+    MapWord map_word = site_and_count.first.map_word(kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       site = AllocationSite::cast(map_word.ToForwardingAddress());
     }
@@ -2640,7 +2640,7 @@ void Heap::UpdateExternalString(String string, size_t old_payload,
 String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
                                                             FullObjectSlot p) {
   HeapObject obj = HeapObject::cast(*p);
-  MapWord first_word = obj.map_word();
+  MapWord first_word = obj.map_word(kRelaxedLoad);
 
   String new_string;
 
@@ -3755,13 +3755,13 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
     // Check that the set of slots before and after the transition match.
     SlotCollectingVisitor old_visitor;
     object.IterateFast(&old_visitor);
-    MapWord old_map_word = object.map_word();
+    MapWord old_map_word = object.map_word(kRelaxedLoad);
     // Temporarily set the new map to iterate new slots.
-    object.set_map_word(MapWord::FromMap(new_map));
+    object.set_map_word(MapWord::FromMap(new_map), kRelaxedStore);
     SlotCollectingVisitor new_visitor;
     object.IterateFast(&new_visitor);
     // Restore the old map.
-    object.set_map_word(old_map_word);
+    object.set_map_word(old_map_word, kRelaxedStore);
     DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
     for (int i = 0; i < new_visitor.number_of_slots(); i++) {
       DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
@@ -4568,11 +4568,11 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
   inline void FixHandle(FullObjectSlot p) {
     if (!(*p).IsHeapObject()) return;
     HeapObject current = HeapObject::cast(*p);
-    if (!current.map_word().IsForwardingAddress() &&
+    if (!current.map_word(kRelaxedLoad).IsForwardingAddress() &&
         current.IsFreeSpaceOrFiller()) {
 #ifdef DEBUG
       // We need to find a FixedArrayBase map after walking the fillers.
-      while (!current.map_word().IsForwardingAddress() &&
+      while (!current.map_word(kRelaxedLoad).IsForwardingAddress() &&
              current.IsFreeSpaceOrFiller()) {
         Address next = current.ptr();
         if (current.map() == ReadOnlyRoots(heap_).one_pointer_filler_map()) {
@@ -4585,7 +4585,7 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
         }
         current = HeapObject::cast(Object(next));
       }
-      DCHECK(current.map_word().IsForwardingAddress() ||
+      DCHECK(current.map_word(kRelaxedLoad).IsForwardingAddress() ||
              current.IsFixedArrayBase());
 #endif  // DEBUG
       p.store(Smi::zero());
@@ -6769,7 +6769,7 @@ void Heap::CreateObjectStats() {
 }
 
 Map Heap::GcSafeMapOfCodeSpaceObject(HeapObject object) {
-  MapWord map_word = object.map_word();
+  MapWord map_word = object.map_word(kRelaxedLoad);
   return map_word.IsForwardingAddress() ? map_word.ToForwardingAddress().map()
                                         : map_word.ToMap();
 }

@@ -76,7 +76,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
 template <typename ResultType, typename ConcreteVisitor>
 void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
     HeapObject host) {
-  DCHECK(!host.map_word().IsForwardingAddress());
+  DCHECK(!host.map_word(kRelaxedLoad).IsForwardingAddress());
   if (!static_cast<ConcreteVisitor*>(this)->ShouldVisitMapPointer()) return;
   static_cast<ConcreteVisitor*>(this)->VisitMapPointer(host);
 }

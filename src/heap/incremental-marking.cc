@@ -447,7 +447,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         DCHECK(obj.IsHeapObject());
         // Only pointers to from space have to be updated.
         if (Heap::InFromPage(obj)) {
-          MapWord map_word = obj.map_word();
+          MapWord map_word = obj.map_word(kRelaxedLoad);
           if (!map_word.IsForwardingAddress()) {
             // There may be objects on the marking deque that do not exist
             // anymore, e.g. left trimmed objects or objects from the root set

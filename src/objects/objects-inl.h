@@ -16,6 +16,7 @@
 #include "src/base/memory.h"
 #include "src/builtins/builtins.h"
 #include "src/common/external-pointer-inl.h"
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -710,7 +711,9 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots(PtrComprCageBase cage_base) const {
 #endif
 }
 
-DEF_GETTER(HeapObject, map, Map) { return map_word(cage_base).ToMap(); }
+DEF_GETTER(HeapObject, map, Map) {
+  return map_word(cage_base, kRelaxedLoad).ToMap();
+}
 
 void HeapObject::set_map(Map value) {
 #ifdef VERIFY_HEAP
@@ -718,7 +721,7 @@ void HeapObject::set_map(Map value) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
   }
 #endif
-  set_map_word(MapWord::FromMap(value));
+  set_map_word(MapWord::FromMap(value), kRelaxedStore);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
@@ -729,7 +732,7 @@ void HeapObject::set_map(Map value) {
 }
 
 DEF_GETTER(HeapObject, synchronized_map, Map) {
-  return synchronized_map_word(cage_base).ToMap();
+  return map_word(cage_base, kAcquireLoad).ToMap();
 }
 
 void HeapObject::synchronized_set_map(Map value) {
@@ -738,7 +741,7 @@ void HeapObject::synchronized_set_map(Map value) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
   }
 #endif
-  synchronized_set_map_word(MapWord::FromMap(value));
+  set_map_word(MapWord::FromMap(value), kReleaseStore);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
@@ -755,12 +758,12 @@ void HeapObject::set_map_no_write_barrier(Map value) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
   }
 #endif
-  set_map_word(MapWord::FromMap(value));
+  set_map_word(MapWord::FromMap(value), kRelaxedStore);
 }
 
 void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
   MapWord mapword = MapWord::FromMap(value);
-  set_map_word(mapword);
+  set_map_word(mapword, kRelaxedStore);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
@@ -775,19 +778,27 @@ ObjectSlot HeapObject::map_slot() const {
   return ObjectSlot(MapField::address(*this));
 }
 
-DEF_GETTER(HeapObject, map_word, MapWord) {
+MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map_word(cage_base, tag);
+}
+MapWord HeapObject::map_word(PtrComprCageBase cage_base, RelaxedLoadTag) const {
   return MapField::Relaxed_Load_Map_Word(cage_base, *this);
 }
 
-void HeapObject::set_map_word(MapWord map_word) {
+void HeapObject::set_map_word(MapWord map_word, RelaxedStoreTag) {
   MapField::Relaxed_Store_Map_Word(*this, map_word);
 }
 
-DEF_GETTER(HeapObject, synchronized_map_word, MapWord) {
+MapWord HeapObject::map_word(AcquireLoadTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map_word(cage_base, tag);
+}
+MapWord HeapObject::map_word(PtrComprCageBase cage_base, AcquireLoadTag) const {
   return MapField::Acquire_Load_No_Unpack(cage_base, *this);
 }
 
-void HeapObject::synchronized_set_map_word(MapWord map_word) {
+void HeapObject::set_map_word(MapWord map_word, ReleaseStoreTag) {
   MapField::Release_Store_Map_Word(*this, map_word);
 }
 
