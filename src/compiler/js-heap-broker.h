@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/feedback-source.h"
@@ -351,15 +352,19 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   RootIndexMap const& root_index_map() { return root_index_map_; }
 
-  class MapUpdaterMutexDepthScope final {
+  // Locks {mutex} through the duration of this scope iff it is the first
+  // occurrence. This is done to have a recursive shared lock on {mutex}.
+  class V8_NODISCARD MapUpdaterGuardIfNeeded final {
    public:
-    explicit MapUpdaterMutexDepthScope(JSHeapBroker* ptr)
+    explicit MapUpdaterGuardIfNeeded(JSHeapBroker* ptr,
+                                     base::SharedMutex* mutex)
         : ptr_(ptr),
-          initial_map_updater_mutex_depth_(ptr->map_updater_mutex_depth_) {
+          initial_map_updater_mutex_depth_(ptr->map_updater_mutex_depth_),
+          shared_mutex(mutex, should_lock()) {
       ptr_->map_updater_mutex_depth_++;
     }
 
-    ~MapUpdaterMutexDepthScope() {
+    ~MapUpdaterGuardIfNeeded() {
       ptr_->map_updater_mutex_depth_--;
       DCHECK_EQ(initial_map_updater_mutex_depth_,
                 ptr_->map_updater_mutex_depth_);
@@ -372,6 +377,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
    private:
     JSHeapBroker* const ptr_;
     const int initial_map_updater_mutex_depth_;
+    base::SharedMutexGuardIf<base::kShared> shared_mutex;
   };
 
  private:

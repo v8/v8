@@ -6,6 +6,7 @@
 
 #include <queue>
 
+#include "src/base/platform/mutex.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
@@ -298,6 +299,23 @@ MapUpdater::State MapUpdater::Normalize(const char* reason) {
                                CLEAR_INOBJECT_PROPERTIES, reason);
   state_ = kEnd;
   return state_;  // Done.
+}
+
+void MapUpdater::ShrinkInstanceSize(base::SharedMutex* map_updater_access,
+                                    Map map, int slack) {
+  DCHECK_GE(slack, 0);
+#ifdef DEBUG
+  int old_visitor_id = Map::GetVisitorId(map);
+  int new_unused = map.UnusedPropertyFields() - slack;
+#endif
+
+  {
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(map_updater_access);
+    map.set_instance_size(map.InstanceSizeFromSlack(slack));
+  }
+  map.set_construction_counter(Map::kNoSlackTracking);
+  DCHECK_EQ(old_visitor_id, Map::GetVisitorId(map));
+  DCHECK_EQ(new_unused, map.UnusedPropertyFields());
 }
 
 MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {

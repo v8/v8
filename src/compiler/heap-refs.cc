@@ -1365,9 +1365,8 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
   // while the lock is held the Map object may not be modified (except in
   // benign ways).
   // TODO(jgruber): Consider removing this lock by being smrt.
-  JSHeapBroker::MapUpdaterMutexDepthScope mumd_scope(broker);
-  base::SharedMutexGuardIf<base::kShared> mutex_guard(
-      broker->isolate()->map_updater_access(), mumd_scope.should_lock());
+  JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(
+      broker, broker->isolate()->map_updater_access());
 
   instance_type_ = object->instance_type();
   instance_size_ = object->instance_size();

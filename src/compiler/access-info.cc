@@ -719,9 +719,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, AccessMode access_mode) const {
   CHECK(name->IsUniqueName());
 
-  JSHeapBroker::MapUpdaterMutexDepthScope mumd_scope(broker());
-  base::SharedMutexGuardIf<base::kShared> mutex_guard(
-      isolate()->map_updater_access(), mumd_scope.should_lock());
+  JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(
+      broker(), isolate()->map_updater_access());
 
   if (access_mode == AccessMode::kHas && !map->IsJSReceiverMap()) {
     return Invalid();

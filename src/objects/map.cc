@@ -2204,13 +2204,6 @@ bool Map::EquivalentToForNormalization(const Map other,
              JSObject::GetEmbedderFieldCount(other);
 }
 
-static void GetMinInobjectSlack(Map map, void* data) {
-  int slack = map.UnusedPropertyFields();
-  if (*reinterpret_cast<int*>(data) > slack) {
-    *reinterpret_cast<int*>(data) = slack;
-  }
-}
-
 int Map::ComputeMinObjectSlack(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   // Has to be an initial map.
@@ -2218,25 +2211,11 @@ int Map::ComputeMinObjectSlack(Isolate* isolate) {
 
   int slack = UnusedPropertyFields();
   TransitionsAccessor transitions(isolate, *this, &no_gc);
-  transitions.TraverseTransitionTree(&GetMinInobjectSlack, &slack);
+  TransitionsAccessor::TraverseCallback callback = [&](Map map) {
+    slack = std::min(slack, map.UnusedPropertyFields());
+  };
+  transitions.TraverseTransitionTree(callback);
   return slack;
-}
-
-static void ShrinkInstanceSize(Map map, void* data) {
-  int slack = *reinterpret_cast<int*>(data);
-  DCHECK_GE(slack, 0);
-#ifdef DEBUG
-  int old_visitor_id = Map::GetVisitorId(map);
-  int new_unused = map.UnusedPropertyFields() - slack;
-#endif
-  map.set_instance_size(map.InstanceSizeFromSlack(slack));
-  map.set_construction_counter(Map::kNoSlackTracking);
-  DCHECK_EQ(old_visitor_id, Map::GetVisitorId(map));
-  DCHECK_EQ(new_unused, map.UnusedPropertyFields());
-}
-
-static void StopSlackTracking(Map map, void* data) {
-  map.set_construction_counter(Map::kNoSlackTracking);
 }
 
 void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
@@ -2246,12 +2225,19 @@ void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
 
   int slack = ComputeMinObjectSlack(isolate);
   TransitionsAccessor transitions(isolate, *this, &no_gc);
+  TransitionsAccessor::TraverseCallback callback;
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
-    transitions.TraverseTransitionTree(&ShrinkInstanceSize, &slack);
+    callback = [&](Map map) {
+      MapUpdater::ShrinkInstanceSize(isolate->map_updater_access(), map, slack);
+    };
   } else {
-    transitions.TraverseTransitionTree(&StopSlackTracking, nullptr);
+    callback = [](Map map) {
+      // Stop slack tracking for this map.
+      map.set_construction_counter(Map::kNoSlackTracking);
+    };
   }
+  transitions.TraverseTransitionTree(callback);
 }
 
 void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
