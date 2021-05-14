@@ -229,6 +229,64 @@ TEST(InnerFunctionWithContextAndParentContext) {
                   kMapCount, kContextCount, kFunctionCount, kObjectCount);
 }
 
+TEST(RegExp) {
+  const char* snapshot_source = "var foo = {'re': /ab+c/gi}";
+  const char* test_source = "foo";
+  uint32_t kStringCount = 4;  // 'foo', 're', RegExp pattern, RegExp flags
+  uint32_t kMapCount = 1;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 1;
+  std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
+      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
+        Local<v8::RegExp> re = result->Get(new_context, v8_str("re"))
+                                   .ToLocalChecked()
+                                   .As<v8::RegExp>();
+        CHECK(re->IsRegExp());
+        CHECK(re->GetSource()->Equals(new_context, v8_str("ab+c")).FromJust());
+        CHECK_EQ(v8::RegExp::kGlobal | v8::RegExp::kIgnoreCase, re->GetFlags());
+        v8::Local<v8::Object> match =
+            re->Exec(new_context, v8_str("aBc")).ToLocalChecked();
+        CHECK(match->IsArray());
+        v8::Local<v8::Object> no_match =
+            re->Exec(new_context, v8_str("ac")).ToLocalChecked();
+        CHECK(no_match->IsNull());
+      };
+  TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
+                           kMapCount, kContextCount, kFunctionCount,
+                           kObjectCount);
+}
+
+TEST(RegExpNoFlags) {
+  const char* snapshot_source = "var foo = {'re': /ab+c/}";
+  const char* test_source = "foo";
+  uint32_t kStringCount = 4;  // 'foo', 're', RegExp pattern, RegExp flags
+  uint32_t kMapCount = 1;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 1;
+  std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
+      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
+        Local<v8::RegExp> re = result->Get(new_context, v8_str("re"))
+                                   .ToLocalChecked()
+                                   .As<v8::RegExp>();
+        CHECK(re->IsRegExp());
+        CHECK(re->GetSource()->Equals(new_context, v8_str("ab+c")).FromJust());
+        CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
+        v8::Local<v8::Object> match =
+            re->Exec(new_context, v8_str("abc")).ToLocalChecked();
+        CHECK(match->IsArray());
+        v8::Local<v8::Object> no_match =
+            re->Exec(new_context, v8_str("ac")).ToLocalChecked();
+        CHECK(no_match->IsNull());
+      };
+  TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
+                           kMapCount, kContextCount, kFunctionCount,
+                           kObjectCount);
+}
+
 TEST(SFIDeduplication) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();

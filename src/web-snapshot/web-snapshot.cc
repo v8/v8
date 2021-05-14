@@ -11,6 +11,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/objects/contexts.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/script.h"
 
 namespace v8 {
@@ -429,6 +430,23 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       serializer.WriteUint32(ValueType::OBJECT_ID);
       serializer.WriteUint32(id);
       break;
+    case JS_REG_EXP_TYPE: {
+      Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(object);
+      if (regexp->map() != isolate_->regexp_function()->initial_map()) {
+        Throw("Web snapshot: Unsupported RegExp map");
+        return;
+      }
+      uint32_t pattern_id, flags_id;
+      Handle<String> pattern = handle(regexp->Pattern(), isolate_);
+      Handle<String> flags_string =
+          JSRegExp::StringFromFlags(isolate_, regexp->GetFlags());
+      SerializeString(pattern, pattern_id);
+      SerializeString(flags_string, flags_id);
+      serializer.WriteUint32(ValueType::REGEXP);
+      serializer.WriteUint32(pattern_id);
+      serializer.WriteUint32(flags_id);
+      break;
+    }
     default:
       if (object->IsString()) {
         SerializeString(Handle<String>::cast(object), id);
@@ -928,6 +946,25 @@ void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
       value = handle(functions_->get(function_id), isolate_);
       representation = Representation::Tagged();
       break;
+    case ValueType::REGEXP: {
+      Handle<String> pattern = ReadString(false);
+      Handle<String> flags_string = ReadString(false);
+      bool success = false;
+      JSRegExp::Flags flags =
+          JSRegExp::FlagsFromString(isolate_, flags_string, &success);
+      if (!success) {
+        Throw("Web snapshot: Malformed flags in regular expression");
+        return;
+      }
+      MaybeHandle<JSRegExp> maybe_regexp =
+          JSRegExp::New(isolate_, pattern, flags);
+      if (!maybe_regexp.ToHandle(&value)) {
+        Throw("Web snapshot: Malformed RegExp");
+        return;
+      }
+      representation = Representation::Tagged();
+      break;
+    }
     default:
       // TODO(v8:11525): Handle other value types.
       Throw("Web snapshot: Unsupported value type");

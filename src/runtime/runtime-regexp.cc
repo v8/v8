@@ -2004,5 +2004,13 @@ RUNTIME_FUNCTION(Runtime_IsRegExp) {
   return isolate->heap()->ToBoolean(obj.IsJSRegExp());
 }
 
+RUNTIME_FUNCTION(Runtime_RegExpStringFromFlags) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  Handle<String> flags = JSRegExp::StringFromFlags(isolate, regexp.GetFlags());
+  return *flags;
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -407,6 +407,7 @@ namespace internal {
   F(RegExpInitializeAndCompile, 3, 1)                            \
   F(RegExpReplaceRT, 3, 1)                                       \
   F(RegExpSplit, 3, 1)                                           \
+  F(RegExpStringFromFlags, 1, 1)                                 \
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1)              \
   F(StringSplit, 3, 1)
 

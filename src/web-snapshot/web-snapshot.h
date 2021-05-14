@@ -47,7 +47,8 @@ class WebSnapshotSerializerDeserializer {
     DOUBLE,
     STRING_ID,
     OBJECT_ID,
-    FUNCTION_ID
+    FUNCTION_ID,
+    REGEXP
   };
 
   // The maximum count of items for each value type (strings, objects etc.)
