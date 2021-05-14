@@ -42,6 +42,8 @@ class Heap {
   HeapObject NextObject();
 
   bool CollectGarbage();
+
+  size_t Capacity();
 };
 
 }  // namespace third_party_heap

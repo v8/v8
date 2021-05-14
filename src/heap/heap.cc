@@ -324,6 +324,8 @@ size_t Heap::SemiSpaceSizeFromYoungGenerationSize(
 size_t Heap::Capacity() {
   if (!HasBeenSetUp()) return 0;
 
+  if (FLAG_enable_third_party_heap) return tp_heap_->Capacity();
+
   return NewSpaceCapacity() + OldGenerationCapacity();
 }
 
