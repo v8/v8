@@ -609,6 +609,7 @@ external_v8_defines = [
   "V8_NO_ARGUMENTS_ADAPTOR",
   "V8_USE_PERFETTO",
   "V8_MAP_PACKING",
+  "V8_IS_TSAN",
 ]
 
 enabled_external_v8_defines = []
@@ -644,6 +645,9 @@ if (v8_use_perfetto) {
 }
 if (v8_enable_map_packing) {
   enabled_external_v8_defines += [ "V8_MAP_PACKING" ]
+}
+if (is_tsan) {
+  enabled_external_v8_defines += [ "V8_IS_TSAN" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines

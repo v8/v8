@@ -320,6 +320,36 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
+#ifdef V8_IS_TSAN
+class OutOfLineTSANWrite final : public OutOfLineCode {
+ public:
+  OutOfLineTSANWrite(CodeGenerator* gen, Operand operand, Register value)
+      : OutOfLineCode(gen),
+        operand_(operand),
+        value_(value),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    const SaveFPRegsMode save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+    const int number_of_args = 2;
+    __ PushCallerSaved(save_fp_mode);
+    __ PrepareCallCFunction(number_of_args);
+    __ leaq(arg_reg_1, operand_);
+    __ movq(arg_reg_2, value_);
+    __ CallCFunction(ExternalReference::tsan_relaxed_store_function(),
+                     number_of_args);
+    __ PopCallerSaved(save_fp_mode);
+  }
+
+ private:
+  Operand const operand_;
+  Register const value_;
+  Zone* zone_;
+};
+#endif  // V8_IS_TSAN
+
 #if V8_ENABLE_WEBASSEMBLY
 class WasmOutOfLineTrap : public OutOfLineCode {
  public:
@@ -1184,6 +1214,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
+
+#ifdef V8_IS_TSAN
+      auto tsan_ool = zone()->New<OutOfLineTSANWrite>(this, operand, value);
+      __ jmp(tsan_ool->entry());
+      __ bind(tsan_ool->exit());
+#endif  // V8_IS_TSAN
+
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
       auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
