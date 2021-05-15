@@ -113,6 +113,11 @@
   assertArrayEquals([undefined], log);
 }
 
+{
+  // 'await' is allowed as an identifier name in named function expressions.
+  class C { static { (function await() {}); } }
+}
+
 function assertDoesntParse(expr, context_start, context_end) {
   assertThrows(() => {
     eval(`${context_start} class C { static { ${expr} } } ${context_end}`);
@@ -131,4 +136,10 @@ for (let [s, e] of [['', ''],
   // 'await' is disallowed as an identifier.
   assertDoesntParse('let await;', s, e);
   assertDoesntParse('await;', s, e);
+  assertDoesntParse('function await() {}', s, e);
+  assertDoesntParse('class await() {}', s, e);
+  assertDoesntParse('try {} catch (await) {}', s, e);
+  assertDoesntParse('try {} catch ({await}) {}', s, e);
+  assertDoesntParse('var {await} = 0;', s, e);
+  assertDoesntParse('({await} = 0);', s, e);
 }

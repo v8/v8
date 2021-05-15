@@ -1060,13 +1060,13 @@ class ParserBase {
   bool is_resumable() const {
     return IsResumableFunction(function_state_->kind());
   }
-  bool is_class_static_block() const {
-    return function_state_->kind() ==
-           FunctionKind::kClassStaticInitializerFunction;
-  }
   bool is_await_allowed() const {
     return is_async_function() || (flags().allow_harmony_top_level_await() &&
                                    IsModule(function_state_->kind()));
+  }
+  bool is_await_as_identifier_disallowed() {
+    return flags().is_module() ||
+           IsAwaitAsIdentifierDisallowed(function_state_->kind());
   }
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return pending_error_handler_;
@@ -1652,8 +1652,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
   }
 
   if (!Token::IsValidIdentifier(next, language_mode(), is_generator(),
-                                flags().is_module() || is_async_function() ||
-                                    is_class_static_block())) {
+                                is_await_as_identifier_disallowed())) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
   }
@@ -1677,7 +1676,8 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
 
   if (!Token::IsValidIdentifier(
           next, language_mode(), IsGeneratorFunction(function_kind),
-          flags().is_module() || IsAsyncFunction(function_kind))) {
+          flags().is_module() ||
+              IsAwaitAsIdentifierDisallowed(function_kind))) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
   }
@@ -2570,9 +2570,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
       //    IdentifierReference Initializer?
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
-      if (!Token::IsValidIdentifier(
-              name_token, language_mode(), is_generator(),
-              flags().is_module() || is_async_function())) {
+      if (!Token::IsValidIdentifier(name_token, language_mode(), is_generator(),
+                                    is_await_as_identifier_disallowed())) {
         ReportUnexpectedToken(Next());
         return impl()->NullLiteralProperty();
       }
