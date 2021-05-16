@@ -48,13 +48,14 @@ if __name__ == "__main__":
         fout.write(bs)
 
         # Peek into function section for upcoming validity check.
-        if id == FUNCTION_SECTION_ID:
+        isEqualFuncSecID = ( id == FUNCTION_SECTION_ID )
+        if isEqualFuncSecID:
           num_declared_functions, bs = peek_varuintN(fin)
 
         bs = fin.read(payload_length)
         fout.write(bs)
 
         # Instert hint section after function section.
-        if id == FUNCTION_SECTION_ID:
+        if isEqualFuncSecID:
           assert len(hints_bs) == num_declared_functions, "unexpected number of hints"
           write_compilation_hints_section(fout, hints_bs)
