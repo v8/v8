@@ -1182,22 +1182,31 @@ class MapData : public HeapObjectData {
   // The following fields should be const in principle, but construction
   // requires locking the MapUpdater lock. For this reason, it's easier to
   // initialize these inside the constructor body, not in the initializer list.
+
+  // This block of fields will always be serialized.
   InstanceType instance_type_;
   int instance_size_;
+  uint32_t bit_field3_;
+  int unused_property_fields_;
+  bool is_abandoned_prototype_map_;
+  int in_object_properties_;
+
+  // These fields will only serialized if we are not concurrent inlining.
   byte bit_field_;
   byte bit_field2_;
-  uint32_t bit_field3_;
   bool can_be_deprecated_;
   bool can_transition_;
   int in_object_properties_start_in_words_;
-  int in_object_properties_;
   int constructor_function_index_;
   int next_free_property_index_;
-  int unused_property_fields_;
   bool supports_fast_array_iteration_;
   bool supports_fast_array_resize_;
-  bool is_abandoned_prototype_map_;
 
+  // These extra fields still have to be serialized (e.g prototype_) even with
+  // concurrent inling, since those classes have fields themselves which are not
+  // being directly read. This means that, for example, even though we can get
+  // the prototype itself with direct reads, some of its fields require
+  // serialization.
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<ObjectData*> elements_kind_generalizations_;
 
@@ -1364,32 +1373,47 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(
       broker, broker->isolate()->map_updater_access());
 
+  // When background serializing the map, we can perform a lite serialization
+  // since the MapRef will read some of the Map's fields can be read directly.
+
+  // Even though MapRefs can read {instance_type} directly, other classes depend
+  // on {instance_type} being serialized.
   instance_type_ = object->instance_type();
   instance_size_ = object->instance_size();
-  // We read the bit_field as relaxed since `has_non_instance_prototype` can
-  // be modified in live objects, and because we serialize some maps on the
-  // background. Those background-serialized maps are the native context's
-  // maps for which this bit is "set" but it doesn't change value (i.e. it
-  // is set to false when it was already false).
-  bit_field_ = object->relaxed_bit_field();
-  bit_field2_ = object->bit_field2();
-  // Similar to the bit_field comment above.
+
+  // Both bit_field3 (and below bit_field) are special fields: Even though most
+  // of the individual bits inside of the bitfield could be read / written
+  // non-atomically, the bitfield itself has to use atomic relaxed accessors
+  // since some fields since can be modified in live objects.
+  // TODO(solanes, v8:7790): Assess if adding the exclusive lock in more places
+  // (e.g for set_has_non_instance_prototype) makes sense. Pros: these fields
+  // can use the non-atomic accessors. Cons: We would be acquiring an exclusive
+  // lock in more places.
   bit_field3_ = object->relaxed_bit_field3();
-  can_be_deprecated_ =
-      object->NumberOfOwnDescriptors() > 0 ? object->CanBeDeprecated() : false;
-  can_transition_ = object->CanTransition();
-  in_object_properties_start_in_words_ =
-      object->IsJSObjectMap() ? object->GetInObjectPropertiesStartInWords() : 0;
+  unused_property_fields_ = object->UnusedPropertyFields();
+  is_abandoned_prototype_map_ = object->is_abandoned_prototype_map();
   in_object_properties_ =
       object->IsJSObjectMap() ? object->GetInObjectProperties() : 0;
-  constructor_function_index_ = object->IsPrimitiveMap()
-                                    ? object->GetConstructorFunctionIndex()
-                                    : Map::kNoConstructorFunctionIndex;
-  next_free_property_index_ = object->NextFreePropertyIndex();
-  unused_property_fields_ = object->UnusedPropertyFields();
-  supports_fast_array_iteration_ = SupportsFastArrayIteration(broker, object);
-  supports_fast_array_resize_ = SupportsFastArrayResize(broker, object);
-  is_abandoned_prototype_map_ = object->is_abandoned_prototype_map();
+
+  // These fields are only needed to be serialized when not concurrent inlining
+  // and thus disabling direct reads.
+  if (!broker->is_concurrent_inlining()) {
+    bit_field_ = object->relaxed_bit_field();
+    bit_field2_ = object->bit_field2();
+    can_be_deprecated_ = object->NumberOfOwnDescriptors() > 0
+                             ? object->CanBeDeprecated()
+                             : false;
+    can_transition_ = object->CanTransition();
+    in_object_properties_start_in_words_ =
+        object->IsJSObjectMap() ? object->GetInObjectPropertiesStartInWords()
+                                : 0;
+    next_free_property_index_ = object->NextFreePropertyIndex();
+    constructor_function_index_ = object->IsPrimitiveMap()
+                                      ? object->GetConstructorFunctionIndex()
+                                      : Map::kNoConstructorFunctionIndex;
+    supports_fast_array_iteration_ = SupportsFastArrayIteration(broker, object);
+    supports_fast_array_resize_ = SupportsFastArrayResize(broker, object);
+  }
 }
 
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -3302,7 +3326,7 @@ BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, is_constructor,
 BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, is_undetectable,
                              Map::Bits1::IsUndetectableBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
-BIMODAL_ACCESSOR_C(Map, int, NextFreePropertyIndex)
+BIMODAL_ACCESSOR_WITH_FLAG_C(Map, int, NextFreePropertyIndex)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 BIMODAL_ACCESSOR_WITH_FLAG_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR_WITH_FLAG(Map, Object, GetConstructor)
