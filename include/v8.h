@@ -9932,6 +9932,9 @@ class V8_EXPORT V8 {
    * Notifies V8 that the process is cross-origin-isolated, which enables
    * defining the SharedArrayBuffer function on the global object of Contexts.
    */
+  V8_DEPRECATED(
+      "Use the command line argument --enable-sharedarraybuffer-per-context "
+      "together with SetSharedArrayBufferConstructorEnabledCallback")
   static void SetIsCrossOriginIsolated();
 
  private:

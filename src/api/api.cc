@@ -5954,13 +5954,7 @@ void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
   i::ReadOnlyHeap::PopulateReadOnlySpaceStatistics(statistics);
 }
 
-void V8::SetIsCrossOriginIsolated() {
-  i::FLAG_harmony_sharedarraybuffer = true;
-  i::FLAG_enable_sharedarraybuffer_per_context = false;
-#if V8_ENABLE_WEBASSEMBLY
-  i::FLAG_experimental_wasm_threads = true;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
+void V8::SetIsCrossOriginIsolated() {}
 
 template <typename ObjectType>
 struct InvokeBootstrapper;
