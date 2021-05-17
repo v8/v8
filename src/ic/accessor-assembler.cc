@@ -594,7 +594,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
           properties, var_name_index.value(), &var_details, &var_value);
       TNode<Object> value = CallGetterIfAccessor(
           var_value.value(), CAST(holder), var_details.value(), p->context(),
-          p->receiver(), miss);
+          p->receiver(), p->name(), miss);
       exit_point->Return(value);
     }
   }
@@ -614,11 +614,17 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   }
 
   BIND(&native_data_property);
-  HandleLoadCallbackProperty(p, CAST(holder), handler_word, exit_point);
+  {
+    GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
+    HandleLoadCallbackProperty(p, CAST(holder), handler_word, exit_point);
+  }
 
   BIND(&api_getter);
-  HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler), handler_kind,
-                     exit_point);
+  {
+    GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
+    HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
+                       handler_kind, exit_point);
+  }
 
   BIND(&proxy);
   {
@@ -678,7 +684,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     GotoIf(IsTheHole(value), miss);
 
     exit_point->Return(CallGetterIfAccessor(value, CAST(holder), details,
-                                            p->context(), p->receiver(), miss));
+                                            p->context(), p->receiver(),
+                                            p->name(), miss));
   }
 
   BIND(&interceptor);
@@ -964,7 +971,7 @@ void AccessorAssembler::HandleLoadICProtoHandler(
               properties, name_index, &var_details, &var_value);
           TNode<Object> value = CallGetterIfAccessor(
               var_value.value(), CAST(var_holder->value()), var_details.value(),
-              p->context(), p->receiver(), miss);
+              p->context(), p->receiver(), p->name(), miss);
           exit_point->Return(value);
         }
       },
@@ -1737,9 +1744,12 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       Goto(&store);
 
       BIND(&store);
-      TNode<IntPtrT> argc = IntPtrConstant(1);
-      Return(CallApiCallback(context, callback, argc, data, api_holder.value(),
-                             p->receiver(), p->value()));
+      {
+        GotoIf(IsSideEffectFreeDebuggingActive(), &if_slow);
+        TNode<IntPtrT> argc = IntPtrConstant(1);
+        Return(CallApiCallback(context, callback, argc, data,
+                               api_holder.value(), p->receiver(), p->value()));
+      }
     }
 
     BIND(&if_store_global_proxy);
@@ -2561,7 +2571,7 @@ void AccessorAssembler::GenericPropertyLoad(
   {
     TNode<Object> value = CallGetterIfAccessor(
         var_value.value(), lookup_start_object, var_details.value(),
-        p->context(), p->receiver(), slow);
+        p->context(), p->receiver(), p->name(), slow);
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
     Return(value);
   }

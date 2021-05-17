@@ -778,6 +778,34 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {
 }
 
 namespace {
+const char* SideEffectType2String(SideEffectType type) {
+  switch (type) {
+    case SideEffectType::kHasSideEffect:
+      return "kHasSideEffect";
+    case SideEffectType::kHasNoSideEffect:
+      return "kHasNoSideEffect";
+    case SideEffectType::kHasSideEffectToReceiver:
+      return "kHasSideEffectToReceiver";
+  }
+}
+}  // namespace
+
+void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
+  TorqueGeneratedAccessorInfo<AccessorInfo, Struct>::AccessorInfoPrint(os);
+  os << " - all_can_read: " << all_can_read();
+  os << "\n - all_can_write: " << all_can_write();
+  os << "\n - is_special_data_property: " << is_special_data_property();
+  os << "\n - is_sloppy: " << is_sloppy();
+  os << "\n - replace_on_access: " << replace_on_access();
+  os << "\n - getter_side_effect_type: "
+     << SideEffectType2String(getter_side_effect_type());
+  os << "\n - setter_side_effect_type: "
+     << SideEffectType2String(setter_side_effect_type());
+  os << "\n - initial_attributes: " << initial_property_attributes();
+  os << '\n';
+}
+
+namespace {
 void PrintContextWithHeader(std::ostream& os, Context context,
                             const char* type) {
   context.PrintHeader(os, type);
@@ -2775,6 +2803,22 @@ V8_EXPORT_PRIVATE extern i::Object _v8_internal_Get_Object(void* object) {
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
   GetObjectFromRaw(object).Print();
+}
+
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
+#ifdef OBJECT_PRINT
+  i::StdoutStream os;
+  i::LoadHandler::PrintHandler(GetObjectFromRaw(object), os);
+  os << std::flush;
+#endif
+}
+
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_StoreHandler(void* object) {
+#ifdef OBJECT_PRINT
+  i::StdoutStream os;
+  i::StoreHandler::PrintHandler(GetObjectFromRaw(object), os);
+  os << std::flush;
+#endif
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {

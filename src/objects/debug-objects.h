@@ -37,7 +37,10 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // --- Debug execution ---
   // -----------------------
 
-  enum ExecutionMode { kBreakpoints = 0, kSideEffects = kDebugExecutionMode };
+  enum ExecutionMode : uint8_t {
+    kBreakpoints = 0,
+    kSideEffects = kDebugExecutionMode
+  };
 
   // Returns current debug execution mode. Debug execution mode defines by
   // applied to bytecode patching. False for breakpoints, true for side effect
