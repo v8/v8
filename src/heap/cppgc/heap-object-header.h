@@ -219,6 +219,7 @@ void HeapObjectHeader::SetAllocatedSize(size_t size) {
 
 template <AccessMode mode>
 size_t HeapObjectHeader::ObjectSize() const {
+  // The following DCHECK also fails for large objects.
   DCHECK_GT(AllocatedSize<mode>(), sizeof(HeapObjectHeader));
   return AllocatedSize<mode>() - sizeof(HeapObjectHeader);
 }

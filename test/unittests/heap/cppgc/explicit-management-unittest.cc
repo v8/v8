@@ -119,6 +119,7 @@ TEST_F(ExplicitManagementTest, GrowAtLAB) {
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
   auto& header = HeapObjectHeader::FromObject(o);
+  ASSERT_TRUE(!header.IsLargeObject());
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   constexpr size_t kFirstDelta = 8;
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kFirstDelta)));
@@ -142,6 +143,7 @@ TEST_F(ExplicitManagementTest, GrowShrinkAtLAB) {
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
   auto& header = HeapObjectHeader::FromObject(o);
+  ASSERT_TRUE(!header.IsLargeObject());
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   constexpr size_t kDelta = 27;
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(kDelta)));
@@ -159,6 +161,7 @@ TEST_F(ExplicitManagementTest, ShrinkFreeList) {
   // Force returning to free list by removing the LAB.
   ResetLinearAllocationBuffers();
   auto& header = HeapObjectHeader::FromObject(o);
+  ASSERT_TRUE(!header.IsLargeObject());
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o), header.ObjectSize());
@@ -174,6 +177,7 @@ TEST_F(ExplicitManagementTest, ShrinkFreeListBailoutAvoidFragmentation) {
   // Force returning to free list by removing the LAB.
   ResetLinearAllocationBuffers();
   auto& header = HeapObjectHeader::FromObject(o);
+  ASSERT_TRUE(!header.IsLargeObject());
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(

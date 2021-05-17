@@ -5034,6 +5034,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/object-poisoner.h",
     "src/heap/cppgc/object-size-trait.cc",
     "src/heap/cppgc/object-start-bitmap.h",
+    "src/heap/cppgc/object-view.h",
     "src/heap/cppgc/page-memory.cc",
     "src/heap/cppgc/page-memory.h",
     "src/heap/cppgc/persistent-node.cc",

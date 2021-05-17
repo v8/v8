@@ -8,6 +8,7 @@
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
 
 namespace cppgc {
@@ -29,12 +30,9 @@ namespace {
 
 void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
                          const HeapObjectHeader& header) {
-  Address* object = reinterpret_cast<Address*>(header.ObjectStart());
-  const size_t object_size =
-      header.IsLargeObject()
-          ? LargePage::From(BasePage::FromPayload(&header))->ObjectSize()
-          : header.ObjectSize();
-  for (size_t i = 0; i < (object_size / sizeof(Address)); ++i) {
+  const auto object_view = ObjectView(header);
+  Address* object = reinterpret_cast<Address*>(object_view.Start());
+  for (size_t i = 0; i < (object_view.Size() / sizeof(Address)); ++i) {
     Address maybe_ptr = object[i];
 #if defined(MEMORY_SANITIZER)
     // |object| may be uninitialized by design or just contain padding bytes.

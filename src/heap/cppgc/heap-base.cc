@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-verifier.h"
+#include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -35,10 +36,7 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 
  private:
   static size_t ObjectSize(const HeapObjectHeader* header) {
-    return header->IsLargeObject()
-               ? static_cast<const LargePage*>(BasePage::FromPayload(header))
-                     ->ObjectSize()
-               : header->ObjectSize();
+    return ObjectView(*header).Size();
   }
 
   bool VisitHeapObjectHeader(HeapObjectHeader* header) {

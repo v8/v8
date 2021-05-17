@@ -13,6 +13,7 @@
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/object-view.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -206,10 +207,7 @@ class ObjectSizeCounter final : private HeapVisitor<ObjectSizeCounter> {
 
  private:
   static size_t ObjectSize(const HeapObjectHeader* header) {
-    return header->IsLargeObject()
-               ? static_cast<const LargePage*>(BasePage::FromPayload(header))
-                     ->ObjectSize()
-               : header->ObjectSize();
+    return ObjectView(*header).Size();
   }
 
   bool VisitHeapObjectHeader(HeapObjectHeader* header) {
