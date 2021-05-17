@@ -111,7 +111,7 @@ enum class RefSerializationKind {
   V(CallHandlerInfo, RefSerializationKind::kNeverSerialized)              \
   V(Cell, RefSerializationKind::kNeverSerialized)                         \
   V(Code, RefSerializationKind::kNeverSerialized)                         \
-  V(Context, RefSerializationKind::kSerialized)                           \
+  V(Context, RefSerializationKind::kNeverSerialized)                      \
   V(DescriptorArray, RefSerializationKind::kNeverSerialized)              \
   V(FeedbackCell, RefSerializationKind::kNeverSerialized)                 \
   V(FeedbackVector, RefSerializationKind::kNeverSerialized)               \
