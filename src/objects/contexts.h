@@ -688,6 +688,17 @@ class NativeContext : public Context {
       ScriptContextTable script_context_table);
   inline ScriptContextTable synchronized_script_context_table() const;
 
+  // Caution, hack: this getter ignores the AcquireLoadTag. The global_object
+  // slot is safe to read concurrently since it is immutable after
+  // initialization.  This function should *not* be used from anywhere other
+  // than heap-refs.cc.
+  // TODO(jgruber): Remove this function after NativeContextRef is actually
+  // never serialized and BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS is removed.
+  JSGlobalObject global_object() { return Context::global_object(); }
+  JSGlobalObject global_object(AcquireLoadTag) {
+    return Context::global_object();
+  }
+
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)
   DECL_VERIFIER(NativeContext)

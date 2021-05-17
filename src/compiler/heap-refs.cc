@@ -3394,11 +3394,6 @@ BIMODAL_ACCESSOR_WITH_FLAG(Map, Object, GetConstructor)
 BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 
-#define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
-  BIMODAL_ACCESSOR(NativeContext, type, name)
-BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
-#undef DEF_NATIVE_CONTEXT_ACCESSOR
-
 BIMODAL_ACCESSOR_C(ObjectBoilerplateDescription, int, size)
 
 BIMODAL_ACCESSOR(PropertyCell, Object, value)
@@ -3752,6 +3747,39 @@ bool StringRef::IsSeqString() const {
   return data()->AsString()->is_seq_string();
 }
 
+void NativeContextRef::Serialize() {
+  // TODO(jgruber): Disable visitation if should_access_heap() once all
+  // NativeContext element refs can be created on background threads. Until
+  // then, we *must* iterate them and create refs at serialization-time (even
+  // though NativeContextRef itself is never-serialized).
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  if (data_->should_access_heap()) {
+#define SERIALIZE_MEMBER(type, name)                                          \
+  {                                                                           \
+    ObjectData* member_data = broker()->GetOrCreateData(object()->name());    \
+    if (member_data->IsMap() && !InstanceTypeChecker::IsContext(              \
+                                    member_data->AsMap()->instance_type())) { \
+      member_data->AsMap()->SerializeConstructor(broker());                   \
+    }                                                                         \
+    if (member_data->IsJSFunction()) {                                        \
+      member_data->AsJSFunction()->Serialize(broker());                       \
+    }                                                                         \
+  }
+    BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+    BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+#undef SERIALIZE_MEMBER
+  } else {
+    data()->AsNativeContext()->Serialize(broker());
+  }
+}
+
+void NativeContextRef::SerializeOnBackground() {
+  if (data_->should_access_heap()) return;
+  CHECK(broker()->mode() == JSHeapBroker::kSerializing ||
+        broker()->mode() == JSHeapBroker::kSerialized);
+  data()->AsNativeContext()->SerializeOnBackground(broker());
+}
+
 bool NativeContextRef::is_unserialized_heap_object() const {
   return data_->kind() == kUnserializedHeapObject;
 }
@@ -3762,15 +3790,6 @@ ScopeInfoRef NativeContextRef::scope_info() const {
     return MakeRefAssumeMemoryFence(broker(), object()->scope_info());
   }
   return ScopeInfoRef(broker(), data()->AsNativeContext()->scope_info());
-}
-
-SharedFunctionInfoRef FeedbackVectorRef::shared_function_info() const {
-  if (data_->should_access_heap()) {
-    return MakeRef(broker(), object()->shared_function_info());
-  }
-
-  return SharedFunctionInfoRef(
-      broker(), data()->AsFeedbackVector()->shared_function_info());
 }
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
@@ -3804,6 +3823,18 @@ MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {
       UNREACHABLE();
   }
 }
+
+#define DEF_NATIVE_CONTEXT_ACCESSOR(ResultType, Name)                     \
+  ResultType##Ref NativeContextRef::Name() const {                        \
+    if (data_->should_access_heap()) {                                    \
+      return MakeRefAssumeMemoryFence(                                    \
+          broker(), ResultType::cast(object()->Name(kAcquireLoad)));      \
+    }                                                                     \
+    return ResultType##Ref(broker(),                                      \
+                           ObjectRef::data()->AsNativeContext()->Name()); \
+  }
+BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
+#undef DEF_NATIVE_CONTEXT_ACCESSOR
 
 base::Optional<JSFunctionRef> NativeContextRef::GetConstructorFunction(
     const MapRef& map) const {
@@ -4184,6 +4215,15 @@ bool FeedbackVectorRef::serialized() const {
   return data()->AsFeedbackVector()->serialized();
 }
 
+SharedFunctionInfoRef FeedbackVectorRef::shared_function_info() const {
+  if (data_->should_access_heap()) {
+    return MakeRef(broker(), object()->shared_function_info());
+  }
+
+  return SharedFunctionInfoRef(
+      broker(), data()->AsFeedbackVector()->shared_function_info());
+}
+
 bool NameRef::IsUniqueName() const {
   // Must match Name::IsUniqueName.
   return IsInternalizedString() || IsSymbol();
@@ -4451,19 +4491,6 @@ void SourceTextModuleRef::Serialize() {
   if (data_->should_access_heap()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsSourceTextModule()->Serialize(broker());
-}
-
-void NativeContextRef::Serialize() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsNativeContext()->Serialize(broker());
-}
-
-void NativeContextRef::SerializeOnBackground() {
-  if (data_->should_access_heap()) return;
-  CHECK(broker()->mode() == JSHeapBroker::kSerializing ||
-        broker()->mode() == JSHeapBroker::kSerialized);
-  data()->AsNativeContext()->SerializeOnBackground(broker());
 }
 
 void JSTypedArrayRef::Serialize() {
