@@ -598,12 +598,13 @@
 
   # Slow tests.
   'compiler/regress-1125145': [SKIP],
+  'compiler/regress-crbug-11564': [PASS, SLOW],
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-430201': [SKIP],
   'regress/regress-500980': [PASS, SLOW],
+  'regress/regress-crbug-941743': [PASS, SLOW],
   'wasm/shared-memory-worker-stress': [PASS, SLOW],
-  'compiler/regress-crbug-11564': [PASS, SLOW],
 
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
