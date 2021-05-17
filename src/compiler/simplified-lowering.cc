@@ -294,15 +294,17 @@ class RepresentationSelector {
     Type restriction_type() const { return restriction_type_; }
 
    private:
+    // Fields are ordered to avoid mixing byte and word size fields to minimize
+    // padding.
     enum State : uint8_t { kUnvisited, kPushed, kVisited, kQueued };
     State state_ = kUnvisited;
     MachineRepresentation representation_ =
         MachineRepresentation::kNone;             // Output representation.
     Truncation truncation_ = Truncation::None();  // Information about uses.
+    bool weakened_ = false;
 
     Type restriction_type_ = Type::Any();
     Type feedback_type_;
-    bool weakened_ = false;
   };
 
   RepresentationSelector(JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
