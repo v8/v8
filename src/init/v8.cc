@@ -133,6 +133,26 @@ void V8::InitializeOncePerProcessImpl() {
   }
 #endif
 
+  // When fuzzing and concurrent compilation is enabled, disable Turbofan
+  // tracing flags since reading/printing heap state is not thread-safe and
+  // leads to false positives on TSAN bots.
+  // TODO(chromium:1205289): Teach relevant fuzzers to not pass TF tracing
+  // flags instead, and remove this section.
+  if (FLAG_fuzzing && FLAG_concurrent_recompilation) {
+    FLAG_trace_turbo = false;
+    FLAG_trace_turbo_graph = false;
+    FLAG_trace_turbo_scheduled = false;
+    FLAG_trace_turbo_reduction = false;
+    FLAG_trace_turbo_trimming = false;
+    FLAG_trace_turbo_jt = false;
+    FLAG_trace_turbo_ceq = false;
+    FLAG_trace_turbo_loop = false;
+    FLAG_trace_turbo_alloc = false;
+    FLAG_trace_all_uses = false;
+    FLAG_trace_representation = false;
+    FLAG_trace_turbo_stack_accesses = false;
+  }
+
   if (FLAG_regexp_interpret_all && FLAG_regexp_tier_up) {
     // Turning off the tier-up strategy, because the --regexp-interpret-all and
     // --regexp-tier-up flags are incompatible.
