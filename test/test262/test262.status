@@ -71,14 +71,15 @@
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=10958
+  'language/module-code/eval-gtbndng-indirect-faux-assertion': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=8771
   'language/computed-property-names/class/static/method-number': [FAIL],
   'language/computed-property-names/class/static/method-string': [FAIL],
   'language/computed-property-names/class/static/method-symbol': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
