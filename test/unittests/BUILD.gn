@@ -102,6 +102,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/heap-growing-unittest.cc",
     "heap/cppgc/heap-object-header-unittest.cc",
     "heap/cppgc/heap-page-unittest.cc",
+    "heap/cppgc/heap-registry-unittest.cc",
     "heap/cppgc/heap-statistics-collector-unittest.cc",
     "heap/cppgc/heap-unittest.cc",
     "heap/cppgc/incremental-marking-schedule-unittest.cc",

@@ -19,6 +19,7 @@
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/process-heap-statistics.h"
+#include "src/heap/cppgc/process-heap.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -211,6 +212,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 #if defined(LEAK_SANITIZER)
   std::unique_ptr<v8::base::LsanPageAllocator> lsan_page_allocator_;
 #endif  // LEAK_SANITIZER
+
+  HeapRegistry::Subscription heap_registry_subscription_{*this};
 
 #if defined(CPPGC_CAGED_HEAP)
   CagedHeap caged_heap_;

@@ -17,6 +17,7 @@
 namespace cppgc {
 namespace internal {
 
+class HeapBase;
 class PersistentRegion;
 class CrossThreadPersistentRegion;
 
@@ -76,7 +77,7 @@ class V8_EXPORT EnabledCheckingPolicy {
     }
   };
 
-  void* state_ = nullptr;
+  const HeapBase* heap_ = nullptr;
 };
 
 class DisabledCheckingPolicy {

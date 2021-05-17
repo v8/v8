@@ -524,14 +524,41 @@ class LinkedNode final : public GarbageCollected<LinkedNode> {
 
 }  // namespace
 
-TEST_F(MemberHeapDeathTest, AssignDifferentHeapValues) {
-  auto* o1 = MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr);
-  auto* o2 = MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), o1);
+TEST_F(MemberHeapDeathTest, CheckForOffHeapMemberCrashesOnReassignment) {
+  std::vector<Member<LinkedNode>> off_heap_member;
+  // Verification state is constructed on first assignment.
+  off_heap_member.emplace_back(
+      MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr));
   {
     auto tmp_heap = cppgc::Heap::Create(platform_);
-    auto* o3 = MakeGarbageCollected<LinkedNode>(tmp_heap->GetAllocationHandle(),
-                                                nullptr);
-    EXPECT_DEATH_IF_SUPPORTED(o2->SetNext(o3), "");
+    auto* tmp_obj = MakeGarbageCollected<LinkedNode>(
+        tmp_heap->GetAllocationHandle(), nullptr);
+    EXPECT_DEATH_IF_SUPPORTED(off_heap_member[0] = tmp_obj, "");
+  }
+}
+
+TEST_F(MemberHeapDeathTest, CheckForOnStackMemberCrashesOnReassignment) {
+  Member<LinkedNode> stack_member;
+  // Verification state is constructed on first assignment.
+  stack_member =
+      MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr);
+  {
+    auto tmp_heap = cppgc::Heap::Create(platform_);
+    auto* tmp_obj = MakeGarbageCollected<LinkedNode>(
+        tmp_heap->GetAllocationHandle(), nullptr);
+    EXPECT_DEATH_IF_SUPPORTED(stack_member = tmp_obj, "");
+  }
+}
+
+TEST_F(MemberHeapDeathTest, CheckForOnHeapMemberCrashesOnInitialAssignment) {
+  auto* obj = MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr);
+  {
+    auto tmp_heap = cppgc::Heap::Create(platform_);
+    EXPECT_DEATH_IF_SUPPORTED(
+        // For regular on-heap Member references the verification state is
+        // constructed eagerly on creating the reference.
+        MakeGarbageCollected<LinkedNode>(tmp_heap->GetAllocationHandle(), obj),
+        "");
   }
 }
 
