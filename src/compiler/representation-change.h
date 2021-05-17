@@ -17,10 +17,6 @@ namespace compiler {
 class TypeCache;
 
 enum IdentifyZeros : uint8_t { kIdentifyZeros, kDistinguishZeros };
-constexpr int kIdentifyZerosBits = 1;
-static_assert(static_cast<int>(IdentifyZeros::kDistinguishZeros) <
-                  1 << kIdentifyZerosBits,
-              "kIdentifyZeros must fit into kIdentifyZerosBits");
 
 class Truncation final {
  public:
@@ -98,10 +94,6 @@ class Truncation final {
     kOddballAndBigIntToNumber,
     kAny
   };
-  static constexpr int kTruncationKindBits = 4;
-  static_assert(static_cast<int>(TruncationKind::kAny) <
-                    1 << kTruncationKindBits,
-                "TransactionKind must fit into kTruncationKindBits");
 
   explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros)
       : kind_(kind), identify_zeros_(identify_zeros) {
@@ -111,8 +103,8 @@ class Truncation final {
   }
   TruncationKind kind() const { return kind_; }
 
-  TruncationKind kind_ : kTruncationKindBits;
-  IdentifyZeros identify_zeros_ : kIdentifyZerosBits;
+  TruncationKind kind_;
+  IdentifyZeros identify_zeros_;
 
   static TruncationKind Generalize(TruncationKind rep1, TruncationKind rep2);
   static IdentifyZeros GeneralizeIdentifyZeros(IdentifyZeros i1,
