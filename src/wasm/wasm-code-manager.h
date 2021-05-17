@@ -92,6 +92,7 @@ struct WasmModule;
   V(I64ToBigInt)                         \
   V(RecordWrite)                         \
   V(ToNumber)                            \
+  IF_TSAN(V, TSANRelaxedStore)           \
   V(WasmAllocateArrayWithRtt)            \
   V(WasmAllocateRtt)                     \
   V(WasmAllocateStructWithRtt)           \

@@ -513,6 +513,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void CallEphemeronKeyBarrier(Register object, Register address,
                                SaveFPRegsMode fp_mode);
 
+#ifdef V8_IS_TSAN
+  void CallTSANRelaxedStoreStub(Register address, Register value,
+                                SaveFPRegsMode fp_mode,
+                                Address wasm_target = kNullAddress);
+#endif  // V8_IS_TSAN
+
   void MoveNumber(Register dst, double value);
   void MoveNonSmi(Register dst, double value);
 

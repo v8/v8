@@ -1038,6 +1038,9 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
     case Builtins::kToName:
     case Builtins::kToObject:
     case Builtins::kToString:
+#ifdef V8_IS_TSAN
+    case Builtins::kTSANRelaxedStore:
+#endif  // V8_IS_TSAN
     case Builtins::kWeakMapLookupHashIndex:
       return true;
     case Builtins::kJoinStackPop:
