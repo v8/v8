@@ -34,6 +34,7 @@ luci.cq_group(
         repo = "https://chromium.googlesource.com/v8/v8",
         refs = [
             "refs/heads/master",
+            "refs/heads/main",
             "refs/branch-heads/.+",
         ],
     ),
