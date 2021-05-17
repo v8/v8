@@ -18941,6 +18941,13 @@ TEST(RegExp) {
   CHECK(re->GetSource()->Equals(context.local(), v8_str("foo")).FromJust());
   CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
 
+  re = v8::RegExp::New(context.local(), v8_str("foo/bar"), v8::RegExp::kNone)
+           .ToLocalChecked();
+  CHECK(re->IsRegExp());
+  CHECK(
+      re->GetSource()->Equals(context.local(), v8_str("foo\\/bar")).FromJust());
+  CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
+
   re = v8::RegExp::New(context.local(), v8_str("bar"),
                        static_cast<v8::RegExp::Flags>(v8::RegExp::kIgnoreCase |
                                                       v8::RegExp::kGlobal))
@@ -18971,6 +18978,11 @@ TEST(RegExp) {
   re = CompileRun("/quux/").As<v8::RegExp>();
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(context.local(), v8_str("quux")).FromJust());
+  CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
+
+  re = CompileRun("RegExp('qu/ux')").As<v8::RegExp>();
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(context.local(), v8_str("qu\\/ux")).FromJust());
   CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
 
   re = CompileRun("/quux/gm").As<v8::RegExp>();

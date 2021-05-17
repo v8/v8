@@ -7003,7 +7003,7 @@ MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
 Local<v8::String> v8::RegExp::GetSource() const {
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
   return Utils::ToLocal(
-      i::Handle<i::String>(obj->Pattern(), obj->GetIsolate()));
+      i::Handle<i::String>(obj->EscapedPattern(), obj->GetIsolate()));
 }
 
 // Assert that the static flags cast in GetFlags is valid.

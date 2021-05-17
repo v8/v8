@@ -73,6 +73,12 @@ String JSRegExp::Pattern() {
   return pattern;
 }
 
+String JSRegExp::EscapedPattern() {
+  DCHECK(this->source().IsString());
+  String pattern = String::cast(source());
+  return pattern;
+}
+
 Object JSRegExp::CaptureNameMap() {
   DCHECK(this->data().IsFixedArray());
   DCHECK(TypeSupportsCaptures(TypeTag()));
