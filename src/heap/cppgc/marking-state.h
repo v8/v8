@@ -255,6 +255,7 @@ void MarkingStateBase::ProcessWeakContainer(const void* object,
   // Only mark the container initially. Its buckets will be processed after
   // marking.
   if (!MarkNoPush(header)) return;
+
   RegisterWeakContainer(header);
 
   // Register final weak processing of the backing store.
@@ -264,7 +265,13 @@ void MarkingStateBase::ProcessWeakContainer(const void* object,
   // the TraceDescriptor will be nullptr. For ephemerons the callback will be
   // non-nullptr so that the container is traced and the ephemeron pairs are
   // processed.
-  if (desc.callback) PushMarked(header, desc);
+  if (desc.callback) {
+    PushMarked(header, desc);
+  } else {
+    // For weak containers, there's no trace callback and no processing loop to
+    // update the marked bytes, hence inline that here.
+    AccountMarkedBytes(header);
+  }
 }
 
 void MarkingStateBase::ProcessEphemeron(const void* key, const void* value,
@@ -308,7 +315,7 @@ class MutatorMarkingState : public MarkingStateBase {
     return MutatorMarkingState::MarkingStateBase::MarkNoPush(header);
   }
 
-  inline void PushMarkedWeakContainer(HeapObjectHeader&);
+  inline void ReTraceMarkedWeakContainer(cppgc::Visitor&, HeapObjectHeader&);
 
   inline void DynamicallyMarkAddress(ConstAddress);
 
@@ -343,13 +350,13 @@ class MutatorMarkingState : public MarkingStateBase {
   } recently_retraced_weak_containers_;
 };
 
-void MutatorMarkingState::PushMarkedWeakContainer(HeapObjectHeader& header) {
+void MutatorMarkingState::ReTraceMarkedWeakContainer(cppgc::Visitor& visitor,
+                                                     HeapObjectHeader& header) {
   DCHECK(weak_containers_worklist_.Contains(&header));
   recently_retraced_weak_containers_.Insert(&header);
-  PushMarked(
-      header,
-      {header.ObjectStart(),
-       GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
+  // Don't push to the marking worklist to avoid double accounting of marked
+  // bytes as the container is already accounted for.
+  header.Trace(&visitor);
 }
 
 void MutatorMarkingState::DynamicallyMarkAddress(ConstAddress address) {
