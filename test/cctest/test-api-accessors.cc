@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/cctest.h"
-
 #include "include/v8.h"
 #include "src/api/api-inl.h"
+#include "src/debug/debug.h"
+#include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
+#include "test/cctest/cctest.h"
 
 namespace i = v8::internal;
 
