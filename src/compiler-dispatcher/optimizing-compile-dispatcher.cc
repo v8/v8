@@ -176,6 +176,7 @@ void OptimizingCompileDispatcher::FlushQueues(
 }
 
 void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
+  HandleScope handle_scope(isolate_);
   FlushQueues(blocking_behavior, true);
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Flushed concurrent recompilation queues. (mode: %s)\n",
