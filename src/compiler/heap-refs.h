@@ -88,7 +88,7 @@ enum class RefSerializationKind {
   V(JSGlobalProxy, RefSerializationKind::kSerialized)                     \
   V(JSTypedArray, RefSerializationKind::kSerialized)                      \
   /* Subtypes of Context */                                               \
-  V(NativeContext, RefSerializationKind::kSerialized)                     \
+  V(NativeContext, RefSerializationKind::kNeverSerialized)                \
   /* Subtypes of FixedArray */                                            \
   V(ObjectBoilerplateDescription, RefSerializationKind::kNeverSerialized) \
   V(ScriptContextTable, RefSerializationKind::kBackgroundSerialized)      \
