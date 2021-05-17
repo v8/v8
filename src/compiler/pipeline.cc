@@ -2645,8 +2645,10 @@ bool PipelineImpl::CreateGraph() {
   RunPrintAndVerify(InliningPhase::phase_name(), true);
 
   // Remove dead->live edges from the graph.
-  Run<EarlyGraphTrimmingPhase>();
-  RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
+  if (!data->info()->IsTurboprop()) {
+    Run<EarlyGraphTrimmingPhase>();
+    RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
+  }
 
   // Determine the Typer operation flags.
   {
@@ -3410,8 +3412,10 @@ void PipelineImpl::ComputeScheduledGraph() {
   // We should only schedule the graph if it is not scheduled yet.
   DCHECK_NULL(data->schedule());
 
-  Run<LateGraphTrimmingPhase>();
-  RunPrintAndVerify(LateGraphTrimmingPhase::phase_name(), true);
+  if (!data->info()->IsTurboprop()) {
+    Run<LateGraphTrimmingPhase>();
+    RunPrintAndVerify(LateGraphTrimmingPhase::phase_name(), true);
+  }
 
   Run<ComputeSchedulePhase>();
   TraceScheduleAndVerify(data->info(), data, data->schedule(), "schedule");
