@@ -1443,8 +1443,8 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
   // JSNativeContextSpecialization::ReduceJSResolvePromise.
   switch (functionId) {
     case Runtime::kInlineAsyncFunctionResolve: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncFunctionResolve));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncFunctionResolve));
       interpreter::Register first_reg = iterator->GetRegisterOperand(1);
       size_t reg_count = iterator->GetRegisterCountOperand(2);
       CHECK_EQ(reg_count, 3);
@@ -1455,61 +1455,61 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
     }
     case Runtime::kInlineAsyncGeneratorReject:
     case Runtime::kAsyncGeneratorReject: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncGeneratorReject));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncGeneratorReject));
       break;
     }
     case Runtime::kInlineAsyncGeneratorResolve:
     case Runtime::kAsyncGeneratorResolve: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncGeneratorResolve));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncGeneratorResolve));
       break;
     }
     case Runtime::kInlineAsyncGeneratorYield:
     case Runtime::kAsyncGeneratorYield: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncGeneratorYield));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncGeneratorYield));
       break;
     }
     case Runtime::kInlineAsyncGeneratorAwaitUncaught:
     case Runtime::kAsyncGeneratorAwaitUncaught: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncGeneratorAwaitUncaught));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncGeneratorAwaitUncaught));
       break;
     }
     case Runtime::kInlineAsyncGeneratorAwaitCaught:
     case Runtime::kAsyncGeneratorAwaitCaught: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncGeneratorAwaitCaught));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncGeneratorAwaitCaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionAwaitUncaught:
     case Runtime::kAsyncFunctionAwaitUncaught: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncFunctionAwaitUncaught));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncFunctionAwaitUncaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionAwaitCaught:
     case Runtime::kAsyncFunctionAwaitCaught: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncFunctionAwaitCaught));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncFunctionAwaitCaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionReject:
     case Runtime::kAsyncFunctionReject: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncFunctionReject));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncFunctionReject));
       break;
     }
     case Runtime::kAsyncFunctionResolve: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kAsyncFunctionResolve));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kAsyncFunctionResolve));
       break;
     }
     case Runtime::kInlineCopyDataProperties:
     case Runtime::kCopyDataProperties: {
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kCopyDataProperties));
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kCopyDataProperties));
       break;
     }
     case Runtime::kInlineGetImportMetaObject: {
@@ -1540,7 +1540,7 @@ void SerializerForBackgroundCompilation::VisitLdaConstant(
   // TODO(v8:7790): FixedArrays still need to be serialized until they are
   // moved to kNeverSerialized.
   if (!broker()->is_concurrent_inlining() || constant->IsFixedArray()) {
-    ObjectRef(broker(), constant);
+    MakeRef(broker(), constant);
   }
   environment()->accumulator_hints() = Hints::SingleConstant(constant, zone());
 }
@@ -1660,7 +1660,7 @@ void SerializerForBackgroundCompilation::ProcessModuleVariableAccess(
   ProcessContextAccess(context_hints, slot, depth, kSerializeSlot,
                        &result_hints);
   for (Handle<Object> constant : result_hints.constants()) {
-    ObjectRef object(broker(), constant);
+    ObjectRef object = MakeRef(broker(), constant);
     // For JSTypedLowering::BuildGetModuleCell.
     if (object.IsSourceTextModule()) object.AsSourceTextModule().Serialize();
   }
@@ -1678,8 +1678,8 @@ void SerializerForBackgroundCompilation::VisitStaModuleVariable(
 
 void SerializerForBackgroundCompilation::VisitStaLookupSlot(
     BytecodeArrayIterator* iterator) {
-  ObjectRef(broker(),
-            iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  MakeRef(broker(),
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   environment()->accumulator_hints() = Hints();
 }
 
@@ -2268,7 +2268,7 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
        {Builtins::kCallFunctionTemplate_CheckAccess,
         Builtins::kCallFunctionTemplate_CheckCompatibleReceiver,
         Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver}) {
-    ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(b));
+    MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(b));
   }
   FunctionTemplateInfoRef target_template_info =
       MakeRef(broker(),
@@ -2322,7 +2322,7 @@ void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
 void SerializerForBackgroundCompilation::ProcessHintsForObjectCreate(
     Hints const& prototype) {
   for (Handle<Object> constant_handle : prototype.constants()) {
-    ObjectRef constant(broker(), constant_handle);
+    ObjectRef constant = MakeRef(broker(), constant_handle);
     if (constant.IsJSObject()) constant.AsJSObject().SerializeObjectCreateMap();
   }
 }
@@ -2575,16 +2575,16 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
     case Builtins::kMapIteratorPrototypeNext:
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kOrderedHashTableHealIndex));
-      ObjectRef(broker(),
-                broker()->isolate()->factory()->empty_ordered_hash_map());
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kOrderedHashTableHealIndex));
+      MakeRef<FixedArray>(
+          broker(), broker()->isolate()->factory()->empty_ordered_hash_map());
       break;
     case Builtins::kSetIteratorPrototypeNext:
-      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                              Builtins::kOrderedHashTableHealIndex));
-      ObjectRef(broker(),
-                broker()->isolate()->factory()->empty_ordered_hash_set());
+      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                            Builtins::kOrderedHashTableHealIndex));
+      MakeRef<FixedArray>(
+          broker(), broker()->isolate()->factory()->empty_ordered_hash_set());
       break;
     default:
       break;
@@ -3244,7 +3244,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
   }
 
   for (Handle<Object> hint : receiver->constants()) {
-    ObjectRef object(broker(), hint);
+    ObjectRef object = MakeRef(broker(), hint);
     if (access_mode == AccessMode::kLoad && object.IsJSObject()) {
       MapRef map_ref = object.AsJSObject().map();
       ProcessMapForNamedPropertyAccess(receiver, map_ref, map_ref,
@@ -3313,7 +3313,7 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
   }
 
   for (Handle<Object> hint : receiver.constants()) {
-    ObjectRef receiver_ref(broker(), hint);
+    ObjectRef receiver_ref = MakeRef(broker(), hint);
 
     // For JSNativeContextSpecialization::InferRootMap
     if (receiver_ref.IsHeapObject()) {
@@ -3328,7 +3328,7 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
     // For JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant.
     if (access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) {
       for (Handle<Object> hint : key.constants()) {
-        ObjectRef key_ref(broker(), hint);
+        ObjectRef key_ref = MakeRef(broker(), hint);
         // TODO(neis): Do this for integer-HeapNumbers too?
         if (key_ref.IsSmi() && key_ref.AsSmi() >= 0) {
           base::Optional<ObjectRef> element;
@@ -3502,8 +3502,7 @@ void SerializerForBackgroundCompilation::VisitTestInstanceOf(
 
   bool walk_prototypes = false;
   for (Handle<Object> constant : rhs.constants()) {
-    ProcessConstantForInstanceOf(ObjectRef(broker(), constant),
-                                 &walk_prototypes);
+    ProcessConstantForInstanceOf(MakeRef(broker(), constant), &walk_prototypes);
   }
   if (walk_prototypes) ProcessHintsForHasInPrototypeChain(lhs);
 
@@ -3524,8 +3523,8 @@ void SerializerForBackgroundCompilation::VisitToNumber(
 
 void SerializerForBackgroundCompilation::VisitThrowReferenceErrorIfHole(
     BytecodeArrayIterator* iterator) {
-  ObjectRef(broker(),
-            iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  MakeRef(broker(),
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitStaKeyedProperty(

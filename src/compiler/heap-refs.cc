@@ -497,7 +497,7 @@ ObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
                                          FieldIndex field_index) {
   Handle<Object> constant =
       JSObject::FastPropertyAt(receiver, representation, field_index);
-  return ObjectRef(broker, constant);
+  return MakeRef(broker, constant);
 }
 
 ObjectRef GetOwnDictionaryPropertyFromHeap(JSHeapBroker* broker,
@@ -505,7 +505,7 @@ ObjectRef GetOwnDictionaryPropertyFromHeap(JSHeapBroker* broker,
                                            InternalIndex dict_index) {
   Handle<Object> constant =
       JSObject::DictionaryPropertyAt(receiver, dict_index);
-  return ObjectRef(broker, constant);
+  return MakeRef(broker, constant);
 }
 
 }  // namespace
@@ -3783,8 +3783,8 @@ Maybe<double> ObjectRef::OddballToNumber() const {
 
   switch (type) {
     case OddballType::kBoolean: {
-      ObjectRef true_ref(broker(),
-                         broker()->isolate()->factory()->true_value());
+      ObjectRef true_ref = MakeRef<Object>(
+          broker(), broker()->isolate()->factory()->true_value());
       return this->equals(true_ref) ? Just(1.0) : Just(0.0);
       break;
     }
@@ -3965,13 +3965,6 @@ base::Optional<ObjectRef> SourceTextModuleRef::import_meta() const {
   }
   return ObjectRef(broker(),
                    data()->AsSourceTextModule()->GetImportMeta(broker()));
-}
-
-ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object,
-                     bool check_type)
-    : broker_(broker) {
-  CHECK_NE(broker->mode(), JSHeapBroker::kRetired);
-  data_ = broker->GetOrCreateData(object);
 }
 
 namespace {

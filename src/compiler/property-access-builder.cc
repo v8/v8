@@ -127,7 +127,7 @@ Node* PropertyAccessBuilder::ResolveHolder(
     PropertyAccessInfo const& access_info, Node* lookup_start_object) {
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
-    return jsgraph()->Constant(ObjectRef(broker(), holder));
+    return jsgraph()->Constant(MakeRef(broker(), holder));
   }
   return lookup_start_object;
 }

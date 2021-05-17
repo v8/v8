@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
@@ -837,7 +838,7 @@ Type Type::Constant(double value, Zone* zone) {
 }
 
 Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
-  ObjectRef ref(broker, value);
+  ObjectRef ref = MakeRef(broker, value);
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
