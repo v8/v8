@@ -551,7 +551,7 @@ void TurboAssembler::DecompressTaggedSigned(Register destination,
 void TurboAssembler::DecompressTaggedSigned(Register destination,
                                             MemOperand field_operand) {
   RecordComment("[ DecompressTaggedSigned");
-  LoadWord(destination, field_operand, r0);
+  LoadU32(destination, field_operand, r0);
   RecordComment("]");
 }
 
@@ -566,7 +566,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
 void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              MemOperand field_operand) {
   RecordComment("[ DecompressTaggedPointer");
-  LoadWord(destination, field_operand, r0);
+  LoadU32(destination, field_operand, r0);
   add(destination, destination, kRootRegister);
   RecordComment("]");
 }
@@ -574,7 +574,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
 void TurboAssembler::DecompressAnyTagged(Register destination,
                                          MemOperand field_operand) {
   RecordComment("[ DecompressAnyTagged");
-  LoadWord(destination, field_operand, r0);
+  LoadU32(destination, field_operand, r0);
   add(destination, destination, kRootRegister);
   RecordComment("]");
 }
@@ -2789,43 +2789,41 @@ void TurboAssembler::StorePU(Register src, const MemOperand& mem,
   }
 }
 
-void TurboAssembler::LoadWordArith(Register dst, const MemOperand& mem,
-                                   Register scratch) {
+void TurboAssembler::LoadS32(Register dst, const MemOperand& mem,
+                             Register scratch) {
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
-    DCHECK(scratch != no_reg);
+    CHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
     lwax(dst, MemOperand(mem.ra(), scratch));
   } else {
-#if V8_TARGET_ARCH_PPC64
     int misaligned = (offset & 3);
     if (misaligned) {
       // adjust base to conform to offset alignment requirements
       // Todo: enhance to use scratch if dst is unsuitable
-      DCHECK(dst != r0);
+      CHECK(dst != r0);
       addi(dst, mem.ra(), Operand((offset & 3) - 4));
       lwa(dst, MemOperand(dst, (offset & ~3) + 4));
     } else {
       lwa(dst, mem);
     }
-#else
-    lwz(dst, mem);
-#endif
   }
 }
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand currently only supports d-form
-void TurboAssembler::LoadWord(Register dst, const MemOperand& mem,
-                              Register scratch) {
+void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
+                             Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
-    LoadIntLiteral(scratch, offset);
+    CHECK(scratch != no_reg);
+    mov(scratch, Operand(offset));
     lwzx(dst, MemOperand(base, scratch));
   } else {
+    // lwz can handle offset misalign
     lwz(dst, mem);
   }
 }
@@ -3278,7 +3276,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // Check whether the Code object is an off-heap trampoline. If so, call its
     // (off-heap) entry point directly without going through the (on-heap)
     // trampoline.  Otherwise, just call the Code object as always.
-    LoadWordArith(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
+    LoadS32(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
     mov(r0, Operand(Code::IsOffHeapTrampoline::kMask));
     and_(r0, scratch, r0, SetRC);
     bne(&if_code_is_off_heap, cr0);
@@ -3291,8 +3289,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // An off-heap trampoline, the entry point is loaded from the builtin entry
     // table.
     bind(&if_code_is_off_heap);
-    LoadWordArith(scratch,
-                  FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
+    LoadS32(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
     ShiftLeftImm(destination, scratch, Operand(kSystemPointerSizeLog2));
     add(destination, destination, kRootRegister);
     LoadU64(destination,

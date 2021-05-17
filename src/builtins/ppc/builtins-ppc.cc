@@ -867,7 +867,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ LoadTaggedPointerField(
       scratch,
       FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
-  __ LoadWordArith(
+  __ LoadS32(
       scratch,
       FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(scratch, Code::kMarkedForDeoptimizationBit, r0);
@@ -1080,9 +1080,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register optimization_state = r7;
 
   // Read off the optimization state in the feedback vector.
-  __ LoadWord(optimization_state,
-              FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset),
-              r0);
+  __ LoadU32(optimization_state,
+             FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset),
+             r0);
 
   // Check if the optimized code slot is not empty or has a optimization marker.
   Label has_optimized_code_or_marker;
@@ -1095,7 +1095,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&not_optimized);
 
   // Increment invocation count for the function.
-  __ LoadWord(
+  __ LoadU32(
       r8,
       FieldMemOperand(feedback_vector, FeedbackVector::kInvocationCountOffset),
       r0);
@@ -1163,10 +1163,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // If the bytecode array has a valid incoming new target or generator object
   // register, initialize it with incoming value which was passed in r6.
   Label no_incoming_new_target_or_generator_register;
-  __ LoadWordArith(
-      r8, FieldMemOperand(
-              kInterpreterBytecodeArrayRegister,
-              BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
+  __ LoadS32(r8,
+             FieldMemOperand(
+                 kInterpreterBytecodeArrayRegister,
+                 BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
   __ cmpi(r8, Operand::Zero());
   __ beq(&no_incoming_new_target_or_generator_register);
   __ ShiftLeftImm(r8, r8, Operand(kSystemPointerSizeLog2));
