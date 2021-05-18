@@ -14044,9 +14044,6 @@ TNode<BoolT> CodeStubAssembler::IsSideEffectFreeDebuggingActive() {
   TNode<BoolT> is_active =
       Word32Equal(debug_execution_mode,
                   Int32Constant(DebugInfo::ExecutionMode::kSideEffects));
-#ifdef DEBUG
-  CSA_ASSERT(this, Word32Or(IsDebugActive(), Word32BinaryNot(is_active)));
-#endif
 
   return is_active;
 }
