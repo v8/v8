@@ -734,6 +734,8 @@ class BaseTestRunner(object):
       factor *= 2
     if self.build_config.predictable:
       factor *= 4
+    if self.build_config.tsan:
+      factor *= 1.5
     if self.build_config.use_sanitizer:
       factor *= 1.5
     if self.build_config.is_full_debug:
