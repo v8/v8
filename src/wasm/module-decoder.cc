@@ -2218,8 +2218,12 @@ class ModuleDecoderImpl : public Decoder {
               kExprGlobalGet);
           return {};
         }
-        uint32_t index = consume_element_func_index();
+        uint32_t index = this->consume_u32v("global index");
         if (failed()) return {};
+        if (index >= module_->globals.size()) {
+          errorf("Out-of-bounds global index %d", index);
+          return {};
+        }
         expect_u8("end opcode", kExprEnd);
         return WasmInitExpr::GlobalGet(index);
       }

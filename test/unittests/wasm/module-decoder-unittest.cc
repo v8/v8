@@ -1905,6 +1905,17 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
   EXPECT_FAILURE(data);
 }
 
+TEST_F(WasmModuleVerifyTest, ElementSectionGlobalGetOutOfBounds) {
+  WASM_FEATURE_SCOPE(reftypes);
+  static const byte data[] = {
+      SECTION(Element, ENTRY_COUNT(1),
+              0x05,            // Mode: Passive with expressions-as-elements
+              kFuncRefCode,    // type
+              ENTRY_COUNT(1),  // element count
+              kExprGlobalGet, 0x00, kExprEnd)};  // init. expression
+  EXPECT_FAILURE_WITH_MSG(data, "Out-of-bounds global index 0");
+}
+
 TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
