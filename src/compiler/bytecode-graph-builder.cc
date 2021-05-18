@@ -1594,7 +1594,7 @@ void BytecodeGraphBuilder::VisitLdaSmi() {
 }
 
 void BytecodeGraphBuilder::VisitLdaConstant() {
-  ObjectRef object = MakeRef(broker(), GetConstantForIndexOperand(0));
+  ObjectRef object(broker(), GetConstantForIndexOperand(0));
   Node* node = jsgraph()->Constant(object);
   environment()->BindAccumulator(node);
 }
@@ -1826,7 +1826,7 @@ void BytecodeGraphBuilder::VisitStaCurrentContextSlot() {
 void BytecodeGraphBuilder::BuildLdaLookupSlot(TypeofMode typeof_mode) {
   PrepareEagerCheckpoint();
   Node* name =
-      jsgraph()->Constant(MakeRef(broker(), GetConstantForIndexOperand(0)));
+      jsgraph()->Constant(ObjectRef(broker(), GetConstantForIndexOperand(0)));
   const Operator* op =
       javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
                                     ? Runtime::kLoadLookupSlot
@@ -1978,8 +1978,8 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
     // Slow path, do a runtime load lookup.
     set_environment(slow_environment);
     {
-      Node* name =
-          jsgraph()->Constant(MakeRef(broker(), GetConstantForIndexOperand(0)));
+      Node* name = jsgraph()->Constant(
+          ObjectRef(broker(), GetConstantForIndexOperand(0)));
 
       const Operator* op =
           javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
@@ -2061,7 +2061,7 @@ void BytecodeGraphBuilder::VisitStaLookupSlot() {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* name =
-      jsgraph()->Constant(MakeRef(broker(), GetConstantForIndexOperand(0)));
+      jsgraph()->Constant(ObjectRef(broker(), GetConstantForIndexOperand(0)));
   int bytecode_flags = bytecode_iterator().GetFlagOperand(1);
   LanguageMode language_mode = static_cast<LanguageMode>(
       interpreter::StoreLookupSlotFlags::LanguageModeBit::decode(
@@ -2981,7 +2981,7 @@ void BytecodeGraphBuilder::VisitThrowReferenceErrorIfHole() {
   Node* check_for_hole = NewNode(simplified()->ReferenceEqual(), accumulator,
                                  jsgraph()->TheHoleConstant());
   Node* name =
-      jsgraph()->Constant(MakeRef(broker(), GetConstantForIndexOperand(0)));
+      jsgraph()->Constant(ObjectRef(broker(), GetConstantForIndexOperand(0)));
   BuildHoleCheckAndThrow(check_for_hole,
                          Runtime::kThrowAccessedUninitializedVariable, name);
 }
