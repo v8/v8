@@ -25,6 +25,7 @@ AtomicEntryFlag WriteBarrier::incremental_or_concurrent_marking_flag_;
 
 namespace {
 
+template <MarkerBase::WriteBarrierType type>
 void ProcessMarkValue(HeapObjectHeader& header, MarkerBase* marker,
                       const void* value) {
 #if defined(CPPGC_CAGED_HEAP)
@@ -46,7 +47,7 @@ void ProcessMarkValue(HeapObjectHeader& header, MarkerBase* marker,
     return;
   }
 
-  marker->WriteBarrierForObject(header);
+  marker->WriteBarrierForObject<type>(header);
 }
 
 }  // namespace
@@ -73,7 +74,8 @@ void WriteBarrier::DijkstraMarkingBarrierSlow(const void* value) {
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
   if (!header.TryMarkAtomic()) return;
 
-  ProcessMarkValue(header, heap->marker(), value);
+  ProcessMarkValue<MarkerBase::WriteBarrierType::kDijkstra>(
+      header, heap->marker(), value);
 }
 
 // static
@@ -117,7 +119,8 @@ void WriteBarrier::SteeleMarkingBarrierSlow(const void* value) {
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
   if (!header.IsMarked<AccessMode::kAtomic>()) return;
 
-  ProcessMarkValue(header, heap->marker(), value);
+  ProcessMarkValue<MarkerBase::WriteBarrierType::kSteele>(
+      header, heap->marker(), value);
 }
 
 #if defined(CPPGC_YOUNG_GENERATION)
