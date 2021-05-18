@@ -94,6 +94,9 @@
       'filepath': 'src/base/ieee754\.(cc|h)' \
                   '|src/base/overflowing-math.h' \
                   '|LICENSE.fdlibm',
+    },
+    'regexp': {
+      'filepath': 'src/.*regexp',
     }
   },
 
@@ -148,6 +151,10 @@
     'ieee754': [
       'rtoy+watch@chromium.org',
       'hongchan+watch@chromium.org'
+    ],
+    'regexp': [
+      'jgruber+watch@chromium.org',
+      'pthier+watch@chromium.org'
     ],
   },
 }
