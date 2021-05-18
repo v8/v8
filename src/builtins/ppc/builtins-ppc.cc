@@ -396,7 +396,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Copy the function arguments from the generator object's register file.
   __ LoadTaggedPointerField(
       r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadHalfWord(
+  __ LoadU16(
       r6, FieldMemOperand(r6, SharedFunctionInfo::kFormalParameterCountOffset));
   __ LoadTaggedPointerField(
       r5,
@@ -436,9 +436,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     __ LoadTaggedPointerField(
         r3, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadHalfWord(
-        r3,
-        FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ LoadU16(r3, FieldMemOperand(
+                       r3, SharedFunctionInfo::kFormalParameterCountOffset));
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
@@ -1073,7 +1072,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // and update invocation count. Otherwise, setup the stack frame.
   __ LoadTaggedPointerField(
       r7, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
-  __ LoadHalfWord(r7, FieldMemOperand(r7, Map::kInstanceTypeOffset));
+  __ LoadU16(r7, FieldMemOperand(r7, Map::kInstanceTypeOffset));
   __ cmpi(r7, Operand(FEEDBACK_VECTOR_TYPE));
   __ bne(&push_stack_frame);
 
@@ -1864,8 +1863,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ AssertNotSmi(r5);
     __ LoadTaggedPointerField(scratch,
                               FieldMemOperand(r5, HeapObject::kMapOffset));
-    __ LoadHalfWord(scratch,
-                    FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+    __ LoadU16(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
     __ cmpi(scratch, Operand(FIXED_ARRAY_TYPE));
     __ beq(&ok);
     __ cmpi(scratch, Operand(FIXED_DOUBLE_ARRAY_TYPE));
@@ -2122,7 +2120,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
-  __ LoadHalfWord(
+  __ LoadU16(
       r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(r4, no_reg, r5, r3, InvokeType::kJump);
 

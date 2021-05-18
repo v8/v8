@@ -1581,9 +1581,9 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   LoadTaggedPointerField(
       temp_reg, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   LoadTaggedPointerField(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
-  LoadHalfWord(expected_reg,
-               FieldMemOperand(
-                   temp_reg, SharedFunctionInfo::kFormalParameterCountOffset));
+  LoadU16(expected_reg,
+          FieldMemOperand(temp_reg,
+                          SharedFunctionInfo::kFormalParameterCountOffset));
 
   InvokeFunctionCode(fun, new_target, expected_reg, actual_parameter_count,
                      type);
@@ -1658,7 +1658,7 @@ void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
   DCHECK_LT(lower_limit, higher_limit);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  LoadHalfWord(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   mov(scratch, Operand(lower_limit));
   sub(scratch, type_reg, scratch);
   cmpli(scratch, Operand(higher_limit - lower_limit));
@@ -2843,8 +2843,8 @@ void TurboAssembler::StoreWord(Register src, const MemOperand& mem,
   }
 }
 
-void MacroAssembler::LoadHalfWordArith(Register dst, const MemOperand& mem,
-                                       Register scratch) {
+void MacroAssembler::LoadS16(Register dst, const MemOperand& mem,
+                             Register scratch) {
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
@@ -2858,14 +2858,14 @@ void MacroAssembler::LoadHalfWordArith(Register dst, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand currently only supports d-form
-void MacroAssembler::LoadHalfWord(Register dst, const MemOperand& mem,
-                                  Register scratch) {
+void MacroAssembler::LoadU16(Register dst, const MemOperand& mem,
+                             Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
     DCHECK_NE(scratch, no_reg);
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
     lhzx(dst, MemOperand(base, scratch));
   } else {
     lhz(dst, mem);

@@ -793,10 +793,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // load a literal double value <value> to FPR <result>
 
-  void LoadHalfWord(Register dst, const MemOperand& mem,
-                    Register scratch = no_reg);
-  void LoadHalfWordArith(Register dst, const MemOperand& mem,
-                         Register scratch = no_reg);
+  void LoadU16(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadS16(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void StoreHalfWord(Register src, const MemOperand& mem, Register scratch);
 
   void LoadByte(Register dst, const MemOperand& mem, Register scratch);
