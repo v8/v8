@@ -599,6 +599,7 @@
   # Slow tests.
   'compiler/regress-1125145': [SKIP],
   'compiler/regress-crbug-11564': [PASS, SLOW],
+  'd8/d8-worker-shutdown*': [PASS, SLOW],
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-430201': [SKIP],
