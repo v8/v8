@@ -4119,11 +4119,12 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   Ld(cp, MemOperand(scratch));
 
-#ifdef DEBUG
-  li(scratch,
-     ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  Sd(a3, MemOperand(scratch));
-#endif
+  if (FLAG_debug_code) {
+    UseScratchRegisterScope temp(this);
+    Register scratch2 = temp.Acquire();
+    li(scratch2, Operand(Context::kInvalidContext));
+    Sd(scratch2, MemOperand(scratch));
+  }
 
   // Pop the arguments, restore registers, and return.
   mv(sp, fp);  // Respect ABI stack constraint.
