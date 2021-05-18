@@ -336,7 +336,7 @@ class JSObjectRef : public JSReceiverRef {
 
   base::Optional<FixedArrayBaseRef> elements() const;
   void SerializeElements();
-  bool IsElementsTenured();
+  void EnsureElementsTenured();
   ElementsKind GetElementsKind() const;
 
   void SerializeObjectCreateMap();
