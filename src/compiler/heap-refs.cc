@@ -2775,6 +2775,12 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
   DCHECK(!object->IsSmi());
 
   const bool crash_on_error = (flags & kCrashOnError) != 0;
+  if ((flags & kAssumeMemoryFence) == 0 &&
+      ObjectMayBeUninitialized(HeapObject::cast(*object))) {
+    TRACE_BROKER_MISSING(this, "Object may be uninitialized " << *object);
+    CHECK_WITH_MSG(!crash_on_error, "Ref construction failed");
+    return nullptr;
+  }
 
   if (IsReadOnlyHeapObjectForCompiler(HeapObject::cast(*object))) {
     entry = refs_->LookupOrInsert(object.address());
