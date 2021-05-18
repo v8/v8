@@ -143,3 +143,10 @@ auto_builder(
     executable = "recipe:v8/auto_roll_release_process",
     schedule = "10,25,40,55 * * * *",
 )
+
+auto_builder(
+    name = "Infra Expriments",
+    executable = "recipe:v8/spike",
+    schedule = "* * * * * 1970",
+    in_list = "infra",
+)

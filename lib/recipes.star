@@ -23,70 +23,30 @@ def _recipe_for_package(cipd_package):
 
     return recipe
 
-build_recipe = _recipe_for_package(
-    "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
-)
+def define_all_recipes():
+    build_recipe = _recipe_for_package(
+        "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
+    )
+    build_recipes = [
+        "chromium",
+        "chromium_integration",
+        "chromium_trybot",
+        "run_presubmit",
+        "v8",
+        "v8/archive",
+        "v8/auto_roll_deps",
+        "v8/auto_roll_push",
+        "v8/auto_roll_release_process",
+        "v8/auto_roll_v8_deps",
+        "v8/auto_tag",
+        "v8/flako",
+        "v8/node_integration_ng",
+        "v8/verify_flakes",
+        "v8/presubmit",
+        "lkgr_finder",
+        "v8/spike"
+    ]
+    for recipe in build_recipes:
+        build_recipe(name = "recipe:" + recipe)
 
-build_recipe(
-    name = "recipe:chromium",
-)
-
-build_recipe(
-    name = "recipe:chromium_integration",
-)
-
-build_recipe(
-    name = "recipe:chromium_trybot",
-)
-
-build_recipe(
-    name = "recipe:run_presubmit",
-)
-
-build_recipe(
-    name = "recipe:v8",
-)
-
-build_recipe(
-    name = "recipe:v8/archive",
-)
-
-build_recipe(
-    name = "recipe:v8/auto_roll_deps",
-)
-
-build_recipe(
-    name = "recipe:v8/auto_roll_push",
-)
-
-build_recipe(
-    name = "recipe:v8/auto_roll_release_process",
-)
-
-build_recipe(
-    name = "recipe:v8/auto_roll_v8_deps",
-)
-
-build_recipe(
-    name = "recipe:v8/auto_tag",
-)
-
-build_recipe(
-    name = "recipe:v8/flako",
-)
-
-build_recipe(
-    name = "recipe:v8/node_integration_ng",
-)
-
-build_recipe(
-    name = "recipe:v8/verify_flakes",
-)
-
-build_recipe(
-    name = "recipe:v8/presubmit",
-)
-
-build_recipe(
-    name = "recipe:lkgr_finder",
-)
+define_all_recipes()
