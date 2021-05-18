@@ -134,13 +134,9 @@ void JSHeapBroker::Retire() {
 
 void JSHeapBroker::SetTargetNativeContextRef(
     Handle<NativeContext> native_context) {
-  // The MapData constructor uses {target_native_context_}. This creates a
-  // benign cycle that we break by setting {target_native_context_} right before
-  // starting to serialize (thus creating dummy data), and then again properly
-  // right after.
   DCHECK((mode() == kDisabled && !target_native_context_.has_value()) ||
          (mode() == kSerializing &&
-          target_native_context_->object().equals(native_context) &&
+          target_native_context_->object().is_identical_to(native_context) &&
           target_native_context_->is_unserialized_heap_object()));
   target_native_context_ = MakeRef(this, *native_context);
 }

@@ -2624,8 +2624,7 @@ void JSHeapBroker::PrintRefsAnalysis() const {
 }
 #endif  // DEBUG
 
-void JSHeapBroker::InitializeAndStartSerializing(
-    Handle<NativeContext> native_context) {
+void JSHeapBroker::InitializeAndStartSerializing() {
   TraceScope tracer(this, "JSHeapBroker::InitializeAndStartSerializing");
 
   CHECK_EQ(mode_, kDisabled);
@@ -2638,7 +2637,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
 
   CollectArrayAndObjectPrototypes();
 
-  SetTargetNativeContextRef(native_context);
+  SetTargetNativeContextRef(target_native_context().object());
   target_native_context().Serialize();
   if (!is_concurrent_inlining()) {
     // Perform full native context serialization now if we can't do it later on

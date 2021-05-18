@@ -1506,7 +1506,7 @@ struct HeapBrokerInitializationPhase {
   DECL_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS(HeapBrokerInitialization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    data->broker()->InitializeAndStartSerializing(data->native_context());
+    data->broker()->InitializeAndStartSerializing();
   }
 };
 

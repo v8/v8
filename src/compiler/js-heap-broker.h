@@ -100,7 +100,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   }
   void SetTargetNativeContextRef(Handle<NativeContext> native_context);
 
-  void InitializeAndStartSerializing(Handle<NativeContext> native_context);
+  void InitializeAndStartSerializing();
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
