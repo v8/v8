@@ -683,6 +683,9 @@ DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
 DEFINE_BOOL(
     turbo_concurrent_get_property_access_info, false,
     "concurrently call GetPropertyAccessInfo (only with --concurrent-inlining)")
+DEFINE_BOOL(turbo_concurrent_inlining_check_ispendingallocation, false,
+            "when --concurrent-inlining is enabled, check IsPendingAllocation "
+            "in Ref construction")
 DEFINE_INT(max_serializer_nesting, 25,
            "maximum levels for nesting child serializers")
 DEFINE_WEAK_IMPLICATION(future, concurrent_inlining)

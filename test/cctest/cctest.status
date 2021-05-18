@@ -728,6 +728,7 @@
   'test-heap/LeakNativeContextVia*': [PASS, FAIL],
   'test-heap/NewSpaceObjectsInOptimizedCode': [PASS, FAIL],
   'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [PASS, FAIL],
+  'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, FAIL],
 }], # variant == stress_concurrent_inlining
 
 ################################################################################
