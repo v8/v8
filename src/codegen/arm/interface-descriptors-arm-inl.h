@@ -20,18 +20,13 @@ constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
 }
 
 // static
-constexpr auto RecordWriteDescriptor::registers() {
+constexpr auto WriteBarrierDescriptor::registers() {
   return RegisterArray(r0, r1, r2, r3, r4, kReturnRegister0);
 }
 
 // static
 constexpr auto DynamicCheckMapsDescriptor::registers() {
   return RegisterArray(r0, r1, r2, r3, cp);
-}
-
-// static
-constexpr auto EphemeronKeyBarrierDescriptor::registers() {
-  return RegisterArray(r0, r1, r2, r3, r4, kReturnRegister0);
 }
 
 // static

@@ -840,14 +840,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode);
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Address wasm_target);
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
+
+  void CallRecordWriteStub(
+      Register object, Operand offset,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -1462,11 +1461,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                 byte* pc);
 
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
-
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
-                           Address wasm_target);
 };
 
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {

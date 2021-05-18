@@ -33,8 +33,12 @@ namespace internal {
 
 #define BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM)                        \
   /* GC write barrirer */                                                      \
-  TFC(RecordWrite, RecordWrite)                                                \
-  TFC(EphemeronKeyBarrier, EphemeronKeyBarrier)                                \
+  TFC(RecordWriteEmitRememberedSetSaveFP, WriteBarrier)                        \
+  TFC(RecordWriteOmitRememberedSetSaveFP, WriteBarrier)                        \
+  TFC(RecordWriteEmitRememberedSetIgnoreFP, WriteBarrier)                      \
+  TFC(RecordWriteOmitRememberedSetIgnoreFP, WriteBarrier)                      \
+  TFC(EphemeronKeyBarrierSaveFP, WriteBarrier)                                 \
+  TFC(EphemeronKeyBarrierIgnoreFP, WriteBarrier)                               \
                                                                                \
   /* Adaptor for CPP builtin */                                                \
   TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)                          \

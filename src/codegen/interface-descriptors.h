@@ -67,7 +67,6 @@ namespace internal {
   V(ContextOnly)                         \
   V(CppBuiltinAdaptor)                   \
   V(DynamicCheckMaps)                    \
-  V(EphemeronKeyBarrier)                 \
   V(FastNewObject)                       \
   V(ForInPrepare)                        \
   V(GetIteratorStackParameter)           \
@@ -96,7 +95,6 @@ namespace internal {
   V(LoadWithReceiverBaseline)            \
   V(LookupBaseline)                      \
   V(NoContext)                           \
-  V(RecordWrite)                         \
   V(ResumeGenerator)                     \
   V(SuspendGeneratorBaseline)            \
   V(ResumeGeneratorBaseline)             \
@@ -124,6 +122,7 @@ namespace internal {
   V(WasmFloat64ToNumber)                 \
   V(WasmI32AtomicWait32)                 \
   V(WasmI64AtomicWait32)                 \
+  V(WriteBarrier)                        \
   BUILTIN_LIST_TFS(V)                    \
   TORQUE_BUILTIN_LIST_TFC(V)
 
@@ -992,31 +991,14 @@ class FastNewObjectDescriptor
   static constexpr auto registers();
 };
 
-class RecordWriteDescriptor final
-    : public StaticCallInterfaceDescriptor<RecordWriteDescriptor> {
+class WriteBarrierDescriptor final
+    : public StaticCallInterfaceDescriptor<WriteBarrierDescriptor> {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlot, kRememberedSet, kFPMode)
+  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
-                         MachineType::Pointer(),        // kSlot
-                         MachineType::TaggedSigned(),   // kRememberedSet
-                         MachineType::TaggedSigned())   // kFPMode
+                         MachineType::Pointer())        // kSlotAddress
 
-  DECLARE_DESCRIPTOR(RecordWriteDescriptor)
-
-  static constexpr auto registers();
-  static constexpr bool kRestrictAllocatableRegisters = true;
-};
-
-class EphemeronKeyBarrierDescriptor final
-    : public StaticCallInterfaceDescriptor<EphemeronKeyBarrierDescriptor> {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress, kFPMode)
-  DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
-                         MachineType::Pointer(),        // kSlotAddress
-                         MachineType::TaggedSigned())   // kFPMode
-
-  DECLARE_DESCRIPTOR(EphemeronKeyBarrierDescriptor)
-
+  DECLARE_DESCRIPTOR(WriteBarrierDescriptor)
   static constexpr auto registers();
   static constexpr bool kRestrictAllocatableRegisters = true;
 };

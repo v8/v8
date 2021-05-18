@@ -1039,7 +1039,10 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
     case Builtins::kProxyHasProperty:
     case Builtins::kProxyIsExtensible:
     case Builtins::kProxyGetPrototypeOf:
-    case Builtins::kRecordWrite:
+    case Builtins::kRecordWriteEmitRememberedSetSaveFP:
+    case Builtins::kRecordWriteOmitRememberedSetSaveFP:
+    case Builtins::kRecordWriteEmitRememberedSetIgnoreFP:
+    case Builtins::kRecordWriteOmitRememberedSetIgnoreFP:
     case Builtins::kStringAdd_CheckNone:
     case Builtins::kStringEqual:
     case Builtins::kStringIndexOf:

@@ -83,6 +83,37 @@ class Builtins {
   static BytecodeOffset GetContinuationBytecodeOffset(Name name);
   static Name GetBuiltinFromBytecodeOffset(BytecodeOffset);
 
+  static Name GetRecordWriteStub(RememberedSetAction remembered_set_action,
+                                 SaveFPRegsMode fp_mode) {
+    switch (remembered_set_action) {
+      case RememberedSetAction::kEmit:
+        switch (fp_mode) {
+          case SaveFPRegsMode::kIgnore:
+            return Builtins::kRecordWriteEmitRememberedSetIgnoreFP;
+          case SaveFPRegsMode::kSave:
+            return Builtins::kRecordWriteEmitRememberedSetSaveFP;
+        }
+      case RememberedSetAction::kOmit:
+        switch (fp_mode) {
+          case SaveFPRegsMode::kIgnore:
+            return Builtins::kRecordWriteOmitRememberedSetIgnoreFP;
+          case SaveFPRegsMode::kSave:
+            return Builtins::kRecordWriteOmitRememberedSetSaveFP;
+        }
+    }
+    UNREACHABLE();
+  }
+
+  static constexpr Name GetEphemeronKeyBarrierStub(SaveFPRegsMode fp_mode) {
+    switch (fp_mode) {
+      case SaveFPRegsMode::kIgnore:
+        return Builtins::kEphemeronKeyBarrierIgnoreFP;
+      case SaveFPRegsMode::kSave:
+        return Builtins::kEphemeronKeyBarrierSaveFP;
+    }
+    UNREACHABLE();
+  }
+
   // Convenience wrappers.
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
   Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);

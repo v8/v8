@@ -377,14 +377,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode);
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Address wasm_target);
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
+
+  void CallRecordWriteStub(
+      Register object, Operand offset,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -622,11 +621,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
-
-  void CallRecordWriteStub(Register object, Operand offset,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
-                           Address wasm_target);
 };
 
 // MacroAssembler implements a collection of frequently used macros.

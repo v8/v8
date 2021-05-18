@@ -131,6 +131,8 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
     RecordComment(str.str().c_str());
   }
 
+  enum class RecordWriteCallMode { kDefault, kWasm };
+
  protected:
   Isolate* const isolate_ = nullptr;
 

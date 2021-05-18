@@ -415,17 +415,15 @@ void TurboAssembler::RestoreRegisters(RegList registers) {
 
 void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
                                              SaveFPRegsMode fp_mode) {
-  EphemeronKeyBarrierDescriptor descriptor;
+  WriteBarrierDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
 
   SaveRegisters(registers);
 
   Register object_parameter(
-      descriptor.GetRegisterParameter(EphemeronKeyBarrierDescriptor::kObject));
-  Register slot_parameter(descriptor.GetRegisterParameter(
-      EphemeronKeyBarrierDescriptor::kSlotAddress));
-  Register fp_mode_parameter(
-      descriptor.GetRegisterParameter(EphemeronKeyBarrierDescriptor::kFPMode));
+      descriptor.GetRegisterParameter(WriteBarrierDescriptor::kObject));
+  Register slot_parameter(
+      descriptor.GetRegisterParameter(WriteBarrierDescriptor::kSlotAddress));
 
   push(object);
   push(address);
@@ -433,8 +431,8 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
   pop(slot_parameter);
   pop(object_parameter);
 
-  Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
-  Call(isolate()->builtins()->builtin_handle(Builtins::kEphemeronKeyBarrier),
+  Call(isolate()->builtins()->builtin_handle(
+           Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
 
   RestoreRegisters(registers);
@@ -442,43 +440,16 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
 
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
-  CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
-                      Builtins::kRecordWrite, kNullAddress);
-}
-
-void TurboAssembler::CallRecordWriteStub(
-    Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    Address wasm_target) {
-  CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
-                      Builtins::kNoBuiltinId, wasm_target);
-}
-
-void TurboAssembler::CallRecordWriteStub(
-    Register object, Register address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    int builtin_index, Address wasm_target) {
-  DCHECK_NE(builtin_index == Builtins::kNoBuiltinId,
-            wasm_target == kNullAddress);
-  // TODO(albertnetymk): For now we ignore remembered_set_action and fp_mode,
-  // i.e. always emit remember set and save FP registers in RecordWriteStub. If
-  // large performance regression is observed, we should use these values to
-  // avoid unnecessary work.
-
-  RecordWriteDescriptor descriptor;
+    StubCallMode mode) {
+  WriteBarrierDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
-
   SaveRegisters(registers);
 
   Register object_parameter(
-      descriptor.GetRegisterParameter(RecordWriteDescriptor::kObject));
+      descriptor.GetRegisterParameter(WriteBarrierDescriptor::kObject));
   Register slot_parameter(
-      descriptor.GetRegisterParameter(RecordWriteDescriptor::kSlot));
-  Register remembered_set_parameter(
-      descriptor.GetRegisterParameter(RecordWriteDescriptor::kRememberedSet));
-  Register fp_mode_parameter(
-      descriptor.GetRegisterParameter(RecordWriteDescriptor::kFPMode));
+      descriptor.GetRegisterParameter(WriteBarrierDescriptor::kSlotAddress));
 
   push(object);
   push(address);
@@ -486,17 +457,21 @@ void TurboAssembler::CallRecordWriteStub(
   pop(slot_parameter);
   pop(object_parameter);
 
-  Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
-  Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
-  if (builtin_index == Builtins::kNoBuiltinId) {
+  if (mode == StubCallMode::kCallWasmRuntimeStub) {
     // Use {wasm_call} for direct Wasm call within a module.
+    auto wasm_target =
+        wasm::WasmCode::GetRecordWriteStub(remembered_set_action, fp_mode);
     wasm_call(wasm_target, RelocInfo::WASM_STUB_CALL);
-  } else if (options().inline_offheap_trampolines) {
-    CallBuiltin(builtin_index);
   } else {
-    Handle<Code> code_target =
-        isolate()->builtins()->builtin_handle(Builtins::kRecordWrite);
-    Call(code_target, RelocInfo::CODE_TARGET);
+    auto builtin_index =
+        Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
+    if (options().inline_offheap_trampolines) {
+      CallBuiltin(builtin_index);
+    } else {
+      Handle<Code> code_target =
+          isolate()->builtins()->builtin_handle(builtin_index);
+      Call(code_target, RelocInfo::CODE_TARGET);
+    }
   }
 
   RestoreRegisters(registers);

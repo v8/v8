@@ -348,14 +348,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode);
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Address wasm_target);
   void CallEphemeronKeyBarrier(Register object, Register address,
                                SaveFPRegsMode fp_mode);
+
+  void CallRecordWriteStub(
+      Register object, Register address,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
@@ -923,11 +922,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push a fixed frame, consisting of ra, fp.
   void PushCommonFrame(Register marker_reg = no_reg);
-
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
-                           Address wasm_target);
 };
 
 // MacroAssembler implements a collection of frequently used macros.

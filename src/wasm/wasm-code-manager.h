@@ -51,51 +51,54 @@ struct WasmModule;
 
 // Convenience macro listing all wasm runtime stubs. Note that the first few
 // elements of the list coincide with {compiler::TrapId}, order matters.
-#define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
-  FOREACH_WASM_TRAPREASON(VTRAP)         \
-  V(WasmCompileLazy)                     \
-  V(WasmTriggerTierUp)                   \
-  V(WasmDebugBreak)                      \
-  V(WasmInt32ToHeapNumber)               \
-  V(WasmTaggedNonSmiToInt32)             \
-  V(WasmFloat32ToNumber)                 \
-  V(WasmFloat64ToNumber)                 \
-  V(WasmTaggedToFloat64)                 \
-  V(WasmAllocateJSArray)                 \
-  V(WasmAllocatePair)                    \
-  V(WasmAtomicNotify)                    \
-  V(WasmI32AtomicWait32)                 \
-  V(WasmI32AtomicWait64)                 \
-  V(WasmI64AtomicWait32)                 \
-  V(WasmI64AtomicWait64)                 \
-  V(WasmGetOwnProperty)                  \
-  V(WasmRefFunc)                         \
-  V(WasmMemoryGrow)                      \
-  V(WasmTableInit)                       \
-  V(WasmTableCopy)                       \
-  V(WasmTableFill)                       \
-  V(WasmTableGrow)                       \
-  V(WasmTableGet)                        \
-  V(WasmTableSet)                        \
-  V(WasmStackGuard)                      \
-  V(WasmStackOverflow)                   \
-  V(WasmAllocateFixedArray)              \
-  V(WasmThrow)                           \
-  V(WasmRethrow)                         \
-  V(WasmTraceEnter)                      \
-  V(WasmTraceExit)                       \
-  V(WasmTraceMemory)                     \
-  V(BigIntToI32Pair)                     \
-  V(BigIntToI64)                         \
-  V(DoubleToI)                           \
-  V(I32PairToBigInt)                     \
-  V(I64ToBigInt)                         \
-  V(RecordWrite)                         \
-  V(ToNumber)                            \
-  V(WasmAllocateArrayWithRtt)            \
-  V(WasmAllocateRtt)                     \
-  V(WasmAllocateStructWithRtt)           \
-  V(WasmSubtypeCheck)                    \
+#define WASM_RUNTIME_STUB_LIST(V, VTRAP)  \
+  FOREACH_WASM_TRAPREASON(VTRAP)          \
+  V(WasmCompileLazy)                      \
+  V(WasmTriggerTierUp)                    \
+  V(WasmDebugBreak)                       \
+  V(WasmInt32ToHeapNumber)                \
+  V(WasmTaggedNonSmiToInt32)              \
+  V(WasmFloat32ToNumber)                  \
+  V(WasmFloat64ToNumber)                  \
+  V(WasmTaggedToFloat64)                  \
+  V(WasmAllocateJSArray)                  \
+  V(WasmAllocatePair)                     \
+  V(WasmAtomicNotify)                     \
+  V(WasmI32AtomicWait32)                  \
+  V(WasmI32AtomicWait64)                  \
+  V(WasmI64AtomicWait32)                  \
+  V(WasmI64AtomicWait64)                  \
+  V(WasmGetOwnProperty)                   \
+  V(WasmRefFunc)                          \
+  V(WasmMemoryGrow)                       \
+  V(WasmTableInit)                        \
+  V(WasmTableCopy)                        \
+  V(WasmTableFill)                        \
+  V(WasmTableGrow)                        \
+  V(WasmTableGet)                         \
+  V(WasmTableSet)                         \
+  V(WasmStackGuard)                       \
+  V(WasmStackOverflow)                    \
+  V(WasmAllocateFixedArray)               \
+  V(WasmThrow)                            \
+  V(WasmRethrow)                          \
+  V(WasmTraceEnter)                       \
+  V(WasmTraceExit)                        \
+  V(WasmTraceMemory)                      \
+  V(BigIntToI32Pair)                      \
+  V(BigIntToI64)                          \
+  V(DoubleToI)                            \
+  V(I32PairToBigInt)                      \
+  V(I64ToBigInt)                          \
+  V(RecordWriteEmitRememberedSetSaveFP)   \
+  V(RecordWriteOmitRememberedSetSaveFP)   \
+  V(RecordWriteEmitRememberedSetIgnoreFP) \
+  V(RecordWriteOmitRememberedSetIgnoreFP) \
+  V(ToNumber)                             \
+  V(WasmAllocateArrayWithRtt)             \
+  V(WasmAllocateRtt)                      \
+  V(WasmAllocateStructWithRtt)            \
+  V(WasmSubtypeCheck)                     \
   V(WasmOnStackReplace)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
@@ -147,6 +150,27 @@ class V8_EXPORT_PRIVATE WasmCode final {
 #undef DEF_ENUM
         kRuntimeStubCount
   };
+
+  static constexpr RuntimeStubId GetRecordWriteStub(
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
+    switch (remembered_set_action) {
+      case RememberedSetAction::kEmit:
+        switch (fp_mode) {
+          case SaveFPRegsMode::kIgnore:
+            return RuntimeStubId::kRecordWriteEmitRememberedSetIgnoreFP;
+          case SaveFPRegsMode::kSave:
+            return RuntimeStubId::kRecordWriteEmitRememberedSetSaveFP;
+        }
+      case RememberedSetAction::kOmit:
+        switch (fp_mode) {
+          case SaveFPRegsMode::kIgnore:
+            return RuntimeStubId::kRecordWriteOmitRememberedSetIgnoreFP;
+          case SaveFPRegsMode::kSave:
+            return RuntimeStubId::kRecordWriteOmitRememberedSetSaveFP;
+        }
+    }
+    UNREACHABLE();
+  }
 
   Vector<byte> instructions() const {
     return VectorOf(instructions_, static_cast<size_t>(instructions_size_));

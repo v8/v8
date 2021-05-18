@@ -504,14 +504,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode);
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Address wasm_target);
   void CallEphemeronKeyBarrier(Register object, Register address,
                                SaveFPRegsMode fp_mode);
+
+  void CallRecordWriteStub(
+      Register object, Register address,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   void MoveNumber(Register dst, double value);
   void MoveNonSmi(Register dst, double value);
@@ -611,11 +610,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.
   Register GetSmiConstant(Smi value);
-
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
-                           Address wasm_target);
 };
 
 // MacroAssembler implements a collection of frequently used macros.

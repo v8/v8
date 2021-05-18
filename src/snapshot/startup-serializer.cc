@@ -101,7 +101,10 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
     case Builtins::kAbort:
     case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
     case Builtins::kInterpreterEntryTrampoline:
-    case Builtins::kRecordWrite:
+    case Builtins::kRecordWriteEmitRememberedSetSaveFP:
+    case Builtins::kRecordWriteOmitRememberedSetSaveFP:
+    case Builtins::kRecordWriteEmitRememberedSetIgnoreFP:
+    case Builtins::kRecordWriteOmitRememberedSetIgnoreFP:
       return false;
     default:
       return true;

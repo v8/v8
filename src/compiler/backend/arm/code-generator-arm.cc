@@ -212,7 +212,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       __ CallRecordWriteStub(object_, offset_, remembered_set_action,
-                             save_fp_mode, wasm::WasmCode::kRecordWrite);
+                             save_fp_mode, StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
       __ CallRecordWriteStub(object_, offset_, remembered_set_action,

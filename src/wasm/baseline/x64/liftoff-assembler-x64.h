@@ -382,7 +382,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                 Label::kNear);
   leaq(scratch, dst_op);
   CallRecordWriteStub(dst_addr, scratch, RememberedSetAction::kEmit,
-                      SaveFPRegsMode::kSave, wasm::WasmCode::kRecordWrite);
+                      SaveFPRegsMode::kSave,
+                      StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
 

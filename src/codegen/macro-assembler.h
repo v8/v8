@@ -28,8 +28,6 @@ enum AllocationFlags {
   PRETENURE = 1 << 3,
 };
 
-enum class RememberedSetAction { kOmit, kEmit };
-
 enum class SmiCheck { kOmit, kInline };
 
 // This is the only place allowed to include the platform-specific headers.

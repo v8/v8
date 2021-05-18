@@ -440,14 +440,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode);
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Address wasm_target);
   void CallEphemeronKeyBarrier(Register object, Register address,
                                SaveFPRegsMode fp_mode);
+
+  void CallRecordWriteStub(
+      Register object, Register address,
+      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -488,11 +487,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void ExceptionHandler() {}
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { bind(label); }
-
-  void CallRecordWriteStub(Register object, Register address,
-                           RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
-                           Address wasm_target);
 };
 
 // MacroAssembler implements a collection of frequently used macros.
