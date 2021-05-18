@@ -378,7 +378,8 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   UnifiedHeapMarkingVerifier verifier(*this);
-  verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc());
+  verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc(),
+               stats_collector()->marked_bytes());
 #endif
 
   {

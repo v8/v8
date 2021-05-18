@@ -9,6 +9,7 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/object-view.h"
 
 namespace cppgc {
 namespace internal {
@@ -21,7 +22,8 @@ MarkingVerifierBase::MarkingVerifierBase(
       visitor_(std::move(visitor)) {}
 
 void MarkingVerifierBase::Run(Heap::Config::StackState stack_state,
-                              uintptr_t stack_end) {
+                              uintptr_t stack_end,
+                              size_t expected_marked_bytes) {
   Traverse(&heap_.raw_heap());
   if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
@@ -36,6 +38,9 @@ void MarkingVerifierBase::Run(Heap::Config::StackState stack_state,
                in_construction_objects_heap_.find(header));
     }
   }
+#ifdef CPPGC_VERIFY_LIVE_BYTES
+  CHECK_EQ(expected_marked_bytes, found_marked_bytes_);
+#endif  // CPPGC_VERIFY_LIVE_BYTES
 }
 
 void VerificationState::VerifyMarked(const void* base_object_payload) const {
@@ -96,6 +101,8 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader* header) {
     // Dispatches to conservative tracing implementation.
     TraceConservativelyIfNeeded(*header);
   }
+
+  found_marked_bytes_ += ObjectView(*header).Size() + sizeof(HeapObjectHeader);
 
   verification_state_.SetCurrentParent(nullptr);
 

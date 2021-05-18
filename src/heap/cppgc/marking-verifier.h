@@ -40,7 +40,7 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   MarkingVerifierBase(const MarkingVerifierBase&) = delete;
   MarkingVerifierBase& operator=(const MarkingVerifierBase&) = delete;
 
-  void Run(Heap::Config::StackState, uintptr_t);
+  void Run(Heap::Config::StackState, uintptr_t, size_t);
 
  protected:
   MarkingVerifierBase(HeapBase&, VerificationState&,
@@ -60,6 +60,7 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   std::unordered_set<const HeapObjectHeader*> in_construction_objects_stack_;
   std::unordered_set<const HeapObjectHeader*>* in_construction_objects_ =
       &in_construction_objects_heap_;
+  size_t found_marked_bytes_ = 0;
 };
 
 class V8_EXPORT_PRIVATE MarkingVerifier final : public MarkingVerifierBase {

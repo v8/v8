@@ -279,6 +279,10 @@ declare_args() {
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap = v8_current_cpu == "x64" || v8_current_cpu == "arm64"
 
+  # Enable verification of live bytes in the marking verifier.
+  # TODO(v8:11785): Enable by default when running with the verifier.
+  cppgc_enable_verify_live_bytes = false
+
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
 
@@ -702,6 +706,10 @@ config("features") {
     ":v8_header_features",
     ":cppgc_header_features",
   ]
+
+  if (cppgc_enable_verify_live_bytes) {
+    defines += [ "CPPGC_VERIFY_LIVE_BYTES" ]
+  }
 
   if (v8_embedder_string != "") {
     defines += [ "V8_EMBEDDER_STRING=\"$v8_embedder_string\"" ]

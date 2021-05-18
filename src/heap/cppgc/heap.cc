@@ -189,7 +189,8 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
   MarkingVerifier verifier(*this);
-  verifier.Run(config_.stack_state, stack_end_of_current_gc());
+  verifier.Run(config_.stack_state, stack_end_of_current_gc(),
+               stats_collector()->marked_bytes());
 #endif
 
   subtle::NoGarbageCollectionScope no_gc(*this);
