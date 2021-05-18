@@ -173,6 +173,7 @@ v8_source_set("cctest_sources") {
     "interpreter/test-interpreter.cc",
     "interpreter/test-source-positions.cc",
     "libplatform/test-tracing.cc",
+    "libsampler/signals-and-mutexes.cc",
     "libsampler/test-sampler.cc",
     "manually-externalized-buffer.h",
     "parsing/test-parse-decision.cc",
