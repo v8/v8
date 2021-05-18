@@ -19,6 +19,8 @@ v8::base::LazyMutex g_process_mutex = LAZY_MUTEX_INITIALIZER;
 
 namespace {
 
+v8::base::LazyMutex g_heap_registry_mutex = LAZY_MUTEX_INITIALIZER;
+
 HeapRegistry::Storage& GetHeapRegistryStorage() {
   static v8::base::LazyInstance<HeapRegistry::Storage>::type heap_registry =
       LAZY_INSTANCE_INITIALIZER;
@@ -29,7 +31,7 @@ HeapRegistry::Storage& GetHeapRegistryStorage() {
 
 // static
 void HeapRegistry::RegisterHeap(HeapBase& heap) {
-  v8::base::MutexGuard guard(g_process_mutex.Pointer());
+  v8::base::MutexGuard guard(g_heap_registry_mutex.Pointer());
 
   auto& storage = GetHeapRegistryStorage();
   DCHECK_EQ(storage.end(), std::find(storage.begin(), storage.end(), &heap));
@@ -38,7 +40,7 @@ void HeapRegistry::RegisterHeap(HeapBase& heap) {
 
 // static
 void HeapRegistry::UnregisterHeap(HeapBase& heap) {
-  v8::base::MutexGuard guard(g_process_mutex.Pointer());
+  v8::base::MutexGuard guard(g_heap_registry_mutex.Pointer());
 
   auto& storage = GetHeapRegistryStorage();
   const auto pos = std::find(storage.begin(), storage.end(), &heap);
@@ -48,7 +50,7 @@ void HeapRegistry::UnregisterHeap(HeapBase& heap) {
 
 // static
 HeapBase* HeapRegistry::TryFromManagedPointer(const void* needle) {
-  v8::base::MutexGuard guard(g_process_mutex.Pointer());
+  v8::base::MutexGuard guard(g_heap_registry_mutex.Pointer());
 
   for (auto* heap : GetHeapRegistryStorage()) {
     const auto address =
