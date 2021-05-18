@@ -813,30 +813,12 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
-  # Some atomic functions are not yet implemented
-  'wasm/compare-exchange64-stress': [SKIP],
-  'wasm/compare-exchange-stress': [SKIP],
-  'regress/wasm/regress-1045225': [SKIP],
-  'regress/wasm/regress-1045737': [SKIP],
-  'regress/wasm/regress-1048241': [SKIP],
-  'regress/wasm/regress-1074586-b': [SKIP],
-  'regress/wasm/regress-1075953': [SKIP],
-  'regress/wasm/regress-1074586': [SKIP],
-  'regress/wasm/regress-1079449': [SKIP],
-  'regress/wasm/regress-1080902': [SKIP],
-  'regress/wasm/regress-1140549': [SKIP],
-  'regress/wasm/regress-1153442': [SKIP],
-  'regress/wasm/regress-1168116': [SKIP],
-  'regress/wasm/regress-1196837': [SKIP],
-  'regress/wasm/regress-1202736': [SKIP],
-  'wasm/atomics': [SKIP],
-  'wasm/atomics-non-shared': [SKIP],
-  'wasm/grow-shared-memory': [SKIP],
-  'wasm/shared-memory': [SKIP],
-
   # https://github.com/v8-riscv/v8/issues/418
   'regress/regress-1138075': [SKIP],
   'regress/regress-1138611': [SKIP],
+
+  # Some atomic functions are not yet implemented
+  'regress/wasm/regress-1196837': [SKIP],
 
   # SIMD not be implemented
   'regress/wasm/regress-1054466': [SKIP],
