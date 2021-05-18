@@ -1461,6 +1461,12 @@
 }],
 
 ##############################################################################
+# Skip baseline for no-lazy-feedback-allocation
+['variant == no_lfa', {
+  'baseline/*': [SKIP],
+}],  # variant == no_lfa
+
+##############################################################################
 ['variant == experimental_regexp', {
   'regress/regress-779407': [SKIP],
 }],  # variant == experimental_regexp
