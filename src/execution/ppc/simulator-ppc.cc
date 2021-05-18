@@ -2464,6 +2464,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         DCHECK_EQ(instr->Bit(0), 1);
         set_simd_register_by_lane<int64_t>(frt, 0,
                                            static_cast<int64_t>(ra_val));
+        // Low 64 bits of the result is undefined,
+        // Which is simulated here by adding random bits.
+        set_simd_register_by_lane<int64_t>(
+            frt, 1, static_cast<int64_t>(0x123456789ABCD));
       }
       break;
     }
