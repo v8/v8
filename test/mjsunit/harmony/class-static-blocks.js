@@ -115,7 +115,15 @@
 
 {
   // 'await' is allowed as an identifier name in named function expressions.
-  class C { static { (function await() {}); } }
+  class C1 { static { (function await() {}); } }
+  // 'return' is allowed across function boundaries inside static blocks.
+  class C2 { static {
+      function f1() { return; }
+      function f2() { return 0; }
+      let f3 = (x => { return x; })
+      let f4 = (x => { return; })
+    }
+  }
 }
 
 function assertDoesntParse(expr, context_start, context_end) {
@@ -142,4 +150,8 @@ for (let [s, e] of [['', ''],
   assertDoesntParse('try {} catch ({await}) {}', s, e);
   assertDoesntParse('var {await} = 0;', s, e);
   assertDoesntParse('({await} = 0);', s, e);
+  assertDoesntParse('return;', s, e);
+  assertDoesntParse('return 0;', s, e);
+  assertDoesntParse('{ return; }', s, e);
+  assertDoesntParse('{ return 0; }', s, e);
 }

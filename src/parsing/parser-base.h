@@ -5557,6 +5557,14 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement() {
     case MODULE_SCOPE:
       impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
       return impl()->NullStatement();
+    case BLOCK_SCOPE:
+      // Class static blocks disallow return. They are their own var scopes and
+      // have a varblock scope.
+      if (function_state_->kind() == kClassStaticInitializerFunction) {
+        impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
+        return impl()->NullStatement();
+      }
+      break;
     default:
       break;
   }
