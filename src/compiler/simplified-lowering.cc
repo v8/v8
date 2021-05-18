@@ -3943,10 +3943,15 @@ class RepresentationSelector {
         VisitUnop<T>(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged,
                      inputType);
         if (lower<T>()) {
-          CHECK_IMPLIES(!FLAG_fuzzing, inputType.CanBeAsserted());
           if (inputType.CanBeAsserted()) {
             ChangeOp(node, simplified()->AssertType(inputType));
           } else {
+            if (!FLAG_fuzzing) {
+#ifdef DEBUG
+              inputType.Print();
+#endif
+              FATAL("%%VerifyType: unsupported type");
+            }
             DeferReplacement(node, node->InputAt(0));
           }
         }
