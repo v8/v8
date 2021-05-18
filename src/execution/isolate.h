@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/v8-inspector.h"
 #include "include/v8-internal.h"
 #include "include/v8-metrics.h"
 #include "include/v8.h"
@@ -47,6 +46,10 @@ namespace U_ICU_NAMESPACE {
 class UMemory;
 }  // namespace U_ICU_NAMESPACE
 #endif  // V8_INTL_SUPPORT
+
+namespace v8_inspector {
+class V8Inspector;
+}  // namespace v8_inspector
 
 namespace v8 {
 
