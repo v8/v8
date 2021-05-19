@@ -1310,7 +1310,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
       main_thread_local_heap()->state_.exchange(LocalHeap::kRunning);
 
   CHECK(old_state == LocalHeap::kRunning ||
-        old_state == LocalHeap::kSafepointRequested);
+        old_state == LocalHeap::kCollectionRequested);
 
   // Resume all threads waiting for the GC.
   collection_barrier_->ResumeThreadsAwaitingCollection();
@@ -2085,7 +2085,7 @@ void Heap::EnsureFromSpaceIsCommitted() {
 }
 
 bool Heap::CollectionRequested() {
-  return collection_barrier_->WasGCRequested();
+  return collection_barrier_->CollectionRequested();
 }
 
 void Heap::CollectGarbageForBackground(LocalHeap* local_heap) {

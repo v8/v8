@@ -17,19 +17,25 @@
 namespace v8 {
 namespace internal {
 
-bool CollectionBarrier::WasGCRequested() {
-  return collection_requested_.load();
+bool CollectionBarrier::CollectionRequested() {
+  return main_thread_state_relaxed() == LocalHeap::kCollectionRequested;
 }
 
-void CollectionBarrier::RequestGC() {
-  ActivateStackGuardAndPostTask();
+LocalHeap::ThreadState CollectionBarrier::main_thread_state_relaxed() {
+  LocalHeap* main_thread_local_heap = heap_->main_thread_local_heap();
+  return main_thread_local_heap->state_relaxed();
+}
 
+void CollectionBarrier::NotifyShutdownRequested() {
   base::MutexGuard guard(&mutex_);
-  bool already_requested = collection_requested_.exchange(true);
-  CHECK(!already_requested);
+  if (timer_.IsStarted()) timer_.Stop();
+  shutdown_requested_ = true;
+  cv_wakeup_.NotifyAll();
+}
 
-  CHECK(!timer_.IsStarted());
-  timer_.Start();
+void CollectionBarrier::ResumeThreadsAwaitingCollection() {
+  base::MutexGuard guard(&mutex_);
+  cv_wakeup_.NotifyAll();
 }
 
 class BackgroundCollectionInterruptTask : public CancelableTask {
@@ -50,34 +56,11 @@ class BackgroundCollectionInterruptTask : public CancelableTask {
   Heap* heap_;
 };
 
-void CollectionBarrier::ActivateStackGuardAndPostTask() {
-  Isolate* isolate = heap_->isolate();
-  ExecutionAccess access(isolate);
-  isolate->stack_guard()->RequestGC();
-
-  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-      reinterpret_cast<v8::Isolate*>(isolate));
-  taskrunner->PostTask(
-      std::make_unique<BackgroundCollectionInterruptTask>(heap_));
-}
-
-void CollectionBarrier::NotifyShutdownRequested() {
-  base::MutexGuard guard(&mutex_);
-  if (timer_.IsStarted()) timer_.Stop();
-  shutdown_requested_ = true;
-  cv_wakeup_.NotifyAll();
-}
-
-void CollectionBarrier::ResumeThreadsAwaitingCollection() {
-  base::MutexGuard guard(&mutex_);
-  cv_wakeup_.NotifyAll();
-}
-
 bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
   ParkedScope scope(local_heap);
   base::MutexGuard guard(&mutex_);
 
-  while (WasGCRequested()) {
+  while (CollectionRequested()) {
     if (shutdown_requested_) return false;
     cv_wakeup_.Wait(&mutex_);
   }
@@ -86,7 +69,11 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
 }
 
 void CollectionBarrier::StopTimeToCollectionTimer() {
-  if (collection_requested_.load()) {
+  LocalHeap::ThreadState main_thread_state = main_thread_state_relaxed();
+  CHECK(main_thread_state == LocalHeap::kRunning ||
+        main_thread_state == LocalHeap::kCollectionRequested);
+
+  if (main_thread_state == LocalHeap::kCollectionRequested) {
     base::MutexGuard guard(&mutex_);
     // The first background thread that requests the GC, starts the timer first
     // and only then parks itself. Since we are in a safepoint here, the timer
@@ -102,8 +89,22 @@ void CollectionBarrier::StopTimeToCollectionTimer() {
         ->gc_time_to_collection_on_background()
         ->AddTimedSample(delta);
     timer_.Stop();
-    collection_requested_.store(false);
   }
+}
+
+void CollectionBarrier::ActivateStackGuardAndPostTask() {
+  Isolate* isolate = heap_->isolate();
+  ExecutionAccess access(isolate);
+  isolate->stack_guard()->RequestGC();
+
+  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+      reinterpret_cast<v8::Isolate*>(isolate));
+  taskrunner->PostTask(
+      std::make_unique<BackgroundCollectionInterruptTask>(heap_));
+
+  base::MutexGuard guard(&mutex_);
+  CHECK(!timer_.IsStarted());
+  timer_.Start();
 }
 
 }  // namespace internal
