@@ -2819,7 +2819,7 @@ void TurboAssembler::StoreWord(Register src, const MemOperand& mem,
   }
 }
 
-void MacroAssembler::LoadS16(Register dst, const MemOperand& mem,
+void TurboAssembler::LoadS16(Register dst, const MemOperand& mem,
                              Register scratch) {
   int offset = mem.offset();
 
@@ -2834,7 +2834,7 @@ void MacroAssembler::LoadS16(Register dst, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand currently only supports d-form
-void MacroAssembler::LoadU16(Register dst, const MemOperand& mem,
+void TurboAssembler::LoadU16(Register dst, const MemOperand& mem,
                              Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
@@ -2865,7 +2865,7 @@ void MacroAssembler::StoreHalfWord(Register src, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand currently only supports d-form
-void MacroAssembler::LoadU8(Register dst, const MemOperand& mem,
+void TurboAssembler::LoadU8(Register dst, const MemOperand& mem,
                             Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
