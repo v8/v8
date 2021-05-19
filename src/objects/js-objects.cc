@@ -4980,7 +4980,9 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
       // TODO(victorgomes): Temporarily forcing a fatal error here in case of
       // overflow, until all users of TransitionElementsKind can handle
       // exceptions.
-      FATAL("Fatal JavaScript invalid array size transitioning elements kind.");
+      FATAL(
+          "Fatal JavaScript invalid size error when transitioning elements "
+          "kind");
       UNREACHABLE();
     }
   }

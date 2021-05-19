@@ -482,7 +482,7 @@ Handle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
   // TODO(victorgomes): Temporarily forcing a fatal error here in case of
   // overflow, until Intl::AddElement can handle exceptions.
   if (JSObject::AddDataElement(array, index, element, NONE).IsNothing()) {
-    FATAL("Fatal JavaScript invalid array size when adding element");
+    FATAL("Fatal JavaScript invalid size error when adding element");
     UNREACHABLE();
   }
   return element;
