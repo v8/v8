@@ -926,7 +926,7 @@ void TurboAssembler::CallRecordWriteStub(
       Call(ip);
     } else {
       Handle<Code> code_target =
-          isolate()->builtins()->builtin_handle(builtin_indexe);
+          isolate()->builtins()->builtin_handle(builtin_index);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }
