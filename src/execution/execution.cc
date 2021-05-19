@@ -185,7 +185,7 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
     Handle<String> name(scope_info->ContextLocalName(var), isolate);
     VariableMode mode = scope_info->ContextLocalMode(var);
-    ScriptContextTable::LookupResult lookup;
+    VariableLookupResult lookup;
     if (ScriptContextTable::Lookup(isolate, *script_context, *name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
         Handle<Context> context = ScriptContextTable::GetContext(

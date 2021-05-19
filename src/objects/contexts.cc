@@ -48,17 +48,14 @@ void Context::Initialize(Isolate* isolate) {
 }
 
 bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
-                                String name, LookupResult* result) {
+                                String name, VariableLookupResult* result) {
   DisallowGarbageCollection no_gc;
   // Static variables cannot be in script contexts.
-  IsStaticFlag is_static_flag;
   for (int i = 0; i < table.synchronized_used(); i++) {
     Context context = table.get_context(i);
     DCHECK(context.IsScriptContext());
-    result->is_repl_mode = context.scope_info().IsReplModeScope();
-    int slot_index = ScopeInfo::ContextSlotIndex(
-        context.scope_info(), name, &result->mode, &result->init_flag,
-        &result->maybe_assigned_flag, &is_static_flag);
+    int slot_index =
+        ScopeInfo::ContextSlotIndex(context.scope_info(), name, result);
 
     if (slot_index >= 0) {
       result->context_index = i;
@@ -224,7 +221,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         // Try other script contexts.
         ScriptContextTable script_contexts =
             context->global_object().native_context().script_context_table();
-        ScriptContextTable::LookupResult r;
+        VariableLookupResult r;
         if (ScriptContextTable::Lookup(isolate, script_contexts, *name, &r)) {
           Context context = script_contexts.get_context(r.context_index);
           if (FLAG_trace_contexts) {
@@ -292,13 +289,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       ScopeInfo scope_info = context->scope_info();
-      VariableMode mode;
-      InitializationFlag flag;
-      MaybeAssignedFlag maybe_assigned_flag;
-      IsStaticFlag is_static_flag;
+      VariableLookupResult lookup_result;
       int slot_index =
-          ScopeInfo::ContextSlotIndex(scope_info, *name, &mode, &flag,
-                                      &maybe_assigned_flag, &is_static_flag);
+          ScopeInfo::ContextSlotIndex(scope_info, *name, &lookup_result);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         // Re-direct lookup to the ScriptContextTable in case we find a hole in
@@ -314,12 +307,12 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %hhu)\n",
-                 slot_index, static_cast<uint8_t>(mode));
+                 slot_index, static_cast<uint8_t>(lookup_result.mode));
         }
         *index = slot_index;
-        *variable_mode = mode;
-        *init_flag = flag;
-        *attributes = GetAttributesForMode(mode);
+        *variable_mode = lookup_result.mode;
+        *init_flag = lookup_result.init_flag;
+        *attributes = GetAttributesForMode(lookup_result.mode);
         return context;
       }
 

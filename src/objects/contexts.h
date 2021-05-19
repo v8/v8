@@ -352,20 +352,11 @@ enum ContextLookupFlags {
 //
 // The table is a fixed array, its first slot is the current used count and
 // the subsequent slots 1..used contain ScriptContexts.
+
+struct VariableLookupResult;
 class ScriptContextTable : public FixedArray {
  public:
   DECL_CAST(ScriptContextTable)
-
-  struct LookupResult {
-    int context_index;
-    int slot_index;
-    // repl_mode flag is needed to disable inlining of 'const' variables in REPL
-    // mode.
-    bool is_repl_mode;
-    VariableMode mode;
-    InitializationFlag init_flag;
-    MaybeAssignedFlag maybe_assigned_flag;
-  };
 
   inline int synchronized_used() const;
   inline void synchronized_set_used(int used);
@@ -382,7 +373,7 @@ class ScriptContextTable : public FixedArray {
   V8_WARN_UNUSED_RESULT
   V8_EXPORT_PRIVATE static bool Lookup(Isolate* isolate,
                                        ScriptContextTable table, String name,
-                                       LookupResult* result);
+                                       VariableLookupResult* result);
 
   V8_WARN_UNUSED_RESULT
   V8_EXPORT_PRIVATE static Handle<ScriptContextTable> Extend(
