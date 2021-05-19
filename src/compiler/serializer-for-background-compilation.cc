@@ -155,7 +155,6 @@ namespace compiler {
 #define SUPPORTED_BYTECODE_LIST(V)    \
   V(CallAnyReceiver)                  \
   V(CallJSRuntime)                    \
-  V(CallNoFeedback)                   \
   V(CallProperty)                     \
   V(CallProperty0)                    \
   V(CallProperty1)                    \
@@ -201,7 +200,6 @@ namespace compiler {
   V(LdaLookupSlotInsideTypeof)        \
   V(LdaNamedProperty)                 \
   V(LdaNamedPropertyFromSuper)        \
-  V(LdaNamedPropertyNoFeedback)       \
   V(LdaNull)                          \
   V(Ldar)                             \
   V(LdaSmi)                           \
@@ -223,7 +221,6 @@ namespace compiler {
   V(StaModuleVariable)                \
   V(StaNamedOwnProperty)              \
   V(StaNamedProperty)                 \
-  V(StaNamedPropertyNoFeedback)       \
   V(Star)                             \
   V(SwitchOnGeneratorState)           \
   V(SwitchOnSmiNoFeedback)            \
@@ -1274,12 +1271,7 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayIterator iterator(bytecode_array());
   HandlerRangeMatcher try_start_matcher(iterator, bytecode_array());
 
-  bool has_one_shot_bytecode = false;
   for (; !iterator.done(); iterator.Advance()) {
-    has_one_shot_bytecode =
-        has_one_shot_bytecode ||
-        interpreter::Bytecodes::IsOneShotBytecode(iterator.current_bytecode());
-
     int const current_offset = iterator.current_offset();
 
     // TODO(mvstanton): we might want to ignore the current environment if we
@@ -1330,11 +1322,6 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
       VisitShortStar(interpreter::Register::FromShortStar(current_bytecode));
       break;
     }
-  }
-
-  if (has_one_shot_bytecode) {
-    broker()->isolate()->CountUsage(
-        v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
   }
 }
 
@@ -1946,15 +1933,6 @@ void SerializerForBackgroundCompilation::VisitCallAnyReceiver(
   FeedbackSlot slot = iterator->GetSlotOperand(3);
   ProcessCallVarArgs(ConvertReceiverMode::kAny, callee, first_reg, reg_count,
                      slot);
-}
-
-void SerializerForBackgroundCompilation::VisitCallNoFeedback(
-    BytecodeArrayIterator* iterator) {
-  Hints const& callee = register_hints(iterator->GetRegisterOperand(0));
-  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
-  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
-  ProcessCallVarArgs(ConvertReceiverMode::kAny, callee, first_reg, reg_count,
-                     FeedbackSlot::Invalid());
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty(
@@ -3381,14 +3359,6 @@ void SerializerForBackgroundCompilation::VisitLdaNamedPropertyFromSuper(
   ProcessNamedSuperPropertyAccess(receiver, name, slot, AccessMode::kLoad);
 }
 
-// TODO(neis): Do feedback-independent serialization also for *NoFeedback
-// bytecodes.
-void SerializerForBackgroundCompilation::VisitLdaNamedPropertyNoFeedback(
-    BytecodeArrayIterator* iterator) {
-  MakeRef(broker(), Handle<Name>::cast(iterator->GetConstantForIndexOperand(
-                        1, broker()->isolate())));
-}
-
 void SerializerForBackgroundCompilation::VisitStaNamedProperty(
     BytecodeArrayIterator* iterator) {
   Hints* receiver = &register_hints(iterator->GetRegisterOperand(0));
@@ -3397,12 +3367,6 @@ void SerializerForBackgroundCompilation::VisitStaNamedProperty(
                             1, broker()->isolate())));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
   ProcessNamedPropertyAccess(receiver, name, slot, AccessMode::kStore);
-}
-
-void SerializerForBackgroundCompilation::VisitStaNamedPropertyNoFeedback(
-    BytecodeArrayIterator* iterator) {
-  MakeRef(broker(),
-          iterator->GetConstantForIndexOperand(1, broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitStaNamedOwnProperty(

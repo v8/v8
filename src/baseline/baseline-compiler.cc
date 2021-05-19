@@ -409,7 +409,6 @@ void BaselineCompiler::PreVisitSingleBytecode() {
     case interpreter::Bytecode::kCallProperty:
     case interpreter::Bytecode::kCallAnyReceiver:
     case interpreter::Bytecode::kCallWithSpread:
-    case interpreter::Bytecode::kCallNoFeedback:
     case interpreter::Bytecode::kConstruct:
     case interpreter::Bytecode::kConstructWithSpread:
       return UpdateMaxCallArgs(
@@ -803,10 +802,6 @@ void BaselineCompiler::VisitLdaNamedProperty() {
                                          IndexAsTagged(2));   // slot
 }
 
-void BaselineCompiler::VisitLdaNamedPropertyNoFeedback() {
-  CallBuiltin<Builtins::kGetProperty>(RegisterOperand(0), Constant<Name>(1));
-}
-
 void BaselineCompiler::VisitLdaNamedPropertyFromSuper() {
   __ LoadPrototype(
       LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister(),
@@ -887,13 +882,6 @@ void BaselineCompiler::VisitStaNamedProperty() {
       Constant<Name>(1),                // name
       kInterpreterAccumulatorRegister,  // value
       IndexAsTagged(2));                // slot
-}
-
-void BaselineCompiler::VisitStaNamedPropertyNoFeedback() {
-  CallRuntime(Runtime::kSetNamedProperty,
-              RegisterOperand(0),                // object
-              Constant<Name>(1),                 // name
-              kInterpreterAccumulatorRegister);  // value
 }
 
 void BaselineCompiler::VisitStaNamedOwnProperty() {
@@ -1219,15 +1207,6 @@ void BaselineCompiler::VisitCallUndefinedReceiver2() {
   BuildCall<ConvertReceiverMode::kNullOrUndefined>(
       Index(3), 2, RootIndex::kUndefinedValue, RegisterOperand(1),
       RegisterOperand(2));
-}
-
-void BaselineCompiler::VisitCallNoFeedback() {
-  interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
-  uint32_t arg_count = args.register_count();
-  CallBuiltin<Builtins::kCall_ReceiverIsAny>(
-      RegisterOperand(0),  // kFunction
-      arg_count - 1,       // kActualArgumentsCount
-      args);
 }
 
 void BaselineCompiler::VisitCallWithSpread() {

@@ -42,7 +42,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   name_should_print_as_anonymous: bool: 1 bit;
   has_reported_binary_coverage: bool: 1 bit;
   is_top_level: bool: 1 bit;
-  is_oneshot_iife_or_properties_are_final: bool: 1 bit;
+  properties_are_final: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
 }
 

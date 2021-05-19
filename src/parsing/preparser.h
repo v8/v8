@@ -310,7 +310,6 @@ class PreParserExpression {
 
   // More dummy implementations of things PreParser doesn't need to track:
   void SetShouldEagerCompile() {}
-  void mark_as_oneshot_iife() {}
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}

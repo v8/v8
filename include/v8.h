@@ -8542,7 +8542,7 @@ class V8_EXPORT Isolate {
     kDateToLocaleTimeString = 68,
     kAttemptOverrideReadOnlyOnPrototypeSloppy = 69,
     kAttemptOverrideReadOnlyOnPrototypeStrict = 70,
-    kOptimizedFunctionWithOneShotBytecode = 71,
+    kOptimizedFunctionWithOneShotBytecode = 71,  // Unused.
     kRegExpMatchIsTrueishOnNonJSRegExp = 72,
     kRegExpMatchIsFalseishOnJSRegExp = 73,
     kDateGetTimezoneOffset = 74,  // Unused.

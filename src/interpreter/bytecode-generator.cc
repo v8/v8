@@ -2236,15 +2236,6 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
   }
 }
 
-bool BytecodeGenerator::ShouldOptimizeAsOneShot() const {
-  if (!FLAG_enable_one_shot_optimization) return false;
-
-  if (loop_depth_ > 0) return false;
-
-  return info()->literal()->is_toplevel() ||
-         info()->literal()->is_oneshot_iife();
-}
-
 void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
   size_t class_boilerplate_entry =
       builder()->AllocateDeferredConstantPoolEntry();
@@ -2678,25 +2669,13 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 void BytecodeGenerator::BuildCreateObjectLiteral(Register literal,
                                                  uint8_t flags, size_t entry) {
-  if (ShouldOptimizeAsOneShot()) {
-    RegisterList args = register_allocator()->NewRegisterList(2);
-    builder()
-        ->LoadConstantPoolEntry(entry)
-        .StoreAccumulatorInRegister(args[0])
-        .LoadLiteral(Smi::FromInt(flags))
-        .StoreAccumulatorInRegister(args[1])
-        .CallRuntime(Runtime::kCreateObjectLiteralWithoutAllocationSite, args)
-        .StoreAccumulatorInRegister(literal);
-
-  } else {
-    // TODO(cbruni): Directly generate runtime call for literals we cannot
-    // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
-    // optimizations.
-    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
-    builder()
-        ->CreateObjectLiteral(entry, literal_index, flags)
-        .StoreAccumulatorInRegister(literal);
-  }
+  // TODO(cbruni): Directly generate runtime call for literals we cannot
+  // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
+  // optimizations.
+  int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
+  builder()
+      ->CreateObjectLiteral(entry, literal_index, flags)
+      .StoreAccumulatorInRegister(literal);
 }
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
@@ -3053,30 +3032,15 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     // and one-shot optimization.
     uint8_t flags = CreateArrayLiteralFlags::Encode(
         expr->IsFastCloningSupported(), expr->ComputeFlags());
-    bool optimize_as_one_shot = ShouldOptimizeAsOneShot();
-    size_t entry;
-    if (is_empty && optimize_as_one_shot) {
-      entry = builder()->EmptyArrayBoilerplateDescriptionConstantPoolEntry();
-    } else if (!is_empty) {
-      entry = builder()->AllocateDeferredConstantPoolEntry();
-      array_literals_.push_back(std::make_pair(expr, entry));
-    }
-
-    if (optimize_as_one_shot) {
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->LoadConstantPoolEntry(entry)
-          .StoreAccumulatorInRegister(args[0])
-          .LoadLiteral(Smi::FromInt(flags))
-          .StoreAccumulatorInRegister(args[1])
-          .CallRuntime(Runtime::kCreateArrayLiteralWithoutAllocationSite, args);
-    } else if (is_empty) {
+    if (is_empty) {
       // Empty array literal fast-path.
       int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
       DCHECK(expr->IsFastCloningSupported());
       builder()->CreateEmptyArrayLiteral(literal_index);
     } else {
       // Create array literal from boilerplate.
+      size_t entry = builder()->AllocateDeferredConstantPoolEntry();
+      array_literals_.push_back(std::make_pair(expr, entry));
       int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
       builder()->CreateArrayLiteral(entry, literal_index, flags);
     }
@@ -3515,12 +3479,8 @@ void BytecodeGenerator::BuildVariableAssignment(
 void BytecodeGenerator::BuildLoadNamedProperty(const Expression* object_expr,
                                                Register object,
                                                const AstRawString* name) {
-  if (ShouldOptimizeAsOneShot()) {
-    builder()->LoadNamedPropertyNoFeedback(object, name);
-  } else {
-    FeedbackSlot slot = GetCachedLoadICSlot(object_expr, name);
-    builder()->LoadNamedProperty(object, name, feedback_index(slot));
-  }
+  FeedbackSlot slot = GetCachedLoadICSlot(object_expr, name);
+  builder()->LoadNamedProperty(object, name, feedback_index(slot));
 }
 
 void BytecodeGenerator::BuildStoreNamedProperty(const Expression* object_expr,
@@ -3532,13 +3492,9 @@ void BytecodeGenerator::BuildStoreNamedProperty(const Expression* object_expr,
     builder()->StoreAccumulatorInRegister(value);
   }
 
-  if (ShouldOptimizeAsOneShot()) {
-    builder()->StoreNamedPropertyNoFeedback(object, name, language_mode());
-  } else {
-    FeedbackSlot slot = GetCachedStoreICSlot(object_expr, name);
-    builder()->StoreNamedProperty(object, name, feedback_index(slot),
-                                  language_mode());
-  }
+  FeedbackSlot slot = GetCachedStoreICSlot(object_expr, name);
+  builder()->StoreNamedProperty(object, name, feedback_index(slot),
+                                language_mode());
 
   if (!execution_result()->IsEffect()) {
     builder()->LoadAccumulatorWithRegister(value);
@@ -5059,7 +5015,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   Register callee = register_allocator()->GrowRegisterList(&args);
 
   bool implicit_undefined_receiver = false;
-  bool optimize_as_one_shot = ShouldOptimizeAsOneShot();
 
   // TODO(petermarshall): We have a lot of call bytecodes that are very similar,
   // see if we can reduce the number by adding a separate argument which
@@ -5078,7 +5033,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::GLOBAL_CALL: {
       // Receiver is undefined for global calls.
-      if (spread_position == Call::kNoSpread && !optimize_as_one_shot) {
+      if (spread_position == Call::kNoSpread) {
         implicit_undefined_receiver = true;
       } else {
         // TODO(leszeks): There's no special bytecode for tail calls or spread
@@ -5114,7 +5069,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::OTHER_CALL: {
       // Receiver is undefined for other calls.
-      if (spread_position == Call::kNoSpread && !optimize_as_one_shot) {
+      if (spread_position == Call::kNoSpread) {
         implicit_undefined_receiver = true;
       } else {
         // TODO(leszeks): There's no special bytecode for tail calls or spread
@@ -5230,9 +5185,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
                               feedback_index(feedback_spec()->AddCallICSlot()));
   } else if (spread_position == Call::kHasNonFinalSpread) {
     builder()->CallJSRuntime(Context::REFLECT_APPLY_INDEX, args);
-  } else if (optimize_as_one_shot) {
-    DCHECK(!implicit_undefined_receiver);
-    builder()->CallNoFeedback(callee, args);
   } else if (call_type == Call::NAMED_PROPERTY_CALL ||
              call_type == Call::KEYED_PROPERTY_CALL) {
     DCHECK(!implicit_undefined_receiver);

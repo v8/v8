@@ -131,7 +131,6 @@ void UnoptimizedCompileFlags::SetFlagsFromFunction(T function) {
   set_has_static_private_methods_or_accessors(
       function->has_static_private_methods_or_accessors());
   set_is_toplevel(function->is_toplevel());
-  set_is_oneshot_iife(function->is_oneshot_iife());
 }
 
 void UnoptimizedCompileFlags::SetFlagsForToplevelCompile(

@@ -2137,10 +2137,6 @@ class FunctionLiteral final : public Expression {
     return syntax_kind() == FunctionSyntaxKind::kAnonymousExpression;
   }
 
-  void mark_as_oneshot_iife() {
-    bit_field_ = OneshotIIFEBit::update(bit_field_, true);
-  }
-  bool is_oneshot_iife() const { return OneshotIIFEBit::decode(bit_field_); }
   bool is_toplevel() const {
     return function_literal_id() == kFunctionLiteralIdTopLevel;
   }
@@ -2296,8 +2292,7 @@ class FunctionLiteral final : public Expression {
                                                  kHasDuplicateParameters) |
                   DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
                   RequiresInstanceMembersInitializer::encode(false) |
-                  HasBracesField::encode(has_braces) |
-                  OneshotIIFEBit::encode(false);
+                  HasBracesField::encode(has_braces);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
   }
 
@@ -2314,7 +2309,6 @@ class FunctionLiteral final : public Expression {
   using HasStaticPrivateMethodsOrAccessorsField =
       ClassScopeHasPrivateBrandField::Next<bool, 1>;
   using HasBracesField = HasStaticPrivateMethodsOrAccessorsField::Next<bool, 1>;
-  using OneshotIIFEBit = HasBracesField::Next<bool, 1>;
 
   // expected_property_count_ is the sum of instance fields and properties.
   // It can vary depending on whether a function is lazily or eagerly parsed.

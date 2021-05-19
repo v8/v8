@@ -544,20 +544,6 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   }
 }
 
-// LdaNamedPropertyNoFeedback <object> <name_index>
-//
-// Calls the GetProperty builtin for <object> and the name at
-// constant pool entry <name_index>.
-IGNITION_HANDLER(LdaNamedPropertyNoFeedback, InterpreterAssembler) {
-  TNode<Object> object = LoadRegisterAtOperandIndex(0);
-  TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
-  TNode<Context> context = GetContext();
-  TNode<Object> result =
-      CallBuiltin(Builtins::kGetProperty, context, object, name);
-  SetAccumulator(result);
-  Dispatch();
-}
-
 // LdaNamedPropertyFromSuper <receiver> <name_index> <slot>
 //
 // Calls the LoadSuperIC at FeedBackVector slot <slot> for <receiver>, home
@@ -642,23 +628,6 @@ IGNITION_HANDLER(StaNamedProperty, InterpreterStoreNamedPropertyAssembler) {
 IGNITION_HANDLER(StaNamedOwnProperty, InterpreterStoreNamedPropertyAssembler) {
   Callable ic = CodeFactory::StoreOwnICInOptimizedCode(isolate());
   StaNamedProperty(ic, NamedPropertyType::kOwn);
-}
-
-// StaNamedPropertyNoFeedback <object> <name_index>
-//
-// Calls the SetPropertyBuiltin for <object> and the name in constant pool entry
-// <name_index> with the value in the accumulator.
-IGNITION_HANDLER(StaNamedPropertyNoFeedback,
-                 InterpreterStoreNamedPropertyAssembler) {
-  TNode<Object> object = LoadRegisterAtOperandIndex(0);
-  TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
-  TNode<Object> value = GetAccumulator();
-  TNode<Context> context = GetContext();
-
-  TNode<Object> result =
-      CallRuntime(Runtime::kSetNamedProperty, context, object, name, value);
-  SetAccumulator(result);
-  Dispatch();
 }
 
 // StaKeyedProperty <object> <key> <slot>
@@ -1383,16 +1352,6 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     CallJSAndDispatch(function, context, args, receiver_mode);
   }
 
-  // Generates code to perform a JS call without collecting feedback.
-  void JSCallNoFeedback(ConvertReceiverMode receiver_mode) {
-    TNode<Object> function = LoadRegisterAtOperandIndex(0);
-    RegListNodePair args = GetRegisterListAtOperandIndex(1);
-    TNode<Context> context = GetContext();
-
-    // Call the function and dispatch to the next handler.
-    CallJSAndDispatch(function, context, args, receiver_mode);
-  }
-
   // Generates code to perform a JS call with a known number of arguments that
   // collects type feedback.
   void JSCallN(int arg_count, ConvertReceiverMode receiver_mode) {
@@ -1486,10 +1445,6 @@ IGNITION_HANDLER(CallUndefinedReceiver1, InterpreterJSCallAssembler) {
 
 IGNITION_HANDLER(CallUndefinedReceiver2, InterpreterJSCallAssembler) {
   JSCallN(2, ConvertReceiverMode::kNullOrUndefined);
-}
-
-IGNITION_HANDLER(CallNoFeedback, InterpreterJSCallAssembler) {
-  JSCallNoFeedback(ConvertReceiverMode::kAny);
 }
 
 // CallRuntime <function_id> <first_arg> <arg_count>

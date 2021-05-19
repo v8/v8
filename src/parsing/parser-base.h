@@ -3461,11 +3461,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
           // function literal eagerly, we can also compile it eagerly.
           if (result->IsFunctionLiteral()) {
             result->AsFunctionLiteral()->SetShouldEagerCompile();
-            if (scope()->is_script_scope()) {
-              // A non-top-level iife is likely to be executed multiple times
-              // and so shouldn`t be optimized as one-shot.
-              result->AsFunctionLiteral()->mark_as_oneshot_iife();
-            }
           }
         }
         bool has_spread;

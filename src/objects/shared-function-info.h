@@ -452,11 +452,6 @@ class SharedFunctionInfo
   // see a binding for it.
   DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
 
-  // Indicates that the function represented by the shared function info was
-  // classed as an immediately invoked function execution (IIFE) function and
-  // is only executed once.
-  DECL_BOOLEAN_ACCESSORS(is_oneshot_iife)
-
   // Whether or not the number of expected properties may change.
   DECL_BOOLEAN_ACCESSORS(are_properties_final)
 
@@ -662,13 +657,10 @@ class SharedFunctionInfo
   // function.
   DECL_ACCESSORS(outer_scope_info, HeapObject)
 
-  // [is_oneshot_iife_or_properties_are_final]: This bit is used to track
-  // two mutually exclusive cases. Either this SharedFunctionInfo is
-  // a oneshot_iife or we have finished parsing its properties. These cases
-  // are mutually exclusive because the properties final bit is only used by
-  // class constructors to handle lazily parsed properties and class
-  // constructors can never be oneshot iifes.
-  DECL_BOOLEAN_ACCESSORS(is_oneshot_iife_or_properties_are_final)
+  // [properties_are_final]: This bit is used to track if we have finished
+  // parsing its properties. The properties final bit is only used by
+  // class constructors to handle lazily parsed properties.
+  DECL_BOOLEAN_ACCESSORS(properties_are_final)
 
   inline void set_kind(FunctionKind kind);
 

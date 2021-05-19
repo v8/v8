@@ -1022,9 +1022,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         flags().class_scope_has_private_brand());
     result->set_has_static_private_methods_or_accessors(
         flags().has_static_private_methods_or_accessors());
-    if (flags().is_oneshot_iife()) {
-      result->mark_as_oneshot_iife();
-    }
   }
 
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());

@@ -1569,20 +1569,8 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     BuildFunctionEntryStackCheck();
   }
 
-  bool has_one_shot_bytecode = false;
   for (; !bytecode_iterator().done(); bytecode_iterator().Advance()) {
-    if (interpreter::Bytecodes::IsOneShotBytecode(
-            bytecode_iterator().current_bytecode())) {
-      has_one_shot_bytecode = true;
-    }
     VisitSingleBytecode();
-  }
-
-  // TODO(leszeks): Increment usage counter on BG thread.
-  if (!broker()->is_concurrent_inlining() && has_one_shot_bytecode) {
-    // (For concurrent inlining this is done in the serializer instead.)
-    isolate()->CountUsage(
-        v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
   }
 
   DCHECK(exception_handlers_.empty());
@@ -2103,17 +2091,6 @@ void BytecodeGraphBuilder::VisitLdaNamedProperty() {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitLdaNamedPropertyNoFeedback() {
-  PrepareEagerCheckpoint();
-  Node* object =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  NameRef name = MakeRefForConstantForIndexOperand<Name>(1);
-  const Operator* op = javascript()->LoadNamed(name.object(), FeedbackSource());
-  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
-  Node* node = NewNode(op, object, feedback_vector_node());
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitLdaNamedPropertyFromSuper() {
   PrepareEagerCheckpoint();
   Node* receiver =
@@ -2207,21 +2184,6 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
 
 void BytecodeGraphBuilder::VisitStaNamedProperty() {
   BuildNamedStore(StoreMode::kNormal);
-}
-
-void BytecodeGraphBuilder::VisitStaNamedPropertyNoFeedback() {
-  PrepareEagerCheckpoint();
-  Node* value = environment()->LookupAccumulator();
-  Node* object =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  NameRef name = MakeRefForConstantForIndexOperand<Name>(1);
-  LanguageMode language_mode =
-      static_cast<LanguageMode>(bytecode_iterator().GetFlagOperand(2));
-  const Operator* op =
-      javascript()->StoreNamed(language_mode, name.object(), FeedbackSource());
-  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
-  Node* node = NewNode(op, object, value, feedback_vector_node());
-  environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitStaNamedOwnProperty() {
@@ -2580,34 +2542,6 @@ void BytecodeGraphBuilder::BuildCallVarArgs(ConvertReceiverMode receiver_mode) {
 
 void BytecodeGraphBuilder::VisitCallAnyReceiver() {
   BuildCallVarArgs(ConvertReceiverMode::kAny);
-}
-
-void BytecodeGraphBuilder::VisitCallNoFeedback() {
-  DCHECK_EQ(interpreter::Bytecodes::GetReceiverMode(
-                bytecode_iterator().current_bytecode()),
-            ConvertReceiverMode::kAny);
-
-  PrepareEagerCheckpoint();
-  Node* callee =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-
-  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
-
-  // The receiver is the first register, followed by the arguments in the
-  // consecutive registers.
-  int arg_count = static_cast<int>(reg_count) - 1;
-  int arity = JSCallNode::ArityForArgc(arg_count);
-
-  // Setting call frequency to a value less than min_inlining frequency to
-  // prevent inlining of one-shot call node.
-  DCHECK(CallFrequency::kNoFeedbackCallFrequency < FLAG_min_inlining_frequency);
-  const Operator* call = javascript()->Call(
-      arity, CallFrequency(CallFrequency::kNoFeedbackCallFrequency));
-  Node* const* call_args = ProcessCallVarArgs(ConvertReceiverMode::kAny, callee,
-                                              first_reg, arg_count);
-  Node* value = MakeNode(call, arity, call_args);
-  environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitCallProperty() {
