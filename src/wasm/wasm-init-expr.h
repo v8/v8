@@ -140,9 +140,6 @@ class WasmInitExpr {
   std::unique_ptr<WasmInitExpr> operand_ = nullptr;
 };
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           const WasmInitExpr& expr);
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
