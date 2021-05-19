@@ -111,7 +111,6 @@ class Builtins {
       case SaveFPRegsMode::kSave:
         return Builtins::kEphemeronKeyBarrierSaveFP;
     }
-    UNREACHABLE();
   }
 
   // Convenience wrappers.
