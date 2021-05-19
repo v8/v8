@@ -114,6 +114,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   PreFinalizerHandler* prefinalizer_handler() {
     return prefinalizer_handler_.get();
   }
+  const PreFinalizerHandler* prefinalizer_handler() const {
+    return prefinalizer_handler_.get();
+  }
 
   MarkerBase* marker() const { return marker_.get(); }
 

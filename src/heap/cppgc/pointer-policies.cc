@@ -13,6 +13,7 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/page-memory.h"
+#include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/process-heap.h"
 
 namespace cppgc {
@@ -67,7 +68,20 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
     DCHECK(!header->IsFree());
   }
 
-  // TODO(v8:11749): Check mark bits when during pre-finalizer phase.
+#ifdef CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
+  if (heap_->prefinalizer_handler()->IsInvokingPreFinalizers()) {
+    // During prefinalizers invocation, check that |ptr| refers to a live object
+    // and that it is assigned to a live slot.
+    DCHECK(header->IsMarked());
+    // Slot can be in a large object.
+    const auto* slot_page = BasePage::FromInnerAddress(heap_, this);
+    // Off-heap slots (from other heaps or on-stack) are considered live.
+    bool slot_is_live =
+        !slot_page || slot_page->ObjectHeaderFromInnerAddress(this).IsMarked();
+    DCHECK(slot_is_live);
+    USE(slot_is_live);
+  }
+#endif  // CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
 }
 
 PersistentRegion& StrongPersistentPolicy::GetPersistentRegion(

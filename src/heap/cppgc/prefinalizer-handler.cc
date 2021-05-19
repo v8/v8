@@ -53,6 +53,7 @@ void PreFinalizerHandler::InvokePreFinalizers() {
 
   DCHECK(CurrentThreadIsCreationThread());
   LivenessBroker liveness_broker = LivenessBrokerFactory::Create();
+  is_invoking_ = true;
   ordered_pre_finalizers_.erase(
       ordered_pre_finalizers_.begin(),
       std::remove_if(ordered_pre_finalizers_.rbegin(),
@@ -61,6 +62,7 @@ void PreFinalizerHandler::InvokePreFinalizers() {
                        return (pf.callback)(liveness_broker, pf.object);
                      })
           .base());
+  is_invoking_ = false;
   ordered_pre_finalizers_.shrink_to_fit();
 }
 
