@@ -111,6 +111,7 @@ class Symbol;
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, swiss_name_dictionary_map, SwissNameDictionaryMap)                    \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
+  IF_WASM(V, Map, wasm_capi_function_data_map, WasmCapiFunctionDataMap)        \
   IF_WASM(V, Map, wasm_exported_function_data_map,                             \
           WasmExportedFunctionDataMap)                                         \
   IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \

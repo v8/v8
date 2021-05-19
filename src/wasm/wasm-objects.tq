@@ -21,10 +21,11 @@ extern class WasmFunctionData extends Foreign {
   // For imported functions, this value equals the respective entry in
   // the module's imported_function_refs array.
   ref: WasmInstanceObject|Tuple2;
+  // Used for calling this function from JavaScript.
+  wrapper_code: Code;
 }
 
 extern class WasmExportedFunctionData extends WasmFunctionData {
-  wrapper_code: Code;
   instance: WasmInstanceObject;
   function_index: Smi;
   signature: Foreign;
@@ -36,19 +37,14 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {
-  wrapper_code: Code;
   wasm_to_js_wrapper_code: Code;
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
   serialized_signature: PodArrayOfWasmValueType;
 }
 
-// TODO(jkummerow): Derive from WasmFunctionData.
-@export
-class WasmCapiFunctionData extends HeapObject {
-  call_target: RawPtr;
+extern class WasmCapiFunctionData extends WasmFunctionData {
   embedder_data: Foreign;  // Managed<wasm::FuncData>
-  wrapper_code: Code;
   serialized_signature: PodArrayOfWasmValueType;
 }
 

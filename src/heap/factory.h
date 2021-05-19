@@ -556,6 +556,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
                                        Handle<Map> opt_parent,
                                        int instance_size_bytes);
+  Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
+      Address call_target, Handle<Foreign> embedder_data,
+      Handle<Code> wrapper_code,
+      Handle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
       Address call_target, Handle<Object> ref, int func_index,

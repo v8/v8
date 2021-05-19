@@ -327,9 +327,6 @@ VisitorId Map::GetVisitorId(Map map) {
         return kVisitPrototypeInfo;
       }
 #if V8_ENABLE_WEBASSEMBLY
-      if (instance_type == WASM_CAPI_FUNCTION_DATA_TYPE) {
-        return kVisitWasmCapiFunctionData;
-      }
       if (instance_type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
         return kVisitWasmIndirectFunctionTable;
       }
@@ -358,6 +355,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmJSFunctionData;
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
       return kVisitWasmExportedFunctionData;
+    case WASM_CAPI_FUNCTION_DATA_TYPE:
+      return kVisitWasmCapiFunctionData;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #define MAKE_TQ_CASE(TYPE, Name) \

@@ -1973,12 +1973,12 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   os << "\n - target: " << reinterpret_cast<void*>(foreign_address());
   os << "\n - ref: " << Brief(ref());
+  os << "\n - wrapper_code: " << Brief(wrapper_code());
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmExportedFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - wrapper_code: " << Brief(wrapper_code());
   os << "\n - instance: " << Brief(instance());
   os << "\n - function_index: " << function_index();
   os << "\n - signature: " << Brief(signature());
@@ -1989,11 +1989,18 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmJSFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - wrapper_code: " << Brief(wrapper_code());
   os << "\n - wasm_to_js_wrapper_code: " << Brief(wasm_to_js_wrapper_code());
   os << "\n - serialized_return_count: " << serialized_return_count();
   os << "\n - serialized_parameter_count: " << serialized_parameter_count();
-  os << "\n - serialized signature: " << Brief(serialized_signature());
+  os << "\n - serialized_signature: " << Brief(serialized_signature());
+  os << "\n";
+}
+
+void WasmCapiFunctionData::WasmCapiFunctionDataPrint(std::ostream& os) {
+  PrintHeader(os, "WasmCapiFunctionData");
+  WasmFunctionDataPrint(os);
+  os << "\n - embedder_data: " << Brief(embedder_data());
+  os << "\n - serialized_signature: " << Brief(serialized_signature());
   os << "\n";
 }
 

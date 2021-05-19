@@ -1029,15 +1029,25 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
     case compiler::WasmImportCallKind::kWasmToCapi: {
       NativeModule* native_module = instance->module_object().native_module();
-      Address host_address =
-          WasmCapiFunction::cast(*js_receiver).GetHostCallTarget();
-      WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code = compiler::CompileWasmCapiCallWrapper(
-          isolate_->wasm_engine(), native_module, expected_sig, host_address);
-      isolate_->counters()->wasm_generated_code_size()->Increment(
-          wasm_code->instructions().length());
-      isolate_->counters()->wasm_reloc_size()->Increment(
-          wasm_code->reloc_info().length());
+      int expected_arity = static_cast<int>(expected_sig->parameter_count());
+      WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
+      // TODO(jkummerow): Consider precompiling CapiCallWrappers in parallel,
+      // just like other import wrappers.
+      WasmCode* wasm_code = cache->MaybeGet(kind, expected_sig, expected_arity);
+      if (wasm_code == nullptr) {
+        WasmCodeRefScope code_ref_scope;
+        WasmImportWrapperCache::ModificationScope cache_scope(cache);
+        wasm_code = compiler::CompileWasmCapiCallWrapper(
+            isolate_->wasm_engine(), native_module, expected_sig);
+        WasmImportWrapperCache::CacheKey key(kind, expected_sig,
+                                             expected_arity);
+        cache_scope[key] = wasm_code;
+        wasm_code->IncRef();
+        isolate_->counters()->wasm_generated_code_size()->Increment(
+            wasm_code->instructions().length());
+        isolate_->counters()->wasm_reloc_size()->Increment(
+            wasm_code->reloc_info().length());
+      }
 
       ImportedFunctionEntry entry(instance, func_index);
       // We re-use the SetWasmToJs infrastructure because it passes the

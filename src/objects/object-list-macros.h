@@ -216,6 +216,7 @@ class ZoneForwardList;
   V(Undetectable)                              \
   V(UniqueName)                                \
   IF_WASM(V, WasmArray)                        \
+  IF_WASM(V, WasmCapiFunctionData)             \
   IF_WASM(V, WasmExceptionObject)              \
   IF_WASM(V, WasmExceptionPackage)             \
   IF_WASM(V, WasmExportedFunctionData)         \

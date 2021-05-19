@@ -14138,22 +14138,20 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
     FUNCTION_TEMPLATE_INFO_TYPE,
 #if V8_ENABLE_WEBASSEMBLY
-    WASM_EXPORTED_FUNCTION_DATA_TYPE,
-    ASM_WASM_DATA_TYPE,
-    WASM_JS_FUNCTION_DATA_TYPE,
     WASM_CAPI_FUNCTION_DATA_TYPE,
+    WASM_EXPORTED_FUNCTION_DATA_TYPE,
+    WASM_JS_FUNCTION_DATA_TYPE,
+    ASM_WASM_DATA_TYPE,
 #endif  // V8_ENABLE_WEBASSEMBLY
   };
   Label check_is_bytecode_array(this);
   Label check_is_baseline_data(this);
-  Label check_is_exported_function_data(this);
   Label check_is_asm_wasm_data(this);
   Label check_is_uncompiled_data_without_preparse_data(this);
   Label check_is_uncompiled_data_with_preparse_data(this);
   Label check_is_function_template_info(this);
   Label check_is_interpreter_data(this);
-  Label check_is_wasm_js_function_data(this);
-  Label check_is_wasm_capi_function_data(this);
+  Label check_is_wasm_function_data(this);
   Label* case_labels[] = {
     &check_is_bytecode_array,
     &check_is_baseline_data,
@@ -14161,10 +14159,10 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     &check_is_uncompiled_data_with_preparse_data,
     &check_is_function_template_info,
 #if V8_ENABLE_WEBASSEMBLY
-    &check_is_exported_function_data,
+    &check_is_wasm_function_data,
+    &check_is_wasm_function_data,
+    &check_is_wasm_function_data,
     &check_is_asm_wasm_data,
-    &check_is_wasm_js_function_data,
-    &check_is_wasm_capi_function_data
 #endif  // V8_ENABLE_WEBASSEMBLY
   };
   STATIC_ASSERT(arraysize(case_values) == arraysize(case_labels));
@@ -14207,8 +14205,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   Goto(&done);
 
 #if V8_ENABLE_WEBASSEMBLY
-  // IsWasmExportedFunctionData: Use the wrapper code
-  BIND(&check_is_exported_function_data);
+  // IsWasmFunctionData: Use the wrapper code
+  BIND(&check_is_wasm_function_data);
   sfi_code = CAST(LoadObjectField(
       CAST(sfi_data), WasmExportedFunctionData::kWrapperCodeOffset));
   Goto(&done);
@@ -14216,18 +14214,6 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   // IsAsmWasmData: Instantiate using AsmWasmData
   BIND(&check_is_asm_wasm_data);
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
-  Goto(&done);
-
-  // IsWasmJSFunctionData: Use the wrapper code.
-  BIND(&check_is_wasm_js_function_data);
-  sfi_code = CAST(
-      LoadObjectField(CAST(sfi_data), WasmJSFunctionData::kWrapperCodeOffset));
-  Goto(&done);
-
-  // IsWasmCapiFunctionData: Use the wrapper code.
-  BIND(&check_is_wasm_capi_function_data);
-  sfi_code = CAST(LoadObjectField(CAST(sfi_data),
-                                  WasmCapiFunctionData::kWrapperCodeOffset));
   Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
 

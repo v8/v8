@@ -1403,10 +1403,10 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), opt_call_target);
   result.set_ref(*pair);
+  result.set_wrapper_code(*wrapper_code);
   result.set_serialized_return_count(return_count);
   result.set_serialized_parameter_count(parameter_count);
   result.set_serialized_signature(*serialized_sig);
-  result.set_wrapper_code(*wrapper_code);
   // Default value, will be overwritten by the caller.
   result.set_wasm_to_js_wrapper_code(
       isolate()->heap()->builtin(Builtins::kAbort));
@@ -1433,6 +1433,26 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result.set_wrapper_budget(wrapper_budget);
   result.set_c_wrapper_code(Smi::zero(), SKIP_WRITE_BARRIER);
   result.set_packed_args_size(0);
+  return handle(result, isolate());
+}
+
+Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
+    Address call_target, Handle<Foreign> embedder_data,
+    Handle<Code> wrapper_code,
+    Handle<PodArray<wasm::ValueType>> serialized_sig) {
+  Handle<Tuple2> pair =
+      NewTuple2(null_value(), null_value(), AllocationType::kOld);
+  Map map = *wasm_capi_function_data_map();
+  WasmCapiFunctionData result =
+      WasmCapiFunctionData::cast(AllocateRawWithImmortalMap(
+          map.instance_size(), AllocationType::kOld, map));
+  DisallowGarbageCollection no_gc;
+  result.AllocateExternalPointerEntries(isolate());
+  result.set_foreign_address(isolate(), call_target);
+  result.set_ref(*pair);
+  result.set_wrapper_code(*wrapper_code);
+  result.set_embedder_data(*embedder_data);
+  result.set_serialized_signature(*serialized_sig);
   return handle(result, isolate());
 }
 

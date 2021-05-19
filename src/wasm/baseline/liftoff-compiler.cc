@@ -5875,16 +5875,12 @@ class LiftoffCompiler {
     // no instance types between array and struct types that might possibly
     // occur (i.e. internal types are OK, types of Wasm objects are not).
     // At the time of this writing:
-    // WASM_ARRAY_TYPE = 180
-    // WASM_CAPI_FUNCTION_DATA_TYPE = 181
-    // WASM_STRUCT_TYPE = 182
+    // WASM_ARRAY_TYPE = 184
+    // WASM_STRUCT_TYPE = 185
     // The specific values don't matter; the relative order does.
     static_assert(
-        WASM_STRUCT_TYPE == static_cast<InstanceType>(WASM_ARRAY_TYPE + 2),
+        WASM_STRUCT_TYPE == static_cast<InstanceType>(WASM_ARRAY_TYPE + 1),
         "Relying on specific InstanceType values here");
-    static_assert(WASM_CAPI_FUNCTION_DATA_TYPE ==
-                      static_cast<InstanceType>(WASM_ARRAY_TYPE + 1),
-                  "Relying on specific InstanceType values here");
     __ emit_i32_subi(tmp.gp(), tmp.gp(), WASM_ARRAY_TYPE);
     __ emit_i32_cond_jumpi(kUnsignedGreaterThan, not_data_ref, tmp.gp(),
                            WASM_STRUCT_TYPE - WASM_ARRAY_TYPE);

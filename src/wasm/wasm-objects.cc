@@ -614,17 +614,26 @@ void WasmTableObject::UpdateDispatchTables(
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
         isolate);
-    // TODO(jkummerow): Find a way to avoid recompiling wrappers.
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
-    Address host_address = capi_function->GetHostCallTarget();
-    wasm::WasmCodeRefScope code_ref_scope;
-    wasm::WasmCode* wasm_code = compiler::CompileWasmCapiCallWrapper(
-        isolate->wasm_engine(), native_module, &sig, host_address);
-    isolate->counters()->wasm_generated_code_size()->Increment(
-        wasm_code->instructions().length());
-    isolate->counters()->wasm_reloc_size()->Increment(
-        wasm_code->reloc_info().length());
+    wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
+    auto kind = compiler::WasmImportCallKind::kWasmToCapi;
+    wasm::WasmCode* wasm_code = cache->MaybeGet(kind, &sig, param_count);
+    if (wasm_code == nullptr) {
+      wasm::WasmCodeRefScope code_ref_scope;
+      wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
+      wasm_code = compiler::CompileWasmCapiCallWrapper(isolate->wasm_engine(),
+                                                       native_module, &sig);
+      wasm::WasmImportWrapperCache::CacheKey key(kind, &sig, param_count);
+      cache_scope[key] = wasm_code;
+      wasm_code->IncRef();
+      isolate->counters()->wasm_generated_code_size()->Increment(
+          wasm_code->instructions().length());
+      isolate->counters()->wasm_reloc_size()->Increment(
+          wasm_code->reloc_info().length());
+    }
+    // There is a cached tuple on the {capi_function}, but it is instance-
+    // independent, so we prefer to allocate a fresh tuple here.
     Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
         instance, capi_function, AllocationType::kOld);
     // Note that {SignatureMap::Find} may return {-1} if the signature is
@@ -1852,11 +1861,16 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
   // TODO(jkummerow): Install a JavaScript wrapper. For now, calling
   // these functions directly is unsupported; they can only be called
   // from Wasm code.
+
+  // To support simulator builds, we potentially have to redirect the
+  // call target (which is an address pointing into the C++ binary).
+  call_target = ExternalReference::Create(call_target).address();
+
   Handle<WasmCapiFunctionData> fun_data =
       isolate->factory()->NewWasmCapiFunctionData(
           call_target, embedder_data,
           isolate->builtins()->builtin_handle(Builtins::kIllegal),
-          serialized_signature, AllocationType::kOld);
+          serialized_signature);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   return Handle<WasmCapiFunction>::cast(
@@ -2094,10 +2108,6 @@ bool WasmJSFunction::MatchesSignature(const wasm::FunctionSig* sig) {
   if (sig_size == 0) return true;  // Prevent undefined behavior.
   const wasm::ValueType* expected = sig->all().begin();
   return function_data.serialized_signature().matches(expected, sig_size);
-}
-
-Address WasmCapiFunction::GetHostCallTarget() const {
-  return shared().wasm_capi_function_data().call_target();
 }
 
 PodArray<wasm::ValueType> WasmCapiFunction::GetSerializedSignature() const {

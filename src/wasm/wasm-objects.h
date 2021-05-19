@@ -690,7 +690,6 @@ class WasmCapiFunction : public JSFunction {
       Isolate* isolate, Address call_target, Handle<Foreign> embedder_data,
       Handle<PodArray<wasm::ValueType>> serialized_signature);
 
-  Address GetHostCallTarget() const;
   PodArray<wasm::ValueType> GetSerializedSignature() const;
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
@@ -745,6 +744,7 @@ class WasmFunctionData
     : public TorqueGeneratedWasmFunctionData<WasmFunctionData, Foreign> {
  public:
   DECL_ACCESSORS(ref, Object)
+  DECL_ACCESSORS(wrapper_code, Code)
 
   DECL_CAST(WasmFunctionData)
   DECL_PRINTER(WasmFunctionData)
@@ -757,7 +757,6 @@ class WasmFunctionData
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
 class WasmExportedFunctionData : public WasmFunctionData {
  public:
-  DECL_ACCESSORS(wrapper_code, Code)
   // This is the instance that exported the function (which in case of
   // imported and re-exported functions is different from the instance
   // where the function is defined -- for the latter see WasmFunctionData::ref).
@@ -794,7 +793,6 @@ class WasmJSFunctionData : public WasmFunctionData {
   DECL_INT_ACCESSORS(serialized_return_count)
   DECL_INT_ACCESSORS(serialized_parameter_count)
   DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
-  DECL_ACCESSORS(wrapper_code, Code)
   DECL_ACCESSORS(wasm_to_js_wrapper_code, Code)
 
   DECL_CAST(WasmJSFunctionData)
@@ -810,6 +808,24 @@ class WasmJSFunctionData : public WasmFunctionData {
   class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(WasmJSFunctionData, WasmFunctionData);
+};
+
+class WasmCapiFunctionData : public WasmFunctionData {
+ public:
+  DECL_ACCESSORS(embedder_data, Foreign)
+  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
+
+  DECL_CAST(WasmCapiFunctionData)
+  DECL_PRINTER(WasmCapiFunctionData)
+  DECL_VERIFIER(WasmCapiFunctionData)
+
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(WasmFunctionData::kSize,
+                                TORQUE_GENERATED_WASM_CAPI_FUNCTION_DATA_FIELDS)
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(WasmCapiFunctionData, WasmFunctionData);
 };
 
 class WasmScript : public AllStatic {

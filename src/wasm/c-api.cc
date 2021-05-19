@@ -1290,6 +1290,8 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
   i::Handle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
+  i::Tuple2::cast(function->shared().wasm_capi_function_data().ref())
+      .set_value2(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;
 }

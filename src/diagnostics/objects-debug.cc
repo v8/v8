@@ -1639,6 +1639,7 @@ USE_TORQUE_VERIFIER(WasmGlobalObject)
 
 USE_TORQUE_VERIFIER(WasmExceptionObject)
 
+USE_TORQUE_VERIFIER(WasmCapiFunctionData)
 USE_TORQUE_VERIFIER(WasmJSFunctionData)
 
 USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
