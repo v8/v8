@@ -590,7 +590,7 @@ bool Heap::IsPendingAllocation(HeapObject object) {
   if (new_space_) {
     top = new_space_->original_top_acquire();
     limit = new_space_->original_limit_relaxed();
-    if (top <= addr && addr < limit) return true;
+    if (top && top <= addr && addr < limit) return true;
   }
 
   PagedSpaceIterator spaces(this);
@@ -598,7 +598,7 @@ bool Heap::IsPendingAllocation(HeapObject object) {
        space = spaces.Next()) {
     top = space->original_top_acquire();
     limit = space->original_limit_relaxed();
-    if (top <= addr && addr < limit) return true;
+    if (top && top <= addr && addr < limit) return true;
   }
   if (addr == lo_space_->pending_object()) return true;
   if (new_lo_space_ && addr == new_lo_space_->pending_object()) return true;
