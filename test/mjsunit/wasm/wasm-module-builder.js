@@ -466,6 +466,7 @@ let kExprRttSub = 0x31;
 let kExprRefTest = 0x40;
 let kExprRefCast = 0x41;
 let kExprBrOnCast = 0x42;
+let kExprBrOnCastFail = 0x43;
 let kExprRefIsFunc = 0x50;
 let kExprRefIsData = 0x51;
 let kExprRefIsI31 = 0x52;

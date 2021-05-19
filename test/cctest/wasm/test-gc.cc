@@ -457,6 +457,61 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
   tester.CheckResult(kTypedAfterBranch, 42);
 }
 
+WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
+  WasmGCTester tester(execution_tier);
+  ValueType kDataRefNull = ValueType::Ref(HeapType::kData, kNullable);
+  const byte type0 = tester.DefineStruct({F(kWasmI32, true)});
+  const byte type1 =
+      tester.DefineStruct({F(kWasmI64, true), F(kWasmI32, true)});
+
+  const byte field0 = 5;
+  const byte field1 = 25;
+  const byte null_value = 45;
+
+  //  local_0 = value;
+  //  if (!(local_0 instanceof type0)) goto block1;
+  //  return static_cast<type0>(local_0).field_0;
+  // block1:
+  //  if (local_0 == nullptr) goto block2;
+  //  return static_cast<type1>(local_0).field_1;
+  // block2:
+  //  return null_value;
+#define FUNCTION_BODY(value)                                                 \
+  WASM_LOCAL_SET(0, WASM_SEQ(value)),                                        \
+      WASM_BLOCK(                                                            \
+          WASM_BLOCK_R(kDataRefNull, WASM_LOCAL_GET(0),                      \
+                       WASM_BR_ON_CAST_FAIL(0, WASM_RTT_CANON(type0)),       \
+                       WASM_GC_OP(kExprStructGet), type0, 0, kExprReturn),   \
+          kExprBrOnNull, 0, WASM_RTT_CANON(type1), WASM_GC_OP(kExprRefCast), \
+          WASM_GC_OP(kExprStructGet), type1, 1, kExprReturn),                \
+      WASM_I32V(null_value), kExprEnd
+
+  const byte kBranchTaken = tester.DefineFunction(
+      tester.sigs.i_v(), {kDataRefNull},
+      {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(
+          type1, WASM_I64V(10), WASM_I32V(field1), WASM_RTT_CANON(type1)))});
+
+  const byte kBranchNotTaken = tester.DefineFunction(
+      tester.sigs.i_v(), {kDataRefNull},
+      {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(type0, WASM_I32V(field0),
+                                              WASM_RTT_CANON(type0)))});
+
+  const byte kNull = tester.DefineFunction(
+      tester.sigs.i_v(), {kDataRefNull}, {FUNCTION_BODY(WASM_REF_NULL(type0))});
+
+  const byte kUnrelatedTypes = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(type1, kNullable)},
+      {FUNCTION_BODY(WASM_STRUCT_NEW_WITH_RTT(
+          type1, WASM_I64V(10), WASM_I32V(field1), WASM_RTT_CANON(type1)))});
+#undef FUNCTION_BODY
+
+  tester.CompileModule();
+  tester.CheckResult(kBranchTaken, field1);
+  tester.CheckResult(kBranchNotTaken, field0);
+  tester.CheckResult(kNull, null_value);
+  tester.CheckResult(kUnrelatedTypes, field1);
+}
+
 WASM_COMPILED_EXEC_TEST(WasmRefEq) {
   WasmGCTester tester(execution_tier);
   byte type_index = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});

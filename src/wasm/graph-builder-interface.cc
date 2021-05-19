@@ -1037,28 +1037,37 @@ class WasmGraphBuildingInterface {
       TFNode*, TFNode*, StaticKnowledge, TFNode**, TFNode**, TFNode**,
       TFNode**)>
   void BrOnCastAbs(FullDecoder* decoder, const Value& object, const Value& rtt,
-                   Value* value_on_branch, uint32_t br_depth) {
+                   Value* forwarding_value, uint32_t br_depth,
+                   bool branch_on_match) {
     StaticKnowledge config =
         ComputeStaticKnowledge(object.type, rtt.type, decoder->module_);
-    SsaEnv* match_env = Split(decoder->zone(), ssa_env_);
-    SsaEnv* no_match_env = Steal(decoder->zone(), ssa_env_);
-    no_match_env->SetNotMerged();
+    SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
+    SsaEnv* no_branch_env = Steal(decoder->zone(), ssa_env_);
+    no_branch_env->SetNotMerged();
+    SsaEnv* match_env = branch_on_match ? branch_env : no_branch_env;
+    SsaEnv* no_match_env = branch_on_match ? no_branch_env : branch_env;
     (builder_->*branch_function)(object.node, rtt.node, config,
                                  &match_env->control, &match_env->effect,
                                  &no_match_env->control, &no_match_env->effect);
-    builder_->SetControl(no_match_env->control);
-    SetEnv(match_env);
-    value_on_branch->node = object.node;
+    builder_->SetControl(no_branch_env->control);
+    SetEnv(branch_env);
+    forwarding_value->node = object.node;
     // Currently, br_on_* instructions modify the value stack before calling
     // the interface function, so we don't need to drop any values here.
     BrOrRet(decoder, br_depth, 0);
-    SetEnv(no_match_env);
+    SetEnv(no_branch_env);
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
                 Value* value_on_branch, uint32_t br_depth) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
-        decoder, object, rtt, value_on_branch, br_depth);
+        decoder, object, rtt, value_on_branch, br_depth, true);
+  }
+
+  void BrOnCastFail(FullDecoder* decoder, const Value& object, const Value& rtt,
+                    Value* value_on_fallthrough, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
+        decoder, object, rtt, value_on_fallthrough, br_depth, false);
   }
 
   void RefIsData(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1073,8 +1082,8 @@ class WasmGraphBuildingInterface {
   void BrOnData(FullDecoder* decoder, const Value& object,
                 Value* value_on_branch, uint32_t br_depth) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnData>(
-        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch,
-        br_depth);
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
+        true);
   }
 
   void RefIsFunc(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1089,8 +1098,8 @@ class WasmGraphBuildingInterface {
   void BrOnFunc(FullDecoder* decoder, const Value& object,
                 Value* value_on_branch, uint32_t br_depth) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnFunc>(
-        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch,
-        br_depth);
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
+        true);
   }
 
   void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1104,8 +1113,8 @@ class WasmGraphBuildingInterface {
   void BrOnI31(FullDecoder* decoder, const Value& object,
                Value* value_on_branch, uint32_t br_depth) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
-        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch,
-        br_depth);
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
+        true);
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
