@@ -63,6 +63,12 @@ struct CompilationEnv {
 
   const LowerSimd lower_simd;
 
+  // We assume that memories of size >= half of the virtual address space
+  // cannot be allocated (see https://crbug.com/1201340).
+  static constexpr uint64_t kMaxMemoryPagesAtRuntime = std::min(
+      kV8MaxWasmMemoryPages,
+      (uintptr_t{1} << (kSystemPointerSize == 4 ? 31 : 63)) / kWasmPageSize);
+
   constexpr CompilationEnv(const WasmModule* module,
                            UseTrapHandler use_trap_handler,
                            RuntimeExceptionSupport runtime_exception_support,
@@ -71,12 +77,14 @@ struct CompilationEnv {
       : module(module),
         use_trap_handler(use_trap_handler),
         runtime_exception_support(runtime_exception_support),
-        min_memory_size(module ? module->initial_pages * uint64_t{kWasmPageSize}
-                               : 0),
-        max_memory_size((module && module->has_maximum_pages
-                             ? module->maximum_pages
-                             : max_initial_mem_pages()) *
-                        uint64_t{kWasmPageSize}),
+        min_memory_size(std::min(kMaxMemoryPagesAtRuntime,
+                                 uint64_t{module ? module->initial_pages : 0}) *
+                        kWasmPageSize),
+        max_memory_size(std::min(kMaxMemoryPagesAtRuntime,
+                                 uint64_t{module && module->has_maximum_pages
+                                              ? module->maximum_pages
+                                              : max_initial_mem_pages()}) *
+                        kWasmPageSize),
         enabled_features(enabled_features),
         lower_simd(lower_simd) {}
 };
