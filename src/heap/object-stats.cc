@@ -102,6 +102,10 @@ class FieldStatsCollector : public ObjectVisitor {
     *tagged_fields_count_ += 1;
   }
 
+  void VisitMapPointer(HeapObject host) override {
+    // Just do nothing, but avoid the inherited UNREACHABLE implementation.
+  }
+
  private:
   struct JSObjectFieldStats {
     JSObjectFieldStats() : embedded_fields_count_(0), smi_fields_count_(0) {}
