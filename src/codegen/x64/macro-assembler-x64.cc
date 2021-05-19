@@ -444,11 +444,15 @@ void TurboAssembler::CallRecordWriteStub(
   // object_parameter <= object
   MovePair(slot_parameter, address, object_parameter, object);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
     // Use {near_call} for direct Wasm call within a module.
     auto wasm_target =
         wasm::WasmCode::GetRecordWriteStub(remembered_set_action, fp_mode);
     near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
+#else
+  if (false) {
+#endif
   } else {
     auto builtin_index =
         Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
