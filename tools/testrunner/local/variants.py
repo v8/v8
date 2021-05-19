@@ -61,6 +61,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "stress_concurrent_inlining": ["--single-threaded", "--predictable",
                                  "--no-concurrent-inlining"],
+  "concurrent_inlining": ["--no-concurrent-inlining"],
   "stress_incremental_marking": ["--no-stress-incremental-marking"],
   "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile"],
   "stress": ["--no-stress-opt", "--always-opt", "--no-always-opt", "--liftoff",
@@ -102,6 +103,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
+  "--concurrent-inlining":
+        INCOMPATIBLE_FLAGS_PER_VARIANT["concurrent_inlining"],
   "--concurrent-recompilation": ["--no-concurrent-recompilation", "--predictable"],
   "--enable-armv8": ["--no-enable-armv8"],
   "--gc-interval=*": ["--gc-interval=*"],
