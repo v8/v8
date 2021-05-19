@@ -1462,9 +1462,9 @@
 
 ##############################################################################
 # Skip baseline for no-lazy-feedback-allocation
-['variant == no_lfa', {
+['variant == no_lfa or variant == stress_concurrent_inlining', {
   'baseline/*': [SKIP],
-}],  # variant == no_lfa
+}],  # variant == no_lfa or variant == stress_concurrent_inlining
 
 ##############################################################################
 ['variant == experimental_regexp', {
