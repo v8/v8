@@ -2707,6 +2707,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           }
         } else {
           UnimplementedInstruction();
+          data++;
         }
         break;
 
