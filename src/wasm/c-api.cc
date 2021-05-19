@@ -22,6 +22,7 @@
 #include "src/wasm/c-api.h"
 
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 
 #include "include/libplatform/libplatform.h"
@@ -44,6 +45,10 @@
 #ifdef WASM_API_DEBUG
 #error "WASM_API_DEBUG is unsupported"
 #endif
+
+// If you want counters support (what --dump-counters does for the d8 shell),
+// then set this to 1 (in here, or via -DDUMP_COUNTERS=1 compiler argument).
+#define DUMP_COUNTERS 0
 
 namespace wasm {
 
@@ -227,23 +232,153 @@ auto Config::make() -> own<Config> {
 
 // Engine
 
+#if DUMP_COUNTERS
+class Counter {
+ public:
+  static const int kMaxNameSize = 64;
+  int32_t* Bind(const char* name, bool is_histogram) {
+    int i;
+    for (i = 0; i < kMaxNameSize - 1 && name[i]; i++) {
+      name_[i] = static_cast<char>(name[i]);
+    }
+    name_[i] = '\0';
+    is_histogram_ = is_histogram;
+    return ptr();
+  }
+  int32_t* ptr() { return &count_; }
+  int32_t count() { return count_; }
+  int32_t sample_total() { return sample_total_; }
+  bool is_histogram() { return is_histogram_; }
+  void AddSample(int32_t sample) {
+    count_++;
+    sample_total_ += sample;
+  }
+
+ private:
+  int32_t count_;
+  int32_t sample_total_;
+  bool is_histogram_;
+  uint8_t name_[kMaxNameSize];
+};
+
+class CounterCollection {
+ public:
+  CounterCollection() = default;
+  Counter* GetNextCounter() {
+    if (counters_in_use_ == kMaxCounters) return nullptr;
+    return &counters_[counters_in_use_++];
+  }
+
+ private:
+  static const unsigned kMaxCounters = 512;
+  uint32_t counters_in_use_{0};
+  Counter counters_[kMaxCounters];
+};
+
+using CounterMap = std::unordered_map<std::string, Counter*>;
+
+#endif
+
 struct EngineImpl {
   static bool created;
 
   std::unique_ptr<v8::Platform> platform;
 
+#if DUMP_COUNTERS
+  static CounterCollection counters_;
+  static CounterMap* counter_map_;
+
+  static Counter* GetCounter(const char* name, bool is_histogram) {
+    auto map_entry = counter_map_->find(name);
+    Counter* counter =
+        map_entry != counter_map_->end() ? map_entry->second : nullptr;
+
+    if (counter == nullptr) {
+      counter = counters_.GetNextCounter();
+      if (counter != nullptr) {
+        (*counter_map_)[name] = counter;
+        counter->Bind(name, is_histogram);
+      }
+    } else {
+      DCHECK(counter->is_histogram() == is_histogram);
+    }
+    return counter;
+  }
+
+  static int* LookupCounter(const char* name) {
+    Counter* counter = GetCounter(name, false);
+
+    if (counter != nullptr) {
+      return counter->ptr();
+    } else {
+      return nullptr;
+    }
+  }
+
+  static void* CreateHistogram(const char* name, int min, int max,
+                               size_t buckets) {
+    return GetCounter(name, true);
+  }
+
+  static void AddHistogramSample(void* histogram, int sample) {
+    Counter* counter = reinterpret_cast<Counter*>(histogram);
+    counter->AddSample(sample);
+  }
+#endif
+
   EngineImpl() {
     assert(!created);
     created = true;
+#if DUMP_COUNTERS
+    counter_map_ = new CounterMap();
+#endif
   }
 
   ~EngineImpl() {
+#if DUMP_COUNTERS
+    std::vector<std::pair<std::string, Counter*>> counters(
+        counter_map_->begin(), counter_map_->end());
+    std::sort(counters.begin(), counters.end());
+    // Dump counters in formatted boxes.
+    constexpr int kNameBoxSize = 64;
+    constexpr int kValueBoxSize = 13;
+    std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
+              << std::string(kValueBoxSize, '-') << "+\n";
+    std::cout << "| Name" << std::string(kNameBoxSize - 5, ' ') << "| Value"
+              << std::string(kValueBoxSize - 6, ' ') << "|\n";
+    std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
+              << std::string(kValueBoxSize, '-') << "+\n";
+    for (const auto& pair : counters) {
+      std::string key = pair.first;
+      Counter* counter = pair.second;
+      if (counter->is_histogram()) {
+        std::cout << "| c:" << std::setw(kNameBoxSize - 4) << std::left << key
+                  << " | " << std::setw(kValueBoxSize - 2) << std::right
+                  << counter->count() << " |\n";
+        std::cout << "| t:" << std::setw(kNameBoxSize - 4) << std::left << key
+                  << " | " << std::setw(kValueBoxSize - 2) << std::right
+                  << counter->sample_total() << " |\n";
+      } else {
+        std::cout << "| " << std::setw(kNameBoxSize - 2) << std::left << key
+                  << " | " << std::setw(kValueBoxSize - 2) << std::right
+                  << counter->count() << " |\n";
+      }
+    }
+    std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
+              << std::string(kValueBoxSize, '-') << "+\n";
+    delete counter_map_;
+#endif
     v8::V8::Dispose();
     v8::V8::ShutdownPlatform();
   }
 };
 
 bool EngineImpl::created = false;
+
+#if DUMP_COUNTERS
+CounterCollection EngineImpl::counters_;
+CounterMap* EngineImpl::counter_map_;
+#endif
 
 template <>
 struct implement<Engine> {
@@ -337,6 +472,12 @@ auto Store::make(Engine*) -> own<Store> {
   // Create isolate.
   store->create_params_.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+#if DUMP_COUNTERS
+  store->create_params_.counter_lookup_callback = EngineImpl::LookupCounter;
+  store->create_params_.create_histogram_callback = EngineImpl::CreateHistogram;
+  store->create_params_.add_histogram_sample_callback =
+      EngineImpl::AddHistogramSample;
+#endif
   v8::Isolate* isolate = v8::Isolate::New(store->create_params_);
   if (!isolate) return own<Store>();
   store->isolate_ = isolate;
