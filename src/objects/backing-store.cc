@@ -623,11 +623,52 @@ void BackingStore::UpdateSharedWasmMemoryObjects(Isolate* isolate) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-// Commit already reserved memory.
-bool BackingStore::ResizeInPlace(Isolate* isolate, size_t new_byte_length,
-                                 size_t new_committed_length,
-                                 bool allow_shrinking) {
+// Commit already reserved memory (for RAB backing stores (not shared)).
+BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
+    Isolate* isolate, size_t new_byte_length, size_t new_committed_length) {
   DCHECK_LE(new_byte_length, new_committed_length);
+  DCHECK(!is_shared());
+
+  if (new_byte_length < byte_length_) {
+    // TOOO(v8:11111): Figure out a strategy for shrinking - when do we
+    // un-commit the memory?
+
+    // Zero the memory so that in case the buffer is grown later, we have
+    // zeroed the contents already.
+    memset(reinterpret_cast<byte*>(buffer_start_) + new_byte_length, 0,
+           byte_length_ - new_byte_length);
+
+    // Changing the byte length wouldn't strictly speaking be needed, since
+    // the JSArrayBuffer already stores the updated length. This is to keep
+    // the BackingStore and JSArrayBuffer in sync.
+    byte_length_ = new_byte_length;
+    return kSuccess;
+  }
+  if (new_byte_length == byte_length_) {
+    // i::SetPermissions with size 0 fails on some platforms, so special
+    // handling for the case byte_length_ == new_byte_length == 0 is required.
+    return kSuccess;
+  }
+
+  // Try to adjust the permissions on the memory.
+  if (!i::SetPermissions(GetPlatformPageAllocator(), buffer_start_,
+                         new_committed_length, PageAllocator::kReadWrite)) {
+    return kFailure;
+  }
+
+  // Do per-isolate accounting for non-shared backing stores.
+  DCHECK(free_on_destruct_);
+  reinterpret_cast<v8::Isolate*>(isolate)
+      ->AdjustAmountOfExternalAllocatedMemory(new_byte_length - byte_length_);
+  byte_length_ = new_byte_length;
+  return kSuccess;
+}
+
+// Commit already reserved memory (for GSAB backing stores (shared)).
+BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
+    Isolate* isolate, size_t new_byte_length, size_t new_committed_length) {
+  DCHECK_LE(new_byte_length, new_committed_length);
+  DCHECK(is_shared());
   // See comment in GrowWasmMemoryInPlace.
   // GrowableSharedArrayBuffer.prototype.grow can be called from several
   // threads. If two threads try to grow() in a racy way, the spec allows the
@@ -638,36 +679,21 @@ bool BackingStore::ResizeInPlace(Isolate* isolate, size_t new_byte_length,
   size_t old_byte_length = byte_length_.load(std::memory_order_seq_cst);
   while (true) {
     if (new_byte_length < old_byte_length) {
-      // TOOO(v8:11111): Figure out a strategy for shrinking - when do we
-      // un-commit the memory?
-      if (allow_shrinking) {
-        // This branch is only relevant for RABs and they are not shared between
-        // threads.
-        DCHECK(!is_shared());
-
-        // Zero the memory so that in case the buffer is grown later, we have
-        // zeroed the contents already.
-        memset(reinterpret_cast<byte*>(buffer_start_) + new_byte_length, 0,
-               old_byte_length - new_byte_length);
-
-        // Changing the byte length wouldn't strictly speaking be needed, since
-        // the JSArrayBuffer already stores the updated length. This is to keep
-        // the BackingStore and JSArrayBuffer in sync.
-        byte_length_ = new_byte_length;
-        return true;
-      }
-      return false;
+      // The caller checks for the new_byte_length < old_byte_length_ case. This
+      // can only happen if another thread grew the memory after that.
+      return kRace;
     }
-    if (new_byte_length == 0) {
-      DCHECK_EQ(0, old_byte_length);
-      // i::SetPermissions with size 0 fails on some platforms.
-      return true;
+    if (new_byte_length == old_byte_length) {
+      // i::SetPermissions with size 0 fails on some platforms, so special
+      // handling for the case old_byte_length == new_byte_length == 0 is
+      // required.
+      return kSuccess;
     }
 
     // Try to adjust the permissions on the memory.
     if (!i::SetPermissions(GetPlatformPageAllocator(), buffer_start_,
                            new_committed_length, PageAllocator::kReadWrite)) {
-      return false;
+      return kFailure;
     }
 
     // compare_exchange_weak updates old_byte_length.
@@ -677,14 +703,7 @@ bool BackingStore::ResizeInPlace(Isolate* isolate, size_t new_byte_length,
       break;
     }
   }
-  DCHECK(free_on_destruct_);
-  if (!is_shared_) {
-    // Only do per-isolate accounting for non-shared backing stores.
-    reinterpret_cast<v8::Isolate*>(isolate)
-        ->AdjustAmountOfExternalAllocatedMemory(new_byte_length -
-                                                old_byte_length);
-  }
-  return true;
+  return kSuccess;
 }
 
 std::unique_ptr<BackingStore> BackingStore::WrapAllocation(

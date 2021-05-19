@@ -97,8 +97,12 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool has_guard_regions() const { return has_guard_regions_; }
   bool free_on_destruct() const { return free_on_destruct_; }
 
-  bool ResizeInPlace(Isolate* isolate, size_t new_byte_length,
-                     size_t new_committed_length, bool allow_shrinking);
+  enum ResizeOrGrowResult { kSuccess, kFailure, kRace };
+
+  ResizeOrGrowResult ResizeInPlace(Isolate* isolate, size_t new_byte_length,
+                                   size_t new_committed_length);
+  ResizeOrGrowResult GrowInPlace(Isolate* isolate, size_t new_byte_length,
+                                 size_t new_committed_length);
 
   // Wrapper around ArrayBuffer::Allocator::Reallocate.
   bool Reallocate(Isolate* isolate, size_t new_byte_length);

@@ -420,23 +420,41 @@ static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
 
   // TODO(v8:11111): Wasm integration.
 
-  // [RAB] Let oldBlock be O.[[ArrayBufferData]].
-  // [RAB] Let newBlock be ? CreateByteDataBlock(newByteLength).
-  // [RAB] Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).
-  // [RAB] Perform CopyDataBlockBytes(newBlock, 0, oldBlock, 0, copyLength).
-  // [RAB] NOTE: Neither creation of the new Data Block nor copying from the old
-  // Data Block are observable. Implementations reserve the right to implement
-  // this method as in-place growth or shrinkage.
-  if (!array_buffer->GetBackingStore()->ResizeInPlace(
-          isolate, new_byte_length, new_committed_pages * page_size,
-          !is_shared)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
-  }
-  // [RAB] Set O.[[ArrayBufferByteLength]] to newLength.
   if (!is_shared) {
+    // [RAB] Let oldBlock be O.[[ArrayBufferData]].
+    // [RAB] Let newBlock be ? CreateByteDataBlock(newByteLength).
+    // [RAB] Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).
+    // [RAB] Perform CopyDataBlockBytes(newBlock, 0, oldBlock, 0, copyLength).
+    // [RAB] NOTE: Neither creation of the new Data Block nor copying from the
+    // old Data Block are observable. Implementations reserve the right to
+    // implement this method as in-place growth or shrinkage.
+    if (array_buffer->GetBackingStore()->ResizeInPlace(
+            isolate, new_byte_length, new_committed_pages * page_size) !=
+        BackingStore::ResizeOrGrowResult::kSuccess) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewRangeError(MessageTemplate::kOutOfMemory,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     kMethodName)));
+    }
+    // [RAB] Set O.[[ArrayBufferByteLength]] to newLength.
     array_buffer->set_byte_length(new_byte_length);
   } else {
+    // [GSAB] (Detailed description of the algorithm omitted.)
+    auto result = array_buffer->GetBackingStore()->GrowInPlace(
+        isolate, new_byte_length, new_committed_pages * page_size);
+    if (result == BackingStore::ResizeOrGrowResult::kFailure) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewRangeError(MessageTemplate::kOutOfMemory,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     kMethodName)));
+    }
+    if (result == BackingStore::ResizeOrGrowResult::kRace) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate,
+          NewRangeError(
+              MessageTemplate::kInvalidArrayBufferResizeLength,
+              isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
+    }
     // Invariant: byte_length for a GSAB is 0 (it needs to be read from the
     // BackingStore).
     CHECK_EQ(0, array_buffer->byte_length());
