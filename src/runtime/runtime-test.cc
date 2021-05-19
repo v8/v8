@@ -42,9 +42,12 @@ V8_WARN_UNUSED_RESULT Object CrashUnlessFuzzing(Isolate* isolate) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// Returns |value| unless fuzzing is enabled, otherwise returns undefined_value.
+// Returns |value| unless correctness-fuzzer-supressions is enabled,
+// otherwise returns undefined_value.
 V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
-  return FLAG_fuzzing ? ReadOnlyRoots(isolate).undefined_value() : value;
+  return FLAG_correctness_fuzzer_suppressions
+             ? ReadOnlyRoots(isolate).undefined_value()
+             : value;
 }
 
 // Assert that the given argument is a number within the Int32 range
