@@ -21,20 +21,16 @@ class Heap;
 
 // This class stops and resumes all background threads waiting for GC.
 class CollectionBarrier {
-  Heap* heap_;
-  base::Mutex mutex_;
-  base::ConditionVariable cv_wakeup_;
-  base::ElapsedTimer timer_;
-  bool shutdown_requested_;
-
-  LocalHeap::ThreadState main_thread_state_relaxed();
-
  public:
   explicit CollectionBarrier(Heap* heap)
-      : heap_(heap), shutdown_requested_(false) {}
+      : heap_(heap), collection_requested_(false), shutdown_requested_(false) {}
 
   // Returns true when collection was requested.
-  bool CollectionRequested();
+  bool WasGCRequested();
+
+  //  Requests a GC from the main thread. Must not be invoked more than once per
+  //  GC cycle.
+  void RequestGC();
 
   // Resumes all threads waiting for GC when tear down starts.
   void NotifyShutdownRequested();
@@ -48,9 +44,17 @@ class CollectionBarrier {
   // This is the method use by background threads to request and wait for GC.
   bool AwaitCollectionBackground(LocalHeap* local_heap);
 
+ private:
   // Request GC by activating stack guards and posting a task to perform the
   // GC.
   void ActivateStackGuardAndPostTask();
+
+  Heap* heap_;
+  base::Mutex mutex_;
+  base::ConditionVariable cv_wakeup_;
+  base::ElapsedTimer timer_;
+  std::atomic<bool> collection_requested_;
+  bool shutdown_requested_;
 };
 
 }  // namespace internal

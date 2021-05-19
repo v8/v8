@@ -126,8 +126,7 @@ bool LocalHeap::IsHandleDereferenceAllowed() {
   VerifyCurrent();
 #endif
   ThreadState state = state_relaxed();
-  return state == kRunning || state == kSafepointRequested ||
-         state == kCollectionRequested;
+  return state == kRunning || state == kSafepointRequested;
 }
 #endif
 
@@ -136,14 +135,13 @@ bool LocalHeap::IsParked() {
   VerifyCurrent();
 #endif
   ThreadState state = state_relaxed();
-  return state == kParked || state == kParkedSafepointRequested ||
-         state == kParkedCollectionRequested;
+  return state == kParked || state == kParkedSafepointRequested;
 }
 
 void LocalHeap::ParkSlowPath(ThreadState current_state) {
   if (is_main_thread()) {
     while (true) {
-      CHECK_EQ(current_state, kCollectionRequested);
+      CHECK_EQ(current_state, kSafepointRequested);
       heap_->CollectGarbageForBackground(this);
 
       current_state = kRunning;
@@ -161,8 +159,8 @@ void LocalHeap::ParkSlowPath(ThreadState current_state) {
 
 void LocalHeap::UnparkSlowPath() {
   if (is_main_thread()) {
-    ThreadState expected = kParkedCollectionRequested;
-    CHECK(state_.compare_exchange_strong(expected, kCollectionRequested));
+    ThreadState expected = kParkedSafepointRequested;
+    CHECK(state_.compare_exchange_strong(expected, kSafepointRequested));
     heap_->CollectGarbageForBackground(this);
   } else {
     while (true) {
@@ -185,7 +183,7 @@ void LocalHeap::EnsureParkedBeforeDestruction() {
 
 void LocalHeap::SafepointSlowPath() {
   if (is_main_thread()) {
-    CHECK_EQ(kCollectionRequested, state_relaxed());
+    CHECK_EQ(kSafepointRequested, state_relaxed());
     heap_->CollectGarbageForBackground(this);
   } else {
     TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_SAFEPOINT,
@@ -228,27 +226,27 @@ bool LocalHeap::TryPerformCollection() {
       switch (current) {
         case kRunning:
           if (main_thread->state_.compare_exchange_strong(
-                  current, kCollectionRequested)) {
-            heap_->collection_barrier_->ActivateStackGuardAndPostTask();
+                  current, kSafepointRequested)) {
+            heap_->collection_barrier_->RequestGC();
             return heap_->collection_barrier_->AwaitCollectionBackground(this);
           }
           break;
 
-        case kCollectionRequested:
+        case kSafepointRequested:
           return heap_->collection_barrier_->AwaitCollectionBackground(this);
 
         case kParked:
           if (main_thread->state_.compare_exchange_strong(
-                  current, kParkedCollectionRequested)) {
-            heap_->collection_barrier_->ActivateStackGuardAndPostTask();
+                  current, kParkedSafepointRequested)) {
+            heap_->collection_barrier_->RequestGC();
             return false;
           }
           break;
 
-        case kParkedCollectionRequested:
+        case kParkedSafepointRequested:
           return false;
 
-        default:
+        case kSafepoint:
           UNREACHABLE();
       }
     }
