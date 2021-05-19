@@ -45,6 +45,12 @@ inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   return MemOperand(fp, -kInstanceOffset - offset + half_offset);
 }
 
+inline MemOperand GetStackSlot(uint32_t offset) {
+  return MemOperand(fp, -offset);
+}
+
+inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
+
 inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
   switch (liftoff_cond) {
     case kEqual:
@@ -155,12 +161,25 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 }
 
 void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
-  bailout(kUnsupportedArchitecture, "LoadInstanceFromFrame");
+  LoadU64(dst, liftoff::GetInstanceOperand(), r0);
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
                                         int offset, int size) {
-  bailout(kUnsupportedArchitecture, "LoadFromInstance");
+  DCHECK_LE(0, offset);
+  switch (size) {
+    case 1:
+      LoadU8(dst, MemOperand(instance, offset), r0);
+      break;
+    case 4:
+      LoadU32(dst, MemOperand(instance, offset), r0);
+      break;
+    case 8:
+      LoadU64(dst, MemOperand(instance, offset), r0);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
 }
 
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
