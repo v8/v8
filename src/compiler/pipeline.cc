@@ -1796,9 +1796,8 @@ struct EffectControlLinearizationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     {
-      // The scheduler requires the graphs to be trimmed, so trim now.
-      // TODO(jarin) Remove the trimming once the scheduler can handle untrimmed
-      // graphs.
+      // Branch cloning in the effect control linearizer requires the graphs to
+      // be trimmed, so trim now before scheduling.
       GraphTrimmer trimmer(temp_zone, data->graph());
       NodeVector roots(temp_zone);
       data->jsgraph()->GetCachedNodes(&roots);
@@ -2086,34 +2085,6 @@ struct CsaOptimizationPhase {
     graph_reducer.ReduceGraph();
   }
 };
-
-struct EarlyGraphTrimmingPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(EarlyTrimming)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    GraphTrimmer trimmer(temp_zone, data->graph());
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
-    trimmer.TrimGraph(roots.begin(), roots.end());
-  }
-};
-
-
-struct LateGraphTrimmingPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(LateGraphTrimming)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    GraphTrimmer trimmer(temp_zone, data->graph());
-    NodeVector roots(temp_zone);
-    if (data->jsgraph()) {
-      data->jsgraph()->GetCachedNodes(&roots);
-    }
-    UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
-    trimmer.TrimGraph(roots.begin(), roots.end());
-  }
-};
-
 
 struct ComputeSchedulePhase {
   DECL_PIPELINE_PHASE_CONSTANTS(Scheduling)
@@ -2643,12 +2614,6 @@ bool PipelineImpl::CreateGraph() {
   // Perform function context specialization and inlining (if enabled).
   Run<InliningPhase>();
   RunPrintAndVerify(InliningPhase::phase_name(), true);
-
-  // Remove dead->live edges from the graph.
-  if (!data->info()->IsTurboprop()) {
-    Run<EarlyGraphTrimmingPhase>();
-    RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
-  }
 
   // Determine the Typer operation flags.
   {
@@ -3411,11 +3376,6 @@ void PipelineImpl::ComputeScheduledGraph() {
 
   // We should only schedule the graph if it is not scheduled yet.
   DCHECK_NULL(data->schedule());
-
-  if (!data->info()->IsTurboprop()) {
-    Run<LateGraphTrimmingPhase>();
-    RunPrintAndVerify(LateGraphTrimmingPhase::phase_name(), true);
-  }
 
   Run<ComputeSchedulePhase>();
   TraceScheduleAndVerify(data->info(), data, data->schedule(), "schedule");

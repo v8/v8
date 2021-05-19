@@ -334,7 +334,6 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecompressionOptimization)       \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)               \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyTrimming)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EffectLinearization)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FinalizeCode)                    \
@@ -346,7 +345,6 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterOutputDefinition) \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierSpillSlotAllocator)       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateGraphTrimming)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateOptimization)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoadElimination)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LocateSpillSlots)                \
