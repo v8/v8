@@ -2673,25 +2673,40 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
 // Load a "pointer" sized value from the memory location
 void TurboAssembler::LoadU64(Register dst, const MemOperand& mem,
                              Register scratch) {
-  DCHECK_EQ(mem.rb(), no_reg);
   int offset = mem.offset();
-  int misaligned = (offset & 3);
-  int adj = (offset & 3) - 4;
-  int alignedOffset = (offset & ~3) + 4;
+  if (mem.rb() == no_reg) {
+    int misaligned = (offset & 3);
+    int adj = (offset & 3) - 4;
+    int alignedOffset = (offset & ~3) + 4;
 
-  if (!is_int16(offset) || (misaligned && !is_int16(alignedOffset))) {
-    /* cannot use d-form */
-    mov(scratch, Operand(offset));
-    LoadPX(dst, MemOperand(mem.ra(), scratch));
-  } else {
-    if (misaligned) {
-      // adjust base to conform to offset alignment requirements
-      // Todo: enhance to use scratch if dst is unsuitable
-      DCHECK_NE(dst, r0);
-      addi(dst, mem.ra(), Operand(adj));
-      ld(dst, MemOperand(dst, alignedOffset));
+    if (!is_int16(offset) || (misaligned && !is_int16(alignedOffset))) {
+      /* cannot use d-form */
+      CHECK_NE(scratch, no_reg);
+      mov(scratch, Operand(offset));
+      ldx(dst, MemOperand(mem.ra(), scratch));
     } else {
-      ld(dst, mem);
+      if (misaligned) {
+        // adjust base to conform to offset alignment requirements
+        // Todo: enhance to use scratch if dst is unsuitable
+        DCHECK_NE(dst, r0);
+        addi(dst, mem.ra(), Operand(adj));
+        ld(dst, MemOperand(dst, alignedOffset));
+      } else {
+        ld(dst, mem);
+      }
+    }
+  } else {
+    if (offset == 0) {
+      ldx(dst, mem);
+    } else if (is_int16(offset)) {
+      CHECK_NE(scratch, no_reg);
+      addi(scratch, mem.rb(), Operand(offset));
+      ldx(dst, mem);
+    } else {
+      CHECK_NE(scratch, no_reg);
+      mov(scratch, Operand(offset));
+      add(scratch, scratch, mem.rb());
+      ldx(dst, MemOperand(mem.ra(), scratch));
     }
   }
 }
@@ -3221,7 +3236,7 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   }
   addi(builtin_index, builtin_index,
        Operand(IsolateData::builtin_entry_table_offset()));
-  LoadPX(builtin_index, MemOperand(kRootRegister, builtin_index));
+  LoadU64(builtin_index, MemOperand(kRootRegister, builtin_index));
 }
 
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {

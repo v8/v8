@@ -1192,8 +1192,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ lbzx(r6, MemOperand(kInterpreterBytecodeArrayRegister,
                          kInterpreterBytecodeOffsetRegister));
   __ ShiftLeftImm(r6, r6, Operand(kSystemPointerSizeLog2));
-  __ LoadPX(kJavaScriptCallCodeStartRegister,
-            MemOperand(kInterpreterDispatchTableRegister, r6));
+  __ LoadU64(kJavaScriptCallCodeStartRegister,
+             MemOperand(kInterpreterDispatchTableRegister, r6));
   __ Call(kJavaScriptCallCodeStartRegister);
 
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
@@ -1470,8 +1470,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ lbzx(ip, MemOperand(kInterpreterBytecodeArrayRegister,
                          kInterpreterBytecodeOffsetRegister));
   __ ShiftLeftImm(scratch, scratch, Operand(kSystemPointerSizeLog2));
-  __ LoadPX(kJavaScriptCallCodeStartRegister,
-            MemOperand(kInterpreterDispatchTableRegister, scratch));
+  __ LoadU64(kJavaScriptCallCodeStartRegister,
+             MemOperand(kInterpreterDispatchTableRegister, scratch));
   __ Jump(kJavaScriptCallCodeStartRegister);
 }
 
@@ -2014,7 +2014,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       {
         __ subi(r8, r8, Operand(1));
         __ ShiftLeftImm(scratch, r8, Operand(kSystemPointerSizeLog2));
-        __ LoadPX(r0, MemOperand(r7, scratch));
+        __ LoadU64(r0, MemOperand(r7, scratch));
         __ StorePX(r0, MemOperand(r5, scratch));
         __ cmpi(r8, Operand::Zero());
         __ bne(&loop);

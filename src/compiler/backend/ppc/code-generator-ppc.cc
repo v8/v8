@@ -4000,7 +4000,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ bge(GetLabel(i.InputRpo(1)));
   __ mov_label_addr(kScratchReg, table);
   __ ShiftLeftImm(r0, input, Operand(kSystemPointerSizeLog2));
-  __ LoadPX(kScratchReg, MemOperand(kScratchReg, r0));
+  __ LoadU64(kScratchReg, MemOperand(kScratchReg, r0));
   __ Jump(kScratchReg);
 }
 

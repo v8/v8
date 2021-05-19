@@ -38,7 +38,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_PPC64
-#define LoadPX ldx
 #define LoadPUX ldux
 #define StorePX stdx
 #define StorePUX stdux
@@ -51,7 +50,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 #define ShiftRight_ srd
 #define ShiftRightArith srad
 #else
-#define LoadPX lwzx
 #define LoadPUX lwzux
 #define StorePX stwx
 #define StorePUX stwux
