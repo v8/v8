@@ -594,21 +594,28 @@ size_t OverheadPerCodeSpace(uint32_t num_declared_functions) {
   return overhead;
 }
 
-size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
-                       size_t total_reserved) {
+// Returns both the minimum size to reserve, and an estimate how much should be
+// reserved.
+std::pair<size_t, size_t> ReservationSize(size_t code_size_estimate,
+                                          int num_declared_functions,
+                                          size_t total_reserved) {
   size_t overhead = OverheadPerCodeSpace(num_declared_functions);
 
   // Reserve a power of two at least as big as any of
   //   a) needed size + overhead (this is the minimum needed)
   //   b) 2 * overhead (to not waste too much space by overhead)
   //   c) 1/4 of current total reservation size (to grow exponentially)
-  size_t reserve_size = base::bits::RoundUpToPowerOfTwo(
+  size_t minimum_size = 2 * overhead;
+  size_t suggested_size = base::bits::RoundUpToPowerOfTwo(
       std::max(std::max(RoundUp<kCodeAlignment>(code_size_estimate) + overhead,
-                        2 * overhead),
+                        minimum_size),
                total_reserved / 4));
 
   // Limit by the maximum supported code space size.
-  return std::min(WasmCodeAllocator::kMaxCodeSpaceSize, reserve_size);
+  size_t reserve_size =
+      std::min(WasmCodeAllocator::kMaxCodeSpaceSize, suggested_size);
+
+  return {minimum_size, reserve_size};
 }
 
 }  // namespace
@@ -637,11 +644,13 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
 
     size_t total_reserved = 0;
     for (auto& vmem : owned_code_space_) total_reserved += vmem.size();
-    size_t reserve_size = ReservationSize(
+    size_t min_reservation;
+    size_t reserve_size;
+    std::tie(min_reservation, reserve_size) = ReservationSize(
         size, native_module->module()->num_declared_functions, total_reserved);
     VirtualMemory new_mem =
         code_manager_->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
-    if (!new_mem.IsReserved()) {
+    if (!new_mem.IsReserved() || new_mem.size() < min_reservation) {
       V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
       UNREACHABLE();
     }
@@ -1973,16 +1982,23 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
         committed + (max_committed_code_space_ - committed) / 2);
   }
 
-  // If we cannot add code space later, reserve enough address space up front.
-  size_t code_vmem_size =
+  size_t min_code_size;
+  size_t code_vmem_size;
+  std::tie(min_code_size, code_vmem_size) =
       ReservationSize(code_size_estimate, module->num_declared_functions, 0);
 
-  // The '--wasm-max-code-space-reservation' testing flag can be used to reduce
-  // the maximum size of the initial code space reservation (in MB).
+  // The '--wasm-max-initial-code-space-reservation' testing flag can be used to
+  // reduce the maximum size of the initial code space reservation (in MB).
   if (FLAG_wasm_max_initial_code_space_reservation > 0) {
     size_t flag_max_bytes =
         static_cast<size_t>(FLAG_wasm_max_initial_code_space_reservation) * MB;
     if (flag_max_bytes < code_vmem_size) code_vmem_size = flag_max_bytes;
+  }
+
+  // If we cannot allocate enough code space, fail with an OOM message.
+  if (code_vmem_size < min_code_size) {
+    V8::FatalProcessOutOfMemory(isolate, "NewNativeModule");
+    UNREACHABLE();
   }
 
   // Try up to two times; getting rid of dead JSArrayBuffer allocations might
