@@ -265,6 +265,17 @@ auto Engine::make(own<Config>&& config) -> own<Engine> {
   return make_own(seal<Engine>(engine));
 }
 
+// This should be called somewhat regularly, especially on potentially hot
+// sections of pure C++ execution. To achieve that, we call it on API entry
+// points that heap-allocate but don't call into generated code.
+// For example, finalization of incremental marking is relying on it.
+void CheckAndHandleInterrupts(i::Isolate* isolate) {
+  i::StackLimitCheck check(isolate);
+  if (check.InterruptRequested()) {
+    isolate->stack_guard()->HandleInterrupts();
+  }
+}
+
 // Stores
 
 StoreImpl::~StoreImpl() {
@@ -969,6 +980,7 @@ auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);
+  CheckAndHandleInterrupts(isolate);
   i::wasm::ModuleWireBytes bytes(
       {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
   i::wasm::WasmFeatures features = i::wasm::WasmFeatures::FromIsolate(isolate);
@@ -1272,6 +1284,7 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
   auto store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
+  CheckAndHandleInterrupts(isolate);
   i::Handle<i::Managed<FuncData>> embedder_data =
       i::Managed<FuncData>::FromRawPtr(isolate, sizeof(FuncData), data);
   i::Handle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
@@ -1648,6 +1661,7 @@ auto Global::make(Store* store_abs, const GlobalType* type, const Val& val)
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
+  CheckAndHandleInterrupts(isolate);
 
   DCHECK_EQ(type->content()->kind(), val.kind());
 
@@ -1749,6 +1763,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);
+  CheckAndHandleInterrupts(isolate);
 
   // Get "element".
   i::wasm::ValueType i_type;
@@ -1868,6 +1883,7 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory> {
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);
+  CheckAndHandleInterrupts(isolate);
 
   const Limits& limits = type->limits();
   uint32_t minimum = limits.min;
@@ -1938,6 +1954,7 @@ own<Instance> Instance::make(Store* store_abs, const Module* module_abs,
   const implement<Module>::type* module = impl(module_abs);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
+  CheckAndHandleInterrupts(isolate);
 
   DCHECK_EQ(module->v8_object()->GetIsolate(), isolate);
 
@@ -2007,6 +2024,7 @@ auto Instance::exports() const -> ownvec<Extern> {
   StoreImpl* store = instance->store();
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
+  CheckAndHandleInterrupts(isolate);
   i::Handle<i::WasmInstanceObject> instance_obj = instance->v8_object();
   i::Handle<i::WasmModuleObject> module_obj(instance_obj->module_object(),
                                             isolate);

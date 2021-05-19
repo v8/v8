@@ -877,7 +877,7 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
           ? Handle<WeakArrayList>(memory->instances(), isolate)
           : handle(ReadOnlyRoots(isolate->heap()).empty_weak_array_list(),
                    isolate);
-  Handle<WeakArrayList> new_instances = WeakArrayList::AddToEnd(
+  Handle<WeakArrayList> new_instances = WeakArrayList::Append(
       isolate, old_instances, MaybeObjectHandle::Weak(instance));
   memory->set_instances(*new_instances);
   Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate);
@@ -1292,11 +1292,10 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
-  // TODO(wasm): Allow to reuse holes in the {WeakArrayList} below.
   if (module_object->script().type() == Script::TYPE_WASM) {
     Handle<WeakArrayList> weak_instance_list(
         module_object->script().wasm_weak_instance_list(), isolate);
-    weak_instance_list = WeakArrayList::AddToEnd(
+    weak_instance_list = WeakArrayList::Append(
         isolate, weak_instance_list, MaybeObjectHandle::Weak(instance));
     module_object->script().set_wasm_weak_instance_list(*weak_instance_list);
   }
