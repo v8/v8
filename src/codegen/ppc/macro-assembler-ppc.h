@@ -792,7 +792,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadS16(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void StoreHalfWord(Register src, const MemOperand& mem, Register scratch);
 
-  void LoadByte(Register dst, const MemOperand& mem, Register scratch);
+  void LoadU8(Register dst, const MemOperand& mem, Register scratch);
   void StoreByte(Register src, const MemOperand& mem, Register scratch);
 
   void LoadDoubleU(DoubleRegister dst, const MemOperand& mem,

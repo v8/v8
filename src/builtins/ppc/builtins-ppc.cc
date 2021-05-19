@@ -363,7 +363,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
   __ Move(scratch, debug_hook);
-  __ LoadByte(scratch, MemOperand(scratch), r0);
+  __ LoadU8(scratch, MemOperand(scratch), r0);
   __ extsb(scratch, scratch);
   __ CmpSmiLiteral(scratch, Smi::zero(), r0);
   __ bne(&prepare_step_in_if_stepping);
@@ -2436,7 +2436,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Check the comments under crrev.com/c/2645694 for more details.
     Label push_empty_simd, simd_pushed;
     __ Move(ip, ExternalReference::supports_wasm_simd_128_address());
-    __ LoadByte(ip, MemOperand(ip), r0);
+    __ LoadU8(ip, MemOperand(ip), r0);
     __ cmpi(ip, Operand::Zero());  // If > 0 then simd is available.
     __ ble(&push_empty_simd);
     __ MultiPushV128(simd_regs);
@@ -2464,7 +2464,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Restore registers.
     Label pop_empty_simd, simd_popped;
     __ Move(ip, ExternalReference::supports_wasm_simd_128_address());
-    __ LoadByte(ip, MemOperand(ip), r0);
+    __ LoadU8(ip, MemOperand(ip), r0);
     __ cmpi(ip, Operand::Zero());  // If > 0 then simd is available.
     __ ble(&pop_empty_simd);
     __ MultiPopV128(simd_regs);

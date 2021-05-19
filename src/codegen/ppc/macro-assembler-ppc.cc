@@ -1466,7 +1466,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   ExternalReference debug_hook_active =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   Move(r7, debug_hook_active);
-  LoadByte(r7, MemOperand(r7), r0);
+  LoadU8(r7, MemOperand(r7), r0);
   extsb(r7, r7);
   CmpSmiLiteral(r7, Smi::zero(), r0);
   beq(&skip_hook);
@@ -2865,13 +2865,13 @@ void MacroAssembler::StoreHalfWord(Register src, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand currently only supports d-form
-void MacroAssembler::LoadByte(Register dst, const MemOperand& mem,
-                              Register scratch) {
+void MacroAssembler::LoadU8(Register dst, const MemOperand& mem,
+                            Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
     lbzx(dst, MemOperand(base, scratch));
   } else {
     lbz(dst, mem);
