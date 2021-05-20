@@ -28114,8 +28114,8 @@ void CallWithLessArguments() {
             "%OptimizeFunctionOnNextCall(func);"
             "func();");
 
-  // Passing not enough arguments should go through the fast path.
-  CHECK(checker.DidCallFast());
+  // Passing not enough arguments should not go through the fast path.
+  CHECK(checker.DidCallSlow());
 }
 
 void CallWithMoreArguments() {

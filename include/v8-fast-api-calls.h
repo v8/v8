@@ -178,6 +178,41 @@
  * To be supported types:
  *  - arrays of C types
  *  - arrays of embedder types
+ *
+ *
+ * The API offers a limited support for function overloads:
+ *
+ * \code
+ *    void FastMethod_2Args(int param, bool another_param);
+ *    void FastMethod_3Args(int param, bool another_param, int third_param);
+ *
+ *    v8::CFunction fast_method_2args_c_func =
+ *         MakeV8CFunction(FastMethod_2Args);
+ *    v8::CFunction fast_method_3args_c_func =
+ *         MakeV8CFunction(FastMethod_3Args);
+ *    const v8::CFunction fast_method_overloads[] = {fast_method_2args_c_func,
+ *                                                   fast_method_3args_c_func};
+ *    Local<v8::FunctionTemplate> method_template =
+ *        v8::FunctionTemplate::NewWithCFunctionOverloads(
+ *            isolate, SlowCallback, data, signature, length,
+ *            constructor_behavior, side_effect_type,
+ *            {fast_method_overloads, 2});
+ * \endcode
+ *
+ * In this example a single FunctionTemplate is associated to multiple C++
+ * functions. The overload resolution is currently only based on the number of
+ * arguments passed in a call. For example, if this method_template is
+ * registered with a wrapper JS object as described above, a call with two
+ * arguments:
+ *    obj.method(42, true);
+ * will result in a fast call to FastMethod_2Args, while a call with three or
+ * more arguments:
+ *    obj.method(42, true, 11);
+ * will result in a fast call to FastMethod_3Args. Instead a call with less than
+ * two arguments, like:
+ *    obj.method(42);
+ * would not result in a fast call but would fall back to executing the
+ * associated SlowCallback.
  */
 
 #ifndef INCLUDE_V8_FAST_API_CALLS_H_

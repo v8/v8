@@ -886,12 +886,13 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
  public:
   FastApiCallReducerAssembler(
       JSCallReducer* reducer, Node* node,
-      const FunctionTemplateInfoRef function_template_info, Node* receiver,
-      Node* holder, const SharedFunctionInfoRef shared, Node* target,
-      const int arity, Node* effect)
+      const FunctionTemplateInfoRef function_template_info,
+      const ZoneVector<std::pair<Address, const CFunctionInfo*>>
+          c_candidate_functions,
+      Node* receiver, Node* holder, const SharedFunctionInfoRef shared,
+      Node* target, const int arity, Node* effect)
       : JSCallReducerAssembler(reducer, node),
-        c_functions_(function_template_info.c_functions()),
-        c_signatures_(function_template_info.c_signatures()),
+        c_candidate_functions_(c_candidate_functions),
         function_template_info_(function_template_info),
         receiver_(receiver),
         holder_(holder),
@@ -899,17 +900,21 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
         target_(target),
         arity_(arity) {
     DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-    CHECK_GT(c_functions_.size(), 0);
-    CHECK_GT(c_signatures_.size(), 0);
+    CHECK_GT(c_candidate_functions.size(), 0);
     InitializeEffectControl(effect, NodeProperties::GetControlInput(node));
   }
 
   TNode<Object> ReduceFastApiCall() {
     JSCallNode n(node_ptr());
+
+    // Multiple function overloads not supported yet, always call the first
+    // overload with the same arity.
+    const size_t c_overloads_index = 0;
+
     // C arguments include the receiver at index 0. Thus C index 1 corresponds
     // to the JS argument 0, etc.
-    const int c_argument_count =
-        static_cast<int>(c_signatures_[0]->ArgumentCount());
+    const int c_argument_count = static_cast<int>(
+        c_candidate_functions_[c_overloads_index].second->ArgumentCount());
     CHECK_GE(c_argument_count, kReceiver);
 
     int cursor = 0;
@@ -917,8 +922,8 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
                                                  kExtraInputsCount);
     // Multiple function overloads not supported yet, always call the first
     // overload.
-    inputs[cursor++] =
-        ExternalConstant(ExternalReference::Create(c_functions_[0]));
+    inputs[cursor++] = ExternalConstant(ExternalReference::Create(
+        c_candidate_functions_[c_overloads_index].first));
 
     inputs[cursor++] = n.receiver();
 
@@ -973,7 +978,8 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
 
     DCHECK_EQ(cursor, c_argument_count + arity_ + kExtraInputsCount);
 
-    return FastApiCall(call_descriptor, inputs.begin(), inputs.size());
+    return FastApiCall(call_descriptor, inputs.begin(), inputs.size(),
+                       c_overloads_index);
   }
 
  private:
@@ -988,14 +994,16 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
   static constexpr int kInlineSize = 12;
 
   TNode<Object> FastApiCall(CallDescriptor* descriptor, Node** inputs,
-                            size_t inputs_size) {
-    return AddNode<Object>(graph()->NewNode(
-        simplified()->FastApiCall(c_signatures_[0], feedback(), descriptor),
-        static_cast<int>(inputs_size), inputs));
+                            size_t inputs_size, size_t c_overloads_index) {
+    return AddNode<Object>(
+        graph()->NewNode(simplified()->FastApiCall(
+                             c_candidate_functions_[c_overloads_index].second,
+                             feedback(), descriptor),
+                         static_cast<int>(inputs_size), inputs));
   }
 
-  const ZoneVector<Address> c_functions_;
-  const ZoneVector<const CFunctionInfo*> c_signatures_;
+  const ZoneVector<std::pair<Address, const CFunctionInfo*>>
+      c_candidate_functions_;
   const FunctionTemplateInfoRef function_template_info_;
   Node* const receiver_;
   Node* const holder_;
@@ -3540,26 +3548,66 @@ bool Has64BitIntegerParamsInSignature(const CFunctionInfo* c_signature) {
 }  // namespace
 #endif
 
-bool CanOptimizeFastCall(
-    const FunctionTemplateInfoRef& function_template_info) {
-  if (function_template_info.c_functions().empty()) return false;
+// Given a FunctionTemplateInfo, checks whether the fast API call can be
+// optimized, applying the initial step of the overload resolution algorithm:
+// Given an overload set function_template_info.c_signatures, and a list of
+// arguments of size argc:
+// 1. Let max_arg be the length of the longest type list of the entries in
+//    function_template_info.c_signatures.
+// 2. Let argc be the size of the arguments list.
+// 3. Initialize arg_count = min(max_arg, argc).
+// 4. Remove from the set all entries whose type list is not of length
+//    arg_count.
+// Returns an array with the indexes of the remaining entries in S, which
+// represents the set of "optimizable" function overloads.
 
-  // Multiple function overloads not supported yet, always call the first
-  // overload.
-  const CFunctionInfo* c_signature = function_template_info.c_signatures()[0];
+ZoneVector<std::pair<Address, const CFunctionInfo*>> CanOptimizeFastCall(
+    Zone* zone, const FunctionTemplateInfoRef& function_template_info,
+    size_t argc) {
+  ZoneVector<std::pair<Address, const CFunctionInfo*>> result(zone);
+  if (!FLAG_turbo_fast_api_calls) return result;
 
-  bool optimize_to_fast_call = FLAG_turbo_fast_api_calls;
+  static constexpr int kReceiver = 1;
+
+  ZoneVector<Address> functions = function_template_info.c_functions();
+  ZoneVector<const CFunctionInfo*> signatures =
+      function_template_info.c_signatures();
+  const size_t overloads_count = signatures.size();
+
+  // Calculates the length of the longest type list of the entries in
+  // function_template_info.
+  size_t max_arg = 0;
+  for (size_t i = 0; i < overloads_count; i++) {
+    const CFunctionInfo* c_signature = signatures[i];
+    // C arguments should include the receiver at index 0.
+    DCHECK_GE(c_signature->ArgumentCount(), kReceiver);
+    const size_t len = c_signature->ArgumentCount() - kReceiver;
+    if (len > max_arg) max_arg = len;
+  }
+  const size_t arg_count = std::min(max_arg, argc);
+
+  // Only considers entries whose type list length matches arg_count.
+  for (size_t i = 0; i < overloads_count; i++) {
+    const CFunctionInfo* c_signature = signatures[i];
+    const size_t len = c_signature->ArgumentCount() - kReceiver;
+    bool optimize_to_fast_call = (len == arg_count);
+
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-  optimize_to_fast_call =
-      optimize_to_fast_call && !HasFPParamsInSignature(c_signature);
+    optimize_to_fast_call =
+        optimize_to_fast_call && !HasFPParamsInSignature(c_signature);
 #else
-  USE(c_signature);
+    USE(c_signature);
 #endif
 #ifndef V8_TARGET_ARCH_64_BIT
-  optimize_to_fast_call =
-      optimize_to_fast_call && !Has64BitIntegerParamsInSignature(c_signature);
+    optimize_to_fast_call =
+        optimize_to_fast_call && !Has64BitIntegerParamsInSignature(c_signature);
 #endif
-  return optimize_to_fast_call;
+    if (optimize_to_fast_call) {
+      result.push_back({functions[i], c_signature});
+    }
+  }
+
+  return result;
 }
 
 Reduction JSCallReducer::ReduceCallApiFunction(
@@ -3731,9 +3779,12 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     return NoChange();
   }
 
-  if (CanOptimizeFastCall(function_template_info)) {
-    FastApiCallReducerAssembler a(this, node, function_template_info, receiver,
-                                  holder, shared, target, argc, effect);
+  ZoneVector<std::pair<Address, const CFunctionInfo*>> c_candidate_functions =
+      CanOptimizeFastCall(graph()->zone(), function_template_info, argc);
+  if (!c_candidate_functions.empty()) {
+    FastApiCallReducerAssembler a(this, node, function_template_info,
+                                  c_candidate_functions, receiver, holder,
+                                  shared, target, argc, effect);
     Node* fast_call_subgraph = a.ReduceFastApiCall();
     ReplaceWithSubgraph(&a, fast_call_subgraph);
 
