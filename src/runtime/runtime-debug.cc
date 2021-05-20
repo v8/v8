@@ -359,6 +359,9 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
   } else if (object->IsWasmModuleObject()) {
     result = AddWasmModuleObjectInternalProperties(
         isolate, result, Handle<WasmModuleObject>::cast(object));
+  } else if (object->IsWasmTableObject()) {
+    result = AddWasmTableObjectInternalProperties(
+        isolate, result, Handle<WasmTableObject>::cast(object));
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return isolate->factory()->NewJSArrayWithElements(

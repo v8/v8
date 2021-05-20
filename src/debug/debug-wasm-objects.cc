@@ -1113,5 +1113,24 @@ Handle<ArrayList> AddWasmModuleObjectInternalProperties(
   return result;
 }
 
+Handle<ArrayList> AddWasmTableObjectInternalProperties(
+    Isolate* isolate, Handle<ArrayList> result, Handle<WasmTableObject> table) {
+  int length = table->current_length();
+  Handle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
+  for (int i = 0; i < length; ++i) {
+    entries->set(i, *WasmTableObject::Get(isolate, table, i));
+  }
+  Handle<JSArray> final_entries = isolate->factory()->NewJSArrayWithElements(
+      entries, i::PACKED_ELEMENTS, length);
+  JSObject::SetPrototype(final_entries, isolate->factory()->null_value(), false,
+                         kDontThrow)
+      .Check();
+  result = ArrayList::Add(
+      isolate, result,
+      isolate->factory()->NewStringFromStaticChars("[[Entries]]"),
+      final_entries);
+  return result;
+}
+
 }  // namespace internal
 }  // namespace v8
