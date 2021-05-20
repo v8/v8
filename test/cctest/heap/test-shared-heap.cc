@@ -83,6 +83,9 @@ UNINITIALIZED_TEST(SharedCollection) {
   create_params.array_buffer_allocator = allocator.get();
   Isolate* shared_isolate = Isolate::NewShared(create_params);
 
+  DCHECK_NULL(shared_isolate->heap()->new_space());
+  DCHECK_NULL(shared_isolate->heap()->new_lo_space());
+
   CcTest::CollectGarbage(OLD_SPACE, shared_isolate);
   Isolate::Delete(shared_isolate);
 }
