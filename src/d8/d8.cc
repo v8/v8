@@ -1604,8 +1604,22 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PerIsolateData* data = PerIsolateData::Get(args.GetIsolate());
   int index = data->RealmIndexOrThrow(args, 0);
   if (index == -1) return;
-  args.GetReturnValue().Set(
-      Local<Context>::New(args.GetIsolate(), data->realms_[index])->Global());
+  // TODO(chromium:324812): Ideally Context::Global should never return raw
+  // global objects but return a global proxy. Currently it returns global
+  // object when the global proxy is detached from the global object. The
+  // following is a workaround till we fix Context::Global so we don't leak
+  // global objects.
+  Local<Object> global =
+      Local<Context>::New(args.GetIsolate(), data->realms_[index])->Global();
+  i::Handle<i::Object> i_global = Utils::OpenHandle(*global);
+  if (i_global->IsJSGlobalObject()) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+    i::Handle<i::JSObject> i_global_proxy =
+        handle(i::Handle<i::JSGlobalObject>::cast(i_global)->global_proxy(),
+               i_isolate);
+    global = Utils::ToLocal(i_global_proxy);
+  }
+  args.GetReturnValue().Set(global);
 }
 
 MaybeLocal<Context> Shell::CreateRealm(
