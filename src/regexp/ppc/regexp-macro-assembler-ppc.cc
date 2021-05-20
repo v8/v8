@@ -165,7 +165,7 @@ void RegExpMacroAssemblerPPC::AdvanceRegister(int reg, int by) {
     __ LoadU64(r3, register_location(reg), r0);
     __ mov(r0, Operand(by));
     __ add(r3, r3, r0);
-    __ StoreP(r3, register_location(reg), r0);
+    __ StoreU64(r3, register_location(reg), r0);
   }
 }
 
@@ -176,7 +176,7 @@ void RegExpMacroAssemblerPPC::Backtrack() {
     Label next;
     __ LoadU64(r3, MemOperand(frame_pointer(), kBacktrackCount), r0);
     __ addi(r3, r3, Operand(1));
-    __ StoreP(r3, MemOperand(frame_pointer(), kBacktrackCount), r0);
+    __ StoreU64(r3, MemOperand(frame_pointer(), kBacktrackCount), r0);
     __ mov(r0, Operand(backtrack_limit()));
     __ cmp(r3, r0);
     __ bne(&next);
@@ -759,7 +759,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     }
     // Store this value in a local variable, for use when clearing
     // position registers.
-    __ StoreP(r3, MemOperand(frame_pointer(), kStringStartMinusOne));
+    __ StoreU64(r3, MemOperand(frame_pointer(), kStringStartMinusOne));
 
     // Initialize code pointer register
     __ mov(code_pointer(), Operand(masm_->CodeObject()));
@@ -792,7 +792,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
         __ bdnz(&init_loop);
       } else {
         for (int i = 0; i < num_saved_registers_; i++) {
-          __ StoreP(r3, register_location(i), r0);
+          __ StoreU64(r3, register_location(i), r0);
         }
       }
     }
@@ -855,7 +855,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
         __ LoadU64(r5, MemOperand(frame_pointer(), kRegisterOutput));
         // Increment success counter.
         __ addi(r3, r3, Operand(1));
-        __ StoreP(r3, MemOperand(frame_pointer(), kSuccessfulCaptures));
+        __ StoreU64(r3, MemOperand(frame_pointer(), kSuccessfulCaptures));
         // Capture results have been stored, so the number of remaining global
         // output registers is reduced by the number of stored captures.
         __ subi(r4, r4, Operand(num_saved_registers_));
@@ -863,10 +863,10 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
         __ cmpi(r4, Operand(num_saved_registers_));
         __ blt(&return_r3);
 
-        __ StoreP(r4, MemOperand(frame_pointer(), kNumOutputRegisters));
+        __ StoreU64(r4, MemOperand(frame_pointer(), kNumOutputRegisters));
         // Advance the location for output.
         __ addi(r5, r5, Operand(num_saved_registers_ * kIntSize));
-        __ StoreP(r5, MemOperand(frame_pointer(), kRegisterOutput));
+        __ StoreU64(r5, MemOperand(frame_pointer(), kRegisterOutput));
 
         // Prepare r3 to initialize registers with its value in the next run.
         __ LoadU64(r3, MemOperand(frame_pointer(), kStringStartMinusOne));
@@ -1022,7 +1022,7 @@ void RegExpMacroAssemblerPPC::PopCurrentPosition() {
 
 void RegExpMacroAssemblerPPC::PopRegister(int register_index) {
   Pop(r3);
-  __ StoreP(r3, register_location(register_index), r0);
+  __ StoreU64(r3, register_location(register_index), r0);
 }
 
 
@@ -1074,7 +1074,7 @@ void RegExpMacroAssemblerPPC::SetCurrentPositionFromEnd(int by) {
 void RegExpMacroAssemblerPPC::SetRegister(int register_index, int to) {
   DCHECK(register_index >= num_saved_registers_);  // Reserved for positions!
   __ mov(r3, Operand(to));
-  __ StoreP(r3, register_location(register_index), r0);
+  __ StoreU64(r3, register_location(register_index), r0);
 }
 
 
@@ -1087,11 +1087,11 @@ bool RegExpMacroAssemblerPPC::Succeed() {
 void RegExpMacroAssemblerPPC::WriteCurrentPositionToRegister(int reg,
                                                              int cp_offset) {
   if (cp_offset == 0) {
-    __ StoreP(current_input_offset(), register_location(reg), r0);
+    __ StoreU64(current_input_offset(), register_location(reg), r0);
   } else {
     __ mov(r0, Operand(cp_offset * char_size()));
     __ add(r3, current_input_offset(), r0);
-    __ StoreP(r3, register_location(reg), r0);
+    __ StoreU64(r3, register_location(reg), r0);
   }
 }
 
@@ -1100,7 +1100,7 @@ void RegExpMacroAssemblerPPC::ClearRegisters(int reg_from, int reg_to) {
   DCHECK(reg_from <= reg_to);
   __ LoadU64(r3, MemOperand(frame_pointer(), kStringStartMinusOne));
   for (int reg = reg_from; reg <= reg_to; reg++) {
-    __ StoreP(r3, register_location(reg), r0);
+    __ StoreU64(r3, register_location(reg), r0);
   }
 }
 
@@ -1108,7 +1108,7 @@ void RegExpMacroAssemblerPPC::ClearRegisters(int reg_from, int reg_to) {
 void RegExpMacroAssemblerPPC::WriteStackPointerToRegister(int reg) {
   __ LoadU64(r4, MemOperand(frame_pointer(), kStackHighEnd));
   __ sub(r3, backtrack_stackpointer(), r4);
-  __ StoreP(r3, register_location(reg), r0);
+  __ StoreU64(r3, register_location(reg), r0);
 }
 
 
@@ -1134,8 +1134,8 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     __ ClearRightImm(sp, sp,
                      Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
-    __ StoreP(scratch,
-              MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
+    __ StoreU64(scratch,
+                MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
   } else {
     // Make room for stack arguments
     stack_space += stack_passed_arguments;

@@ -1040,8 +1040,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ bind(&start_call);
         __ LoadPC(kScratchReg);
         __ addi(kScratchReg, kScratchReg, Operand(offset));
-        __ StoreP(kScratchReg,
-                  MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        __ StoreU64(kScratchReg,
+                    MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         __ mtlr(r0);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1795,8 +1795,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ StoreSimd128(i.InputSimd128Register(0), MemOperand(ip, sp));
         }
       } else {
-        __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kSystemPointerSize),
-                  r0);
+        __ StoreU64(i.InputRegister(0),
+                    MemOperand(sp, slot * kSystemPointerSize), r0);
       }
       break;
     }
@@ -4284,7 +4284,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ Move(g.ToRegister(destination), src);
     } else {
-      __ StoreP(src, g.ToMemOperand(destination), r0);
+      __ StoreU64(src, g.ToMemOperand(destination), r0);
     }
   } else if (source->IsStackSlot()) {
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
@@ -4294,7 +4294,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else {
       Register temp = kScratchReg;
       __ LoadU64(temp, src, r0);
-      __ StoreP(temp, g.ToMemOperand(destination), r0);
+      __ StoreU64(temp, g.ToMemOperand(destination), r0);
     }
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
@@ -4361,7 +4361,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
       }
       if (destination->IsStackSlot()) {
-        __ StoreP(dst, g.ToMemOperand(destination), r0);
+        __ StoreU64(dst, g.ToMemOperand(destination), r0);
       }
     } else {
       DoubleRegister dst = destination->IsFPRegister()

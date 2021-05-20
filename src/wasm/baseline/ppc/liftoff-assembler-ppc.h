@@ -352,7 +352,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // Special straight-line code for up to nine words. Generates one
     // instruction per word.
     for (int offset = 4; offset <= size; offset += 4) {
-      StoreP(r0, liftoff::GetHalfStackSlot(start + offset, kLowWord));
+      StoreU64(r0, liftoff::GetHalfStackSlot(start + offset, kLowWord));
     }
   } else {
     // General case for bigger counts (9 instructions).
@@ -364,7 +364,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 
     Label loop;
     bind(&loop);
-    StoreP(r0, MemOperand(r0));
+    StoreU64(r0, MemOperand(r0));
     addi(r0, r0, Operand(kSystemPointerSize));
     cmp(r4, r5);
     bne(&loop);
