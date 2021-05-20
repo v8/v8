@@ -4037,6 +4037,23 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VSPLT
+#define VSPLTI(type)                                                \
+  type sim = static_cast<type>(SIGN_EXT_IMM5(instr->Bits(20, 16))); \
+  int vrt = instr->RTValue();                                       \
+  FOR_EACH_LANE(i, type) { set_simd_register_by_lane<type>(vrt, i, sim); }
+    case VSPLTISW: {
+      VSPLTI(int32_t)
+      break;
+    }
+    case VSPLTISH: {
+      VSPLTI(int16_t)
+      break;
+    }
+    case VSPLTISB: {
+      VSPLTI(int8_t)
+      break;
+    }
+#undef VSPLTI
 #define VINSERT(type, element)                                              \
   uint32_t uim = static_cast<uint32_t>(instr->Bits(20, 16)) / sizeof(type); \
   int vrt = instr->RTValue();                                               \

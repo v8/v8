@@ -270,6 +270,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 3;
     }
+    case 'S': {  // SIM
+      int32_t value = static_cast<int32_t>(SIGN_EXT_IMM5(instr->Bits(20, 16)));
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      return 3;
+    }
     case 'U': {  // UIM
       int32_t value = instr->Bits(20, 16);
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
@@ -460,6 +465,13 @@ void Decoder::DecodeExt0(Instruction* instr) {
   }
     PPC_VX_OPCODE_C_FORM_LIST(DECODE_VX_C_FORM__INSTRUCTIONS)
 #undef DECODE_VX_C_FORM__INSTRUCTIONS
+#define DECODE_VX_E_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Vt, 'SIM");                                  \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_E_FORM_LIST(DECODE_VX_E_FORM__INSTRUCTIONS)
+#undef DECODE_VX_E_FORM__INSTRUCTIONS
   }
 }
 

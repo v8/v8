@@ -2870,9 +2870,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       Simd128Register src = i.InputSimd128Register(0);
       constexpr int shift_bits = 63;
-      __ li(ip, Operand(shift_bits));
-      __ mtvsrd(kScratchSimd128Reg, ip);
-      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ xxspltib(kScratchSimd128Reg, Operand(shift_bits));
       __ vsrad(kScratchSimd128Reg, src, kScratchSimd128Reg);
       __ vxor(tempFPReg1, src, kScratchSimd128Reg);
       __ vsubudm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
@@ -2882,9 +2880,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       Simd128Register src = i.InputSimd128Register(0);
       constexpr int shift_bits = 31;
-      __ li(ip, Operand(shift_bits));
-      __ mtvsrd(kScratchSimd128Reg, ip);
-      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ xxspltib(kScratchSimd128Reg, Operand(shift_bits));
       __ vsraw(kScratchSimd128Reg, src, kScratchSimd128Reg);
       __ vxor(tempFPReg1, src, kScratchSimd128Reg);
       __ vsubuwm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
@@ -2892,9 +2888,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_I16x8Neg: {
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ li(ip, Operand(1));
-      __ mtvsrd(kScratchSimd128Reg, ip);
-      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
+      __ vspltish(kScratchSimd128Reg, Operand(1));
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
       __ vadduhm(i.OutputSimd128Register(), kScratchSimd128Reg, tempFPReg1);
       break;
@@ -2903,9 +2897,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       Simd128Register src = i.InputSimd128Register(0);
       constexpr int shift_bits = 15;
-      __ li(ip, Operand(shift_bits));
-      __ mtvsrd(kScratchSimd128Reg, ip);
-      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ xxspltib(kScratchSimd128Reg, Operand(shift_bits));
       __ vsrah(kScratchSimd128Reg, src, kScratchSimd128Reg);
       __ vxor(tempFPReg1, src, kScratchSimd128Reg);
       __ vsubuhm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
@@ -2913,9 +2905,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_I8x16Neg: {
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ li(ip, Operand(1));
-      __ mtvsrd(kScratchSimd128Reg, ip);
-      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ xxspltib(kScratchSimd128Reg, Operand(1));
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
       __ vaddubm(i.OutputSimd128Register(), kScratchSimd128Reg, tempFPReg1);
       break;
@@ -2924,9 +2914,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       Simd128Register src = i.InputSimd128Register(0);
       constexpr int shift_bits = 7;
-      __ li(ip, Operand(shift_bits));
-      __ mtvsrd(kScratchSimd128Reg, ip);
-      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ xxspltib(kScratchSimd128Reg, Operand(shift_bits));
       __ vsrab(kScratchSimd128Reg, src, kScratchSimd128Reg);
       __ vxor(tempFPReg1, src, kScratchSimd128Reg);
       __ vsububm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
@@ -3589,9 +3577,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ li(kScratchReg, Operand(1));
-      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
+      __ vspltish(kScratchSimd128Reg, Operand(1));
       EXT_ADD_PAIRWISE(vmulesh, vmulosh, vadduwm)
       break;
     }
@@ -3599,9 +3585,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ li(kScratchReg, Operand(1));
-      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
+      __ vspltish(kScratchSimd128Reg, Operand(1));
       EXT_ADD_PAIRWISE(vmuleuh, vmulouh, vadduwm)
       break;
     }
