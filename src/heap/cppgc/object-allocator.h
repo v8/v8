@@ -18,6 +18,10 @@
 
 namespace cppgc {
 
+namespace internal {
+class ObjectAllocator;
+}  // namespace internal
+
 class V8_EXPORT AllocationHandle {
  private:
   AllocationHandle() = default;

@@ -5,7 +5,8 @@
 #ifndef INCLUDE_CPPGC_HEAP_STATISTICS_H_
 #define INCLUDE_CPPGC_HEAP_STATISTICS_H_
 
-#include <memory>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
