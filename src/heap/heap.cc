@@ -4451,8 +4451,8 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
                                          &this->ephemeron_remembered_set_);
     object.IterateBody(&visitor);
   }
-  // TODO(ulan): Add old to old slot set verification once all weak objects
-  // have their own instance types and slots are recorded for all weal fields.
+  // TODO(v8:11797): Add old to old slot set verification once all weak objects
+  // have their own instance types and slots are recorded for all weak fields.
 }
 #endif
 

@@ -2429,7 +2429,6 @@ void MarkCompactCollector::TrimDescriptorArray(Map map,
     DCHECK(descriptors == ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
-  // TODO(ulan): Trim only if slack is greater than some percentage threshold.
   int to_trim =
       descriptors.number_of_all_descriptors() - number_of_own_descriptors;
   if (to_trim > 0) {

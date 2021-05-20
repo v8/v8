@@ -1596,7 +1596,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   RootsReferencesExtractor extractor(this);
   ReadOnlyRoots(heap_).Iterate(&extractor);
   heap_->IterateRoots(&extractor, base::EnumSet<SkipRoot>{SkipRoot::kWeak});
-  // TODO(ulan): The heap snapshot generator incorrectly considers the weak
+  // TODO(v8:11800): The heap snapshot generator incorrectly considers the weak
   // string tables as strong retainers. Move IterateWeakRoots after
   // SetVisitingWeakRoots.
   heap_->IterateWeakRoots(&extractor, {});
