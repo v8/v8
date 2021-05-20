@@ -449,7 +449,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return MARK_COMPACTOR;
   }
 
-  if (FLAG_gc_global || ShouldStressCompaction() || !new_space()) {
+  if (FLAG_gc_global || ShouldStressCompaction() || FLAG_single_generation) {
     *reason = "GC in old space forced by flags";
     return MARK_COMPACTOR;
   }
@@ -2410,8 +2410,7 @@ void Heap::MarkCompact() {
 
 void Heap::MinorMarkCompact() {
 #ifdef ENABLE_MINOR_MC
-  DCHECK(FLAG_minor_mc);
-  DCHECK(new_space());
+  DCHECK(FLAG_minor_mc && !FLAG_single_generation);
 
   PauseAllocationObserversScope pause_observers(this);
   SetGCState(MINOR_MARK_COMPACT);
@@ -2518,7 +2517,7 @@ void Heap::EvacuateYoungGeneration() {
 }
 
 void Heap::Scavenge() {
-  DCHECK_NOT_NULL(new_space());
+  DCHECK(!FLAG_single_generation);
 
   if (fast_promotion_mode_ && CanPromoteYoungAndExpandOldGeneration(0)) {
     tracer()->NotifyYoungGenerationHandling(
@@ -5436,8 +5435,7 @@ class StressConcurrentAllocationObserver : public AllocationObserver {
 void Heap::SetUpSpaces() {
   // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
-  const bool has_young_gen = !FLAG_single_generation && !IsShared();
-  if (has_young_gen) {
+  if (!FLAG_single_generation) {
     space_[NEW_SPACE] = new_space_ =
         new NewSpace(this, memory_allocator_->data_page_allocator(),
                      initial_semispace_size_, max_semi_space_size_);
@@ -5446,7 +5444,7 @@ void Heap::SetUpSpaces() {
   space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
   space_[MAP_SPACE] = map_space_ = new MapSpace(this);
   space_[LO_SPACE] = lo_space_ = new OldLargeObjectSpace(this);
-  if (has_young_gen) {
+  if (!FLAG_single_generation) {
     space_[NEW_LO_SPACE] = new_lo_space_ =
         new NewLargeObjectSpace(this, NewSpaceCapacity());
   }
@@ -5485,7 +5483,7 @@ void Heap::SetUpSpaces() {
   }
 #endif  // ENABLE_MINOR_MC
 
-  if (new_space()) {
+  if (!FLAG_single_generation) {
     scavenge_job_.reset(new ScavengeJob());
     scavenge_task_observer_.reset(new ScavengeTaskObserver(
         this, ScavengeJob::YoungGenerationTaskTriggerSize(this)));
