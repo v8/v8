@@ -1013,6 +1013,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(FinishFunction)                                                            \
   F(OnFirstError)                                                              \
   F(NextInstruction, WasmOpcode)                                               \
+  F(Forward, const Value& from, Value* to)                                     \
   /* Control: */                                                               \
   F(Block, Control* block)                                                     \
   F(Loop, Control* block)                                                      \
@@ -1145,16 +1146,21 @@ struct ControlBase : public PcForErrors<validate> {
     uint32_t depth)                                                            \
   F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
     Value* result_on_fallthrough, uint32_t depth)                              \
-  F(RefIsData, const Value& object, Value* result)                             \
-  F(RefAsData, const Value& object, Value* result)                             \
-  F(BrOnData, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
   F(RefIsFunc, const Value& object, Value* result)                             \
-  F(RefAsFunc, const Value& object, Value* result)                             \
-  F(BrOnFunc, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
+  F(RefIsData, const Value& object, Value* result)                             \
   F(RefIsI31, const Value& object, Value* result)                              \
+  F(RefAsFunc, const Value& object, Value* result)                             \
+  F(RefAsData, const Value& object, Value* result)                             \
   F(RefAsI31, const Value& object, Value* result)                              \
+  F(BrOnFunc, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
+  F(BrOnData, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
   F(BrOnI31, const Value& object, Value* value_on_branch, uint32_t br_depth)   \
-  F(Forward, const Value& from, Value* to)
+  F(BrOnNonFunc, const Value& object, Value* value_on_fallthrough,             \
+    uint32_t br_depth)                                                         \
+  F(BrOnNonData, const Value& object, Value* value_on_fallthrough,             \
+    uint32_t br_depth)                                                         \
+  F(BrOnNonI31, const Value& object, Value* value_on_fallthrough,              \
+    uint32_t br_depth)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -4503,23 +4509,24 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
 
-        Value obj = Peek(0, 0, kWasmAnyRef);
         Control* c = control_at(branch_depth.depth);
-        HeapType::Representation heap_type =
-            opcode == kExprBrOnFunc
-                ? HeapType::kFunc
-                : opcode == kExprBrOnData ? HeapType::kData : HeapType::kI31;
         if (c->br_merge()->arity == 0) {
           this->DecodeError("%s must target a branch of arity at least 1",
                             SafeOpcodeNameAt(this->pc_));
           return 0;
         }
+
         // Attention: contrary to most other instructions, we modify the
         // stack before calling the interface function. This makes it
         // significantly more convenient to pass around the values that
         // will be on the stack when the branch is taken.
         // TODO(jkummerow): Reconsider this choice.
+        Value obj = Peek(0, 0, kWasmAnyRef);
         Drop(obj);
+        HeapType::Representation heap_type =
+            opcode == kExprBrOnFunc
+                ? HeapType::kFunc
+                : opcode == kExprBrOnData ? HeapType::kData : HeapType::kI31;
         Value result_on_branch =
             CreateValue(ValueType::Ref(heap_type, kNonNullable));
         Push(result_on_branch);
@@ -4540,6 +4547,49 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         Drop(result_on_branch);
         Push(obj);  // Restore stack state on fallthrough.
+        return opcode_length + branch_depth.length;
+      }
+      case kExprBrOnNonData:
+      case kExprBrOnNonFunc:
+      case kExprBrOnNonI31: {
+        BranchDepthImmediate<validate> branch_depth(this,
+                                                    this->pc_ + opcode_length);
+        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
+                            control_.size())) {
+          return 0;
+        }
+
+        Control* c = control_at(branch_depth.depth);
+        if (c->br_merge()->arity == 0) {
+          this->DecodeError("%s must target a branch of arity at least 1",
+                            SafeOpcodeNameAt(this->pc_));
+          return 0;
+        }
+        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+
+        Value obj = Peek(0, 0, kWasmAnyRef);
+        HeapType::Representation heap_type =
+            opcode == kExprBrOnNonFunc
+                ? HeapType::kFunc
+                : opcode == kExprBrOnNonData ? HeapType::kData : HeapType::kI31;
+        Value value_on_fallthrough =
+            CreateValue(ValueType::Ref(heap_type, kNonNullable));
+
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          if (opcode == kExprBrOnNonFunc) {
+            CALL_INTERFACE(BrOnNonFunc, obj, &value_on_fallthrough,
+                           branch_depth.depth);
+          } else if (opcode == kExprBrOnNonData) {
+            CALL_INTERFACE(BrOnNonData, obj, &value_on_fallthrough,
+                           branch_depth.depth);
+          } else {
+            CALL_INTERFACE(BrOnNonI31, obj, &value_on_fallthrough,
+                           branch_depth.depth);
+          }
+          c->br_merge()->reached = true;
+        }
+        Drop(obj);
+        Push(value_on_fallthrough);
         return opcode_length + branch_depth.length;
       }
       default:

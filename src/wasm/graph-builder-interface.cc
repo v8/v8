@@ -1086,6 +1086,13 @@ class WasmGraphBuildingInterface {
         true);
   }
 
+  void BrOnNonData(FullDecoder* decoder, const Value& object,
+                   Value* value_on_fallthrough, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnData>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
+        br_depth, false);
+  }
+
   void RefIsFunc(FullDecoder* decoder, const Value& object, Value* result) {
     result->node = builder_->RefIsFunc(object.node, object.type.is_nullable());
   }
@@ -1102,6 +1109,13 @@ class WasmGraphBuildingInterface {
         true);
   }
 
+  void BrOnNonFunc(FullDecoder* decoder, const Value& object,
+                   Value* value_on_fallthrough, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnFunc>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
+        br_depth, false);
+  }
+
   void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
     result->node = builder_->RefIsI31(object.node);
   }
@@ -1115,6 +1129,13 @@ class WasmGraphBuildingInterface {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
         true);
+  }
+
+  void BrOnNonI31(FullDecoder* decoder, const Value& object,
+                  Value* value_on_fallthrough, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
+        br_depth, false);
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
