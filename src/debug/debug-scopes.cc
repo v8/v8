@@ -732,7 +732,7 @@ void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
 
   // Skip the first script since that just declares 'this'.
   for (int context_index = 1;
-       context_index < script_contexts->synchronized_used(); context_index++) {
+       context_index < script_contexts->used(kAcquireLoad); context_index++) {
     Handle<Context> context = ScriptContextTable::GetContext(
         isolate_, script_contexts, context_index);
     Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);

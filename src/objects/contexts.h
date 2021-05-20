@@ -358,8 +358,7 @@ class ScriptContextTable : public FixedArray {
  public:
   DECL_CAST(ScriptContextTable)
 
-  inline int synchronized_used() const;
-  inline void synchronized_set_used(int used);
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(used)
 
   static inline Handle<Context> GetContext(Isolate* isolate,
                                            Handle<ScriptContextTable> table,

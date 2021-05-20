@@ -2295,7 +2295,7 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (instance_type == FEEDBACK_METADATA_TYPE) {
     return FeedbackMetadata::SizeFor(
-        FeedbackMetadata::unchecked_cast(*this).synchronized_slot_count());
+        FeedbackMetadata::unchecked_cast(*this).slot_count(kAcquireLoad));
   }
   if (base::IsInRange(instance_type, FIRST_DESCRIPTOR_ARRAY_TYPE,
                       LAST_DESCRIPTOR_ARRAY_TYPE)) {

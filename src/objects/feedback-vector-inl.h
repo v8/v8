@@ -41,9 +41,8 @@ INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
 RELEASE_ACQUIRE_WEAK_ACCESSORS(FeedbackVector, maybe_optimized_code,
                                kMaybeOptimizedCodeOffset)
 
-int32_t FeedbackMetadata::synchronized_slot_count() const {
-  return base::Acquire_Load(
-      reinterpret_cast<const base::Atomic32*>(field_address(kSlotCountOffset)));
+int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
+  return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
 }
 
 int32_t FeedbackMetadata::get(int index) const {

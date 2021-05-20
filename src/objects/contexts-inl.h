@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CONTEXTS_INL_H_
 #define V8_OBJECTS_CONTEXTS_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/contexts.h"
 #include "src/objects/dictionary-inl.h"
@@ -30,12 +31,12 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, FixedArray)
 CAST_ACCESSOR(ScriptContextTable)
 
-int ScriptContextTable::synchronized_used() const {
-  return Smi::ToInt(get(kUsedSlotIndex, kAcquireLoad));
+int ScriptContextTable::used(AcquireLoadTag tag) const {
+  return Smi::ToInt(get(kUsedSlotIndex, tag));
 }
 
-void ScriptContextTable::synchronized_set_used(int used) {
-  set(kUsedSlotIndex, Smi::FromInt(used), kReleaseStore);
+void ScriptContextTable::set_used(int used, ReleaseStoreTag tag) {
+  set(kUsedSlotIndex, Smi::FromInt(used), tag);
 }
 
 // static
@@ -46,7 +47,7 @@ Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
 }
 
 Context ScriptContextTable::get_context(int i) const {
-  DCHECK_LT(i, synchronized_used());
+  DCHECK_LT(i, used(kAcquireLoad));
   return Context::cast(this->get(i + kFirstContextSlotIndex));
 }
 

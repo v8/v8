@@ -492,7 +492,7 @@ class FeedbackMetadata::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     return FeedbackMetadata::SizeFor(
-        FeedbackMetadata::cast(obj).synchronized_slot_count());
+        FeedbackMetadata::cast(obj).slot_count(kAcquireLoad));
   }
 };
 
