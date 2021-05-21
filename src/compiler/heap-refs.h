@@ -870,6 +870,7 @@ class ScopeInfoRef : public HeapObjectRef {
 
 #define BROKER_SFI_FIELDS(V)                       \
   V(int, internal_formal_parameter_count)          \
+  V(bool, has_simple_parameters)                   \
   V(bool, has_duplicate_parameters)                \
   V(int, function_map_index)                       \
   V(FunctionKind, kind)                            \

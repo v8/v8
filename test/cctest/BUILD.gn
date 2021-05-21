@@ -93,6 +93,7 @@ v8_source_set("cctest_sources") {
     "compiler/serializer-tester.h",
     "compiler/test-basic-block-profiler.cc",
     "compiler/test-branch-combine.cc",
+    "compiler/test-calls-with-arraylike-or-spread.cc",
     "compiler/test-code-assembler.cc",
     "compiler/test-code-generator.cc",
     "compiler/test-concurrent-shared-function-info.cc",

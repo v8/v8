@@ -217,7 +217,8 @@
   'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
 
-  # %ObserveNode tests relies on TurboFan.
+  # %ObserveNode tests rely on TurboFan.
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-sloppy-equality/*' : [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'test-verify-type/*': [SKIP],
@@ -697,6 +698,7 @@
   'serializer-tester/SerializeConstructWithSpread': [SKIP],
   'serializer-tester/SerializeInlinedClosure': [SKIP],
   'serializer-tester/SerializeInlinedFunction': [SKIP],
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
   'test-js-to-wasm/*': [SKIP],
@@ -744,6 +746,7 @@
   'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
   'serializer-tester/BoundFunctionArguments': [SKIP],
   'serializer-tester/BoundFunctionTarget': [SKIP],
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
 }],  # variant == turboprop or variant == turboprop_as_toptier
 
@@ -1232,6 +1235,14 @@
   # SFI deduplication tests check compilation state, which always_sparkplug
   # can break.
   'test-web-snapshots/SFIDeduplication*': [SKIP],
+
+  # %ObserveNode tests rely on TurboFan.
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
+}],
+
+################################################################################
+['variant == no_lfa', {
+  'test-calls-with-arraylike-or-spread/*': [SKIP],
 }],
 
 ]

@@ -372,6 +372,7 @@
   'regress/regress-996234': [SKIP],
 
   # These tests rely on TurboFan being enabled.
+  'compiler/call-with-arraylike-or-spread*': [SKIP],
   'compiler/fast-api-calls': [SKIP],
   'compiler/fast-api-interface-types': [SKIP],
   'compiler/regress-crbug-1201011': [SKIP],
@@ -1280,6 +1281,7 @@
   'compiler/serializer-transition-propagation': [SKIP],
 
   # Some tests rely on inlining.
+  'compiler/call-with-arraylike-or-spread*': [SKIP],
   'compiler/inlined-call-polymorphic': [SKIP],
   'compiler/opt-higher-order-functions': [SKIP],
   'regress/regress-1049982-1': [SKIP],

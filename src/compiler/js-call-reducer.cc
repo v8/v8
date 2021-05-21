@@ -3804,20 +3804,102 @@ bool IsCallWithArrayLikeOrSpread(Node* node) {
 
 }  // namespace
 
-Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
-    Node* node, int arraylike_or_spread_index, CallFrequency const& frequency,
-    FeedbackSource const& feedback, SpeculationMode speculation_mode,
-    CallFeedbackRelation feedback_relation) {
-  DCHECK(IsCallOrConstructWithArrayLike(node) ||
-         IsCallOrConstructWithSpread(node));
-  DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
-                 feedback.IsValid());
+void JSCallReducer::CheckIfConstructor(Node* construct) {
+  JSConstructNode n(construct);
+  Node* new_target = n.new_target();
+  Control control = n.control();
 
-  Node* arguments_list =
-      NodeProperties::GetValueInput(node, arraylike_or_spread_index);
-  if (arguments_list->opcode() != IrOpcode::kJSCreateArguments) {
-    return NoChange();
+  Node* check =
+      graph()->NewNode(simplified()->ObjectIsConstructor(), new_target);
+  Node* check_branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+  Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
+  Node* check_throw = check_fail = graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+      jsgraph()->Constant(static_cast<int>(MessageTemplate::kNotConstructor)),
+      new_target, n.context(), n.frame_state(), n.effect(), check_fail);
+  control = graph()->NewNode(common()->IfTrue(), check_branch);
+  NodeProperties::ReplaceControlInput(construct, control);
+
+  // Rewire potential exception edges.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(construct, &on_exception)) {
+    // Create appropriate {IfException}  and {IfSuccess} nodes.
+    Node* if_exception =
+        graph()->NewNode(common()->IfException(), check_throw, check_fail);
+    check_fail = graph()->NewNode(common()->IfSuccess(), check_fail);
+
+    // Join the exception edges.
+    Node* merge =
+        graph()->NewNode(common()->Merge(2), if_exception, on_exception);
+    Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception,
+                                  on_exception, merge);
+    Node* phi =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         if_exception, on_exception, merge);
+    ReplaceWithValue(on_exception, phi, ephi, merge);
+    merge->ReplaceInput(1, on_exception);
+    ephi->ReplaceInput(1, on_exception);
+    phi->ReplaceInput(1, on_exception);
   }
+
+  // The above %ThrowTypeError runtime call is an unconditional throw,
+  // making it impossible to return a successful completion in this case. We
+  // simply connect the successful completion to the graph end.
+  Node* throw_node =
+      graph()->NewNode(common()->Throw(), check_throw, check_fail);
+  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+}
+
+namespace {
+
+bool ShouldUseCallICFeedback(Node* node) {
+  HeapObjectMatcher m(node);
+  if (m.HasResolvedValue() || m.IsCheckClosure() || m.IsJSCreateClosure()) {
+    // Don't use CallIC feedback when we know the function
+    // being called, i.e. either know the closure itself or
+    // at least the SharedFunctionInfo.
+    return false;
+  } else if (m.IsPhi()) {
+    // Protect against endless loops here.
+    Node* control = NodeProperties::GetControlInput(node);
+    if (control->opcode() == IrOpcode::kLoop ||
+        control->opcode() == IrOpcode::kDead)
+      return false;
+    // Check if {node} is a Phi of nodes which shouldn't
+    // use CallIC feedback (not looking through loops).
+    int const value_input_count = m.node()->op()->ValueInputCount();
+    for (int n = 0; n < value_input_count; ++n) {
+      if (ShouldUseCallICFeedback(node->InputAt(n))) return true;
+    }
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
+Node* JSCallReducer::CheckArrayLength(Node* array, ElementsKind elements_kind,
+                                      uint32_t array_length,
+                                      const FeedbackSource& feedback_source,
+                                      Effect effect, Control control) {
+  Node* length = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(elements_kind)),
+      array, effect, control);
+  Node* check = graph()->NewNode(simplified()->NumberEqual(), length,
+                                 jsgraph()->Constant(array_length));
+  return graph()->NewNode(
+      simplified()->CheckIf(DeoptimizeReason::kArrayLengthChanged,
+                            feedback_source),
+      check, effect, control);
+}
+
+Reduction
+JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
+    Node* node, Node* arguments_list, int arraylike_or_spread_index,
+    CallFrequency const& frequency, FeedbackSource const& feedback,
+    SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation) {
+  DCHECK_EQ(arguments_list->opcode(), IrOpcode::kJSCreateArguments);
 
   // Check if {node} is the only value user of {arguments_list} (except for
   // value uses in frame states). If not, we give up for now.
@@ -3984,88 +4066,155 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         node, javascript()->Construct(JSConstructNode::ArityForArgc(argc),
                                       frequency, feedback));
 
-    JSConstructNode n(node);
-    Node* new_target = n.new_target();
-    FrameState frame_state = n.frame_state();
-    Node* context = n.context();
-    Effect effect = n.effect();
-    Control control = n.control();
-
     // Check whether the given new target value is a constructor function. The
     // replacement {JSConstruct} operator only checks the passed target value
     // but relies on the new target value to be implicitly valid.
-    Node* check =
-        graph()->NewNode(simplified()->ObjectIsConstructor(), new_target);
-    Node* check_branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-    Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
-    Node* check_throw = check_fail = graph()->NewNode(
-        javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-        jsgraph()->Constant(static_cast<int>(MessageTemplate::kNotConstructor)),
-        new_target, context, frame_state, effect, check_fail);
-    control = graph()->NewNode(common()->IfTrue(), check_branch);
-    NodeProperties::ReplaceControlInput(node, control);
-
-    // Rewire potential exception edges.
-    Node* on_exception = nullptr;
-    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-      // Create appropriate {IfException}  and {IfSuccess} nodes.
-      Node* if_exception =
-          graph()->NewNode(common()->IfException(), check_throw, check_fail);
-      check_fail = graph()->NewNode(common()->IfSuccess(), check_fail);
-
-      // Join the exception edges.
-      Node* merge =
-          graph()->NewNode(common()->Merge(2), if_exception, on_exception);
-      Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception,
-                                    on_exception, merge);
-      Node* phi =
-          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           if_exception, on_exception, merge);
-      ReplaceWithValue(on_exception, phi, ephi, merge);
-      merge->ReplaceInput(1, on_exception);
-      ephi->ReplaceInput(1, on_exception);
-      phi->ReplaceInput(1, on_exception);
-    }
-
-    // The above %ThrowTypeError runtime call is an unconditional throw,
-    // making it impossible to return a successful completion in this case. We
-    // simply connect the successful completion to the graph end.
-    Node* throw_node =
-        graph()->NewNode(common()->Throw(), check_throw, check_fail);
-    NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
-
+    CheckIfConstructor(node);
     return Changed(node).FollowedBy(ReduceJSConstruct(node));
   }
 }
 
-namespace {
+Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
+    Node* node, int argument_count, int arraylike_or_spread_index,
+    CallFrequency const& frequency, FeedbackSource const& feedback_source,
+    SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation,
+    Node* target, Effect effect, Control control) {
+  DCHECK(IsCallOrConstructWithArrayLike(node) ||
+         IsCallOrConstructWithSpread(node));
+  DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
+                 feedback_source.IsValid());
 
-bool ShouldUseCallICFeedback(Node* node) {
-  HeapObjectMatcher m(node);
-  if (m.HasResolvedValue() || m.IsCheckClosure() || m.IsJSCreateClosure()) {
-    // Don't use CallIC feedback when we know the function
-    // being called, i.e. either know the closure itself or
-    // at least the SharedFunctionInfo.
-    return false;
-  } else if (m.IsPhi()) {
-    // Protect against endless loops here.
-    Node* control = NodeProperties::GetControlInput(node);
-    if (control->opcode() == IrOpcode::kLoop ||
-        control->opcode() == IrOpcode::kDead)
-      return false;
-    // Check if {node} is a Phi of nodes which shouldn't
-    // use CallIC feedback (not looking through loops).
-    int const value_input_count = m.node()->op()->ValueInputCount();
-    for (int n = 0; n < value_input_count; ++n) {
-      if (ShouldUseCallICFeedback(node->InputAt(n))) return true;
-    }
-    return false;
+  Node* arguments_list =
+      NodeProperties::GetValueInput(node, arraylike_or_spread_index);
+
+  if (arguments_list->opcode() == IrOpcode::kJSCreateArguments) {
+    return ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
+        node, arguments_list, arraylike_or_spread_index, frequency,
+        feedback_source, speculation_mode, feedback_relation);
   }
-  return true;
-}
 
-}  // namespace
+  if (!FLAG_turbo_optimize_apply) return NoChange();
+
+  // Optimization of construct nodes not supported yet.
+  if (!IsCallWithArrayLikeOrSpread(node)) return NoChange();
+
+  // Avoid deoptimization loops.
+  if (speculation_mode != SpeculationMode::kAllowSpeculation) return NoChange();
+
+  // Only optimize with array literals.
+  if (arguments_list->opcode() != IrOpcode::kJSCreateLiteralArray &&
+      arguments_list->opcode() != IrOpcode::kJSCreateEmptyLiteralArray) {
+    return NoChange();
+  }
+
+  int new_argument_count;
+  if (arguments_list->opcode() == IrOpcode::kJSCreateLiteralArray) {
+    // Find array length and elements' kind from the feedback's allocation
+    // site's boilerplate JSArray..
+    JSCreateLiteralOpNode args_node(arguments_list);
+    CreateLiteralParameters const& args_params = args_node.Parameters();
+    const FeedbackSource& array_feedback = args_params.feedback();
+    const ProcessedFeedback& feedback =
+        broker()->GetFeedbackForArrayOrObjectLiteral(array_feedback);
+    if (feedback.IsInsufficient()) return NoChange();
+
+    AllocationSiteRef site = feedback.AsLiteral().value();
+    if (!site.IsFastLiteral()) return NoChange();
+
+    base::Optional<JSArrayRef> boilerplate_array =
+        site.boilerplate()->AsJSArray();
+    int const array_length = boilerplate_array->GetBoilerplateLength().AsSmi();
+
+    // We'll replace the arguments_list input with {array_length} element loads.
+    new_argument_count = argument_count - 1 + array_length;
+
+    // Do not optimize calls with a large number of arguments.
+    // Arbitrarily sets the limit to 32 arguments.
+    const int kMaxArityForOptimizedFunctionApply = 32;
+    if (new_argument_count > kMaxArityForOptimizedFunctionApply) {
+      return NoChange();
+    }
+
+    // Determine the array's map.
+    MapRef array_map = boilerplate_array->map();
+    if (!array_map.supports_fast_array_iteration()) {
+      return NoChange();
+    }
+
+    // Check and depend on NoElementsProtector.
+    if (!dependencies()->DependOnNoElementsProtector()) {
+      return NoChange();
+    }
+
+    // Remove the {arguments_list} node which will be replaced by a sequence of
+    // LoadElement nodes.
+    node->RemoveInput(arraylike_or_spread_index);
+
+    // Speculate on that array's map is still equal to the dynamic map of
+    // arguments_list; generate a map check.
+    effect = graph()->NewNode(
+        simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                ZoneHandleSet<Map>(array_map.object()),
+                                feedback_source),
+        arguments_list, effect, control);
+
+    // Speculate on that array's length being equal to the dynamic length of
+    // arguments_list; generate a deopt check.
+    ElementsKind elements_kind = boilerplate_array->GetElementsKind();
+    effect = CheckArrayLength(arguments_list, elements_kind, array_length,
+                              feedback_source, effect, control);
+
+    // Generate N element loads to replace the {arguments_list} node with a set
+    // of arguments loaded from it.
+    Node* elements = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+        arguments_list, effect, control);
+    for (int i = 0; i < array_length; i++) {
+      // Load the i-th element from the array.
+      Node* index = jsgraph()->Constant(i);
+      Node* load = effect = graph()->NewNode(
+          simplified()->LoadElement(
+              AccessBuilder::ForFixedArrayElement(elements_kind)),
+          elements, index, effect, control);
+
+      // In "holey" arrays some arguments might be missing and we pass
+      // 'undefined' instead.
+      if (IsHoleyElementsKind(elements_kind)) {
+        if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+          // May deopt for holey double elements.
+          load = effect = graph()->NewNode(
+              simplified()->CheckFloat64Hole(
+                  CheckFloat64HoleMode::kAllowReturnHole, feedback_source),
+              load, effect, control);
+        } else {
+          load = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
+                                  load);
+        }
+      }
+
+      node->InsertInput(graph()->zone(), arraylike_or_spread_index + i, load);
+    }
+  } else {
+    DCHECK_EQ(arguments_list->opcode(), IrOpcode::kJSCreateEmptyLiteralArray);
+
+    // Remove the {arguments_list} node; there are no arguments nodes to add.
+    new_argument_count = argument_count - 1;
+    node->RemoveInput(arraylike_or_spread_index);
+
+    // Speculate on that array's length being equal to the dynamic length of
+    // arguments_list; generate a deopting check.
+    effect = CheckArrayLength(arguments_list, NO_ELEMENTS, 0, feedback_source,
+                              effect, control);
+  }
+
+  NodeProperties::ChangeOp(
+      node, javascript()->Call(
+                JSCallNode::ArityForArgc(new_argument_count), frequency,
+                feedback_source, ConvertReceiverMode::kNullOrUndefined,
+                speculation_mode, CallFeedbackRelation::kUnrelated));
+  NodeProperties::ReplaceEffectInput(node, effect);
+  return Changed(node).FollowedBy(ReduceJSCall(node));
+}
 
 bool JSCallReducer::IsBuiltinOrApiFunction(JSFunctionRef function) const {
   if (!function.serialized()) return false;
@@ -4658,8 +4807,9 @@ Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
   CallParameters const& p = n.Parameters();
   DCHECK_EQ(p.arity_without_implicit_args(), 1);  // The arraylike object.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, n.LastArgumentIndex(), p.frequency(), p.feedback(),
-      p.speculation_mode(), p.feedback_relation());
+      node, n.ArgumentCount(), n.LastArgumentIndex(), p.frequency(),
+      p.feedback(), p.speculation_mode(), p.feedback_relation(), n.target(),
+      n.effect(), n.control());
 }
 
 Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
@@ -4667,8 +4817,9 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   CallParameters const& p = n.Parameters();
   DCHECK_GE(p.arity_without_implicit_args(), 1);  // At least the spread.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, n.LastArgumentIndex(), p.frequency(), p.feedback(),
-      p.speculation_mode(), p.feedback_relation());
+      node, n.ArgumentCount(), n.LastArgumentIndex(), p.frequency(),
+      p.feedback(), p.speculation_mode(), p.feedback_relation(), n.target(),
+      n.effect(), n.control());
 }
 
 Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
@@ -5088,8 +5239,9 @@ Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
   const int arraylike_index = n.LastArgumentIndex();
   DCHECK_EQ(n.ArgumentCount(), 1);  // The arraylike object.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, arraylike_index, p.frequency(), p.feedback(),
-      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
+      node, n.ArgumentCount(), arraylike_index, p.frequency(), p.feedback(),
+      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget,
+      n.target(), n.effect(), n.control());
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
@@ -5098,8 +5250,9 @@ Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   const int spread_index = n.LastArgumentIndex();
   DCHECK_GE(n.ArgumentCount(), 1);  // At least the spread.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, spread_index, p.frequency(), p.feedback(),
-      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
+      node, n.ArgumentCount(), spread_index, p.frequency(), p.feedback(),
+      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget,
+      n.target(), n.effect(), n.control());
 }
 
 Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {

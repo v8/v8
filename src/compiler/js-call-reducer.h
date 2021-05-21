@@ -123,10 +123,15 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceFastArrayIteratorNext(InstanceType type, Node* node,
                                         IterationKind kind);
 
+  Reduction ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
+      Node* node, Node* arguments_list, int arraylike_or_spread_index,
+      CallFrequency const& frequency, FeedbackSource const& feedback,
+      SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation);
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
-      Node* node, int arraylike_or_spread_index, CallFrequency const& frequency,
-      FeedbackSource const& feedback, SpeculationMode speculation_mode,
-      CallFeedbackRelation feedback_relation);
+      Node* node, int argument_count, int arraylike_or_spread_index,
+      CallFrequency const& frequency, FeedbackSource const& feedback_source,
+      SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation,
+      Node* target, Effect effect, Control control);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
@@ -230,6 +235,15 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                  Control control);
 
   bool IsBuiltinOrApiFunction(JSFunctionRef target_ref) const;
+
+  // Check whether an array has the expected length. Returns the new effect.
+  Node* CheckArrayLength(Node* array, ElementsKind elements_kind,
+                         uint32_t array_length,
+                         const FeedbackSource& feedback_source, Effect effect,
+                         Control control);
+
+  // Check whether the given new target value is a constructor function.
+  void CheckIfConstructor(Node* call);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

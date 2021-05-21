@@ -2672,6 +2672,7 @@ void JSHeapBroker::InitializeAndStartSerializing() {
   mode_ = kSerializing;
 
   // Throw away the dummy data that we created while disabled.
+  feedback_.clear();
   refs_->Clear();
   refs_ =
       zone()->New<RefsMap>(kInitialRefsBucketCount, AddressMatcher(), zone());

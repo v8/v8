@@ -69,7 +69,8 @@ namespace internal {
   V(WrongHandler, "wrong handler")                                             \
   V(WrongName, "wrong name")                                                   \
   V(WrongValue, "wrong value")                                                 \
-  V(NoInitialElement, "no initial element")
+  V(NoInitialElement, "no initial element")                                    \
+  V(ArrayLengthChanged, "the array length changed")
 
 enum class DeoptimizeReason : uint8_t {
 #define DEOPTIMIZE_REASON(Name, message) k##Name,

@@ -2505,6 +2505,28 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
     case Builtins::kReflectApply:
+      if (arguments.size() >= 2) {
+        // Drop hints for all arguments except the user-given receiver.
+        Hints const new_receiver =
+            arguments.size() >= 3
+                ? arguments[2]
+                : Hints::SingleConstant(
+                      broker()->isolate()->factory()->undefined_value(),
+                      zone());
+        HintsVector new_arguments({new_receiver}, zone());
+        for (auto constant : arguments[1].constants()) {
+          ProcessCalleeForCallOrConstruct(
+              constant, base::nullopt, new_arguments, speculation_mode,
+              kMissingArgumentsAreUnknown, result_hints);
+        }
+        for (auto const& virtual_closure : arguments[1].virtual_closures()) {
+          ProcessCalleeForCallOrConstruct(
+              Callee(virtual_closure), base::nullopt, new_arguments,
+              speculation_mode, kMissingArgumentsAreUnknown, result_hints);
+        }
+      }
+      break;
+
     case Builtins::kReflectConstruct:
       if (arguments.size() >= 2) {
         for (auto constant : arguments[1].constants()) {
