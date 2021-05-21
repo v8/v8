@@ -177,8 +177,12 @@ PhiRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
 // function. This class bundles the index and a debug name for such operators.
 class ParameterInfo final {
  public:
+  static constexpr int kMinIndex = Linkage::kJSCallClosureParamIndex;
+
   ParameterInfo(int index, const char* debug_name)
-      : index_(index), debug_name_(debug_name) {}
+      : index_(index), debug_name_(debug_name) {
+    DCHECK_LE(kMinIndex, index);
+  }
 
   int index() const { return index_; }
   const char* debug_name() const { return debug_name_; }
