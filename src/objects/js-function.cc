@@ -357,6 +357,14 @@ void JSFunction::InitializeFeedbackCell(
     Handle<JSFunction> function, IsCompiledScope* is_compiled_scope,
     bool reset_budget_for_feedback_allocation) {
   Isolate* const isolate = function->GetIsolate();
+#if V8_ENABLE_WEBASSEMBLY
+  // The following checks ensure that the feedback vectors are compatible with
+  // the feedback metadata. For Asm / Wasm functions we never allocate / use
+  // feedback vectors, so a mismatch between the metadata and feedback vector is
+  // harmless. The checks could fail for functions that has has_asm_wasm_broken
+  // set at runtime (for ex: failed instantiation).
+  if (function->shared().HasAsmWasmData()) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (function->has_feedback_vector()) {
     CHECK_EQ(function->feedback_vector().length(),
