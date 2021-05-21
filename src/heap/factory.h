@@ -342,8 +342,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Context> NewDebugEvaluateContext(Handle<Context> previous,
                                           Handle<ScopeInfo> scope_info,
                                           Handle<JSReceiver> extension,
-                                          Handle<Context> wrapped,
-                                          Handle<StringSet> blocklist);
+                                          Handle<Context> wrapped);
 
   // Create a block context.
   Handle<Context> NewBlockContext(Handle<Context> previous,

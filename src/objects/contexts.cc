@@ -373,9 +373,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       }
 
       // Check blocklist. Names that are listed, cannot be resolved further.
-      Object blocklist = context->get(BLOCK_LIST_INDEX);
-      if (blocklist.IsStringSet() &&
-          StringSet::cast(blocklist).Has(isolate, name)) {
+      ScopeInfo scope_info = context->scope_info();
+      if (scope_info.HasLocalsBlockList() &&
+          scope_info.LocalsBlockList().Has(isolate, name)) {
         if (FLAG_trace_contexts) {
           PrintF(" - name is blocklisted. Aborting.\n");
         }

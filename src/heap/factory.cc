@@ -1174,16 +1174,13 @@ Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
 Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                                  Handle<ScopeInfo> scope_info,
                                                  Handle<JSReceiver> extension,
-                                                 Handle<Context> wrapped,
-                                                 Handle<StringSet> blocklist) {
-  STATIC_ASSERT(Context::BLOCK_LIST_INDEX ==
-                Context::MIN_CONTEXT_EXTENDED_SLOTS + 1);
+                                                 Handle<Context> wrapped) {
   DCHECK(scope_info->IsDebugEvaluateScope());
   Handle<HeapObject> ext = extension.is_null()
                                ? Handle<HeapObject>::cast(undefined_value())
                                : Handle<HeapObject>::cast(extension);
   // TODO(ishell): Take the details from DebugEvaluateContextContext class.
-  int variadic_part_length = Context::MIN_CONTEXT_EXTENDED_SLOTS + 2;
+  int variadic_part_length = Context::MIN_CONTEXT_EXTENDED_SLOTS + 1;
   Context context =
       NewContextInternal(isolate()->debug_evaluate_context_map(),
                          Context::SizeFor(variadic_part_length),
@@ -1195,9 +1192,6 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
   context.set_extension(*ext, SKIP_WRITE_BARRIER);
   if (!wrapped.is_null()) {
     context.set(Context::WRAPPED_CONTEXT_INDEX, *wrapped, SKIP_WRITE_BARRIER);
-  }
-  if (!blocklist.is_null()) {
-    context.set(Context::BLOCK_LIST_INDEX, *blocklist, SKIP_WRITE_BARRIER);
   }
   return handle(context, isolate());
 }
