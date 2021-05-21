@@ -2083,10 +2083,10 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_sealed_elements() ||
              receiver_map->has_nonextensible_elements() ||
-             receiver_map->has_typed_array_elements()) {
+             receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
     code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();
-    if (receiver_map->has_typed_array_elements()) {
+    if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
       return code;
     }
   } else if (IsStoreInArrayLiteralICKind(kind())) {
@@ -2097,9 +2097,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK(DICTIONARY_ELEMENTS == receiver_map->elements_kind() ||
-           receiver_map->has_frozen_elements() ||
-           receiver_map->has_rab_gsab_typed_array_elements());
-    // TODO(v8:11111): Add fast paths for RAB / GSAB.
+           receiver_map->has_frozen_elements());
     code = StoreHandler::StoreSlow(isolate(), store_mode);
   }
 
@@ -2205,7 +2203,8 @@ KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, size_t index) {
   if (allow_growth) {
     return STORE_AND_GROW_HANDLE_COW;
   }
-  if (receiver->map().has_typed_array_elements() && oob_access) {
+  if (receiver->map().has_typed_array_or_rab_gsab_typed_array_elements() &&
+      oob_access) {
     return STORE_IGNORE_OUT_OF_BOUNDS;
   }
   return receiver->elements().IsCowArray() ? STORE_HANDLE_COW : STANDARD_STORE;

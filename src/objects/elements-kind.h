@@ -333,6 +333,14 @@ inline ElementsKind GetCorrespondingRabGsabElementsKind(
                       FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
 }
 
+inline ElementsKind GetCorrespondingNonRabGsabElementsKind(
+    ElementsKind typed_array_kind) {
+  DCHECK(IsRabGsabTypedArrayElementsKind(typed_array_kind));
+  return ElementsKind(typed_array_kind -
+                      FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
+                      FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+}
+
 inline bool UnionElementsKindUptoPackedness(ElementsKind* a_out,
                                             ElementsKind b) {
   // Assert that the union of two ElementKinds can be computed via std::max.
