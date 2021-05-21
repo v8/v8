@@ -11,6 +11,7 @@
 #include "src/base/macros.h"
 #include "src/torque/ast.h"
 #include "src/torque/cfg.h"
+#include "src/torque/cpp-builder.h"
 #include "src/torque/declarations.h"
 #include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
@@ -742,12 +743,12 @@ class ImplementationVisitor {
   void GenerateExpressionBranch(Expression* expression, Block* true_block,
                                 Block* false_block);
 
-  void GenerateMacroFunctionDeclaration(std::ostream& o,
-                                        Macro* macro);
-  std::vector<std::string> GenerateFunctionDeclaration(
-      std::ostream& o, const std::string& macro_prefix, const std::string& name,
-      const Signature& signature, const NameVector& parameter_names,
-      bool pass_code_assembler_state = true);
+  cpp::Function GenerateMacroFunctionDeclaration(Macro* macro);
+
+  cpp::Function GenerateFunction(
+      cpp::Class* owner, const std::string& name, const Signature& signature,
+      const NameVector& parameter_names, bool pass_code_assembler_state = true,
+      std::vector<std::string>* generated_parameter_names = nullptr);
 
   VisitResult GenerateImplicitConvert(const Type* destination_type,
                                       VisitResult source);

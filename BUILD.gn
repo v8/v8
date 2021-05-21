@@ -4454,6 +4454,8 @@ v8_source_set("torque_base") {
     "src/torque/class-debug-reader-generator.cc",
     "src/torque/constants.h",
     "src/torque/contextual.h",
+    "src/torque/cpp-builder.cc",
+    "src/torque/cpp-builder.h",
     "src/torque/csa-generator.cc",
     "src/torque/csa-generator.h",
     "src/torque/declarable.cc",
