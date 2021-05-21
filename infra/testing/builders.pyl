@@ -1023,7 +1023,7 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 6},
     ],
   },
   'V8 Linux - gc stress': {
