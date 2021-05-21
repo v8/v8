@@ -935,7 +935,15 @@ class WasmTypeInfo : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, Foreign> {
   TQ_OBJECT_CONSTRUCTORS(WasmTypeInfo)
 };
 
-class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
+class WasmObject : public HeapObject {
+ public:
+  DECL_CAST(WasmObject)
+  DECL_VERIFIER(WasmObject)
+
+  OBJECT_CONSTRUCTORS(WasmObject, HeapObject);
+};
+
+class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
  public:
   static inline wasm::StructType* type(Map map);
   inline wasm::StructType* type() const;
@@ -955,7 +963,7 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
   TQ_OBJECT_CONSTRUCTORS(WasmStruct)
 };
 
-class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
+class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
  public:
   static inline wasm::ArrayType* type(Map map);
   inline wasm::ArrayType* type() const;

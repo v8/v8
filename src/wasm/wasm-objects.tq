@@ -117,12 +117,19 @@ extern class WasmTypeInfo extends Foreign {
   instance_size: Smi;
 }
 
-@generateCppClass
-extern class WasmStruct extends HeapObject {
+// WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
+@abstract
+extern class WasmObject extends HeapObject {
 }
 
 @generateCppClass
-extern class WasmArray extends HeapObject {
+@highestInstanceTypeWithinParentClassRange
+extern class WasmStruct extends WasmObject {
+}
+
+@generateCppClass
+@lowestInstanceTypeWithinParentClassRange
+extern class WasmArray extends WasmObject {
   length: uint32;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;

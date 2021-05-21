@@ -422,21 +422,13 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* IsDataRefMap(Node* map) {
     Node* instance_type = LoadInstanceType(map);
-    // We're going to test a range of instance types with a single unsigned
-    // comparison. Statically assert that this is safe, i.e. that there are
-    // no instance types between array and struct types that might possibly
-    // occur (i.e. internal types are OK, types of Wasm objects are not).
-    // At the time of this writing:
-    // WASM_ARRAY_TYPE = 184
-    // WASM_STRUCT_TYPE = 185
-    // The specific values don't matter; the relative order does.
-    static_assert(
-        WASM_STRUCT_TYPE == static_cast<InstanceType>(WASM_ARRAY_TYPE + 1),
-        "Relying on specific InstanceType values here");
+    // We're going to test a range of WasmObject instance types with a single
+    // unsigned comparison.
     Node* comparison_value =
-        Int32Sub(instance_type, Int32Constant(WASM_ARRAY_TYPE));
+        Int32Sub(instance_type, Int32Constant(FIRST_WASM_OBJECT_TYPE));
     return Uint32LessThanOrEqual(
-        comparison_value, Int32Constant(WASM_STRUCT_TYPE - WASM_ARRAY_TYPE));
+        comparison_value,
+        Int32Constant(LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE));
   }
 
   // Generic HeapObject helpers.

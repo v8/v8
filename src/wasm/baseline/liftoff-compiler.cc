@@ -5927,20 +5927,11 @@ class LiftoffCompiler {
         wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset);
     __ Load(tmp, map, no_reg, kInstanceTypeOffset, LoadType::kI32Load16U,
             pinned);
-    // We're going to test a range of instance types with a single unsigned
-    // comparison. Statically assert that this is safe, i.e. that there are
-    // no instance types between array and struct types that might possibly
-    // occur (i.e. internal types are OK, types of Wasm objects are not).
-    // At the time of this writing:
-    // WASM_ARRAY_TYPE = 184
-    // WASM_STRUCT_TYPE = 185
-    // The specific values don't matter; the relative order does.
-    static_assert(
-        WASM_STRUCT_TYPE == static_cast<InstanceType>(WASM_ARRAY_TYPE + 1),
-        "Relying on specific InstanceType values here");
-    __ emit_i32_subi(tmp.gp(), tmp.gp(), WASM_ARRAY_TYPE);
+    // We're going to test a range of WasmObject instance types with a single
+    // unsigned comparison.
+    __ emit_i32_subi(tmp.gp(), tmp.gp(), FIRST_WASM_OBJECT_TYPE);
     __ emit_i32_cond_jumpi(kUnsignedGreaterThan, not_data_ref, tmp.gp(),
-                           WASM_STRUCT_TYPE - WASM_ARRAY_TYPE);
+                           LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE);
   }
 
   void MaybeOSR() {
