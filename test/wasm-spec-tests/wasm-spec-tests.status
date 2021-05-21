@@ -7,6 +7,7 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # TODO(v8:10994): Failing spec test after update.
   'proposals/js-types/data': [FAIL],
+  'elem': [FAIL],
 
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
@@ -22,17 +23,12 @@
   'proposals/js-types/linking': [FAIL],
 
   # TODO(wasm): Roll newest tests into "tail-call" repository.
-  'proposals/tail-call/data': [FAIL],
-  'proposals/tail-call/elem': [FAIL],
   'proposals/tail-call/exports': [FAIL],
   'proposals/tail-call/func': [FAIL],
   'proposals/tail-call/globals': [FAIL],
   'proposals/tail-call/linking': [FAIL],
   'proposals/tail-call/type': [FAIL],
   'proposals/tail-call/unreached-invalid': [FAIL],
-
-  # This test requires the reftypes flag to be disabled.
-  'proposals/bulk-memory-operations/imports': [FAIL],
 
   # TODO(v8:11401): Fix memory64 spec tests / the v8 implementation (whatever
   # is broken).
