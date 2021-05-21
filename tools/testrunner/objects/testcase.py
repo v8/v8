@@ -215,8 +215,12 @@ class TestCase(object):
             not self.suite.test_config.run_skipped)
 
   @property
+  def is_heavy(self):
+    return statusfile.HEAVY in self._statusfile_outcomes
+
+  @property
   def is_slow(self):
-    return statusfile.SLOW in self._statusfile_outcomes
+    return self.is_heavy or statusfile.SLOW in self._statusfile_outcomes
 
   @property
   def is_fail_ok(self):

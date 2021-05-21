@@ -27,6 +27,10 @@
 
   # https://crbug.com/v8/11338
   'runtime-call-stats/enable-disable': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'runtime/console-messages-limits': [PASS, HEAVY],
+  'runtime/regression-732717': [PASS, HEAVY],
 }],  # ALWAYS
 
 ##############################################################################

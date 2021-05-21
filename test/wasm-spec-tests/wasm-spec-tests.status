@@ -35,6 +35,12 @@
   'proposals/memory64/data': [FAIL],
   'proposals/memory64/elem': [FAIL],
   'proposals/memory64/imports': [FAIL],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'proposals/simd/simd_f32x4*': [PASS, HEAVY],
+  'proposals/simd/simd_f64x2*': [PASS, HEAVY],
+  'f32*': [PASS, HEAVY],
+  'f64*': [PASS, HEAVY],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {

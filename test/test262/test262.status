@@ -741,6 +741,15 @@
   'built-ins/ArrayBuffer/length-is-too-large-throws': [SKIP],
   'built-ins/SharedArrayBuffer/allocation-limit': [SKIP],
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, HEAVY],
+  'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [PASS, HEAVY],
+  'built-ins/decodeURI/*': [PASS, HEAVY],
+  'built-ins/decodeURIComponent/*': [PASS, HEAVY],
+  'built-ins/RegExp/property-escapes/generated/*': [PASS, HEAVY],
+  'language/comments/S7.4_A5': [PASS, HEAVY],
+  'language/comments/S7.4_A6': [PASS, HEAVY],
 }],  # asan == True or msan == True or tsan == True
 
 ['system == android', {

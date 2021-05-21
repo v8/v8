@@ -67,6 +67,10 @@
   # https://crbug.com/v8/9380
   # The test is broken and needs to be fixed to use separate isolates.
   'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'MachineOperatorReducerTest.Word32EqualWithShiftedMaskedValueAndConstant': [PASS, HEAVY],
+  'SequentialUnmapperTest.UnmapOnTeardown': [PASS, HEAVY],
 }],  # tsan == True
 
 ##############################################################################

@@ -128,6 +128,26 @@
 
   # pthread_rwlock_t combined with signals is broken on Mac (https://crbug.com/v8/11399).
   'signals-and-mutexes/SignalsPlusSharedMutexes': [PASS, ['system == macos', SKIP]],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'test-accessors/HandleScopePop': [PASS, HEAVY],
+  'test-api/FastApiCalls': [PASS, HEAVY],
+  'test-api/NewStringRangeError': [PASS, HEAVY],
+  'test-api/Threading8': [PASS, HEAVY],
+  'test-lockers/LockTwiceAndUnlock': [PASS, HEAVY],
+  'test-run-machops/RunInt32AddWithOverflowImm': [PASS, HEAVY],
+  'test-run-machops/RunInt32MulAndInt32AddP': [PASS, HEAVY],
+  'test-run-machops/RunInt64SubWithOverflowImm': [PASS, HEAVY],
+  'test-serialize/ContextSerializerContext': [PASS, HEAVY],
+  'test-serialize/ContextSerializerCustomContext': [PASS, HEAVY],
+  'test-serialize/SnapshotCompression': [PASS, HEAVY],
+  'test-serialize/StartupSerializerOnceRunScript': [PASS, HEAVY],
+  'test-serialize/StartupSerializerTwiceRunScript': [PASS, HEAVY],
+  'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
+  'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
+  'test-strings/Traverse': [PASS, HEAVY],
+  'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
+  'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
 }],  # ALWAYS
 
 ##############################################################################
@@ -211,6 +231,32 @@
   # BUG(v8:7587): Strange breakage on Mac.
   'test-log-stack-tracer/PureJSStackTrace': [SKIP],
 }],  # 'asan == True'
+
+##############################################################################
+['asan or tsan', {
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'regress/regress-crbug-9161': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_Add': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_DivS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_DivU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_Eq': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_GeS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_GeU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_GtS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_Ior': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_LeU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmInterpreter_I32Binop_LtU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_Add': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_DivS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_DivU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_Eq': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_GeS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_GeU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_GtS': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_Ior': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_LeU': [PASS, HEAVY],
+  'test-run-wasm/RunWasmLiftoff_I32Binop_LtU': [PASS, HEAVY],
+}],  # 'asan or tsan'
 
 ##############################################################################
 ['msan == True', {

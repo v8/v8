@@ -25,6 +25,7 @@ from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.seed import SeedProc
+from testrunner.testproc.sequence import SequenceProc
 from testrunner.testproc.variant import VariantProc
 
 
@@ -122,6 +123,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                            'generation.')
 
     # Extra features.
+    parser.add_option('--max-heavy-tests', default=1, type='int',
+                      help='Maximum number of heavy tests run in parallel')
     parser.add_option('--time', help='Print timing information after running',
                       default=False, action='store_true')
 
@@ -306,6 +309,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       self._create_predictable_filter(),
       self._create_shard_proc(options),
       self._create_seed_proc(options),
+      SequenceProc(options.max_heavy_tests),
       sigproc,
     ] + indicators + [
       results,

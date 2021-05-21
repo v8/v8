@@ -125,10 +125,8 @@
   'es6/promise-all-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/promise-any-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
-  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, SLOW],
   'harmony/futex': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
-  'ignition/regress-672027': [PASS, SLOW],
   'large-object-literal-slow-elements': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'md5': [PASS, SLOW],
@@ -136,7 +134,6 @@
   'regress/regress-1122': [PASS, SLOW],
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
-  'regress/regress-1034322': [PASS, SLOW, NO_VARIANTS, ['mode != release', SKIP]],
   'regress/regress-1200351': [PASS, SLOW],
   'regress/regress-crbug-808192': [PASS, SLOW, NO_VARIANTS, ['arch not in (ia32, x64)', SKIP]],
   'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP], ['tsan', SKIP]],
@@ -169,7 +166,7 @@
 
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
   # Predictable tests fail due to race between postMessage and GrowMemory
-  'regress/wasm/regress-1010272': [PASS, NO_VARIANTS, ['system == android', SKIP], ['predictable', SKIP]],
+  'regress/wasm/regress-1010272': [PASS, HEAVY, NO_VARIANTS, ['system == android', SKIP], ['predictable', SKIP]],
 
   # Only makes sense in the no_i18n variant.
   'es6/unicode-regexp-ignore-case-noi18n':
@@ -177,6 +174,28 @@
 
   # Needs to be adapted after changes to Function constructor. chromium:1065094
   'cross-realm-filtering': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'compiler/array-subclass': [PASS, HEAVY],
+  'compiler/regress-crbug-11564': [PASS, HEAVY],
+  'd8/d8-worker-shutdown*': [PASS, HEAVY],
+  'es6/large-classes-*': [PASS, HEAVY],
+  'harmony/sharedarraybuffer-stress': [PASS, HEAVY],
+  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, HEAVY],
+  'ignition/regress-672027': [PASS, HEAVY],
+  'json2': [PASS, HEAVY],
+  'regress/regress-500980': [PASS, HEAVY],
+  'regress/regress-599414-array-concat-fast-path': [PASS, HEAVY],
+  'regress/regress-678917': [PASS, HEAVY],
+  'regress/regress-752764': [PASS, HEAVY],
+  'regress/regress-779407': [PASS, HEAVY],
+  'regress/regress-852258': [PASS, HEAVY],
+  'regress/regress-862433': [PASS, HEAVY],
+  'regress/regress-1034322': [PASS, HEAVY, NO_VARIANTS, ['mode != release', SKIP]],
+  'regress/regress-crbug-119926': [PASS, HEAVY],
+  'regress/regress-crbug-941743': [PASS, HEAVY],
+  'regress/regress-crbug-1191886': [PASS, HEAVY],
+  'wasm/externref-globals': [PASS, HEAVY],
 }],  # ALWAYS
 
 ##############################################################################
@@ -547,6 +566,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'wasm/asm-wasm': [PASS, HEAVY],
 }],  # 'asan == True'
 
 ##############################################################################

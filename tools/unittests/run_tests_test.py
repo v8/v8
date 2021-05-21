@@ -183,6 +183,19 @@ class SystemTest(unittest.TestCase):
       # self.assertIn('sweet/bananas', result.stderr, result)
       self.assertEqual(0, result.returncode, result)
 
+  def testPassHeavy(self):
+    """Test running with some tests marked heavy."""
+    with temp_base(baseroot='testroot3') as basedir:
+      result = run_tests(
+          basedir,
+          '--progress=verbose',
+          '--variants=nooptimization',
+          '-j2',
+          'sweet',
+      )
+      self.assertIn('7 tests ran', result.stdout, result)
+      self.assertEqual(0, result.returncode, result)
+
   def testShardedProc(self):
     with temp_base() as basedir:
       for shard in [1, 2]:
