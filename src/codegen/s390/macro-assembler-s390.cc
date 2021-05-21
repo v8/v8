@@ -910,10 +910,14 @@ void TurboAssembler::CallRecordWriteStub(
   Pop(slot_parameter);
   Pop(object_parameter);
 
+#if V8_ENABLE_WEBASSEMBLY
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
     auto wasm_target =
         wasm::WasmCode::GetRecordWriteStub(remembered_set_action, fp_mode);
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
+#else
+  if (false) {
+#endif
   } else {
     auto builtin_index =
         Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
