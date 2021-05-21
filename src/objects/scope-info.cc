@@ -626,8 +626,8 @@ Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
   DCHECK(!original.is_null());
   if (original->HasLocalsBlockList()) return original;
 
-  Handle<ScopeInfo> scope_info =
-      isolate->factory()->NewScopeInfo(original->length() + 1);
+  int length = original->length() + 1;
+  Handle<ScopeInfo> scope_info = isolate->factory()->NewScopeInfo(length);
 
   // Copy the static part first and update the flags to include the
   // blocklist field, so {LocalsBlockListIndex} returns the correct value.
@@ -645,11 +645,10 @@ Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
       scope_info->LocalsBlockListIndex() - kVariablePartIndex,
       WriteBarrierMode::UPDATE_WRITE_BARRIER);
   scope_info->set_locals_block_list(*blocklist);
-  scope_info->CopyElements(
-      isolate, scope_info->LocalsBlockListIndex() + 1, *original,
-      scope_info->LocalsBlockListIndex(),
-      scope_info->length() - scope_info->LocalsBlockListIndex() - 1,
-      WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  scope_info->CopyElements(isolate, scope_info->LocalsBlockListIndex() + 1,
+                           *original, scope_info->LocalsBlockListIndex(),
+                           length - scope_info->LocalsBlockListIndex() - 1,
+                           WriteBarrierMode::UPDATE_WRITE_BARRIER);
   return scope_info;
 }
 
