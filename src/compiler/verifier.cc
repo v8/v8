@@ -251,13 +251,26 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   }
 
   switch (node->opcode()) {
-    case IrOpcode::kStart:
+    case IrOpcode::kStart: {
       // Start has no inputs.
       CHECK_EQ(0, input_count);
       // Type is a tuple.
       // TODO(rossberg): Multiple outputs are currently typed as Internal.
       CheckTypeIs(node, Type::Internal());
+      // Check that parameters are unique. We need this because the register
+      // allocator gets confused when there are two identical parameters which
+      // are both hard-assigned to the same register (such as the instance
+      // parameter in wasm).
+      std::unordered_set<int> param_indices;
+      for (Node* use : node->uses()) {
+        if (all.IsLive(use) && use->opcode() == IrOpcode::kParameter) {
+          int index = ParameterIndexOf(use->op());
+          CHECK_EQ(param_indices.count(index), 0);
+          param_indices.insert(index);
+        }
+      }
       break;
+    }
     case IrOpcode::kEnd:
       // End has no outputs.
       CHECK_EQ(0, node->op()->ValueOutputCount());
