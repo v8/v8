@@ -89,9 +89,6 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
-  # BUG(3742).
-  'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
-
   # Test that serialization with unknown external reference fails.
   'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
   'test-serialize/SnapshotCreatorUnknownHandles': [FAIL],
