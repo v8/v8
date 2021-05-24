@@ -24,6 +24,13 @@ constexpr auto WriteBarrierDescriptor::registers() {
                        kReturnRegister0);
 }
 
+#ifdef V8_IS_TSAN
+// static
+constexpr auto TSANRelaxedStoreDescriptor::registers() {
+  return RegisterArray(arg_reg_1, arg_reg_2, arg_reg_3, kReturnRegister0);
+}
+#endif  // V8_IS_TSAN
+
 // static
 constexpr auto DynamicCheckMapsDescriptor::registers() {
   return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,

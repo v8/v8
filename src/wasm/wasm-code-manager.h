@@ -95,6 +95,7 @@ struct WasmModule;
   V(RecordWriteEmitRememberedSetIgnoreFP) \
   V(RecordWriteOmitRememberedSetIgnoreFP) \
   V(ToNumber)                             \
+  IF_TSAN(V, TSANRelaxedStore)            \
   V(WasmAllocateArrayWithRtt)             \
   V(WasmAllocateRtt)                      \
   V(WasmAllocateStructWithRtt)            \

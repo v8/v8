@@ -408,6 +408,50 @@ TF_BUILTIN(EphemeronKeyBarrierIgnoreFP, WriteBarrierCodeStubAssembler) {
   GenerateEphemeronKeyBarrier(SaveFPRegsMode::kIgnore);
 }
 
+#ifdef V8_IS_TSAN
+class TSANRelaxedStoreCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit TSANRelaxedStoreCodeStubAssembler(
+      compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  TNode<BoolT> ShouldSkipFPRegs(TNode<Smi> mode) {
+    return TaggedEqual(mode, SmiConstant(SaveFPRegsMode::kIgnore));
+  }
+};
+
+TF_BUILTIN(TSANRelaxedStore, TSANRelaxedStoreCodeStubAssembler) {
+  Label exit(this);
+  TNode<ExternalReference> function =
+      ExternalConstant(ExternalReference::tsan_relaxed_store_function());
+  auto address = UncheckedParameter<IntPtrT>(Descriptor::kAddress);
+  TNode<IntPtrT> value =
+      BitcastTaggedToWord(UncheckedParameter<Object>(Descriptor::kValue));
+  auto fp_mode = UncheckedParameter<Smi>(Descriptor::kFPMode);
+  Label dont_save_fp(this), save_fp(this);
+  Branch(ShouldSkipFPRegs(fp_mode), &dont_save_fp, &save_fp);
+  BIND(&dont_save_fp);
+  {
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineType::Int32(), SaveFPRegsMode::kIgnore,
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::IntPtr(), value));
+    Goto(&exit);
+  }
+
+  BIND(&save_fp);
+  {
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineType::Int32(), SaveFPRegsMode::kSave,
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::IntPtr(), value));
+    Goto(&exit);
+  }
+  BIND(&exit);
+  Return(TrueConstant());
+}
+#endif  // V8_IS_TSAN
+
 class DeletePropertyBaseAssembler : public AccessorAssembler {
  public:
   explicit DeletePropertyBaseAssembler(compiler::CodeAssemblerState* state)

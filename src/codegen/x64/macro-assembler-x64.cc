@@ -468,6 +468,42 @@ void TurboAssembler::CallRecordWriteStub(
   RestoreRegisters(registers);
 }
 
+#ifdef V8_IS_TSAN
+void TurboAssembler::CallTSANRelaxedStoreStub(Register address, Register value,
+                                              SaveFPRegsMode fp_mode,
+                                              Address wasm_target) {
+  TSANRelaxedStoreDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
+
+  SaveRegisters(registers);
+
+  Register address_parameter(
+      descriptor.GetRegisterParameter(TSANRelaxedStoreDescriptor::kAddress));
+  Register value_parameter(
+      descriptor.GetRegisterParameter(TSANRelaxedStoreDescriptor::kValue));
+  Register fp_mode_parameter(
+      descriptor.GetRegisterParameter(TSANRelaxedStoreDescriptor::kFPMode));
+
+  // Prepare argument registers for calling RecordWrite
+  // address_parameter   <= address
+  // value_parameter <= value
+  MovePair(address_parameter, address, value_parameter, value);
+  // fp_mode_parameter <= fp_mode
+  Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
+
+  if (wasm_target != kNullAddress) {
+    // Use {near_call} for direct Wasm call within a module.
+    near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  } else {
+    Handle<Code> code_target =
+        isolate()->builtins()->builtin_handle(Builtins::kTSANRelaxedStore);
+    Call(code_target, RelocInfo::CODE_TARGET);
+  }
+
+  RestoreRegisters(registers);
+}
+#endif  // V8_IS_TSAN
+
 void MacroAssembler::RecordWrite(Register object, Register address,
                                  Register value, SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
