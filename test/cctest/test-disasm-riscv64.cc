@@ -505,6 +505,13 @@ TEST(RV64C) {
   COMPARE(c_fsd(fa1, s1, 24), "0000ac8c       fsd       fa1, 24(s1)");
 
   COMPARE(c_j(-12), "0000bfd5       j       -12");
+
+  COMPARE(c_beqz(a0, -12), "0000d975       beqz       a0, x0, -12");
+  COMPARE(c_bnez(a0, -12), "0000f975       bnez       a0, x0, -12");
+  COMPARE(c_srli(a1, 24), "000081e1       srli       a1, a1, 24");
+  COMPARE(c_andi(a1, 24), "000089e1       andi       a1, a1, 24");
+  COMPARE(c_srai(a1, 24), "000085e1       srai       a1, a1, 24");
+
   VERIFY_RUN();
 }
 

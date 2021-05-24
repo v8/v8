@@ -93,6 +93,7 @@ class Decoder {
   void PrintRvcImm5D(Instruction* instr);
   void PrintRvcImm8Addi4spn(Instruction* instr);
   void PrintRvcImm11CJ(Instruction* instr);
+  void PrintRvcImm8B(Instruction* instr);
   void PrintAcquireRelease(Instruction* instr);
   void PrintBranchOffset(Instruction* instr);
   void PrintStoreOffset(Instruction* instr);
@@ -118,6 +119,7 @@ class Decoder {
   void DecodeCLType(Instruction* instr);
   void DecodeCSType(Instruction* instr);
   void DecodeCJType(Instruction* instr);
+  void DecodeCBType(Instruction* instr);
 
   // Printing of instruction name.
   void PrintInstructionName(Instruction* instr);
@@ -323,6 +325,11 @@ void Decoder::PrintRvcImm8Addi4spn(Instruction* instr) {
 
 void Decoder::PrintRvcImm11CJ(Instruction* instr) {
   int32_t imm = instr->RvcImm11CJValue();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+void Decoder::PrintRvcImm8B(Instruction* instr) {
+  int32_t imm = instr->RvcImm8BValue();
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
@@ -599,6 +606,10 @@ int Decoder::FormatRvcImm(Instruction* instr, const char* format) {
       DCHECK(STRING_STARTS_WITH(format, "Cimm8Addi4spn"));
       PrintRvcImm8Addi4spn(instr);
       return 13;
+    } else if (format[5] == 'B') {
+      DCHECK(STRING_STARTS_WITH(format, "Cimm8B"));
+      PrintRvcImm8B(instr);
+      return 6;
     }
     UNREACHABLE();
   } else if (format[4] == '1') {
@@ -1752,6 +1763,29 @@ void Decoder::DecodeCJType(Instruction* instr) {
   }
 }
 
+void Decoder::DecodeCBType(Instruction* instr) {
+  switch (instr->RvcOpcode()) {
+    case RO_C_BNEZ:
+      Format(instr, "bnez       'Crs1s, x0, 'Cimm8B");
+      break;
+    case RO_C_BEQZ:
+      Format(instr, "beqz       'Crs1s, x0, 'Cimm8B");
+      break;
+    case RO_C_MISC_ALU:
+      if (instr->RvcFunct2BValue() == 0b00)
+        Format(instr, "srli       'Crs1s, 'Crs1s, 'Cshamt");
+      else if (instr->RvcFunct2BValue() == 0b01)
+        Format(instr, "srai       'Crs1s, 'Crs1s, 'Cshamt");
+      else if (instr->RvcFunct2BValue() == 0b10)
+        Format(instr, "andi       'Crs1s, 'Crs1s, 'Cimm6");
+      else
+        UNSUPPORTED_RISCV();
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+  }
+}
+
 // Disassemble the instruction at *instr_ptr into the output buffer.
 // All instructions are one word long, except for the simulator
 // pseudo-instruction stop(msg). For that one special case, we return
@@ -1806,6 +1840,9 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       break;
     case Instruction::kCSType:
       DecodeCSType(instr);
+      break;
+    case Instruction::kCBType:
+      DecodeCBType(instr);
       break;
     default:
       Format(instr, "UNSUPPORTED");
