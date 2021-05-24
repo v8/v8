@@ -5,7 +5,6 @@
 #include "src/flags/flags.h"
 #include "test/cctest/compiler/node-observer-tester.h"
 #include "test/cctest/test-api.h"
-#include "test/common/wasm/flag-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -19,6 +18,9 @@ void CompileRunWithNodeObserver(const std::string& js_code,
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
+
+  FLAG_allow_natives_syntax = true;
+  FLAG_turbo_optimize_apply = true;
 
   // Note: Make sure to not capture stack locations (e.g. `this`) here since
   // these lambdas are executed on another thread.
@@ -40,9 +42,6 @@ void CompileRunWithNodeObserver(const std::string& js_code,
   {
     ObserveNodeScope scope(reinterpret_cast<i::Isolate*>(isolate),
                            &apply_call_observer);
-
-    FlagScope<bool> allow_natives_syntax(&i::FLAG_allow_natives_syntax, true);
-    FlagScope<bool> optimize_apply(&i::FLAG_turbo_optimize_apply, true);
 
     v8::Local<v8::Value> result_value = CompileRun(js_code.c_str());
 
