@@ -333,6 +333,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CSAOptimization)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecompressionOptimization)       \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyGraphTrimming)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EffectLinearization)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                  \

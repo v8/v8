@@ -1450,6 +1450,18 @@ struct WasmInliningPhase {
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+struct EarlyGraphTrimmingPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(EarlyGraphTrimming)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
+    trimmer.TrimGraph(roots.begin(), roots.end());
+  }
+};
+
 struct TyperPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(Typer)
 
@@ -2648,6 +2660,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
 
   data->BeginPhaseKind("V8.TFLowering");
+
+  // Trim the graph before typing to ensure all nodes are typed.
+  Run<EarlyGraphTrimmingPhase>();
+  RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
 
   // Type the graph and keep the Typer running such that new nodes get
   // automatically typed when they are created.
