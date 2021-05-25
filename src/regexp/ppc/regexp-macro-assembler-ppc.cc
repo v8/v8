@@ -788,7 +788,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
         __ mtctr(r5);
         Label init_loop;
         __ bind(&init_loop);
-        __ StorePU(r3, MemOperand(r4, -kSystemPointerSize));
+        __ StoreU64WithUpdate(r3, MemOperand(r4, -kSystemPointerSize));
         __ bdnz(&init_loop);
       } else {
         for (int i = 0; i < num_saved_registers_; i++) {
@@ -1143,7 +1143,7 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
 
   // Allocate frame with required slots to make ABI work.
   __ li(r0, Operand::Zero());
-  __ StorePU(r0, MemOperand(sp, -stack_space * kSystemPointerSize));
+  __ StoreU64WithUpdate(r0, MemOperand(sp, -stack_space * kSystemPointerSize));
 
   // RegExp code frame pointer.
   __ mr(r5, frame_pointer());
@@ -1269,7 +1269,8 @@ void RegExpMacroAssemblerPPC::SafeCallTarget(Label* name) {
 
 void RegExpMacroAssemblerPPC::Push(Register source) {
   DCHECK(source != backtrack_stackpointer());
-  __ StorePU(source, MemOperand(backtrack_stackpointer(), -kSystemPointerSize));
+  __ StoreU64WithUpdate(
+      source, MemOperand(backtrack_stackpointer(), -kSystemPointerSize));
 }
 
 

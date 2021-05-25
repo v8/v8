@@ -333,7 +333,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
 
     bind(&loop);
     LoadU64WithUpdate(scratch2, MemOperand(scratch, -kSystemPointerSize));
-    StorePU(scratch2, MemOperand(sp, -kSystemPointerSize));
+    StoreU64WithUpdate(scratch2, MemOperand(sp, -kSystemPointerSize));
     bdnz(&loop);
 
     bind(&done);
@@ -346,7 +346,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
 
     bind(&loop);
     LoadU64WithUpdate(scratch2, MemOperand(scratch, kSystemPointerSize));
-    StorePU(scratch2, MemOperand(sp, -kSystemPointerSize));
+    StoreU64WithUpdate(scratch2, MemOperand(sp, -kSystemPointerSize));
     bdnz(&loop);
     bind(&done);
   }
@@ -1240,8 +1240,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
                   Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
   }
   li(r0, Operand::Zero());
-  StorePU(r0,
-          MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
+  StoreU64WithUpdate(
+      r0, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
 
   // Set the exit frame sp value to point just before the return address
   // location.
@@ -1356,7 +1356,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   mtctr(tmp_reg);
   bind(&loop);
   LoadU64WithUpdate(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
-  StorePU(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize));
+  StoreU64WithUpdate(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize));
   bdnz(&loop);
 
   // Leave current frame.
@@ -1436,7 +1436,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
     bind(&copy);
     LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
-    StorePU(r0, MemOperand(dest, kSystemPointerSize));
+    StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
     bdnz(&copy);
   }
 
@@ -1447,7 +1447,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
     Label loop;
     bind(&loop);
-    StorePU(scratch, MemOperand(r8, kSystemPointerSize));
+    StoreU64WithUpdate(scratch, MemOperand(r8, kSystemPointerSize));
     bdnz(&loop);
   }
   b(&regular_invoke);
@@ -2096,7 +2096,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
 
   // Allocate frame with required slots to make ABI work.
   li(r0, Operand::Zero());
-  StorePU(r0, MemOperand(sp, -stack_space * kSystemPointerSize));
+  StoreU64WithUpdate(r0, MemOperand(sp, -stack_space * kSystemPointerSize));
 }
 
 void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -2776,21 +2776,33 @@ void TurboAssembler::StoreU64(Register src, const MemOperand& mem,
   }
 }
 
-void TurboAssembler::StorePU(Register src, const MemOperand& mem,
-                             Register scratch) {
+void TurboAssembler::StoreU64WithUpdate(Register src, const MemOperand& mem,
+                                        Register scratch) {
   int offset = mem.offset();
+  int misaligned = (offset & 3);
 
-  if (!is_int16(offset)) {
-    /* cannot use d-form */
-    DCHECK(scratch != no_reg);
-    mov(scratch, Operand(offset));
-    StorePUX(src, MemOperand(mem.ra(), scratch));
+  if (mem.rb() == no_reg) {
+    if (!is_int16(offset) || misaligned) {
+      /* cannot use d-form */
+      CHECK_NE(scratch, no_reg);
+      mov(scratch, Operand(offset));
+      stdux(src, MemOperand(mem.ra(), scratch));
+    } else {
+      stdu(src, mem);
+    }
   } else {
-#if V8_TARGET_ARCH_PPC64
-    stdu(src, mem);
-#else
-    stwu(src, mem);
-#endif
+    if (offset == 0) {
+      stdux(src, mem);
+    } else if (is_int16(offset)) {
+      CHECK_NE(scratch, no_reg);
+      addi(scratch, mem.rb(), Operand(offset));
+      stdux(src, MemOperand(mem.ra(), scratch));
+    } else {
+      CHECK_NE(scratch, no_reg);
+      mov(scratch, Operand(offset));
+      add(scratch, scratch, mem.rb());
+      stdux(src, MemOperand(mem.ra(), scratch));
+    }
   }
 }
 

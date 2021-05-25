@@ -1897,7 +1897,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
     __ bind(&copy);
     __ LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
-    __ StorePU(r0, MemOperand(dest, kSystemPointerSize));
+    __ StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
     __ bdnz(&copy);
   }
 
@@ -1916,7 +1916,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ bne(&skip);
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
     __ bind(&skip);
-    __ StorePU(scratch, MemOperand(r8, kSystemPointerSize));
+    __ StoreU64WithUpdate(scratch, MemOperand(r8, kSystemPointerSize));
     __ bdnz(&loop);
     __ bind(&no_args);
     __ add(r3, r3, r7);
@@ -2001,7 +2001,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
       __ bind(&copy);
       __ LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
-      __ StorePU(r0, MemOperand(dest, kSystemPointerSize));
+      __ StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
       __ bdnz(&copy);
     }
     // Copy arguments from the caller frame.

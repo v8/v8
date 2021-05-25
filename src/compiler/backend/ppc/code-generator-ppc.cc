@@ -1769,8 +1769,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp));
           break;
         default:
-          __ StorePU(i.InputRegister(1), MemOperand(sp, -kSystemPointerSize),
-                     r0);
+          __ StoreU64WithUpdate(i.InputRegister(1),
+                                MemOperand(sp, -kSystemPointerSize), r0);
           break;
       }
       frame_access_state()->IncreaseSPDelta(slots);
@@ -1790,8 +1790,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                           MemOperand(sp, -num_slots * kSystemPointerSize), r0);
         }
       } else {
-        __ StorePU(i.InputRegister(0),
-                   MemOperand(sp, -num_slots * kSystemPointerSize), r0);
+        __ StoreU64WithUpdate(i.InputRegister(0),
+                              MemOperand(sp, -num_slots * kSystemPointerSize),
+                              r0);
       }
       break;
     }

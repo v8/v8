@@ -145,7 +145,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                          Register scratch = no_reg);
   void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
-  void StorePU(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StoreU64WithUpdate(Register src, const MemOperand& mem,
+                          Register scratch = no_reg);
 
   void LoadDouble(DoubleRegister dst, const MemOperand& mem,
                   Register scratch = no_reg);
@@ -205,20 +206,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
-    StorePU(src2, MemOperand(sp, -2 * kSystemPointerSize));
+    StoreU64WithUpdate(src2, MemOperand(sp, -2 * kSystemPointerSize));
     StoreU64(src1, MemOperand(sp, kSystemPointerSize));
   }
 
   // Push three registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3) {
-    StorePU(src3, MemOperand(sp, -3 * kSystemPointerSize));
+    StoreU64WithUpdate(src3, MemOperand(sp, -3 * kSystemPointerSize));
     StoreU64(src2, MemOperand(sp, kSystemPointerSize));
     StoreU64(src1, MemOperand(sp, 2 * kSystemPointerSize));
   }
 
   // Push four registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4) {
-    StorePU(src4, MemOperand(sp, -4 * kSystemPointerSize));
+    StoreU64WithUpdate(src4, MemOperand(sp, -4 * kSystemPointerSize));
     StoreU64(src3, MemOperand(sp, kSystemPointerSize));
     StoreU64(src2, MemOperand(sp, 2 * kSystemPointerSize));
     StoreU64(src1, MemOperand(sp, 3 * kSystemPointerSize));
@@ -227,7 +228,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Push five registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4,
             Register src5) {
-    StorePU(src5, MemOperand(sp, -5 * kSystemPointerSize));
+    StoreU64WithUpdate(src5, MemOperand(sp, -5 * kSystemPointerSize));
     StoreU64(src4, MemOperand(sp, kSystemPointerSize));
     StoreU64(src3, MemOperand(sp, 2 * kSystemPointerSize));
     StoreU64(src2, MemOperand(sp, 3 * kSystemPointerSize));
