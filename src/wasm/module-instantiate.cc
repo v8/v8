@@ -1654,18 +1654,12 @@ bool InstanceBuilder::AllocateMemory() {
   int maximum_pages = module_->has_maximum_pages
                           ? static_cast<int>(module_->maximum_pages)
                           : WasmMemoryObject::kNoMaximum;
-  if (initial_pages > static_cast<int>(max_mem_pages())) {
-    thrower_->RangeError("Out of memory: wasm memory too large");
-    return false;
-  }
   auto shared = (module_->has_shared_memory && enabled_.has_threads())
                     ? SharedFlag::kShared
                     : SharedFlag::kNotShared;
 
-  MaybeHandle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared);
-
-  if (!result.ToHandle(&memory_object_)) {
+  if (!WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared)
+           .ToHandle(&memory_object_)) {
     thrower_->RangeError("Out of memory: wasm memory");
     return false;
   }

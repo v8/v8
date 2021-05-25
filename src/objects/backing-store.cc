@@ -30,13 +30,6 @@ namespace internal {
 namespace {
 
 #if V8_ENABLE_WEBASSEMBLY
-// Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
-// We don't lower the official max_mem_pages() limit because that would be
-// observable upon instantiation; this way the effective limit on 32-bit
-// platforms is defined by the allocator.
-constexpr size_t kPlatformMaxPages =
-    std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
-
 constexpr uint64_t kNegativeGuardSize = uint64_t{2} * GB;
 
 #if V8_TARGET_ARCH_64_BIT
@@ -476,8 +469,7 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
   DCHECK_EQ(0, wasm::kWasmPageSize % AllocatePageSize());
 
   // Enforce engine limitation on the maximum number of pages.
-  if (initial_pages > wasm::kV8MaxWasmMemoryPages) return nullptr;
-  if (initial_pages > kPlatformMaxPages) return nullptr;
+  if (initial_pages > wasm::max_mem_pages()) return nullptr;
 
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);
