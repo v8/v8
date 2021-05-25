@@ -216,6 +216,16 @@ class WasmGraphBuilder {
     kWithNullCheck = true,
     kWithoutNullCheck = false
   };
+  enum BoundsCheckResult {
+    // Statically OOB.
+    kOutOfBounds,
+    // Dynamically checked (using 1-2 conditional branches).
+    kDynamicallyChecked,
+    // OOB handled via the trap handler.
+    kTrapHandler,
+    // Statically known to be in bounds.
+    kInBounds
+  };
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
@@ -523,9 +533,14 @@ class WasmGraphBuilder {
   // offset fits in a platform-dependent uintptr_t.
   Node* MemBuffer(uintptr_t offset);
 
-  // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
-  Node* BoundsCheckMem(uint8_t access_size, Node* index, uint64_t offset,
-                       wasm::WasmCodePosition, EnforceBoundsCheck);
+  // BoundsCheckMem receives a 32/64-bit index (depending on
+  // WasmModule::is_memory64) and returns a ptrsize index and information about
+  // the kind of bounds check performed (or why none was needed).
+  std::pair<Node*, BoundsCheckResult> BoundsCheckMem(uint8_t access_size,
+                                                     Node* index,
+                                                     uint64_t offset,
+                                                     wasm::WasmCodePosition,
+                                                     EnforceBoundsCheck);
 
   Node* CheckBoundsAndAlignment(int8_t access_size, Node* index,
                                 uint64_t offset, wasm::WasmCodePosition);
