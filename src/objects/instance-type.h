@@ -175,13 +175,15 @@ TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(CHECK_NONSTRING_RANGE)
 #define CHECK_INSTANCE_TYPE(TYPE)                                          \
   STATIC_ASSERT((TYPE >= FIRST_JS_RECEIVER_TYPE &&                         \
                  TYPE <= LAST_SPECIAL_RECEIVER_TYPE) ==                    \
-                (TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
+                (TYPE == WASM_STRUCT_TYPE || TYPE == WASM_ARRAY_TYPE ||    \
+                 TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
                  TYPE == JS_GLOBAL_PROXY_TYPE ||                           \
                  TYPE == JS_MODULE_NAMESPACE_TYPE ||                       \
                  TYPE == JS_SPECIAL_API_OBJECT_TYPE));                     \
   STATIC_ASSERT((TYPE >= FIRST_JS_RECEIVER_TYPE &&                         \
                  TYPE <= LAST_CUSTOM_ELEMENTS_RECEIVER) ==                 \
-                (TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
+                (TYPE == WASM_STRUCT_TYPE || TYPE == WASM_ARRAY_TYPE ||    \
+                 TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
                  TYPE == JS_GLOBAL_PROXY_TYPE ||                           \
                  TYPE == JS_MODULE_NAMESPACE_TYPE ||                       \
                  TYPE == JS_SPECIAL_API_OBJECT_TYPE ||                     \

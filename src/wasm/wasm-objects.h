@@ -17,6 +17,7 @@
 #include "src/debug/debug.h"
 #include "src/heap/heap.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"
@@ -935,12 +936,12 @@ class WasmTypeInfo : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, Foreign> {
   TQ_OBJECT_CONSTRUCTORS(WasmTypeInfo)
 };
 
-class WasmObject : public HeapObject {
+class WasmObject : public JSReceiver {
  public:
   DECL_CAST(WasmObject)
   DECL_VERIFIER(WasmObject)
 
-  OBJECT_CONSTRUCTORS(WasmObject, HeapObject);
+  OBJECT_CONSTRUCTORS(WasmObject, JSReceiver);
 };
 
 class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
@@ -951,6 +952,10 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   static inline int Size(const wasm::StructType* type);
   static inline int GcSafeSize(Map map);
 
+  // Returns the address of the field at given offset.
+  inline Address RawFieldAddress(int raw_offset);
+
+  // Returns the ObjectSlot for tagged value at given offset.
   inline ObjectSlot RawField(int raw_offset);
 
   wasm::WasmValue GetFieldValue(uint32_t field_index);

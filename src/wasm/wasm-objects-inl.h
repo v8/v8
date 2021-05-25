@@ -40,7 +40,7 @@ OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData, WasmFunctionData)
 OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, WasmFunctionData)
 OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(WasmObject, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmObject, JSReceiver)
 OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
@@ -447,9 +447,13 @@ int WasmStruct::GcSafeSize(Map map) {
 
 wasm::StructType* WasmStruct::type() const { return type(map()); }
 
-ObjectSlot WasmStruct::RawField(int raw_offset) {
+Address WasmStruct::RawFieldAddress(int raw_offset) {
   int offset = WasmStruct::kHeaderSize + raw_offset;
-  return ObjectSlot(FIELD_ADDR(*this, offset));
+  return FIELD_ADDR(*this, offset);
+}
+
+ObjectSlot WasmStruct::RawField(int raw_offset) {
+  return ObjectSlot(RawFieldAddress(raw_offset));
 }
 
 wasm::ArrayType* WasmArray::type(Map map) {

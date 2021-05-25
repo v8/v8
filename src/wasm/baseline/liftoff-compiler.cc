@@ -4833,18 +4833,11 @@ class LiftoffCompiler {
       StoreObjectField(obj.gp(), no_reg, offset, value, pinned, field_kind);
       pinned.clear(value);
     }
-    if (imm.struct_type->field_count() == 0) {
-      static_assert(Heap::kMinObjectSizeInTaggedWords == 2 &&
-                        WasmStruct::kHeaderSize == kTaggedSize,
-                    "empty structs need exactly one padding field");
-      ValueKind field_kind = ValueKind::kRef;
-      LiftoffRegister value = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LoadNullValue(value.gp(), pinned);
-      StoreObjectField(obj.gp(), no_reg,
-                       wasm::ObjectAccess::ToTagged(WasmStruct::kHeaderSize),
-                       value, pinned, field_kind);
-      pinned.clear(value);
-    }
+    // If this assert fails then initialization of padding field might be
+    // necessary.
+    static_assert(Heap::kMinObjectSizeInTaggedWords == 2 &&
+                      WasmStruct::kHeaderSize == 2 * kTaggedSize,
+                  "empty struct might require initialization of padding field");
     __ PushRegister(kRef, obj);
   }
 

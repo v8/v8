@@ -10,6 +10,7 @@
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
@@ -116,6 +117,61 @@ class CompileImportWrapperJob final : public JobTask {
   WasmImportWrapperCache::ModificationScope* const cache_scope_;
 };
 
+Handle<DescriptorArray> CreateStructDescriptorArray(
+    Isolate* isolate, const wasm::StructType* type) {
+  if (type->field_count() == 0) {
+    return isolate->factory()->empty_descriptor_array();
+  }
+  uint32_t field_count = type->field_count();
+  static_assert(kV8MaxWasmStructFields <= kMaxNumberOfDescriptors,
+                "Bigger numbers of struct fields require different approach");
+  Handle<DescriptorArray> descriptors =
+      isolate->factory()->NewDescriptorArray(field_count);
+
+  // TODO(ishell): cache Wasm field type in FieldType value.
+  MaybeObject any_type = MaybeObject::FromObject(FieldType::Any());
+  DCHECK(any_type->IsSmi());
+
+  i::EmbeddedVector<char, 128> name_buffer;
+  for (uint32_t i = 0; i < field_count; i++) {
+    // TODO(ishell): consider introducing a cache of first N internalized field
+    // names similar to LookupSingleCharacterStringFromCode().
+    SNPrintF(name_buffer, "$field%d", i);
+    Handle<String> name =
+        isolate->factory()->InternalizeUtf8String(name_buffer.begin());
+
+    PropertyAttributes attributes = type->mutability(i) ? SEALED : FROZEN;
+    PropertyDetails details(
+        PropertyKind::kData, attributes, PropertyLocation::kField,
+        PropertyConstness::kMutable,  // Don't track constness
+        Representation::WasmValue(), static_cast<int>(i));
+    descriptors->Set(InternalIndex(i), *name, any_type, details);
+  }
+  descriptors->Sort();
+  return descriptors;
+}
+
+Handle<DescriptorArray> CreateArrayDescriptorArray(
+    Isolate* isolate, const wasm::ArrayType* type) {
+  uint32_t kDescriptorsCount = 1;
+  Handle<DescriptorArray> descriptors =
+      isolate->factory()->NewDescriptorArray(kDescriptorsCount);
+
+  // TODO(ishell): cache Wasm field type in FieldType value.
+  MaybeObject any_type = MaybeObject::FromObject(FieldType::Any());
+  DCHECK(any_type->IsSmi());
+
+  // Add descriptor for length property.
+  PropertyDetails details(PropertyKind::kData, FROZEN, PropertyLocation::kField,
+                          PropertyConstness::kConst,
+                          Representation::WasmValue(), static_cast<int>(0));
+  descriptors->Set(InternalIndex(0), *isolate->factory()->length_string(),
+                   any_type, details);
+
+  descriptors->Sort();
+  return descriptors;
+}
+
 }  // namespace
 
 // TODO(jkummerow): Move these elsewhere.
@@ -132,9 +188,14 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, real_instance_size);
+  Handle<DescriptorArray> descriptors =
+      CreateStructDescriptorArray(isolate, type);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, map_instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
+  map->SetInstanceDescriptors(isolate, *descriptors,
+                              descriptors->number_of_descriptors());
+  map->set_is_extensible(false);
   return map;
 }
 
@@ -149,9 +210,15 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, cached_instance_size);
+  // TODO(ishell): get canonical descriptor array for WasmArrays from roots.
+  Handle<DescriptorArray> descriptors =
+      CreateArrayDescriptorArray(isolate, type);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
+  map->SetInstanceDescriptors(isolate, *descriptors,
+                              descriptors->number_of_descriptors());
+  map->set_is_extensible(false);
   return map;
 }
 

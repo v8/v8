@@ -1835,6 +1835,8 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   PrintHeader(os, "WasmTypeInfo");
   os << "\n - type address: " << reinterpret_cast<void*>(foreign_address());
+  os << "\n - supertypes: " << Brief(supertypes());
+  os << "\n - subtypes: " << Brief(subtypes());
   os << "\n";
 }
 
@@ -1846,7 +1848,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
     wasm::ValueType field = struct_type->field(i);
     os << "\n   - " << field.short_name() << ": ";
     uint32_t field_offset = struct_type->field_offset(i);
-    Address field_address = RawField(field_offset).address();
+    Address field_address = RawFieldAddress(field_offset);
     switch (field.kind()) {
       case wasm::kI32:
         os << base::ReadUnalignedValue<int32_t>(field_address);

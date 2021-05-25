@@ -3015,10 +3015,11 @@ TEST(NormalizeToMigrationTarget) {
 }
 
 TEST(RepresentationPredicatesAreInSync) {
-  STATIC_ASSERT(Representation::kNumRepresentations == 5);
+  STATIC_ASSERT(Representation::kNumRepresentations == 6);
   static Representation reps[] = {
-      Representation::None(), Representation::Smi(), Representation::Double(),
-      Representation::HeapObject(), Representation::Tagged()};
+      Representation::None(),   Representation::Smi(),
+      Representation::Double(), Representation::HeapObject(),
+      Representation::Tagged(), Representation::WasmValue()};
 
   for (Representation from : reps) {
     Representation most_generic_rep = from.MostGenericInPlaceChange();

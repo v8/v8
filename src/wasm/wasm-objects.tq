@@ -119,7 +119,7 @@ extern class WasmTypeInfo extends Foreign {
 
 // WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
 @abstract
-extern class WasmObject extends HeapObject {
+extern class WasmObject extends JSReceiver {
 }
 
 @generateCppClass

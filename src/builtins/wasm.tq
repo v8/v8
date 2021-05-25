@@ -293,6 +293,8 @@ builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
   const result: HeapObject = unsafe::Allocate(
       instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
   *UnsafeConstCast(&result.map) = rtt;
+  // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
+  %RawDownCast<WasmStruct>(result).properties_or_hash = kEmptyFixedArray;
   return result;
 }
 
@@ -307,6 +309,8 @@ builtin WasmAllocateArrayWithRtt(
   const result: HeapObject = unsafe::Allocate(
       instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
   *UnsafeConstCast(&result.map) = rtt;
+  // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
+  %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
   %RawDownCast<WasmArray>(result).length = length;
   return result;
 }

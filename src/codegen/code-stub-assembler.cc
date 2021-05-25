@@ -9776,8 +9776,6 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
   {
     Label if_objectisreceiver(this);
-    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    STATIC_ASSERT(FIRST_JS_RECEIVER_TYPE == JS_PROXY_TYPE);
     Branch(IsJSReceiverInstanceType(instance_type), &if_objectisreceiver,
            if_bailout);
     BIND(&if_objectisreceiver);
