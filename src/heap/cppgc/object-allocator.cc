@@ -86,7 +86,7 @@ void ReplaceLinearAllocationBuffer(NormalPageSpace* space,
 void* AllocateLargeObject(PageBackend* page_backend, LargePageSpace* space,
                           StatsCollector* stats_collector, size_t size,
                           GCInfoIndex gcinfo) {
-  LargePage* page = LargePage::Create(page_backend, space, size);
+  LargePage* page = LargePage::Create(*page_backend, *space, size);
   space->AddPage(page);
 
   auto* header = new (page->ObjectHeader())
@@ -160,7 +160,7 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
   // TODO(chromium:1056170): Make use of the synchronously freed memory.
 
   // 5. Add a new page to this heap.
-  auto* new_page = NormalPage::Create(page_backend_, space);
+  auto* new_page = NormalPage::Create(*page_backend_, *space);
   space->AddPage(new_page);
 
   // 6. Set linear allocation buffer to new page.

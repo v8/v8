@@ -24,8 +24,8 @@ namespace {
 class PageTest : public testing::TestWithHeap {
  public:
   RawHeap& GetRawHeap() { return Heap::From(GetHeap())->raw_heap(); }
-  PageBackend* GetPageBackend() {
-    return Heap::From(GetHeap())->page_backend();
+  PageBackend& GetPageBackend() {
+    return *Heap::From(GetHeap())->page_backend();
   }
 };
 
@@ -188,7 +188,7 @@ TEST_F(PageTest, NormalPageCreationDestruction) {
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
   auto* space = static_cast<NormalPageSpace*>(
       heap.Space(RawHeap::RegularSpaceType::kNormal1));
-  auto* page = NormalPage::Create(GetPageBackend(), space);
+  auto* page = NormalPage::Create(GetPageBackend(), *space);
   EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
 
   space->AddPage(page);
@@ -213,7 +213,7 @@ TEST_F(PageTest, LargePageCreationDestruction) {
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
   auto* space = static_cast<LargePageSpace*>(
       heap.Space(RawHeap::RegularSpaceType::kLarge));
-  auto* page = LargePage::Create(GetPageBackend(), space, kObjectSize);
+  auto* page = LargePage::Create(GetPageBackend(), *space, kObjectSize);
   EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
 
   space->AddPage(page);
@@ -231,14 +231,14 @@ TEST_F(PageTest, UnsweptPageDestruction) {
   {
     auto* space = static_cast<NormalPageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kNormal1));
-    auto* page = NormalPage::Create(GetPageBackend(), space);
+    auto* page = NormalPage::Create(GetPageBackend(), *space);
     space->AddPage(page);
     EXPECT_DEATH_IF_SUPPORTED(NormalPage::Destroy(page), "");
   }
   {
     auto* space = static_cast<LargePageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kLarge));
-    auto* page = LargePage::Create(GetPageBackend(), space,
+    auto* page = LargePage::Create(GetPageBackend(), *space,
                                    2 * kLargeObjectSizeThreshold);
     space->AddPage(page);
     EXPECT_DEATH_IF_SUPPORTED(LargePage::Destroy(page), "");

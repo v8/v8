@@ -89,14 +89,14 @@ TEST_F(ExplicitManagementTest, FreeLargeObject) {
       GetHeap()->GetAllocationHandle(),
       AdditionalBytes(kLargeObjectSizeThreshold));
   const auto* page = BasePage::FromPayload(o);
-  auto* heap = page->heap();
+  auto& heap = page->heap();
   ASSERT_TRUE(page->is_large());
   ConstAddress needle = reinterpret_cast<ConstAddress>(o);
   const size_t size = LargePage::From(page)->PayloadSize();
-  EXPECT_TRUE(heap->page_backend()->Lookup(needle));
+  EXPECT_TRUE(heap.page_backend()->Lookup(needle));
   const size_t allocated_size_before = AllocatedObjectSize();
   subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
-  EXPECT_FALSE(heap->page_backend()->Lookup(needle));
+  EXPECT_FALSE(heap.page_backend()->Lookup(needle));
   EXPECT_EQ(allocated_size_before - size, AllocatedObjectSize());
 }
 
@@ -104,12 +104,12 @@ TEST_F(ExplicitManagementTest, FreeBailsOutDuringGC) {
   const size_t snapshot_before = AllocatedObjectSize();
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
-  auto* heap = BasePage::FromPayload(o)->heap();
-  heap->SetInAtomicPauseForTesting(true);
+  auto& heap = BasePage::FromPayload(o)->heap();
+  heap.SetInAtomicPauseForTesting(true);
   const size_t allocated_size_before = AllocatedObjectSize();
   subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_EQ(allocated_size_before, AllocatedObjectSize());
-  heap->SetInAtomicPauseForTesting(false);
+  heap.SetInAtomicPauseForTesting(false);
   ResetLinearAllocationBuffers();
   subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_EQ(snapshot_before, AllocatedObjectSize());
@@ -192,8 +192,8 @@ TEST_F(ExplicitManagementTest, ResizeBailsOutDuringGC) {
   auto* o = MakeGarbageCollected<DynamicallySized>(
       GetHeap()->GetAllocationHandle(),
       AdditionalBytes(ObjectAllocator::kSmallestSpaceSize - 1));
-  auto* heap = BasePage::FromPayload(o)->heap();
-  heap->SetInAtomicPauseForTesting(true);
+  auto& heap = BasePage::FromPayload(o)->heap();
+  heap.SetInAtomicPauseForTesting(true);
   const size_t allocated_size_before = AllocatedObjectSize();
   // Grow:
   EXPECT_FALSE(
@@ -201,7 +201,7 @@ TEST_F(ExplicitManagementTest, ResizeBailsOutDuringGC) {
   // Shrink:
   EXPECT_FALSE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(allocated_size_before, AllocatedObjectSize());
-  heap->SetInAtomicPauseForTesting(false);
+  heap.SetInAtomicPauseForTesting(false);
 }
 
 }  // namespace internal

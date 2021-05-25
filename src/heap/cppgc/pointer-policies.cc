@@ -42,7 +42,7 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
   // References cannot change their heap association which means that state is
   // immutable once it is set.
   if (!heap_) {
-    heap_ = base_page->heap();
+    heap_ = &base_page->heap();
     if (!heap_->page_backend()->Lookup(reinterpret_cast<Address>(this))) {
       // If `this` is not contained within the heap of `ptr`, we must deal with
       // an on-stack or off-heap reference. For both cases there should be no
@@ -52,7 +52,7 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
   }
 
   // Member references should never mix heaps.
-  DCHECK_EQ(heap_, base_page->heap());
+  DCHECK_EQ(heap_, &base_page->heap());
 
   // Header checks.
   const HeapObjectHeader* header = nullptr;
@@ -86,26 +86,26 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
 
 PersistentRegion& StrongPersistentPolicy::GetPersistentRegion(
     const void* object) {
-  auto* heap = BasePage::FromPayload(object)->heap();
-  return heap->GetStrongPersistentRegion();
+  return BasePage::FromPayload(object)->heap().GetStrongPersistentRegion();
 }
 
 PersistentRegion& WeakPersistentPolicy::GetPersistentRegion(
     const void* object) {
-  auto* heap = BasePage::FromPayload(object)->heap();
-  return heap->GetWeakPersistentRegion();
+  return BasePage::FromPayload(object)->heap().GetWeakPersistentRegion();
 }
 
 CrossThreadPersistentRegion&
 StrongCrossThreadPersistentPolicy::GetPersistentRegion(const void* object) {
-  auto* heap = BasePage::FromPayload(object)->heap();
-  return heap->GetStrongCrossThreadPersistentRegion();
+  return BasePage::FromPayload(object)
+      ->heap()
+      .GetStrongCrossThreadPersistentRegion();
 }
 
 CrossThreadPersistentRegion&
 WeakCrossThreadPersistentPolicy::GetPersistentRegion(const void* object) {
-  auto* heap = BasePage::FromPayload(object)->heap();
-  return heap->GetWeakCrossThreadPersistentRegion();
+  return BasePage::FromPayload(object)
+      ->heap()
+      .GetWeakCrossThreadPersistentRegion();
 }
 
 }  // namespace internal

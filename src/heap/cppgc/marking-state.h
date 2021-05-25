@@ -199,7 +199,7 @@ void MarkingStateBase::MarkAndPush(HeapObjectHeader& header,
 
 bool MarkingStateBase::MarkNoPush(HeapObjectHeader& header) {
   // A GC should only mark the objects that belong in its heap.
-  DCHECK_EQ(&heap_, BasePage::FromPayload(&header)->heap());
+  DCHECK_EQ(&heap_, &BasePage::FromPayload(&header)->heap());
   // Never mark free space objects. This would e.g. hint to marking a promptly
   // freed backing store.
   DCHECK(!header.IsFree<AccessMode::kAtomic>());

@@ -39,7 +39,7 @@ void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
   BasePage* base_page = BasePage::FromPayload(object);
   if (base_page->is_large()) {  // Large object.
     base_page->space()->RemovePage(base_page);
-    base_page->heap()->stats_collector()->NotifyExplicitFree(
+    base_page->heap().stats_collector()->NotifyExplicitFree(
         LargePage::From(base_page)->PayloadSize());
     LargePage::Destroy(LargePage::From(base_page));
   } else {  // Regular object.
@@ -53,7 +53,7 @@ void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
       lab.Set(reinterpret_cast<Address>(&header), lab.size() + header_size);
       normal_page->object_start_bitmap().ClearBit(lab.start());
     } else {  // Returning to free list.
-      base_page->heap()->stats_collector()->NotifyExplicitFree(header_size);
+      base_page->heap().stats_collector()->NotifyExplicitFree(header_size);
       normal_space.free_list().Add({&header, header_size});
       // No need to update the bitmap as the same bit is reused for the free
       // list entry.
@@ -104,7 +104,7 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
   // the smallest size class.
   if (size_delta >= ObjectAllocator::kSmallestSpaceSize) {
     SetMemoryInaccessible(free_start, size_delta);
-    base_page.heap()->stats_collector()->NotifyExplicitFree(size_delta);
+    base_page.heap().stats_collector()->NotifyExplicitFree(size_delta);
     normal_space.free_list().Add({free_start, size_delta});
     NormalPage::From(&base_page)->object_start_bitmap().SetBit(free_start);
     header.SetAllocatedSize(new_size);
@@ -121,7 +121,7 @@ bool Resize(void* object, size_t new_object_size) {
   // BasePage is okay for regular and large objects.
   BasePage* base_page = BasePage::FromPayload(object);
 
-  if (InGC(*base_page->heap())) {
+  if (InGC(base_page->heap())) {
     return false;
   }
 

@@ -21,7 +21,7 @@ void PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
     PreFinalizer pre_finalizer) {
   BasePage::FromPayload(pre_finalizer.object)
       ->heap()
-      ->prefinalizer_handler()
+      .prefinalizer_handler()
       ->RegisterPrefinalizer(pre_finalizer);
 }
 
