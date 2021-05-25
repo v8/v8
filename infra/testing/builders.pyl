@@ -314,7 +314,7 @@
   # Linux64
   'v8_linux64_asan_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'tests': [
       {'name': 'test262', 'shards': 7},
@@ -353,7 +353,13 @@
       {'name': 'v8testing', 'variant': 'minor_mc'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
-      {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
+      {
+        'name': 'v8testing',
+        'variant': 'stress_concurrent_allocation',
+        'swarming_dimensions' : {
+          'os': 'Ubuntu-16.04',
+        },
+      },
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
     ],
   },
@@ -501,7 +507,7 @@
   },
   'v8_linux64_tsan_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'tests': [
       {'name': 'benchmarks'},
@@ -510,12 +516,18 @@
       {'name': 'v8testing', 'shards': 5},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'slow_path'},
-      {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
+      {
+        'name': 'v8testing',
+        'variant': 'stress_concurrent_allocation',
+        'swarming_dimensions' : {
+          'os': 'Ubuntu-16.04',
+        },
+      },
     ],
   },
   'v8_linux64_tsan_no_cm_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'tests': [
       {
@@ -533,7 +545,7 @@
   },
   'v8_linux64_tsan_isolates_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'tests': [
       {'name': 'v8testing', 'test_args': ['--isolates'], 'shards': 7},
@@ -1175,7 +1187,13 @@
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
-      {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
+      {
+        'name': 'v8testing',
+        'variant': 'stress_concurrent_allocation',
+        'swarming_dimensions' : {
+          'os': 'Ubuntu-16.04',
+        },
+      },
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
       # Noavx.
       {
@@ -1324,7 +1342,7 @@
   },
   'V8 Linux64 ASAN': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'tests': [
       {'name': 'test262', 'shards': 5},
@@ -1347,7 +1365,7 @@
   },
   'V8 Linux64 TSAN': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'tests': [
       {'name': 'benchmarks'},
@@ -1361,7 +1379,7 @@
   },
   'V8 Linux64 TSAN - stress-incremental-marking': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'swarming_task_attrs': {
       'expiration': 14400,
@@ -1392,7 +1410,7 @@
   },
   'V8 Linux64 TSAN - isolates': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'tests': [
       {'name': 'v8testing', 'test_args': ['--isolates'], 'shards': 7},
@@ -1400,7 +1418,7 @@
   },
   'V8 Linux64 TSAN - no-concurrent-marking': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-16.04',
     },
     'tests': [
       {
