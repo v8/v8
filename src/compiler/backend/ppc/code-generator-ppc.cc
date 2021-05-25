@@ -166,10 +166,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
+#if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
+#endif  // V8_ENABLE_WEBASSEMBLY
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         unwinding_info_writer_(unwinding_info_writer),
-        zone_(gen->zone()) {}
+        zone_(gen->zone()) {
+  }
 
   void Generate() final {
     ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
@@ -1019,9 +1022,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int misc_field = MiscField::decode(instr->opcode());
       int num_parameters = misc_field;
       bool has_function_descriptor = false;
-      Label start_call;
-      bool isWasmCapiFunction =
-          linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       int offset = 20 * kInstrSize;
 
       if (instr->InputAt(0)->IsImmediate() &&
@@ -1052,6 +1052,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 #endif
 #if V8_ENABLE_WEBASSEMBLY
+      Label start_call;
+      bool isWasmCapiFunction =
+          linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       if (isWasmCapiFunction) {
         __ mflr(r0);
         __ bind(&start_call);
