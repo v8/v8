@@ -216,12 +216,13 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   std::unique_ptr<v8::base::LsanPageAllocator> lsan_page_allocator_;
 #endif  // LEAK_SANITIZER
 
-  HeapRegistry::Subscription heap_registry_subscription_{*this};
-
 #if defined(CPPGC_CAGED_HEAP)
   CagedHeap caged_heap_;
 #endif  // CPPGC_CAGED_HEAP
   std::unique_ptr<PageBackend> page_backend_;
+
+  // HeapRegistry requires access to page_backend_.
+  HeapRegistry::Subscription heap_registry_subscription_{*this};
 
   std::unique_ptr<StatsCollector> stats_collector_;
   std::unique_ptr<heap::base::Stack> stack_;
