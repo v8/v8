@@ -806,7 +806,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  DCHECK_NE(object, value);
+  DCHECK(!AreAliased(object, value));
   if (FLAG_debug_code) {
     {
       UseScratchRegisterScope temps(this);

@@ -154,7 +154,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         mode_(mode),
         stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
-        zone_(gen->zone()) {}
+        zone_(gen->zone()) {
+    DCHECK(!AreAliased(object, index, scratch0, scratch1));
+    DCHECK(!AreAliased(value, index, scratch0, scratch1));
+  }
 
   void Generate() final {
     __ CheckPageFlag(value_, scratch0_,

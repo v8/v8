@@ -259,6 +259,7 @@ void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
     StubCallMode mode) {
+  DCHECK(!AreAliased(object, address));
   WriteBarrierDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
   SaveRegisters(registers);

@@ -895,6 +895,7 @@ void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
     StubCallMode mode) {
+  DCHECK(!AreAliased(object, address, value));
   WriteBarrierDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
   SaveRegisters(registers);
@@ -946,7 +947,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  DCHECK(object != value);
+  DCHECK(!AreAliased(object, address, value));
   if (FLAG_debug_code) {
     LoadTaggedPointerField(r0, MemOperand(address));
     CmpS64(value, r0);
