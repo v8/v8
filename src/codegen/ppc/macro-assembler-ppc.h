@@ -38,7 +38,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_PPC64
-#define LoadPUX ldux
 #define StorePUX stdux
 #define ShiftLeftImm sldi
 #define ShiftRightImm srdi
@@ -49,7 +48,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 #define ShiftRight_ srd
 #define ShiftRightArith srad
 #else
-#define LoadPUX lwzux
 #define StorePUX stwux
 #define ShiftLeftImm slwi
 #define ShiftRightImm srwi
@@ -142,9 +140,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     mov(kRootRegister, Operand(isolate_root));
   }
 
-  // These exist to provide portability between 32 and 64bit
   void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void LoadPU(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadU64WithUpdate(Register dst, const MemOperand& mem,
+                         Register scratch = no_reg);
   void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
   void StorePU(Register src, const MemOperand& mem, Register scratch = no_reg);

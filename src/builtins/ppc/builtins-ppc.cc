@@ -730,7 +730,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     __ mtctr(r7);
     __ bind(&loop);
-    __ LoadPU(r9, MemOperand(r8, -kSystemPointerSize));  // read next parameter
+    __ LoadU64WithUpdate(
+        r9, MemOperand(r8, -kSystemPointerSize));        // read next parameter
     __ LoadU64(r0, MemOperand(r9));                      // dereference handle
     __ push(r0);                                         // push parameter
     __ bdnz(&loop);
@@ -1895,7 +1896,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ mtctr(r0);
 
     __ bind(&copy);
-    __ LoadPU(r0, MemOperand(src, kSystemPointerSize));
+    __ LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
     __ StorePU(r0, MemOperand(dest, kSystemPointerSize));
     __ bdnz(&copy);
   }
@@ -1999,7 +2000,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ mtctr(r0);
 
       __ bind(&copy);
-      __ LoadPU(r0, MemOperand(src, kSystemPointerSize));
+      __ LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
       __ StorePU(r0, MemOperand(dest, kSystemPointerSize));
       __ bdnz(&copy);
     }

@@ -332,7 +332,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
     mtctr(size);
 
     bind(&loop);
-    LoadPU(scratch2, MemOperand(scratch, -kSystemPointerSize));
+    LoadU64WithUpdate(scratch2, MemOperand(scratch, -kSystemPointerSize));
     StorePU(scratch2, MemOperand(sp, -kSystemPointerSize));
     bdnz(&loop);
 
@@ -345,7 +345,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
     subi(scratch, array, Operand(kSystemPointerSize));
 
     bind(&loop);
-    LoadPU(scratch2, MemOperand(scratch, kSystemPointerSize));
+    LoadU64WithUpdate(scratch2, MemOperand(scratch, kSystemPointerSize));
     StorePU(scratch2, MemOperand(sp, -kSystemPointerSize));
     bdnz(&loop);
     bind(&done);
@@ -1355,7 +1355,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   addi(tmp_reg, callee_args_count, Operand(1));  // +1 for receiver
   mtctr(tmp_reg);
   bind(&loop);
-  LoadPU(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
+  LoadU64WithUpdate(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
   StorePU(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize));
   bdnz(&loop);
 
@@ -1435,7 +1435,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     mtctr(r0);
 
     bind(&copy);
-    LoadPU(r0, MemOperand(src, kSystemPointerSize));
+    LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
     StorePU(r0, MemOperand(dest, kSystemPointerSize));
     bdnz(&copy);
   }
@@ -2716,21 +2716,32 @@ void TurboAssembler::LoadU64(Register dst, const MemOperand& mem,
   }
 }
 
-void TurboAssembler::LoadPU(Register dst, const MemOperand& mem,
-                            Register scratch) {
+void TurboAssembler::LoadU64WithUpdate(Register dst, const MemOperand& mem,
+                                       Register scratch) {
   int offset = mem.offset();
 
-  if (!is_int16(offset)) {
-    /* cannot use d-form */
-    DCHECK(scratch != no_reg);
-    mov(scratch, Operand(offset));
-    LoadPUX(dst, MemOperand(mem.ra(), scratch));
+  if (mem.rb() == no_reg) {
+    if (!is_int16(offset)) {
+      /* cannot use d-form */
+      CHECK_NE(scratch, no_reg);
+      mov(scratch, Operand(offset));
+      ldux(dst, MemOperand(mem.ra(), scratch));
+    } else {
+      ldu(dst, mem);
+    }
   } else {
-#if V8_TARGET_ARCH_PPC64
-    ldu(dst, mem);
-#else
-    lwzu(dst, mem);
-#endif
+    if (offset == 0) {
+      ldux(dst, mem);
+    } else if (is_int16(offset)) {
+      CHECK_NE(scratch, no_reg);
+      addi(scratch, mem.rb(), Operand(offset));
+      ldux(dst, MemOperand(mem.ra(), scratch));
+    } else {
+      CHECK_NE(scratch, no_reg);
+      mov(scratch, Operand(offset));
+      add(scratch, scratch, mem.rb());
+      ldux(dst, MemOperand(mem.ra(), scratch));
+    }
   }
 }
 
