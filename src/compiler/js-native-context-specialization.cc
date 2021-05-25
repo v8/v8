@@ -1469,7 +1469,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   if (m.HasResolvedValue()) {
     ObjectRef object = m.Ref(broker());
     if (object.IsJSFunction() &&
-        name.equals(ObjectRef(broker(), factory()->prototype_string()))) {
+        name.equals(MakeRef(broker(), factory()->prototype_string()))) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
       if (!function.serialized()) return NoChange();
@@ -1484,7 +1484,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
       ReplaceWithValue(node, value);
       return Replace(value);
     } else if (object.IsString() &&
-               name.equals(ObjectRef(broker(), factory()->length_string()))) {
+               name.equals(MakeRef(broker(), factory()->length_string()))) {
       // Constant-fold "length" property on constant strings.
       if (!object.AsString().length().has_value()) return NoChange();
       Node* value = jsgraph()->Constant(object.AsString().length().value());
@@ -2210,7 +2210,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     Node* receiver, ConvertReceiverMode receiver_mode, Node* context,
     Node* frame_state, Node** effect, Node** control,
     ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info) {
-  ObjectRef constant(broker(), access_info.constant());
+  ObjectRef constant = MakeRef(broker(), access_info.constant());
 
   if (access_info.IsDictionaryProtoAccessorConstant()) {
     // For fast mode holders we recorded dependencies in BuildPropertyLoad.
@@ -2234,7 +2234,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
   } else {
     Node* holder = access_info.holder().is_null()
                        ? receiver
-                       : jsgraph()->Constant(ObjectRef(
+                       : jsgraph()->Constant(MakeRef(
                              broker(), access_info.holder().ToHandleChecked()));
     value = InlineApiCall(receiver, holder, frame_state, nullptr, effect,
                           control, constant.AsFunctionTemplateInfo());
@@ -2255,7 +2255,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
     Node* receiver, Node* value, Node* context, Node* frame_state,
     Node** effect, Node** control, ZoneVector<Node*>* if_exceptions,
     PropertyAccessInfo const& access_info) {
-  ObjectRef constant(broker(), access_info.constant());
+  ObjectRef constant = MakeRef(broker(), access_info.constant());
   Node* target = jsgraph()->Constant(constant);
   // Introduce the call to the setter function.
   if (constant.IsJSFunction()) {
@@ -2269,7 +2269,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
   } else {
     Node* holder = access_info.holder().is_null()
                        ? receiver
-                       : jsgraph()->Constant(ObjectRef(
+                       : jsgraph()->Constant(MakeRef(
                              broker(), access_info.holder().ToHandleChecked()));
     InlineApiCall(receiver, holder, frame_state, value, effect, control,
                   constant.AsFunctionTemplateInfo());
@@ -2366,8 +2366,8 @@ JSNativeContextSpecialization::BuildPropertyLoad(
         InlinePropertyGetterCall(receiver, receiver_mode, context, frame_state,
                                  &effect, &control, if_exceptions, access_info);
   } else if (access_info.IsModuleExport()) {
-    Node* cell = jsgraph()->Constant(
-        ObjectRef(broker(), access_info.constant()).AsCell());
+    Node* cell =
+        jsgraph()->Constant(MakeRef(broker(), access_info.constant()).AsCell());
     value = effect =
         graph()->NewNode(simplified()->LoadField(AccessBuilder::ForCellValue()),
                          cell, effect, control);

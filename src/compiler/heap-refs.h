@@ -160,12 +160,11 @@ struct ref_traits<Object> {
 
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
-  ObjectRef(JSHeapBroker* broker, Handle<Object> object,
-            bool check_type = true);
   ObjectRef(JSHeapBroker* broker, ObjectData* data, bool check_type = true)
       : data_(data), broker_(broker) {
     CHECK_NOT_NULL(data_);
   }
+
   Handle<Object> object() const;
 
   bool equals(const ObjectRef& other) const;
