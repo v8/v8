@@ -66,6 +66,9 @@
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
+  # TODO(ulan): Renable after fixing the test's brittleness.
+  'test-heap/OutOfMemory': [SKIP],
+
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
@@ -94,6 +97,9 @@
   'test-serialize/SnapshotCreatorUnknownHandles': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
+
+  # BUG(v8:8296). Flaky OOM test.
+  'test-heap/OutOfMemorySmallObjects': [SKIP],
 
   # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
   'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
@@ -333,6 +339,9 @@
 
 ##############################################################################
 ['arch == arm and not simulator_run', {
+  # crbug.com/v8/7605
+  'test-heap/OutOfMemorySmallObjects': [SKIP],
+
   # crbug.com/v8/11134
   'test-cpu-profiler/MultipleThreadsSingleIsolate': [PASS, ['system != android', SKIP]],
 }],  # 'arch == arm and not simulator_run'
