@@ -226,6 +226,9 @@ MemOperand::MemOperand(Register rn, int32_t offset)
 MemOperand::MemOperand(Register ra, Register rb)
     : ra_(ra), offset_(0), rb_(rb) {}
 
+MemOperand::MemOperand(Register ra, Register rb, int32_t offset)
+    : ra_(ra), offset_(offset), rb_(rb) {}
+
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {

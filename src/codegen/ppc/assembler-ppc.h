@@ -136,6 +136,8 @@ class V8_EXPORT_PRIVATE MemOperand {
 
   explicit MemOperand(Register ra, Register rb);
 
+  explicit MemOperand(Register ra, Register rb, int32_t offset);
+
   int32_t offset() const { return offset_; }
 
   // PowerPC - base register
