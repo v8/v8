@@ -9,6 +9,10 @@
 // and assertions would fail. We prevent re-runs.
 // Flags: --nostress-opt --no-always-opt
 
+// The test relies on optimizing/deoptimizing at predictable moments, so
+// it's not suitable for deoptimization fuzzing.
+// Flags: --deopt-every-n-times=0
+
 // Tests for optimization of CallWithSpread and CallWithArrayLike.
 // This test is in a separate file because it invalidates protectors.
 
