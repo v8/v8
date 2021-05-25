@@ -143,11 +143,11 @@ PagedSpace* Heap::paged_space(int idx) {
 Space* Heap::space(int idx) { return space_[idx]; }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
-  return new_space_->allocation_top_address();
+  return new_space_ ? new_space_->allocation_top_address() : nullptr;
 }
 
 Address* Heap::NewSpaceAllocationLimitAddress() {
-  return new_space_->allocation_limit_address();
+  return new_space_ ? new_space_->allocation_limit_address() : nullptr;
 }
 
 Address* Heap::OldSpaceAllocationTopAddress() {
