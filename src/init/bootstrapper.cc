@@ -1411,7 +1411,6 @@ static void InstallError(
   Factory* factory = isolate->factory();
 
   if (FLAG_harmony_error_cause) {
-    error_function_length += 1;
     in_object_properties += 1;
   }
 
