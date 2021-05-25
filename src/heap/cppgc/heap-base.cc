@@ -127,8 +127,8 @@ void HeapBase::Terminate() {
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
         GarbageCollector::Config::IsForcedGC::kForced);
-    stats_collector()->NotifyMarkingCompleted(0);
     object_allocator().ResetLinearAllocationBuffers();
+    stats_collector()->NotifyMarkingCompleted(0);
     ExecutePreFinalizers();
     sweeper().Start(
         {Sweeper::SweepingConfig::SweepingType::kAtomic,
