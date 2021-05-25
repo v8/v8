@@ -60,10 +60,6 @@ class MapLogEntry extends LogEntry {
     return `Map(${this.id})`;
   }
 
-  toStringLong() {
-    return `Map(${this.id}):\n${this.description}`;
-  }
-
   finalizeRootMap(id) {
     let stack = [this];
     while (stack.length > 0) {
@@ -194,7 +190,7 @@ class MapLogEntry extends LogEntry {
   static get propertyNames() {
     return [
       'type', 'reason', 'property', 'functionName', 'sourcePosition', 'script',
-      'id'
+      'id', 'parent', 'description'
     ];
   }
 }

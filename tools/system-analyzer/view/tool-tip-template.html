@@ -21,6 +21,10 @@ found in the LICENSE file. -->
     width: auto;
   }
 
+  #content > h3 {
+    margin-top: 0;
+  }
+
   .textContent {
     font-family: monospace;
     white-space: pre;
@@ -72,6 +76,13 @@ found in the LICENSE file. -->
   }
   .right > .tip {
     left: var(--tip-offset);
+  }
+  .properties td {
+    vertical-align: top;
+  }
+
+  .properties > tbody > tr > td:nth-child(2n+1):after {
+    content: ':';
   }
 </style>
 

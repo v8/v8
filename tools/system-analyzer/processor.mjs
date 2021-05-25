@@ -213,8 +213,9 @@ export class Processor extends LogReader {
     } else {
       entry = this._profile.addCode(type, name, timestamp, start, size);
     }
-    this._lastCodeLogEntry =
-        new CodeLogEntry(type + stateName, timestamp, kind, entry);
+    this._lastCodeLogEntry = new CodeLogEntry(
+        type + stateName, timestamp,
+        Profile.getKindFromState(Profile.parseState(stateName)), kind, entry);
     this._codeTimeline.push(this._lastCodeLogEntry);
   }
 

@@ -232,8 +232,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     let relativeIndex = Math.round(
         event.layerY / event.target.offsetHeight * (chunk.size() - 1));
     let logEntry = chunk.at(relativeIndex);
-    this.dispatchEvent(new FocusEvent(logEntry));
-    this.dispatchEvent(new ToolTipEvent(logEntry.toStringLong(), event.target));
+    this.dispatchEvent(new ToolTipEvent(logEntry, event.target));
   }
 
   _handleChunkClick(event) {

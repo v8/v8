@@ -1,11 +1,8 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {IcLogEntry} from '../log/ic.mjs';
-import {MapLogEntry} from '../log/map.mjs';
-
-import {FocusEvent, SelectionEvent, ToolTipEvent} from './events.mjs';
-import {CollapsableElement, delay, DOM, formatBytes, formatMicroSeconds} from './helper.mjs';
+import {SelectRelatedEvent} from './events.mjs';
+import {CollapsableElement, DOM, formatBytes, formatMicroSeconds} from './helper.mjs';
 
 DOM.defineCustomElement('view/code-panel',
                         (templateText) =>
@@ -51,7 +48,7 @@ DOM.defineCustomElement('view/code-panel',
 
   _update() {
     this._updateSelect();
-    this._disassemblyNode.innerText = this._entry?.disassemble ?? '';
+    this._disassemblyNode.innerText = this._entry?.code ?? '';
     this._sourceNode.innerText = this._entry?.source ?? '';
   }
 

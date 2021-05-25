@@ -9,6 +9,7 @@ import {ApiLogEntry} from './log/api.mjs';
 import {DeoptLogEntry} from './log/code.mjs';
 import {CodeLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
+import {LogEntry} from './log/log.mjs';
 import {MapLogEntry} from './log/map.mjs';
 import {Processor} from './processor.mjs';
 import {FocusEvent, SelectionEvent, SelectRelatedEvent, SelectTimeEvent, ToolTipEvent,} from './view/events.mjs';
@@ -117,6 +118,14 @@ class App {
       // TODO: find the matching Code log entries.
     }
     this.selectEntries(entries);
+  }
+
+  static isClickable(object) {
+    if (typeof object !== 'object') return false;
+    if (object instanceof LogEntry) return true;
+    if (object instanceof SourcePosition) return true;
+    if (object instanceof Script) return true;
+    return false;
   }
 
   handleSelectEntries(e) {
@@ -232,6 +241,7 @@ class App {
     this._state.map = entry;
     this._view.mapTrack.focusedEntry = entry;
     this._view.mapPanel.map = entry;
+    this._view.mapPanel.show();
   }
 
   focusIcLogEntry(entry) {
@@ -241,10 +251,11 @@ class App {
   focusCodeLogEntry(entry) {
     this._state.code = entry;
     this._view.codePanel.entry = entry;
+    this._view.codePanel.show();
   }
 
   focusDeoptLogEntry(entry) {
-    this._view.deoptList.focusedLogEntry = entry;
+    this._state.DeoptLogEntry = entry;
   }
 
   focusApiLogEntry(entry) {
@@ -255,11 +266,33 @@ class App {
   focusSourcePosition(sourcePosition) {
     if (!sourcePosition) return;
     this._view.scriptPanel.focusedSourcePositions = [sourcePosition];
+    this._view.scriptPanel.show();
   }
 
   handleToolTip(event) {
-    this._view.toolTip.positionOrTargetNode = event.positionOrTargetNode;
-    this._view.toolTip.content = event.content;
+    let content = event.content;
+    switch (content.constructor) {
+      case String:
+        break;
+      case Script:
+      case SourcePosition:
+      case MapLogEntry:
+      case IcLogEntry:
+      case ApiLogEntry:
+      case CodeLogEntry:
+      case DeoptLogEntry:
+        content = content.toolTipDict;
+        break;
+      default:
+        throw new Error(
+            `Unknown tooltip content type: ${entry.constructor?.name}`);
+    }
+    this.setToolTip(content, event.positionOrTargetNode);
+  }
+
+  setToolTip(content, positionOrTargetNode) {
+    this._view.toolTip.positionOrTargetNode = positionOrTargetNode;
+    this._view.toolTip.content = content;
   }
 
   handleFileUploadStart(e) {

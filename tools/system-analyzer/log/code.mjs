@@ -1,6 +1,8 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {formatBytes} from '../helper.mjs';
+
 import {LogEntry} from './log.mjs';
 
 export class DeoptLogEntry extends LogEntry {
@@ -34,14 +36,6 @@ export class DeoptLogEntry extends LogEntry {
     return this._entry.functionName;
   }
 
-  toString() {
-    return `Deopt(${this.type})`;
-  }
-
-  toStringLong() {
-    return `Deopt(${this.type})${this._reason}: ${this._location}`;
-  }
-
   static get propertyNames() {
     return [
       'type', 'reason', 'functionName', 'sourcePosition',
@@ -51,14 +45,19 @@ export class DeoptLogEntry extends LogEntry {
 }
 
 export class CodeLogEntry extends LogEntry {
-  constructor(type, time, kind, entry) {
+  constructor(type, time, kindName, kind, entry) {
     super(type, time);
     this._kind = kind;
+    this._kindName = kindName;
     this._entry = entry;
   }
 
   get kind() {
     return this._kind;
+  }
+
+  get kindName() {
+    return this._kindName;
   }
 
   get entry() {
@@ -77,7 +76,7 @@ export class CodeLogEntry extends LogEntry {
     return this._entry?.getSourceCode() ?? '';
   }
 
-  get disassemble() {
+  get code() {
     return this._entry?.source?.disassemble;
   }
 
@@ -85,11 +84,16 @@ export class CodeLogEntry extends LogEntry {
     return `Code(${this.type})`;
   }
 
-  toStringLong() {
-    return `Code(${this.type}): ${this._entry.toString()}`;
+  get toolTipDict() {
+    const dict = super.toolTipDict;
+    dict.size = formatBytes(dict.size);
+    return dict;
   }
 
   static get propertyNames() {
-    return ['type', 'kind', 'functionName', 'sourcePosition', 'script'];
+    return [
+      'type', 'kind', 'kindName', 'size', 'functionName', 'sourcePosition',
+      'script', 'source', 'code'
+    ];
   }
 }

@@ -137,6 +137,13 @@ export class DOM {
     return document.createTextNode(string);
   }
 
+  static button(label, clickHandler) {
+    const button = DOM.element('button');
+    button.innerText = label;
+    button.onclick = clickHandler;
+    return button;
+  }
+
   static div(classes) {
     return this.element('div', classes);
   }
@@ -236,11 +243,19 @@ export class CollapsableElement extends V8CustomElement {
     this._closer.onclick = _ => this.tryUpdateOnVisibilityChange();
   }
 
+  hide() {
+    if (this._contentIsVisible) this._closer.click();
+  }
+
+  show() {
+    if (!this._contentIsVisible) this._closer.click();
+  }
+
   get _closer() {
     return this.$('#closer');
   }
 
-  _contentIsVisible() {
+  get _contentIsVisible() {
     return !this._closer.checked;
   }
 
@@ -257,13 +272,50 @@ export class CollapsableElement extends V8CustomElement {
   }
 
   requestUpdateIfVisible(useAnimation) {
-    if (!this._contentIsVisible()) return;
+    if (!this._contentIsVisible) return;
     return super.requestUpdate(useAnimation);
   }
 
   forceUpdate() {
     this._hasPendingUpdate = false;
     super.forceUpdate();
+  }
+}
+
+export class ExpandableText {
+  constructor(node, string, limit = 200) {
+    this._node = node;
+    this._string = string;
+    this._delta = limit / 2;
+    this._start = 0;
+    this._end = string.length;
+    this._button = this._createExpandButton();
+    this.expand();
+  }
+
+  _createExpandButton() {
+    const button = DOM.element('button');
+    button.innerText = '...';
+    button.onclick = (e) => {
+      e.stopImmediatePropagation();
+      this.expand()
+    };
+    return button;
+  }
+
+  expand() {
+    DOM.removeAllChildren(this._node);
+    this._start = this._start + this._delta;
+    this._end = this._end - this._delta;
+    if (this._start >= this._end) {
+      this._node.innerText = this._string;
+      this._button.onclick = undefined;
+      return;
+    }
+    this._node.appendChild(DOM.text(this._string.substring(0, this._start)));
+    this._node.appendChild(this._button);
+    this._node.appendChild(
+        DOM.text(this._string.substring(this._end, this._string.length)));
   }
 }
 

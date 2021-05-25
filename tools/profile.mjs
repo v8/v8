@@ -45,10 +45,6 @@ export class SourcePosition {
   toString() {
     return `${this.script.name}:${this.line}:${this.column}`;
   }
-
-  toStringLong() {
-    return this.toString();
-  }
 }
 
 export class Script {
@@ -63,8 +59,9 @@ export class Script {
     this.sourcePositions = [];
   }
 
-  update(name, source) {
-    this.name = name;
+  update(url, source) {
+    this.url = url;
+    this.name = Script.getShortestUniqueName(url, this);
     this.source = source;
   }
 
@@ -103,8 +100,33 @@ export class Script {
     return `Script(${this.id}): ${this.name}`;
   }
 
-  toStringLong() {
-    return this.source;
+  get toolTipDict() {
+    return {
+      title: this.toString(),
+      __this__: this,
+      id: this.id,
+      url: this.url,
+      source: this.source,
+      sourcePositions: this.sourcePositions.length
+    }
+  }
+
+  static getShortestUniqueName(url, script) {
+    const parts = url.split('/');
+    const filename = parts[parts.length -1];
+    const dict = this._dict ?? (this._dict = new Map());
+    const matchingScripts = dict.get(filename);
+    if (matchingScripts == undefined) {
+      dict.set(filename, [script]);
+      return filename;
+    }
+    // TODO: find shortest unique substring
+    // Update all matching scripts to have a unique filename again.
+    for (let matchingScript of matchingScripts) {
+      matchingScript.name = script.url
+    }
+    matchingScripts.push(script);
+    return url;
   }
 }
 
