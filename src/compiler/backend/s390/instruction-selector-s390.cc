@@ -2766,13 +2766,13 @@ void InstructionSelector::VisitS128Const(Node* node) {
     // Which in this case is ineffective on LE.
     Emit(kS390_S128Const, g.DefineAsRegister(node),
          g.UseImmediate(
-             wasm::SimdShuffle::Pack4Lanes(reinterpret_cast<uint8_t*>(val))),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
-             reinterpret_cast<uint8_t*>(val) + 4)),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
-             reinterpret_cast<uint8_t*>(val) + 8)),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
-             reinterpret_cast<uint8_t*>(val) + 12)));
+             wasm::SimdShuffle::Pack4Lanes(bit_cast<uint8_t*>(&val[0]))),
+         g.UseImmediate(
+             wasm::SimdShuffle::Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 4)),
+         g.UseImmediate(
+             wasm::SimdShuffle::Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 8)),
+         g.UseImmediate(
+             wasm::SimdShuffle::Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 12)));
   }
 }
 
