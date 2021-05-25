@@ -79,6 +79,13 @@
   'DecompressionOptimizerTest.*': [SKIP],
 }],  # not pointer_compression
 
+##############################################################################
+['variant == stress_incremental_marking', {
+  # BUG(v8:11820): the test adjusts GC flags, which does not work
+  # if GC starts before the test.
+  'RuntimeCallStatsTest.GarbageCollection': [SKIP],
+}],  # variant == stress_incremental_marking
+
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
