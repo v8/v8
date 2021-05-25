@@ -8248,6 +8248,11 @@ Isolate* Isolate::GetCurrent() {
   return reinterpret_cast<Isolate*>(isolate);
 }
 
+Isolate* Isolate::TryGetCurrent() {
+  i::Isolate* isolate = i::Isolate::TryGetCurrent();
+  return reinterpret_cast<Isolate*>(isolate);
+}
+
 // static
 Isolate* Isolate::Allocate() {
   return reinterpret_cast<Isolate*>(i::Isolate::New());
