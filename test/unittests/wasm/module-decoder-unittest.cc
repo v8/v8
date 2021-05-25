@@ -1860,6 +1860,47 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
                           "Instead, table 0 of type externref is referenced.");
 }
 
+TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithFuncRefNull) {
+  WASM_FEATURE_SCOPE(reftypes);
+  static const byte data[] = {
+      // table declaration ---------------------------------------------------
+      SECTION(Table, ENTRY_COUNT(1),  // section header
+              kFuncRefCode, 0, 9),    // table 0
+      // elements ------------------------------------------------------------
+      SECTION(Element,
+              ENTRY_COUNT(1),                      // entry count
+              ACTIVE_WITH_ELEMENTS, TABLE_INDEX0,  // element for table 0
+              WASM_INIT_EXPR_I32V_1(0),            // index
+              kFuncRefCode,                        // .
+              1,                                   // elements count
+              WASM_INIT_EXPR_FUNC_REF_NULL)        // function
+  };
+
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithExternRefNull) {
+  WASM_FEATURE_SCOPE(reftypes);
+  static const byte data[] = {
+      // table declaration ---------------------------------------------------
+      SECTION(Table, ENTRY_COUNT(1),  // section header
+              kFuncRefCode, 0, 9),    // table 0
+      // elements ------------------------------------------------------------
+      SECTION(Element,
+              ENTRY_COUNT(1),                      // entry count
+              ACTIVE_WITH_ELEMENTS, TABLE_INDEX0,  // element for table 0
+              WASM_INIT_EXPR_I32V_1(0),            // index
+              kFuncRefCode,                        // .
+              1,                                   // elements count
+              WASM_INIT_EXPR_EXTERN_REF_NULL)      // function
+  };
+
+  EXPECT_FAILURE_WITH_MSG(
+      data,
+      "Invalid type in the init expression. The expected "
+      "type is 'funcref', but the actual type is 'externref'.");
+}
+
 TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
   // Test that imported tables of type ExternRef cannot be initialized in the
   // elements section.

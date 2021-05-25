@@ -920,6 +920,13 @@ class ModuleDecoderImpl : public Decoder {
                 ? consume_element_expr()
                 : WasmInitExpr::RefFuncConst(consume_element_func_index());
         if (failed()) return;
+        if (!IsSubtypeOf(TypeOf(init), segment.type, module_.get())) {
+          errorf(pc_,
+                 "Invalid type in the init expression. The expected type is "
+                 "'%s', but the actual type is '%s'.",
+                 segment.type.name().c_str(), TypeOf(init).name().c_str());
+          return;
+        }
         segment.entries.push_back(std::move(init));
       }
       module_->elem_segments.push_back(std::move(segment));

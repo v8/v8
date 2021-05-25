@@ -7,7 +7,6 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # TODO(v8:10994): Failing spec test after update.
   'proposals/js-types/data': [FAIL],
-  'elem': [FAIL],
 
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
