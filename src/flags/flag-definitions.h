@@ -286,9 +286,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                                              \
-  V(harmony_class_static_blocks, "harmony static initializer blocks")       \
-  V(harmony_error_cause, "harmony error cause property")
+#define HARMONY_STAGED_BASE(V) \
+  V(harmony_class_static_blocks, "harmony static initializer blocks")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                 \
@@ -300,13 +299,14 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                  \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")       \
-  V(harmony_atomics, "harmony atomics")                           \
-  V(harmony_regexp_match_indices, "harmony regexp match indices") \
-  V(harmony_private_brand_checks, "harmony private brand checks") \
-  V(harmony_top_level_await, "harmony top level await")           \
-  V(harmony_relative_indexing_methods, "harmony relative indexing methods")
+#define HARMONY_SHIPPING_BASE(V)                                            \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                 \
+  V(harmony_atomics, "harmony atomics")                                     \
+  V(harmony_regexp_match_indices, "harmony regexp match indices")           \
+  V(harmony_private_brand_checks, "harmony private brand checks")           \
+  V(harmony_top_level_await, "harmony top level await")                     \
+  V(harmony_relative_indexing_methods, "harmony relative indexing methods") \
+  V(harmony_error_cause, "harmony error cause property")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)             \
