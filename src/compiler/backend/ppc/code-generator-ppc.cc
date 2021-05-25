@@ -1020,8 +1020,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
-      int offset = (FLAG_enable_embedded_constant_pool ? 20 : 23) * kInstrSize;
+      int offset = 20 * kInstrSize;
 
+      if (instr->InputAt(0)->IsImmediate() &&
+          !FLAG_enable_embedded_constant_pool) {
+        // If loading an immediate without constant pool then 4 instructions get
+        // emitted instead of a single load (which makes it 3 extra).
+        offset = 23 * kInstrSize;
+      }
+      if (!instr->InputAt(0)->IsImmediate() && !ABI_CALL_VIA_IP) {
+        // On Linux and Sim, there will be an extra
+        // instruction to pass the input using the `ip` register. This
+        // instruction gets emitted under `CallCFunction` or
+        // `CallCFunctionHelper` depending on the type of the input (immediate
+        // or register). This extra move is only emitted on AIX if the input is
+        // an immediate and not a register.
+        offset -= kInstrSize;
+      }
 #if ABI_USES_FUNCTION_DESCRIPTORS
       // AIX/PPC64BE Linux uses a function descriptor
       int kNumParametersMask = kHasFunctionDescriptorBitMask - 1;
@@ -1054,10 +1069,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       // TODO(miladfar): In the above block, kScratchReg must be populated with
       // the strictly-correct PC, which is the return address at this spot. The
-      // offset is set to 36 (9 * kInstrSize) on pLinux and 44 on AIX, which is
-      // counted from where we are binding to the label and ends at this spot.
-      // If failed, replace it with the correct offset suggested. More info on
-      // f5ab7d3.
+      // offset is counted from where we are binding to the label and ends at
+      // this spot. If failed, replace it with the correct offset suggested.
+      // More info on f5ab7d3.
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
         CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
