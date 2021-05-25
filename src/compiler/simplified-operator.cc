@@ -37,8 +37,8 @@ std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
 std::ostream& operator<<(std::ostream& os,
                          ConstFieldInfo const& const_field_info) {
   if (const_field_info.IsConst()) {
-    return os << "const (field owner: " << const_field_info.owner_map.address()
-              << ")";
+    return os << "const (field owner: "
+              << Brief(*const_field_info.owner_map.ToHandleChecked()) << ")";
   } else {
     return os << "mutable";
   }
