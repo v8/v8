@@ -1008,10 +1008,9 @@ class WriteBarrierDescriptor final
 class TSANRelaxedStoreDescriptor final
     : public StaticCallInterfaceDescriptor<TSANRelaxedStoreDescriptor> {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kValue, kFPMode)
-  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),       // kAddress
-                         MachineType::AnyTagged(),     // kValue
-                         MachineType::TaggedSigned())  // kFPMode
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kValue)
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kAddress
+                         MachineType::AnyTagged())  // kValue
 
   DECLARE_DESCRIPTOR(TSANRelaxedStoreDescriptor)
 

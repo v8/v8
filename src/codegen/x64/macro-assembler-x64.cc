@@ -473,7 +473,8 @@ void TurboAssembler::CallRecordWriteStub(
 #ifdef V8_IS_TSAN
 void TurboAssembler::CallTSANRelaxedStoreStub(Register address, Register value,
                                               SaveFPRegsMode fp_mode,
-                                              Address wasm_target) {
+                                              StubCallMode mode) {
+  DCHECK(!AreAliased(address, value));
   TSANRelaxedStoreDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
 
@@ -483,22 +484,20 @@ void TurboAssembler::CallTSANRelaxedStoreStub(Register address, Register value,
       descriptor.GetRegisterParameter(TSANRelaxedStoreDescriptor::kAddress));
   Register value_parameter(
       descriptor.GetRegisterParameter(TSANRelaxedStoreDescriptor::kValue));
-  Register fp_mode_parameter(
-      descriptor.GetRegisterParameter(TSANRelaxedStoreDescriptor::kFPMode));
 
   // Prepare argument registers for calling RecordWrite
   // address_parameter   <= address
   // value_parameter <= value
   MovePair(address_parameter, address, value_parameter, value);
-  // fp_mode_parameter <= fp_mode
-  Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
 
-  if (wasm_target != kNullAddress) {
+  if (mode == StubCallMode::kCallWasmRuntimeStub) {
     // Use {near_call} for direct Wasm call within a module.
+    auto wasm_target = wasm::WasmCode::GetTSANRelaxedStoreStub(fp_mode);
     near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
   } else {
+    auto builtin_index = Builtins::GetTSANRelaxedStoreStub(fp_mode);
     Handle<Code> code_target =
-        isolate()->builtins()->builtin_handle(Builtins::kTSANRelaxedStore);
+        isolate()->builtins()->builtin_handle(builtin_index);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 

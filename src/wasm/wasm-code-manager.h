@@ -95,7 +95,8 @@ struct WasmModule;
   V(RecordWriteEmitRememberedSetIgnoreFP) \
   V(RecordWriteOmitRememberedSetIgnoreFP) \
   V(ToNumber)                             \
-  IF_TSAN(V, TSANRelaxedStore)            \
+  IF_TSAN(V, TSANRelaxedStoreIgnoreFP)    \
+  IF_TSAN(V, TSANRelaxedStoreSaveFP)      \
   V(WasmAllocateArrayWithRtt)             \
   V(WasmAllocateRtt)                      \
   V(WasmAllocateStructWithRtt)            \
@@ -171,6 +172,14 @@ class V8_EXPORT_PRIVATE WasmCode final {
         }
     }
   }
+
+#ifdef V8_IS_TSAN
+  static RuntimeStubId GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode) {
+    return fp_mode == SaveFPRegsMode::kIgnore
+               ? RuntimeStubId::kTSANRelaxedStoreIgnoreFP
+               : RuntimeStubId::kTSANRelaxedStoreSaveFP;
+  }
+#endif  // V8_IS_TSAN
 
   Vector<byte> instructions() const {
     return VectorOf(instructions_, static_cast<size_t>(instructions_size_));

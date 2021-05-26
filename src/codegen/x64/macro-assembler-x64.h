@@ -513,9 +513,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
 #ifdef V8_IS_TSAN
-  void CallTSANRelaxedStoreStub(Register address, Register value,
-                                SaveFPRegsMode fp_mode,
-                                Address wasm_target = kNullAddress);
+  void CallTSANRelaxedStoreStub(
+      Register address, Register value, SaveFPRegsMode fp_mode,
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 #endif  // V8_IS_TSAN
 
   void MoveNumber(Register dst, double value);

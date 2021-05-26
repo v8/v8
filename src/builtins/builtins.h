@@ -113,6 +113,14 @@ class Builtins {
     }
   }
 
+#ifdef V8_IS_TSAN
+  static Name GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode) {
+    return fp_mode == SaveFPRegsMode::kIgnore
+               ? Builtins::kTSANRelaxedStoreIgnoreFP
+               : Builtins::kTSANRelaxedStoreSaveFP;
+  }
+#endif  // V8_IS_TSAN
+
   // Convenience wrappers.
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
   Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);

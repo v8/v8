@@ -335,6 +335,7 @@ class OutOfLineTSANRelaxedStore final : public OutOfLineCode {
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()) {
+    DCHECK(!AreAliased(value, scratch0));
   }
 
   void Generate() final {
@@ -349,7 +350,7 @@ class OutOfLineTSANRelaxedStore final : public OutOfLineCode {
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
       __ CallTSANRelaxedStoreStub(scratch0_, value_, save_fp_mode,
-                                  wasm::WasmCode::kTSANRelaxedStore);
+                                  StubCallMode::kCallWasmRuntimeStub);
       return;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
