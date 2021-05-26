@@ -1915,6 +1915,17 @@ void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
   }
 }
 
+std::vector<v8::debug::BreakpointId>
+V8DebuggerAgentImpl::instrumentationBreakpointIdsMatching(
+    const std::vector<v8::debug::BreakpointId>& ids) {
+  std::vector<v8::debug::BreakpointId> instrumentationBreakpointIds;
+  for (const v8::debug::BreakpointId& id : ids) {
+    if (m_breakpointsOnScriptRun.count(id) > 0)
+      instrumentationBreakpointIds.push_back(id);
+  }
+  return instrumentationBreakpointIds;
+}
+
 Response V8DebuggerAgentImpl::processSkipList(
     protocol::Array<protocol::Debugger::LocationRange>* skipList) {
   std::unordered_map<String16, std::vector<std::pair<int, int>>> skipListInit;
