@@ -2048,6 +2048,7 @@ struct ScheduledEffectControlLinearizationPhase {
   }
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 struct WasmOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
 
@@ -2104,6 +2105,7 @@ struct WasmOptimizationPhase {
     }
   }
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct CsaEarlyOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(CSAEarlyOptimization)
