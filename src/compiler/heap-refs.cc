@@ -3140,13 +3140,17 @@ base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
   return ObjectRef(broker(), element);
 }
 
+bool StringRef::SupportedStringKind() const {
+  DCHECK(broker()->is_concurrent_inlining());
+  return IsInternalizedString() || object()->IsThinString();
+}
+
 base::Optional<int> StringRef::length() const {
   if (data_->should_access_heap()) {
-    if (data_->kind() == kNeverSerializedHeapObject &&
-        !this->IsInternalizedString()) {
+    if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
       TRACE_BROKER_MISSING(
           broker(),
-          "length for kNeverSerialized non-internalized string " << *this);
+          "length for kNeverSerialized unsupported string kind " << *this);
       return base::nullopt;
     } else {
       return object()->length(kAcquireLoad);
@@ -3157,11 +3161,10 @@ base::Optional<int> StringRef::length() const {
 
 base::Optional<uint16_t> StringRef::GetFirstChar() {
   if (data_->should_access_heap()) {
-    if (data_->kind() == kNeverSerializedHeapObject &&
-        !this->IsInternalizedString()) {
+    if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
       TRACE_BROKER_MISSING(
           broker(),
-          "first char for kNeverSerialized non-internalized string " << *this);
+          "first char for kNeverSerialized unsupported string kind " << *this);
       return base::nullopt;
     }
 
@@ -3178,11 +3181,10 @@ base::Optional<uint16_t> StringRef::GetFirstChar() {
 
 base::Optional<double> StringRef::ToNumber() {
   if (data_->should_access_heap()) {
-    if (data_->kind() == kNeverSerializedHeapObject &&
-        !this->IsInternalizedString()) {
+    if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
       TRACE_BROKER_MISSING(
           broker(),
-          "number for kNeverSerialized non-internalized string " << *this);
+          "number for kNeverSerialized unsupported string kind " << *this);
       return base::nullopt;
     }
 

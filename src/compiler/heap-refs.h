@@ -923,14 +923,20 @@ class StringRef : public NameRef {
       uint32_t index, SerializationPolicy policy =
                           SerializationPolicy::kAssumeSerialized) const;
 
-  // When concurrently accessing non-read-only non-internalized strings, we
-  // return base::nullopt for these methods.
+  // When concurrently accessing non-read-only non-supported strings, we return
+  // base::nullopt for these methods.
   base::Optional<int> length() const;
   base::Optional<uint16_t> GetFirstChar();
   base::Optional<double> ToNumber();
 
   bool IsSeqString() const;
   bool IsExternalString() const;
+
+ private:
+  // With concurrent inlining on, we currently support reading directly
+  // internalized strings, and thin strings (which are pointers to internalized
+  // strings).
+  bool SupportedStringKind() const;
 };
 
 class SymbolRef : public NameRef {

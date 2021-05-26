@@ -66,6 +66,10 @@ V8_INLINE bool IsExternalString(InstanceType instance_type) {
          kExternalStringTag;
 }
 
+V8_INLINE bool IsThinString(InstanceType instance_type) {
+  return (instance_type & kStringRepresentationMask) == kThinStringTag;
+}
+
 }  // namespace InstanceTypeChecker
 
 // TODO(v8:7786): For instance types that have a single map instance on the
