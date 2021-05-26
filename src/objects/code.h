@@ -514,7 +514,7 @@ class Code : public HeapObject {
 #elif V8_TARGET_ARCH_S390X
   static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
 #elif V8_TARGET_ARCH_RISCV64
-  static constexpr int kHeaderPaddingSize = 24;
+  static constexpr int kHeaderPaddingSize = (COMPRESS_POINTERS_BOOL ? 12 : 24);
 #else
 #error Unknown architecture.
 #endif

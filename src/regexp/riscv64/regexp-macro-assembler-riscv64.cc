@@ -21,7 +21,7 @@ namespace internal {
 /* clang-format off
  *
  * This assembler uses the following register assignment convention
- * - t4 : Temporarily stores the index of capture start after a matching pass
+ * - s3 : kScratchReg. Temporarily stores the index of capture start after a matching pass
  *        for a global regexp.
  * - a5 : Pointer to current Code object including heap object tag.
  * - a6 : Current position in input, as negative offset from end of string.
@@ -644,7 +644,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     // Set frame pointer in space for it if this is not a direct call
     // from generated code.
     __ Add64(frame_pointer(), sp,
-             Operand(NumRegs(argument_registers) * kPointerSize));
+             Operand(NumRegs(argument_registers) * kSystemPointerSize));
 
     STATIC_ASSERT(kSuccessfulCaptures == kInputString - kSystemPointerSize);
     __ mv(a0, zero_reg);
@@ -669,7 +669,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     // Check if there is room for the variable number of registers above
     // the stack limit.
     __ Branch(&stack_ok, Ugreater_equal, a0,
-              Operand(num_registers_ * kPointerSize));
+              Operand(num_registers_ * kSystemPointerSize));
     // Exit with OutOfMemory exception. There is not enough space on the stack
     // for our working registers.
     __ li(a0, Operand(EXCEPTION));
@@ -682,7 +682,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
 
     __ bind(&stack_ok);
     // Allocate space on stack for registers.
-    __ Sub64(sp, sp, Operand(num_registers_ * kPointerSize));
+    __ Sub64(sp, sp, Operand(num_registers_ * kSystemPointerSize));
     // Load string end.
     __ Ld(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
     // Load input start.
@@ -724,7 +724,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
         Label init_loop;
         __ bind(&init_loop);
         __ Sd(a0, MemOperand(a1));
-        __ Add64(a1, a1, Operand(-kPointerSize));
+        __ Add64(a1, a1, Operand(-kSystemPointerSize));
         __ Sub64(a2, a2, Operand(1));
         __ Branch(&init_loop, ne, a2, Operand(zero_reg));
       } else {
@@ -766,7 +766,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
           __ Ld(a3, register_location(i + 1));
           if (i == 0 && global_with_zero_length_check()) {
             // Keep capture start in a4 for the zero-length check later.
-            __ mv(t4, a2);
+            __ mv(s3, a2);
           }
           if (mode_ == UC16) {
             __ srai(a2, a2, 1);
@@ -809,10 +809,10 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
 
         if (global_with_zero_length_check()) {
           // Special case for zero-length matches.
-          // t4: capture start index
+          // s3: capture start index
           // Not a zero-length match, restart.
           __ Branch(&load_char_start_regexp, ne, current_input_offset(),
-                    Operand(t4));
+                    Operand(s3));
           // Offset from the end is zero if we already reached the end.
           __ Branch(&exit_label_, eq, current_input_offset(),
                     Operand(zero_reg));
@@ -1073,7 +1073,7 @@ void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch) {
 
   // Align the stack pointer and save the original sp value on the stack.
   __ mv(scratch, sp);
-  __ Sub64(sp, sp, Operand(kPointerSize));
+  __ Sub64(sp, sp, Operand(kSystemPointerSize));
   DCHECK(base::bits::IsPowerOfTwo(stack_alignment));
   __ And(sp, sp, Operand(-stack_alignment));
   __ Sd(scratch, MemOperand(sp));
@@ -1083,7 +1083,7 @@ void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch) {
   __ li(a1, Operand(masm_->CodeObject()), CONSTANT_SIZE);
 
   // We need to make room for the return address on the stack.
-  DCHECK(IsAligned(stack_alignment, kPointerSize));
+  DCHECK(IsAligned(stack_alignment, kSystemPointerSize));
   __ Sub64(sp, sp, Operand(stack_alignment));
 
   // The stack pointer now points to cell where the return address will be
@@ -1157,7 +1157,7 @@ MemOperand RegExpMacroAssemblerRISCV::register_location(int register_index) {
     num_registers_ = register_index + 1;
   }
   return MemOperand(frame_pointer(),
-                    kRegisterZero - register_index * kPointerSize);
+                    kRegisterZero - register_index * kSystemPointerSize);
 }
 
 void RegExpMacroAssemblerRISCV::CheckPosition(int cp_offset,
@@ -1245,9 +1245,9 @@ void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,
                                                               int characters) {
   Register offset = current_input_offset();
   if (cp_offset != 0) {
-    // t4 is not being used to store the capture start index at this point.
-    __ Add64(t4, current_input_offset(), Operand(cp_offset * char_size()));
-    offset = t4;
+    // s3 is not being used to store the capture start index at this point.
+    __ Add64(s3, current_input_offset(), Operand(cp_offset * char_size()));
+    offset = s3;
   }
   // We assume that we cannot do unaligned loads on RISC-V, so this function
   // must only be used to load a single character at a time.

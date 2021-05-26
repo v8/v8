@@ -448,18 +448,36 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = load_rep.IsUnsigned() ? kRiscvLwu : kRiscvLw;
       break;
+#ifdef V8_COMPRESS_POINTERS
+    case MachineRepresentation::kTaggedSigned:
+      opcode = kRiscvLoadDecompressTaggedSigned;
+      break;
+    case MachineRepresentation::kTaggedPointer:
+      opcode = kRiscvLoadDecompressTaggedPointer;
+      break;
+    case MachineRepresentation::kTagged:
+      opcode = kRiscvLoadDecompressAnyTagged;
+      break;
+#else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:         // Fall through.
+#endif
     case MachineRepresentation::kWord64:
       opcode = kRiscvLd;
       break;
     case MachineRepresentation::kSimd128:
       opcode = kRiscvMsaLd;
       break;
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
+      opcode = kRiscvLw;
+      break;
+#else
+                                                 // Fall through.
+#endif
+    case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -525,7 +543,11 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
+      case MachineRepresentation::kTagged:
+#ifdef V8_COMPRESS_POINTERS
+        opcode = kRiscvStoreCompressTagged;
+        break;
+#endif
       case MachineRepresentation::kWord64:
         opcode = kRiscvSd;
         break;
@@ -533,7 +555,14 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kRiscvMsaSt;
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:         // Fall through.
+      case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
+        opcode = kRiscvStoreCompressTagged;
+        break;
+#else
+        UNREACHABLE();
+        break;
+#endif
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -1211,7 +1240,11 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
 }
 
 void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
-  UNIMPLEMENTED();
+  DCHECK(SmiValuesAre31Bits());
+  DCHECK(COMPRESS_POINTERS_BOOL);
+  RiscvOperandGenerator g(this);
+  Emit(kRiscvZeroExtendWord, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
@@ -1784,7 +1817,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
                  cont);
   }
 }
-
+#ifndef V8_COMPRESS_POINTERS
 bool IsNodeUnsigned(Node* n) {
   NodeMatcher m(n);
 
@@ -1799,6 +1832,7 @@ bool IsNodeUnsigned(Node* n) {
            m.IsTruncateFloat64ToUint32() || m.IsTruncateFloat32ToUint32();
   }
 }
+#endif
 
 // Shared routine for multiple word compare operations.
 void VisitFullWord32Compare(InstructionSelector* selector, Node* node,
@@ -1815,6 +1849,7 @@ void VisitFullWord32Compare(InstructionSelector* selector, Node* node,
   VisitCompare(selector, opcode, leftOp, rightOp, cont);
 }
 
+#ifndef V8_COMPRESS_POINTERS
 void VisitOptimizedWord32Compare(InstructionSelector* selector, Node* node,
                                  InstructionCode opcode,
                                  FlagsContinuation* cont) {
@@ -1845,7 +1880,7 @@ void VisitOptimizedWord32Compare(InstructionSelector* selector, Node* node,
 
   VisitWordCompare(selector, node, opcode, cont, false);
 }
-
+#endif
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   // RISC-V doesn't support Word32 compare instructions. Instead it relies
@@ -1864,6 +1899,7 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
   // int32 value, the simulator do not sign-extended to int64 because in
   // simulator we do not know the function whether return a int32 or int64.
   // so we need do a full word32 compare in this case.
+#ifndef V8_COMPRESS_POINTERS
 #ifndef USE_SIMULATOR
   if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1))) {
 #else
@@ -1875,6 +1911,9 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
   } else {
     VisitOptimizedWord32Compare(selector, node, kRiscvCmp, cont);
   }
+#else
+  VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
+#endif
 }
 
 void VisitWord64Compare(InstructionSelector* selector, Node* node,

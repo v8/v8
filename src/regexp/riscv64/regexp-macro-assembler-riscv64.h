@@ -98,27 +98,28 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   // This 9 is 8 s-regs (s1..s8) plus fp.
   static const int kNumCalleeRegsToRetain = 9;
   static const int kReturnAddress =
-      kStoredRegisters + kNumCalleeRegsToRetain * kPointerSize;
+      kStoredRegisters + kNumCalleeRegsToRetain * kSystemPointerSize;
 
   // Stack frame header.
   static const int kStackFrameHeader = kReturnAddress;
   // Stack parameters placed by caller.
-  static const int kIsolate = kStackFrameHeader + kPointerSize;
+  static const int kIsolate = kStackFrameHeader + kSystemPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
-  static const int kDirectCall = kFramePointer - kPointerSize;
-  static const int kStackHighEnd = kDirectCall - kPointerSize;
-  static const int kNumOutputRegisters = kStackHighEnd - kPointerSize;
-  static const int kRegisterOutput = kNumOutputRegisters - kPointerSize;
-  static const int kInputEnd = kRegisterOutput - kPointerSize;
-  static const int kInputStart = kInputEnd - kPointerSize;
-  static const int kStartIndex = kInputStart - kPointerSize;
-  static const int kInputString = kStartIndex - kPointerSize;
+  static const int kDirectCall = kFramePointer - kSystemPointerSize;
+  static const int kStackHighEnd = kDirectCall - kSystemPointerSize;
+  static const int kNumOutputRegisters = kStackHighEnd - kSystemPointerSize;
+  static const int kRegisterOutput = kNumOutputRegisters - kSystemPointerSize;
+  static const int kInputEnd = kRegisterOutput - kSystemPointerSize;
+  static const int kInputStart = kInputEnd - kSystemPointerSize;
+  static const int kStartIndex = kInputStart - kSystemPointerSize;
+  static const int kInputString = kStartIndex - kSystemPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kSuccessfulCaptures = kInputString - kPointerSize;
-  static const int kStringStartMinusOne = kSuccessfulCaptures - kPointerSize;
+  static const int kSuccessfulCaptures = kInputString - kSystemPointerSize;
+  static const int kStringStartMinusOne =
+      kSuccessfulCaptures - kSystemPointerSize;
   static const int kBacktrackCount = kStringStartMinusOne - kSystemPointerSize;
   // First register address. Following registers are below it on the stack.
   static const int kRegisterZero = kBacktrackCount - kSystemPointerSize;

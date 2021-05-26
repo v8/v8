@@ -207,7 +207,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(t3.bit() | t5.bit()),
+      scratch_register_list_(t3.bit() | t5.bit() | s10.bit()),
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 

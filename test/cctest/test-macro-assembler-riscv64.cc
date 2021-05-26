@@ -128,7 +128,7 @@ TEST(LoadConstants) {
       // Load constant.
       __ li(a5, Operand(refConstants[i]));
       __ Sd(a5, MemOperand(a4));
-      __ Add64(a4, a4, Operand(kPointerSize));
+      __ Add64(a4, a4, Operand(kSystemPointerSize));
     }
   };
   auto f = AssembleCode<FV>(fn);
@@ -1413,17 +1413,17 @@ TEST(Dpopcnt) {
       __ li(a3, Operand(in[i]));
       __ Popcnt64(a5, a3);
       __ Sd(a5, MemOperand(a4));
-      __ Add64(a4, a4, Operand(kPointerSize));
+      __ Add64(a4, a4, Operand(kSystemPointerSize));
     }
     __ li(a3, Operand(in[7]));
     __ Popcnt64(a5, a3);
     __ Sd(a5, MemOperand(a4));
-    __ Add64(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kSystemPointerSize));
 
     __ li(a3, Operand(in[8]));
     __ Popcnt64(a5, a3);
     __ Sd(a5, MemOperand(a4));
-    __ Add64(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kSystemPointerSize));
   };
   auto f = AssembleCode<FV>(fn);
 
@@ -1464,18 +1464,18 @@ TEST(Popcnt) {
       __ li(a3, Operand(in[i]));
       __ Popcnt32(a5, a3);
       __ Sd(a5, MemOperand(a4));
-      __ Add64(a4, a4, Operand(kPointerSize));
+      __ Add64(a4, a4, Operand(kSystemPointerSize));
     }
 
     __ li(a3, Operand(in[6]));
     __ Popcnt64(a5, a3);
     __ Sd(a5, MemOperand(a4));
-    __ Add64(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kSystemPointerSize));
 
     __ li(a3, Operand(in[7]));
     __ Popcnt64(a5, a3);
     __ Sd(a5, MemOperand(a4));
-    __ Add64(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kSystemPointerSize));
   };
   auto f = AssembleCode<FV>(fn);
 

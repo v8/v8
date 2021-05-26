@@ -22,7 +22,7 @@ class BaselineAssembler::ScratchRegisterScope {
     if (!assembler_->scratch_register_scope_) {
       // If we haven't opened a scratch scope yet, for the first one add a
       // couple of extra registers.
-      wrapped_scope_.Include(t2, t4);
+      wrapped_scope_.Include(kScratchReg, kScratchReg2);
     }
     assembler_->scratch_register_scope_ = this;
   }
@@ -601,7 +601,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
   // Drop receiver + arguments.
   __ masm()->Add64(params_size, params_size, 1);  // Include the receiver.
-  __ masm()->slli(params_size, params_size, kPointerSizeLog2);
+  __ masm()->slli(params_size, params_size, kSystemPointerSizeLog2);
   __ masm()->Add64(sp, sp, params_size);
   __ masm()->Ret();
 }

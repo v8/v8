@@ -259,6 +259,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
+  // Read/Modify the code target address in the branch/call instruction at pc.
+  inline static Tagged_t target_compressed_address_at(Address pc,
+                                                      Address constant_pool);
+  inline static void set_target_compressed_address_at(
+      Address pc, Address constant_pool, Tagged_t target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  inline Handle<Object> code_target_object_handle_at(Address pc,
+                                                     Address constant_pool);
+  inline Handle<HeapObject> compressed_embedded_object_handle_at(
+      Address pc, Address constant_pool);
+
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
   // See Assembler::CheckConstPool for more info.

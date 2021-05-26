@@ -1173,7 +1173,7 @@ class Instruction : public InstructionGetters<InstructionBase> {
 // C/C++ argument slots size.
 const int kCArgSlotCount = 0;
 
-// TODO(plind): below should be based on kPointerSize
+// TODO(plind): below should be based on kSystemPointerSize
 // TODO(plind): find all usages and remove the needless instructions for n64.
 const int kCArgsSlotsSize = kCArgSlotCount * kInstrSize * 2;
 
