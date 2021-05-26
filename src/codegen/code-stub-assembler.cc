@@ -1394,16 +1394,29 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
       new_space
           ? ExternalReference::new_space_allocation_top_address(isolate())
           : ExternalReference::old_space_allocation_top_address(isolate()));
-  DCHECK_EQ(kSystemPointerSize,
-            ExternalReference::new_space_allocation_limit_address(isolate())
-                    .address() -
-                ExternalReference::new_space_allocation_top_address(isolate())
-                    .address());
+
+#ifdef DEBUG
+  // New space is optional and if disabled both top and limit return
+  // kNullAddress.
+  if (ExternalReference::new_space_allocation_top_address(isolate())
+          .address() != kNullAddress) {
+    Address top_address =
+        ExternalReference::new_space_allocation_top_address(isolate())
+            .address();
+    Address limit_address =
+        ExternalReference::new_space_allocation_limit_address(isolate())
+            .address();
+
+    CHECK_EQ(kSystemPointerSize, limit_address - top_address);
+  }
+
   DCHECK_EQ(kSystemPointerSize,
             ExternalReference::old_space_allocation_limit_address(isolate())
                     .address() -
                 ExternalReference::old_space_allocation_top_address(isolate())
                     .address());
+#endif
+
   TNode<IntPtrT> limit_address =
       IntPtrAdd(ReinterpretCast<IntPtrT>(top_address),
                 IntPtrConstant(kSystemPointerSize));
