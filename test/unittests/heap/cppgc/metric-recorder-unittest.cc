@@ -153,6 +153,12 @@ TEST_F(MetricRecorderTest, CycleEndMetricsReportedOnGcEnd) {
 
 TEST_F(MetricRecorderTest, CycleEndHistogramReportsCorrectValues) {
   StartGC();
+  {
+    // Warmup scope to make sure everything is loaded in memory and reduce noise
+    // in timing measurements.
+    StatsCollector::EnabledScope scope(Heap::From(GetHeap())->stats_collector(),
+                                       StatsCollector::kIncrementalMark);
+  }
   EndGC(1000);
   StartGC();
   {
@@ -207,7 +213,7 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsCorrectValues) {
   }
   EndGC(300);
   // Check durations.
-  static constexpr int64_t kDurationComparisonTolerance = 500;
+  static constexpr int64_t kDurationComparisonTolerance = 5000;
   EXPECT_LT(std::abs(MetricRecorderImpl::CppGCFullCycle_event
                          .main_thread_incremental.mark_duration_us -
                      10000),
@@ -269,7 +275,7 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsCorrectValues) {
   // Check collection rate and efficiency.
   EXPECT_DOUBLE_EQ(
       0.3, MetricRecorderImpl::CppGCFullCycle_event.collection_rate_in_percent);
-  static constexpr double kEfficiencyComparisonTolerance = 0.00001;
+  static constexpr double kEfficiencyComparisonTolerance = 0.0005;
   EXPECT_LT(
       std::abs(
           MetricRecorderImpl::CppGCFullCycle_event.efficiency_in_bytes_per_us -
