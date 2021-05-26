@@ -2022,7 +2022,6 @@ DEFINE_IMPLICATION(print_all_code, print_regexp_code)
 //
 
 DEFINE_BOOL(predictable, false, "enable predictable mode")
-DEFINE_IMPLICATION(predictable, single_threaded)
 DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 
 DEFINE_BOOL(predictable_gc_schedule, false,
