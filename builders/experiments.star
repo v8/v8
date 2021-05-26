@@ -91,7 +91,10 @@ experiment_builder(
     properties = {"builder_group": "client.v8"},
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -101,7 +104,10 @@ experiment_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov"},
     use_goma = GOMA.NO,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -149,7 +155,11 @@ experiment_builder_pair(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
-    to_notify = ["saelo@chromium.org", "v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "saelo@chromium.org",
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -159,7 +169,11 @@ experiment_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
     use_goma = GOMA.DEFAULT,
-    to_notify = ["clemensb@chromium.org", "v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "clemensb@chromium.org",
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder_pair(
@@ -169,7 +183,11 @@ experiment_builder_pair(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
-    to_notify = ["dinfuehr@chromium.org", "v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "dinfuehr@chromium.org",
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -180,7 +198,10 @@ experiment_builder(
     properties = {"builder_group": "client.v8"},
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -190,7 +211,10 @@ experiment_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -198,7 +222,10 @@ experiment_builder(
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     properties = {"builder_group": "client.v8"},
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -221,7 +248,10 @@ experiment_builder(
     use_goma = GOMA.DEFAULT,
     # TODO consider moving tree closer builder out of the experimental file
     close_tree = True,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -230,7 +260,10 @@ experiment_builder(
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -240,7 +273,10 @@ experiment_builder(
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - debug"]},
     use_goma = GOMA.DEFAULT,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -249,7 +285,10 @@ experiment_builder(
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -259,7 +298,10 @@ experiment_builder(
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
     use_goma = GOMA.DEFAULT,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -268,7 +310,10 @@ experiment_builder(
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -278,7 +323,10 @@ experiment_builder(
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
     use_goma = GOMA.DEFAULT,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )
 
 experiment_builder(
@@ -287,5 +335,8 @@ experiment_builder(
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    to_notify = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+    ],
 )

@@ -76,6 +76,7 @@ auto_builder(
             ],
             "reviewers": [
                 "v8-waterfall-sheriff@grotations.appspotmail.com",
+                "mtv-sf-v8-sheriff@grotations.appspotmail.com"
             ],
             "show_commit_log": False,
         },
@@ -141,6 +142,7 @@ auto_builder(
             ],
             "reviewers": [
                 "v8-waterfall-sheriff@grotations.appspotmail.com",
+                "mtv-sf-v8-sheriff@grotations.appspotmail.com",
                 "mlippautz@chromium.org",
             ],
             "show_commit_log": True,
