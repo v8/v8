@@ -27,9 +27,12 @@ class Map;
 class Object;
 class String;
 
-struct WebSnapshotData {
+struct WebSnapshotData : public std::enable_shared_from_this<WebSnapshotData> {
   uint8_t* buffer = nullptr;
   size_t buffer_size = 0;
+  WebSnapshotData() = default;
+  WebSnapshotData(const WebSnapshotData&) = delete;
+  WebSnapshotData& operator=(const WebSnapshotData&) = delete;
   ~WebSnapshotData() { free(buffer); }
 };
 

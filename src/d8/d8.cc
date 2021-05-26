@@ -1386,6 +1386,10 @@ PerIsolateData::PerIsolateData(Isolate* isolate)
     async_hooks_wrapper_ = new AsyncHooks(isolate);
   }
   ignore_unhandled_promises_ = false;
+  // TODO(v8:11525): Use methods on global Snapshot objects with
+  // signature checks.
+  HandleScope scope(isolate);
+  Shell::CreateSnapshotTemplate(isolate);
 }
 
 PerIsolateData::~PerIsolateData() {
@@ -1479,6 +1483,14 @@ Local<FunctionTemplate> PerIsolateData::GetTestApiObjectCtor() const {
 
 void PerIsolateData::SetTestApiObjectCtor(Local<FunctionTemplate> ctor) {
   test_api_object_ctor_.Reset(isolate_, ctor);
+}
+
+Local<FunctionTemplate> PerIsolateData::GetSnapshotObjectCtor() const {
+  return snapshot_object_ctor_.Get(isolate_);
+}
+
+void PerIsolateData::SetSnapshotObjectCtor(Local<FunctionTemplate> ctor) {
+  snapshot_object_ctor_.Reset(isolate_, ctor);
 }
 
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
@@ -1798,6 +1810,103 @@ void Shell::RealmSharedSet(Local<String> property, Local<Value> value,
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   data->realm_shared_.Reset(isolate, value);
+}
+
+// Realm.takeWebSnapshot(index, exports) takes a snapshot of the list of exports
+// in the realm with the specified index and returns the result.
+void Shell::RealmTakeWebSnapshot(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 2 || !args[1]->IsArray()) {
+    isolate->ThrowError("Invalid argument");
+    return;
+  }
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  int index = data->RealmIndexOrThrow(args, 0);
+  if (index == -1) return;
+  // Create a std::vector<std::string> from the list of exports.
+  // TODO(v8:11525): Add an API in the serializer that accepts a Local<String>
+  // Array.
+  Local<Context> current_context = isolate->GetCurrentContext();
+  Local<Array> exports_array = args[1].As<Array>();
+  std::vector<std::string> exports;
+  for (int i = 0, length = exports_array->Length(); i < length; ++i) {
+    Local<String> local_str = exports_array->Get(current_context, i)
+                                  .ToLocalChecked()
+                                  ->ToString(current_context)
+                                  .ToLocalChecked();
+    std::string str = ToSTLString(isolate, local_str);
+    exports.push_back(str);
+  }
+  // Enter the realm.
+  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
+  realm->Enter();
+  int previous_index = data->realm_current_;
+  data->realm_current_ = data->realm_switch_ = index;
+  // Take the snapshot.
+  i::WebSnapshotSerializer serializer(isolate);
+  auto snapshot_data_shared = std::make_shared<i::WebSnapshotData>();
+  if (!serializer.TakeSnapshot(realm, exports, *snapshot_data_shared)) {
+    realm->Exit();
+    data->realm_current_ = data->realm_switch_ = previous_index;
+    args.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
+  // Exit the realm.
+  realm->Exit();
+  data->realm_current_ = data->realm_switch_ = previous_index;
+  // Create a snapshot object and store the WebSnapshotData as an embedder
+  // field. TODO(v8:11525): Use methods on global Snapshot objects with
+  // signature checks.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::Object> snapshot_data_managed =
+      i::Managed<i::WebSnapshotData>::FromSharedPtr(
+          i_isolate, snapshot_data_shared->buffer_size, snapshot_data_shared);
+  v8::Local<v8::Value> shapshot_data = Utils::ToLocal(snapshot_data_managed);
+  Local<ObjectTemplate> snapshot_template =
+      data->GetSnapshotObjectCtor()->InstanceTemplate();
+  Local<Object> snapshot_instance =
+      snapshot_template->NewInstance(realm).ToLocalChecked();
+  snapshot_instance->SetInternalField(0, shapshot_data);
+  args.GetReturnValue().Set(snapshot_instance);
+}
+
+// Realm.useWebSnapshot(index, snapshot) deserializes the snapshot in the realm
+// with the specified index.
+void Shell::RealmUseWebSnapshot(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 2) {
+    isolate->ThrowError("Invalid argument");
+    return;
+  }
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  int index = data->RealmIndexOrThrow(args, 0);
+  if (index == -1) return;
+  // Restore the snapshot data from the snapshot object.
+  Local<Object> snapshot_instance = args[1].As<Object>();
+  if (snapshot_instance->InternalFieldCount() != 1) {
+    isolate->ThrowError("Invalid argument");
+    return;
+  }
+  v8::Local<v8::Value> snapshot_data = snapshot_instance->GetInternalField(0);
+  i::Handle<i::Object> snapshot_data_handle = Utils::OpenHandle(*snapshot_data);
+  auto snapshot_data_managed =
+      i::Handle<i::Managed<i::WebSnapshotData>>::cast(snapshot_data_handle);
+  std::shared_ptr<i::WebSnapshotData> snapshot_data_shared =
+      snapshot_data_managed->get();
+  // Enter the realm.
+  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
+  realm->Enter();
+  int previous_index = data->realm_current_;
+  data->realm_current_ = data->realm_switch_ = index;
+  // Deserialize the snapshot.
+  i::WebSnapshotDeserializer deserializer(isolate);
+  bool success = deserializer.UseWebSnapshot(snapshot_data_shared->buffer,
+                                             snapshot_data_shared->buffer_size);
+  args.GetReturnValue().Set(success);
+  realm->Exit();
+  data->realm_current_ = data->realm_switch_ = previous_index;
 }
 
 void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -2782,9 +2891,21 @@ Local<ObjectTemplate> Shell::CreateRealmTemplate(Isolate* isolate) {
                       FunctionTemplate::New(isolate, RealmEval));
   realm_template->SetAccessor(String::NewFromUtf8Literal(isolate, "shared"),
                               RealmSharedGet, RealmSharedSet);
+  if (options.d8_web_snapshot_api) {
+    realm_template->Set(isolate, "takeWebSnapshot",
+                        FunctionTemplate::New(isolate, RealmTakeWebSnapshot));
+    realm_template->Set(isolate, "useWebSnapshot",
+                        FunctionTemplate::New(isolate, RealmUseWebSnapshot));
+  }
   return realm_template;
 }
 
+Local<FunctionTemplate> Shell::CreateSnapshotTemplate(Isolate* isolate) {
+  Local<FunctionTemplate> snapshot_template = FunctionTemplate::New(isolate);
+  snapshot_template->InstanceTemplate()->SetInternalFieldCount(1);
+  PerIsolateData::Get(isolate)->SetSnapshotObjectCtor(snapshot_template);
+  return snapshot_template;
+}
 Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
   Local<ObjectTemplate> d8_template = ObjectTemplate::New(isolate);
   {
@@ -4134,6 +4255,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
       options.web_snapshot_config = argv[i] + 22;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--d8-web-snapshot-api") == 0) {
+      options.d8_web_snapshot_api = true;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--compile-only") == 0) {
       options.compile_only = true;
       argv[i] = nullptr;
@@ -4234,6 +4358,7 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
     }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
+    CreateSnapshotTemplate(isolate);
     bool use_existing_context = last_run && use_interactive_shell();
     if (use_existing_context) {
       // Keep using the same context in the interactive shell.
