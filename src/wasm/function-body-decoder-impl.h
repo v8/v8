@@ -3577,18 +3577,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     InitMerge(&c->end_merge, imm.out_arity(), [pc, &imm](uint32_t i) {
       return Value{pc, imm.out_type(i)};
     });
-    InitMerge(&c->start_merge, imm.in_arity(), [pc, &imm, args](uint32_t i) {
-      // The merge needs to be instantiated with Values of the correct type even
-      // in the presence of bottom values (i.e. in unreachable code). Since
-      // bottom Values will never be used for code generation, we can safely
-      // instantiate new ones in that case.
-      return args[i].type != kWasmBottom ? args[i] : Value{pc, imm.in_type(i)};
-    });
+    InitMerge(&c->start_merge, imm.in_arity(),
+              [args](uint32_t i) { return args[i]; });
   }
 
   V8_INLINE void EnsureStackArguments(int count) {
     uint32_t limit = control_.back().stack_depth;
-    if (V8_LIKELY(stack_size() >= count + limit)) return;
+    if (stack_size() >= count + limit) return;
     EnsureStackArguments_Slow(count, limit);
   }
 
@@ -3597,21 +3592,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       int index = count - stack_size() - 1;
       NotEnoughArgumentsError(index);
     }
-    // Silently create unreachable values out of thin air underneath the
-    // existing stack values. To do so, we have to move existing stack values
-    // upwards in the stack, then instantiate the new Values as
-    // {UnreachableValue}.
-    int current_values = stack_size() - limit;
-    int additional_values = count - current_values;
-    DCHECK_GT(additional_values, 0);
-    EnsureStackSpace(additional_values);
-    stack_end_ += additional_values;
-    Value* stack_base = stack_value(current_values + additional_values);
-    for (int i = current_values - 1; i >= 0; i--) {
-      stack_base[additional_values + i] = stack_base[i];
-    }
-    for (int i = 0; i < additional_values; i++) {
-      stack_base[i] = UnreachableValue(this->pc_);
+    // Silently create unreachable values out of thin air. Since we push them
+    // onto the stack, while conceptually we should be inserting them under
+    // any existing elements, we have to avoid validation failures that would
+    // be caused by finding non-unreachable values in the wrong slot, so we
+    // replace the entire current scope's values.
+    Drop(static_cast<int>(stack_size() - limit));
+    EnsureStackSpace(count + limit - stack_size());
+    while (stack_size() < count + limit) {
+      Push(UnreachableValue(this->pc_));
     }
   }
 
@@ -3626,8 +3615,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
     return args;
   }
-  // Drops a number of stack elements equal to the {sig}'s parameter count (0 if
-  // {sig} is null), or all of them if less are present.
   V8_INLINE void DropArgs(const FunctionSig* sig) {
     int count = sig ? static_cast<int>(sig->parameter_count()) : 0;
     Drop(count);
@@ -3643,8 +3630,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
     return args;
   }
-  // Drops a number of stack elements equal to the struct's field count, or all
-  // of them if less are present.
   V8_INLINE void DropArgs(const StructType* type) {
     Drop(static_cast<int>(type->field_count()));
   }
@@ -4839,20 +4824,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
-  // Drop the top {count} stack elements, or all of them if less than {count}
-  // are present.
   V8_INLINE void Drop(int count = 1) {
     DCHECK(!control_.empty());
     uint32_t limit = control_.back().stack_depth;
+    // TODO(wasm): This check is often redundant.
     if (V8_UNLIKELY(stack_size() < limit + count)) {
+      // Popping past the current control start in reachable code.
+      if (!VALIDATE(!current_code_reachable_and_ok_)) {
+        NotEnoughArgumentsError(0);
+      }
       // Pop what we can.
       count = std::min(count, static_cast<int>(stack_size() - limit));
     }
     DCHECK_LE(stack_, stack_end_ - count);
     stack_end_ -= count;
   }
-  // Drop the top stack element if present. Takes a Value input for more
-  // descriptive call sites.
+  // For more descriptive call sites:
   V8_INLINE void Drop(const Value& /* unused */) { Drop(1); }
 
   enum StackElementsCountMode : bool {
@@ -4885,9 +4872,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             : merge_type == kReturnMerge ? "return" : "fallthru";
     uint32_t arity = merge->arity;
     uint32_t actual = stack_size() - control_.back().stack_depth;
-    // Here we have to check for !unreachable(), because we need to typecheck as
-    // if the current code is reachable even if it is spec-only reachable.
-    if (V8_LIKELY(!control_.back().unreachable())) {
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {
       if (V8_UNLIKELY(strict_count ? actual != drop_values + arity
                                    : actual < drop_values + arity)) {
         this->DecodeError("expected %u elements on the stack for %s, found %u",
