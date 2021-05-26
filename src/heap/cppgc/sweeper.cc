@@ -137,8 +137,7 @@ class InlinedFinalizationBuilder final {
   }
 
   void AddFreeListEntry(Address start, size_t size) {
-    auto* space = NormalPageSpace::From(page_->space());
-    space->free_list().Add({start, size});
+    NormalPageSpace::From(page_->space()).free_list().Add({start, size});
   }
 
   ResultType GetResult(bool is_empty, size_t largest_new_free_list_entry) {
@@ -304,8 +303,7 @@ class SweepFinalizer final {
     DCHECK(!page->is_large());
 
     // Merge freelists without finalizers.
-    FreeList& space_freelist =
-        NormalPageSpace::From(page->space())->free_list();
+    FreeList& space_freelist = NormalPageSpace::From(page->space()).free_list();
     space_freelist.Append(std::move(page_state->cached_free_list));
 
     // Merge freelist with finalizers.
@@ -317,7 +315,7 @@ class SweepFinalizer final {
         page_state->largest_new_free_list_entry, largest_new_free_list_entry_);
 
     // Add the page to the space.
-    page->space()->AddPage(page);
+    page->space().AddPage(page);
   }
 
   size_t largest_new_free_list_entry() const {
@@ -397,7 +395,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     if (result.is_empty) {
       NormalPage::Destroy(page);
     } else {
-      page->space()->AddPage(page);
+      page->space().AddPage(page);
       largest_new_free_list_entry_ = std::max(
           result.largest_new_free_list_entry, largest_new_free_list_entry_);
     }
@@ -408,7 +406,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     HeapObjectHeader* header = page->ObjectHeader();
     if (header->IsMarked()) {
       StickyUnmark(header);
-      page->space()->AddPage(page);
+      page->space().AddPage(page);
     } else {
       header->Finalize();
       LargePage::Destroy(page);
@@ -450,7 +448,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
   bool VisitNormalPage(NormalPage* page) {
     SpaceState::SweptPageState sweep_result =
         SweepNormalPage<DeferredFinalizationBuilder>(page);
-    const size_t space_index = page->space()->index();
+    const size_t space_index = page->space().index();
     DCHECK_GT(states_->size(), space_index);
     SpaceState& space_state = (*states_)[space_index];
     space_state.swept_unfinalized_pages.Push(std::move(sweep_result));
@@ -461,14 +459,14 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
     HeapObjectHeader* header = page->ObjectHeader();
     if (header->IsMarked()) {
       StickyUnmark(header);
-      page->space()->AddPage(page);
+      page->space().AddPage(page);
       return true;
     }
     if (!header->IsFinalizable()) {
       LargePage::Destroy(page);
       return true;
     }
-    const size_t space_index = page->space()->index();
+    const size_t space_index = page->space().index();
     DCHECK_GT(states_->size(), space_index);
     SpaceState& state = (*states_)[space_index];
     state.swept_unfinalized_pages.Push(

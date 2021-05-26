@@ -35,8 +35,7 @@ class V8_EXPORT_PRIVATE BasePage {
 
   HeapBase& heap() const { return heap_; }
 
-  BaseSpace* space() { return &space_; }
-  const BaseSpace* space() const { return &space_; }
+  BaseSpace& space() const { return space_; }
 
   bool is_large() const { return type_ == PageType::kLarge; }
 

@@ -38,14 +38,14 @@ void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
   // BasePage is okay for regular and large objects.
   BasePage* base_page = BasePage::FromPayload(object);
   if (base_page->is_large()) {  // Large object.
-    base_page->space()->RemovePage(base_page);
+    base_page->space().RemovePage(base_page);
     base_page->heap().stats_collector()->NotifyExplicitFree(
         LargePage::From(base_page)->PayloadSize());
     LargePage::Destroy(LargePage::From(base_page));
   } else {  // Regular object.
     const size_t header_size = header.AllocatedSize();
     auto* normal_page = NormalPage::From(base_page);
-    auto& normal_space = *static_cast<NormalPageSpace*>(base_page->space());
+    auto& normal_space = *static_cast<NormalPageSpace*>(&base_page->space());
     auto& lab = normal_space.linear_allocation_buffer();
     ConstAddress payload_end = header.ObjectEnd();
     SetMemoryInaccessible(&header, header_size);
@@ -69,7 +69,7 @@ bool Grow(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
   DCHECK_GE(size_delta, kAllocationGranularity);
   DCHECK(!base_page.is_large());
 
-  auto& normal_space = *static_cast<NormalPageSpace*>(base_page.space());
+  auto& normal_space = *static_cast<NormalPageSpace*>(&base_page.space());
   auto& lab = normal_space.linear_allocation_buffer();
   if (lab.start() == header.ObjectEnd() && lab.size() >= size_delta) {
     // LABs are considered used memory which means that no allocated size
@@ -88,7 +88,7 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
   DCHECK_GE(size_delta, kAllocationGranularity);
   DCHECK(!base_page.is_large());
 
-  auto& normal_space = *static_cast<NormalPageSpace*>(base_page.space());
+  auto& normal_space = *static_cast<NormalPageSpace*>(&base_page.space());
   auto& lab = normal_space.linear_allocation_buffer();
   Address free_start = header.ObjectEnd() - size_delta;
   if (lab.start() == header.ObjectEnd()) {

@@ -49,8 +49,8 @@ class DynamicallySized final : public GarbageCollected<DynamicallySized> {
 TEST_F(ExplicitManagementTest, FreeRegularObjectToLAB) {
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
-  const auto* space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
-  const auto& lab = space->linear_allocation_buffer();
+  const auto& space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
+  const auto& lab = space.linear_allocation_buffer();
   auto& header = HeapObjectHeader::FromObject(o);
   const size_t size = header.AllocatedSize();
   Address needle = reinterpret_cast<Address>(&header);
@@ -63,14 +63,14 @@ TEST_F(ExplicitManagementTest, FreeRegularObjectToLAB) {
   EXPECT_EQ(lab_size_before_free + size, lab.size());
   // LAB is included in allocated object size, so no change is expected.
   EXPECT_EQ(allocated_size_before, AllocatedObjectSize());
-  EXPECT_FALSE(space->free_list().ContainsForTesting({needle, size}));
+  EXPECT_FALSE(space.free_list().ContainsForTesting({needle, size}));
 }
 
 TEST_F(ExplicitManagementTest, FreeRegularObjectToFreeList) {
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
-  const auto* space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
-  const auto& lab = space->linear_allocation_buffer();
+  const auto& space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
+  const auto& lab = space.linear_allocation_buffer();
   auto& header = HeapObjectHeader::FromObject(o);
   const size_t size = header.AllocatedSize();
   Address needle = reinterpret_cast<Address>(&header);
@@ -81,7 +81,7 @@ TEST_F(ExplicitManagementTest, FreeRegularObjectToFreeList) {
   subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_EQ(lab.start(), nullptr);
   EXPECT_EQ(allocated_size_before - size, AllocatedObjectSize());
-  EXPECT_TRUE(space->free_list().ContainsForTesting({needle, size}));
+  EXPECT_TRUE(space.free_list().ContainsForTesting({needle, size}));
 }
 
 TEST_F(ExplicitManagementTest, FreeLargeObject) {
@@ -157,7 +157,7 @@ TEST_F(ExplicitManagementTest, ShrinkFreeList) {
   auto* o = MakeGarbageCollected<DynamicallySized>(
       GetHeap()->GetAllocationHandle(),
       AdditionalBytes(ObjectAllocator::kSmallestSpaceSize));
-  const auto* space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
+  const auto& space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
   // Force returning to free list by removing the LAB.
   ResetLinearAllocationBuffers();
   auto& header = HeapObjectHeader::FromObject(o);
@@ -165,7 +165,7 @@ TEST_F(ExplicitManagementTest, ShrinkFreeList) {
   constexpr size_t size_of_o = sizeof(DynamicallySized);
   EXPECT_TRUE(subtle::Resize(*o, AdditionalBytes(0)));
   EXPECT_EQ(RoundUp<kAllocationGranularity>(size_of_o), header.ObjectSize());
-  EXPECT_TRUE(space->free_list().ContainsForTesting(
+  EXPECT_TRUE(space.free_list().ContainsForTesting(
       {header.ObjectEnd(), ObjectAllocator::kSmallestSpaceSize}));
 }
 
@@ -173,7 +173,7 @@ TEST_F(ExplicitManagementTest, ShrinkFreeListBailoutAvoidFragmentation) {
   auto* o = MakeGarbageCollected<DynamicallySized>(
       GetHeap()->GetAllocationHandle(),
       AdditionalBytes(ObjectAllocator::kSmallestSpaceSize - 1));
-  const auto* space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
+  const auto& space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
   // Force returning to free list by removing the LAB.
   ResetLinearAllocationBuffers();
   auto& header = HeapObjectHeader::FromObject(o);
@@ -183,7 +183,7 @@ TEST_F(ExplicitManagementTest, ShrinkFreeListBailoutAvoidFragmentation) {
   EXPECT_EQ(RoundUp<kAllocationGranularity>(
                 size_of_o + ObjectAllocator::kSmallestSpaceSize - 1),
             header.ObjectSize());
-  EXPECT_FALSE(space->free_list().ContainsForTesting(
+  EXPECT_FALSE(space.free_list().ContainsForTesting(
       {header.ObjectStart() + RoundUp<kAllocationGranularity>(size_of_o),
        ObjectAllocator::kSmallestSpaceSize - 1}));
 }

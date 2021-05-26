@@ -92,7 +92,7 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
       return nullptr;
     // Check that the space has no linear allocation buffer.
     DCHECK(!NormalPageSpace::From(normal_page->space())
-                ->linear_allocation_buffer()
+                .linear_allocation_buffer()
                 .size());
   }
 
@@ -124,13 +124,12 @@ NormalPage* NormalPage::Create(PageBackend& page_backend,
 // static
 void NormalPage::Destroy(NormalPage* page) {
   DCHECK(page);
-  BaseSpace* space = page->space();
-  DCHECK_EQ(space->end(), std::find(space->begin(), space->end(), page));
+  const BaseSpace& space = page->space();
+  DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
   page->~NormalPage();
   PageBackend* backend = page->heap().page_backend();
   page->heap().stats_collector()->NotifyFreedMemory(kPageSize);
-  backend->FreeNormalPageMemory(space->index(),
-                                reinterpret_cast<Address>(page));
+  backend->FreeNormalPageMemory(space.index(), reinterpret_cast<Address>(page));
 }
 
 NormalPage::NormalPage(HeapBase& heap, BaseSpace& space)
@@ -143,13 +142,13 @@ NormalPage::NormalPage(HeapBase& heap, BaseSpace& space)
 NormalPage::~NormalPage() = default;
 
 NormalPage::iterator NormalPage::begin() {
-  const auto& lab = NormalPageSpace::From(space())->linear_allocation_buffer();
+  const auto& lab = NormalPageSpace::From(space()).linear_allocation_buffer();
   return iterator(reinterpret_cast<HeapObjectHeader*>(PayloadStart()),
                   lab.start(), lab.size());
 }
 
 NormalPage::const_iterator NormalPage::begin() const {
-  const auto& lab = NormalPageSpace::From(space())->linear_allocation_buffer();
+  const auto& lab = NormalPageSpace::From(space()).linear_allocation_buffer();
   return const_iterator(
       reinterpret_cast<const HeapObjectHeader*>(PayloadStart()), lab.start(),
       lab.size());
@@ -208,8 +207,8 @@ LargePage* LargePage::Create(PageBackend& page_backend, LargePageSpace& space,
 void LargePage::Destroy(LargePage* page) {
   DCHECK(page);
 #if DEBUG
-  BaseSpace* space = page->space();
-  DCHECK_EQ(space->end(), std::find(space->begin(), space->end(), page));
+  const BaseSpace& space = page->space();
+  DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
 #endif
   page->~LargePage();
   PageBackend* backend = page->heap().page_backend();

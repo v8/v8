@@ -87,7 +87,7 @@ TEST_F(SweeperTest, DontSweepMarkedNormalObject) {
   auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   MarkObject(object);
   BasePage* page = BasePage::FromPayload(object);
-  BaseSpace* space = page->space();
+  BaseSpace& space = page->space();
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -95,7 +95,7 @@ TEST_F(SweeperTest, DontSweepMarkedNormalObject) {
 
   EXPECT_EQ(0u, g_destructor_callcount);
   // Check that page is returned back to the space.
-  EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
+  EXPECT_NE(space.end(), std::find(space.begin(), space.end(), page));
   EXPECT_NE(nullptr, GetBackend()->Lookup(reinterpret_cast<Address>(object)));
 }
 
@@ -105,7 +105,7 @@ TEST_F(SweeperTest, SweepUnmarkedLargeObject) {
 
   auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   BasePage* page = BasePage::FromPayload(object);
-  BaseSpace* space = page->space();
+  BaseSpace& space = page->space();
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -113,7 +113,7 @@ TEST_F(SweeperTest, SweepUnmarkedLargeObject) {
 
   EXPECT_EQ(1u, g_destructor_callcount);
   // Check that page is gone.
-  EXPECT_EQ(space->end(), std::find(space->begin(), space->end(), page));
+  EXPECT_EQ(space.end(), std::find(space.begin(), space.end(), page));
   EXPECT_EQ(nullptr, GetBackend()->Lookup(reinterpret_cast<Address>(object)));
 }
 
@@ -124,7 +124,7 @@ TEST_F(SweeperTest, DontSweepMarkedLargeObject) {
   auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   MarkObject(object);
   BasePage* page = BasePage::FromPayload(object);
-  BaseSpace* space = page->space();
+  BaseSpace& space = page->space();
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -132,7 +132,7 @@ TEST_F(SweeperTest, DontSweepMarkedLargeObject) {
 
   EXPECT_EQ(0u, g_destructor_callcount);
   // Check that page is returned back to the space.
-  EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
+  EXPECT_NE(space.end(), std::find(space.begin(), space.end(), page));
   EXPECT_NE(nullptr, GetBackend()->Lookup(reinterpret_cast<Address>(object)));
 }
 
@@ -202,7 +202,7 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
       HeapObjectHeader::FromObject(object3).AllocatedSize();
 
   const BasePage* page = BasePage::FromPayload(object2);
-  const FreeList& freelist = NormalPageSpace::From(page->space())->free_list();
+  const FreeList& freelist = NormalPageSpace::From(page->space()).free_list();
 
   const FreeList::Block coalesced_block = {
       object2_start, static_cast<size_t>(object3_end - object2_start)};

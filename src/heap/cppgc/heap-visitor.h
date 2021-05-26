@@ -29,8 +29,8 @@ class HeapVisitor {
   void Traverse(BaseSpace* space) {
     const bool is_stopped =
         space->is_large()
-            ? VisitLargePageSpaceImpl(LargePageSpace::From(space))
-            : VisitNormalPageSpaceImpl(NormalPageSpace::From(space));
+            ? VisitLargePageSpaceImpl(&LargePageSpace::From(*space))
+            : VisitNormalPageSpaceImpl(&NormalPageSpace::From(*space));
     if (is_stopped) return;
     for (auto* page : *space) {
       Traverse(page);

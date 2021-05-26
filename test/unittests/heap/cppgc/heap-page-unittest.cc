@@ -54,39 +54,39 @@ TEST_F(PageTest, PredefinedSpaces) {
   RawHeap& heap = GetRawHeap();
   {
     auto* gced = MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kNormal1), space);
-    EXPECT_EQ(0u, space->index());
-    EXPECT_FALSE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kNormal1), &space);
+    EXPECT_EQ(0u, space.index());
+    EXPECT_FALSE(space.is_large());
   }
   {
     auto* gced = MakeGarbageCollected<GCed<32>>(GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kNormal2), space);
-    EXPECT_EQ(1u, space->index());
-    EXPECT_FALSE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kNormal2), &space);
+    EXPECT_EQ(1u, space.index());
+    EXPECT_FALSE(space.is_large());
   }
   {
     auto* gced = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kNormal3), space);
-    EXPECT_EQ(2u, space->index());
-    EXPECT_FALSE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kNormal3), &space);
+    EXPECT_EQ(2u, space.index());
+    EXPECT_FALSE(space.is_large());
   }
   {
     auto* gced = MakeGarbageCollected<GCed<128>>(GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kNormal4), space);
-    EXPECT_EQ(3u, space->index());
-    EXPECT_FALSE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kNormal4), &space);
+    EXPECT_EQ(3u, space.index());
+    EXPECT_FALSE(space.is_large());
   }
   {
     auto* gced = MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
         GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kLarge), space);
-    EXPECT_EQ(4u, space->index());
-    EXPECT_TRUE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kLarge), &space);
+    EXPECT_EQ(4u, space.index());
+    EXPECT_TRUE(space.is_large());
   }
 }
 
@@ -112,7 +112,7 @@ TEST_F(PageTest, NormalPageIndexing) {
   size_t page_n = 0;
   for (const BasePage* page : *space) {
     EXPECT_FALSE(page->is_large());
-    EXPECT_EQ(space, page->space());
+    EXPECT_EQ(space, &page->space());
     ++page_n;
   }
   EXPECT_EQ(page_n, space->size());
