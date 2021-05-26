@@ -65,6 +65,7 @@ auto_builder(
                 "third_party/perfetto",
                 "third_party/protobuf",
                 # Skip these dependencies (list without solution name prefix).
+                "third_party/google_benchmark/src",
                 "test/mozilla/data",
                 "test/simdjs/data",
                 "test/test262/data",
@@ -119,6 +120,28 @@ auto_builder(
             "reviewers": [
                 "ahaas@chromium.org",
                 "clemensb@chromium.org",
+            ],
+            "show_commit_log": True,
+        },
+    },
+)
+
+auto_builder(
+    name = "Auto-roll - google_benchmark",
+    executable = "recipe:v8/auto_roll_v8_deps",
+    schedule = "0 5 * * *",
+    in_list = "infra",
+    properties = {
+        "autoroller_config": {
+            "target_config": autoroller_target_config,
+            "subject": "Update google_benchmark",
+            "includes": [
+                # Only roll these dependencies (list without solution name prefix).
+                "third_party/google_benchmark/src",
+            ],
+            "reviewers": [
+                "v8-waterfall-sheriff@grotations.appspotmail.com",
+                "mlippautz@chromium.org",
             ],
             "show_commit_log": True,
         },
