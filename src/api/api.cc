@@ -8305,21 +8305,17 @@ void Isolate::Initialize(Isolate* isolate,
   }
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(isolate);
+  if (i_isolate->snapshot_blob() == nullptr) {
+    FATAL(
+        "V8 snapshot blob was not set during initialization. This can mean "
+        "that the snapshot blob file is corrupted or missing.");
+  }
   if (!i::Snapshot::Initialize(i_isolate)) {
     // If snapshot data was provided and we failed to deserialize it must
     // have been corrupted.
-    if (i_isolate->snapshot_blob() != nullptr) {
-      FATAL(
-          "Failed to deserialize the V8 snapshot blob. This can mean that the "
-          "snapshot blob file is corrupted or missing.");
-    }
-    base::ElapsedTimer timer;
-    if (i::FLAG_profile_deserialization) timer.Start();
-    i_isolate->InitWithoutSnapshot();
-    if (i::FLAG_profile_deserialization) {
-      double ms = timer.Elapsed().InMillisecondsF();
-      i::PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
-    }
+    FATAL(
+        "Failed to deserialize the V8 snapshot blob. This can mean that the "
+        "snapshot blob file is corrupted or missing.");
   }
   i_isolate->set_only_terminate_in_safe_scope(
       params.only_terminate_in_safe_scope);
