@@ -43,6 +43,10 @@
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/struct-types.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -831,6 +835,69 @@ void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
   }
 }
 
+namespace {
+
+#if V8_ENABLE_WEBASSEMBLY
+
+inline WasmValueType GetWasmValueType(wasm::ValueType type) {
+#define TYPE_CASE(Name) \
+  case wasm::k##Name:   \
+    return WasmValueType::k##Name;
+
+  switch (type.kind()) {
+    TYPE_CASE(I8)
+    TYPE_CASE(I16)
+    TYPE_CASE(I32)
+    TYPE_CASE(I64)
+    TYPE_CASE(F32)
+    TYPE_CASE(F64)
+    TYPE_CASE(S128)
+    TYPE_CASE(Ref)
+    TYPE_CASE(OptRef)
+
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+      // Rtt values are not supposed to be made available to JavaScript side.
+      UNREACHABLE();
+
+    case wasm::kVoid:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+#undef TYPE_CASE
+}
+
+Handle<Smi> MakeLoadWasmStructFieldHandler(Isolate* isolate,
+                                           Handle<JSReceiver> holder,
+                                           LookupIterator* lookup) {
+  DCHECK(holder->IsWasmObject(isolate));
+  WasmValueType type;
+  int field_offset;
+  if (holder->IsWasmArray(isolate)) {
+    // The only named property that WasmArray has is length.
+    DCHECK_EQ(0, lookup->property_details().field_index());
+    DCHECK_EQ(*isolate->factory()->length_string(), *lookup->name());
+    type = WasmValueType::kU32;
+    field_offset = WasmArray::kLengthOffset;
+  } else {
+    wasm::StructType* struct_type = Handle<WasmStruct>::cast(holder)->type();
+    int field_index = lookup->property_details().field_index();
+    type = GetWasmValueType(struct_type->field(field_index));
+    field_offset =
+        WasmStruct::kHeaderSize + struct_type->field_offset(field_index);
+
+    const size_t kMaxWasmFieldOffset =
+        WasmStruct::kHeaderSize + wasm::StructType::kMaxFieldOffset;
+    static_assert(kMaxWasmFieldOffset <= LoadHandler::WasmFieldOffsetBits::kMax,
+                  "Bigger numbers of struct fields require different approach");
+  }
+  return LoadHandler::LoadWasmStructField(isolate, type, field_offset);
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+}  // namespace
+
 Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   ReadOnlyRoots roots(isolate());
@@ -1040,13 +1107,22 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         if (holder_is_lookup_start_object) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
       } else if (lookup->IsElement(*holder)) {
+#if V8_ENABLE_WEBASSEMBLY
+        if (holder_is_lookup_start_object && holder->IsWasmStruct()) {
+          // TODO(ishell): Consider supporting indexed access to WasmStruct
+          // fields.
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
+          return LoadHandler::LoadNonExistent(isolate());
+        }
+#endif  // V8_ENABLE_WEBASSEMBLY
         TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
         return LoadHandler::LoadSlow(isolate());
       } else {
         DCHECK_EQ(kField, lookup->property_details().location());
 #if V8_ENABLE_WEBASSEMBLY
         if (V8_UNLIKELY(holder->IsWasmObject(isolate()))) {
-          smi_handler = LoadHandler::LoadSlow(isolate());
+          smi_handler =
+              MakeLoadWasmStructFieldHandler(isolate(), holder, lookup);
         } else  // NOLINT(readability/braces)
 #endif          // V8_ENABLE_WEBASSEMBLY
         {

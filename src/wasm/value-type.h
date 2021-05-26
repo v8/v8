@@ -50,6 +50,8 @@ class Simd128;
   V(OptRef, kTaggedSizeLog2, OptRef, AnyTagged, 'n', "ref null")            \
   V(Bottom, -1, Void, None, '*', "<bot>")
 
+constexpr int kMaxValueTypeSize = 16;  // bytes
+
 // Represents a WebAssembly heap type, as per the typed-funcref and gc
 // proposals.
 // The underlying Representation enumeration encodes heap types as follows:

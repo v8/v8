@@ -56,6 +56,14 @@ Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadWasmStructField(Isolate* isolate,
+                                             WasmValueType type, int offset) {
+  int config = KindBits::encode(kField) | IsWasmStructBits::encode(true) |
+               WasmFieldTypeBits::encode(type) |
+               WasmFieldOffsetBits::encode(offset);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
   int config = KindBits::encode(kConstantFromPrototype);
   return handle(Smi::FromInt(config), isolate);
@@ -115,6 +123,13 @@ Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
   int config =
       KindBits::encode(kIndexedString) |
       AllowOutOfBoundsBits::encode(load_mode == LOAD_IGNORE_OUT_OF_BOUNDS);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> LoadHandler::LoadWasmArrayElement(Isolate* isolate,
+                                              WasmValueType type) {
+  int config = KindBits::encode(kElement) | IsWasmArrayBits::encode(true) |
+               WasmArrayTypeBits::encode(type);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -188,6 +203,35 @@ Handle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate,
   int config = KindBits::encode(
       holder_is_receiver ? kApiSetter : kApiSetterHolderIsPrototype);
   return handle(Smi::FromInt(config), isolate);
+}
+
+inline const char* WasmValueType2String(WasmValueType type) {
+  switch (type) {
+    case WasmValueType::kI8:
+      return "i8";
+    case WasmValueType::kI16:
+      return "i16";
+    case WasmValueType::kI32:
+      return "i32";
+    case WasmValueType::kU32:
+      return "u32";
+    case WasmValueType::kI64:
+      return "i64";
+    case WasmValueType::kF32:
+      return "f32";
+    case WasmValueType::kF64:
+      return "f64";
+    case WasmValueType::kS128:
+      return "s128";
+
+    case WasmValueType::kRef:
+      return "Ref";
+    case WasmValueType::kOptRef:
+      return "OptRef";
+
+    case WasmValueType::kNumTypes:
+      return "???";
+  }
 }
 
 }  // namespace internal

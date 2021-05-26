@@ -287,7 +287,7 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
                                         TVariable<Float64T>* var_double_value,
                                         Label* rebox_double, Label* miss,
                                         ExitPoint* exit_point) {
-  Comment("field_load");
+  Comment("LoadField");
   TNode<IntPtrT> index =
       Signed(DecodeWord<LoadHandler::FieldIndexBits>(handler_word));
   TNode<IntPtrT> offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
@@ -331,6 +331,108 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
     Goto(rebox_double);
   }
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+
+void AccessorAssembler::HandleLoadWasmField(
+    TNode<WasmObject> holder, TNode<Int32T> wasm_value_type,
+    TNode<IntPtrT> field_offset, TVariable<Float64T>* var_double_value,
+    Label* rebox_double, ExitPoint* exit_point) {
+  Label type_I8(this), type_I16(this), type_I32(this), type_U32(this),
+      type_I64(this), type_U64(this), type_F32(this), type_F64(this),
+      unsupported_type(this, Label::kDeferred),
+      unexpected_type(this, Label::kDeferred);
+  Label* wasm_value_type_labels[] = {
+      &type_I8,          &type_I16,        &type_I32, &type_U32,
+      &type_I64,         &type_F32,        &type_F64, &unsupported_type,
+      &unsupported_type, &unsupported_type};
+  int32_t wasm_value_types[] = {
+      static_cast<int32_t>(WasmValueType::kI8),
+      static_cast<int32_t>(WasmValueType::kI16),
+      static_cast<int32_t>(WasmValueType::kI32),
+      static_cast<int32_t>(WasmValueType::kU32),
+      static_cast<int32_t>(WasmValueType::kI64),
+      static_cast<int32_t>(WasmValueType::kF32),
+      static_cast<int32_t>(WasmValueType::kF64),
+      // TODO(ishell): support the following value types.
+      static_cast<int32_t>(WasmValueType::kS128),
+      static_cast<int32_t>(WasmValueType::kRef),
+      static_cast<int32_t>(WasmValueType::kOptRef)};
+  const size_t kWasmValueTypeCount =
+      static_cast<size_t>(WasmValueType::kNumTypes);
+  DCHECK_EQ(kWasmValueTypeCount, arraysize(wasm_value_types));
+  DCHECK_EQ(kWasmValueTypeCount, arraysize(wasm_value_type_labels));
+
+  Switch(wasm_value_type, &unexpected_type, wasm_value_types,
+         wasm_value_type_labels, kWasmValueTypeCount);
+  BIND(&type_I8);
+  {
+    Comment("type_I8");
+    TNode<Int32T> value = LoadObjectField<Int8T>(holder, field_offset);
+    exit_point->Return(SmiFromInt32(value));
+  }
+  BIND(&type_I16);
+  {
+    Comment("type_I16");
+    TNode<Int32T> value = LoadObjectField<Int16T>(holder, field_offset);
+    exit_point->Return(SmiFromInt32(value));
+  }
+  BIND(&type_I32);
+  {
+    Comment("type_I32");
+    TNode<Int32T> value = LoadObjectField<Int32T>(holder, field_offset);
+    exit_point->Return(ChangeInt32ToTagged(value));
+  }
+  BIND(&type_U32);
+  {
+    Comment("type_U32");
+    TNode<Uint32T> value = LoadObjectField<Uint32T>(holder, field_offset);
+    exit_point->Return(ChangeUint32ToTagged(value));
+  }
+  BIND(&type_I64);
+  {
+    Comment("type_I64");
+    Unreachable();
+  }
+  BIND(&type_F32);
+  {
+    Comment("type_F32");
+    TNode<Float32T> value = LoadObjectField<Float32T>(holder, field_offset);
+    *var_double_value = ChangeFloat32ToFloat64(value);
+    Goto(rebox_double);
+  }
+  BIND(&type_F64);
+  {
+    Comment("type_F64");
+    TNode<Float64T> value = LoadObjectField<Float64T>(holder, field_offset);
+    *var_double_value = value;
+    Goto(rebox_double);
+  }
+  BIND(&unsupported_type);
+  {
+    Print("Not supported Wasm field type");
+    Unreachable();
+  }
+  BIND(&unexpected_type);
+  { Unreachable(); }
+}
+
+void AccessorAssembler::HandleLoadWasmField(
+    TNode<WasmObject> holder, TNode<WordT> handler_word,
+    TVariable<Float64T>* var_double_value, Label* rebox_double,
+    ExitPoint* exit_point) {
+  Comment("LoadWasmField");
+  TNode<Int32T> wasm_value_type =
+      Signed(DecodeWord32<LoadHandler::WasmFieldTypeBits>(
+          TruncateWordToInt32(handler_word)));
+  TNode<IntPtrT> field_offset =
+      Signed(DecodeWord<LoadHandler::WasmFieldOffsetBits>(handler_word));
+
+  HandleLoadWasmField(holder, wasm_value_type, field_offset, var_double_value,
+                      rebox_double, exit_point);
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TNode<Object> AccessorAssembler::LoadDescriptorValue(
     TNode<Map> map, TNode<IntPtrT> descriptor_entry) {
@@ -378,6 +480,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     BIND(&if_element);
     {
       Comment("element_load");
+      // TODO(ishell): implement
+      CSA_ASSERT(this, IsClearWord<LoadHandler::IsWasmArrayBits>(handler_word));
       TVARIABLE(Int32T, var_instance_type);
       TNode<IntPtrT> intptr_index = TryToIntptr(
           p->name(), &try_string_to_array_index, &var_instance_type);
@@ -558,8 +662,24 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
          &module_export, &interceptor);
 
   BIND(&field);
-  HandleLoadField(CAST(holder), handler_word, var_double_value, rebox_double,
-                  miss, exit_point);
+  {
+#if V8_ENABLE_WEBASSEMBLY
+    Label is_wasm_field(this);
+    GotoIf(IsSetWord<LoadHandler::IsWasmStructBits>(handler_word),
+           &is_wasm_field);
+#else
+    CSA_ASSERT(this, IsClearWord<LoadHandler::IsWasmStructBits>(handler_word));
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+    HandleLoadField(CAST(holder), handler_word, var_double_value, rebox_double,
+                    miss, exit_point);
+
+#if V8_ENABLE_WEBASSEMBLY
+    BIND(&is_wasm_field);
+    HandleLoadWasmField(CAST(holder), handler_word, var_double_value,
+                        rebox_double, exit_point);
+#endif  // V8_ENABLE_WEBASSEMBLY
+  }
 
   BIND(&nonexistent);
   // This is a handler for a load of a non-existent value.
@@ -2633,6 +2753,7 @@ void AccessorAssembler::GenericPropertyLoad(
 
   BIND(&special_receiver);
   {
+    // TODO(ishell): Consider supporting WasmObjects.
     // TODO(jkummerow): Consider supporting JSModuleNamespace.
     GotoIfNot(
         InstanceTypeEqual(lookup_start_object_instance_type, JS_PROXY_TYPE),

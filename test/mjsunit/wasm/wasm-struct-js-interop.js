@@ -4,9 +4,10 @@
 
 // Flags: --allow-natives-syntax --experimental-wasm-gc --wasm-gc-js-interop
 // Flags: --expose-gc
-// Flags: --no-lazy-feedback-allocation
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
+
+const kIterationsCountForICProgression = 20;
 
 // TODO(ishell): remove once leaked maps could keep NativeModule alive.
 let instances = [];
@@ -69,9 +70,9 @@ function createStruct_i() {
 
 (function TestSimpleStructInterop() {
   function f(o) {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < kIterationsCountForICProgression; i++) {
       let v = o.$field0;
-      assertEquals(v, 153);
+      assertEquals(153, v);
     }
   }
 

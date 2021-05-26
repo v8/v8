@@ -4,9 +4,10 @@
 
 // Flags: --allow-natives-syntax --experimental-wasm-gc --wasm-gc-js-interop
 // Flags: --expose-gc
-// Flags: --no-lazy-feedback-allocation
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
+
+const kIterationsCountForICProgression = 20;
 
 // TODO(ishell): remove once leaked maps could keep NativeModule alive.
 let instances = [];
@@ -71,9 +72,9 @@ function createArray_i() {
 
 (function TestSimpleArrayInterop() {
   function f(o) {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < kIterationsCountForICProgression; i++) {
       let len = o.length;
-      print("len = " + len);
+      assertEquals(10, len);
       // Keyed loads are not supported yet
       // let v0 = o[0];
       // %DebugPrint(v0);

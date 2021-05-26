@@ -9286,6 +9286,9 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
     TNode<Uint32T> representation =
         DecodeWord32<PropertyDetails::RepresentationField>(details);
 
+    // TODO(ishell): support WasmValues.
+    CSA_ASSERT(this, Word32NotEqual(representation,
+                                    Int32Constant(Representation::kWasmValue)));
     field_index =
         IntPtrAdd(field_index, LoadMapInobjectPropertiesStartInWords(map));
     TNode<IntPtrT> instance_size_in_words = LoadMapInstanceSizeInWords(map);
