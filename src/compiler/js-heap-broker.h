@@ -618,14 +618,14 @@ template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
                                                           T object) {
-  return TryMakeRef(broker, object, kAssumeMemoryFence).value();
+  return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
 
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
                                                           Handle<T> object) {
-  return TryMakeRef(broker, object, kAssumeMemoryFence).value();
+  return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
 
 }  // namespace compiler
