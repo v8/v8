@@ -941,6 +941,14 @@ class WasmObject : public JSReceiver {
   DECL_CAST(WasmObject)
   DECL_VERIFIER(WasmObject)
 
+ protected:
+  // Returns boxed value of the object's field/element with given type and
+  // offset.
+  static inline Handle<Object> ReadValueAt(Isolate* isolate,
+                                           Handle<HeapObject> obj,
+                                           wasm::ValueType type,
+                                           uint32_t offset);
+
   OBJECT_CONSTRUCTORS(WasmObject, JSReceiver);
 };
 
@@ -960,6 +968,11 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
 
   wasm::WasmValue GetFieldValue(uint32_t field_index);
 
+  // Returns boxed value of the object's field.
+  static inline Handle<Object> GetField(Isolate* isolate,
+                                        Handle<WasmStruct> obj,
+                                        uint32_t field_index);
+
   DECL_CAST(WasmStruct)
   DECL_PRINTER(WasmStruct)
 
@@ -978,6 +991,11 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
 
   static inline int SizeFor(Map map, int length);
   static inline int GcSafeSizeFor(Map map, int length);
+
+  // Returns boxed value of the array's element.
+  static inline Handle<Object> GetElement(Isolate* isolate,
+                                          Handle<WasmArray> array,
+                                          uint32_t index);
 
   DECL_CAST(WasmArray)
   DECL_PRINTER(WasmArray)

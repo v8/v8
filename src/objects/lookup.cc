@@ -19,6 +19,10 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/struct-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -852,6 +856,17 @@ Handle<Object> LookupIterator::FetchValue(
     AllocationPolicy allocation_policy) const {
   Object result;
   if (IsElement(*holder_)) {
+#if V8_ENABLE_WEBASSEMBLY
+    if (V8_UNLIKELY(holder_->IsWasmObject(isolate_))) {
+      if (holder_->IsWasmStruct()) {
+        // WasmStructs don't have elements.
+        return isolate_->factory()->undefined_value();
+      }
+      Handle<WasmArray> holder = GetHolder<WasmArray>();
+      return WasmArray::GetElement(isolate_, holder, number_.as_uint32());
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    DCHECK(holder_->IsJSObject(isolate_));
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
     return accessor->Get(holder, number_);
@@ -869,6 +884,27 @@ Handle<Object> LookupIterator::FetchValue(
     }
   } else if (property_details_.location() == kField) {
     DCHECK_EQ(kData, property_details_.kind());
+#if V8_ENABLE_WEBASSEMBLY
+    if (V8_UNLIKELY(holder_->IsWasmObject(isolate_))) {
+      if (allocation_policy == AllocationPolicy::kAllocationDisallowed) {
+        // TODO(ishell): consider taking field type into account and relaxing
+        // this a bit.
+        return isolate_->factory()->undefined_value();
+      }
+      if (holder_->IsWasmArray(isolate_)) {
+        // WasmArrays don't have other named properties besides "length".
+        DCHECK_EQ(*name_, ReadOnlyRoots(isolate_).length_string());
+        Handle<WasmArray> holder = GetHolder<WasmArray>();
+        uint32_t length = holder->length();
+        return isolate_->factory()->NewNumberFromUint(length);
+      }
+      Handle<WasmStruct> holder = GetHolder<WasmStruct>();
+      return WasmStruct::GetField(isolate_, holder,
+                                  property_details_.field_index());
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+    DCHECK(holder_->IsJSObject(isolate_));
     Handle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index =
         FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());

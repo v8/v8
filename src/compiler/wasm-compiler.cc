@@ -6270,6 +6270,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   // through JavaScript, where they show up as opaque boxes. This will disappear
   // once we have a proper WasmGC <-> JS interaction story.
   Node* BuildAllocateObjectWrapper(Node* input) {
+    if (FLAG_wasm_gc_js_interop) return input;
     return gasm_->CallBuiltin(
         Builtins::kWasmAllocateObjectWrapper, Operator::kEliminatable, input,
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
@@ -6280,6 +6281,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   // {wasm_wrapped_object_symbol} in {input}, or {input} itself if the property
   // is not found.
   Node* BuildUnpackObjectWrapper(Node* input) {
+    if (FLAG_wasm_gc_js_interop) return input;
     Node* obj = gasm_->CallBuiltin(
         Builtins::kWasmGetOwnProperty, Operator::kEliminatable, input,
         LOAD_ROOT(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol),
