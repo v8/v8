@@ -534,7 +534,7 @@ void TurboAssembler::StoreTaggedField(const Register& value,
                                       const Register& scratch) {
   if (COMPRESS_POINTERS_BOOL) {
     RecordComment("[ StoreTagged");
-    StoreWord(value, dst_field_operand, scratch);
+    StoreU32(value, dst_field_operand, scratch);
     RecordComment("]");
   } else {
     StoreU64(value, dst_field_operand, scratch);
@@ -2847,8 +2847,8 @@ void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand current only supports d-form
-void TurboAssembler::StoreWord(Register src, const MemOperand& mem,
-                               Register scratch) {
+void TurboAssembler::StoreU32(Register src, const MemOperand& mem,
+                              Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2891,8 +2891,8 @@ void TurboAssembler::LoadU16(Register dst, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand current only supports d-form
-void MacroAssembler::StoreHalfWord(Register src, const MemOperand& mem,
-                                   Register scratch) {
+void TurboAssembler::StoreU16(Register src, const MemOperand& mem,
+                              Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2921,8 +2921,8 @@ void TurboAssembler::LoadU8(Register dst, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand current only supports d-form
-void MacroAssembler::StoreByte(Register src, const MemOperand& mem,
-                               Register scratch) {
+void TurboAssembler::StoreU8(Register src, const MemOperand& mem,
+                             Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 

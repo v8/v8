@@ -38,7 +38,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_PPC64
-#define StorePUX stdux
 #define ShiftLeftImm sldi
 #define ShiftRightImm srdi
 #define ClearLeftImm clrldi
@@ -48,7 +47,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 #define ShiftRight_ srd
 #define ShiftRightArith srad
 #else
-#define StorePUX stwux
 #define ShiftLeftImm slwi
 #define ShiftRightImm srwi
 #define ClearLeftImm clrlwi
@@ -139,14 +137,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     mov(kRootRegister, Operand(isolate_root));
   }
-
-  void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void LoadU64WithUpdate(Register dst, const MemOperand& mem,
-                         Register scratch = no_reg);
-  void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
-  void StoreU64WithUpdate(Register src, const MemOperand& mem,
-                          Register scratch = no_reg);
 
   void LoadDouble(DoubleRegister dst, const MemOperand& mem,
                   Register scratch = no_reg);
@@ -705,11 +695,22 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressAnyTagged(Register destination, MemOperand field_operand);
   void DecompressAnyTagged(Register destination, Register source);
 
-  void LoadU32(Register dst, const MemOperand& mem, Register scratch);
+  void LoadU64WithUpdate(Register dst, const MemOperand& mem,
+                         Register scratch = no_reg);
+  void StoreU64WithUpdate(Register src, const MemOperand& mem,
+                          Register scratch = no_reg);
+
+  void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadU32(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadU16(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadS16(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void LoadU8(Register dst, const MemOperand& mem, Register scratch);
-  void StoreWord(Register src, const MemOperand& mem, Register scratch);
+  void LoadU8(Register dst, const MemOperand& mem, Register scratch = no_reg);
+
+  void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StoreU32(Register src, const MemOperand& mem, Register scratch);
+  void StoreU16(Register src, const MemOperand& mem, Register scratch);
+  void StoreU8(Register src, const MemOperand& mem, Register scratch);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -785,10 +786,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // than assembler-ppc and may generate variable length sequences
 
   // load a literal double value <value> to FPR <result>
-
-  void StoreHalfWord(Register src, const MemOperand& mem, Register scratch);
-
-  void StoreByte(Register src, const MemOperand& mem, Register scratch);
 
   void LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
                    Register scratch = no_reg);

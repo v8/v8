@@ -1100,7 +1100,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
       FieldMemOperand(feedback_vector, FeedbackVector::kInvocationCountOffset),
       r0);
   __ addi(r8, r8, Operand(1));
-  __ StoreWord(
+  __ StoreU32(
       r8,
       FieldMemOperand(feedback_vector, FeedbackVector::kInvocationCountOffset),
       r0);
@@ -1121,10 +1121,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                 BytecodeArray::kOsrNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ li(r8, Operand(0));
-  __ StoreHalfWord(r8,
-                   FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                   BytecodeArray::kOsrNestingLevelOffset),
-                   r0);
+  __ StoreU16(r8,
+              FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                              BytecodeArray::kOsrNestingLevelOffset),
+              r0);
 
   // Load initial bytecode offset.
   __ mov(kInterpreterBytecodeOffsetRegister,
