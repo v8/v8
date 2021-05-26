@@ -45,10 +45,82 @@ V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
 
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
+                         std::unique_ptr<protocol::Value>* result);
+
+Response arrayToProtocolValue(v8::Local<v8::Context> context,
+                              v8::Local<v8::Array> array, int maxDepth,
+                              std::unique_ptr<protocol::ListValue>* result) {
+  std::unique_ptr<protocol::ListValue> inspectorArray =
+      protocol::ListValue::create();
+  uint32_t length = array->Length();
+  for (uint32_t i = 0; i < length; i++) {
+    v8::Local<v8::Value> value;
+    if (!array->Get(context, i).ToLocal(&value))
+      return Response::InternalError();
+    std::unique_ptr<protocol::Value> element;
+    Response response = toProtocolValue(context, value, maxDepth - 1, &element);
+    if (!response.IsSuccess()) return response;
+    inspectorArray->pushValue(std::move(element));
+  }
+  *result = std::move(inspectorArray);
+  return Response::Success();
+}
+
+Response objectToProtocolValue(
+    v8::Local<v8::Context> context, v8::Local<v8::Object> object, int maxDepth,
+    std::unique_ptr<protocol::DictionaryValue>* result) {
+  std::unique_ptr<protocol::DictionaryValue> jsonObject =
+      protocol::DictionaryValue::create();
+  v8::Local<v8::Array> propertyNames;
+  if (!object->GetPropertyNames(context).ToLocal(&propertyNames))
+    return Response::InternalError();
+  uint32_t length = propertyNames->Length();
+  for (uint32_t i = 0; i < length; i++) {
+    v8::Local<v8::Value> name;
+    if (!propertyNames->Get(context, i).ToLocal(&name))
+      return Response::InternalError();
+    if (name->IsString()) {
+      v8::Maybe<bool> hasRealNamedProperty =
+          object->HasRealNamedProperty(context, name.As<v8::String>());
+      // Don't access properties with interceptors.
+      if (hasRealNamedProperty.IsNothing() || !hasRealNamedProperty.FromJust())
+        continue;
+    }
+    v8::Local<v8::String> propertyName;
+    if (!name->ToString(context).ToLocal(&propertyName)) continue;
+    v8::Local<v8::Value> property;
+    if (!object->Get(context, name).ToLocal(&property))
+      return Response::InternalError();
+    if (property->IsUndefined()) continue;
+    std::unique_ptr<protocol::Value> propertyValue;
+    Response response =
+        toProtocolValue(context, property, maxDepth - 1, &propertyValue);
+    if (!response.IsSuccess()) return response;
+    jsonObject->setValue(toProtocolString(context->GetIsolate(), propertyName),
+                         std::move(propertyValue));
+  }
+  *result = std::move(jsonObject);
+  return Response::Success();
+}
+
+std::unique_ptr<protocol::FundamentalValue> toProtocolValue(
+    double doubleValue) {
+  if (doubleValue >= std::numeric_limits<int>::min() &&
+      doubleValue <= std::numeric_limits<int>::max() &&
+      bit_cast<int64_t>(doubleValue) != bit_cast<int64_t>(-0.0)) {
+    int intValue = static_cast<int>(doubleValue);
+    if (intValue == doubleValue) {
+      return protocol::FundamentalValue::create(intValue);
+    }
+  }
+  return protocol::FundamentalValue::create(doubleValue);
+}
+
+Response toProtocolValue(v8::Local<v8::Context> context,
+                         v8::Local<v8::Value> value, int maxDepth,
                          std::unique_ptr<protocol::Value>* result) {
-  if (!maxDepth)
+  if (maxDepth <= 0)
     return Response::ServerError("Object reference chain is too long");
-  maxDepth--;
 
   if (value->IsNull() || value->IsUndefined()) {
     *result = protocol::Value::null();
@@ -61,16 +133,7 @@ Response toProtocolValue(v8::Local<v8::Context> context,
   }
   if (value->IsNumber()) {
     double doubleValue = value.As<v8::Number>()->Value();
-    if (doubleValue >= std::numeric_limits<int>::min() &&
-        doubleValue <= std::numeric_limits<int>::max() &&
-        bit_cast<int64_t>(doubleValue) != bit_cast<int64_t>(-0.0)) {
-      int intValue = static_cast<int>(doubleValue);
-      if (intValue == doubleValue) {
-        *result = protocol::FundamentalValue::create(intValue);
-        return Response::Success();
-      }
-    }
-    *result = protocol::FundamentalValue::create(doubleValue);
+    *result = toProtocolValue(doubleValue);
     return Response::Success();
   }
   if (value->IsString()) {
@@ -80,57 +143,19 @@ Response toProtocolValue(v8::Local<v8::Context> context,
   }
   if (value->IsArray()) {
     v8::Local<v8::Array> array = value.As<v8::Array>();
-    std::unique_ptr<protocol::ListValue> inspectorArray =
-        protocol::ListValue::create();
-    uint32_t length = array->Length();
-    for (uint32_t i = 0; i < length; i++) {
-      v8::Local<v8::Value> value;
-      if (!array->Get(context, i).ToLocal(&value))
-        return Response::InternalError();
-      std::unique_ptr<protocol::Value> element;
-      Response response = toProtocolValue(context, value, maxDepth, &element);
-      if (!response.IsSuccess()) return response;
-      inspectorArray->pushValue(std::move(element));
-    }
-    *result = std::move(inspectorArray);
-    return Response::Success();
+    std::unique_ptr<protocol::ListValue> list_result;
+    auto response =
+        arrayToProtocolValue(context, array, maxDepth, &list_result);
+    *result = std::move(list_result);
+    return response;
   }
   if (value->IsObject()) {
-    std::unique_ptr<protocol::DictionaryValue> jsonObject =
-        protocol::DictionaryValue::create();
     v8::Local<v8::Object> object = value.As<v8::Object>();
-    v8::Local<v8::Array> propertyNames;
-    if (!object->GetPropertyNames(context).ToLocal(&propertyNames))
-      return Response::InternalError();
-    uint32_t length = propertyNames->Length();
-    for (uint32_t i = 0; i < length; i++) {
-      v8::Local<v8::Value> name;
-      if (!propertyNames->Get(context, i).ToLocal(&name))
-        return Response::InternalError();
-      // FIXME(yurys): v8::Object should support GetOwnPropertyNames
-      if (name->IsString()) {
-        v8::Maybe<bool> hasRealNamedProperty =
-            object->HasRealNamedProperty(context, name.As<v8::String>());
-        if (hasRealNamedProperty.IsNothing() ||
-            !hasRealNamedProperty.FromJust())
-          continue;
-      }
-      v8::Local<v8::String> propertyName;
-      if (!name->ToString(context).ToLocal(&propertyName)) continue;
-      v8::Local<v8::Value> property;
-      if (!object->Get(context, name).ToLocal(&property))
-        return Response::InternalError();
-      if (property->IsUndefined()) continue;
-      std::unique_ptr<protocol::Value> propertyValue;
-      Response response =
-          toProtocolValue(context, property, maxDepth, &propertyValue);
-      if (!response.IsSuccess()) return response;
-      jsonObject->setValue(
-          toProtocolString(context->GetIsolate(), propertyName),
-          std::move(propertyValue));
-    }
-    *result = std::move(jsonObject);
-    return Response::Success();
+    std::unique_ptr<protocol::DictionaryValue> dict_result;
+    auto response =
+        objectToProtocolValue(context, object, maxDepth, &dict_result);
+    *result = std::move(dict_result);
+    return response;
   }
 
   return Response::ServerError("Object couldn't be returned by value");
