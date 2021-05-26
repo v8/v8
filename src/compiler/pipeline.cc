@@ -956,6 +956,13 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 
 void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
                             Schedule* schedule, const char* phase_name) {
+#ifdef V8_RUNTIME_CALL_STATS
+  PipelineRunScope scope(data, "V8.TraceScheduleAndVerify",
+                         RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
+                         RuntimeCallStats::kThreadSpecific);
+#else
+  PipelineRunScope scope(data, "V8.TraceScheduleAndVerify");
+#endif
   if (info->trace_turbo_json()) {
     UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
@@ -2041,33 +2048,116 @@ struct ScheduledEffectControlLinearizationPhase {
   }
 };
 
+struct WasmOptimizationPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
+
+  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan) {
+    // Run optimizations in two rounds: First one around load elimination and
+    // then one around branch elimination. This is because those two
+    // optimizations sometimes display quadratic complexity when run together.
+    // We only need load elimination for managed objects.
+    if (FLAG_experimental_wasm_gc) {
+      GraphReducer graph_reducer(temp_zone, data->graph(),
+                                 &data->info()->tick_counter(), data->broker(),
+                                 data->jsgraph()->Dead(),
+                                 data->observe_node_manager());
+      MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
+                                             allow_signalling_nan);
+      DeadCodeElimination dead_code_elimination(
+          &graph_reducer, data->graph(), data->common(), temp_zone,
+          data->info()->concurrent_inlining());
+      CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                           data->broker(), data->common(),
+                                           data->machine(), temp_zone);
+      ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
+      CsaLoadElimination load_elimination(&graph_reducer, data->jsgraph(),
+                                          temp_zone);
+      AddReducer(data, &graph_reducer, &machine_reducer);
+      AddReducer(data, &graph_reducer, &dead_code_elimination);
+      AddReducer(data, &graph_reducer, &common_reducer);
+      AddReducer(data, &graph_reducer, &value_numbering);
+      AddReducer(data, &graph_reducer, &load_elimination);
+      graph_reducer.ReduceGraph();
+    }
+    {
+      GraphReducer graph_reducer(temp_zone, data->graph(),
+                                 &data->info()->tick_counter(), data->broker(),
+                                 data->jsgraph()->Dead(),
+                                 data->observe_node_manager());
+      MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
+                                             allow_signalling_nan);
+      DeadCodeElimination dead_code_elimination(
+          &graph_reducer, data->graph(), data->common(), temp_zone,
+          data->info()->concurrent_inlining());
+      CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                           data->broker(), data->common(),
+                                           data->machine(), temp_zone);
+      ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
+      BranchElimination branch_condition_elimination(
+          &graph_reducer, data->jsgraph(), temp_zone);
+      AddReducer(data, &graph_reducer, &machine_reducer);
+      AddReducer(data, &graph_reducer, &dead_code_elimination);
+      AddReducer(data, &graph_reducer, &common_reducer);
+      AddReducer(data, &graph_reducer, &value_numbering);
+      AddReducer(data, &graph_reducer, &branch_condition_elimination);
+      graph_reducer.ReduceGraph();
+    }
+  }
+};
+
 struct CsaEarlyOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(CSAEarlyOptimization)
 
-  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan) {
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
-                                           allow_signalling_nan);
-    BranchElimination branch_condition_elimination(&graph_reducer,
-                                                   data->jsgraph(), temp_zone);
-    DeadCodeElimination dead_code_elimination(
-        &graph_reducer, data->graph(), data->common(), temp_zone,
-        data->info()->concurrent_inlining());
-    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->broker(), data->common(),
-                                         data->machine(), temp_zone);
-    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
-    CsaLoadElimination load_elimination(&graph_reducer, data->jsgraph(),
-                                        temp_zone);
-    AddReducer(data, &graph_reducer, &machine_reducer);
-    AddReducer(data, &graph_reducer, &branch_condition_elimination);
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &value_numbering);
-    AddReducer(data, &graph_reducer, &load_elimination);
-    graph_reducer.ReduceGraph();
+  void Run(PipelineData* data, Zone* temp_zone) {
+    // Run optimizations in two rounds: First one around load elimination and
+    // then one around branch elimination. This is because those two
+    // optimizations sometimes display quadratic complexity when run together.
+    {
+      GraphReducer graph_reducer(temp_zone, data->graph(),
+                                 &data->info()->tick_counter(), data->broker(),
+                                 data->jsgraph()->Dead(),
+                                 data->observe_node_manager());
+      MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
+                                             true);
+      DeadCodeElimination dead_code_elimination(
+          &graph_reducer, data->graph(), data->common(), temp_zone,
+          data->info()->concurrent_inlining());
+      CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                           data->broker(), data->common(),
+                                           data->machine(), temp_zone);
+      ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
+      CsaLoadElimination load_elimination(&graph_reducer, data->jsgraph(),
+                                          temp_zone);
+      AddReducer(data, &graph_reducer, &machine_reducer);
+      AddReducer(data, &graph_reducer, &dead_code_elimination);
+      AddReducer(data, &graph_reducer, &common_reducer);
+      AddReducer(data, &graph_reducer, &value_numbering);
+      AddReducer(data, &graph_reducer, &load_elimination);
+      graph_reducer.ReduceGraph();
+    }
+    {
+      GraphReducer graph_reducer(temp_zone, data->graph(),
+                                 &data->info()->tick_counter(), data->broker(),
+                                 data->jsgraph()->Dead(),
+                                 data->observe_node_manager());
+      MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
+                                             true);
+      DeadCodeElimination dead_code_elimination(
+          &graph_reducer, data->graph(), data->common(), temp_zone,
+          data->info()->concurrent_inlining());
+      CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                           data->broker(), data->common(),
+                                           data->machine(), temp_zone);
+      ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
+      BranchElimination branch_condition_elimination(
+          &graph_reducer, data->jsgraph(), temp_zone);
+      AddReducer(data, &graph_reducer, &machine_reducer);
+      AddReducer(data, &graph_reducer, &dead_code_elimination);
+      AddReducer(data, &graph_reducer, &common_reducer);
+      AddReducer(data, &graph_reducer, &value_numbering);
+      AddReducer(data, &graph_reducer, &branch_condition_elimination);
+      graph_reducer.ReduceGraph();
+    }
   }
 };
 
@@ -2966,7 +3056,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("V8.TFMachineCode");
   }
 
-  pipeline.Run<CsaEarlyOptimizationPhase>(true);
+  pipeline.Run<CsaEarlyOptimizationPhase>();
   pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
 
   // Optimize memory access and allocation operations.
@@ -3183,8 +3273,8 @@ void Pipeline::GenerateCodeForWasmFunction(
   const bool is_asm_js = is_asmjs_module(module);
 
   if (FLAG_wasm_opt || is_asm_js) {
-    pipeline.Run<CsaEarlyOptimizationPhase>(is_asm_js);
-    pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
+    pipeline.Run<WasmOptimizationPhase>(is_asm_js);
+    pipeline.RunPrintAndVerify(WasmOptimizationPhase::phase_name(), true);
   } else {
     pipeline.Run<WasmBaseOptimizationPhase>();
     pipeline.RunPrintAndVerify(WasmBaseOptimizationPhase::phase_name(), true);
@@ -3201,6 +3291,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     data.node_origins()->RemoveDecorator();
   }
 
+  data.BeginPhaseKind("V8.InstructionSelection");
   pipeline.ComputeScheduledGraph();
 
   Linkage linkage(call_descriptor);
