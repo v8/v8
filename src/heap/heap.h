@@ -20,6 +20,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/enum-set.h"
 #include "src/base/platform/condition-variable.h"
+#include "src/base/platform/mutex.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -2398,6 +2399,9 @@ class Heap {
 
   HeapObject pending_layout_change_object_;
 
+  // This mutex protects original_top/limit and pending_object for all spaces.
+  base::SharedMutex pending_allocation_mutex_;
+
   base::Mutex unprotected_memory_chunks_mutex_;
   std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
   bool unprotected_memory_chunks_registry_enabled_ = false;
@@ -2441,6 +2445,7 @@ class Heap {
   friend class ScavengeTaskObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
+  friend class LargeObjectSpace;
   friend class LocalHeap;
   friend class MarkingBarrier;
   friend class OldLargeObjectSpace;

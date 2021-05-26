@@ -130,6 +130,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   LargePage* AllocateLargePage(int object_size, Executability executable);
 
+  void UpdatePendingObject(HeapObject object);
+
   std::atomic<size_t> size_;  // allocated bytes
   int page_count_;       // number of chunks
   std::atomic<size_t> objects_size_;  // size of objects

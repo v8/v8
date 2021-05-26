@@ -457,6 +457,8 @@ class V8_EXPORT_PRIVATE NewSpace
   SemiSpace& to_space() { return to_space_; }
 
   void MoveOriginalTopForward() {
+    base::SharedMutexGuard<base::kExclusive> guard(
+        &heap_->pending_allocation_mutex_);
     DCHECK_GE(top(), original_top_);
     DCHECK_LE(top(), original_limit_);
     original_top_.store(top(), std::memory_order_release);
