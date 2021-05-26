@@ -446,7 +446,8 @@ class Map : public HeapObject {
   DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(raw_transitions)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
-  DECL_ACCESSORS(prototype_info, Object)
+  DECL_GETTER(prototype_info, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_info, Object)
   // PrototypeInfo is created lazily using this helper (which installs it on
   // the given prototype's map).
   static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
@@ -760,11 +761,6 @@ class Map : public HeapObject {
   // passed to an Object.create call. Might transition the given {prototype}.
   static Handle<Map> GetObjectCreateMap(Isolate* isolate,
                                         Handle<HeapObject> prototype);
-
-  // Similar to {GetObjectCreateMap} but does not transition {prototype} and
-  // fails gracefully by returning an empty handle instead.
-  static MaybeHandle<Map> TryGetObjectCreateMap(Isolate* isolate,
-                                                Handle<HeapObject> prototype);
 
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();

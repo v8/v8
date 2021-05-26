@@ -54,8 +54,14 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSReceiver())
 
-ACCESSORS_CHECKED(Map, prototype_info, Object,
-                  kTransitionsOrPrototypeInfoOffset, this->is_prototype_map())
+DEF_GETTER(Map, prototype_info, Object) {
+  Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(
+      cage_base, *this);
+  DCHECK(this->is_prototype_map());
+  return value;
+}
+RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info, Object,
+                          kTransitionsOrPrototypeInfoOffset)
 
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|

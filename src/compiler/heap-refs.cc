@@ -439,8 +439,8 @@ class JSObjectData : public JSReceiverData {
 
   void SerializeObjectCreateMap(JSHeapBroker* broker);
 
-  ObjectData* object_create_map(
-      JSHeapBroker* broker) const {  // Can be nullptr.
+  // Can be nullptr.
+  ObjectData* object_create_map(JSHeapBroker* broker) const {
     if (!serialized_object_create_map_) {
       DCHECK_NULL(object_create_map_);
       TRACE_MISSING(broker, "object_create_map on " << this);
@@ -2892,24 +2892,6 @@ int ObjectRef::AsSmi() const {
   return Handle<Smi>::cast(object())->value();
 }
 
-base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
-  if (data_->should_access_heap()) {
-    Handle<Map> instance_map;
-    if (Map::TryGetObjectCreateMap(broker()->isolate(), object())
-            .ToHandle(&instance_map)) {
-      return MakeRef(broker(), instance_map);
-    } else {
-      return base::Optional<MapRef>();
-    }
-  }
-  ObjectData* map_data = data()->AsJSObject()->object_create_map(broker());
-  if (map_data == nullptr) return base::Optional<MapRef>();
-  if (map_data->should_access_heap()) {
-    return MakeRef(broker(), Handle<Map>::cast(map_data->object()));
-  }
-  return MapRef(broker(), map_data->AsMap());
-}
-
 #define DEF_TESTER(Type, ...)                              \
   bool MapRef::Is##Type##Map() const {                     \
     return InstanceTypeChecker::Is##Type(instance_type()); \
@@ -4425,10 +4407,40 @@ ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
 }
 
 void JSObjectRef::SerializeObjectCreateMap() {
-  if (data_->should_access_heap()) return;
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return;
+  }
   CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
                 broker()->mode() == JSHeapBroker::kSerializing);
   data()->AsJSObject()->SerializeObjectCreateMap(broker());
+}
+
+base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    Handle<Map> map_handle = Handle<Map>::cast(map().object());
+    // Note: implemented as an acquire-load.
+    if (!map_handle->is_prototype_map()) return {};
+
+    Handle<Object> maybe_proto_info = broker()->CanonicalPersistentHandle(
+        map_handle->prototype_info(kAcquireLoad));
+    if (!maybe_proto_info->IsPrototypeInfo()) return {};
+
+    MaybeObject maybe_object_create_map =
+        Handle<PrototypeInfo>::cast(maybe_proto_info)
+            ->object_create_map(kAcquireLoad);
+    if (!maybe_object_create_map->IsWeak()) return {};
+
+    return MapRef(broker(),
+                  broker()->GetOrCreateData(
+                      maybe_object_create_map->GetHeapObjectAssumeWeak(),
+                      kAssumeMemoryFence));
+  }
+  ObjectData* map_data = data()->AsJSObject()->object_create_map(broker());
+  if (map_data == nullptr) return base::Optional<MapRef>();
+  if (map_data->should_access_heap()) {
+    return TryMakeRef(broker(), Handle<Map>::cast(map_data->object()));
+  }
+  return MapRef(broker(), map_data->AsMap());
 }
 
 bool MapRef::TrySerializeOwnDescriptor(InternalIndex descriptor_index) {

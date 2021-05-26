@@ -934,24 +934,6 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
   return Map::TransitionToPrototype(isolate, map, prototype);
 }
 
-// static
-MaybeHandle<Map> Map::TryGetObjectCreateMap(Isolate* isolate,
-                                            Handle<HeapObject> prototype) {
-  Handle<Map> map(isolate->native_context()->object_function().initial_map(),
-                  isolate);
-  if (map->prototype() == *prototype) return map;
-  if (prototype->IsNull(isolate)) {
-    return isolate->slow_object_with_null_prototype_map();
-  }
-  if (!prototype->IsJSObject()) return MaybeHandle<Map>();
-  Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
-  if (!js_prototype->map().is_prototype_map()) return MaybeHandle<Map>();
-  Handle<PrototypeInfo> info =
-      Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
-  if (!info->HasObjectCreateMap()) return MaybeHandle<Map>();
-  return handle(info->ObjectCreateMap(), isolate);
-}
-
 static bool ContainsMap(MapHandles const& maps, Map map) {
   DCHECK(!map.is_null());
   for (Handle<Map> current : maps) {
@@ -2256,7 +2238,7 @@ Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
     return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
   }
   Handle<PrototypeInfo> proto_info = isolate->factory()->NewPrototypeInfo();
-  prototype->map().set_prototype_info(*proto_info);
+  prototype->map().set_prototype_info(*proto_info, kReleaseStore);
   return proto_info;
 }
 
@@ -2268,7 +2250,7 @@ Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<Map> prototype_map,
     return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
   }
   Handle<PrototypeInfo> proto_info = isolate->factory()->NewPrototypeInfo();
-  prototype_map->set_prototype_info(*proto_info);
+  prototype_map->set_prototype_info(*proto_info, kReleaseStore);
   return proto_info;
 }
 
