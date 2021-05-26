@@ -140,7 +140,13 @@ class WasmGCTester {
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CallFunctionImpl(function_index, sig, &packer);
-    CHECK(!isolate_->has_pending_exception());
+    if (isolate_->has_pending_exception()) {
+      Handle<String> message =
+          ErrorUtils::ToString(isolate_,
+                               handle(isolate_->pending_exception(), isolate_))
+              .ToHandleChecked();
+      FATAL("%s", message->ToCString().get());
+    }
     packer.Reset();
     CHECK_EQ(expected, packer.Pop<int32_t>());
   }
@@ -148,6 +154,18 @@ class WasmGCTester {
   MaybeHandle<Object> GetResultObject(uint32_t function_index) {
     const FunctionSig* sig = instance_->module()->functions[function_index].sig;
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
+    CallFunctionImpl(function_index, sig, &packer);
+    CHECK(!isolate_->has_pending_exception());
+    packer.Reset();
+    return Handle<Object>(Object(packer.Pop<Address>()), isolate_);
+  }
+
+  MaybeHandle<Object> GetResultObject(uint32_t function_index, int32_t arg) {
+    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    DCHECK_EQ(sig->parameter_count(), 1);
+    DCHECK(sig->parameters()[0] == kWasmI32);
+    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
+    packer.Push(arg);
     CallFunctionImpl(function_index, sig, &packer);
     CHECK(!isolate_->has_pending_exception());
     packer.Reset();
@@ -838,7 +856,7 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
   const byte array_index = tester.DefineArray(kWasmI16, true);
   ValueType array_type = optref(array_index);
 
-  int32_t expected_outputs[] = {0x12345678, 10, 0xFEDC, 0xFF1234};
+  int32_t array_elements[] = {0x12345678, 10, 0xFEDC, 0xFF1234};
 
   const byte param_index = 0;
   const byte local_index = 1;
@@ -846,26 +864,194 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
       tester.sigs.i_i(), {array_type},
       {WASM_LOCAL_SET(
            local_index,
-           WASM_ARRAY_NEW_WITH_RTT(array_index, WASM_I32V(0x12345678),
+           WASM_ARRAY_NEW_WITH_RTT(array_index, WASM_I32V(array_elements[0]),
                                    WASM_I32V(4), WASM_RTT_CANON(array_index))),
        WASM_ARRAY_SET(array_index, WASM_LOCAL_GET(local_index), WASM_I32V(1),
-                      WASM_I32V(10)),
+                      WASM_I32V(array_elements[1])),
        WASM_ARRAY_SET(array_index, WASM_LOCAL_GET(local_index), WASM_I32V(2),
-                      WASM_I32V(0xFEDC)),
+                      WASM_I32V(array_elements[2])),
        WASM_ARRAY_SET(array_index, WASM_LOCAL_GET(local_index), WASM_I32V(3),
-                      WASM_I32V(0xFF1234)),
+                      WASM_I32V(array_elements[3])),
        WASM_ARRAY_GET_S(array_index, WASM_LOCAL_GET(local_index),
                         WASM_LOCAL_GET(param_index)),
        kExprEnd});
 
   tester.CompileModule();
   // Exactly the 2 lsb's should be stored by array.new.
-  tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[0]), 0);
-  tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[1]), 1);
+  tester.CheckResult(kF, static_cast<int16_t>(array_elements[0]), 0);
+  tester.CheckResult(kF, static_cast<int16_t>(array_elements[1]), 1);
   // Sign should be extended.
-  tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[2]), 2);
+  tester.CheckResult(kF, static_cast<int16_t>(array_elements[2]), 2);
   // Exactly the 2 lsb's should be stored by array.set.
-  tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[3]), 3);
+  tester.CheckResult(kF, static_cast<int16_t>(array_elements[3]), 3);
+}
+
+WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
+  FLAG_SCOPE(experimental_wasm_gc_experiments);
+  WasmGCTester tester(execution_tier);
+  const byte array32_index = tester.DefineArray(kWasmI32, true);
+  const byte array16_index = tester.DefineArray(kWasmI16, true);
+  const byte arrayref_index = tester.DefineArray(optref(array32_index), true);
+
+  // Copies i32 ranges: local1[0..3] to local2[6..9].
+  const byte kCopyI32 = tester.DefineFunction(
+      tester.sigs.i_i(), {optref(array32_index), optref(array32_index)},
+      {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+                      WASM_I32V(0)),
+       WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+                      WASM_I32V(1)),
+       WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+                      WASM_I32V(2)),
+       WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+                      WASM_I32V(3)),
+       WASM_LOCAL_SET(2, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(2),
+                       WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
+                       WASM_I32V(4)),
+       WASM_ARRAY_GET(array32_index, WASM_LOCAL_GET(2), WASM_LOCAL_GET(0)),
+       kExprEnd});
+
+  // Copies i16 ranges: local1[0..3] to local2[6..9].
+  const byte kCopyI16 = tester.DefineFunction(
+      tester.sigs.i_i(), {optref(array16_index), optref(array16_index)},
+      {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array16_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array16_index))),
+       WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+                      WASM_I32V(0)),
+       WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+                      WASM_I32V(1)),
+       WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+                      WASM_I32V(2)),
+       WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+                      WASM_I32V(3)),
+       WASM_LOCAL_SET(2, WASM_ARRAY_NEW_DEFAULT(array16_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array16_index))),
+       WASM_ARRAY_COPY(array16_index, array16_index, WASM_LOCAL_GET(2),
+                       WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
+                       WASM_I32V(4)),
+       WASM_ARRAY_GET_S(array16_index, WASM_LOCAL_GET(2), WASM_LOCAL_GET(0)),
+       kExprEnd});
+
+  // Copies reference ranges: local1[0..3] to local2[6..9].
+  const byte kCopyRef = tester.DefineFunction(
+      FunctionSig::Build(tester.zone(), {optref(array32_index)}, {kWasmI32}),
+      {optref(arrayref_index), optref(arrayref_index)},
+      {WASM_LOCAL_SET(1,
+                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
+                                             WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(6),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(7),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(8),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(9),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(2,
+                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
+                                             WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(2),
+                       WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
+                       WASM_I32V(4)),
+       WASM_ARRAY_GET(arrayref_index, WASM_LOCAL_GET(2), WASM_LOCAL_GET(0)),
+       kExprEnd});
+
+  // Copies overlapping reference ranges: local1[0..3] to local1[2..5].
+  const byte kCopyRefOverlapping = tester.DefineFunction(
+      FunctionSig::Build(tester.zone(), {optref(array32_index)}, {kWasmI32}),
+      {optref(arrayref_index)},
+      {WASM_LOCAL_SET(1,
+                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
+                                             WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(2),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(3),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(4),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(5),
+                                             WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(1),
+                       WASM_I32V(2), WASM_LOCAL_GET(1), WASM_I32V(0),
+                       WASM_I32V(4)),
+       WASM_ARRAY_GET(arrayref_index, WASM_LOCAL_GET(1), WASM_LOCAL_GET(0)),
+       kExprEnd});
+
+  const byte kOobSource = tester.DefineFunction(
+      tester.sigs.v_v(), {optref(array32_index), optref(array32_index)},
+      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(1),
+                       WASM_I32V(6), WASM_LOCAL_GET(0), WASM_I32V(8),
+                       WASM_I32V(4)),
+       kExprEnd});
+
+  const byte kOobDestination = tester.DefineFunction(
+      tester.sigs.v_v(), {optref(array32_index), optref(array32_index)},
+      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(1),
+                       WASM_I32V(6), WASM_LOCAL_GET(0), WASM_I32V(3),
+                       WASM_I32V(5)),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult(kCopyI32, 0, 5);
+  tester.CheckResult(kCopyI32, 0, 6);
+  tester.CheckResult(kCopyI32, 1, 7);
+  tester.CheckResult(kCopyI32, 2, 8);
+  tester.CheckResult(kCopyI32, 3, 9);
+
+  tester.CheckResult(kCopyI16, 0, 5);
+  tester.CheckResult(kCopyI16, 0, 6);
+  tester.CheckResult(kCopyI16, 1, 7);
+  tester.CheckResult(kCopyI16, 2, 8);
+  tester.CheckResult(kCopyI16, 3, 9);
+
+  {
+    Handle<Object> result5 =
+        tester.GetResultObject(kCopyRef, 5).ToHandleChecked();
+    CHECK(result5->IsNull());
+    for (int i = 6; i <= 9; i++) {
+      Handle<Object> res =
+          tester.GetResultObject(kCopyRef, i).ToHandleChecked();
+      CHECK(res->IsWasmArray());
+      CHECK_EQ(Handle<WasmArray>::cast(res)->length(),
+               static_cast<uint32_t>(i));
+    }
+  }
+  CHECK(tester.GetResultObject(kCopyRefOverlapping, 6)
+            .ToHandleChecked()
+            ->IsNull());
+  Handle<Object> res0 =
+      tester.GetResultObject(kCopyRefOverlapping, 0).ToHandleChecked();
+  CHECK(res0->IsWasmArray());
+  CHECK_EQ(Handle<WasmArray>::cast(res0)->length(), static_cast<uint32_t>(2));
+  for (int i = 2; i <= 5; i++) {
+    Handle<Object> res =
+        tester.GetResultObject(kCopyRefOverlapping, i).ToHandleChecked();
+    CHECK(res->IsWasmArray());
+    CHECK_EQ(Handle<WasmArray>::cast(res)->length(), static_cast<uint32_t>(i));
+  }
+
+  tester.CheckHasThrown(kOobSource);
+  tester.CheckHasThrown(kOobDestination);
 }
 
 WASM_COMPILED_EXEC_TEST(NewDefault) {

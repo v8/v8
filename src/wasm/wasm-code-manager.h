@@ -98,6 +98,8 @@ struct WasmModule;
   IF_TSAN(V, TSANRelaxedStoreIgnoreFP)    \
   IF_TSAN(V, TSANRelaxedStoreSaveFP)      \
   V(WasmAllocateArrayWithRtt)             \
+  V(WasmArrayCopy)                        \
+  V(WasmArrayCopyWithChecks)              \
   V(WasmAllocateRtt)                      \
   V(WasmAllocateStructWithRtt)            \
   V(WasmSubtypeCheck)                     \

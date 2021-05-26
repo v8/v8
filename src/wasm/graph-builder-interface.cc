@@ -980,6 +980,13 @@ class WasmGraphBuildingInterface {
         builder_->ArrayLen(array_obj.node, null_check, decoder->position());
   }
 
+  void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
+                 const Value& src, const Value& src_index,
+                 const Value& length) {
+    builder_->ArrayCopy(dst.node, dst_index.node, src.node, src_index.node,
+                        length.node, decoder->position());
+  }
+
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
     result->node = builder_->I31New(input.node);
   }

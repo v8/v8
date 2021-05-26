@@ -588,7 +588,8 @@ namespace internal {
   F(WasmCompileWrapper, 2, 1)         \
   F(WasmTriggerTierUp, 1, 1)          \
   F(WasmDebugBreak, 0, 1)             \
-  F(WasmAllocateRtt, 2, 1)
+  F(WasmAllocateRtt, 2, 1)            \
+  F(WasmArrayCopy, 5, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I) \
   F(DeserializeWasmModule, 2, 1)           \

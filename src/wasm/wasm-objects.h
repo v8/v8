@@ -987,6 +987,9 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   inline wasm::ArrayType* type() const;
   static inline wasm::ArrayType* GcSafeType(Map map);
 
+  // Get the {ObjectSlot} corresponding to the element at {index}. Requires that
+  // this is a reference array.
+  ObjectSlot ElementSlot(uint32_t index);
   wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Map map, int length);

@@ -5903,11 +5903,22 @@ void WasmGraphBuilder::StructSet(Node* struct_object,
   gasm_->StoreStructField(struct_object, struct_type, field_index, field_value);
 }
 
-void WasmGraphBuilder::BoundsCheck(Node* array, Node* index,
-                                   wasm::WasmCodePosition position) {
+void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
+                                        wasm::WasmCodePosition position) {
   Node* length = gasm_->LoadWasmArrayLength(array);
   TrapIfFalse(wasm::kTrapArrayOutOfBounds, gasm_->Uint32LessThan(index, length),
               position);
+}
+
+void WasmGraphBuilder::BoundsCheckArrayCopy(Node* array, Node* index,
+                                            Node* length,
+                                            wasm::WasmCodePosition position) {
+  Node* array_length = gasm_->LoadWasmArrayLength(array);
+  Node* range_end = gasm_->Int32Add(index, length);
+  Node* range_valid = gasm_->Word32And(
+      gasm_->Uint32LessThanOrEqual(range_end, array_length),
+      gasm_->Uint32LessThanOrEqual(index, range_end));  // No overflow
+  TrapIfFalse(wasm::kTrapArrayOutOfBounds, range_valid, position);
 }
 
 Node* WasmGraphBuilder::ArrayGet(Node* array_object,
@@ -5918,7 +5929,7 @@ Node* WasmGraphBuilder::ArrayGet(Node* array_object,
     TrapIfTrue(wasm::kTrapNullDereference,
                gasm_->WordEqual(array_object, RefNull()), position);
   }
-  BoundsCheck(array_object, index, position);
+  BoundsCheckArray(array_object, index, position);
   MachineType machine_type = MachineType::TypeForRepresentation(
       type->element_type().machine_representation(), is_signed);
   Node* offset = gasm_->WasmArrayElementOffset(index, type->element_type());
@@ -5933,7 +5944,7 @@ void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,
     TrapIfTrue(wasm::kTrapNullDereference,
                gasm_->WordEqual(array_object, RefNull()), position);
   }
-  BoundsCheck(array_object, index, position);
+  BoundsCheckArray(array_object, index, position);
   Node* offset = gasm_->WasmArrayElementOffset(index, type->element_type());
   gasm_->StoreToObject(ObjectAccessForGCStores(type->element_type()),
                        array_object, offset, value);
@@ -5946,6 +5957,23 @@ Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
                gasm_->WordEqual(array_object, RefNull()), position);
   }
   return gasm_->LoadWasmArrayLength(array_object);
+}
+
+void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
+                                 Node* src_array, Node* src_index, Node* length,
+                                 wasm::WasmCodePosition position) {
+  // TODO(7748): Skip null checks when possible.
+  TrapIfTrue(wasm::kTrapNullDereference, gasm_->WordEqual(dst_array, RefNull()),
+             position);
+  TrapIfTrue(wasm::kTrapNullDereference, gasm_->WordEqual(src_array, RefNull()),
+             position);
+  BoundsCheckArrayCopy(dst_array, dst_index, length, position);
+  BoundsCheckArrayCopy(src_array, src_index, length, position);
+  Operator::Properties copy_properties =
+      Operator::kIdempotent | Operator::kNoThrow | Operator::kNoDeopt;
+  // The builtin needs the int parameters first.
+  gasm_->CallBuiltin(Builtins::kWasmArrayCopy, copy_properties, dst_index,
+                     src_index, length, dst_array, src_array);
 }
 
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
