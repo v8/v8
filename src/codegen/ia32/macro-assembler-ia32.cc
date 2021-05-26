@@ -323,9 +323,9 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
     for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
       XMMRegister reg = XMMRegister::from_code(i);
 #if V8_ENABLE_WEBASSEMBLY
-      movdqu(Operand(esp, (i - 1) * kStackSavedSavedFPSize), reg);
+      Movdqu(Operand(esp, (i - 1) * kStackSavedSavedFPSize), reg);
 #else
-      movsd(Operand(esp, (i - 1) * kStackSavedSavedFPSize), reg);
+      Movsd(Operand(esp, (i - 1) * kStackSavedSavedFPSize), reg);
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
     bytes += delta;
@@ -343,9 +343,9 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
     for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
       XMMRegister reg = XMMRegister::from_code(i);
 #if V8_ENABLE_WEBASSEMBLY
-      movdqu(reg, Operand(esp, (i - 1) * kStackSavedSavedFPSize));
+      Movdqu(reg, Operand(esp, (i - 1) * kStackSavedSavedFPSize));
 #else
-      movsd(reg, Operand(esp, (i - 1) * kStackSavedSavedFPSize));
+      Movsd(reg, Operand(esp, (i - 1) * kStackSavedSavedFPSize));
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
     add(esp, Immediate(delta));
