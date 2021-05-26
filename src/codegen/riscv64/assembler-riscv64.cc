@@ -2593,7 +2593,7 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
   // Pointers are 48 bits
   // 6 fixed instructions are generated
   DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
-  int64_t a6 = imm & 0x3f;                      // bits 0:6. 6 bits
+  int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
   int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
   int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
