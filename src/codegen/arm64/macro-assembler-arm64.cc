@@ -45,17 +45,30 @@ CPURegList TurboAssembler::DefaultFPTmpList() {
   return CPURegList(fp_scratch1, fp_scratch2);
 }
 
+namespace {
+
+// For WebAssembly we care about the full floating point register. If we are not
+// running Wasm, we can get away with saving half of those registers.
+#if V8_ENABLE_WEBASSEMBLY
+constexpr int kStackSavedSavedFPSizeInBits = kQRegSizeInBits;
+#else
+constexpr int kStackSavedSavedFPSizeInBits = kDRegSizeInBits;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+}  // namespace
+
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {
   auto list = kCallerSaved;
   list.Remove(exclusion);
   list.Align();
 
-  int bytes = list.Count() * kXRegSizeInBits / 8;
+  int bytes = list.TotalSizeInBytes();
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
-    bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
+    auto fp_list = CPURegList::GetCallerSavedV(kStackSavedSavedFPSizeInBits);
+    DCHECK_EQ(fp_list.Count() % 2, 0);
+    bytes += fp_list.TotalSizeInBytes();
   }
   return bytes;
 }
@@ -68,12 +81,13 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
 
   PushCPURegList<kDontStoreLR>(list);
 
-  int bytes = list.Count() * kXRegSizeInBits / 8;
+  int bytes = list.TotalSizeInBytes();
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
-    PushCPURegList(kCallerSavedV);
-    bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
+    auto fp_list = CPURegList::GetCallerSavedV(kStackSavedSavedFPSizeInBits);
+    DCHECK_EQ(fp_list.Count() % 2, 0);
+    PushCPURegList(fp_list);
+    bytes += fp_list.TotalSizeInBytes();
   }
   return bytes;
 }
@@ -81,9 +95,10 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
 int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-    DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
-    PopCPURegList(kCallerSavedV);
-    bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
+    auto fp_list = CPURegList::GetCallerSavedV(kStackSavedSavedFPSizeInBits);
+    DCHECK_EQ(fp_list.Count() % 2, 0);
+    PopCPURegList(fp_list);
+    bytes += fp_list.TotalSizeInBytes();
   }
 
   auto list = kCallerSaved;
@@ -91,7 +106,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   list.Align();
 
   PopCPURegList<kDontLoadLR>(list);
-  bytes += list.Count() * kXRegSizeInBits / 8;
+  bytes += list.TotalSizeInBytes();
 
   return bytes;
 }

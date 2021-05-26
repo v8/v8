@@ -690,7 +690,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += kDoubleSize * XMMRegister::kNumRegisters;
+    bytes += kStackSavedSavedFPSize * XMMRegister::kNumRegisters;
   }
 
   return bytes;
@@ -712,11 +712,15 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == SaveFPRegsMode::kSave) {
-    int delta = kDoubleSize * XMMRegister::kNumRegisters;
+    const int delta = kStackSavedSavedFPSize * XMMRegister::kNumRegisters;
     AllocateStackSpace(delta);
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      Movsd(Operand(rsp, i * kDoubleSize), reg);
+#if V8_ENABLE_WEBASSEMBLY
+      Movdqu(Operand(rsp, i * kStackSavedSavedFPSize), reg);
+#else
+      Movsd(Operand(rsp, i * kStackSavedSavedFPSize), reg);
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
     bytes += delta;
   }
@@ -730,10 +734,14 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   if (fp_mode == SaveFPRegsMode::kSave) {
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      Movsd(reg, Operand(rsp, i * kDoubleSize));
+#if V8_ENABLE_WEBASSEMBLY
+      Movdqu(reg, Operand(rsp, i * kStackSavedSavedFPSize));
+#else
+      Movsd(reg, Operand(rsp, i * kStackSavedSavedFPSize));
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
-    int delta = kDoubleSize * XMMRegister::kNumRegisters;
-    addq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    const int delta = kStackSavedSavedFPSize * XMMRegister::kNumRegisters;
+    addq(rsp, Immediate(delta));
     bytes += delta;
   }
 
