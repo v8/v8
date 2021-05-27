@@ -381,10 +381,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                 MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
                 Label::kNear);
   leaq(scratch, dst_op);
-
-  CallRecordWriteStubSaveRegisters(
-      dst_addr, scratch, RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
-      StubCallMode::kCallWasmRuntimeStub);
+  CallRecordWriteStub(dst_addr, scratch, RememberedSetAction::kEmit,
+                      SaveFPRegsMode::kSave,
+                      StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
 
