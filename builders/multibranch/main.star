@@ -195,6 +195,13 @@ in_category(
         use_goma = GOMA.DEFAULT,
     ),
     main_multibranch_builder(
+        name = "V8 Linux64 - no wasm - builder",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8", "track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
+        use_goma = GOMA.DEFAULT,
+        first_branch_version = "9.2",
+    ),
+    main_multibranch_builder(
         name = "V8 Linux - noi18n - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
