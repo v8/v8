@@ -71,6 +71,7 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
     // Update flag before parking this thread, this guarantees that the flag is
     // set before the next GC.
     base::MutexGuard guard(&mutex_);
+    if (shutdown_requested_) return false;
     first_thread = !block_for_collection_;
     block_for_collection_ = true;
     CHECK(timer_.IsStarted());
