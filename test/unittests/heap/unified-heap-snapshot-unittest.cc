@@ -361,8 +361,8 @@ TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
   const size_t js_size = Utils::OpenHandle(*wrapper_object)->Size();
 #if CPPGC_SUPPORTS_OBJECT_NAMES
   const size_t cpp_size =
-      cppgc::internal::HeapObjectHeader::FromPayload(gc_w_js_ref.Get())
-          .GetSize();
+      cppgc::internal::HeapObjectHeader::FromObject(gc_w_js_ref.Get())
+          .AllocatedSize();
   ForEachEntryWithName(snapshot, GetExpectedName<GCedWithJSRef>(),
                        [cpp_size, js_size](const HeapEntry& entry) {
                          EXPECT_EQ(cpp_size + js_size, entry.self_size());
