@@ -214,6 +214,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void NotifySweepingCompleted();
 
+  void NotifyGCCompleted();
+
   void NotifyYoungGenerationHandling(
       YoungGenerationHandling young_generation_handling);
 
@@ -414,6 +416,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   void FetchBackgroundMarkCompactCounters();
   void FetchBackgroundGeneralCounters();
 
+  void ReportFullCycleToRecorder();
+  void ReportIncrementalMarkingStepToRecorder();
+
   // Pointer to the heap that owns this tracer.
   Heap* heap_;
 
@@ -478,6 +483,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
   base::RingBuffer<BytesAndDuration> recorded_embedder_generation_allocations_;
   base::RingBuffer<double> recorded_survival_ratios_;
+
+  bool metrics_report_pending_ = false;
 
   base::Mutex background_counter_mutex_;
   BackgroundCounter background_counter_[Scope::NUMBER_OF_SCOPES];

@@ -87,8 +87,7 @@ void CheckConfig(Heap::Config config, Heap::MarkingType marking_support,
 
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
-    : HeapBase(platform, options.custom_spaces, options.stack_support,
-               nullptr /* metric_recorder */),
+    : HeapBase(platform, options.custom_spaces, options.stack_support),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints, options.marking_support,

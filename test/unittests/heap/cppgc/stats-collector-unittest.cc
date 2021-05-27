@@ -18,8 +18,9 @@ constexpr size_t kMinReportedSize = StatsCollector::kAllocationThresholdBytes;
 
 class StatsCollectorTest : public ::testing::Test {
  public:
-  StatsCollectorTest()
-      : stats(nullptr /* metric_recorder */, nullptr /* platform */) {}
+  static constexpr Platform* kNoPlatform = nullptr;
+
+  StatsCollectorTest() : stats(kNoPlatform) {}
 
   void FakeAllocate(size_t bytes) {
     stats.NotifyAllocation(bytes);

@@ -18,9 +18,7 @@ namespace internal {
 // static
 constexpr size_t StatsCollector::kAllocationThresholdBytes;
 
-StatsCollector::StatsCollector(
-    std::unique_ptr<MetricRecorder> histogram_recorder, Platform* platform)
-    : metric_recorder_(std::move(histogram_recorder)), platform_(platform) {
+StatsCollector::StatsCollector(Platform* platform) : platform_(platform) {
   USE(platform_);
 }
 
@@ -154,12 +152,12 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
 
 namespace {
 
-int64_t SumPhases(const MetricRecorder::CppGCFullCycle::Phases& phases) {
+int64_t SumPhases(const MetricRecorder::FullCycle::Phases& phases) {
   return phases.mark_duration_us + phases.weak_duration_us +
          phases.compact_duration_us + phases.sweep_duration_us;
 }
 
-MetricRecorder::CppGCFullCycle GetFullCycleEventForMetricRecorder(
+MetricRecorder::FullCycle GetFullCycleEventForMetricRecorder(
     int64_t atomic_mark_us, int64_t atomic_weak_us, int64_t atomic_compact_us,
     int64_t atomic_sweep_us, int64_t incremental_mark_us,
     int64_t incremental_sweep_us, int64_t concurrent_mark_us,
@@ -167,7 +165,7 @@ MetricRecorder::CppGCFullCycle GetFullCycleEventForMetricRecorder(
     int64_t objects_after_bytes, int64_t objects_freed_bytes,
     int64_t memory_before_bytes, int64_t memory_after_bytes,
     int64_t memory_freed_bytes) {
-  MetricRecorder::CppGCFullCycle event;
+  MetricRecorder::FullCycle event;
   // MainThread.Incremental:
   event.main_thread_incremental.mark_duration_us = incremental_mark_us;
   event.main_thread_incremental.sweep_duration_us = incremental_sweep_us;
@@ -223,7 +221,7 @@ void StatsCollector::NotifySweepingCompleted() {
   previous_ = std::move(current_);
   current_ = Event();
   if (metric_recorder_) {
-    MetricRecorder::CppGCFullCycle event = GetFullCycleEventForMetricRecorder(
+    MetricRecorder::FullCycle event = GetFullCycleEventForMetricRecorder(
         previous_.scope_data[kAtomicMark].InMicroseconds(),
         previous_.scope_data[kAtomicWeak].InMicroseconds(),
         previous_.scope_data[kAtomicCompact].InMicroseconds(),
@@ -315,14 +313,12 @@ void StatsCollector::RecordHistogramSample(ScopeId scope_id_,
                                            v8::base::TimeDelta time) {
   switch (scope_id_) {
     case kIncrementalMark: {
-      MetricRecorder::CppGCMainThreadIncrementalMark event{
-          time.InMicroseconds()};
+      MetricRecorder::MainThreadIncrementalMark event{time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }
     case kIncrementalSweep: {
-      MetricRecorder::CppGCMainThreadIncrementalSweep event{
-          time.InMicroseconds()};
+      MetricRecorder::MainThreadIncrementalSweep event{time.InMicroseconds()};
       metric_recorder_->AddMainThreadEvent(event);
       break;
     }

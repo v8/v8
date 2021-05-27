@@ -83,8 +83,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-           StackSupport stack_support,
-           std::unique_ptr<MetricRecorder> histogram_recorder);
+           StackSupport stack_support);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -195,6 +194,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   virtual void StartIncrementalGarbageCollectionForTesting() = 0;
   virtual void FinalizeIncrementalGarbageCollectionForTesting(
       EmbedderStackState) = 0;
+
+  void SetMetricRecorder(std::unique_ptr<MetricRecorder> histogram_recorder) {
+    stats_collector_->SetMetricRecorder(std::move(histogram_recorder));
+  }
 
  protected:
   // Used by the incremental scheduler to finalize a GC if supported.
