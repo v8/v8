@@ -548,8 +548,8 @@ void Heap::PrintShortHeapStatistics() {
                CommittedMemoryOfUnmapper() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
                external_memory_.total() / KB);
-  PrintIsolate(isolate_, "Backing store memory: %6zu KB\n",
-               backing_store_bytes_ / KB);
+  PrintIsolate(isolate_, "Backing store memory: %6" PRIu64 " KB\n",
+               backing_store_bytes() / KB);
   PrintIsolate(isolate_, "External memory global %zu KB\n",
                external_memory_callback_() / KB);
   PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",

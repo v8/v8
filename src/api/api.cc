@@ -8530,7 +8530,12 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->malloced_memory_ =
       isolate->allocator()->GetCurrentMemoryUsage() +
       isolate->string_table()->GetCurrentMemoryUsage();
-  heap_statistics->external_memory_ = isolate->heap()->backing_store_bytes();
+  // On 32-bit systems backing_store_bytes() might overflow size_t temporarily
+  // due to concurrent array buffer sweeping.
+  heap_statistics->external_memory_ =
+      isolate->heap()->backing_store_bytes() < SIZE_MAX
+          ? static_cast<size_t>(isolate->heap()->backing_store_bytes())
+          : SIZE_MAX;
   heap_statistics->peak_malloced_memory_ =
       isolate->allocator()->GetMaxMemoryUsage();
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();

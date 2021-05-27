@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_HEAP_INL_H_
 #define V8_HEAP_HEAP_INL_H_
 
+#include <atomic>
 #include <cmath>
 
 // Clients of this interface shouldn't depend on lots of heap internals.
@@ -686,14 +687,16 @@ int Heap::MaxNumberToStringCacheSize() const {
 
 void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                               size_t amount) {
-  base::CheckedIncrement(&backing_store_bytes_, amount);
+  base::CheckedIncrement(&backing_store_bytes_, static_cast<uint64_t>(amount),
+                         std::memory_order_relaxed);
   // TODO(mlippautz): Implement interrupt for global memory allocations that can
   // trigger garbage collections.
 }
 
 void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                               size_t amount) {
-  base::CheckedDecrement(&backing_store_bytes_, amount);
+  base::CheckedDecrement(&backing_store_bytes_, static_cast<uint64_t>(amount),
+                         std::memory_order_relaxed);
 }
 
 bool Heap::HasDirtyJSFinalizationRegistries() {
