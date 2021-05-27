@@ -345,6 +345,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void GenerateRecordWrite(RememberedSetAction rs_mode,
                            SaveFPRegsMode fp_mode) {
+    if (V8_DISABLE_WRITE_BARRIERS_BOOL) {
+      Return(TrueConstant());
+      return;
+    }
     switch (rs_mode) {
       case RememberedSetAction::kEmit:
         GenerationalWriteBarrier(fp_mode);
