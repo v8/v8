@@ -62,11 +62,11 @@ class Unmarker final : private HeapVisitor<Unmarker> {
   friend class HeapVisitor<Unmarker>;
 
  public:
-  explicit Unmarker(RawHeap* heap) { Traverse(heap); }
+  explicit Unmarker(RawHeap& heap) { Traverse(heap); }
 
  private:
-  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsMarked()) header->Unmark();
+  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
+    if (header.IsMarked()) header.Unmark();
     return true;
   }
 };
@@ -157,7 +157,7 @@ void Heap::StartGarbageCollection(Config config) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (config.collection_type == Config::CollectionType::kMajor)
-    Unmarker unmarker(&raw_heap());
+    Unmarker unmarker(raw_heap());
 #endif
 
   const Marker::MarkingConfig marking_config{

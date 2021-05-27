@@ -374,7 +374,7 @@ void CompactSpace(NormalPageSpace* space,
   using Pages = NormalPageSpace::Pages;
 
 #ifdef V8_USE_ADDRESS_SANITIZER
-  UnmarkedObjectsPoisoner().Traverse(space);
+  UnmarkedObjectsPoisoner().Traverse(*space);
 #endif  // V8_USE_ADDRESS_SANITIZER
 
   DCHECK(space->is_compactable());

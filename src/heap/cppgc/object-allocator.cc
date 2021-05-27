@@ -188,10 +188,10 @@ void ObjectAllocator::ResetLinearAllocationBuffers() {
    public:
     explicit Resetter(StatsCollector* stats) : stats_collector_(stats) {}
 
-    bool VisitLargePageSpace(LargePageSpace*) { return true; }
+    bool VisitLargePageSpace(LargePageSpace&) { return true; }
 
-    bool VisitNormalPageSpace(NormalPageSpace* space) {
-      ReplaceLinearAllocationBuffer(*space, *stats_collector_, nullptr, 0);
+    bool VisitNormalPageSpace(NormalPageSpace& space) {
+      ReplaceLinearAllocationBuffer(space, *stats_collector_, nullptr, 0);
       return true;
     }
 
@@ -199,7 +199,7 @@ void ObjectAllocator::ResetLinearAllocationBuffers() {
     StatsCollector* stats_collector_;
   } visitor(stats_collector_);
 
-  visitor.Traverse(raw_heap_);
+  visitor.Traverse(*raw_heap_);
 }
 
 void ObjectAllocator::Terminate() {

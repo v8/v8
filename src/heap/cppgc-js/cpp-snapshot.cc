@@ -477,9 +477,9 @@ class LiveObjectsForVisibilityIterator final
       : graph_builder_(graph_builder) {}
 
  private:
-  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsFree()) return true;
-    graph_builder_.VisitForVisibility(nullptr, *header);
+  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
+    if (header.IsFree()) return true;
+    graph_builder_.VisitForVisibility(nullptr, header);
     graph_builder_.ProcessPendingObjects();
     return true;
   }
@@ -686,7 +686,7 @@ void CppGraphBuilderImpl::Run() {
   // First pass: Figure out which objects should be included in the graph -- see
   // class-level comment on CppGraphBuilder.
   LiveObjectsForVisibilityIterator visitor(*this);
-  visitor.Traverse(&cpp_heap_.raw_heap());
+  visitor.Traverse(cpp_heap_.raw_heap());
   // Second pass: Add graph nodes for objects that must be shown.
   states_.ForAllVisibleStates([this](StateBase* state) {
     ParentScope parent_scope(*state);

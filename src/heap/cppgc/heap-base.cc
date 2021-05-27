@@ -29,18 +29,18 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
   friend class HeapVisitor<ObjectSizeCounter>;
 
  public:
-  size_t GetSize(RawHeap* heap) {
+  size_t GetSize(RawHeap& heap) {
     Traverse(heap);
     return accumulated_size_;
   }
 
  private:
-  static size_t ObjectSize(const HeapObjectHeader* header) {
-    return ObjectView(*header).Size();
+  static size_t ObjectSize(const HeapObjectHeader& header) {
+    return ObjectView(header).Size();
   }
 
-  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsFree()) return true;
+  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
+    if (header.IsFree()) return true;
     accumulated_size_ += ObjectSize(header);
     return true;
   }
@@ -90,7 +90,7 @@ PageAllocator* HeapBase::page_allocator() const {
 }
 
 size_t HeapBase::ObjectPayloadSize() const {
-  return ObjectSizeCounter().GetSize(const_cast<RawHeap*>(&raw_heap()));
+  return ObjectSizeCounter().GetSize(const_cast<RawHeap&>(raw_heap()));
 }
 
 void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {

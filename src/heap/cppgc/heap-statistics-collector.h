@@ -18,11 +18,11 @@ class HeapStatisticsCollector : private HeapVisitor<HeapStatisticsCollector> {
   HeapStatistics CollectStatistics(HeapBase*);
 
  private:
-  bool VisitNormalPageSpace(NormalPageSpace*);
-  bool VisitLargePageSpace(LargePageSpace*);
-  bool VisitNormalPage(NormalPage*);
-  bool VisitLargePage(LargePage*);
-  bool VisitHeapObjectHeader(HeapObjectHeader*);
+  bool VisitNormalPageSpace(NormalPageSpace&);
+  bool VisitLargePageSpace(LargePageSpace&);
+  bool VisitNormalPage(NormalPage&);
+  bool VisitLargePage(LargePage&);
+  bool VisitHeapObjectHeader(HeapObjectHeader&);
 
   HeapStatistics* current_stats_;
   HeapStatistics::SpaceStatistics* current_space_stats_ = nullptr;

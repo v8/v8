@@ -37,25 +37,25 @@ class ObjectStartBitmapVerifier
   friend class HeapVisitor<ObjectStartBitmapVerifier>;
 
  public:
-  void Verify(RawHeap* heap) { Traverse(heap); }
+  void Verify(RawHeap& heap) { Traverse(heap); }
 
  private:
-  bool VisitNormalPage(NormalPage* page) {
+  bool VisitNormalPage(NormalPage& page) {
     // Remember bitmap and reset previous pointer.
-    bitmap_ = &page->object_start_bitmap();
+    bitmap_ = &page.object_start_bitmap();
     prev_ = nullptr;
     return false;
   }
 
-  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
-    if (header->IsLargeObject()) return true;
+  bool VisitHeapObjectHeader(HeapObjectHeader& header) {
+    if (header.IsLargeObject()) return true;
 
-    auto* raw_header = reinterpret_cast<ConstAddress>(header);
+    auto* raw_header = reinterpret_cast<ConstAddress>(&header);
     CHECK(bitmap_->CheckBit(raw_header));
     if (prev_) {
       CHECK_EQ(prev_, bitmap_->FindHeader(raw_header - 1));
     }
-    prev_ = header;
+    prev_ = &header;
     return true;
   }
 
@@ -337,12 +337,12 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   void Sweep() {
     for (SpaceState& state : *states_) {
       while (auto page = state.unswept_pages.Pop()) {
-        SweepPage(*page);
+        SweepPage(**page);
       }
     }
   }
 
-  void SweepPage(BasePage* page) { Traverse(page); }
+  void SweepPage(BasePage& page) { Traverse(page); }
 
   bool SweepWithDeadline(double deadline_in_seconds) {
     DCHECK(platform_);
@@ -378,7 +378,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     static constexpr size_t kDeadlineCheckInterval = 8;
     size_t page_count = 1;
     while (auto page = state->unswept_pages.Pop()) {
-      Traverse(*page);
+      Traverse(**page);
       if (page_count % kDeadlineCheckInterval == 0 &&
           deadline_in_seconds <= platform_->MonotonicallyIncreasingTime()) {
         return false;
@@ -389,27 +389,27 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     return true;
   }
 
-  bool VisitNormalPage(NormalPage* page) {
+  bool VisitNormalPage(NormalPage& page) {
     const InlinedFinalizationBuilder::ResultType result =
-        SweepNormalPage<InlinedFinalizationBuilder>(page);
+        SweepNormalPage<InlinedFinalizationBuilder>(&page);
     if (result.is_empty) {
-      NormalPage::Destroy(page);
+      NormalPage::Destroy(&page);
     } else {
-      page->space().AddPage(page);
+      page.space().AddPage(&page);
       largest_new_free_list_entry_ = std::max(
           result.largest_new_free_list_entry, largest_new_free_list_entry_);
     }
     return true;
   }
 
-  bool VisitLargePage(LargePage* page) {
-    HeapObjectHeader* header = page->ObjectHeader();
+  bool VisitLargePage(LargePage& page) {
+    HeapObjectHeader* header = page.ObjectHeader();
     if (header->IsMarked()) {
       StickyUnmark(header);
-      page->space().AddPage(page);
+      page.space().AddPage(&page);
     } else {
       header->Finalize();
-      LargePage::Destroy(page);
+      LargePage::Destroy(&page);
     }
     return true;
   }
@@ -433,7 +433,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 
     for (SpaceState& state : *states_) {
       while (auto page = state.unswept_pages.Pop()) {
-        Traverse(*page);
+        Traverse(**page);
         if (delegate->ShouldYield()) return;
       }
     }
@@ -445,32 +445,32 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
   }
 
  private:
-  bool VisitNormalPage(NormalPage* page) {
+  bool VisitNormalPage(NormalPage& page) {
     SpaceState::SweptPageState sweep_result =
-        SweepNormalPage<DeferredFinalizationBuilder>(page);
-    const size_t space_index = page->space().index();
+        SweepNormalPage<DeferredFinalizationBuilder>(&page);
+    const size_t space_index = page.space().index();
     DCHECK_GT(states_->size(), space_index);
     SpaceState& space_state = (*states_)[space_index];
     space_state.swept_unfinalized_pages.Push(std::move(sweep_result));
     return true;
   }
 
-  bool VisitLargePage(LargePage* page) {
-    HeapObjectHeader* header = page->ObjectHeader();
+  bool VisitLargePage(LargePage& page) {
+    HeapObjectHeader* header = page.ObjectHeader();
     if (header->IsMarked()) {
       StickyUnmark(header);
-      page->space().AddPage(page);
+      page.space().AddPage(&page);
       return true;
     }
     if (!header->IsFinalizable()) {
-      LargePage::Destroy(page);
+      LargePage::Destroy(&page);
       return true;
     }
-    const size_t space_index = page->space().index();
+    const size_t space_index = page.space().index();
     DCHECK_GT(states_->size(), space_index);
     SpaceState& state = (*states_)[space_index];
     state.swept_unfinalized_pages.Push(
-        {page, {page->ObjectHeader()}, {}, {}, true});
+        {&page, {page.ObjectHeader()}, {}, {}, true});
     return true;
   }
 
@@ -493,12 +493,12 @@ class PrepareForSweepVisitor final
       : states_(states),
         compactable_space_handling_(compactable_space_handling) {}
 
-  bool VisitNormalPageSpace(NormalPageSpace* space) {
+  bool VisitNormalPageSpace(NormalPageSpace& space) {
     if ((compactable_space_handling_ == CompactableSpaceHandling::kIgnore) &&
-        space->is_compactable())
+        space.is_compactable())
       return true;
-    DCHECK(!space->linear_allocation_buffer().size());
-    space->free_list().Clear();
+    DCHECK(!space.linear_allocation_buffer().size());
+    space.free_list().Clear();
 #ifdef V8_USE_ADDRESS_SANITIZER
     UnmarkedObjectsPoisoner().Traverse(space);
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -506,7 +506,7 @@ class PrepareForSweepVisitor final
     return true;
   }
 
-  bool VisitLargePageSpace(LargePageSpace* space) {
+  bool VisitLargePageSpace(LargePageSpace& space) {
 #ifdef V8_USE_ADDRESS_SANITIZER
     UnmarkedObjectsPoisoner().Traverse(space);
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -515,10 +515,10 @@ class PrepareForSweepVisitor final
   }
 
  private:
-  void ExtractPages(BaseSpace* space) {
-    BaseSpace::Pages space_pages = space->RemoveAllPages();
-    (*states_)[space->index()].unswept_pages.Insert(space_pages.begin(),
-                                                    space_pages.end());
+  void ExtractPages(BaseSpace& space) {
+    BaseSpace::Pages space_pages = space.RemoveAllPages();
+    (*states_)[space.index()].unswept_pages.Insert(space_pages.begin(),
+                                                   space_pages.end());
   }
 
   SpaceStates* states_;
@@ -543,10 +543,10 @@ class Sweeper::SweeperImpl final {
     platform_ = platform;
 #if DEBUG
     // Verify bitmap for all spaces regardless of |compactable_space_handling|.
-    ObjectStartBitmapVerifier().Verify(&heap_);
+    ObjectStartBitmapVerifier().Verify(heap_);
 #endif
     PrepareForSweepVisitor(&space_states_, config.compactable_space_handling)
-        .Traverse(&heap_);
+        .Traverse(heap_);
 
     if (config.sweeping_type == SweepingConfig::SweepingType::kAtomic) {
       Finish();
@@ -587,7 +587,7 @@ class Sweeper::SweeperImpl final {
       // unswept page. This also helps out the concurrent sweeper.
       MutatorThreadSweeper sweeper(&space_states_, platform_);
       while (auto page = space_state.unswept_pages.Pop()) {
-        sweeper.SweepPage(*page);
+        sweeper.SweepPage(**page);
         if (size <= sweeper.largest_new_free_list_entry()) return true;
       }
     }

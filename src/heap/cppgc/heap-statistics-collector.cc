@@ -90,7 +90,7 @@ HeapStatistics HeapStatisticsCollector::CollectStatistics(HeapBase* heap) {
   stats.detail_level = HeapStatistics::DetailLevel::kDetailed;
   current_stats_ = &stats;
 
-  Traverse(&heap->raw_heap());
+  Traverse(heap->raw_heap());
   FinalizeSpace(current_stats_, &current_space_stats_, &current_page_stats_);
 
   DCHECK_EQ(heap->stats_collector()->allocated_memory_size(),
@@ -98,20 +98,20 @@ HeapStatistics HeapStatisticsCollector::CollectStatistics(HeapBase* heap) {
   return stats;
 }
 
-bool HeapStatisticsCollector::VisitNormalPageSpace(NormalPageSpace* space) {
-  DCHECK_EQ(0u, space->linear_allocation_buffer().size());
+bool HeapStatisticsCollector::VisitNormalPageSpace(NormalPageSpace& space) {
+  DCHECK_EQ(0u, space.linear_allocation_buffer().size());
 
   FinalizeSpace(current_stats_, &current_space_stats_, &current_page_stats_);
 
   current_space_stats_ =
-      InitializeSpace(current_stats_, GetNormalPageSpaceName(space->index()));
+      InitializeSpace(current_stats_, GetNormalPageSpaceName(space.index()));
 
-  space->free_list().CollectStatistics(current_space_stats_->free_list_stats);
+  space.free_list().CollectStatistics(current_space_stats_->free_list_stats);
 
   return false;
 }
 
-bool HeapStatisticsCollector::VisitLargePageSpace(LargePageSpace* space) {
+bool HeapStatisticsCollector::VisitLargePageSpace(LargePageSpace& space) {
   FinalizeSpace(current_stats_, &current_space_stats_, &current_page_stats_);
 
   current_space_stats_ = InitializeSpace(current_stats_, "LargePageSpace");
@@ -119,7 +119,7 @@ bool HeapStatisticsCollector::VisitLargePageSpace(LargePageSpace* space) {
   return false;
 }
 
-bool HeapStatisticsCollector::VisitNormalPage(NormalPage* page) {
+bool HeapStatisticsCollector::VisitNormalPage(NormalPage& page) {
   DCHECK_NOT_NULL(current_space_stats_);
   FinalizePage(current_space_stats_, &current_page_stats_);
   current_space_stats_->page_stats.emplace_back(
@@ -128,11 +128,11 @@ bool HeapStatisticsCollector::VisitNormalPage(NormalPage* page) {
   return false;
 }
 
-bool HeapStatisticsCollector::VisitLargePage(LargePage* page) {
+bool HeapStatisticsCollector::VisitLargePage(LargePage& page) {
   DCHECK_NOT_NULL(current_space_stats_);
   FinalizePage(current_space_stats_, &current_page_stats_);
-  HeapObjectHeader* object_header = page->ObjectHeader();
-  size_t object_size = page->PayloadSize();
+  HeapObjectHeader* object_header = page.ObjectHeader();
+  size_t object_size = page.PayloadSize();
   RecordObjectType(current_space_stats_, object_header, object_size);
   size_t allocated_size = LargePage::AllocationSize(object_size);
   current_space_stats_->physical_size_bytes += allocated_size;
@@ -143,13 +143,13 @@ bool HeapStatisticsCollector::VisitLargePage(LargePage* page) {
   return true;
 }
 
-bool HeapStatisticsCollector::VisitHeapObjectHeader(HeapObjectHeader* header) {
-  DCHECK(!header->IsLargeObject());
+bool HeapStatisticsCollector::VisitHeapObjectHeader(HeapObjectHeader& header) {
+  DCHECK(!header.IsLargeObject());
   DCHECK_NOT_NULL(current_space_stats_);
   DCHECK_NOT_NULL(current_page_stats_);
-  if (header->IsFree()) return true;
-  size_t object_size = header->AllocatedSize();
-  RecordObjectType(current_space_stats_, header, object_size);
+  if (header.IsFree()) return true;
+  size_t object_size = header.AllocatedSize();
+  RecordObjectType(current_space_stats_, &header, object_size);
   current_page_stats_->used_size_bytes += object_size;
   return true;
 }
