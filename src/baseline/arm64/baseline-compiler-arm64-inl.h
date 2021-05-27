@@ -96,7 +96,7 @@ void BaselineCompiler::PrologueFillFrame() {
                       kInterpreterAccumulatorRegister);
     }
     __ masm()->Subs(scratch, scratch, 1);
-    __ JumpIf(Condition::kGreaterThan, &loop);
+    __ masm()->B(gt, &loop);
   }
   __ RecordComment("]");
 }
