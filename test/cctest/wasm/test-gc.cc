@@ -111,48 +111,25 @@ class WasmGCTester {
     instance_ = maybe_instance.ToHandleChecked();
   }
 
-  void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
-                        CWasmArgumentsPacker* packer) {
-    WasmCodeRefScope scope;
-    NativeModule* native_module = instance_->module_object().native_module();
-    WasmCode* code = native_module->GetCode(function_index);
-    Address wasm_call_target = code->instruction_start();
-    Handle<Object> object_ref = instance_;
-    Handle<Code> c_wasm_entry =
-        compiler::CompileCWasmEntry(isolate_, sig, native_module->module());
-    Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
-                        packer->argv());
-  }
-
   void CheckResult(uint32_t function_index, int32_t expected) {
-    FunctionSig* sig = sigs.i_v();
+    const FunctionSig* sig = sigs.i_v();
     DCHECK(*sig == *instance_->module()->functions[function_index].sig);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
-    CallFunctionImpl(function_index, sig, &packer);
-    CHECK(!isolate_->has_pending_exception());
-    packer.Reset();
-    CHECK_EQ(expected, packer.Pop<int32_t>());
+    CheckResultImpl(function_index, sig, &packer, expected);
   }
 
   void CheckResult(uint32_t function_index, int32_t expected, int32_t arg) {
-    FunctionSig* sig = sigs.i_i();
+    const FunctionSig* sig = sigs.i_i();
     DCHECK(*sig == *instance_->module()->functions[function_index].sig);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
-    CallFunctionImpl(function_index, sig, &packer);
-    if (isolate_->has_pending_exception()) {
-      Handle<String> message =
-          ErrorUtils::ToString(isolate_,
-                               handle(isolate_->pending_exception(), isolate_))
-              .ToHandleChecked();
-      FATAL("%s", message->ToCString().get());
-    }
-    packer.Reset();
-    CHECK_EQ(expected, packer.Pop<int32_t>());
+    CheckResultImpl(function_index, sig, &packer, expected);
   }
 
   MaybeHandle<Object> GetResultObject(uint32_t function_index) {
     const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    DCHECK_EQ(sig->parameter_count(), 0);
+    DCHECK_EQ(sig->return_count(), 1);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CallFunctionImpl(function_index, sig, &packer);
     CHECK(!isolate_->has_pending_exception());
@@ -163,6 +140,7 @@ class WasmGCTester {
   MaybeHandle<Object> GetResultObject(uint32_t function_index, int32_t arg) {
     const FunctionSig* sig = instance_->module()->functions[function_index].sig;
     DCHECK_EQ(sig->parameter_count(), 1);
+    DCHECK_EQ(sig->return_count(), 1);
     DCHECK(sig->parameters()[0] == kWasmI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
@@ -172,22 +150,21 @@ class WasmGCTester {
     return Handle<Object>(Object(packer.Pop<Address>()), isolate_);
   }
 
-  void CheckHasThrown(uint32_t function_index) {
+  void CheckHasThrown(uint32_t function_index, const char* expected = "") {
     const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    DCHECK_EQ(sig->parameter_count(), 0);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
-    CallFunctionImpl(function_index, sig, &packer);
-    CHECK(isolate_->has_pending_exception());
-    isolate_->clear_pending_exception();
+    CheckHasThrownImpl(function_index, sig, &packer, expected);
   }
 
-  void CheckHasThrown(uint32_t function_index, int32_t arg) {
-    FunctionSig* sig = sigs.i_i();
-    DCHECK(*sig == *instance_->module()->functions[function_index].sig);
+  void CheckHasThrown(uint32_t function_index, int32_t arg,
+                      const char* expected = "") {
+    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    DCHECK_EQ(sig->parameter_count(), 1);
+    DCHECK(sig->parameters()[0] == kWasmI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
-    CallFunctionImpl(function_index, sig, &packer);
-    CHECK(isolate_->has_pending_exception());
-    isolate_->clear_pending_exception();
+    CheckHasThrownImpl(function_index, sig, &packer, expected);
   }
 
   Handle<WasmInstanceObject> instance() { return instance_; }
@@ -204,6 +181,46 @@ class WasmGCTester {
   const FlagScope<bool> flag_liftoff;
   const FlagScope<bool> flag_liftoff_only;
   const FlagScope<bool> flag_tierup;
+
+  void CheckResultImpl(uint32_t function_index, const FunctionSig* sig,
+                       CWasmArgumentsPacker* packer, int32_t expected) {
+    CallFunctionImpl(function_index, sig, packer);
+    if (isolate_->has_pending_exception()) {
+      Handle<String> message =
+          ErrorUtils::ToString(isolate_,
+                               handle(isolate_->pending_exception(), isolate_))
+              .ToHandleChecked();
+      FATAL("%s", message->ToCString().get());
+    }
+    packer->Reset();
+    CHECK_EQ(expected, packer->Pop<int32_t>());
+  }
+
+  void CheckHasThrownImpl(uint32_t function_index, const FunctionSig* sig,
+                          CWasmArgumentsPacker* packer, const char* expected) {
+    CallFunctionImpl(function_index, sig, packer);
+    CHECK(isolate_->has_pending_exception());
+    Handle<String> message =
+        ErrorUtils::ToString(isolate_,
+                             handle(isolate_->pending_exception(), isolate_))
+            .ToHandleChecked();
+    std::string message_str(message->ToCString().get());
+    CHECK_NE(message_str.find(expected), std::string::npos);
+    isolate_->clear_pending_exception();
+  }
+
+  void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
+                        CWasmArgumentsPacker* packer) {
+    WasmCodeRefScope scope;
+    NativeModule* native_module = instance_->module_object().native_module();
+    WasmCode* code = native_module->GetCode(function_index);
+    Address wasm_call_target = code->instruction_start();
+    Handle<Object> object_ref = instance_;
+    Handle<Code> c_wasm_entry =
+        compiler::CompileCWasmEntry(isolate_, sig, native_module->module());
+    Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
+                        packer->argv());
+  }
 
   v8::internal::AccountingAllocator allocator;
   Zone zone_;
@@ -813,7 +830,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   CHECK(Handle<WasmArray>::cast(large_result)->Size() >
         kMaxRegularHeapObjectSize);
 
-  tester.CheckHasThrown(kAllocateTooLarge);
+  tester.CheckHasThrown(kAllocateTooLarge, "requested new array is too large");
 }
 
 WASM_COMPILED_EXEC_TEST(WasmPackedArrayU) {

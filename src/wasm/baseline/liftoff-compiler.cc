@@ -4946,7 +4946,7 @@ class LiftoffCompiler {
       LiftoffRegister length =
           __ LoadToRegister(__ cache_state()->stack_state.end()[-2], {});
       Label* trap_label =
-          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayOutOfBounds);
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayTooLarge);
       __ emit_i32_cond_jumpi(kUnsignedGreaterThan, trap_label, length.gp(),
                              static_cast<int>(wasm::kV8MaxWasmArrayLength));
     }

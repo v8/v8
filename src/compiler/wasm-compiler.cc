@@ -5572,7 +5572,7 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                                         Node* length, Node* initial_value,
                                         Node* rtt,
                                         wasm::WasmCodePosition position) {
-  TrapIfFalse(wasm::kTrapArrayOutOfBounds,
+  TrapIfFalse(wasm::kTrapArrayTooLarge,
               gasm_->Uint32LessThanOrEqual(
                   length, gasm_->Uint32Constant(wasm::kV8MaxWasmArrayLength)),
               position);

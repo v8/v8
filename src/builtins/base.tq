@@ -405,6 +405,7 @@ extern enum MessageTemplate {
   kWasmTrapNullDereference,
   kWasmTrapIllegalCast,
   kWasmTrapArrayOutOfBounds,
+  kWasmTrapArrayTooLarge,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kWeakRefsRegisterTargetMustBeObject,
   kWeakRefsUnregisterTokenMustBeObject,

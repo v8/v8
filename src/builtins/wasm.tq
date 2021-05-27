@@ -524,4 +524,8 @@ builtin ThrowWasmTrapIllegalCast(): JSAny {
 builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayOutOfBounds));
 }
+
+builtin ThrowWasmTrapArrayTooLarge(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayTooLarge));
+}
 }

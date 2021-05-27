@@ -576,6 +576,7 @@ namespace internal {
   T(WasmTrapNullDereference, "dereferencing a null pointer")                   \
   T(WasmTrapIllegalCast, "illegal cast")                                       \
   T(WasmTrapArrayOutOfBounds, "array element access out of bounds")            \
+  T(WasmTrapArrayTooLarge, "requested new array is too large")                 \
   T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \

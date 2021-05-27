@@ -1693,7 +1693,8 @@ enum class LoadSensitivity {
   V(TrapRethrowNull)               \
   V(TrapNullDereference)           \
   V(TrapIllegalCast)               \
-  V(TrapArrayOutOfBounds)
+  V(TrapArrayOutOfBounds)          \
+  V(TrapArrayTooLarge)
 
 enum KeyedAccessLoadMode {
   STANDARD_LOAD,
