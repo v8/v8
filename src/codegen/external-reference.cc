@@ -804,6 +804,13 @@ void* libc_memset(void* dest, int value, size_t n) {
 
 FUNCTION_REFERENCE(libc_memset_function, libc_memset)
 
+void relaxed_memcpy(volatile base::Atomic8* dest,
+                    volatile const base::Atomic8* src, size_t n) {
+  base::Relaxed_Memcpy(dest, src, n);
+}
+
+FUNCTION_REFERENCE(relaxed_memcpy_function, relaxed_memcpy)
+
 ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
 }

@@ -294,6 +294,17 @@ void TypedArrayBuiltinsAssembler::CallCMemcpy(TNode<RawPtrT> dest_ptr,
                 std::make_pair(MachineType::UintPtr(), byte_length));
 }
 
+void TypedArrayBuiltinsAssembler::CallCRelaxedMemcpy(
+    TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+    TNode<UintPtrT> byte_length) {
+  TNode<ExternalReference> relaxed_memcpy =
+      ExternalConstant(ExternalReference::relaxed_memcpy_function());
+  CallCFunction(relaxed_memcpy, MachineType::AnyTagged(),
+                std::make_pair(MachineType::Pointer(), dest_ptr),
+                std::make_pair(MachineType::Pointer(), src_ptr),
+                std::make_pair(MachineType::UintPtr(), byte_length));
+}
+
 void TypedArrayBuiltinsAssembler::CallCMemset(TNode<RawPtrT> dest_ptr,
                                               TNode<IntPtrT> value,
                                               TNode<UintPtrT> length) {
