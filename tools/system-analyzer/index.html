@@ -23,44 +23,6 @@ found in the LICENSE file. -->
   </script>
   <link rel="stylesheet" type="text/css" href="./index.css">
   <style>
-    .theme-switch {
-      display: inline-block;
-      height: 16px;
-      position: relative;
-      width: 38px;
-      vertical-align: middle;
-    }
-
-    .theme-switch input {
-      display: none;
-    }
-
-    .slider {
-      background-color: var(--primary-color);
-      bottom: 0;
-      cursor: pointer;
-      left: 0;
-      position: absolute;
-      right: 0;
-      top: 0;
-      border-radius: 34px;
-    }
-
-    .slider:before {
-      background-color: var(--surface-color);
-      position: absolute;
-      height: 10px;
-      width: 10px;
-      bottom: 3px;
-      content: "";
-      left: 4px;
-      border-radius: 50%;
-    }
-
-    input:checked+.slider:before {
-      transform: translateX(20px);
-    }
-
     #container.initial {
       display: none;
     }
@@ -133,17 +95,6 @@ found in the LICENSE file. -->
   </section>
 
   <div class="panels">
-    <section id="settings" class="panel">
-      <h2>Settings</h2>
-      <div class="panelBody">
-        <span>Theme:</span>
-        <label class="theme-switch" for="theme-switch-input">
-          <input type="checkbox" id="theme-switch-input" >
-          <div class="slider"></div>
-        </label>
-      </div>
-    </section>
-
     <section id="instructions" class="panel">
       <h2>Instructions</h2>
       <div class="panelBody">

@@ -44,8 +44,6 @@ class App {
 
       toolTip: $('#tool-tip'),
     };
-    this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
-    this.toggleSwitch.addEventListener('change', (e) => this.switchTheme(e));
     this._view.logFileReader.addEventListener(
         'fileuploadstart', (e) => this.handleFileUploadStart(e));
     this._view.logFileReader.addEventListener(
@@ -341,14 +339,6 @@ class App {
     this._view.deoptTrack.data = this._state.deoptTimeline;
     this._view.codeTrack.data = this._state.codeTimeline;
     this._view.apiTrack.data = this._state.apiTimeline;
-  }
-
-  switchTheme(event) {
-    document.documentElement.dataset.theme =
-        event.target.checked ? 'light' : 'dark';
-    CSSColor.reset();
-    if (!this.fileLoaded) return;
-    this.refreshTimelineTrackView();
   }
 }
 

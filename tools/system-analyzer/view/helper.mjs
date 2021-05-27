@@ -17,6 +17,7 @@ export class CSSColor {
     this._cache.set(name, color);
     return color;
   }
+
   static reset() {
     this._cache.clear();
   }

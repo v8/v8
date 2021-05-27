@@ -22,28 +22,6 @@
   --border-color: rgba(var(--border-color-rgb), 0.2);
 }
 
-[data-theme="light"] {
-  --background-color: #ffffff;
-  --surface-color: #ffffff;
-  --primary-color: #6200ee;
-  --secondary-color: #03dac5;
-  --on-surface-color: #000000;
-  --on-background-color: #000000;
-  --on-primary-color: #ffffff;
-  --on-secondary-color: #000000;
-  --default-color: #3700b3;
-  --error-color: #b00020;
-  --map-background-color: #5e5454;
-  --timeline-background-color: #fdfcfc;
-  --file-reader-background-color: #887e8b80;
-  --red: #b71c1c;
-  --green: #7db300;
-  --yellow: #ffff00;
-  --blue: #0024b3;
-  --orange: #ef6c00;
-  --violet: #8f00b3;
-}
-
 body {
   font-family: sans-serif;
   font-size: 14px;
