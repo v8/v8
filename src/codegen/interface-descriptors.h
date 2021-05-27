@@ -506,6 +506,7 @@ struct EmptyRegisterArray {
 template <typename... Registers>
 constexpr std::array<Register, 1 + sizeof...(Registers)> RegisterArray(
     Register first_reg, Registers... regs) {
+  DCHECK(!AreAliased(first_reg, regs...));
   return {first_reg, regs...};
 }
 constexpr EmptyRegisterArray RegisterArray() { return {}; }

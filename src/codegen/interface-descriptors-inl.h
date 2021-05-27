@@ -271,13 +271,18 @@ constexpr auto LoadWithReceiverBaselineDescriptor::registers() {
 // static
 constexpr auto BaselineOutOfLinePrologueDescriptor::registers() {
   // TODO(v8:11421): Implement on other platforms.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64 ||  \
-    V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM ||  \
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390 || \
+    V8_TARGET_ARCH_RISCV64
   return RegisterArray(
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       kJavaScriptCallExtraArg1Register, kJavaScriptCallNewTargetRegister,
       kInterpreterBytecodeArrayRegister);
+#elif V8_TARGET_ARCH_IA32
+  STATIC_ASSERT(kJSFunctionRegister == kInterpreterBytecodeArrayRegister);
+  return RegisterArray(
+      kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
+      kJavaScriptCallExtraArg1Register, kJavaScriptCallNewTargetRegister);
 #else
   return DefaultRegisterArray();
 #endif

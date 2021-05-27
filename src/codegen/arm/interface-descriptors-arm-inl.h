@@ -21,11 +21,13 @@ constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
 
 // static
 constexpr auto WriteBarrierDescriptor::registers() {
-  return RegisterArray(r0, r1, r2, r3, r4, kReturnRegister0);
+  STATIC_ASSERT(kReturnRegister0 == r0);
+  return RegisterArray(r0, r1, r2, r3, r4);
 }
 
 // static
 constexpr auto DynamicCheckMapsDescriptor::registers() {
+  STATIC_ASSERT(kReturnRegister0 == r0);
   return RegisterArray(r0, r1, r2, r3, cp);
 }
 

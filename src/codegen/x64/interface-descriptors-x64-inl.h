@@ -33,8 +33,14 @@ constexpr auto TSANRelaxedStoreDescriptor::registers() {
 
 // static
 constexpr auto DynamicCheckMapsDescriptor::registers() {
+#if V8_TARGET_OS_WIN
   return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
                        kRuntimeCallFunctionRegister, kContextRegister);
+#else
+  STATIC_ASSERT(kContextRegister == arg_reg_2);
+  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
+                       kRuntimeCallFunctionRegister);
+#endif  // V8_TARGET_OS_WIN
 }
 
 // static
