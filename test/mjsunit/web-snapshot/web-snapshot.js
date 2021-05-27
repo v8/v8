@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --d8-web-snapshot-api
+// Flags: --experimental-d8-web-snapshot-api
 
 function callString(f) {
     return '(' + f.toString() + ')()';

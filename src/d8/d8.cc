@@ -4255,7 +4255,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
       options.web_snapshot_config = argv[i] + 22;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--d8-web-snapshot-api") == 0) {
+    } else if (strcmp(argv[i], "--experimental-d8-web-snapshot-api") == 0) {
       options.d8_web_snapshot_api = true;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--compile-only") == 0) {

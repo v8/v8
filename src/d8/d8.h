@@ -410,8 +410,8 @@ class ShellOptions {
       "enable-system-instrumentation", false};
   DisallowReassignment<const char*> web_snapshot_config = {
       "web-snapshot-config", nullptr};
-  DisallowReassignment<bool> d8_web_snapshot_api = {"d8-web-snapshot-api",
-                                                    false};
+  DisallowReassignment<bool> d8_web_snapshot_api = {
+      "experimental-d8-web-snapshot-api", false};
   DisallowReassignment<bool> compile_only = {"compile-only", false};
   DisallowReassignment<int> repeat_compile = {"repeat-compile", 1};
 };
