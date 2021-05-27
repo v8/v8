@@ -20,7 +20,11 @@
     "ASAN_POISON_MEMORY_REGION and ASAN_UNPOISON_MEMORY_REGION must be defined"
 #endif
 
+#define DISABLE_ASAN __attribute__((no_sanitize_address))
+
 #else  // !V8_USE_ADDRESS_SANITIZER
+
+#define DISABLE_ASAN
 
 #define ASAN_POISON_MEMORY_REGION(start, size)                      \
   static_assert(std::is_pointer<decltype(start)>::value,            \

@@ -155,13 +155,6 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 #endif
 
-// Define DISABLE_ASAN macro.
-#ifdef V8_USE_ADDRESS_SANITIZER
-#define DISABLE_ASAN __attribute__((no_sanitize_address))
-#else
-#define DISABLE_ASAN
-#endif
-
 // Define V8_USE_MEMORY_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
