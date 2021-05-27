@@ -427,6 +427,44 @@ TEST(VectorSpeculationMode) {
   CHECK_EQ(3, nexus.GetCallCount());
 }
 
+TEST(VectorCallSpeculationModeAndFeedbackContent) {
+  if (!i::FLAG_use_ic) return;
+  if (!i::FLAG_opt) return;
+  if (i::FLAG_always_opt) return;
+  if (i::FLAG_jitless) return;
+  if (i::FLAG_turboprop) return;
+  FLAG_allow_natives_syntax = true;
+
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  CompileRun(
+      "function min() { return Math.min.apply(null, arguments); }"
+      "function f(x) { return min(x, 0); }"
+      "%PrepareFunctionForOptimization(min);"
+      "%PrepareFunctionForOptimization(f);"
+      "f(1);");
+  Handle<JSFunction> min = GetFunction("min");
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(min->feedback_vector(), isolate);
+  FeedbackSlot slot(6);
+  FeedbackNexus nexus(feedback_vector, slot);
+
+  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
+  CompileRun("%OptimizeFunctionOnNextCall(f); f(1);");
+  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
+  CompileRun("f({});");  // Deoptimizes.
+  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(SpeculationMode::kDisallowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
+}
+
 TEST(VectorLoadICStates) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;

@@ -992,11 +992,10 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
   Object call_count = GetFeedbackExtra()->cast<Object>();
   CHECK(call_count.IsSmi());
   uint32_t count = static_cast<uint32_t>(Smi::ToInt(call_count));
-  uint32_t value = CallCountField::encode(CallCountField::decode(count));
-  int result = static_cast<int>(value | SpeculationModeField::encode(mode));
+  count = SpeculationModeField::update(count, mode);
   MaybeObject feedback = GetFeedback();
   // We can skip the write barrier for {feedback} because it's not changing.
-  SetFeedback(feedback, SKIP_WRITE_BARRIER, Smi::FromInt(result),
+  SetFeedback(feedback, SKIP_WRITE_BARRIER, Smi::FromInt(count),
               SKIP_WRITE_BARRIER);
 }
 
