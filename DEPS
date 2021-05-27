@@ -195,7 +195,7 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'a3460d1aeeaa43fdf137a6adefef10ba0b59fe4b',
   'third_party/google_benchmark/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'e539e807daa0bc779bb6768b33ee4747624b4ec9',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'db2de74cc8c34131a6f673e35751935cc1897a0d',
   },
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '6906af9d94ae10e895af4b7d07a34206e8de1424',
