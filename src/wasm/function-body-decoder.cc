@@ -253,10 +253,9 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         BlockTypeImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(), &i,
                                                        i.pc() + 1, module);
         os << " @" << i.pc_offset();
-        if (decoder.Complete(imm)) {
-          for (uint32_t i = 0; i < imm.out_arity(); i++) {
-            os << " " << imm.out_type(i).name();
-          }
+        CHECK(decoder.Validate(i.pc(), imm));
+        for (uint32_t i = 0; i < imm.out_arity(); i++) {
+          os << " " << imm.out_type(i).name();
         }
         control_depth++;
         break;
@@ -284,17 +283,15 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         CallIndirectImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(),
                                                           &i, i.pc() + 1);
         os << " sig #" << imm.sig_index;
-        if (decoder.Complete(imm)) {
-          os << ": " << *imm.sig;
-        }
+        CHECK(decoder.Validate(i.pc(), imm));
+        os << ": " << *imm.sig;
         break;
       }
       case kExprCallFunction: {
         CallFunctionImmediate<Decoder::kNoValidation> imm(&i, i.pc() + 1);
         os << " function #" << imm.index;
-        if (decoder.Complete(imm)) {
-          os << ": " << *imm.sig;
-        }
+        CHECK(decoder.Validate(i.pc(), imm));
+        os << ": " << *imm.sig;
         break;
       }
       default:

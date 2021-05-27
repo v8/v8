@@ -1343,17 +1343,12 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Complete(ExceptionIndexImmediate<validate>& imm) {
-    if (!VALIDATE(imm.index < module_->exceptions.size())) return false;
-    imm.exception = &module_->exceptions[imm.index];
-    return true;
-  }
-
   inline bool Validate(const byte* pc, ExceptionIndexImmediate<validate>& imm) {
-    if (!Complete(imm)) {
+    if (!VALIDATE(imm.index < module_->exceptions.size())) {
       DecodeError(pc, "Invalid exception index: %u", imm.index);
       return false;
     }
+    imm.exception = &module_->exceptions[imm.index];
     return true;
   }
 
@@ -1367,16 +1362,13 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Complete(StructIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_->has_struct(imm.index))) return false;
+  inline bool Validate(const byte* pc, StructIndexImmediate<validate>& imm) {
+    if (!VALIDATE(module_->has_struct(imm.index))) {
+      DecodeError(pc, "invalid struct index: %u", imm.index);
+      return false;
+    }
     imm.struct_type = module_->struct_type(imm.index);
     return true;
-  }
-
-  inline bool Validate(const byte* pc, StructIndexImmediate<validate>& imm) {
-    if (Complete(imm)) return true;
-    DecodeError(pc, "invalid struct index: %u", imm.index);
-    return false;
   }
 
   inline bool Validate(const byte* pc, FieldIndexImmediate<validate>& imm) {
@@ -1397,17 +1389,12 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Complete(ArrayIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_->has_array(imm.index))) return false;
-    imm.array_type = module_->array_type(imm.index);
-    return true;
-  }
-
   inline bool Validate(const byte* pc, ArrayIndexImmediate<validate>& imm) {
-    if (!Complete(imm)) {
+    if (!VALIDATE(module_->has_array(imm.index))) {
       DecodeError(pc, "invalid array index: %u", imm.index);
       return false;
     }
+    imm.array_type = module_->array_type(imm.index);
     return true;
   }
 
@@ -1421,23 +1408,12 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Complete(CallFunctionImmediate<validate>& imm) {
-    if (!VALIDATE(imm.index < module_->functions.size())) return false;
-    imm.sig = module_->functions[imm.index].sig;
-    return true;
-  }
-
   inline bool Validate(const byte* pc, CallFunctionImmediate<validate>& imm) {
-    if (!Complete(imm)) {
+    if (!VALIDATE(imm.index < module_->functions.size())) {
       DecodeError(pc, "invalid function index: %u", imm.index);
       return false;
     }
-    return true;
-  }
-
-  inline bool Complete(CallIndirectImmediate<validate>& imm) {
-    if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
-    imm.sig = module_->signature(imm.sig_index);
+    imm.sig = module_->functions[imm.index].sig;
     return true;
   }
 
@@ -1456,7 +1432,7 @@ class WasmDecoder : public Decoder {
     }
 
     // Validate immediate signature index.
-    if (!Complete(imm)) {
+    if (!VALIDATE(module_->has_signature(imm.sig_index))) {
       DecodeError(pc, "invalid signature index: #%u", imm.sig_index);
       return false;
     }
@@ -1471,6 +1447,8 @@ class WasmDecoder : public Decoder {
                   imm.sig_index, imm.table_index);
       return false;
     }
+
+    imm.sig = module_->signature(imm.sig_index);
     return true;
   }
 
@@ -1552,19 +1530,15 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Complete(BlockTypeImmediate<validate>& imm) {
-    if (imm.type != kWasmBottom) return true;
-    if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
-    imm.sig = module_->signature(imm.sig_index);
-    return true;
-  }
-
   inline bool Validate(const byte* pc, BlockTypeImmediate<validate>& imm) {
-    if (!Complete(imm)) {
+    if (imm.type != kWasmBottom) return true;
+
+    if (!VALIDATE(module_->has_signature(imm.sig_index))) {
       DecodeError(pc, "block type index %u is not a signature definition",
                   imm.sig_index);
       return false;
     }
+    imm.sig = module_->signature(imm.sig_index);
     return true;
   }
 
@@ -2045,19 +2019,19 @@ class WasmDecoder : public Decoder {
         return {0, 1};
       case kExprCallFunction: {
         CallFunctionImmediate<validate> imm(this, pc + 1);
-        CHECK(Complete(imm));
+        CHECK(Validate(pc, imm));
         return {imm.sig->parameter_count(), imm.sig->return_count()};
       }
       case kExprCallIndirect: {
         CallIndirectImmediate<validate> imm(this->enabled_, this, pc + 1);
-        CHECK(Complete(imm));
+        CHECK(Validate(pc, imm));
         // Indirect calls pop an additional argument for the table index.
         return {imm.sig->parameter_count() + 1,
                 imm.sig->return_count()};
       }
       case kExprThrow: {
         ExceptionIndexImmediate<validate> imm(this, pc + 1);
-        CHECK(Complete(imm));
+        CHECK(Validate(pc, imm));
         DCHECK_EQ(0, imm.exception->sig->return_count());
         return {imm.exception->sig->parameter_count(), 0};
       }
@@ -2137,8 +2111,8 @@ class WasmDecoder : public Decoder {
           case kExprArrayNewWithRtt:
             return {3, 1};
           case kExprStructNewWithRtt: {
-            StructIndexImmediate<validate> imm(this, this->pc_ + 2);
-            this->Complete(imm);
+            StructIndexImmediate<validate> imm(this, pc + 2);
+            CHECK(Validate(pc, imm));
             return {imm.struct_type->field_count() + 1, 1};
           }
           default:
