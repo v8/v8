@@ -74,6 +74,9 @@ void StatsCollector::AllocatedObjectSizeSafepointImpl() {
       static_cast<int64_t>(allocated_bytes_since_safepoint_) -
       static_cast<int64_t>(explicitly_freed_bytes_since_safepoint_);
 
+  // Save the epoch to avoid clearing counters when a GC happened, see below.
+  const auto saved_epoch = current_.epoch;
+
   // These observer methods may start or finalize GC. In case they trigger a
   // final GC pause, the delta counters are reset there and the following
   // observer calls are called with '0' updates.
@@ -88,8 +91,15 @@ void StatsCollector::AllocatedObjectSizeSafepointImpl() {
       observer->AllocatedObjectSizeIncreased(static_cast<size_t>(delta));
     }
   });
-  allocated_bytes_since_safepoint_ = 0;
-  explicitly_freed_bytes_since_safepoint_ = 0;
+  // Only clear the counters when no garbage collection happened. In case of a
+  // garbage collection in the callbacks, the counters have been cleared by
+  // `NotifyMarkingFinished()`. In addition, atomic sweeping may have already
+  // allocated new memory which would be dropped from accounting in case
+  // of clearing here.
+  if (saved_epoch == current_.epoch) {
+    allocated_bytes_since_safepoint_ = 0;
+    explicitly_freed_bytes_since_safepoint_ = 0;
+  }
 }
 
 StatsCollector::Event::Event() {
@@ -275,16 +285,30 @@ v8::base::TimeDelta StatsCollector::marking_time() const {
 
 void StatsCollector::NotifyAllocatedMemory(int64_t size) {
   memory_allocated_bytes_ += size;
+#ifdef DEBUG
+  const auto saved_epoch = current_.epoch;
+#endif  // DEBUG
   ForAllAllocationObservers([size](AllocationObserver* observer) {
     observer->AllocatedSizeIncreased(static_cast<size_t>(size));
   });
+#ifdef DEBUG
+  // AllocatedSizeIncreased() must not trigger GC.
+  DCHECK_EQ(saved_epoch, current_.epoch);
+#endif  // DEBUG
 }
 
 void StatsCollector::NotifyFreedMemory(int64_t size) {
   memory_freed_bytes_since_end_of_marking_ += size;
+#ifdef DEBUG
+  const auto saved_epoch = current_.epoch;
+#endif  // DEBUG
   ForAllAllocationObservers([size](AllocationObserver* observer) {
     observer->AllocatedSizeDecreased(static_cast<size_t>(size));
   });
+#ifdef DEBUG
+  // AllocatedSizeDecreased() must not trigger GC.
+  DCHECK_EQ(saved_epoch, current_.epoch);
+#endif  // DEBUG
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,
