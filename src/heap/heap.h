@@ -2106,8 +2106,6 @@ class Heap {
   std::vector<WeakArrayList> FindAllRetainedMaps();
   MemoryMeasurement* memory_measurement() { return memory_measurement_.get(); }
 
-  // The amount of memory that has been freed concurrently.
-  std::atomic<uintptr_t> external_memory_concurrently_freed_{0};
   ExternalMemoryAccounting external_memory_;
 
   // This can be calculated directly from a pointer to the heap; however, it is
