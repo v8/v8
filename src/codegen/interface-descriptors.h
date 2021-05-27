@@ -149,6 +149,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
     // passed on the stack.
     // This does not indicate if arguments adaption is used or not.
     kAllowVarArgs = 1u << 2,
+    // Callee save allocatable_registers.
+    kCalleeSaveRegisters = 1u << 3,
   };
   using Flags = base::Flags<Flag>;
 
@@ -321,6 +323,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
     return flags() & CallInterfaceDescriptorData::kAllowVarArgs;
   }
 
+  bool CalleeSaveRegisters() const {
+    return flags() & CallInterfaceDescriptorData::kCalleeSaveRegisters;
+  }
+
   int GetReturnCount() const { return data()->return_count(); }
 
   MachineType GetReturnType(int index) const {
@@ -431,6 +437,9 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   // the first kParameterCount registers() are the parameters of the builtin.
   static constexpr bool kRestrictAllocatableRegisters = false;
 
+  // If set to true, builtins will callee save the set returned by registers().
+  static constexpr bool kCalleeSaveRegisters = false;
+
   // End of customization points.
   // ===========================================================================
 
@@ -443,6 +452,9 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
                       : 0) |
                  (DerivedDescriptor::kNoStackScan
                       ? CallInterfaceDescriptorData::kNoStackScan
+                      : 0) |
+                 (DerivedDescriptor::kCalleeSaveRegisters
+                      ? CallInterfaceDescriptorData::kCalleeSaveRegisters
                       : 0));
   }
   static constexpr inline bool AllowVarArgs() {
@@ -501,7 +513,7 @@ struct EmptyRegisterArray {
   Register operator[](size_t i) const { UNREACHABLE(); }
 };
 
-// Helper method for defining an array of registers for the various
+// Helper method for defining an array of unique registers for the various
 // Descriptor::registers() methods.
 template <typename... Registers>
 constexpr std::array<Register, 1 + sizeof...(Registers)> RegisterArray(
@@ -1003,6 +1015,16 @@ class WriteBarrierDescriptor final
   DECLARE_DESCRIPTOR(WriteBarrierDescriptor)
   static constexpr auto registers();
   static constexpr bool kRestrictAllocatableRegisters = true;
+#if V8_TARGET_ARCH_X64
+  // TODO(cbruni): Extend to all platforms.
+  static constexpr bool kCalleeSaveRegisters = true;
+#endif
+  static constexpr inline Register ObjectRegister();
+  static constexpr inline Register SlotAddressRegister();
+  // A temporary register used in helpers.
+  static constexpr inline Register ValueRegister();
+  static constexpr inline RegList ComputeSavedRegisters(Register object,
+                                                        Register slot_address);
 };
 
 #ifdef V8_IS_TSAN

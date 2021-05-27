@@ -500,7 +500,6 @@ class PipelineData {
       sequence_->instruction_blocks()[0]->mark_needs_frame();
     } else {
       DCHECK_EQ(0u, call_descriptor->CalleeSavedFPRegisters());
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters());
     }
   }
 

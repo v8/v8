@@ -490,6 +490,17 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       break;
   }
 
+  RegList allocatable_registers = descriptor.allocatable_registers();
+  RegList callee_saved_registers = kNoCalleeSaved;
+  if (descriptor.CalleeSaveRegisters()) {
+#if V8_TARGET_ARCH_X64
+    // TODO(cbruni): Extend to all architectures.
+    callee_saved_registers = allocatable_registers;
+    DCHECK(callee_saved_registers);
+#else
+    UNREACHABLE();
+#endif
+  }
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   return zone->New<CallDescriptor>(          // --
       kind,                                  // kind
@@ -498,12 +509,12 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       locations.Build(),                     // location_sig
       stack_parameter_count,                 // stack_parameter_count
       properties,                            // properties
-      kNoCalleeSaved,                        // callee-saved registers
+      callee_saved_registers,                // callee-saved registers
       kNoCalleeSaved,                        // callee-saved fp
       CallDescriptor::kCanUseRoots | flags,  // flags
       descriptor.DebugName(),                // debug name
       descriptor.GetStackArgumentOrder(),    // stack order
-      descriptor.allocatable_registers());
+      allocatable_registers);
 }
 
 // static
