@@ -1343,14 +1343,25 @@ CompilationExecutionResult ExecuteCompilationUnits(
         return yield ? kYield : kNoMoreUnits;
       }
 
-      // Before executing a TurboFan unit, ensure to publish all previous
-      // units. If we compiled Liftoff before, we need to publish them anyway
-      // to ensure fast completion of baseline compilation, if we compiled
-      // TurboFan before, we publish to reduce peak memory consumption.
-      // Also publish after finishing a certain amount of units, to avoid
-      // contention when all threads publish at the end.
-      if (unit->tier() == ExecutionTier::kTurbofan ||
-          queue->ShouldPublish(static_cast<int>(results_to_publish.size()))) {
+      // Publish after finishing a certain amount of units, to avoid contention
+      // when all threads publish at the end.
+      bool batch_full =
+          queue->ShouldPublish(static_cast<int>(results_to_publish.size()));
+
+      // Also publish each time the compilation tier changes from Liftoff to
+      // TurboFan, such that we immediately publish the baseline compilation
+      // results to start execution, and do not wait for a batch to fill up.
+      bool liftoff_finished = unit->tier() != current_tier &&
+                              unit->tier() == ExecutionTier::kTurbofan;
+
+      // Without mprotect-based write protection, publish even more often,
+      // namely every TurboFan unit individually (no batching) to reduce
+      // peak memory consumption. However, with write protection, this results
+      // in a high number of page protection switches (once for each function),
+      // incurring syscalls and lock contention, so don't do it then.
+      bool publish_turbofan_unit = !FLAG_wasm_write_protect_code_memory &&
+                                   unit->tier() == ExecutionTier::kTurbofan;
+      if (batch_full || liftoff_finished || publish_turbofan_unit) {
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 VectorOf(std::move(results_to_publish)));
