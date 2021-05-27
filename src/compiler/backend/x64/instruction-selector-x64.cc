@@ -506,23 +506,40 @@ void InstructionSelector::VisitStore(Node* node) {
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
   } else {
-    ArchOpcode opcode = GetStoreOpcode(store_rep);
-    InstructionOperand inputs[4];
-    size_t input_count = 0;
-    AddressingMode addressing_mode =
-        g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-    InstructionCode code =
-        opcode | AddressingModeField::encode(addressing_mode);
     if ((ElementSizeLog2Of(store_rep.representation()) <
          kSystemPointerSizeLog2) &&
         value->opcode() == IrOpcode::kTruncateInt64ToInt32) {
       value = value->InputAt(0);
     }
+#ifdef V8_IS_TSAN
+    // On TSAN builds we require two scratch registers. Because of this we also
+    // have to modify the inputs to take into account possible aliasing and use
+    // UseUniqueRegister which is not required for non-TSAN builds.
+    AddressingMode addressing_mode;
+    InstructionOperand inputs[] = {
+        g.UseUniqueRegister(base),
+        g.GetEffectiveIndexOperand(index, &addressing_mode),
+        g.CanBeImmediate(value) ? g.UseImmediate(value)
+                                : g.UseUniqueRegister(value)};
+    size_t input_count = arraysize(inputs);
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    size_t temp_count = arraysize(temps);
+#else
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+    AddressingMode addressing_mode =
+        g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
     InstructionOperand value_operand =
         g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
     inputs[input_count++] = value_operand;
+    InstructionOperand* temps = nullptr;
+    size_t temp_count = 0;
+#endif  // V8_IS_TSAN
+    ArchOpcode opcode = GetStoreOpcode(store_rep);
+    InstructionCode code =
+        opcode | AddressingModeField::encode(addressing_mode);
     Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count,
-         inputs);
+         inputs, temp_count, temps);
   }
 }
 

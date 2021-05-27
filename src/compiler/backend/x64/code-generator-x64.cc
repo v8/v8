@@ -2186,9 +2186,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
-        __ StoreTaggedField(operand, i.InputImmediate(index));
+        Immediate value = i.InputImmediate(index);
+#ifdef V8_IS_TSAN
+        Register value_reg = i.TempRegister(1);
+        __ movq(value_reg, value);
+        Register scratch0 = i.TempRegister(0);
+        auto tsan_ool = zone()->New<OutOfLineTSANRelaxedStore>(
+            this, operand, value_reg, scratch0, DetermineStubCallMode());
+        __ jmp(tsan_ool->entry());
+        __ bind(tsan_ool->exit());
+#endif  // V8_IS_TSAN
+        __ StoreTaggedField(operand, value);
       } else {
-        __ StoreTaggedField(operand, i.InputRegister(index));
+        Register value = i.InputRegister(index);
+#ifdef V8_IS_TSAN
+        Register scratch0 = i.TempRegister(0);
+        auto tsan_ool = zone()->New<OutOfLineTSANRelaxedStore>(
+            this, operand, value, scratch0, DetermineStubCallMode());
+        __ jmp(tsan_ool->entry());
+        __ bind(tsan_ool->exit());
+#endif  // V8_IS_TSAN
+        __ StoreTaggedField(operand, value);
       }
       break;
     }
