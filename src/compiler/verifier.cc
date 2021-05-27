@@ -1511,15 +1511,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedTaggedToTaggedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
     case IrOpcode::kAssertType:
-      break;
-
     case IrOpcode::kVerifyType:
-      if (NodeProperties::IsTyped(node)) {
-        Node* input = NodeProperties::GetValueInput(node, 0);
-        DCHECK(NodeProperties::IsTyped(input));
-        CHECK(NodeProperties::GetType(node).Equals(
-            NodeProperties::GetType(input)));
-      }
       break;
 
     case IrOpcode::kCheckFloat64Hole:
