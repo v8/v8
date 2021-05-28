@@ -280,8 +280,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
   HARMONY_INPROGRESS_BASE(V)  \
-  V(harmony_intl_displaynames_date_types, "Intl.DisplayNames date types") \
-  V(harmony_intl_more_timezone, "More Timezone")
+  V(harmony_intl_displaynames_date_types, "Intl.DisplayNames date types")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
@@ -295,7 +294,9 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #define HARMONY_STAGED(V)                                 \
   HARMONY_STAGED_BASE(V)                                  \
   V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher") \
-  V(harmony_intl_locale_info, "Intl locale info")
+  V(harmony_intl_locale_info, "Intl locale info")         \
+  V(harmony_intl_more_timezone,                           \
+    "Extend Intl.DateTimeFormat timeZoneName Option")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #endif
