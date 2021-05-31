@@ -3000,6 +3000,7 @@ void TurboAssembler::LoadSingleU(DoubleRegister dst, const MemOperand& mem,
 }
 
 void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem) {
+  DCHECK(mem.rb().is_valid());
   lxvx(dst, mem);
 }
 
@@ -3056,6 +3057,7 @@ void TurboAssembler::StoreSingleU(DoubleRegister src, const MemOperand& mem,
 }
 
 void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
+  DCHECK(mem.rb().is_valid());
   stxvx(src, mem);
 }
 
