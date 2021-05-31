@@ -50,6 +50,7 @@ export class CodeLogEntry extends LogEntry {
     this._kind = kind;
     this._kindName = kindName;
     this._entry = entry;
+    entry.logEntry = this;
   }
 
   get kind() {
@@ -92,7 +93,7 @@ export class CodeLogEntry extends LogEntry {
 
   static get propertyNames() {
     return [
-      'type', 'kind', 'kindName', 'size', 'functionName', 'sourcePosition',
+      'functionName', 'sourcePosition', 'kindName', 'size', 'type', 'kind',
       'script', 'source', 'code'
     ];
   }

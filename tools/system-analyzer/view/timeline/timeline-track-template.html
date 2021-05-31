@@ -25,7 +25,7 @@ found in the LICENSE file. -->
     opacity: 0.5;
   }
 
-  #timelineChunks {
+  #timelineSamples, #timelineChunks {
     height: 200px;
     position: absolute;
     margin-right: 100px;
@@ -152,7 +152,6 @@ found in the LICENSE file. -->
     position: absolute;
   }
 
-
   .content {
     display: flex;
     position: relative;
@@ -172,6 +171,22 @@ found in the LICENSE file. -->
     flex: initial;
   }
 
+  .flame {
+    background-color: gray;
+    overflow: hidden;
+    height: 10px;
+    position: absolute;
+    font-size: 8px;
+  }
+  .flame.Opt{
+    background-color: red;
+  }
+  .flame.Baseline{
+    background-color: blue;
+  }
+  .flame.default {
+    background-color: black;
+  }
 </style>
 
 <div class="content">
@@ -187,6 +202,7 @@ found in the LICENSE file. -->
     </div>
     <div id="timelineLabel">Frequency</div>
     <div id="timelineChunks"></div>
+    <div id="timelineSamples"></div>
     <canvas id="timelineCanvas"></canvas>
   </div>
 

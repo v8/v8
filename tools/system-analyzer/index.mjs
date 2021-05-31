@@ -12,6 +12,7 @@ import {IcLogEntry} from './log/ic.mjs';
 import {LogEntry} from './log/log.mjs';
 import {MapLogEntry} from './log/map.mjs';
 import {Processor} from './processor.mjs';
+import {Timeline} from './timeline.mjs'
 import {FocusEvent, SelectionEvent, SelectRelatedEvent, SelectTimeEvent, ToolTipEvent,} from './view/events.mjs';
 import {$, CSSColor, groupBy} from './view/helper.mjs';
 
@@ -26,6 +27,7 @@ class App {
       logFileReader: $('#log-file-reader'),
 
       timelinePanel: $('#timeline-panel'),
+      sampleTrack: $('#sample-track'),
       mapTrack: $('#map-track'),
       icTrack: $('#ic-track'),
       deoptTrack: $('#deopt-track'),
@@ -334,6 +336,12 @@ class App {
   }
 
   refreshTimelineTrackView() {
+    const ticks = this._state.profile.ticks_;
+    if (ticks.length > 0) {
+      this._view.sampleTrack.data = new Timeline(
+          Object, ticks, ticks[0].time, ticks[ticks.length - 1].time);
+      this._view.sampleTrack.ticks = ticks;
+    }
     this._view.mapTrack.data = this._state.mapTimeline;
     this._view.icTrack.data = this._state.icTimeline;
     this._view.deoptTrack.data = this._state.deoptTimeline;

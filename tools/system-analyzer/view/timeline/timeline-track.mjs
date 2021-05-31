@@ -2,10 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {Profile} from '../../../profile.mjs'
+import {delay} from '../../helper.mjs';
 import {kChunkHeight, kChunkWidth} from '../../log/map.mjs';
 import {MapLogEntry} from '../../log/map.mjs';
 import {FocusEvent, SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
 import {CSSColor, DOM, gradientStopsFromGroups, V8CustomElement} from '../helper.mjs';
+
+class Flame {
+  constructor(time, entry) {
+    this.start = time;
+    this.end = this.start;
+    this.entry = entry;
+  }
+  stop(time) {
+    this.end = time;
+    this.duration = time - this.start
+  }
+}
 
 DOM.defineCustomElement('view/timeline/timeline-track',
                         (templateText) =>
@@ -21,6 +35,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   _chunkMouseMoveHandler = this._handleChunkMouseMove.bind(this);
   _chunkClickHandler = this._handleChunkClick.bind(this);
   _chunkDoubleClickHandler = this._handleChunkDoubleClick.bind(this);
+  _flameMouseOverHandler = this._handleFlameMouseOver.bind(this);
 
   constructor() {
     super(templateText);
@@ -91,6 +106,10 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     return this.$('#timelineChunks');
   }
 
+  get timelineSamples() {
+    return this.$('#timelineSamples');
+  }
+
   get timelineNode() {
     return this.$('#timeline');
   }
@@ -98,6 +117,63 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   _update() {
     this._updateTimeline();
     this._legend.update();
+    // TODO(cbruni: Create separate component for profile ticks
+    if (this.ticks) {
+      this.drawFlamechart()
+    }
+  }
+
+  async drawFlamechart() {
+    await delay(100);
+    // TODO(cbruni): Use dynamic drawing strategy here that scales
+    DOM.removeAllChildren(this.timelineSamples);
+    const stack = [];
+    const kMaxNumOfDisplayedFlames = 2000
+    const kIncrement = Math.max(1, this.ticks.length / 5000) | 0;
+    for (let i = 0; i < this.ticks.length; i += kIncrement) {
+      if (i % 500 == 0) {
+        await delay(10);
+      }
+      const tick = this.ticks[i];
+      for (let j = 0; j < tick.stack.length; j++) {
+        const entry = tick.stack[j];
+        if (typeof entry !== 'object') continue;
+        if (stack.length <= j) {
+          stack.push(new Flame(tick.time, entry));
+        } else {
+          const flame = stack[j];
+          if (flame.entry !== entry) {
+            for (let k = j; k < stack.length; k++) {
+              stack[k].stop(tick.time);
+              this.drawFlame(stack[k], k);
+            }
+            stack.length = j;
+            stack[j] = new Flame(tick.time, entry);
+          }
+        }
+      }
+    }
+  }
+
+  drawFlame(flame, depth) {
+    let type = 'default';
+    if (flame.entry.state) {
+      type = Profile.getKindFromState(flame.entry.state);
+    }
+    const node = DOM.div(['flame', type]);
+    node.data = flame.entry;
+    node.onmouseover = this._flameMouseOverHandler
+    const style = node.style;
+    style.top = `${depth * 10}px`;
+    style.left = `${flame.start * this._timeToPixel}px`;
+    style.width = `${flame.duration * this._timeToPixel}px`;
+    node.innerText = flame.entry.getRawName();
+    this.timelineSamples.appendChild(node);
+  }
+
+  _handleFlameMouseOver(event) {
+    const codeEntry = event.target.data;
+    this.dispatchEvent(new ToolTipEvent(codeEntry.logEntry, event.target));
   }
 
   set nofChunks(count) {
@@ -163,6 +239,8 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     let duration = end - start;
     this._timeToPixel = chunks.length * kChunkWidth / duration;
     this._timeStartOffset = start * this._timeToPixel;
+    // TODO(cbruni: Create separate component for profile ticks
+    if (this.ticks) return;
     for (let i = 0; i < chunks.length; i++) {
       let chunk = chunks[i];
       let height = (chunk.size() / max * kChunkHeight);

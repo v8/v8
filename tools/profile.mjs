@@ -158,6 +158,14 @@ class SourceInfo {
   }
 }
 
+class Tick {
+  constructor(time_ns, vmState, processedStack) {
+    this.time = time_ns;
+    this.state = vmState;
+    this.stack = processedStack;
+  }
+}
+
 /**
  * Creates a profile object for processing profiling-related events
  * and calculating function execution times.
@@ -214,6 +222,23 @@ export class Profile {
     BASELINE: 2,
     TURBOPROP: 4,
     TURBOFAN: 5,
+  }
+
+  static VMState = {
+    JS: 0,
+    GC: 1,
+    PARSER: 2,
+    BYTECODE_COMPILER: 3,
+    // TODO(cbruni): add BASELINE_COMPILER
+    COMPILER: 4,
+    OTHER: 5,
+    EXTERNAL: 6,
+    IDLE: 7,
+  }
+
+  static CodeType = {
+    CPP: 0,
+    SHARED_LIB: 1
   }
 
   /**
@@ -461,10 +486,11 @@ export class Profile {
    * @param {Array<number>} stack Stack sample.
    */
   recordTick(time_ns, vmState, stack) {
-    const processedStack = this.resolveAndFilterFuncs_(stack);
-    this.bottomUpTree_.addPath(processedStack);
-    processedStack.reverse();
-    this.topDownTree_.addPath(processedStack);
+    const {nameStack, entryStack} = this.resolveAndFilterFuncs_(stack);
+    this.bottomUpTree_.addPath(nameStack);
+    nameStack.reverse();
+    this.topDownTree_.addPath(nameStack);
+    this.ticks_.push(new Tick(time_ns, vmState, entryStack));
   }
 
   /**
@@ -474,12 +500,15 @@ export class Profile {
    * @param {Array<number>} stack Stack sample.
    */
   resolveAndFilterFuncs_(stack) {
-    const result = [];
+    const nameStack = [];
+    const entryStack = [];
     let last_seen_c_function = '';
     let look_for_first_c_function = false;
     for (let i = 0; i < stack.length; ++i) {
-      const entry = this.codeMap_.findEntry(stack[i]);
+      const pc = stack[i];
+      const entry = this.codeMap_.findEntry(pc);
       if (entry) {
+        entryStack.push(entry);
         const name = entry.getName();
         if (i === 0 && (entry.type === 'CPP' || entry.type === 'SHARED_LIB')) {
           look_for_first_c_function = true;
@@ -488,16 +517,15 @@ export class Profile {
           last_seen_c_function = name;
         }
         if (!this.skipThisFunction(name)) {
-          result.push(name);
+          nameStack.push(name);
         }
       } else {
-        this.handleUnknownCode(Profile.Operation.TICK, stack[i], i);
-        if (i === 0) result.push("UNKNOWN");
+        this.handleUnknownCode(Profile.Operation.TICK, pc, i);
+        if (i === 0) nameStack.push("UNKNOWN");
+        entryStack.push(pc);
       }
-      if (look_for_first_c_function &&
-        i > 0 &&
-        (!entry || entry.type !== 'CPP') &&
-        last_seen_c_function !== '') {
+      if (look_for_first_c_function && i > 0 &&
+          (!entry || entry.type !== 'CPP') && last_seen_c_function !== '') {
         if (this.c_entries_[last_seen_c_function] === undefined) {
           this.c_entries_[last_seen_c_function] = 0;
         }
@@ -505,7 +533,7 @@ export class Profile {
         look_for_first_c_function = false;  // Found it, we're done.
       }
     }
-    return result;
+    return {nameStack, entryStack};
   }
 
   /**

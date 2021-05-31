@@ -34,9 +34,7 @@ DOM.defineCustomElement(
         rect.x += rect.width / 2;
         let atRight = this._useRight(rect.x);
         let atBottom = this._useBottom(rect.y);
-        if (atBottom) {
-          rect.y += rect.height;
-        }
+        if (atBottom) rect.y += rect.height;
         this._setPosition(rect, atRight, atBottom);
         this.requestUpdate(true);
       }
@@ -174,6 +172,7 @@ class TableBuilder {
   _addFooter() {
     if (this._instance === undefined) return;
     const td = this._table.createTFoot().insertRow().insertCell();
+    td.colSpan = 2;
     let button =
         td.appendChild(DOM.button('Show', this._tooltip._logEntryClickHandler));
     button.data = this._instance;

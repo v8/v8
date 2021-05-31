@@ -78,6 +78,16 @@ export class Processor extends LogReader {
       },
       'sfi-move':
           {parsers: [parseInt, parseInt], processor: this.processFunctionMove},
+      'tick': {
+        parsers:
+            [parseInt, parseInt, parseInt, parseInt, parseInt, parseVarArgs],
+        processor: this.processTick
+      },
+      'active-runtime-timer': undefined,
+      'heap-sample-begin': undefined,
+      'heap-sample-end': undefined,
+      'timer-event-start': undefined,
+      'timer-event-end': undefined,
       'map-create':
           {parsers: [parseInt, parseString], processor: this.processMapCreate},
       'map': {
@@ -262,6 +272,29 @@ export class Processor extends LogReader {
 
   processFunctionMove(from, to) {
     this._profile.moveFunc(from, to);
+  }
+
+  processTick(
+      pc, ns_since_start, is_external_callback, tos_or_external_callback,
+      vmState, stack) {
+    if (is_external_callback) {
+      // Don't use PC when in external callback code, as it can point
+      // inside callback's code, and we will erroneously report
+      // that a callback calls itself. Instead we use tos_or_external_callback,
+      // as simply resetting PC will produce unaccounted ticks.
+      pc = tos_or_external_callback;
+      tos_or_external_callback = 0;
+    } else if (tos_or_external_callback) {
+      // Find out, if top of stack was pointing inside a JS function
+      // meaning that we have encountered a frameless invocation.
+      const funcEntry = this._profile.findEntry(tos_or_external_callback);
+      if (!funcEntry?.isJSFunction?.()) {
+        tos_or_external_callback = 0;
+      }
+    }
+    this._profile.recordTick(
+        ns_since_start, vmState,
+        this.processStack(pc, tos_or_external_callback, stack));
   }
 
   processCodeSourceInfo(

@@ -160,7 +160,7 @@ export class LogReader {
       } else if (firstChar != 'o') {
         fullStack.push(parseInt(frame, 16));
       } else {
-        this.printError(`dropping: ${frame}`);
+        console.error(`dropping: ${frame}`);
       }
     }
     return fullStack;
