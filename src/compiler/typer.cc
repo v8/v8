@@ -1716,6 +1716,7 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     case Builtins::kObjectCreate:
       return Type::OtherObject();
     case Builtins::kObjectIs:
+    case Builtins::kObjectHasOwn:
     case Builtins::kObjectPrototypeHasOwnProperty:
     case Builtins::kObjectPrototypeIsPrototypeOf:
       return Type::Boolean();

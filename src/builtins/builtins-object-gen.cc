@@ -543,6 +543,36 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   }
 }
 
+// https://github.com/tc39/proposal-accessible-object-hasownproperty
+TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
+  // Object.prototype.hasOwnProperty()
+  // 1. Let obj be ? ToObject(O).
+  // 2. Let key be ? ToPropertyKey(P).
+  // 3. Return ? HasOwnProperty(obj, key).
+  //
+  // ObjectPrototypeHasOwnProperty has similar semantics with steps 1 and 2
+  // swapped. We check if ToObject can fail and delegate the rest of the
+  // execution to ObjectPrototypeHasOwnProperty.
+
+  auto target = Parameter<Object>(Descriptor::kJSTarget);
+  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
+  auto object = Parameter<Object>(Descriptor::kObject);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  // ToObject can only fail when object is undefined or null.
+  Label undefined_or_null(this), not_undefined_nor_null(this);
+  Branch(IsNullOrUndefined(object), &undefined_or_null,
+         &not_undefined_nor_null);
+
+  BIND(&undefined_or_null);
+  ThrowTypeError(context, MessageTemplate::kUndefinedOrNullToObject);
+
+  BIND(&not_undefined_nor_null);
+  Return(CallBuiltin(Builtins::kObjectPrototypeHasOwnProperty, context, target,
+                     new_target, Int32Constant(2), object, key));
+}
+
 // ES #sec-object.getOwnPropertyNames
 TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);

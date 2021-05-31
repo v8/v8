@@ -542,6 +542,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kObjectGetOwnPropertyNames:
     case Builtins::kObjectGetOwnPropertySymbols:
     case Builtins::kObjectGetPrototypeOf:
+    case Builtins::kObjectHasOwn:
     case Builtins::kObjectIs:
     case Builtins::kObjectIsExtensible:
     case Builtins::kObjectIsFrozen:

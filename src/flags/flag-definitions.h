@@ -287,8 +287,9 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V) \
-  V(harmony_class_static_blocks, "harmony static initializer blocks")
+#define HARMONY_STAGED_BASE(V)                                        \
+  V(harmony_class_static_blocks, "harmony static initializer blocks") \
+  V(harmony_object_has_own, "Object.hasOwn")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                 \

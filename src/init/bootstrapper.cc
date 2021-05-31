@@ -4439,6 +4439,14 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_more_timezone)
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
+void Genesis::InitializeGlobal_harmony_object_has_own() {
+  if (!FLAG_harmony_object_has_own) return;
+
+  Handle<JSFunction> object_function = isolate_->object_function();
+  SimpleInstallFunction(isolate_, object_function, "hasOwn",
+                        Builtins::kObjectHasOwn, 2, true);
+}
+
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   if (!FLAG_harmony_sharedarraybuffer ||
       FLAG_enable_sharedarraybuffer_per_context) {
