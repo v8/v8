@@ -83,8 +83,10 @@
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
   'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
   'tools/compiler-trace-flags': [PASS, NO_VARIANTS],
-  'tools/dumpcpp': [PASS, NO_VARIANTS],
-  'tools/tickprocessor': [PASS, NO_VARIANTS],
+  'tools/dumpcpp': [PASS, NO_VARIANTS, ['mode != release', SKIP]],
+  'tools/tickprocessor': [PASS, NO_VARIANTS, ['mode != release', SKIP]],
+   # Also skip example file which is not a test.
+  'tools/tickprocessor-test-large': [SKIP],
 
   # Issue 488: this test sometimes times out.
   # TODO(arm): This seems to flush out a bug on arm with simulator.
@@ -147,7 +149,6 @@
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
-  'tools/tickprocessor-test-large': [PASS, SLOW, NO_VARIANTS, ['mode != release or arch != x64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64)', SKIP]],

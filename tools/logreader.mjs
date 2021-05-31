@@ -90,6 +90,19 @@ export class LogReader {
     this.logLinesSinceLastTimerMarker_ = [];
   }
 
+
+  /**
+   * A thin wrapper around shell's 'read' function showing a file name on error.
+   */
+  readFile(fileName) {
+    try {
+      return read(fileName);
+    } catch (e) {
+      printErr(`file="${fileName}": ${e.message || e}`);
+      throw e;
+    }
+  }
+
   /**
    * Used for printing error messages.
    *

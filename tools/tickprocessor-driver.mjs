@@ -25,34 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import { WebInspector} from "./sourcemap.mjs";
 import {
     ArgumentsProcessor, TickProcessor, UnixCppEntriesProvider,
-    WindowsCppEntriesProvider, MacCppEntriesProvider, readFile,
+    WindowsCppEntriesProvider, MacCppEntriesProvider
   } from "./tickprocessor.mjs";
 
 // Tick Processor's code flow.
-
-function processArguments(args) {
-  const processor = new ArgumentsProcessor(args);
-  if (processor.parse()) {
-    return processor.result();
-  } else {
-    processor.printUsageAndExit();
-  }
-}
-
-function initSourceMapSupport() {
-  // Pull dev tools source maps  into our name space.
-  SourceMap = WebInspector.SourceMap;
-
-  // Overwrite the load function to load scripts synchronously.
-  SourceMap.load = function(sourceMapURL) {
-    const content = readFile(sourceMapURL);
-    const sourceMapObject = (JSON.parse(content));
-    return new SourceMap(sourceMapURL, sourceMapObject);
-  };
-}
 
 const entriesProviders = {
   'unix': UnixCppEntriesProvider,
@@ -60,12 +38,7 @@ const entriesProviders = {
   'mac': MacCppEntriesProvider
 };
 
-const params = processArguments(arguments);
-let sourceMap = null;
-if (params.sourceMap) {
-  initSourceMapSupport();
-  sourceMap = SourceMap.load(params.sourceMap);
-}
+const params = ArgumentsProcessor.process(arguments);
 const tickProcessor = new TickProcessor(
   new (entriesProviders[params.platform])(params.nm, params.objdump, params.targetRootFS,
                                           params.apkEmbeddedLibrary),
@@ -79,7 +52,7 @@ const tickProcessor = new TickProcessor(
   params.stateFilter,
   params.distortion,
   params.range,
-  sourceMap,
+  params.sourceMap,
   params.timedRange,
   params.pairwiseTimedRange,
   params.onlySummary,

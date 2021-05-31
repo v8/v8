@@ -29,6 +29,7 @@ import { LogReader, parseString, parseVarArgs } from "./logreader.mjs";
 import { BaseArgumentsProcessor, parseBool } from "./arguments.mjs";
 import { Profile, JsonProfile } from "./profile.mjs";
 import { ViewBuilder } from "./profile_view.mjs";
+import { WebInspector} from "./sourcemap.mjs";
 
 
 class V8Profile extends Profile {
@@ -55,19 +56,6 @@ class V8Profile extends Profile {
         return false;
       };
     }
-  }
-}
-
-
-/**
- * A thin wrapper around shell's 'read' function showing a file name on error.
- */
-export function readFile(fileName) {
-  try {
-    return read(fileName);
-  } catch (e) {
-    printErr(`file="${fileName}": ${e.message || e}`);
-    throw e;
   }
 }
 
@@ -174,7 +162,7 @@ export class TickProcessor extends LogReader {
     this.ignoreUnknown_ = ignoreUnknown;
     this.stateFilter_ = stateFilter;
     this.runtimeTimerFilter_ = runtimeTimerFilter;
-    this.sourceMap = sourceMap;
+    this.sourceMap = this.loadSourceMap(sourceMap);
     const ticks = this.ticks_ =
       { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
 
@@ -224,6 +212,17 @@ export class TickProcessor extends LogReader {
     this.generation_ = 1;
     this.currentProducerProfile_ = null;
     this.onlySummary_ = onlySummary;
+  }
+
+  loadSourceMap(sourceMap) {
+    if (!sourceMap) return null;
+    // Overwrite the load function to load scripts synchronously.
+    WebInspector.SourceMap.load = (sourceMapURL) => {
+      const content = this.readFile(sourceMapURL);
+      const sourceMapObject = JSON.parse(content);
+      return new SourceMap(sourceMapURL, sourceMapObject);
+    };
+    return WebInspector.SourceMap.load(sourceMap);
   }
 
   static VmStates = {
@@ -282,7 +281,7 @@ export class TickProcessor extends LogReader {
   processLogFileInTest(fileName) {
     // Hack file name to avoid dealing with platform specifics.
     this.lastLogFileName_ = 'v8.log';
-    const contents = readFile(fileName);
+    const contents = this.readFile(fileName);
     this.processLogChunk(contents);
   }
 
@@ -835,6 +834,7 @@ export class WindowsCppEntriesProvider extends CppEntriesProvider {
 export class ArgumentsProcessor extends BaseArgumentsProcessor {
   getArgsDispatch() {
     let dispatch = {
+      __proto__:null,
       '-j': ['stateFilter', TickProcessor.VmStates.JS,
         'Show only ticks from JS VM state'],
       '-g': ['stateFilter', TickProcessor.VmStates.GC,
@@ -918,6 +918,7 @@ export class ArgumentsProcessor extends BaseArgumentsProcessor {
       separateStubs: true,
       separateBaselineHandlers: false,
       preprocessJson: null,
+      sourceMap: null,
       targetRootFS: '',
       nm: 'nm',
       objdump: 'objdump',
