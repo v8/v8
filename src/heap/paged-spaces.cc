@@ -275,9 +275,10 @@ void PagedSpace::SetTopAndLimit(Address top, Address limit) {
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(top, limit);
-  base::SharedMutexGuard<base::kExclusive> guard(
-      &heap_->pending_allocation_mutex_);
-  // The order of the following two stores is important.
+
+  base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
+  if (!is_local_space())
+    optional_guard.emplace(&heap_->pending_allocation_mutex_);
   original_limit_ = limit;
   original_top_ = top;
 }
