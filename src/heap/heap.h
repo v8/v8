@@ -1068,6 +1068,8 @@ class Heap {
   void CompleteSweepingFull();
   void CompleteSweepingYoung(GarbageCollector collector);
 
+  void EnsureSweepingCompleted();
+
   IncrementalMarking* incremental_marking() {
     return incremental_marking_.get();
   }
