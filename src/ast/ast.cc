@@ -1040,6 +1040,12 @@ bool Literal::ToBooleanIsTrue() const {
 }
 
 uint32_t Literal::Hash() {
+  uint32_t index;
+  if (AsArrayIndex(&index)) {
+    // Treat array indices as numbers, so that array indices are de-duped
+    // correctly even if one of them is a string and the other is a number.
+    return ComputeLongHash(index);
+  }
   return IsString() ? AsRawString()->Hash()
                     : ComputeLongHash(double_to_uint64(AsNumber()));
 }
@@ -1048,6 +1054,11 @@ uint32_t Literal::Hash() {
 bool Literal::Match(void* a, void* b) {
   Literal* x = static_cast<Literal*>(a);
   Literal* y = static_cast<Literal*>(b);
+  uint32_t index_x;
+  uint32_t index_y;
+  if (x->AsArrayIndex(&index_x)) {
+    return y->AsArrayIndex(&index_y) && index_x == index_y;
+  }
   return (x->IsString() && y->IsString() &&
           x->AsRawString() == y->AsRawString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
