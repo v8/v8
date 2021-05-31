@@ -6067,7 +6067,8 @@ class V8_EXPORT Template : public Data {
            PropertyAttribute attributes = None);
   void SetPrivate(Local<Private> name, Local<Data> value,
                   PropertyAttribute attributes = None);
-  V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value);
+  V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value,
+                     PropertyAttribute attributes = None);
 
   void SetAccessorProperty(
      Local<Name> name,
@@ -11580,10 +11581,11 @@ Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);
 }
 
-void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
+void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
+                   PropertyAttribute attributes) {
   Set(String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
           .ToLocalChecked(),
-      value);
+      value, attributes);
 }
 
 FunctionTemplate* FunctionTemplate::Cast(Data* data) {
