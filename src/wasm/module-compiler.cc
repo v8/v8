@@ -1347,21 +1347,12 @@ CompilationExecutionResult ExecuteCompilationUnits(
       // when all threads publish at the end.
       bool batch_full =
           queue->ShouldPublish(static_cast<int>(results_to_publish.size()));
-
       // Also publish each time the compilation tier changes from Liftoff to
       // TurboFan, such that we immediately publish the baseline compilation
       // results to start execution, and do not wait for a batch to fill up.
       bool liftoff_finished = unit->tier() != current_tier &&
                               unit->tier() == ExecutionTier::kTurbofan;
-
-      // Without mprotect-based write protection, publish even more often,
-      // namely every TurboFan unit individually (no batching) to reduce
-      // peak memory consumption. However, with write protection, this results
-      // in a high number of page protection switches (once for each function),
-      // incurring syscalls and lock contention, so don't do it then.
-      bool publish_turbofan_unit = !FLAG_wasm_write_protect_code_memory &&
-                                   unit->tier() == ExecutionTier::kTurbofan;
-      if (batch_full || liftoff_finished || publish_turbofan_unit) {
+      if (batch_full || liftoff_finished) {
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 VectorOf(std::move(results_to_publish)));
