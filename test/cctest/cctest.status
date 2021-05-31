@@ -145,6 +145,9 @@
 ['mode == debug', {
   'test-persistent-handles/NewPersistentHandleFailsWhenParked': [FAIL],
   'test-persistent-handles/NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
+
+  # BUG(v8:10996): Flaky on Linux64 - debug
+  'test-cpu-profiler/StartProfilingAfterOsr': [SKIP],
 }],
 
 ##############################################################################
