@@ -797,12 +797,12 @@ Node* RepresentationChanger::MakeTruncatedInt32Constant(double value) {
   return jsgraph()->Int32Constant(DoubleToInt32(value));
 }
 
-Node* RepresentationChanger::InsertUnconditionalDeopt(Node* node,
-                                                      DeoptimizeReason reason) {
+Node* RepresentationChanger::InsertUnconditionalDeopt(
+    Node* node, DeoptimizeReason reason, const FeedbackSource& feedback) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   effect =
-      jsgraph()->graph()->NewNode(simplified()->CheckIf(reason),
+      jsgraph()->graph()->NewNode(simplified()->CheckIf(reason, feedback),
                                   jsgraph()->Int32Constant(0), effect, control);
   Node* unreachable = effect = jsgraph()->graph()->NewNode(
       jsgraph()->common()->Unreachable(), effect, control);
@@ -1119,8 +1119,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     if (!CanBeTaggedPointer(output_rep) &&
         output_rep != MachineRepresentation::kWord64) {
       DCHECK(!output_type.Equals(Type::BigInt()));
-      Node* unreachable =
-          InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotABigInt);
+      Node* unreachable = InsertUnconditionalDeopt(
+          use_node, DeoptimizeReason::kNotABigInt, use_info.feedback());
       return jsgraph()->graph()->NewNode(
           jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
           unreachable);
@@ -1230,8 +1230,11 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     if (output_type.Is(Type::BigInt())) {
       return node;
     } else {
-      return TypeError(node, output_rep, output_type,
-                       MachineRepresentation::kWord64);
+      Node* unreachable = InsertUnconditionalDeopt(
+          use_node, DeoptimizeReason::kNotABigInt, use_info.feedback());
+      return jsgraph()->graph()->NewNode(
+          jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
+          unreachable);
     }
   } else {
     return TypeError(node, output_rep, output_type,
