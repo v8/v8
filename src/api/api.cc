@@ -1269,6 +1269,15 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     SideEffectType side_effect_type,
     const MemorySpan<const CFunction>& c_function_overloads) {
+  // TODO(mslekova): Once runtime overload resolution between sequences is
+  // supported, check that if (c_function_overloads.size() == 2), then
+  // c_function_overloads.data()[0].
+  //   CanResolveOverload(c_function_overloads.data()[1]). We won't support
+  // the case where the size is greater than 2 for runtime resolution, until
+  // we've added support for ArrayBuffers and ArrayBufferViews. OTOH the
+  // overloads list might contain more than 2 functions with different arity,
+  // the resolution between which is available at compile time.
+
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);

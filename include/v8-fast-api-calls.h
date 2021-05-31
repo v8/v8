@@ -252,20 +252,71 @@ class CTypeInfo {
   // than any valid Type enum.
   static constexpr Type kCallbackOptionsType = Type(255);
 
-  enum class Flags : uint8_t {
-    kNone = 0,
+  enum class SequenceType : uint8_t {
+    kScalar,
+    kIsSequence,    // sequence<T>
+    kIsTypedArray,  // TypedArray of T or any ArrayBufferView if T
+                    // is void
+    kIsArrayBuffer  // ArrayBuffer
   };
 
-  explicit constexpr CTypeInfo(Type type, Flags flags = Flags::kNone)
-      : type_(type), flags_(flags) {}
+  enum class Flags : uint8_t {
+    kNone = 0,
+    kAllowSharedBit = 1 << 0,   // Must be an ArrayBuffer or TypedArray
+    kEnforceRangeBit = 1 << 1,  // T must be integral
+    kClampBit = 1 << 2,         // T must be integral
+    kIsRestrictedBit = 1 << 3,  // T must be float or double
+  };
+
+  explicit constexpr CTypeInfo(
+      Type type, SequenceType sequence_type = SequenceType::kScalar,
+      Flags flags = Flags::kNone)
+      : type_(type), sequence_type_(sequence_type), flags_(flags) {}
 
   constexpr Type GetType() const { return type_; }
-
+  constexpr SequenceType GetSequenceType() const { return sequence_type_; }
   constexpr Flags GetFlags() const { return flags_; }
+
+  static constexpr bool IsIntegralType(Type type) {
+    return type == Type::kInt32 || type == Type::kUint32 ||
+           type == Type::kInt64 || type == Type::kUint64;
+  }
+
+  static constexpr bool IsFloatingPointType(Type type) {
+    return type == Type::kFloat32 || type == Type::kFloat64;
+  }
+
+  static constexpr bool IsPrimitive(Type type) {
+    return IsIntegralType(type) || IsFloatingPointType(type) ||
+           type == Type::kBool;
+  }
 
  private:
   Type type_;
+  SequenceType sequence_type_;
   Flags flags_;
+};
+
+template <typename T>
+struct FastApiTypedArray {
+  T* data;        // should include the typed array offset applied
+  size_t length;  // length in number of elements
+};
+
+// Any TypedArray. It uses kTypedArrayBit with base type void
+// Overloaded args of ArrayBufferView and TypedArray are not supported
+// (for now) because the generic “any” ArrayBufferView doesn’t have its
+// own instance type. It could be supported if we specify that
+// TypedArray<T> always has precedence over the generic ArrayBufferView,
+// but this complicates overload resolution.
+struct FastApiArrayBufferView {
+  void* data;
+  size_t byte_length;
+};
+
+struct FastApiArrayBuffer {
+  void* data;
+  size_t byte_length;
 };
 
 class V8_EXPORT CFunctionInfo {
@@ -318,6 +369,42 @@ class V8_EXPORT CFunction {
 
   const void* GetAddress() const { return address_; }
   const CFunctionInfo* GetTypeInfo() const { return type_info_; }
+
+  enum class OverloadResolution { kImpossible, kAtRuntime, kAtCompileTime };
+
+  // Returns whether an overload between this and the given CFunction can
+  // be resolved at runtime by the RTTI available for the arguments or at
+  // compile time for functions with different number of arguments.
+  OverloadResolution GetOverloadResolution(const CFunction* other) {
+    // Runtime overload resolution can only deal with functions with the
+    // same number of arguments. Functions with different arity are handled
+    // by compile time overload resolution though.
+    if (ArgumentCount() != other->ArgumentCount()) {
+      return OverloadResolution::kAtCompileTime;
+    }
+
+    // The functions can only differ by a single argument position.
+    int diff_index = -1;
+    for (unsigned int i = 0; i < ArgumentCount(); ++i) {
+      if (ArgumentInfo(i).GetSequenceType() !=
+          other->ArgumentInfo(i).GetSequenceType()) {
+        if (diff_index >= 0) {
+          return OverloadResolution::kImpossible;
+        }
+        diff_index = i;
+
+        // We only support overload resolution between sequence types.
+        if (ArgumentInfo(i).GetSequenceType() ==
+                CTypeInfo::SequenceType::kScalar ||
+            other->ArgumentInfo(i).GetSequenceType() ==
+                CTypeInfo::SequenceType::kScalar) {
+          return OverloadResolution::kImpossible;
+        }
+      }
+    }
+
+    return OverloadResolution::kAtRuntime;
+  }
 
   template <typename F>
   static CFunction Make(F* func) {
@@ -447,6 +534,9 @@ struct TypeInfoHelper {
     }                                                                         \
                                                                               \
     static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::Enum; } \
+    static constexpr CTypeInfo::SequenceType SequenceType() {                 \
+      return CTypeInfo::SequenceType::kScalar;                                \
+    }                                                                         \
   };
 
 #define BASIC_C_TYPES(V)            \
@@ -470,6 +560,41 @@ BASIC_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR)
 
 #undef BASIC_C_TYPES
 
+#define SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA(T, Enum)                       \
+  template <>                                                                 \
+  struct TypeInfoHelper<FastApiTypedArray<T>> {                               \
+    static constexpr CTypeInfo::Flags Flags() {                               \
+      return CTypeInfo::Flags::kNone;                                         \
+    }                                                                         \
+                                                                              \
+    static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::Enum; } \
+    static constexpr CTypeInfo::SequenceType SequenceType() {                 \
+      return CTypeInfo::SequenceType::kIsTypedArray;                          \
+    }                                                                         \
+  };
+
+#define TYPED_ARRAY_C_TYPES(V) \
+  V(int32_t, kInt32)           \
+  V(uint32_t, kUint32)         \
+  V(int64_t, kInt64)           \
+  V(uint64_t, kUint64)         \
+  V(float, kFloat32)           \
+  V(double, kFloat64)
+
+TYPED_ARRAY_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA)
+
+#undef TYPED_ARRAY_C_TYPES
+
+template <>
+struct TypeInfoHelper<v8::Local<v8::Array>> {
+  static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
+
+  static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::kVoid; }
+  static constexpr CTypeInfo::SequenceType SequenceType() {
+    return CTypeInfo::SequenceType::kIsSequence;
+  }
+};
+
 template <>
 struct TypeInfoHelper<FastApiCallbackOptions&> {
   static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
@@ -477,7 +602,13 @@ struct TypeInfoHelper<FastApiCallbackOptions&> {
   static constexpr CTypeInfo::Type Type() {
     return CTypeInfo::kCallbackOptionsType;
   }
+  static constexpr CTypeInfo::SequenceType SequenceType() {
+    return CTypeInfo::SequenceType::kScalar;
+  }
 };
+
+#define STATIC_ASSERT_IMPLIES(COND, ASSERTION, MSG) \
+  static_assert(((COND) == 0) || (ASSERTION), MSG)
 
 template <typename T, CTypeInfo::Flags... Flags>
 class CTypeInfoBuilder {
@@ -485,18 +616,49 @@ class CTypeInfoBuilder {
   using BaseType = T;
 
   static constexpr CTypeInfo Build() {
-    // Get the flags and merge in any additional flags.
-    uint8_t flags = uint8_t(TypeInfoHelper<T>::Flags());
-    int unused[] = {0, (flags |= uint8_t(Flags), 0)...};
-    // With C++17, we could use a "..." fold expression over a parameter pack.
-    // Since we're still using C++14, we have to evaluate an OR expresion while
-    // constructing an unused list of 0's. This applies the binary operator
-    // for each value in Flags.
-    (void)unused;
+    constexpr CTypeInfo::Flags kFlags =
+        MergeFlags(TypeInfoHelper<T>::Flags(), Flags...);
+    constexpr CTypeInfo::Type kType = TypeInfoHelper<T>::Type();
+    constexpr CTypeInfo::SequenceType kSequenceType =
+        TypeInfoHelper<T>::SequenceType();
+
+    STATIC_ASSERT_IMPLIES(
+        uint8_t(kFlags) & uint8_t(CTypeInfo::Flags::kAllowSharedBit),
+        (kSequenceType == CTypeInfo::SequenceType::kIsTypedArray ||
+         kSequenceType == CTypeInfo::SequenceType::kIsArrayBuffer),
+        "kAllowSharedBit is only allowed for TypedArrays and ArrayBuffers.");
+    STATIC_ASSERT_IMPLIES(
+        uint8_t(kFlags) & uint8_t(CTypeInfo::Flags::kEnforceRangeBit),
+        CTypeInfo::IsIntegralType(kType),
+        "kEnforceRangeBit is only allowed for integral types.");
+    STATIC_ASSERT_IMPLIES(
+        uint8_t(kFlags) & uint8_t(CTypeInfo::Flags::kClampBit),
+        CTypeInfo::IsIntegralType(kType),
+        "kClampBit is only allowed for integral types.");
+    STATIC_ASSERT_IMPLIES(
+        uint8_t(kFlags) & uint8_t(CTypeInfo::Flags::kIsRestrictedBit),
+        CTypeInfo::IsFloatingPointType(kType),
+        "kIsRestrictedBit is only allowed for floating point types.");
+    STATIC_ASSERT_IMPLIES(kSequenceType == CTypeInfo::SequenceType::kIsSequence,
+                          kType == CTypeInfo::Type::kVoid,
+                          "Sequences are only supported from void type.");
+    STATIC_ASSERT_IMPLIES(
+        kSequenceType == CTypeInfo::SequenceType::kIsTypedArray,
+        CTypeInfo::IsPrimitive(kType) || kType == CTypeInfo::Type::kVoid,
+        "TypedArrays are only supported from primitive types or void.");
 
     // Return the same type with the merged flags.
-    return CTypeInfo(TypeInfoHelper<T>::Type(), CTypeInfo::Flags(flags));
+    return CTypeInfo(TypeInfoHelper<T>::Type(),
+                     TypeInfoHelper<T>::SequenceType(), kFlags);
   }
+
+ private:
+  template <typename... Rest>
+  static constexpr CTypeInfo::Flags MergeFlags(CTypeInfo::Flags flags,
+                                               Rest... rest) {
+    return CTypeInfo::Flags(uint8_t(flags) | uint8_t(MergeFlags(rest...)));
+  }
+  static constexpr CTypeInfo::Flags MergeFlags() { return CTypeInfo::Flags(0); }
 };
 
 template <typename RetBuilder, typename... ArgBuilders>
@@ -548,8 +710,9 @@ class CFunctionBuilderWithFunction {
         Flags...>;
   };
 
-  // Return a copy of the CFunctionBuilder, but merges the Flags on ArgBuilder
-  // index N with the new Flags passed in the template parameter pack.
+  // Return a copy of the CFunctionBuilder, but merges the Flags on
+  // ArgBuilder index N with the new Flags passed in the template parameter
+  // pack.
   template <unsigned int N, CTypeInfo::Flags... Flags, size_t... I>
   constexpr auto ArgImpl(std::index_sequence<I...>) {
     return CFunctionBuilderWithFunction<
