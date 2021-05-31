@@ -1938,9 +1938,10 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprArrayCopy: {
-            ArrayIndexImmediate<validate> src_imm(decoder, pc + length);
             ArrayIndexImmediate<validate> dst_imm(decoder, pc + length);
-            return length + src_imm.length + dst_imm.length;
+            ArrayIndexImmediate<validate> src_imm(decoder,
+                                                  pc + length + dst_imm.length);
+            return length + dst_imm.length + src_imm.length;
           }
           case kExprBrOnCast:
           case kExprBrOnCastFail:
@@ -4245,6 +4246,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         CHECK_PROTOTYPE_OPCODE(gc_experiments);
         ArrayIndexImmediate<validate> dst_imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, dst_imm)) return 0;
+        if (!VALIDATE(dst_imm.array_type->mutability())) {
+          this->DecodeError(
+              "array.copy: immediate destination array type #%d is immutable",
+              dst_imm.index);
+          return 0;
+        }
         ArrayIndexImmediate<validate> src_imm(
             this, this->pc_ + opcode_length + dst_imm.length);
         if (!this->Validate(this->pc_ + opcode_length + dst_imm.length,
