@@ -1876,7 +1876,7 @@ void Shell::RealmTakeWebSnapshot(
 void Shell::RealmUseWebSnapshot(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  if (args.Length() < 2) {
+  if (args.Length() < 2 || !args[1]->IsObject()) {
     isolate->ThrowError("Invalid argument");
     return;
   }
@@ -1885,7 +1885,8 @@ void Shell::RealmUseWebSnapshot(
   if (index == -1) return;
   // Restore the snapshot data from the snapshot object.
   Local<Object> snapshot_instance = args[1].As<Object>();
-  if (snapshot_instance->InternalFieldCount() != 1) {
+  Local<FunctionTemplate> snapshot_template = data->GetSnapshotObjectCtor();
+  if (!snapshot_template->HasInstance(snapshot_instance)) {
     isolate->ThrowError("Invalid argument");
     return;
   }
