@@ -1,17 +1,4 @@
 links {
-  name: "Stable coverage"
-  links {
-    text: "stable"
-    url: "/p/v8/g/br.stable"
-    alt: "Stable Main"
-  }
-  links {
-    text: "stable.ports"
-    url: "/p/v8/g/br.stable.ports"
-    alt: "Stable Ports"
-  }
-}
-links {
   name: "Beta coverage"
   links {
     text: "beta"
@@ -25,6 +12,32 @@ links {
   }
 }
 links {
+  name: "Stable coverage"
+  links {
+    text: "stable"
+    url: "/p/v8/g/br.stable"
+    alt: "Stable Main"
+  }
+  links {
+    text: "stable.ports"
+    url: "/p/v8/g/br.stable.ports"
+    alt: "Stable Ports"
+  }
+}
+links {
+  name: "extended coverage"
+  links {
+    text: "extended"
+    url: "/p/v8/g/br.extended"
+    alt: "Extended Main"
+  }
+  links {
+    text: "extended.ports"
+    url: "/p/v8/g/br.extended.ports"
+    alt: "Extended Ports"
+  }
+}
+links {
   name: "README"
   links {
     text: "readme"
@@ -34,8 +47,10 @@ links {
 }
 
 console_groups {
-  console_ids: "v8/br.stable"
-  console_ids: "v8/br.stable.ports"
   console_ids: "v8/br.beta"
   console_ids: "v8/br.beta.ports"
+  console_ids: "v8/br.stable"
+  console_ids: "v8/br.stable.ports"
+  console_ids: "v8/br.extended"
+  console_ids: "v8/br.extended.ports"
 }

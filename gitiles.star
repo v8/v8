@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//definitions.star", "beta_re", "stable_re")
+load("//definitions.star", "beta_re", "stable_re", "extended_re")
 
 luci.gitiles_poller(
     name = "chromium-trigger",
@@ -30,6 +30,13 @@ luci.gitiles_poller(
     bucket = "ci.br.stable",
     repo = "https://chromium.googlesource.com/v8/v8",
     refs = ["refs/branch-heads/" + stable_re],
+)
+
+luci.gitiles_poller(
+    name = "v8-trigger-br-extended",
+    bucket = "ci.br.extended",
+    repo = "https://chromium.googlesource.com/v8/v8",
+    refs = ["refs/branch-heads/" + extended_re],
 )
 
 luci.gitiles_poller(

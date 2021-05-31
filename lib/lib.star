@@ -73,6 +73,7 @@ trigger_dict = {
     "ci": "v8-trigger",
     "ci.br.beta": "v8-trigger-br-beta",
     "ci.br.stable": "v8-trigger-br-stable",
+    "ci.br.extended": "v8-trigger-br-extended",
 }
 
 GOMA = struct(
@@ -188,6 +189,8 @@ branch_console_dict = {
     ("ci.br.beta", "ports"): "br.beta.ports",
     ("ci.br.stable", "main"): "br.stable",
     ("ci.br.stable", "ports"): "br.stable.ports",
+    ("ci.br.extended", "main"): "br.extended",
+    ("ci.br.extended", "ports"): "br.extended.ports",
 }
 
 def multibranch_builder(**kwargs):
