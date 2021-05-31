@@ -400,7 +400,8 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
                                     Node* use_node);
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
   Node* InsertTruncateInt64ToInt32(Node* node);
-  Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason);
+  Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason,
+                                 const FeedbackSource& feedback = {});
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
