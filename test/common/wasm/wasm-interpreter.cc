@@ -1005,7 +1005,7 @@ class SideTable : public ZoneObject {
             Control* target = &control_stack[max_depth - imm.depth];
             DCHECK_EQ(*target->pc, kExprTry);
             DCHECK_NOT_NULL(target->else_label);
-            if (!unreachable) {
+            if (!control_parent().unreachable) {
               target->else_label->Ref(i.pc(),
                                       c->end_label->target_stack_height);
             }
