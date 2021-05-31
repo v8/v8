@@ -1890,13 +1890,14 @@ MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
   DCHECK(2 <= radix && radix <= 36);
   DCHECK_GE(charcount, 0);
   size_t bits_per_char = kMaxBitsPerChar[radix];
-  size_t chars = static_cast<size_t>(charcount);
+  uint64_t chars = static_cast<uint64_t>(charcount);
   const int roundup = kBitsPerCharTableMultiplier - 1;
-  if (chars <= (std::numeric_limits<size_t>::max() - roundup) / bits_per_char) {
-    size_t bits_min = bits_per_char * chars;
+  if (chars <=
+      (std::numeric_limits<uint64_t>::max() - roundup) / bits_per_char) {
+    uint64_t bits_min = bits_per_char * chars;
     // Divide by 32 (see table), rounding up.
     bits_min = (bits_min + roundup) >> kBitsPerCharTableShift;
-    if (bits_min <= static_cast<size_t>(kMaxInt)) {
+    if (bits_min <= static_cast<uint64_t>(kMaxInt)) {
       // Divide by kDigitsBits, rounding up.
       int length = static_cast<int>((bits_min + kDigitBits - 1) / kDigitBits);
       if (length <= kMaxLength) {
