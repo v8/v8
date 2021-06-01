@@ -2756,62 +2756,12 @@ void TurboAssembler::LoadU64WithUpdate(Register dst, const MemOperand& mem,
 // Store a "pointer" sized value to the memory location
 void TurboAssembler::StoreU64(Register src, const MemOperand& mem,
                               Register scratch) {
-  int offset = mem.offset();
-  int misaligned = (offset & 3);
-
-  if (mem.rb() == no_reg) {
-    if (!is_int16(offset) || misaligned) {
-      /* cannot use d-form */
-      CHECK_NE(scratch, no_reg);
-      mov(scratch, Operand(offset));
-      stdx(src, MemOperand(mem.ra(), scratch));
-    } else {
-      std(src, mem);
-    }
-  } else {
-    if (offset == 0) {
-      stdx(src, mem);
-    } else if (is_int16(offset)) {
-      CHECK_NE(scratch, no_reg);
-      addi(scratch, mem.rb(), Operand(offset));
-      stdx(src, MemOperand(mem.ra(), scratch));
-    } else {
-      CHECK_NE(scratch, no_reg);
-      mov(scratch, Operand(offset));
-      add(scratch, scratch, mem.rb());
-      stdx(src, MemOperand(mem.ra(), scratch));
-    }
-  }
+  GenerateMemoryOperationWithAlign(src, mem, std, stdx);
 }
 
 void TurboAssembler::StoreU64WithUpdate(Register src, const MemOperand& mem,
                                         Register scratch) {
-  int offset = mem.offset();
-  int misaligned = (offset & 3);
-
-  if (mem.rb() == no_reg) {
-    if (!is_int16(offset) || misaligned) {
-      /* cannot use d-form */
-      CHECK_NE(scratch, no_reg);
-      mov(scratch, Operand(offset));
-      stdux(src, MemOperand(mem.ra(), scratch));
-    } else {
-      stdu(src, mem);
-    }
-  } else {
-    if (offset == 0) {
-      stdux(src, mem);
-    } else if (is_int16(offset)) {
-      CHECK_NE(scratch, no_reg);
-      addi(scratch, mem.rb(), Operand(offset));
-      stdux(src, MemOperand(mem.ra(), scratch));
-    } else {
-      CHECK_NE(scratch, no_reg);
-      mov(scratch, Operand(offset));
-      add(scratch, scratch, mem.rb());
-      stdux(src, MemOperand(mem.ra(), scratch));
-    }
-  }
+  GenerateMemoryOperationWithAlign(src, mem, stdu, stdux);
 }
 
 void TurboAssembler::LoadS32(Register dst, const MemOperand& mem,
