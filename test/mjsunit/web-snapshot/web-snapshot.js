@@ -35,15 +35,119 @@ function takeAndUseWebSnapshot(createObjects, exports) {
       n: 42,
     };
   }
-  const exports = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(exports.foo.str, 'hello');
-  assertEquals(exports.foo.n, 42);
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('hello', foo.str);
+  assertEquals(42, foo.n);
 })();
 
 (function TestEmptyObject() {
   function createObjects() {
     globalThis.foo = {};
   }
-  const exports = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(Object.keys(exports.foo), []);
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([], Object.keys(foo));
+})();
+
+(function TestNumbers() {
+  function createObjects() {
+    globalThis.foo = {
+      a: 6,
+      b: -7,
+      c: 7.3,
+      d: NaN,
+      e: Number.POSITIVE_INFINITY,
+      f: Number.NEGATIVE_INFINITY,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(6, foo.a);
+  assertEquals(-7, foo.b);
+  assertEquals(7.3, foo.c);
+  assertEquals(NaN, foo.d);
+  assertEquals(Number.POSITIVE_INFINITY, foo.e);
+  assertEquals(Number.NEGATIVE_INFINITY, foo.f);
+})();
+
+(function TestOddballs() {
+  function createObjects() {
+    globalThis.foo = {
+      a: true,
+      b: false,
+      c: null,
+      d: undefined,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertTrue(foo.a);
+  assertFalse(foo.b);
+  assertEquals(null, foo.c);
+  assertEquals(undefined, foo.d);
+})();
+
+(function TestFunction() {
+  function createObjects() {
+    globalThis.foo = {
+      key: function () { return 'bar'; },
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('bar', foo.key());
+})();
+
+(function TestFunctionWithContext() {
+  function createObjects() {
+    globalThis.foo = {
+      key: (function () {
+        let result = 'bar';
+        function inner() { return result; }
+        return inner;
+      })(),
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('bar', foo.key());
+})();
+
+(function TestInnerFunctionWithContextAndParentContext() {
+  function createObjects() {
+    globalThis.foo = {
+      key: (function () {
+        let part1 = 'snap';
+        function inner() {
+          let part2 = 'shot';
+          function innerinner() {
+            return part1 + part2;
+          }
+          return innerinner;
+        }
+        return inner();
+      })()
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('snapshot', foo.key());
+})();
+
+(function TestRegExp() {
+  function createObjects() {
+    globalThis.foo = {
+      re: /ab+c/gi,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('/ab+c/gi', foo.re.toString());
+  assertTrue(foo.re.test('aBc'));
+  assertFalse(foo.re.test('ac'));
+})();
+
+(function TestRegExpNoFlags() {
+  function createObjects() {
+    globalThis.foo = {
+      re: /ab+c/,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('/ab+c/', foo.re.toString());
+  assertTrue(foo.re.test('abc'));
+  assertFalse(foo.re.test('ac'));
 })();
