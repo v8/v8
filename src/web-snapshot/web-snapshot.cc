@@ -574,6 +574,14 @@ void WebSnapshotDeserializer::DeserializeMaps() {
       return;
     }
 
+    if (property_count == 0) {
+      DisallowGarbageCollection no_gc;
+      Map empty_map =
+          isolate_->native_context()->object_function().initial_map();
+      maps_->set(i, empty_map);
+      return;
+    }
+
     Handle<DescriptorArray> descriptors =
         isolate_->factory()->NewDescriptorArray(0, property_count);
     for (uint32_t p = 0; p < property_count; ++p) {

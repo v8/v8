@@ -39,3 +39,11 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   assertEquals(exports.foo.str, 'hello');
   assertEquals(exports.foo.n, 42);
 })();
+
+(function TestEmptyObject() {
+  function createObjects() {
+    globalThis.foo = {};
+  }
+  const exports = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(Object.keys(exports.foo), []);
+})();

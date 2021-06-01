@@ -86,6 +86,27 @@ TEST(Minimal) {
                   kMapCount, kContextCount, kFunctionCount, kObjectCount);
 }
 
+TEST(EmptyObject) {
+  const char* snapshot_source = "var foo = {}";
+  const char* test_source = "foo";
+  uint32_t kStringCount = 1;  // 'foo'
+  uint32_t kMapCount = 1;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 1;
+  std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
+      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
+        Handle<JSReceiver> foo(v8::Utils::OpenHandle(*result));
+        Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+        CHECK_EQ(foo->map(),
+                 i_isolate->native_context()->object_function().initial_map());
+      };
+  TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
+                           kMapCount, kContextCount, kFunctionCount,
+                           kObjectCount);
+}
+
 TEST(Numbers) {
   const char* snapshot_source =
       "var foo = {'a': 6,\n"
