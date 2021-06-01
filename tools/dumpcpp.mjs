@@ -5,8 +5,8 @@
 import { LogReader, parseString } from "./logreader.mjs";
 import { CodeMap, CodeEntry } from "./codemap.mjs";
 export {
-    ArgumentsProcessor, UnixCppEntriesProvider,
-    WindowsCppEntriesProvider, MacCppEntriesProvider,
+    ArgumentsProcessor, LinuxCppEntriesProvider,
+    WindowsCppEntriesProvider, MacOSCppEntriesProvider,
   } from  "./tickprocessor.mjs";
 
 

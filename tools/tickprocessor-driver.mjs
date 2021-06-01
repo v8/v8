@@ -25,41 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import {
-    ArgumentsProcessor, TickProcessor, UnixCppEntriesProvider,
-    WindowsCppEntriesProvider, MacCppEntriesProvider
-  } from "./tickprocessor.mjs";
-
-// Tick Processor's code flow.
-
-const entriesProviders = {
-  'unix': UnixCppEntriesProvider,
-  'windows': WindowsCppEntriesProvider,
-  'mac': MacCppEntriesProvider
-};
+import { ArgumentsProcessor, TickProcessor } from "./tickprocessor.mjs";
 
 const params = ArgumentsProcessor.process(arguments);
-const tickProcessor = new TickProcessor(
-  new (entriesProviders[params.platform])(params.nm, params.objdump, params.targetRootFS,
-                                          params.apkEmbeddedLibrary),
-  params.separateIc,
-  params.separateBytecodes,
-  params.separateBuiltins,
-  params.separateStubs,
-  params.separateBaselineHandlers,
-  params.callGraphSize,
-  params.ignoreUnknown,
-  params.stateFilter,
-  params.distortion,
-  params.range,
-  params.sourceMap,
-  params.timedRange,
-  params.pairwiseTimedRange,
-  params.onlySummary,
-  params.runtimeTimerFilter,
-  params.preprocessJson);
+const tickProcessor = TickProcessor.fromParams(params);
 tickProcessor.processLogFile(params.logFileName);
-
 if (params.serializeVMSymbols) {
   tickProcessor.printVMSymbols();
 } else {

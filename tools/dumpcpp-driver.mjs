@@ -3,16 +3,16 @@
 // found in the LICENSE file.
 
 import {
-    CppProcessor, ArgumentsProcessor, UnixCppEntriesProvider,
-    WindowsCppEntriesProvider, MacCppEntriesProvider
+    CppProcessor, ArgumentsProcessor, LinuxCppEntriesProvider,
+    WindowsCppEntriesProvider, MacOSCppEntriesProvider
   } from  "./dumpcpp.mjs";
 
 // Dump C++ symbols of shared library if possible
 
 const entriesProviders = {
-  'unix': UnixCppEntriesProvider,
+  'linux': LinuxCppEntriesProvider,
   'windows': WindowsCppEntriesProvider,
-  'mac': MacCppEntriesProvider
+  'macos': MacOSCppEntriesProvider
 };
 
 const params = ArgumentsProcessor.process(arguments);
