@@ -206,13 +206,22 @@ constexpr Register WriteBarrierDescriptor::ValueRegister() {
 constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
     Register object, Register slot_address) {
   DCHECK(!AreAliased(object, slot_address));
+  RegList saved_registers = 0;
+#if V8_TARGET_ARCH_X64
   // Only push clobbered registers.
-  RegList registers = 0;
-  if (object != ObjectRegister()) registers |= ObjectRegister().bit();
-  if (slot_address != SlotAddressRegister()) {
-    registers |= SlotAddressRegister().bit();
+  if (object != ObjectRegister()) saved_registers |= ObjectRegister().bit();
+  if (slot_address != no_reg && slot_address != SlotAddressRegister()) {
+    saved_registers |= SlotAddressRegister().bit();
   }
-  return registers;
+#else
+  // TODO(cbruni): Enable callee-saved registers for other platforms.
+  // This is a temporary workaround to prepare code for callee-saved registers.
+  auto allocated_registers = registers();
+  for (size_t i = 0; i < allocated_registers.size(); ++i) {
+    saved_registers |= allocated_registers[i].bit();
+  }
+#endif
+  return saved_registers;
 }
 
 // static

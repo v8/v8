@@ -2908,6 +2908,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
                                       SaveFPRegsMode save_fp,
                                       RememberedSetAction remembered_set_action,
                                       SmiCheck smi_check) {
+  DCHECK(!AreAliased(object, value));
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -2938,8 +2939,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   Bind(&done);
 }
 
-void TurboAssembler::SaveRegisters(RegList registers) {
-  DCHECK_GT(NumRegs(registers), 0);
+void TurboAssembler::MaybeSaveRegisters(RegList registers) {
+  if (registers == 0) return;
   CPURegList regs(CPURegister::kRegister, kXRegSizeInBits, registers);
   // If we were saving LR, we might need to sign it.
   DCHECK(!regs.IncludesAliasOf(lr));
@@ -2947,8 +2948,8 @@ void TurboAssembler::SaveRegisters(RegList registers) {
   PushCPURegList(regs);
 }
 
-void TurboAssembler::RestoreRegisters(RegList registers) {
-  DCHECK_GT(NumRegs(registers), 0);
+void TurboAssembler::MaybeRestoreRegisters(RegList registers) {
+  if (registers == 0) return;
   CPURegList regs(CPURegister::kRegister, kXRegSizeInBits, registers);
   // If we were saving LR, we might need to sign it.
   DCHECK(!regs.IncludesAliasOf(lr));
@@ -2958,38 +2959,42 @@ void TurboAssembler::RestoreRegisters(RegList registers) {
 
 void TurboAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
                                              SaveFPRegsMode fp_mode) {
-  WriteBarrierDescriptor descriptor;
-  RegList registers = descriptor.allocatable_registers();
+  RegList registers = WriteBarrierDescriptor::ComputeSavedRegisters(object);
+  MaybeSaveRegisters(registers);
 
-  SaveRegisters(registers);
-
-  Register object_parameter(
-      descriptor.GetRegisterParameter(WriteBarrierDescriptor::kObject));
-  Register slot_parameter(
-      descriptor.GetRegisterParameter(WriteBarrierDescriptor::kSlotAddress));
-
-  MoveObjectAndSlot(object_parameter, slot_parameter, object, offset);
+  MoveObjectAndSlot(WriteBarrierDescriptor::ObjectRegister(),
+                    WriteBarrierDescriptor::SlotAddressRegister(), object,
+                    offset);
 
   Call(isolate()->builtins()->builtin_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
-  RestoreRegisters(registers);
+  MaybeRestoreRegisters(registers);
+}
+
+void TurboAssembler::CallRecordWriteStubSaveRegisters(
+    Register object, Operand offset, RememberedSetAction remembered_set_action,
+    SaveFPRegsMode fp_mode, StubCallMode mode) {
+  RegList registers = WriteBarrierDescriptor::ComputeSavedRegisters(object);
+  MaybeSaveRegisters(registers);
+
+  Register object_parameter = WriteBarrierDescriptor::ObjectRegister();
+  Register slot_address_parameter =
+      WriteBarrierDescriptor::SlotAddressRegister();
+  MoveObjectAndSlot(object_parameter, slot_address_parameter, object, offset);
+
+  CallRecordWriteStub(object_parameter, slot_address_parameter,
+                      remembered_set_action, fp_mode, mode);
+
+  MaybeRestoreRegisters(registers);
 }
 
 void TurboAssembler::CallRecordWriteStub(
-    Register object, Operand offset, RememberedSetAction remembered_set_action,
-    SaveFPRegsMode fp_mode, StubCallMode mode) {
-  WriteBarrierDescriptor descriptor;
-  RegList registers = descriptor.allocatable_registers();
-  SaveRegisters(registers);
-
-  Register object_parameter(
-      descriptor.GetRegisterParameter(WriteBarrierDescriptor::kObject));
-  Register slot_parameter(
-      descriptor.GetRegisterParameter(WriteBarrierDescriptor::kSlotAddress));
-
-  MoveObjectAndSlot(object_parameter, slot_parameter, object, offset);
-
+    Register object, Register slot_address,
+    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+    StubCallMode mode) {
+  DCHECK_EQ(WriteBarrierDescriptor::ObjectRegister(), object);
+  DCHECK_EQ(WriteBarrierDescriptor::SlotAddressRegister(), slot_address);
 #if V8_ENABLE_WEBASSEMBLY
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
     auto wasm_target =
@@ -3009,8 +3014,6 @@ void TurboAssembler::CallRecordWriteStub(
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }
-
-  RestoreRegisters(registers);
 }
 
 void TurboAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
@@ -3092,7 +3095,8 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   if (lr_status == kLRHasNotBeenSaved) {
     Push<TurboAssembler::kSignLR>(padreg, lr);
   }
-  CallRecordWriteStub(object, offset, remembered_set_action, fp_mode);
+  CallRecordWriteStubSaveRegisters(object, offset, remembered_set_action,
+                                   fp_mode);
   if (lr_status == kLRHasNotBeenSaved) {
     Pop<TurboAssembler::kAuthLR>(lr, padreg);
   }

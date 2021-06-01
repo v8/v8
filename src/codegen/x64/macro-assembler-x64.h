@@ -504,15 +504,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void MaybeSaveRegisters(RegList registers);
   void MaybeRestoreRegisters(RegList registers);
 
-  void CallEphemeronKeyBarrier(Register object, Register address,
+  void CallEphemeronKeyBarrier(Register object, Register slot_address,
                                SaveFPRegsMode fp_mode);
 
   void CallRecordWriteStubSaveRegisters(
-      Register object, Register address,
+      Register object, Register slot_address,
       RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
   void CallRecordWriteStub(
-      Register object, Register address,
+      Register object, Register slot_address,
       RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 

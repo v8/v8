@@ -271,9 +271,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CheckPageFlag(src.gp(), r1, MemoryChunk::kPointersToHereAreInterestingMask,
                 eq, &exit);
   lay(r1, dst_op);
-  CallRecordWriteStub(dst_addr, r1, RememberedSetAction::kEmit,
-                      SaveFPRegsMode::kSave,
-                      StubCallMode::kCallWasmRuntimeStub);
+  CallRecordWriteStubSaveRegisters(dst_addr, r1, RememberedSetAction::kEmit,
+                                   SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
 

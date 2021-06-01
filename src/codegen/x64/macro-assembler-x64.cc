@@ -411,17 +411,19 @@ void TurboAssembler::MaybeRestoreRegisters(RegList registers) {
   }
 }
 
-void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
+void TurboAssembler::CallEphemeronKeyBarrier(Register object,
+                                             Register slot_address,
                                              SaveFPRegsMode fp_mode) {
-  DCHECK(!AreAliased(object, address));
+  DCHECK(!AreAliased(object, slot_address));
   RegList registers =
-      WriteBarrierDescriptor::ComputeSavedRegisters(object, address);
+      WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
   MaybeSaveRegisters(registers);
 
   Register object_parameter = WriteBarrierDescriptor::ObjectRegister();
-  Register slot_parameter = WriteBarrierDescriptor::SlotAddressRegister();
+  Register slot_address_parameter =
+      WriteBarrierDescriptor::SlotAddressRegister();
+  MovePair(slot_address_parameter, slot_address, object_parameter, object);
 
-  MovePair(slot_parameter, address, object_parameter, object);
   Call(isolate()->builtins()->builtin_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
@@ -436,9 +438,6 @@ void TurboAssembler::CallRecordWriteStubSaveRegisters(
   RegList registers =
       WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
   MaybeSaveRegisters(registers);
-  // Prepare argument registers for calling RecordWrite
-  // object_parameter <= object
-  // slot_parameter   <= address
   Register object_parameter = WriteBarrierDescriptor::ObjectRegister();
   Register slot_address_parameter =
       WriteBarrierDescriptor::SlotAddressRegister();
@@ -446,7 +445,6 @@ void TurboAssembler::CallRecordWriteStubSaveRegisters(
 
   CallRecordWriteStub(object_parameter, slot_address_parameter,
                       remembered_set_action, fp_mode, mode);
-
   MaybeRestoreRegisters(registers);
 }
 

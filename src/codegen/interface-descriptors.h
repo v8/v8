@@ -1023,8 +1023,8 @@ class WriteBarrierDescriptor final
   static constexpr inline Register SlotAddressRegister();
   // A temporary register used in helpers.
   static constexpr inline Register ValueRegister();
-  static constexpr inline RegList ComputeSavedRegisters(Register object,
-                                                        Register slot_address);
+  static constexpr inline RegList ComputeSavedRegisters(
+      Register object, Register slot_address = no_reg);
 };
 
 #ifdef V8_IS_TSAN
