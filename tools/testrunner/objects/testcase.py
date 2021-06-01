@@ -47,8 +47,9 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
 # Pattern to auto-detect files to push on Android for statements like:
 # load("path/to/file.js")
+# d8.file.execute("path/to/file.js")
 LOAD_PATTERN = re.compile(
-    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
+    r"(?:execute|load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
 # Pattern to auto-detect files to push on Android for statements like:
 # import foobar from "path/to/file.js"
 # import {foo, bar} from "path/to/file.js"
