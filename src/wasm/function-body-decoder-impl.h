@@ -4327,14 +4327,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
-        if (!obj.type.is_bottom() && !rtt.type.is_bottom()) {
+        if (current_code_reachable_and_ok_) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
           if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
-            CALL_INTERFACE_IF_OK_AND_REACHABLE(RefTest, obj, rtt, &value);
+            CALL_INTERFACE(RefTest, obj, rtt, &value);
           } else {
             // Unrelated types. Will always fail.
-            CALL_INTERFACE_IF_OK_AND_REACHABLE(I32Const, &value, 0);
+            CALL_INTERFACE(I32Const, &value, 0);
           }
         }
         Drop(2);
@@ -4356,29 +4356,34 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
-        if (!obj.type.is_bottom() && !rtt.type.is_bottom()) {
-          Value value = CreateValue(
-              ValueType::Ref(rtt.type.ref_index(), obj.type.nullability()));
+        // If either value is bottom, we emit the most specific type possible.
+        Value value =
+            CreateValue(rtt.type.is_bottom()
+                            ? kWasmBottom
+                            : ValueType::Ref(rtt.type.ref_index(),
+                                             obj.type.is_bottom()
+                                                 ? kNonNullable
+                                                 : obj.type.nullability()));
+        if (current_code_reachable_and_ok_) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
           if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
-            CALL_INTERFACE_IF_OK_AND_REACHABLE(RefCast, obj, rtt, &value);
+            CALL_INTERFACE(RefCast, obj, rtt, &value);
           } else {
             // Unrelated types. The only way this will not trap is if the object
             // is null.
             if (obj.type.is_nullable()) {
               // Drop rtt from the stack, then assert that obj is null.
-              CALL_INTERFACE_IF_OK_AND_REACHABLE(Drop);
-              CALL_INTERFACE_IF_OK_AND_REACHABLE(AssertNull, obj, &value);
+              CALL_INTERFACE(Drop);
+              CALL_INTERFACE(AssertNull, obj, &value);
             } else {
-              CALL_INTERFACE_IF_OK_AND_REACHABLE(Trap,
-                                                 TrapReason::kTrapIllegalCast);
+              CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
               EndControl();
             }
           }
-          Drop(2);
-          Push(value);
         }
+        Drop(2);
+        Push(value);
         return opcode_length;
       }
       case kExprBrOnCast: {
@@ -4514,17 +4519,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ABSTRACT_TYPE_CHECK(I31)
 #undef ABSTRACT_TYPE_CHECK
 
-#define ABSTRACT_TYPE_CAST(heap_type)                                        \
-  case kExprRefAs##heap_type: {                                              \
-    Value arg = Peek(0, 0, kWasmAnyRef);                                     \
-    if (!arg.type.is_bottom()) {                                             \
-      Value result =                                                         \
-          CreateValue(ValueType::Ref(HeapType::k##heap_type, kNonNullable)); \
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(RefAs##heap_type, arg, &result);    \
-      Drop(arg);                                                             \
-      Push(result);                                                          \
-    }                                                                        \
-    return opcode_length;                                                    \
+#define ABSTRACT_TYPE_CAST(heap_type)                                      \
+  case kExprRefAs##heap_type: {                                            \
+    Value arg = Peek(0, 0, kWasmAnyRef);                                   \
+    Value result =                                                         \
+        CreateValue(ValueType::Ref(HeapType::k##heap_type, kNonNullable)); \
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(RefAs##heap_type, arg, &result);    \
+    Drop(arg);                                                             \
+    Push(result);                                                          \
+    return opcode_length;                                                  \
   }
 
         ABSTRACT_TYPE_CAST(Data)

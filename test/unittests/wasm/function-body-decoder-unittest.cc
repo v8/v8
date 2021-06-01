@@ -1162,11 +1162,17 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(&sig_v_s, {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull,
                              0, kExprCallFunction, struct_consumer});
 
-  ValueType opt_struct_type = ValueType::Ref(struct_index, kNullable);
-  FunctionSig sig_v_os(0, 1, &opt_struct_type);
-  ExpectValidates(&sig_v_os,
-                  {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull, 0,
-                   kExprCallFunction, struct_consumer});
+  ExpectValidates(FunctionSig::Build(zone(), {struct_type}, {}),
+                  {WASM_UNREACHABLE, WASM_RTT_CANON(struct_index),
+                   WASM_GC_OP(kExprRefCast)});
+
+  ExpectValidates(FunctionSig::Build(zone(), {kWasmDataRef}, {}),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefAsData)});
+
+  ExpectValidates(
+      FunctionSig::Build(zone(), {}, {ValueType::Ref(struct_index, kNullable)}),
+      {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull, 0, kExprCallFunction,
+       struct_consumer});
 
   ExpectFailure(
       sigs.v_v(), {WASM_UNREACHABLE, WASM_I32V(42), kExprBrOnNull, 0},
