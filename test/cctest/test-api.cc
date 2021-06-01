@@ -28727,6 +28727,7 @@ TEST(FastApiCalls) {
 #endif  // V8_LITE_MODE
 }
 
+#ifndef V8_LITE_MODE
 namespace {
 void FastCallback1TypedArray(v8::Local<v8::Object> receiver, int arg0,
                              v8::FastApiTypedArray<double> arg1) {
@@ -28747,6 +28748,7 @@ void FastCallback4Scalar(v8::Local<v8::Object> receiver, int arg0, float arg1) {
 void FastCallback5DifferentArity(v8::Local<v8::Object> receiver, int arg0,
                                  v8::Local<v8::Array> arg1, float arg2) {}
 }  // namespace
+#endif  // V8_LITE_MODE
 
 TEST(FastApiSequenceOverloads) {
 #ifndef V8_LITE_MODE
