@@ -1155,7 +1155,7 @@ bool GCTracer::SurvivalEventsRecorded() const {
 void GCTracer::ResetSurvivalEvents() { recorded_survival_ratios_.Reset(); }
 
 void GCTracer::NotifyIncrementalMarkingStart() {
-  incremental_marking_start_time_ = heap_->MonotonicallyIncreasingTimeInMs();
+  incremental_marking_start_time_ = MonotonicallyIncreasingTimeInMs();
 }
 
 void GCTracer::FetchBackgroundMarkCompactCounters() {
