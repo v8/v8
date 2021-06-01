@@ -386,8 +386,15 @@ class Heap {
   static constexpr size_t kOldGenerationLowMemory =
       128 * MB * kHeapLimitMultiplier;
   static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
+#if ENABLE_HUGEPAGE
+  static constexpr size_t kMinSemiSpaceSize =
+      kHugePageSize * kPointerMultiplier;
+  static constexpr size_t kMaxSemiSpaceSize =
+      kHugePageSize * 16 * kPointerMultiplier;
+#else
   static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
   static constexpr size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
+#endif
 
   STATIC_ASSERT(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
   STATIC_ASSERT(kMaxSemiSpaceSize % (1 << kPageSizeBits) == 0);

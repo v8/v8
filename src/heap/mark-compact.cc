@@ -3210,7 +3210,7 @@ class PageEvacuationJob : public v8::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    const size_t kItemsPerWorker = MB / Page::kPageSize;
+    const size_t kItemsPerWorker = std::max(1, MB / Page::kPageSize);
     // Ceiling division to ensure enough workers for all
     // |remaining_evacuation_items_|
     const size_t wanted_num_workers =
