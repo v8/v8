@@ -216,7 +216,7 @@ constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
 #else
   // TODO(cbruni): Enable callee-saved registers for other platforms.
   // This is a temporary workaround to prepare code for callee-saved registers.
-  auto allocated_registers = registers();
+  constexpr auto allocated_registers = registers();
   for (size_t i = 0; i < allocated_registers.size(); ++i) {
     saved_registers |= allocated_registers[i].bit();
   }
