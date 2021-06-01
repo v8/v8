@@ -330,7 +330,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
   this->VisitMapPointer(weak_cell);
   WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
   HeapObject target = weak_cell.relaxed_target();
-  HeapObject unregister_token = HeapObject::cast(weak_cell.unregister_token());
+  HeapObject unregister_token = weak_cell.relaxed_unregister_token();
   concrete_visitor()->SynchronizePageAccess(target);
   concrete_visitor()->SynchronizePageAccess(unregister_token);
   if (concrete_visitor()->marking_state()->IsBlackOrGrey(target) &&
