@@ -7,7 +7,7 @@
 
 'use strict';
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function WasmAtomicNotify(memory, offset, index, num) {
   let builder = new WasmModuleBuilder();
@@ -216,7 +216,7 @@ if (this.Worker) {
   const numWorkers = 4;
 
   let workerScript = `onmessage = function(msg) {
-    load("test/mjsunit/wasm/wasm-module-builder.js");
+    d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     ${WasmI32AtomicWait.toString()}
     ${WasmI64AtomicWait.toString()}
     let id = msg.id;

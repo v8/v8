@@ -115,7 +115,6 @@ class SourceGroup {
   base::Thread* thread_;
 
   void ExitShell(int exit_code);
-  Local<String> ReadFile(Isolate* isolate, const char* name);
 
   const char** argv_;
   int begin_offset_;
@@ -437,7 +436,10 @@ class Shell : public i::AllStatic {
   static void ReportException(Isolate* isolate, Local<Message> message,
                               Local<Value> exception);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
-  static Local<String> ReadFile(Isolate* isolate, const char* name);
+  static Local<String> ReadFile(Isolate* isolate, const char* name,
+                                bool should_throw = true);
+  static Local<String> WasmLoadSourceMapCallback(Isolate* isolate,
+                                                 const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
   static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
@@ -502,13 +504,13 @@ class Shell : public i::AllStatic {
 
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static char* ReadChars(const char* name, int* size_out);
   static bool ReadLines(const char* name, std::vector<std::string>& lines);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -517,7 +519,7 @@ class Shell : public i::AllStatic {
     args.GetReturnValue().Set(ReadFromStdin(args.GetIsolate()));
   }
   static void WriteChars(const char* name, uint8_t* buffer, size_t buffer_size);
-  static void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerPostMessage(

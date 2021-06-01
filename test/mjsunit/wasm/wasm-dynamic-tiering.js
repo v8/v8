@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --wasm-dynamic-tiering --liftoff
 // Flags: --no-wasm-tier-up --no-stress-opt
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const num_iterations = 4;
 const num_functions = 2;

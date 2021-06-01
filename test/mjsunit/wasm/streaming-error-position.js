@@ -6,7 +6,7 @@
 
 'use strict';
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 function testErrorPositionAsyncOnly(bytes, pos, message) {
   let buffer = bytes.trunc_buffer();

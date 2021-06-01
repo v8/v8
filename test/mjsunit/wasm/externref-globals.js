@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-reftypes --expose-gc
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestDefaultValue() {
   print(arguments.callee.name);

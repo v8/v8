@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --experimental-wasm-gc --wasm-gc-js-interop
 // Flags: --expose-gc
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kIterationsCountForICProgression = 20;
 

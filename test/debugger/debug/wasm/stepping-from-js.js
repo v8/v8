@@ -6,7 +6,7 @@
 // A similar test exists as an inspector test already, but inspector tests are
 // not run concurrently in multiple isolates (see `run-tests.py --isolates`).
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 const imp_fun = builder.addImport('imp', 'ort', kSig_i_v);

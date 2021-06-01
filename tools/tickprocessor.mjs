@@ -281,7 +281,7 @@ export class TickProcessor extends LogReader {
   processLogFileInTest(fileName) {
     // Hack file name to avoid dealing with platform specifics.
     this.lastLogFileName_ = 'v8.log';
-    const contents = this.readFile(fileName);
+    const contents = d8.file.read(fileName);
     this.processLogChunk(contents);
   }
 

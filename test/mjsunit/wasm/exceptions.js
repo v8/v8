@@ -4,8 +4,8 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
-load("test/mjsunit/wasm/exceptions-utils.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
 // The following method doesn't attempt to catch an raised exception.
 (function TestThrowSimple() {
