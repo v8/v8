@@ -979,17 +979,15 @@ TEST(UnregisterTokenHeapVerifier) {
   v8::HandleScope outer_scope(isolate);
 
   {
-    // Make a new FinalizationRegistry and register two objects with the same
-    // unregister token that's unreachable after the IIFE returns.
+    // Make a new FinalizationRegistry and register an object with an unregister
+    // token that's unreachable after the IIFE returns.
     v8::HandleScope scope(isolate);
     CompileRun(
         "var token = {}; "
         "var registry = new FinalizationRegistry(function ()  {}); "
         "(function () { "
-        "  let o1 = {}; "
-        "  let o2 = {}; "
-        "  registry.register(o1, {}, token); "
-        "  registry.register(o2, {}, token); "
+        "  let o = {}; "
+        "  registry.register(o, {}, token); "
         "})();");
   }
 

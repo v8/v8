@@ -6844,7 +6844,6 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
       JSFinalizationRegistry::cast(Object(raw_finalization_registry));
   WeakCell weak_cell = WeakCell::cast(Object(raw_weak_cell));
   DCHECK(!weak_cell.unregister_token().IsUndefined(isolate));
-  HeapObject undefined = ReadOnlyRoots(isolate).undefined_value();
 
   // Remove weak_cell from the linked list of other WeakCells with the same
   // unregister token and remove its unregister token from key_map if necessary
@@ -6868,7 +6867,8 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
       // of the key in the hash table.
       WeakCell next = WeakCell::cast(weak_cell.key_list_next());
       DCHECK_EQ(next.key_list_prev(), weak_cell);
-      next.set_key_list_prev(undefined);
+      next.set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
+      weak_cell.set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
       key_map.ValueAtPut(entry, next);
     }
   } else {
@@ -6880,12 +6880,6 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
       next.set_key_list_prev(weak_cell.key_list_prev());
     }
   }
-
-  // weak_cell is now removed from the unregister token map, so clear its
-  // unregister token-related fields for heap verification.
-  weak_cell.set_unregister_token(undefined);
-  weak_cell.set_key_list_prev(undefined);
-  weak_cell.set_key_list_next(undefined);
 }
 
 }  // namespace internal
