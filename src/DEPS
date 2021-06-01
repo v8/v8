@@ -5,6 +5,7 @@ include_rules = [
   "+src/asmjs/asm-js.h",
   "-src/baseline",
   "+src/baseline/baseline.h",
+  "+src/baseline/baseline-batch-compiler.h",
   "+src/baseline/baseline-osr-inl.h",
   "+src/baseline/bytecode-offset-iterator.h",
   "-src/bigint",

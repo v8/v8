@@ -505,7 +505,7 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
   }
 
   UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
-  OSRInterpreterFrameToBaseline(isolate, function, frame);
+  OSRInterpreterFrameToBaseline(isolate, function, frame, kCompileImmediate);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

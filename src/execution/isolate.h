@@ -120,6 +120,10 @@ struct ManagedPtrDestructor;
 template <StateTag Tag>
 class VMState;
 
+namespace baseline {
+class BaselineBatchCompiler;
+}  // namespace baseline
+
 namespace interpreter {
 class Interpreter;
 }  // namespace interpreter
@@ -1597,6 +1601,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return compiler_dispatcher_;
   }
 
+  baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
+    return baseline_batch_compiler_;
+  }
+
   bool IsInAnyContext(Object object, uint32_t index);
 
   void ClearKeptObjects();
@@ -2050,6 +2058,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Zone* compiler_zone_ = nullptr;
 
   CompilerDispatcher* compiler_dispatcher_ = nullptr;
+  baseline::BaselineBatchCompiler* baseline_batch_compiler_ = nullptr;
 
   using InterruptEntry = std::pair<InterruptCallback, void*>;
   std::queue<InterruptEntry> api_interrupts_queue_;

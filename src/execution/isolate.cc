@@ -23,6 +23,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/bigint/bigint.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/constants-table-builder.h"
@@ -3169,6 +3170,9 @@ void Isolate::Deinit() {
   delete compiler_dispatcher_;
   compiler_dispatcher_ = nullptr;
 
+  delete baseline_batch_compiler_;
+  baseline_batch_compiler_ = nullptr;
+
   // This stops cancelable tasks (i.e. concurrent marking tasks)
   cancelable_task_manager()->CancelAndWait();
 
@@ -3629,6 +3633,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   compiler_dispatcher_ =
       new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);
+  baseline_batch_compiler_ = new baseline::BaselineBatchCompiler(this);
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);

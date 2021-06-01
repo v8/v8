@@ -665,6 +665,18 @@ class Heap {
     return unprotected_memory_chunks_registry_enabled_;
   }
 
+  void IncrementCodePageCollectionMemoryModificationScopeDepth() {
+    code_page_collection_memory_modification_scope_depth_++;
+  }
+
+  void DecrementCodePageCollectionMemoryModificationScopeDepth() {
+    code_page_collection_memory_modification_scope_depth_--;
+  }
+
+  uintptr_t code_page_collection_memory_modification_scope_depth() {
+    return code_page_collection_memory_modification_scope_depth_;
+  }
+
   inline HeapState gc_state() const {
     return gc_state_.load(std::memory_order_relaxed);
   }
@@ -2195,6 +2207,9 @@ class Heap {
 
   // Holds the number of open CodeSpaceMemoryModificationScopes.
   uintptr_t code_space_memory_modification_scope_depth_ = 0;
+
+  // Holds the number of open CodePageCollectionMemoryModificationScopes.
+  uintptr_t code_page_collection_memory_modification_scope_depth_ = 0;
 
   std::atomic<HeapState> gc_state_{NOT_IN_GC};
 

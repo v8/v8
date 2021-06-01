@@ -344,13 +344,17 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
     // a non zero invocation count so we can inline functions.
     function->feedback_vector().set_invocation_count(1);
     if (FLAG_sparkplug) {
+      CompilationMode compilation_mode =
+          FLAG_baseline_batch_compilation ? kCompileBatch : kCompileImmediate;
       if (V8_LIKELY(FLAG_use_osr)) {
         JavaScriptFrameIterator it(isolate);
         DCHECK(it.frame()->is_unoptimized());
         UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
-        OSRInterpreterFrameToBaseline(isolate, function, frame);
+        OSRInterpreterFrameToBaseline(isolate, function, frame,
+                                      compilation_mode);
       } else {
-        OSRInterpreterFrameToBaseline(isolate, function, nullptr);
+        OSRInterpreterFrameToBaseline(isolate, function, nullptr,
+                                      compilation_mode);
       }
     }
     return ReadOnlyRoots(isolate).undefined_value();

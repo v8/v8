@@ -13,6 +13,7 @@
 
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-compiler.h"
+#include "src/debug/debug.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/script-inl.h"
@@ -20,6 +21,26 @@
 
 namespace v8 {
 namespace internal {
+
+bool CanCompileWithBaseline(Isolate* isolate,
+                            Handle<SharedFunctionInfo> shared) {
+  // Check that baseline compiler is enabled.
+  if (!FLAG_sparkplug) return false;
+
+  // Check if we actually have bytecode.
+  if (!shared->HasBytecodeArray()) return false;
+
+  // Do not optimize when debugger needs to hook into every call.
+  if (isolate->debug()->needs_check_on_function_call()) return false;
+
+  // Functions with breakpoints have to stay interpreted.
+  if (shared->HasBreakInfo()) return false;
+
+  // Do not baseline compile if function doesn't pass sparkplug_filter.
+  if (!shared->PassesFilter(FLAG_sparkplug_filter)) return false;
+
+  return true;
+}
 
 MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared) {

@@ -641,77 +641,6 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
   shared_info.SetScopeInfo(*literal->scope()->scope_info());
 }
 
-bool CanCompileWithBaseline(Isolate* isolate,
-                            Handle<SharedFunctionInfo> shared) {
-  // Check if we actually have bytecode.
-  if (!shared->HasBytecodeArray()) return false;
-
-  // Do not optimize when debugger needs to hook into every call.
-  if (isolate->debug()->needs_check_on_function_call()) return false;
-
-  // Functions with breakpoints have to stay interpreted.
-  if (shared->HasBreakInfo()) return false;
-
-  // Do not baseline compile if sparkplug is disabled or function doesn't pass
-  // sparkplug_filter.
-  if (!FLAG_sparkplug || !shared->PassesFilter(FLAG_sparkplug_filter)) {
-    return false;
-  }
-
-  return true;
-}
-
-bool CompileSharedWithBaseline(Isolate* isolate,
-                               Handle<SharedFunctionInfo> shared,
-                               Compiler::ClearExceptionFlag flag,
-                               IsCompiledScope* is_compiled_scope) {
-  // We shouldn't be passing uncompiled functions into this function.
-  DCHECK(is_compiled_scope->is_compiled());
-
-  // Early return for already baseline-compiled functions.
-  if (shared->HasBaselineData()) return true;
-
-  // Check if we actually can compile with baseline.
-  if (!CanCompileWithBaseline(isolate, shared)) return false;
-
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    if (flag == Compiler::KEEP_EXCEPTION) {
-      isolate->StackOverflow();
-    }
-    return false;
-  }
-
-  CompilerTracer::TraceStartBaselineCompile(isolate, shared);
-  Handle<Code> code;
-  base::TimeDelta time_taken;
-  {
-    ScopedTimer timer(&time_taken);
-    if (!GenerateBaselineCode(isolate, shared).ToHandle(&code)) {
-      // TODO(leszeks): This can only fail because of an OOM. Do we want to
-      // report these somehow, or silently ignore them?
-      return false;
-    }
-
-    Handle<HeapObject> function_data =
-        handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
-    Handle<BaselineData> baseline_data =
-        isolate->factory()->NewBaselineData(code, function_data);
-    shared->set_baseline_data(*baseline_data);
-  }
-  double time_taken_ms = time_taken.InMillisecondsF();
-
-  CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
-
-  if (shared->script().IsScript()) {
-    Compiler::LogFunctionCompilation(
-        isolate, CodeEventListener::FUNCTION_TAG, shared,
-        handle(Script::cast(shared->script()), isolate),
-        Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms);
-  }
-  return true;
-}
-
 // Finalize a single compilation job. This function can return
 // RETRY_ON_MAIN_THREAD if the job cannot be finalized off-thread, in which case
 // it should be safe to call it again on the main thread with the same job.
@@ -1381,8 +1310,8 @@ void CompileAllWithBaseline(Isolate* isolate,
     IsCompiledScope is_compiled_scope(*shared_info, isolate);
     if (!is_compiled_scope.is_compiled()) continue;
     if (!CanCompileWithBaseline(isolate, shared_info)) continue;
-    CompileSharedWithBaseline(isolate, shared_info, Compiler::CLEAR_EXCEPTION,
-                              &is_compiled_scope);
+    Compiler::CompileSharedWithBaseline(
+        isolate, shared_info, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
   }
 }
 
@@ -1995,6 +1924,58 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
+  return true;
+}
+
+// static
+bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
+                                         Handle<SharedFunctionInfo> shared,
+                                         Compiler::ClearExceptionFlag flag,
+                                         IsCompiledScope* is_compiled_scope) {
+  // We shouldn't be passing uncompiled functions into this function.
+  DCHECK(is_compiled_scope->is_compiled());
+
+  // Early return for already baseline-compiled functions.
+  if (shared->HasBaselineData()) return true;
+
+  // Check if we actually can compile with baseline.
+  if (!CanCompileWithBaseline(isolate, shared)) return false;
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    if (flag == Compiler::KEEP_EXCEPTION) {
+      isolate->StackOverflow();
+    }
+    return false;
+  }
+
+  CompilerTracer::TraceStartBaselineCompile(isolate, shared);
+  Handle<Code> code;
+  base::TimeDelta time_taken;
+  {
+    ScopedTimer timer(&time_taken);
+    if (!GenerateBaselineCode(isolate, shared).ToHandle(&code)) {
+      // TODO(leszeks): This can only fail because of an OOM. Do we want to
+      // report these somehow, or silently ignore them?
+      return false;
+    }
+
+    Handle<HeapObject> function_data =
+        handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
+    Handle<BaselineData> baseline_data =
+        isolate->factory()->NewBaselineData(code, function_data);
+    shared->set_baseline_data(*baseline_data);
+  }
+  double time_taken_ms = time_taken.InMillisecondsF();
+
+  CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
+
+  if (shared->script().IsScript()) {
+    Compiler::LogFunctionCompilation(
+        isolate, CodeEventListener::FUNCTION_TAG, shared,
+        handle(Script::cast(shared->script()), isolate),
+        Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms);
+  }
   return true;
 }
 

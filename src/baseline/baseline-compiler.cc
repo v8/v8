@@ -241,7 +241,11 @@ const int kAverageBytecodeToInstructionRatio = 7;
 #endif
 std::unique_ptr<AssemblerBuffer> AllocateBuffer(
     Handle<BytecodeArray> bytecodes) {
-  int estimated_size = bytecodes->length() * kAverageBytecodeToInstructionRatio;
+  int estimated_size;
+  {
+    DisallowHeapAllocation no_gc;
+    estimated_size = BaselineCompiler::EstimateInstructionSize(*bytecodes);
+  }
   return NewAssemblerBuffer(RoundUp(estimated_size, 4 * KB));
 }
 }  // namespace
@@ -303,6 +307,10 @@ MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
   return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
       .set_bytecode_offset_table(bytecode_offset_table)
       .TryBuild();
+}
+
+int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {
+  return bytecode.length() * kAverageBytecodeToInstructionRatio;
 }
 
 interpreter::Register BaselineCompiler::RegisterOperand(int operand_index) {

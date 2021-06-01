@@ -25,6 +25,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/compiler.h"
@@ -409,6 +410,8 @@ SnapshotCreator::SnapshotCreator(Isolate* isolate,
     internal_isolate->InitWithoutSnapshot();
   }
   data_ = data;
+  // Disable batch compilation during snapshot creation.
+  internal_isolate->baseline_batch_compiler()->set_enabled(false);
 }
 
 SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
