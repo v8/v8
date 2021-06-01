@@ -122,10 +122,12 @@ bool AllocationSite::PointsToLiteral() const {
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
 bool AllocationSite::ShouldTrack(ElementsKind boilerplate_elements_kind) {
+  if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
   return IsSmiElementsKind(boilerplate_elements_kind);
 }
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
+  if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
   if (FLAG_allocation_site_pretenuring) {
     // TurboFan doesn't care at all about String pretenuring feedback,
     // so don't bother even trying to track that.

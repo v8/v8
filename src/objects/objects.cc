@@ -5222,6 +5222,7 @@ bool AllocationSite::IsNested() {
 }
 
 bool AllocationSite::ShouldTrack(ElementsKind from, ElementsKind to) {
+  if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
   return IsMoreGeneralElementsKindTransition(from, to);
 }
 

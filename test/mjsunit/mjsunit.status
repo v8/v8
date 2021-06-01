@@ -1515,6 +1515,7 @@
   'const-dict-tracking': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/test-literal-map-migration': [SKIP],
+  'compiler/deopt-pretenure': [SKIP],
 }], # single_generation
 
 ################################################################################

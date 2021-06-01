@@ -264,7 +264,10 @@ HeapObject Factory::AllocateRawWithAllocationSite(
     Handle<AllocationSite> allocation_site) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
-  if (!allocation_site.is_null()) size += AllocationMemento::kSize;
+  if (!allocation_site.is_null()) {
+    DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
+    size += AllocationMemento::kSize;
+  }
   HeapObject result =
       isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(size, allocation);
   WriteBarrierMode write_barrier_mode = allocation == AllocationType::kYoung
@@ -281,6 +284,7 @@ HeapObject Factory::AllocateRawWithAllocationSite(
 
 void Factory::InitializeAllocationMemento(AllocationMemento memento,
                                           AllocationSite allocation_site) {
+  DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
   memento.set_map_after_allocation(*allocation_memento_map(),
                                    SKIP_WRITE_BARRIER);
   memento.set_allocation_site(allocation_site, SKIP_WRITE_BARRIER);
@@ -1663,8 +1667,11 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   DCHECK(site.is_null() || AllocationSite::CanTrack(instance_type));
 
   int object_size = map->instance_size();
-  int adjusted_object_size =
-      site.is_null() ? object_size : object_size + AllocationMemento::kSize;
+  int adjusted_object_size = object_size;
+  if (!site.is_null()) {
+    DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
+    adjusted_object_size += AllocationMemento::kSize;
+  }
   HeapObject raw_clone = isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
       adjusted_object_size, AllocationType::kYoung);
 

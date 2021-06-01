@@ -518,6 +518,17 @@ DEFINE_BOOL(trace_code_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
 DEFINE_IMPLICATION(trace_code_dependencies, trace_deopt_verbose)
 
+#ifdef V8_ALLOCATION_SITE_TRACKING
+#define V8_ALLOCATION_SITE_TRACKING_BOOL true
+#else
+#define V8_ALLOCATION_SITE_TRACKING_BOOL false
+#endif
+
+DEFINE_BOOL_READONLY(allocation_site_tracking, V8_ALLOCATION_SITE_TRACKING_BOOL,
+                     "Enable allocation site tracking")
+DEFINE_NEG_NEG_IMPLICATION(allocation_site_tracking,
+                           allocation_site_pretenuring)
+
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")

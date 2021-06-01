@@ -322,6 +322,9 @@ declare_args() {
   # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).
   # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
   v8_enable_allocation_folding = true
+
+  # Enable global allocation site tracking.
+  v8_allocation_site_tracking = true
 }
 
 # Derived defaults.
@@ -392,6 +395,9 @@ if (v8_enable_third_party_heap) {
   v8_enable_pointer_compression = false
   v8_enable_pointer_compression_shared_cage = false
 }
+if (v8_enable_single_generation) {
+  v8_allocation_site_tracking = false
+}
 assert(!v8_enable_concurrent_marking || v8_enable_atomic_object_field_writes,
        "Concurrent marking requires atomic object field writes.")
 assert(!v8_enable_concurrent_marking || v8_enable_atomic_marking_state,
@@ -457,9 +463,10 @@ assert(
     !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,
     "Can't share a pointer compression cage if pointers aren't compressed")
 
-assert(!v8_enable_pointer_compression_shared_cage || v8_current_cpu == "x64" ||
-           v8_current_cpu == "arm64" || v8_current_cpu == "riscv64",
-       "Sharing a pointer compression cage is only supported on x64,arm64 and riscv64")
+assert(
+    !v8_enable_pointer_compression_shared_cage || v8_current_cpu == "x64" ||
+        v8_current_cpu == "arm64" || v8_current_cpu == "riscv64",
+    "Sharing a pointer compression cage is only supported on x64,arm64 and riscv64")
 
 assert(!v8_enable_unconditional_write_barriers || !v8_disable_write_barriers,
        "Write barriers can't be both enabled and disabled")
@@ -874,6 +881,9 @@ config("features") {
   }
   if (v8_enable_allocation_folding) {
     defines += [ "V8_ALLOCATION_FOLDING" ]
+  }
+  if (v8_allocation_site_tracking) {
+    defines += [ "V8_ALLOCATION_SITE_TRACKING" ]
   }
 }
 
