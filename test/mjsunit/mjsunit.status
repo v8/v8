@@ -83,8 +83,8 @@
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
   'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
   'tools/compiler-trace-flags': [PASS, NO_VARIANTS],
-  'tools/dumpcpp': [PASS, NO_VARIANTS, ['mode != release or system not in (linux, macos)', SKIP]],
-  'tools/tickprocessor': [PASS, NO_VARIANTS, ['mode != release or system not in (linux, macos)', SKIP]],
+  'tools/dumpcpp': [PASS, NO_VARIANTS, ['mode != release or system not in (linux, macos) or simulator_run', SKIP]],
+  'tools/tickprocessor': [PASS, NO_VARIANTS, ['mode != release or system not in (linux, macos) or simulator_run', SKIP]],
    # Also skip example file which is not a test.
   'tools/tickprocessor-test-large': [SKIP],
 
