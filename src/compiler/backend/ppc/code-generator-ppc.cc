@@ -827,7 +827,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
 
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
   __ LoadTaggedPointerField(
-      r11, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+      r11, MemOperand(kJavaScriptCallCodeStartRegister, offset), r0);
   __ LoadS32(r11,
              FieldMemOperand(r11, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(r11, Code::kMarkedForDeoptimizationBit);
@@ -962,13 +962,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
         __ LoadTaggedPointerField(
-            kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
+            kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset), r0);
         __ cmp(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-      __ LoadTaggedPointerField(r5,
-                                FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedPointerField(
+          r5, FieldMemOperand(func, JSFunction::kCodeOffset), r0);
       __ CallCodeObject(r5);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -4082,10 +4082,10 @@ void CodeGenerator::AssembleConstructFrame() {
         // properly in the graph.
         __ LoadTaggedPointerField(
             kJSFunctionRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset), r0);
         __ LoadTaggedPointerField(
             kWasmInstanceRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset), r0);
         __ Push(kWasmInstanceRegister);
         if (call_descriptor->IsWasmCapiFunction()) {
           // Reserve space for saving the PC later.
@@ -4136,7 +4136,8 @@ void CodeGenerator::AssembleConstructFrame() {
         __ LoadU64(
             scratch,
             FieldMemOperand(kWasmInstanceRegister,
-                            WasmInstanceObject::kRealStackLimitAddressOffset));
+                            WasmInstanceObject::kRealStackLimitAddressOffset),
+            r0);
         __ LoadU64(scratch, MemOperand(scratch), r0);
         __ Add(scratch, scratch, required_slots * kSystemPointerSize, r0);
         __ cmpl(sp, scratch);
