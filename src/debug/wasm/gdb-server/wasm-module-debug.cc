@@ -372,7 +372,7 @@ void WasmModuleDebug::PrepareStep() {
   i::Isolate* isolate = GetIsolate();
   DebugScope debug_scope(isolate->debug());
   debug::PrepareStep(reinterpret_cast<v8::Isolate*>(isolate),
-                     debug::StepAction::StepIn);
+                     debug::StepAction::StepInto);
 }
 
 template <typename T>

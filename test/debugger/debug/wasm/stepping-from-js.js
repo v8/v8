@@ -60,7 +60,7 @@ function onBreak(event, exec_state, data) {
     assertTrue(expected_breaks.length > 0, 'expecting more breaks');
     const expected_pos = expected_breaks.shift();
     assertEquals(expected_pos, pos);
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
   } catch (e) {
     if (!error) error = e;
   }

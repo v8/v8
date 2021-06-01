@@ -247,7 +247,7 @@ void V8Debugger::stepIntoStatement(int targetContextGroupId,
   if (asyncStepOutOfFunction(targetContextGroupId, true)) return;
   m_targetContextGroupId = targetContextGroupId;
   m_pauseOnAsyncCall = breakOnAsyncCall;
-  v8::debug::PrepareStep(m_isolate, v8::debug::StepIn);
+  v8::debug::PrepareStep(m_isolate, v8::debug::StepInto);
   continueProgram(targetContextGroupId);
 }
 
@@ -256,7 +256,7 @@ void V8Debugger::stepOverStatement(int targetContextGroupId) {
   DCHECK(targetContextGroupId);
   if (asyncStepOutOfFunction(targetContextGroupId, true)) return;
   m_targetContextGroupId = targetContextGroupId;
-  v8::debug::PrepareStep(m_isolate, v8::debug::StepNext);
+  v8::debug::PrepareStep(m_isolate, v8::debug::StepOver);
   continueProgram(targetContextGroupId);
 }
 

@@ -107,8 +107,8 @@ void SetBreakPointsActive(Isolate* isolate, bool is_active);
 
 enum StepAction {
   StepOut = 0,   // Step out of the current function.
-  StepNext = 1,  // Step to the next statement in the current function.
-  StepIn = 2     // Step into new functions invoked or the next statement
+  StepOver = 1,  // Step to the next statement in the current function.
+  StepInto = 2   // Step into new functions invoked or the next statement
                  // in the current function.
 };
 

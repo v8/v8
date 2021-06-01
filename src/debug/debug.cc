@@ -500,16 +500,17 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
     case StepNone:
       return;
     case StepOut:
-      // Step out should not break in a deeper frame than target frame.
+      // StepOut should not break in a deeper frame than target frame.
       if (current_frame_count > target_frame_count) return;
       step_break = true;
       break;
-    case StepNext:
-      // Step next should not break in a deeper frame than target frame.
+    case StepOver:
+      // StepOver should not break in a deeper frame than target frame.
       if (current_frame_count > target_frame_count) return;
       V8_FALLTHROUGH;
-    case StepIn: {
-      // Special case "next" and "in" for generators that are about to suspend.
+    case StepInto: {
+      // Special case StepInto and StepOver for generators that are about to
+      // suspend.
       if (location.IsSuspend()) {
         DCHECK(!has_suspended_generator());
         thread_local_.suspended_generator_ =
@@ -924,7 +925,7 @@ void Debug::ClearBreakOnNextFunctionCall() {
 }
 
 void Debug::PrepareStepIn(Handle<JSFunction> function) {
-  CHECK(last_step_action() >= StepIn || break_on_next_function_call());
+  CHECK(last_step_action() >= StepInto || break_on_next_function_call());
   if (ignore_events()) return;
   if (in_debug_scope()) return;
   if (break_disabled()) return;
@@ -940,7 +941,7 @@ void Debug::PrepareStepInSuspendedGenerator() {
   if (ignore_events()) return;
   if (in_debug_scope()) return;
   if (break_disabled()) return;
-  thread_local_.last_step_action_ = StepIn;
+  thread_local_.last_step_action_ = StepInto;
   UpdateHookOnFunctionCall();
   Handle<JSFunction> function(
       JSGeneratorObject::cast(thread_local_.suspended_generator_).function(),
@@ -978,7 +979,7 @@ void Debug::PrepareStepOnThrow() {
   // Then skip to the frame we want to break in, then instrument for stepping.
   for (; !it.done(); it.Advance()) {
     JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
-    if (last_step_action() == StepIn) {
+    if (last_step_action() == StepInto) {
       // Deoptimize frame to ensure calls are checked for step-in.
       Deoptimizer::DeoptimizeFunction(frame->function());
     }
@@ -1006,7 +1007,7 @@ void Debug::PrepareStepOnThrow() {
       if (found_handler) {
         // We found the handler. If we are stepping next or out, we need to
         // iterate until we found the suitable target frame to break in.
-        if ((last_step_action() == StepNext || last_step_action() == StepOut) &&
+        if ((last_step_action() == StepOver || last_step_action() == StepOut) &&
             current_frame_count > thread_local_.target_frame_count_) {
           continue;
         }
@@ -1071,14 +1072,14 @@ void Debug::PrepareStep(StepAction step_action) {
         thread_local_.ignore_step_into_function_ = *function;
       }
       step_action = StepOut;
-      thread_local_.last_step_action_ = StepIn;
+      thread_local_.last_step_action_ = StepInto;
     }
 
     // We need to schedule DebugOnFunction call callback
     UpdateHookOnFunctionCall();
 
     // A step-next in blackboxed function is a step-out.
-    if (step_action == StepNext && IsBlackboxed(shared)) step_action = StepOut;
+    if (step_action == StepOver && IsBlackboxed(shared)) step_action = StepOut;
 
     thread_local_.last_statement_position_ =
         summary.abstract_code()->SourceStatementPosition(summary.code_offset());
@@ -1136,7 +1137,7 @@ void Debug::PrepareStep(StepAction step_action) {
         }
 #endif  // V8_ENABLE_WEBASSEMBLY
         JavaScriptFrame* frame = JavaScriptFrame::cast(frames_it.frame());
-        if (last_step_action() == StepIn) {
+        if (last_step_action() == StepInto) {
           // Deoptimize frame to ensure calls are checked for step-in.
           Deoptimizer::DeoptimizeFunction(frame->function());
         }
@@ -1159,10 +1160,10 @@ void Debug::PrepareStep(StepAction step_action) {
       }
       break;
     }
-    case StepNext:
+    case StepOver:
       thread_local_.target_frame_count_ = current_frame_count;
       V8_FALLTHROUGH;
-    case StepIn:
+    case StepInto:
       FloodWithOneShot(shared);
       break;
   }
@@ -2034,8 +2035,8 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
-  if ((lastStepAction == StepAction::StepNext ||
-       lastStepAction == StepAction::StepIn) &&
+  if ((lastStepAction == StepAction::StepOver ||
+       lastStepAction == StepAction::StepInto) &&
       ShouldBeSkipped()) {
     PrepareStep(lastStepAction);
     return;
@@ -2216,9 +2217,9 @@ void Debug::UpdateState() {
 }
 
 void Debug::UpdateHookOnFunctionCall() {
-  STATIC_ASSERT(LastStepAction == StepIn);
+  STATIC_ASSERT(LastStepAction == StepInto);
   hook_on_function_call_ =
-      thread_local_.last_step_action_ == StepIn ||
+      thread_local_.last_step_action_ == StepInto ||
       isolate_->debug_execution_mode() == DebugInfo::kSideEffects ||
       thread_local_.break_on_next_function_call_;
 }

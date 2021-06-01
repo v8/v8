@@ -28,14 +28,14 @@ class JavaScriptFrame;
 class JSGeneratorObject;
 class StackFrame;
 
-// Step actions. NOTE: These values are in macros.py as well.
+// Step actions.
 enum StepAction : int8_t {
   StepNone = -1,  // Stepping not prepared.
   StepOut = 0,    // Step out of the current function.
-  StepNext = 1,   // Step to the next statement in the current function.
-  StepIn = 2,     // Step into new functions invoked or the next statement
+  StepOver = 1,   // Step to the next statement in the current function.
+  StepInto = 2,   // Step into new functions invoked or the next statement
                   // in the current function.
-  LastStepAction = StepIn
+  LastStepAction = StepInto
 };
 
 // Type of exception break. NOTE: These values are in macros.py as well.

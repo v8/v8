@@ -440,7 +440,7 @@ class DebugInfoImpl {
 
   bool IsStepping(WasmFrame* frame) {
     Isolate* isolate = frame->wasm_instance().GetIsolate();
-    if (isolate->debug()->last_step_action() == StepIn) return true;
+    if (isolate->debug()->last_step_action() == StepInto) return true;
     base::MutexGuard guard(&mutex_);
     auto it = per_isolate_data_.find(isolate);
     return it != per_isolate_data_.end() &&

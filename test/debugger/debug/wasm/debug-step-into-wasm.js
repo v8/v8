@@ -39,7 +39,7 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(event_data.functionName() == '$sub');
       wasm_break_count++;
     }
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
   } catch (e) {
     exception = e;
     print(e);
