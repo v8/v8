@@ -351,6 +351,7 @@ class ShellOptions {
     bool specified_ = false;
   };
 
+  DisallowReassignment<const char*> d8_path = {"d8-path", ""};
   DisallowReassignment<bool> fuzzilli_coverage_statistics = {
       "fuzzilli-coverage-statistics", false};
   DisallowReassignment<bool> fuzzilli_enable_builtins_coverage = {
@@ -541,29 +542,30 @@ class Shell : public i::AllStatic {
   // milliseconds on the total running time of the program.  Exceptions are
   // thrown on timeouts or other errors or if the exit status of the program
   // indicates an error.
-  //
+  static void System(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   // os.chdir(dir) changes directory to the given directory.  Throws an
   // exception/ on error.
-  //
+  static void ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   // os.setenv(variable, value) sets an environment variable.  Repeated calls to
   // this method leak memory due to the API of setenv in the standard C library.
-  //
+  static void SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   // os.umask(alue) calls the umask system call and returns the old umask.
-  //
+  static void SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   // os.mkdirp(name, mask) creates a directory.  The mask (if present) is anded
   // with the current umask.  Intermediate directories are created if necessary.
   // An exception is not thrown if the directory already exists.  Analogous to
   // the "mkdir -p" command.
-  static void System(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static MaybeLocal<Promise> HostImportModuleDynamically(
       Local<Context> context, Local<ScriptOrModule> referrer,
       Local<String> specifier, Local<FixedArray> import_assertions);
+
   static void ModuleResolutionSuccessCallback(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void ModuleResolutionFailureCallback(
