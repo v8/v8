@@ -15,12 +15,6 @@
 namespace v8 {
 namespace internal {
 
-enum class JumpMode {
-  kJump,          // Does a direct jump to the given address
-  kPushAndReturn  // Pushes the given address as the current return address and
-                  // does a return
-};
-
 // Common base class for platform-specific TurboAssemblers containing
 // platform-independent bits.
 // You will encounter two subclasses, TurboAssembler (derives from
@@ -64,22 +58,6 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
 
-  virtual void Jump(const ExternalReference& reference) = 0;
-
-  // Calls the builtin given by the Smi in |builtin|. If builtins are embedded,
-  // the trampoline Code object on the heap is not used.
-  virtual void CallBuiltinByIndex(Register builtin_index) = 0;
-
-  // Calls/jumps to the given Code object. If builtins are embedded, the
-  // trampoline Code object on the heap is not used.
-  virtual void CallCodeObject(Register code_object) = 0;
-  virtual void JumpCodeObject(Register code_object,
-                              JumpMode jump_mode = JumpMode::kJump) = 0;
-
-  // Loads the given Code object's entry point into the destination register.
-  virtual void LoadCodeObjectEntry(Register destination,
-                                   Register code_object) = 0;
-
   // Loads the given constant or external reference without embedding its direct
   // pointer. The produced code is isolate-independent.
   void IndirectLoadConstant(Register destination, Handle<HeapObject> object);
@@ -97,9 +75,6 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
 
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
-
-  virtual void Trap() = 0;
-  virtual void DebugBreak() = 0;
 
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
   static int32_t RootRegisterOffsetForBuiltinIndex(int builtin_index);

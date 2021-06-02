@@ -28,6 +28,12 @@ enum AllocationFlags {
   PRETENURE = 1 << 3,
 };
 
+enum class JumpMode {
+  kJump,          // Does a direct jump to the given address
+  kPushAndReturn  // Pushes the given address as the current return address and
+                  // does a return
+};
+
 enum class SmiCheck { kOmit, kInline };
 
 // This is the only place allowed to include the platform-specific headers.
