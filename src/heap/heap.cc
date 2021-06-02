@@ -3165,7 +3165,10 @@ bool Heap::CanMoveObjectStart(HeapObject object) {
   if (IsLargeObject(object)) return false;
 
   // Compilation jobs may have references to the object.
-  if (isolate()->optimizing_compile_dispatcher()->HasJobs()) return false;
+  if (isolate()->concurrent_recompilation_enabled() &&
+      isolate()->optimizing_compile_dispatcher()->HasJobs()) {
+    return false;
+  }
 
   // We can move the object start if the page was already swept.
   return Page::FromHeapObject(object)->SweepingDone();
