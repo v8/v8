@@ -30,7 +30,8 @@ void ProcessorImpl::Multiply(RWDigits Z, Digits X, Digits Y) {
   if (X.len() == 0 || Y.len() == 0) return Z.Clear();
   if (X.len() < Y.len()) std::swap(X, Y);
   if (Y.len() == 1) return MultiplySingle(Z, X, Y[0]);
-  return MultiplySchoolbook(Z, X, Y);
+  if (Y.len() < kKaratsubaThreshold) return MultiplySchoolbook(Z, X, Y);
+  return MultiplyKaratsuba(Z, X, Y);
 }
 
 Status Processor::Multiply(RWDigits Z, Digits X, Digits Y) {

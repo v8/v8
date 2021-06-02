@@ -12,7 +12,17 @@
 namespace v8 {
 namespace bigint {
 
+// Z += X.
+void AddAt(RWDigits Z, Digits X);
+
+// Z -= X.
+void SubAt(RWDigits Z, Digits X);
+
 inline bool IsDigitNormalized(Digits X) { return X.len() == 0 || X.msd() != 0; }
+
+inline bool GreaterThanOrEqual(Digits A, Digits B) {
+  return Compare(A, B) >= 0;
+}
 
 }  // namespace bigint
 }  // namespace v8
