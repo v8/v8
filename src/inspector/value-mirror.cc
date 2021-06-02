@@ -21,28 +21,6 @@ using protocol::Runtime::ObjectPreview;
 using protocol::Runtime::PropertyPreview;
 using protocol::Runtime::RemoteObject;
 
-namespace {
-
-// WebAssembly memory is organized in pages of size 64KiB.
-const size_t kWasmPageSize = 64 * 1024;
-
-V8InspectorClient* clientFor(v8::Local<v8::Context> context) {
-  return static_cast<V8InspectorImpl*>(
-             v8::debug::GetInspector(context->GetIsolate()))
-      ->client();
-}
-
-V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
-                                            v8::Local<v8::Value> value) {
-  if (!value->IsObject()) return V8InternalValueType::kNone;
-  V8InspectorImpl* inspector = static_cast<V8InspectorImpl*>(
-      v8::debug::GetInspector(context->GetIsolate()));
-  int contextId = InspectedContext::contextId(context);
-  InspectedContext* inspectedContext = inspector->getContext(contextId);
-  if (!inspectedContext) return V8InternalValueType::kNone;
-  return inspectedContext->getInternalType(value.As<v8::Object>());
-}
-
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
                          std::unique_ptr<protocol::Value>* result);
@@ -172,6 +150,28 @@ Response toProtocolValue(v8::Local<v8::Context> context,
   static const int kMaxDepth = 1000;
 #endif
   return toProtocolValue(context, value, kMaxDepth, result);
+}
+
+namespace {
+
+// WebAssembly memory is organized in pages of size 64KiB.
+const size_t kWasmPageSize = 64 * 1024;
+
+V8InspectorClient* clientFor(v8::Local<v8::Context> context) {
+  return static_cast<V8InspectorImpl*>(
+             v8::debug::GetInspector(context->GetIsolate()))
+      ->client();
+}
+
+V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
+                                            v8::Local<v8::Value> value) {
+  if (!value->IsObject()) return V8InternalValueType::kNone;
+  V8InspectorImpl* inspector = static_cast<V8InspectorImpl*>(
+      v8::debug::GetInspector(context->GetIsolate()));
+  int contextId = InspectedContext::contextId(context);
+  InspectedContext* inspectedContext = inspector->getContext(contextId);
+  if (!inspectedContext) return V8InternalValueType::kNone;
+  return inspectedContext->getInternalType(value.As<v8::Object>());
 }
 
 enum AbbreviateMode { kMiddle, kEnd };

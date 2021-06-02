@@ -301,6 +301,10 @@ class V8_EXPORT V8Inspector {
                                    int scriptId) = 0;
   virtual void exceptionRevoked(v8::Local<v8::Context>, unsigned exceptionId,
                                 StringView message) = 0;
+  virtual bool associateExceptionData(v8::Local<v8::Context>,
+                                      v8::Local<v8::Value> exception,
+                                      v8::Local<v8::Name> key,
+                                      v8::Local<v8::Value> value) = 0;
 
   // Connection.
   class V8_EXPORT Channel {
