@@ -1585,13 +1585,13 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   RpoNumber dominator_;
   int32_t code_start_;   // start index of arch-specific code.
   int32_t code_end_ = -1;     // end index of arch-specific code.
-  const bool deferred_;       // Block contains deferred code.
-  bool handler_;              // Block is a handler entry point.
-  bool switch_target_ = false;
-  bool alignment_ = false;  // insert alignment before this block
-  bool needs_frame_ = false;
-  bool must_construct_frame_ = false;
-  bool must_deconstruct_frame_ = false;
+  const bool deferred_ : 1;   // Block contains deferred code.
+  bool handler_ : 1;          // Block is a handler entry point.
+  bool switch_target_ : 1;
+  bool alignment_ : 1;  // insert alignment before this block
+  bool needs_frame_ : 1;
+  bool must_construct_frame_ : 1;
+  bool must_deconstruct_frame_ : 1;
 };
 
 class InstructionSequence;
