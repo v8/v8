@@ -698,6 +698,7 @@ void Symbol::SymbolPrint(std::ostream& os) {
     os << " (" << PrivateSymbolToName() << ")";
   }
   os << "\n - private: " << is_private();
+  os << "\n";
 }
 
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
