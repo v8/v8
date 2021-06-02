@@ -4713,7 +4713,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     // deoptimization entries).
     for (StrongRootsEntry* current = strong_roots_head_; current;
          current = current->next) {
-      v->VisitRootPointers(Root::kStrongRoots, nullptr, current->start,
+      v->VisitRootPointers(Root::kStrongRoots, current->label, current->start,
                            current->end);
     }
     v->Synchronize(VisitorSynchronization::kStrongRoots);
@@ -6419,11 +6419,12 @@ size_t Heap::OldArrayBufferBytes() {
   return array_buffer_sweeper()->OldBytes();
 }
 
-StrongRootsEntry* Heap::RegisterStrongRoots(FullObjectSlot start,
+StrongRootsEntry* Heap::RegisterStrongRoots(const char* label,
+                                            FullObjectSlot start,
                                             FullObjectSlot end) {
   base::MutexGuard guard(&strong_roots_mutex_);
 
-  StrongRootsEntry* entry = new StrongRootsEntry();
+  StrongRootsEntry* entry = new StrongRootsEntry(label);
   entry->start = start;
   entry->end = end;
   entry->prev = nullptr;
@@ -7084,8 +7085,8 @@ Address* StrongRootBlockAllocator::allocate(size_t n) {
                                             sizeof(StrongRootsEntry*));
 
   memset(ret, kNullAddress, n * sizeof(Address));
-  *header =
-      heap_->RegisterStrongRoots(FullObjectSlot(ret), FullObjectSlot(ret + n));
+  *header = heap_->RegisterStrongRoots(
+      "StrongRootBlockAllocator", FullObjectSlot(ret), FullObjectSlot(ret + n));
 
   return ret;
 }

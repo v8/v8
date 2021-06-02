@@ -186,12 +186,13 @@ enum class SkipRoot {
   kWeak
 };
 
-class StrongRootsEntry {
-  StrongRootsEntry() = default;
+class StrongRootsEntry final {
+  explicit StrongRootsEntry(const char* label) : label(label) {}
 
+  // Label that identifies the roots in tooling.
+  const char* label;
   FullObjectSlot start;
   FullObjectSlot end;
-
   StrongRootsEntry* prev;
   StrongRootsEntry* next;
 
@@ -931,7 +932,7 @@ class Heap {
   V8_INLINE void SetMessageListeners(TemplateList value);
   V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
 
-  StrongRootsEntry* RegisterStrongRoots(FullObjectSlot start,
+  StrongRootsEntry* RegisterStrongRoots(const char* label, FullObjectSlot start,
                                         FullObjectSlot end);
   void UnregisterStrongRoots(StrongRootsEntry* entry);
   void UpdateStrongRoots(StrongRootsEntry* entry, FullObjectSlot start,

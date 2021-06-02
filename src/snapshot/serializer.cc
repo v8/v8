@@ -1190,9 +1190,9 @@ void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
 }
 
 Serializer::HotObjectsList::HotObjectsList(Heap* heap) : heap_(heap) {
-  strong_roots_entry_ =
-      heap->RegisterStrongRoots(FullObjectSlot(&circular_queue_[0]),
-                                FullObjectSlot(&circular_queue_[kSize]));
+  strong_roots_entry_ = heap->RegisterStrongRoots(
+      "Serializer::HotObjectsList", FullObjectSlot(&circular_queue_[0]),
+      FullObjectSlot(&circular_queue_[kSize]));
 }
 Serializer::HotObjectsList::~HotObjectsList() {
   heap_->UnregisterStrongRoots(strong_roots_entry_);
