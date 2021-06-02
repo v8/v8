@@ -103,14 +103,19 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
                           IntPtrConstant(0), parameters_and_register_length,
                           RootIndex::kUndefinedValue);
 
-  // Allocate and initialize the promise.
+  // Allocate space for the promise, the async function object.
+  TNode<IntPtrT> size = IntPtrConstant(JSPromise::kSizeWithEmbedderFields +
+                                       JSAsyncFunctionObject::kHeaderSize);
+  TNode<HeapObject> base = AllocateInNewSpace(size);
+
+  // Initialize the promise.
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> promise_function =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   TNode<Map> promise_map = LoadObjectField<Map>(
       promise_function, JSFunction::kPrototypeOrInitialMapOffset);
   TNode<JSPromise> promise = UncheckedCast<JSPromise>(
-      AllocateInNewSpace(JSPromise::kSizeWithEmbedderFields));
+      InnerAllocate(base, JSAsyncFunctionObject::kHeaderSize));
   StoreMapNoWriteBarrier(promise, promise_map);
   StoreObjectFieldRoot(promise, JSPromise::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
@@ -118,12 +123,11 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
                        RootIndex::kEmptyFixedArray);
   PromiseInit(promise);
 
-  // Allocate and initialize the async function object.
+  // Initialize the async function object.
   TNode<Map> async_function_object_map = CAST(LoadContextElement(
       native_context, Context::ASYNC_FUNCTION_OBJECT_MAP_INDEX));
   TNode<JSAsyncFunctionObject> async_function_object =
-      UncheckedCast<JSAsyncFunctionObject>(
-          AllocateInNewSpace(JSAsyncFunctionObject::kHeaderSize));
+      UncheckedCast<JSAsyncFunctionObject>(base);
   StoreMapNoWriteBarrier(async_function_object, async_function_object_map);
   StoreObjectFieldRoot(async_function_object,
                        JSAsyncFunctionObject::kPropertiesOrHashOffset,
