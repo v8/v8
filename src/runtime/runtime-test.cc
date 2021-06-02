@@ -202,6 +202,12 @@ RUNTIME_FUNCTION(Runtime_IsMidTierTurboprop) {
                                     !FLAG_turboprop_as_toptier);
 }
 
+RUNTIME_FUNCTION(Runtime_IsAtomicsWaitAllowed) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(isolate->allow_atomics_wait());
+}
+
 namespace {
 
 enum class TierupKind { kTierupBytecode, kTierupBytecodeOrMidTier };

@@ -483,6 +483,7 @@ namespace internal {
   F(DynamicCheckMapsEnabled, 0, 1)            \
   F(IsTopTierTurboprop, 0, 1)                 \
   F(IsMidTierTurboprop, 0, 1)                 \
+  F(IsAtomicsWaitAllowed, 0, 1)               \
   F(EnableCodeLoggingForTesting, 0, 1)        \
   F(EnsureFeedbackVectorForFunction, 1, 1)    \
   F(GetCallable, 0, 1)                        \
