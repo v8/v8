@@ -2695,7 +2695,7 @@ void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
   andq(in_out, Immediate(~static_cast<int32_t>(kWeakHeapObjectMask)));
 }
 
-void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
+void MacroAssembler::EmitIncrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand =
@@ -2711,7 +2711,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
+void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand =

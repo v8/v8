@@ -709,8 +709,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
-  void IncrementCounter(StatsCounter* counter, int value, Register scratch);
-  void DecrementCounter(StatsCounter* counter, int value, Register scratch);
+  void IncrementCounter(StatsCounter* counter, int value, Register scratch) {
+    if (!FLAG_native_code_counters) return;
+    EmitIncrementCounter(counter, value, scratch);
+  }
+  void EmitIncrementCounter(StatsCounter* counter, int value, Register scratch);
+  void DecrementCounter(StatsCounter* counter, int value, Register scratch) {
+    if (!FLAG_native_code_counters) return;
+    EmitDecrementCounter(counter, value, scratch);
+  }
+  void EmitDecrementCounter(StatsCounter* counter, int value, Register scratch);
 
   // ---------------------------------------------------------------------------
   // Stack limit utilities

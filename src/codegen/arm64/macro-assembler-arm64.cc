@@ -2713,8 +2713,9 @@ void MacroAssembler::LoadWeakValue(Register out, Register in,
   and_(out, in, Operand(~kWeakHeapObjectMask));
 }
 
-void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
-                                      Register scratch1, Register scratch2) {
+void MacroAssembler::EmitIncrementCounter(StatsCounter* counter, int value,
+                                          Register scratch1,
+                                          Register scratch2) {
   DCHECK_NE(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     // This operation has to be exactly 32-bit wide in case the external
@@ -2725,11 +2726,6 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
     Add(scratch1.W(), scratch1.W(), value);
     Str(scratch1.W(), MemOperand(scratch2));
   }
-}
-
-void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
-                                      Register scratch1, Register scratch2) {
-  IncrementCounter(counter, -value, scratch1, scratch2);
 }
 
 void MacroAssembler::JumpIfObjectType(Register object, Register map,
