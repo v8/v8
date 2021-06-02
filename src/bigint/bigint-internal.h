@@ -10,6 +10,8 @@
 namespace v8 {
 namespace bigint {
 
+constexpr int kKaratsubaThreshold = 34;
+
 class ProcessorImpl : public Processor {
  public:
   explicit ProcessorImpl(Platform* platform);
@@ -20,6 +22,11 @@ class ProcessorImpl : public Processor {
   void Multiply(RWDigits Z, Digits X, Digits Y);
   void MultiplySingle(RWDigits Z, Digits X, digit_t y);
   void MultiplySchoolbook(RWDigits Z, Digits X, Digits Y);
+
+  void MultiplyKaratsuba(RWDigits Z, Digits X, Digits Y);
+  void KaratsubaStart(RWDigits Z, Digits X, Digits Y, RWDigits scratch, int k);
+  void KaratsubaChunk(RWDigits Z, Digits X, Digits Y, RWDigits scratch);
+  void KaratsubaMain(RWDigits Z, Digits X, Digits Y, RWDigits scratch, int n);
 
  private:
   // Each unit is supposed to represent approximately one CPU {mul} instruction.
@@ -58,6 +65,28 @@ class ProcessorImpl : public Processor {
 #else
 #define DCHECK(cond) (void(0))
 #endif
+
+// RAII memory for a Digits array.
+class Storage {
+ public:
+  explicit Storage(int count) : ptr_(new digit_t[count]) {}
+
+  digit_t* get() { return ptr_.get(); }
+
+ private:
+  std::unique_ptr<digit_t[]> ptr_;
+};
+
+// A writable Digits array with attached storage.
+class ScratchDigits : public RWDigits {
+ public:
+  explicit ScratchDigits(int len) : RWDigits(nullptr, len), storage_(len) {
+    digits_ = storage_.get();
+  }
+
+ private:
+  Storage storage_;
+};
 
 }  // namespace bigint
 }  // namespace v8

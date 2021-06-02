@@ -4898,7 +4898,9 @@ v8_source_set("v8_bigint") {
     "src/bigint/bigint-internal.h",
     "src/bigint/bigint.h",
     "src/bigint/digit-arithmetic.h",
+    "src/bigint/mul-karatsuba.cc",
     "src/bigint/mul-schoolbook.cc",
+    "src/bigint/util.h",
     "src/bigint/vector-arithmetic.cc",
     "src/bigint/vector-arithmetic.h",
   ]
