@@ -4,6 +4,11 @@
 
 #include "src/baseline/baseline-batch-compiler.h"
 
+// TODO(v8:11421): Remove #if once baseline compiler is ported to other
+// architectures.
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
+
 #include "src/baseline/baseline-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate.h"
@@ -119,3 +124,29 @@ void BaselineBatchCompiler::ClearBatch() {
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8
+
+#else
+
+namespace v8 {
+namespace internal {
+namespace baseline {
+
+BaselineBatchCompiler::BaselineBatchCompiler(Isolate* isolate)
+    : isolate_(isolate),
+      compilation_queue_(Handle<WeakFixedArray>::null()),
+      last_index_(0),
+      estimated_instruction_size_(0),
+      enabled_(false) {}
+
+BaselineBatchCompiler::~BaselineBatchCompiler() {
+  if (!compilation_queue_.is_null()) {
+    GlobalHandles::Destroy(compilation_queue_.location());
+    compilation_queue_ = Handle<WeakFixedArray>::null();
+  }
+}
+
+}  // namespace baseline
+}  // namespace internal
+}  // namespace v8
+
+#endif

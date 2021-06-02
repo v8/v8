@@ -68,6 +68,11 @@ void EmitReturnBaseline(MacroAssembler* masm) {
 namespace v8 {
 namespace internal {
 
+bool CanCompileWithBaseline(Isolate* isolate,
+                            Handle<SharedFunctionInfo> shared) {
+  return false;
+}
+
 MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared) {
   UNREACHABLE();
