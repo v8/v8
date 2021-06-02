@@ -237,9 +237,9 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   DCHECK(!AreAliased(object, slot_address));
   RegList registers =
       WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
-  MaybeSaveRegisters(registers)
+  MaybeSaveRegisters(registers);
 
-      Register object_parameter = WriteBarrierDescriptor::ObjectRegister();
+  Register object_parameter = WriteBarrierDescriptor::ObjectRegister();
   Register slot_address_parameter =
       WriteBarrierDescriptor::SlotAddressRegister();
 
