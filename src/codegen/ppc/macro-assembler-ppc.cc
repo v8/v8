@@ -2766,56 +2766,21 @@ void TurboAssembler::StoreU64WithUpdate(Register src, const MemOperand& mem,
 
 void TurboAssembler::LoadS32(Register dst, const MemOperand& mem,
                              Register scratch) {
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    CHECK(scratch != no_reg);
-    mov(scratch, Operand(offset));
-    lwax(dst, MemOperand(mem.ra(), scratch));
-  } else {
-    int misaligned = (offset & 3);
-    if (misaligned) {
-      // adjust base to conform to offset alignment requirements
-      // Todo: enhance to use scratch if dst is unsuitable
-      CHECK(dst != r0);
-      addi(dst, mem.ra(), Operand((offset & 3) - 4));
-      lwa(dst, MemOperand(dst, (offset & ~3) + 4));
-    } else {
-      lwa(dst, mem);
-    }
-  }
+  GenerateMemoryOperationWithAlign(dst, mem, lwa, lwax);
 }
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand currently only supports d-form
 void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
                              Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    CHECK(scratch != no_reg);
-    mov(scratch, Operand(offset));
-    lwzx(dst, MemOperand(base, scratch));
-  } else {
-    // lwz can handle offset misalign
-    lwz(dst, mem);
-  }
+  GenerateMemoryOperation(dst, mem, lwz, lwzx);
 }
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand current only supports d-form
 void TurboAssembler::StoreU32(Register src, const MemOperand& mem,
                               Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    LoadIntLiteral(scratch, offset);
-    stwx(src, MemOperand(base, scratch));
-  } else {
-    stw(src, mem);
-  }
+  GenerateMemoryOperation(src, mem, stw, stwx);
 }
 
 void TurboAssembler::LoadS16(Register dst, const MemOperand& mem,
@@ -3253,7 +3218,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // Check whether the Code object is an off-heap trampoline. If so, call its
     // (off-heap) entry point directly without going through the (on-heap)
     // trampoline.  Otherwise, just call the Code object as always.
-    LoadS32(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
+    LoadS32(scratch, FieldMemOperand(code_object, Code::kFlagsOffset), r0);
     mov(r0, Operand(Code::IsOffHeapTrampoline::kMask));
     and_(r0, scratch, r0, SetRC);
     bne(&if_code_is_off_heap, cr0);
@@ -3266,7 +3231,8 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // An off-heap trampoline, the entry point is loaded from the builtin entry
     // table.
     bind(&if_code_is_off_heap);
-    LoadS32(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
+    LoadS32(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset),
+            r0);
     ShiftLeftImm(destination, scratch, Operand(kSystemPointerSizeLog2));
     add(destination, destination, kRootRegister);
     LoadU64(destination,

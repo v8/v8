@@ -871,7 +871,8 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
       r0);
   __ LoadS32(
       scratch,
-      FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+      FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
+      r0);
   __ TestBit(scratch, Code::kMarkedForDeoptimizationBit, r0);
   __ bne(&heal_optimized_code_slot, cr0);
 
@@ -1170,7 +1171,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadS32(r8,
              FieldMemOperand(
                  kInterpreterBytecodeArrayRegister,
-                 BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
+                 BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset),
+             r0);
   __ cmpi(r8, Operand::Zero());
   __ beq(&no_incoming_new_target_or_generator_register);
   __ ShiftLeftImm(r8, r8, Operand(kSystemPointerSizeLog2));
