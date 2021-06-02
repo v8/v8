@@ -3891,6 +3891,23 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
 
     DCHECK_LE(index, JSObject::kMaxElementIndex);
 
+    // See also ElementsAccessorBase::GetMaxIndex.
+    if (IsJSArray()) {
+      // For JSArrays we additionally need to check against JSArray::length.
+      // Length_unsafe is safe to use in this case since:
+      // - GetOwnConstantElement only detects a constant for JSArray holders if
+      //   the array is frozen/sealed.
+      // - Frozen/sealed arrays can't change length.
+      // - We've already seen a map with frozen/sealed elements_kinds (above);
+      // - The release-load of that map ensures we read the newest value
+      //   of `length` below.
+      uint32_t array_length;
+      if (!AsJSArray().length_unsafe().object()->ToArrayLength(&array_length)) {
+        return {};
+      }
+      if (index >= array_length) return {};
+    }
+
     Object maybe_element;
     auto result = ConcurrentLookupIterator::TryGetOwnConstantElement(
         &maybe_element, broker()->isolate(), broker()->local_isolate(),
