@@ -45,6 +45,36 @@ inline digit_t digit_add3(digit_t a, digit_t b, digit_t c, digit_t* carry) {
 #endif
 }
 
+// {borrow} will be set to 0 or 1.
+inline digit_t digit_sub(digit_t a, digit_t b, digit_t* borrow) {
+#if HAVE_TWODIGIT_T
+  twodigit_t result = twodigit_t{a} - b;
+  *borrow = (result >> kDigitBits) & 1;
+  return static_cast<digit_t>(result);
+#else
+  digit_t result = a - b;
+  *borrow = (result > a) ? 1 : 0;
+  return result;
+#endif
+}
+
+// {borrow_out} will be set to 0 or 1.
+inline digit_t digit_sub2(digit_t a, digit_t b, digit_t borrow_in,
+                          digit_t* borrow_out) {
+#if HAVE_TWODIGIT_T
+  twodigit_t subtrahend = twodigit_t{b} + borrow_in;
+  twodigit_t result = twodigit_t{a} - subtrahend;
+  *borrow_out = (result >> kDigitBits) & 1;
+  return static_cast<digit_t>(result);
+#else
+  digit_t result = a - b;
+  *borrow_out = (result > a) ? 1 : 0;
+  if (result < borrow_in) *borrow_out += 1;
+  result -= borrow_in;
+  return result;
+#endif
+}
+
 // Returns the low half of the result. High half is in {high}.
 inline digit_t digit_mul(digit_t a, digit_t b, digit_t* high) {
 #if HAVE_TWODIGIT_T

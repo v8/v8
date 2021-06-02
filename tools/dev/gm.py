@@ -36,8 +36,8 @@ USE_PTY = "linux" in sys.platform
 if USE_PTY:
   import pty
 
-BUILD_TARGETS_TEST = ["d8", "cctest", "inspector-test", "unittests",
-                      "wasm_api_tests"]
+BUILD_TARGETS_TEST = ["d8", "bigint_shell", "cctest", "inspector-test",
+                      "unittests", "wasm_api_tests"]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
@@ -51,7 +51,8 @@ MODES = ["release", "debug", "optdebug"]
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
-           "mkgrokdump", "generate-bytecode-expectations", "inspector-test"]
+           "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
+           "bigint_shell"]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
 DEFAULT_TARGETS = ["d8"]
@@ -81,6 +82,7 @@ HELP = """<arch> can be any of: %(arches)s
        "targets": ", ".join(TARGETS)}
 
 TESTSUITES_TARGETS = {"benchmarks": "d8",
+              "bigint": "bigint_shell",
               "cctest": "cctest",
               "debugger": "d8",
               "fuzzer": "v8_fuzzers",
