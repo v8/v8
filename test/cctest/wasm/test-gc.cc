@@ -1184,6 +1184,35 @@ WASM_COMPILED_EXEC_TEST(BasicRtt) {
   tester.CheckResult(kRefCast, 43);
 }
 
+WASM_COMPILED_EXEC_TEST(RttFreshSub) {
+  WasmGCTester tester(execution_tier);
+  FlagScope<bool> flag_gc_experiments(&FLAG_experimental_wasm_gc_experiments,
+                                      true);
+  const byte kType = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  HeapType::Representation type_repr =
+      static_cast<HeapType::Representation>(kType);
+
+  const byte kRtt = tester.AddGlobal(
+      ValueType::Rtt(kType, 1), false,
+      WasmInitExpr::RttFreshSub(type_repr, WasmInitExpr::RttCanon(type_repr)));
+
+  // A struct allocated with a fresh RTT does not match other fresh RTTs
+  // created for the same type.
+  const byte kRefTest = tester.DefineFunction(
+      tester.sigs.i_v(), {optref(kType)},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_WITH_RTT(
+                             kType, WASM_I32V(11),
+                             WASM_RTT_FRESH_SUB(kType, WASM_RTT_CANON(kType)))),
+       WASM_I32_ADD(
+           WASM_REF_TEST(WASM_LOCAL_GET(0),
+                         WASM_RTT_FRESH_SUB(kType, WASM_RTT_CANON(kType))),
+           WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_GLOBAL_GET(kRtt))),
+       kExprEnd});
+
+  tester.CompileModule();
+  tester.CheckResult(kRefTest, 0);
+}
+
 WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
   WasmGCTester tester(execution_tier);
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});

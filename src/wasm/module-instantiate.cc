@@ -254,7 +254,7 @@ class RttSubtypes : public ArrayList {
 
 Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
-                           Handle<Map> parent) {
+                           Handle<Map> parent, WasmRttSubMode mode) {
   DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap() ||
          parent->IsJSFunctionMap());
 
@@ -268,11 +268,13 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
     return Map::Copy(isolate, isolate->wasm_exported_function_map(),
                      "fresh function map for AllocateSubRtt");
   }
-
-  // Check for an existing RTT first.
-  Handle<ArrayList> cache(parent->wasm_type_info().subtypes(), isolate);
-  Map maybe_cached = RttSubtypes::SearchSubtype(cache, type);
-  if (!maybe_cached.is_null()) return handle(maybe_cached, isolate);
+  // If canonicalization is requested, check for an existing RTT first.
+  Handle<ArrayList> cache;
+  if (mode == WasmRttSubMode::kCanonicalize) {
+    cache = handle(parent->wasm_type_info().subtypes(), isolate);
+    Map maybe_cached = RttSubtypes::SearchSubtype(cache, type);
+    if (!maybe_cached.is_null()) return handle(maybe_cached, isolate);
+  }
 
   // Allocate a fresh RTT otherwise.
   Handle<Map> rtt;
@@ -283,8 +285,10 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
     rtt = wasm::CreateArrayMap(isolate, module, type, parent);
   }
 
-  cache = RttSubtypes::Insert(isolate, cache, type, rtt);
-  parent->wasm_type_info().set_subtypes(*cache);
+  if (mode == WasmRttSubMode::kCanonicalize) {
+    cache = RttSubtypes::Insert(isolate, cache, type, rtt);
+    parent->wasm_type_info().set_subtypes(*cache);
+  }
   return rtt;
 }
 
@@ -1629,12 +1633,15 @@ Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
       int map_index = init.immediate().index;
       return handle(instance->managed_object_maps().get(map_index), isolate_);
     }
-    case WasmInitExpr::kRttSub: {
+    case WasmInitExpr::kRttSub:
+    case WasmInitExpr::kRttFreshSub: {
       uint32_t type = init.immediate().index;
       Handle<Object> parent =
           RecursivelyEvaluateGlobalInitializer(*init.operand(), instance);
-      return AllocateSubRtt(isolate_, instance, type,
-                            Handle<Map>::cast(parent));
+      return AllocateSubRtt(isolate_, instance, type, Handle<Map>::cast(parent),
+                            init.kind() == WasmInitExpr::kRttSub
+                                ? WasmRttSubMode::kCanonicalize
+                                : WasmRttSubMode::kFresh);
     }
   }
 }
@@ -1704,6 +1711,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
       }
       case WasmInitExpr::kRttCanon:
       case WasmInitExpr::kRttSub:
+      case WasmInitExpr::kRttFreshSub:
         tagged_globals_->set(
             global.offset,
             *RecursivelyEvaluateGlobalInitializer(global.init, instance));

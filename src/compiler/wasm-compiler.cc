@@ -5610,8 +5610,12 @@ Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
   return gasm_->LoadFixedArrayElementPtr(maps_list, type_index);
 }
 
-Node* WasmGraphBuilder::RttSub(uint32_t type_index, Node* parent_rtt) {
-  return gasm_->CallBuiltin(Builtins::kWasmAllocateRtt, Operator::kEliminatable,
+Node* WasmGraphBuilder::RttSub(uint32_t type_index, Node* parent_rtt,
+                               WasmRttSubMode mode) {
+  Builtins::Name target = mode == WasmRttSubMode::kCanonicalize
+                              ? Builtins::kWasmAllocateRtt
+                              : Builtins::kWasmAllocateFreshRtt;
+  return gasm_->CallBuiltin(target, Operator::kEliminatable,
                             Int32Constant(type_index), parent_rtt);
 }
 

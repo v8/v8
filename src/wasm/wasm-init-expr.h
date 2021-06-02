@@ -31,7 +31,8 @@ class WasmInitExpr {
     kRefNullConst,
     kRefFuncConst,
     kRttCanon,
-    kRttSub
+    kRttSub,
+    kRttFreshSub,
   };
 
   union Immediate {
@@ -99,6 +100,14 @@ class WasmInitExpr {
     return expr;
   }
 
+  static WasmInitExpr RttFreshSub(uint32_t index, WasmInitExpr supertype) {
+    WasmInitExpr expr;
+    expr.kind_ = kRttFreshSub;
+    expr.immediate_.index = index;
+    expr.operand_ = std::make_unique<WasmInitExpr>(std::move(supertype));
+    return expr;
+  }
+
   Immediate immediate() const { return immediate_; }
   Operator kind() const { return kind_; }
   WasmInitExpr* operand() const { return operand_.get(); }
@@ -125,6 +134,7 @@ class WasmInitExpr {
       case kRefNullConst:
         return immediate().heap_type == other.immediate().heap_type;
       case kRttSub:
+      case kRttFreshSub:
         return immediate().index == other.immediate().index &&
                *operand() == *other.operand();
     }

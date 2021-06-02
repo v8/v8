@@ -101,6 +101,7 @@ struct WasmModule;
   V(WasmArrayCopy)                        \
   V(WasmArrayCopyWithChecks)              \
   V(WasmAllocateRtt)                      \
+  V(WasmAllocateFreshRtt)                 \
   V(WasmAllocateStructWithRtt)            \
   V(WasmSubtypeCheck)                     \
   V(WasmOnStackReplace)

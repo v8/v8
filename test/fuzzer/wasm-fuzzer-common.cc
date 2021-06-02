@@ -167,6 +167,7 @@ std::ostream& operator<<(std::ostream& os, const WasmInitExpr& expr) {
     case WasmInitExpr::kS128Const:
     case WasmInitExpr::kRttCanon:
     case WasmInitExpr::kRttSub:
+    case WasmInitExpr::kRttFreshSub:
     case WasmInitExpr::kRefNullConst:
       // TODO(manoskouk): Implement these.
       UNIMPLEMENTED();

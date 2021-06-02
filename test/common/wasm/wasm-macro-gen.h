@@ -568,6 +568,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   WASM_GC_OP(kExprRttCanon), static_cast<byte>(typeidx)
 #define WASM_RTT_SUB(typeidx, supertype) \
   supertype, WASM_GC_OP(kExprRttSub), static_cast<byte>(typeidx)
+#define WASM_RTT_FRESH_SUB(typeidx, supertype) \
+  supertype, WASM_GC_OP(kExprRttFreshSub), static_cast<byte>(typeidx)
 
 #define WASM_I31_NEW(val) val, WASM_GC_OP(kExprI31New)
 #define WASM_I31_GET_S(val) val, WASM_GC_OP(kExprI31GetS)

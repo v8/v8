@@ -463,6 +463,7 @@ let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
 let kExprRttCanon = 0x30;
 let kExprRttSub = 0x31;
+let kExprRttFreshSub = 0x32;
 let kExprRefTest = 0x40;
 let kExprRefCast = 0x41;
 let kExprBrOnCast = 0x42;

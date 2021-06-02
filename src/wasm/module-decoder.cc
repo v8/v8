@@ -1450,7 +1450,8 @@ class ModuleDecoderImpl : public Decoder {
       case WasmInitExpr::kRttCanon: {
         return ValueType::Rtt(expr.immediate().heap_type, 0);
       }
-      case WasmInitExpr::kRttSub: {
+      case WasmInitExpr::kRttSub:
+      case WasmInitExpr::kRttFreshSub: {
         ValueType operand_type = TypeOf(*expr.operand());
         if (operand_type.is_rtt()) {
           return ValueType::Rtt(expr.immediate().heap_type,
@@ -1855,6 +1856,13 @@ class ModuleDecoderImpl : public Decoder {
               stack.push_back(WasmInitExpr::RttCanon(imm.index));
               break;
             }
+            case kExprRttFreshSub:
+              if (!FLAG_experimental_wasm_gc_experiments) {
+                error(pc(),
+                      "rtt.fresh requires --experimental-wasm-gc-experiments");
+                return {};
+              }
+              V8_FALLTHROUGH;
             case kExprRttSub: {
               TypeIndexImmediate<validate> imm(this, pc() + 2);
               if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
@@ -1863,7 +1871,8 @@ class ModuleDecoderImpl : public Decoder {
               }
               len += imm.length;
               if (stack.empty()) {
-                error(pc(), "calling rtt.sub without arguments");
+                errorf(pc(), "calling %s without arguments",
+                       opcode == kExprRttSub ? "rtt.sub" : "rtt.fresh_sub");
                 return {};
               }
               WasmInitExpr parent = std::move(stack.back());
@@ -1873,11 +1882,15 @@ class ModuleDecoderImpl : public Decoder {
                               !IsHeapSubtypeOf(imm.index,
                                                parent_type.ref_index(),
                                                module_.get()))) {
-                error(pc(), "rtt.sub requires a supertype rtt on stack");
+                errorf(pc(), "%s requires a supertype rtt on stack",
+                       opcode == kExprRttSub ? "rtt.sub" : "rtt.fresh_sub");
                 return {};
               }
               stack.push_back(
-                  WasmInitExpr::RttSub(imm.index, std::move(parent)));
+                  opcode == kExprRttSub
+                      ? WasmInitExpr::RttSub(imm.index, std::move(parent))
+                      : WasmInitExpr::RttFreshSub(imm.index,
+                                                  std::move(parent)));
               break;
             }
             default: {

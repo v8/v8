@@ -5139,7 +5139,7 @@ class LiftoffCompiler {
   }
 
   void RttSub(FullDecoder* decoder, uint32_t type_index, const Value& parent,
-              Value* result) {
+              Value* result, WasmRttSubMode mode) {
     ValueKind parent_value_kind = parent.type.kind();
     ValueKind rtt_value_kind = kRttWithDepth;
     LiftoffAssembler::VarState parent_var =
@@ -5147,8 +5147,11 @@ class LiftoffCompiler {
     LiftoffRegister type_reg = __ GetUnusedRegister(kGpReg, {});
     __ LoadConstant(type_reg, WasmValue(type_index));
     LiftoffAssembler::VarState type_var(kI32, type_reg, 0);
+    WasmCode::RuntimeStubId target = mode == WasmRttSubMode::kCanonicalize
+                                         ? WasmCode::kWasmAllocateRtt
+                                         : WasmCode::kWasmAllocateFreshRtt;
     CallRuntimeStub(
-        WasmCode::kWasmAllocateRtt,
+        target,
         MakeSig::Returns(rtt_value_kind).Params(kI32, parent_value_kind),
         {type_var, parent_var}, decoder->position());
     // Drop the parent RTT.

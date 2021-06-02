@@ -1004,8 +1004,8 @@ class WasmGraphBuildingInterface {
   }
 
   void RttSub(FullDecoder* decoder, uint32_t type_index, const Value& parent,
-              Value* result) {
-    result->node = builder_->RttSub(type_index, parent.node);
+              Value* result, WasmRttSubMode mode) {
+    result->node = builder_->RttSub(type_index, parent.node, mode);
   }
 
   using StaticKnowledge = compiler::WasmGraphBuilder::ObjectReferenceKnowledge;

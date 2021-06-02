@@ -524,11 +524,15 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
       buffer->write_i32v(static_cast<int32_t>(init.immediate().index));
       break;
     case WasmInitExpr::kRttSub:
+    case WasmInitExpr::kRttFreshSub:
       // The operand to rtt.sub must be emitted first.
       WriteInitializerExpression(buffer, *init.operand(), kWasmBottom);
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
+      STATIC_ASSERT((kExprRttFreshSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(kExprRttSub));
+      buffer->write_u8(static_cast<uint8_t>(init.kind() == WasmInitExpr::kRttSub
+                                                ? kExprRttSub
+                                                : kExprRttFreshSub));
       buffer->write_i32v(static_cast<int32_t>(init.immediate().index));
       break;
   }

@@ -1140,7 +1140,8 @@ struct ControlBase : public PcForErrors<validate> {
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
   F(RttCanon, uint32_t type_index, Value* result)                              \
-  F(RttSub, uint32_t type_index, const Value& parent, Value* result)           \
+  F(RttSub, uint32_t type_index, const Value& parent, Value* result,           \
+    WasmRttSubMode mode)                                                       \
   F(RefTest, const Value& obj, const Value& rtt, Value* result)                \
   F(RefCast, const Value& obj, const Value& rtt, Value* result)                \
   F(AssertNull, const Value& obj, Value* result)                               \
@@ -1926,7 +1927,8 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprRttCanon:
-          case kExprRttSub: {
+          case kExprRttSub:
+          case kExprRttFreshSub: {
             TypeIndexImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
@@ -2090,6 +2092,7 @@ class WasmDecoder : public Decoder {
           case kExprI31GetU:
           case kExprArrayLen:
           case kExprRttSub:
+          case kExprRttFreshSub:
             return {1, 1};
           case kExprStructSet:
             return {2, 0};
@@ -4283,6 +4286,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Push(value);
         return opcode_length + imm.length;
       }
+      case kExprRttFreshSub:
+        if (!FLAG_experimental_wasm_gc_experiments) {
+          this->DecodeError(
+              "rtt.fresh_sub requires --experimental-wasm-gc-experiments");
+          return 0;
+        }
+        V8_FALLTHROUGH;
       case kExprRttSub: {
         TypeIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
@@ -4304,7 +4314,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                                   imm.index, parent.type.depth() + 1))
                             : CreateValue(ValueType::Rtt(imm.index));
 
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttSub, imm.index, parent, &value);
+          WasmRttSubMode mode = opcode == kExprRttSub
+                                    ? WasmRttSubMode::kCanonicalize
+                                    : WasmRttSubMode::kFresh;
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttSub, imm.index, parent, &value,
+                                             mode);
           Drop(parent);
           Push(value);
         }
