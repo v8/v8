@@ -1427,6 +1427,8 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
 
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
+  base::Optional<NativeModuleModificationScope>
+      lazy_native_module_modification_scope;
   for (uint32_t func_index = start; func_index < end; func_index++) {
     if (prefer_liftoff) {
       builder.AddRecompilationUnit(func_index, ExecutionTier::kLiftoff);
@@ -1434,14 +1436,21 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
     }
     CompileStrategy strategy = GetCompileStrategy(
         module, native_module->enabled_features(), func_index, lazy_module);
-    if (strategy == CompileStrategy::kLazy) {
-      native_module->UseLazyStub(func_index);
-    } else if (strategy == CompileStrategy::kLazyBaselineEagerTopTier) {
-      builder.AddTopTierUnit(func_index);
-      native_module->UseLazyStub(func_index);
-    } else {
-      DCHECK_EQ(strategy, CompileStrategy::kEager);
+    if (strategy == CompileStrategy::kEager) {
       builder.AddUnits(func_index);
+    } else {
+      // Open a single scope for all following calls to {UseLazyStub()}, instead
+      // of flipping page permissions for each {func_index} individually.
+      if (!lazy_native_module_modification_scope.has_value()) {
+        lazy_native_module_modification_scope.emplace(native_module);
+      }
+      if (strategy == CompileStrategy::kLazy) {
+        native_module->UseLazyStub(func_index);
+      } else {
+        DCHECK_EQ(strategy, CompileStrategy::kLazyBaselineEagerTopTier);
+        builder.AddTopTierUnit(func_index);
+        native_module->UseLazyStub(func_index);
+      }
     }
   }
   int num_import_wrappers = AddImportWrapperUnits(native_module, &builder);
