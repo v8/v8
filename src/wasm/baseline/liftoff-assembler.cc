@@ -1254,8 +1254,11 @@ bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
     // edges), we only care that pointer types stay amongst pointer types.
     // It's fine if ref/optref overwrite each other.
     DCHECK(is_object_reference(b));
+  } else if (is_rtt(a)) {
+    // Same for rtt/rtt_with_depth.
+    DCHECK(is_rtt(b));
   } else {
-    // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
+    // All other types (primitive numbers, bottom/stmt) must be equal.
     DCHECK_EQ(a, b);
   }
   return true;  // Dummy so this can be called via DCHECK.

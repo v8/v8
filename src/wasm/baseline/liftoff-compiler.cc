@@ -2380,7 +2380,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     Register condition = pinned.set(__ PopToRegister()).gp();
     ValueKind kind = __ cache_state()->stack_state.end()[-1].kind();
-    DCHECK_EQ(kind, __ cache_state()->stack_state.end()[-2].kind());
+    DCHECK(CheckCompatibleStackSlotTypes(
+        kind, __ cache_state()->stack_state.end()[-2].kind()));
     LiftoffRegister false_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister true_value = __ PopToRegister(pinned);
     LiftoffRegister dst = __ GetUnusedRegister(true_value.reg_class(),
