@@ -197,6 +197,9 @@
   'regress/regress-crbug-941743': [PASS, HEAVY],
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
+
+  # TODO(cbruni): Reenable once custom snapshot is fixed.
+  'web-snapshot/web-snapshot': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
