@@ -32,7 +32,11 @@ void BaselineCompiler::PrologueFillFrame() {
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  if (FLAG_debug_code) {
+    __ masm()->CompareRoot(kInterpreterAccumulatorRegister,
+                           RootIndex::kUndefinedValue);
+    __ masm()->Assert(eq, AbortReason::kUnexpectedValue);
+  }
   int register_count = bytecode_->register_count();
   // Magic value
   const int kLoopUnrollSize = 8;

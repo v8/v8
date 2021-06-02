@@ -1726,6 +1726,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // Push the return address back onto the stack for return.
   __ PushReturnAddressFrom(return_address);
   // Return to caller pushed pc, without any frame teardown.
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
   __ bind(&has_optimized_code_or_marker);
@@ -1760,6 +1761,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     }
 
     // Return to caller pushed pc, without any frame teardown.
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
     __ Ret();
     __ RecordComment("]");
   }
