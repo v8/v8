@@ -471,7 +471,8 @@ function testTickProcessor(logInput, refOutput, args=[]) {
   const dir = import.meta.url.split("/").slice(0, -1).join('/') + '/';
   const params = ArgumentsProcessor.process(args);
   testExpectations(dir + logInput, dir + refOutput, params);
-  testEndToEnd(dir + 'tickprocessor-test-large.js', dir + refOutput,  params);
+  // TODO(cbruni): enable again after it works on bots
+  // testEndToEnd(dir + 'tickprocessor-test-large.js', dir + refOutput,  params);
 }
 
 function testExpectations(logInput, refOutput, params) {
