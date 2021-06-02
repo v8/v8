@@ -725,17 +725,18 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
   STATIC_ASSERT(kMaxItemCount + 1 <= FixedArray::kMaxLength);
   functions_ = isolate_->factory()->NewFixedArray(function_count_);
 
-  Handle<Script> script =
-      isolate_->factory()->NewScript(isolate_->factory()->empty_string());
-  script->set_type(Script::TYPE_WEB_SNAPSHOT);
   // Overallocate the array for SharedFunctionInfos; functions which we
   // deserialize soon will create more SharedFunctionInfos when called.
   Handle<WeakFixedArray> infos(isolate_->factory()->NewWeakFixedArray(
       WeakArrayList::CapacityForLength(function_count_ + 1),
       AllocationType::kOld));
-  script->set_shared_function_infos(*infos);
   Handle<ObjectHashTable> shared_function_info_table =
       ObjectHashTable::New(isolate_, function_count_);
+  Handle<Script> script =
+      isolate_->factory()->NewScript(isolate_->factory()->empty_string());
+  script->set_type(Script::TYPE_WEB_SNAPSHOT);
+  script->set_shared_function_infos(*infos);
+  script->set_shared_function_info_table(*shared_function_info_table);
 
   for (uint32_t i = 0; i < function_count_; ++i) {
     uint32_t context_id;
@@ -804,7 +805,6 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     }
     functions_->set(i, *function);
   }
-  script->set_shared_function_info_table(*shared_function_info_table);
 }
 
 void WebSnapshotDeserializer::DeserializeObjects() {
