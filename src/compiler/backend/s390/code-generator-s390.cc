@@ -3318,39 +3318,79 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              Condition(0));
       break;
     }
+    // vector conversions
+#define CONVERT_FLOAT_TO_INT32(convert)                             \
+  for (int index = 0; index < 4; index++) {                         \
+    __ vlgv(kScratchReg, kScratchDoubleReg, MemOperand(r0, index),  \
+            Condition(2));                                          \
+    __ MovIntToFloat(tempFPReg1, kScratchReg);                      \
+    __ convert(kScratchReg, tempFPReg1, kRoundToZero);              \
+    __ vlvg(dst, kScratchReg, MemOperand(r0, index), Condition(2)); \
+  }
     case kS390_I32x4SConvertF32x4: {
       Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       // NaN to 0
       __ vlr(kScratchDoubleReg, src, Condition(0), Condition(0), Condition(0));
       __ vfce(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
               Condition(0), Condition(0), Condition(2));
       __ vn(kScratchDoubleReg, src, kScratchDoubleReg, Condition(0),
             Condition(0), Condition(0));
-      __ vcgd(i.OutputSimd128Register(), kScratchDoubleReg, Condition(5),
-              Condition(0), Condition(2));
+      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+        __ vcgd(i.OutputSimd128Register(), kScratchDoubleReg, Condition(5),
+                Condition(0), Condition(2));
+      } else {
+        CONVERT_FLOAT_TO_INT32(ConvertFloat32ToInt32)
+      }
       break;
     }
     case kS390_I32x4UConvertF32x4: {
       Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       // NaN to 0, negative to 0
       __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
             Condition(0), Condition(0), Condition(0));
       __ vfmax(kScratchDoubleReg, src, kScratchDoubleReg, Condition(1),
                Condition(0), Condition(2));
-      __ vclgd(i.OutputSimd128Register(), kScratchDoubleReg, Condition(5),
-               Condition(0), Condition(2));
+      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+        __ vclgd(i.OutputSimd128Register(), kScratchDoubleReg, Condition(5),
+                 Condition(0), Condition(2));
+      } else {
+        CONVERT_FLOAT_TO_INT32(ConvertFloat32ToUnsignedInt32)
+      }
       break;
     }
+#undef CONVERT_FLOAT_TO_INT32
+#define CONVERT_INT32_TO_FLOAT(convert, double_index)               \
+  Simd128Register src = i.InputSimd128Register(0);                  \
+  Simd128Register dst = i.OutputSimd128Register();                  \
+  for (int index = 0; index < 4; index++) {                         \
+    __ vlgv(kScratchReg, src, MemOperand(r0, index), Condition(2)); \
+    __ convert(kScratchDoubleReg, kScratchReg);                     \
+    __ MovFloatToInt(kScratchReg, kScratchDoubleReg);               \
+    __ vlvg(dst, kScratchReg, MemOperand(r0, index), Condition(2)); \
+  }
     case kS390_F32x4SConvertI32x4: {
-      __ vcdg(i.OutputSimd128Register(), i.InputSimd128Register(0),
-              Condition(4), Condition(0), Condition(2));
+      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+        __ vcdg(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                Condition(4), Condition(0), Condition(2));
+      } else {
+        CONVERT_INT32_TO_FLOAT(ConvertIntToFloat, 0)
+      }
       break;
     }
     case kS390_F32x4UConvertI32x4: {
-      __ vcdlg(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               Condition(4), Condition(0), Condition(2));
+      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+        __ vcdlg(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 Condition(4), Condition(0), Condition(2));
+      } else {
+        CONVERT_INT32_TO_FLOAT(ConvertUnsignedIntToFloat, 0)
+      }
       break;
     }
+#undef CONVERT_INT32_TO_FLOAT
 #define VECTOR_UNPACK(op, mode)                                             \
   __ op(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0), \
         Condition(0), Condition(mode));
