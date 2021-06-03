@@ -3156,7 +3156,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(CallIndirect) {
     CallIndirectImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    Value index = Peek(0, 0, kWasmI32);
+    Value index =
+        Peek(0, static_cast<int>(imm.sig->parameter_count()), kWasmI32);
     ArgVector args = PeekArgs(imm.sig, 1);
     ReturnVector returns = CreateReturnValues(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(CallIndirect, index, imm, args.begin(),
@@ -3513,13 +3514,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               });
   }
 
-  V8_INLINE void EnsureStackArguments(int count) {
+  // In reachable code, check if there are at least {count} values on the stack.
+  // In unreachable code, if there are less than {count} values on the stack,
+  // insert a number of unreachable values underneath the current values equal
+  // to the difference, and return that number.
+  V8_INLINE int EnsureStackArguments(int count) {
     uint32_t limit = control_.back().stack_depth;
-    if (V8_LIKELY(stack_size() >= count + limit)) return;
-    EnsureStackArguments_Slow(count, limit);
+    if (V8_LIKELY(stack_size() >= count + limit)) return 0;
+    return EnsureStackArguments_Slow(count, limit);
   }
 
-  V8_NOINLINE void EnsureStackArguments_Slow(int count, uint32_t limit) {
+  V8_NOINLINE int EnsureStackArguments_Slow(int count, uint32_t limit) {
     if (!VALIDATE(control_.back().unreachable())) {
       int index = count - stack_size() - 1;
       NotEnoughArgumentsError(index);
@@ -3540,6 +3545,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (int i = 0; i < additional_values; i++) {
       stack_base[i] = UnreachableValue(this->pc_);
     }
+    return additional_values;
   }
 
   // Peeks arguments as required by signature.
@@ -4955,19 +4961,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Peek(depth, i, (*merge)[i].type);
     }
     if (push_branch_values) {
-      Drop(drop_values);
-      Drop(arity);
-      // {Drop} is adaptive for polymorphic stacks: it might drop fewer values
-      // than requested. So ensuring stack space here is not redundant.
-      EnsureStackSpace(drop_values + arity);
-      // Push values of the correct type onto the stack.
-      for (int i = 0; i < static_cast<int>(arity); i++) {
-        Push(CreateValue((*merge)[i].type));
-      }
-      // {drop_values} are about to be dropped anyway, so we can forget their
-      // previous types, but we do have to maintain the correct stack height.
-      for (uint32_t i = 0; i < drop_values; i++) {
-        Push(UnreachableValue(this->pc_));
+      uint32_t inserted_value_count =
+          static_cast<uint32_t>(EnsureStackArguments(drop_values + arity));
+      if (inserted_value_count > 0) {
+        // EnsureStackSpace may have inserted unreachable values into the bottom
+        // of the stack. If so, mark them with the correct type. If drop values
+        // were also inserted, disregard them, as they will be dropped anyway.
+        Value* stack_base = stack_value(drop_values + arity);
+        for (uint32_t i = 0; i < std::min(arity, inserted_value_count); i++) {
+          if (stack_base[i].type == kWasmBottom) {
+            stack_base[i].type = (*merge)[i].type;
+          }
+        }
       }
     }
     return this->ok();

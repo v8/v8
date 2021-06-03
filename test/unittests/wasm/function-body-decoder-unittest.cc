@@ -1099,8 +1099,11 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   byte array_index = builder.AddArray(kWasmI32, true);
 
   ValueType struct_type = ValueType::Ref(struct_index, kNonNullable);
+  ValueType struct_type_null = ValueType::Ref(struct_index, kNullable);
   FunctionSig sig_v_s(0, 1, &struct_type);
   byte struct_consumer = builder.AddFunction(&sig_v_s);
+  byte struct_consumer2 = builder.AddFunction(
+      FunctionSig::Build(zone(), {kWasmI32}, {struct_type, struct_type}));
 
   ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprRefIsNull});
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprRefAsNonNull, kExprDrop});
@@ -1174,15 +1177,24 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(FunctionSig::Build(zone(), {kWasmDataRef}, {}),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefAsData)});
 
-  ExpectValidates(
-      FunctionSig::Build(zone(), {}, {ValueType::Ref(struct_index, kNullable)}),
-      {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull, 0, kExprCallFunction,
-       struct_consumer});
+  ExpectValidates(FunctionSig::Build(zone(), {}, {struct_type_null}),
+                  {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull, 0,
+                   kExprCallFunction, struct_consumer});
 
   ExpectFailure(
       sigs.v_v(), {WASM_UNREACHABLE, WASM_I32V(42), kExprBrOnNull, 0},
       kAppendEnd,
       "br_on_null[0] expected object reference, found i32.const of type i32");
+
+  // This tests for a bug where {TypeCheckStackAgainstMerge} did not insert
+  // unreachable values into the stack correctly.
+  ExpectValidates(FunctionSig::Build(zone(), {kWasmI32}, {struct_type_null}),
+                  {WASM_BLOCK_R(struct_type_null, kExprUnreachable,   // --
+                                kExprLocalGet, 0, kExprRefAsNonNull,  // --
+                                kExprLocalGet, 0, kExprBrOnNull, 0,   // --
+                                kExprCallFunction, struct_consumer2,  // --
+                                kExprBr, 1),
+                   kExprDrop, WASM_I32V(1)});
 }
 
 TEST_F(FunctionBodyDecoderTest, If1) {
