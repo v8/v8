@@ -1098,7 +1098,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case MTVSRDD: {
-      Format(instr, "mtvsrwz 'Xt, 'ra");
+      Format(instr, "mtvsrdd 'Xt, 'ra");
       return;
     }
     case LDBRX: {
