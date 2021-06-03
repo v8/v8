@@ -513,7 +513,8 @@ class Shell : public i::AllStatic {
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static char* ReadChars(const char* name, int* size_out);
-  static bool ReadLines(const char* name, std::vector<std::string>& lines);
+  static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
+                                              const char* name);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
   static Local<String> ReadFromStdin(Isolate* isolate);
   static void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& args) {

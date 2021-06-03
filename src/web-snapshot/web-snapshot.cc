@@ -57,23 +57,21 @@ WebSnapshotSerializer::WebSnapshotSerializer(v8::Isolate* isolate)
 
 WebSnapshotSerializer::~WebSnapshotSerializer() {}
 
-bool WebSnapshotSerializer::TakeSnapshot(
-    v8::Local<v8::Context> context, const std::vector<std::string>& exports,
-    WebSnapshotData& data_out) {
+bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
+                                         v8::Local<v8::PrimitiveArray> exports,
+                                         WebSnapshotData& data_out) {
   if (string_ids_.size() > 0) {
     Throw("Web snapshot: Can't reuse WebSnapshotSerializer");
     return false;
   }
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  for (const std::string& export_name : exports) {
-    if (export_name.length() == 0) {
+  for (int i = 0, length = exports->Length(); i < length; ++i) {
+    v8::Local<v8::String> str =
+        exports->Get(v8_isolate, i)->ToString(context).ToLocalChecked();
+    if (str.IsEmpty()) {
       continue;
     }
-    v8::ScriptCompiler::Source source(
-        v8::String::NewFromUtf8(v8_isolate, export_name.c_str(),
-                                NewStringType::kNormal,
-                                static_cast<int>(export_name.length()))
-            .ToLocalChecked());
+    v8::ScriptCompiler::Source source(str);
     auto script = ScriptCompiler::Compile(context, &source).ToLocalChecked();
     v8::MaybeLocal<v8::Value> script_result = script->Run(context);
     v8::Local<v8::Object> v8_object;
@@ -85,7 +83,7 @@ bool WebSnapshotSerializer::TakeSnapshot(
     }
 
     auto object = Handle<JSObject>::cast(Utils::OpenHandle(*v8_object));
-    SerializeExport(object, export_name);
+    SerializeExport(object, Handle<String>::cast(Utils::OpenHandle(*str)));
   }
   WriteSnapshot(data_out.buffer, data_out.buffer_size);
   return !has_error();
@@ -369,18 +367,11 @@ void WebSnapshotSerializer::SerializePendingObject(Handle<JSObject> object) {
 // - String id (export name)
 // - Object id (exported object)
 void WebSnapshotSerializer::SerializeExport(Handle<JSObject> object,
-                                            const std::string& export_name) {
+                                            Handle<String> export_name) {
   // TODO(v8:11525): Support exporting functions.
   ++export_count_;
-  // TODO(v8:11525): How to avoid creating the String but still de-dupe?
-  Handle<String> export_name_string =
-      isolate_->factory()
-          ->NewStringFromOneByte(Vector<const uint8_t>(
-              reinterpret_cast<const uint8_t*>(export_name.c_str()),
-              static_cast<int>(export_name.length())))
-          .ToHandleChecked();
   uint32_t string_id = 0;
-  SerializeString(export_name_string, string_id);
+  SerializeString(export_name, string_id);
   uint32_t object_id = 0;
   SerializeObject(object, object_id);
   export_serializer_.WriteUint32(string_id);

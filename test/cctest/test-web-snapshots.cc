@@ -27,8 +27,10 @@ void TestWebSnapshotExtensive(
     v8::Context::Scope context_scope(new_context);
 
     CompileRun(snapshot_source);
-    std::vector<std::string> exports;
-    exports.push_back("foo");
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+    exports->Set(isolate, 0, str);
     WebSnapshotSerializer serializer(isolate);
     CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
     CHECK(!serializer.has_error());
@@ -327,8 +329,10 @@ TEST(SFIDeduplication) {
         "foo.inner = foo.outer('hi');";
 
     CompileRun(snapshot_source);
-    std::vector<std::string> exports;
-    exports.push_back("foo");
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+    exports->Set(isolate, 0, str);
     WebSnapshotSerializer serializer(isolate);
     CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
     CHECK(!serializer.has_error());
@@ -385,8 +389,10 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
 
     CompileRun(snapshot_source);
 
-    std::vector<std::string> exports;
-    exports.push_back("foo");
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+    exports->Set(isolate, 0, str);
     WebSnapshotSerializer serializer(isolate);
     CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
     CHECK(!serializer.has_error());
@@ -463,8 +469,10 @@ TEST(SFIDeduplicationOfFunctionsNotInSnapshot) {
         "}\n";
 
     CompileRun(snapshot_source);
-    std::vector<std::string> exports;
-    exports.push_back("foo");
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+    exports->Set(isolate, 0, str);
     WebSnapshotSerializer serializer(isolate);
     CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
     CHECK(!serializer.has_error());

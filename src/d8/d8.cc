@@ -730,8 +730,10 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     data->realm_current_ = data->realm_switch_;
 
     if (options.web_snapshot_config) {
-      std::vector<std::string> exports;
-      if (!ReadLines(options.web_snapshot_config, exports)) {
+      MaybeLocal<PrimitiveArray> maybe_exports =
+          ReadLines(isolate, options.web_snapshot_config);
+      Local<PrimitiveArray> exports;
+      if (!maybe_exports.ToLocal(&exports)) {
         isolate->ThrowError("Web snapshots: unable to read config");
         CHECK(try_catch.HasCaught());
         ReportException(isolate, &try_catch);
@@ -1824,19 +1826,20 @@ void Shell::RealmTakeWebSnapshot(
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(args, 0);
   if (index == -1) return;
-  // Create a std::vector<std::string> from the list of exports.
-  // TODO(v8:11525): Add an API in the serializer that accepts a Local<String>
-  // Array.
+  // Create a Local<PrimitiveArray> from the exports array.
   Local<Context> current_context = isolate->GetCurrentContext();
   Local<Array> exports_array = args[1].As<Array>();
-  std::vector<std::string> exports;
-  for (int i = 0, length = exports_array->Length(); i < length; ++i) {
-    Local<String> local_str = exports_array->Get(current_context, i)
-                                  .ToLocalChecked()
-                                  ->ToString(current_context)
-                                  .ToLocalChecked();
-    std::string str = ToSTLString(isolate, local_str);
-    exports.push_back(str);
+  int length = exports_array->Length();
+  Local<PrimitiveArray> exports = PrimitiveArray::New(isolate, length);
+  for (int i = 0; i < length; ++i) {
+    Local<Value> value;
+    Local<String> str;
+    if (!exports_array->Get(current_context, i).ToLocal(&value) ||
+        !value->ToString(current_context).ToLocal(&str) || str.IsEmpty()) {
+      isolate->ThrowError("Invalid argument");
+      return;
+    }
+    exports->Set(isolate, i, str);
   }
   // Enter the realm.
   Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
@@ -3416,18 +3419,33 @@ char* Shell::ReadChars(const char* name, int* size_out) {
   return chars;
 }
 
-bool Shell::ReadLines(const char* name, std::vector<std::string>& lines) {
+MaybeLocal<PrimitiveArray> Shell::ReadLines(Isolate* isolate,
+                                            const char* name) {
   int length;
   const char* data = reinterpret_cast<const char*>(ReadChars(name, &length));
   if (data == nullptr) {
-    return false;
+    return MaybeLocal<PrimitiveArray>();
   }
   std::stringstream stream(data);
   std::string line;
+  std::vector<std::string> lines;
   while (std::getline(stream, line, '\n')) {
     lines.emplace_back(line);
   }
-  return true;
+  // Create a Local<PrimitiveArray> off the read lines.
+  int size = static_cast<int>(lines.size());
+  Local<PrimitiveArray> exports = PrimitiveArray::New(isolate, size);
+  for (int i = 0; i < size; ++i) {
+    MaybeLocal<String> maybe_str = v8::String::NewFromUtf8(
+        isolate, lines[i].c_str(), NewStringType::kNormal,
+        static_cast<int>(lines[i].length()));
+    Local<String> str;
+    if (!maybe_str.ToLocal(&str)) {
+      return MaybeLocal<PrimitiveArray>();
+    }
+    exports->Set(isolate, i, str);
+  }
+  return exports;
 }
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {

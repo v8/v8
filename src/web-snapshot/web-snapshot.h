@@ -83,7 +83,7 @@ class V8_EXPORT WebSnapshotSerializer
   ~WebSnapshotSerializer();
 
   bool TakeSnapshot(v8::Local<v8::Context> context,
-                    const std::vector<std::string>& exports,
+                    v8::Local<v8::PrimitiveArray> exports,
                     WebSnapshotData& data_out);
 
   // For inspecting the state after taking a snapshot.
@@ -121,7 +121,7 @@ class V8_EXPORT WebSnapshotSerializer
   void SerializeContext(Handle<Context> context, uint32_t& id);
   void SerializeObject(Handle<JSObject> object, uint32_t& id);
   void SerializePendingObject(Handle<JSObject> object);
-  void SerializeExport(Handle<JSObject> object, const std::string& export_name);
+  void SerializeExport(Handle<JSObject> object, Handle<String> export_name);
   void WriteValue(Handle<Object> object, ValueSerializer& serializer);
 
   ValueSerializer string_serializer_;
