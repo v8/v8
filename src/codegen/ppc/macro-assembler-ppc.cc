@@ -2785,46 +2785,21 @@ void TurboAssembler::StoreU32(Register src, const MemOperand& mem,
 
 void TurboAssembler::LoadS16(Register dst, const MemOperand& mem,
                              Register scratch) {
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    DCHECK(scratch != no_reg);
-    mov(scratch, Operand(offset));
-    lhax(dst, MemOperand(mem.ra(), scratch));
-  } else {
-    lha(dst, mem);
-  }
+  GenerateMemoryOperation(dst, mem, lha, lhax);
 }
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand currently only supports d-form
 void TurboAssembler::LoadU16(Register dst, const MemOperand& mem,
                              Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    DCHECK_NE(scratch, no_reg);
-    mov(scratch, Operand(offset));
-    lhzx(dst, MemOperand(base, scratch));
-  } else {
-    lhz(dst, mem);
-  }
+  GenerateMemoryOperation(dst, mem, lhz, lhzx);
 }
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand current only supports d-form
 void TurboAssembler::StoreU16(Register src, const MemOperand& mem,
                               Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    LoadIntLiteral(scratch, offset);
-    sthx(src, MemOperand(base, scratch));
-  } else {
-    sth(src, mem);
-  }
+  GenerateMemoryOperation(src, mem, sth, sthx);
 }
 
 // Variable length depending on whether offset fits into immediate field
