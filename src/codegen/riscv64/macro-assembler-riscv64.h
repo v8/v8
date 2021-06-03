@@ -893,6 +893,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                const Register& source);
   void DecompressAnyTagged(const Register& destination,
                            const MemOperand& field_operand);
+  void CmpTagged(const Register& rd, const Register& rs1, const Register& rs2) {
+    if (COMPRESS_POINTERS_BOOL) {
+      Sub32(rd, rs1, rs2);
+    } else {
+      Sub64(rd, rs1, rs2);
+    }
+  }
 
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
@@ -1145,7 +1152,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
   void LoadStackLimit(Register destination, StackLimitKind kind);
   void StackOverflowCheck(Register num_args, Register scratch1,
-                          Register scratch2, Label* stack_overflow);
+                          Register scratch2, Label* stack_overflow,
+                          Label* done = nullptr);
 
   // -------------------------------------------------------------------------
   // Smi utilities.

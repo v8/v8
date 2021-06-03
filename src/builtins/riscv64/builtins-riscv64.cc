@@ -207,7 +207,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
 
   // ----------- S t a t e -------------
-  //  --                 r3: new target
+  //  --                 a3: new target
   //  -- sp[0*kSystemPointerSize]: implicit receiver
   //  -- sp[1*kSystemPointerSize]: implicit receiver
   //  -- sp[2*kSystemPointerSize]: padding
@@ -1335,7 +1335,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   }
 
   // If the bytecode array has a valid incoming new target or generator object
-  // register, initialize it with incoming value which was passed in r3.
+  // register, initialize it with incoming value which was passed in a3.
   Label no_incoming_new_target_or_generator_register;
   __ Lw(a5, FieldMemOperand(
                 kInterpreterBytecodeArrayRegister,
@@ -1435,9 +1435,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ bind(&maybe_has_optimized_code);
   Register optimized_code_entry = optimization_state;
-  __ Ld(optimization_marker,
-        FieldMemOperand(feedback_vector,
-                        FeedbackVector::kMaybeOptimizedCodeOffset));
+  __ LoadAnyTaggedField(
+      optimization_marker,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::kMaybeOptimizedCodeOffset));
 
   TailCallOptimizedCodeSlot(masm, optimized_code_entry, t4, a5);
   __ bind(&is_baseline);
@@ -1470,8 +1471,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ Branch(&has_optimized_code_or_marker, ne, scratch, Operand(zero_reg));
 
     // Load the baseline code into the closure.
-    __ Ld(a2, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                              BaselineData::kBaselineCodeOffset));
+    __ LoadTaggedPointerField(
+        a2, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                            BaselineData::kBaselineCodeOffset));
     static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
     ReplaceClosureCodeWithOptimizedCode(masm, a2, closure, scratch, scratch2);
     __ JumpCodeObject(a2);
@@ -2421,6 +2423,78 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   }
 }
 
+namespace {
+
+void Generate_PushBoundArguments(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : target (checked to be a JSBoundFunction)
+  //  -- a3 : new.target (only in case of [[Construct]])
+  // -----------------------------------
+  UseScratchRegisterScope temps(masm);
+  temps.Include(t0, t1);
+  Register bound_argc = a4;
+  Register bound_argv = a2;
+  // Load [[BoundArguments]] into a2 and length of that into a4.
+  Label no_bound_arguments;
+  __ LoadTaggedPointerField(
+      bound_argv, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
+  __ SmiUntagField(bound_argc,
+                   FieldMemOperand(bound_argv, FixedArray::kLengthOffset));
+  __ Branch(&no_bound_arguments, eq, bound_argc, Operand(zero_reg));
+  {
+    // ----------- S t a t e -------------
+    //  -- a0 : the number of arguments (not including the receiver)
+    //  -- a1 : target (checked to be a JSBoundFunction)
+    //  -- a2 : the [[BoundArguments]] (implemented as FixedArray)
+    //  -- a3 : new.target (only in case of [[Construct]])
+    //  -- a4: the number of [[BoundArguments]]
+    // -----------------------------------
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    Label done;
+    // Reserve stack space for the [[BoundArguments]].
+    {
+      // Check the stack for overflow. We are not trying to catch interruptions
+      // (i.e. debug break and preemption) here, so check the "real stack
+      // limit".
+      __ StackOverflowCheck(a4, temps.Acquire(), temps.Acquire(), nullptr,
+                            &done);
+      {
+        FrameScope scope(masm, StackFrame::MANUAL);
+        __ EnterFrame(StackFrame::INTERNAL);
+        __ CallRuntime(Runtime::kThrowStackOverflow);
+      }
+      __ bind(&done);
+    }
+
+    // Pop receiver.
+    __ Pop(scratch);
+
+    // Push [[BoundArguments]].
+    {
+      Label loop, done_loop;
+      __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
+      __ Add64(a0, a0, Operand(a4));
+      __ Add64(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ bind(&loop);
+      __ Sub64(a4, a4, Operand(1));
+      __ Branch(&done_loop, lt, a4, Operand(zero_reg));
+      __ CalcScaledAddress(a5, a2, a4, kTaggedSizeLog2);
+      __ LoadAnyTaggedField(kScratchReg, MemOperand(a5));
+      __ Push(kScratchReg);
+      __ Branch(&loop);
+      __ bind(&done_loop);
+    }
+
+    // Push receiver.
+    __ Push(scratch);
+  }
+  __ bind(&no_bound_arguments);
+}
+
+}  // namespace
+
 // static
 void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -2438,61 +2512,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     __ StoreReceiver(scratch, a0, kScratchReg);
   }
 
-  // Load [[BoundArguments]] into a2 and length of that into a4.
-  __ LoadTaggedPointerField(
-      a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
-
-  // ----------- S t a t e -------------
-  //  -- a0 : the number of arguments (not including the receiver)
-  //  -- a1 : the function to call (checked to be a JSBoundFunction)
-  //  -- a2 : the [[BoundArguments]] (implemented as FixedArray)
-  //  -- a4 : the number of [[BoundArguments]]
-  // -----------------------------------
-
-  // Reserve stack space for the [[BoundArguments]].
-  {
-    Label done;
-    UseScratchRegisterScope temps(masm);
-    temps.Include(t0, t1);
-    Register scratch = temps.Acquire(), expected_addr = temps.Acquire();
-    __ Sll64(a5, a4, kSystemPointerSizeLog2);
-    __ Sub64(expected_addr, sp, Operand(a5));
-    // Check the stack for overflow. We are not trying to catch interruptions
-    // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadStackLimit(scratch, MacroAssembler::StackLimitKind::kRealStackLimit);
-    __ Branch(&done, Ugreater_equal, expected_addr, Operand(scratch));
-    {
-      FrameScope scope(masm, StackFrame::MANUAL);
-      __ EnterFrame(StackFrame::INTERNAL);
-      __ CallRuntime(Runtime::kThrowStackOverflow);
-    }
-    __ bind(&done);
-  }
-
-  // Pop receiver.
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ Pop(scratch);
-
-  // Push [[BoundArguments]].
-  {
-    Label loop, done_loop;
-    __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
-    __ Add64(a0, a0, Operand(a4));
-    __ Add64(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-    __ bind(&loop);
-    __ Sub64(a4, a4, Operand(1));
-    __ Branch(&done_loop, lt, a4, Operand(zero_reg));
-    __ CalcScaledAddress(a5, a2, a4, kTaggedSizeLog2);
-    __ LoadAnyTaggedField(kScratchReg, MemOperand(a5));
-    __ Push(kScratchReg);
-    __ Branch(&loop);
-    __ bind(&done_loop);
-  }
-
-  // Push receiver.
-  __ Push(scratch);
+  // Push the [[BoundArguments]] onto the stack.
+  Generate_PushBoundArguments(masm);
 
   // Call the [[BoundTargetFunction]] via the Call builtin.
   __ LoadTaggedPointerField(
@@ -2588,72 +2609,22 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   //  -- a1 : the function to call (checked to be a JSBoundFunction)
   //  -- a3 : the new target (checked to be a constructor)
   // -----------------------------------
-  __ AssertConstructor(a1);
   __ AssertBoundFunction(a1);
 
-  // Load [[BoundArguments]] into a2 and length of that into a4.
-  __ LoadTaggedPointerField(
-      a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
-
-  // ----------- S t a t e -------------
-  //  -- a0 : the number of arguments (not including the receiver)
-  //  -- a1 : the function to call (checked to be a JSBoundFunction)
-  //  -- a2 : the [[BoundArguments]] (implemented as FixedArray)
-  //  -- a3 : the new target (checked to be a constructor)
-  //  -- a4 : the number of [[BoundArguments]]
-  // -----------------------------------
-
-  // Reserve stack space for the [[BoundArguments]].
-  {
-    Label done;
-    UseScratchRegisterScope temps(masm);
-    Register addr = temps.Acquire();
-    __ Sll64(a5, a4, kSystemPointerSizeLog2);
-    __ Sub64(addr, sp, Operand(a5));
-    // Check the stack for overflow. We are not trying to catch interruptions
-    // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadStackLimit(kScratchReg,
-                      MacroAssembler::StackLimitKind::kRealStackLimit);
-    __ Branch(&done, Ugreater_equal, addr, Operand(kScratchReg));
-    {
-      FrameScope scope(masm, StackFrame::MANUAL);
-      __ EnterFrame(StackFrame::INTERNAL);
-      __ CallRuntime(Runtime::kThrowStackOverflow);
-    }
-    __ bind(&done);
-  }
-
-  // Pop receiver.
-  __ Pop(t0);
-
-  // Push [[BoundArguments]].
-  {
-    Label loop, done_loop;
-    __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
-    __ Add64(a0, a0, Operand(a4));
-    __ Add64(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-    __ bind(&loop);
-    __ Sub64(a4, a4, Operand(1));
-    __ Branch(&done_loop, lt, a4, Operand(zero_reg));
-    __ CalcScaledAddress(a5, a2, a4, kSystemPointerSizeLog2);
-    __ Ld(kScratchReg, MemOperand(a5));
-    __ Push(kScratchReg);
-    __ Branch(&loop);
-    __ bind(&done_loop);
-  }
-
-  // Push receiver.
-  __ Push(t0);
+  // Push the [[BoundArguments]] onto the stack.
+  Generate_PushBoundArguments(masm);
 
   // Patch new.target to [[BoundTargetFunction]] if new.target equals target.
+  Label skip;
   {
-    Label skip_load;
-    __ Branch(&skip_load, ne, a1, Operand(a3));
-    __ LoadTaggedPointerField(
-        a3, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
-    __ bind(&skip_load);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ CmpTagged(scratch, a1, a3);
+    __ Branch(&skip, ne, scratch, Operand(zero_reg));
   }
+  __ LoadTaggedPointerField(
+      a3, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ bind(&skip);
 
   // Construct the [[BoundTargetFunction]] via the Construct builtin.
   __ LoadTaggedPointerField(
@@ -3646,9 +3617,11 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
 
   // Replace BytecodeOffset with the feedback vector.
   Register feedback_vector = a2;
-  __ Ld(feedback_vector,
-        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  __ LoadTaggedPointerField(
+      feedback_vector,
+      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ LoadTaggedPointerField(
+      feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
   // allocate it.
@@ -3666,11 +3639,14 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
 
   // Get the Code object from the shared function info.
   Register code_obj = type;
-  __ Ld(code_obj,
-        FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  __ Ld(code_obj,
-        FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
-  __ Ld(code_obj, FieldMemOperand(code_obj, BaselineData::kBaselineCodeOffset));
+  __ LoadTaggedPointerField(
+      code_obj,
+      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      code_obj,
+      FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
+  __ LoadTaggedPointerField(
+      code_obj, FieldMemOperand(code_obj, BaselineData::kBaselineCodeOffset));
 
   // Compute baseline pc for bytecode offset.
   __ Push(zero_reg, kInterpreterAccumulatorRegister);

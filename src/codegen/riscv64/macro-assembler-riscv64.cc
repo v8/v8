@@ -3510,11 +3510,11 @@ void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
 
 void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
                                         Register scratch2,
-                                        Label* stack_overflow) {
+                                        Label* stack_overflow, Label* done) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-
+  DCHECK(stack_overflow != nullptr || done != nullptr);
   LoadStackLimit(scratch1, StackLimitKind::kRealStackLimit);
   // Make scratch1 the space we have left. The stack might already be overflowed
   // here which will cause scratch1 to become negative.
@@ -3522,7 +3522,13 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   // Check if the arguments will overflow the stack.
   Sll64(scratch2, num_args, kSystemPointerSizeLog2);
   // Signed comparison.
-  Branch(stack_overflow, le, scratch1, Operand(scratch2));
+  if (stack_overflow != nullptr) {
+    Branch(stack_overflow, le, scratch1, Operand(scratch2));
+  } else if (done != nullptr) {
+    Branch(done, gt, scratch1, Operand(scratch2));
+  } else {
+    UNREACHABLE();
+  }
 }
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
