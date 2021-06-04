@@ -46,7 +46,6 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
         worker_thread_runtime_call_stats_(
             isolate->counters()->worker_thread_runtime_call_stats()),
         dispatcher_(dispatcher) {
-    base::MutexGuard lock_guard(&dispatcher_->ref_count_mutex_);
     ++dispatcher_->ref_count_;
   }
 
@@ -98,12 +97,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
 };
 
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
-#ifdef DEBUG
-  {
-    base::MutexGuard lock_guard(&ref_count_mutex_);
-    DCHECK_EQ(0, ref_count_);
-  }
-#endif
+  DCHECK_EQ(0, ref_count_);
   DCHECK_EQ(0, input_queue_length_);
   DeleteArray(input_queue_);
 }
@@ -217,6 +211,14 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       Compiler::FinalizeOptimizedCompilationJob(job, isolate_);
     }
   }
+}
+
+bool OptimizingCompileDispatcher::HasJobs() {
+  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+  // Note: This relies on {output_queue_} being mutated by a background thread
+  // only when {ref_count_} is not zero. Also, {ref_count_} is never incremented
+  // by a background thread.
+  return !(ref_count_ == 0 && output_queue_.empty());
 }
 
 void OptimizingCompileDispatcher::QueueForOptimization(

@@ -52,6 +52,9 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   static bool Enabled() { return FLAG_concurrent_recompilation; }
 
+  // This method must be called on the main thread.
+  bool HasJobs();
+
  private:
   class CompileTask;
 
@@ -88,7 +91,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   int blocked_jobs_;
 
-  int ref_count_;
+  std::atomic<int> ref_count_;
   base::Mutex ref_count_mutex_;
   base::ConditionVariable ref_count_zero_;
 
