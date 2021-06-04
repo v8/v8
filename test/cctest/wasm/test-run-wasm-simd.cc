@@ -3312,6 +3312,83 @@ WASM_SIMD_TEST(I16x8ExtractLaneU_I8x16Splat) {
   CHECK_EQ(0xfafa, r.Call(0xfa));
 }
 
+enum ExtAddSide { LEFT, RIGHT };
+
+template <typename T, typename U>
+void RunAddExtAddPairwiseTest(
+    TestExecutionTier execution_tier, ExtAddSide extAddSide,
+    WasmOpcode addOpcode,
+    const std::array<T, kSimd128Size / sizeof(T)> addInput,
+    WasmOpcode extAddOpcode,
+    const std::array<U, kSimd128Size / sizeof(U)> extAddInput,
+    const std::array<T, kSimd128Size / sizeof(T)> expectedOutput) {
+  WasmRunner<int32_t> r(execution_tier);
+  T* x = r.builder().AddGlobal<T>(kWasmS128);
+  for (size_t i = 0; i < addInput.size(); i++) {
+    WriteLittleEndianValue<T>(&x[i], addInput[i]);
+  }
+  U* y = r.builder().AddGlobal<U>(kWasmS128);
+  for (size_t i = 0; i < extAddInput.size(); i++) {
+    WriteLittleEndianValue<U>(&y[i], extAddInput[i]);
+  }
+  switch (extAddSide) {
+    case LEFT:
+      // x = add(extadd_pairwise_s(y), x)
+      BUILD(r,
+            WASM_GLOBAL_SET(
+                0,
+                WASM_SIMD_BINOP(
+                    addOpcode, WASM_SIMD_UNOP(extAddOpcode, WASM_GLOBAL_GET(1)),
+                    WASM_GLOBAL_GET(0))),
+
+            WASM_ONE);
+      break;
+    case RIGHT:
+      // x = add(x, extadd_pairwise_s(y))
+      BUILD(r,
+            WASM_GLOBAL_SET(
+                0, WASM_SIMD_BINOP(
+                       addOpcode, WASM_GLOBAL_GET(0),
+                       WASM_SIMD_UNOP(extAddOpcode, WASM_GLOBAL_GET(1)))),
+
+            WASM_ONE);
+      break;
+  }
+  r.Call();
+
+  for (size_t i = 0; i < expectedOutput.size(); i++) {
+    CHECK_EQ(expectedOutput[i], x[i]);
+  }
+}
+
+WASM_SIMD_TEST(AddExtAddPairwiseI32Right) {
+  RunAddExtAddPairwiseTest<int32_t, int16_t>(
+      execution_tier, RIGHT, kExprI32x4Add, {1, 2, 3, 4},
+      kExprI32x4ExtAddPairwiseI16x8S, {1, 2, 3, 4, 5, 6, 7, 8}, {4, 9, 14, 19});
+}
+
+WASM_SIMD_TEST(AddExtAddPairwiseI32Left) {
+  RunAddExtAddPairwiseTest<int32_t, int16_t>(
+      execution_tier, LEFT, kExprI32x4Add, {1, 2, 3, 4},
+      kExprI32x4ExtAddPairwiseI16x8S, {1, 2, 3, 4, 5, 6, 7, 8}, {4, 9, 14, 19});
+}
+
+WASM_SIMD_TEST(AddExtAddPairwiseI16Right) {
+  RunAddExtAddPairwiseTest<int16_t, int8_t>(
+      execution_tier, RIGHT, kExprI16x8Add, {1, 2, 3, 4, 5, 6, 7, 8},
+      kExprI16x8ExtAddPairwiseI8x16S,
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+      {4, 9, 14, 19, 24, 29, 34, 39});
+}
+
+WASM_SIMD_TEST(AddExtAddPairwiseI16Left) {
+  RunAddExtAddPairwiseTest<int16_t, int8_t>(
+      execution_tier, LEFT, kExprI16x8Add, {1, 2, 3, 4, 5, 6, 7, 8},
+      kExprI16x8ExtAddPairwiseI8x16S,
+      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+      {4, 9, 14, 19, 24, 29, 34, 39});
+}
+
 #define WASM_EXTRACT_I16x8_TEST(Sign, Type)                                    \
   WASM_SIMD_TEST(I16X8ExtractLane##Sign) {                                     \
     WasmRunner<int32_t, int32_t> r(execution_tier);                            \
