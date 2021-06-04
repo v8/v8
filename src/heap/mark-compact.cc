@@ -3085,7 +3085,8 @@ class FullEvacuator : public Evacuator {
       : Evacuator(collector->heap(), &record_visitor_, &local_allocator_,
                   FLAG_always_promote_young_mc),
         record_visitor_(collector, &ephemeron_remembered_set_),
-        local_allocator_(heap_, LocalSpaceKind::kCompactionSpaceForMarkCompact),
+        local_allocator_(heap_,
+                         CompactionSpaceKind::kCompactionSpaceForMarkCompact),
         collector_(collector) {}
 
   GCTracer::Scope::ScopeId GetBackgroundTracingScope() override {
@@ -5157,8 +5158,8 @@ class YoungGenerationEvacuator : public Evacuator {
       : Evacuator(collector->heap(), &record_visitor_, &local_allocator_,
                   false),
         record_visitor_(collector->heap()->mark_compact_collector()),
-        local_allocator_(heap_,
-                         LocalSpaceKind::kCompactionSpaceForMinorMarkCompact),
+        local_allocator_(
+            heap_, CompactionSpaceKind::kCompactionSpaceForMinorMarkCompact),
         collector_(collector) {}
 
   GCTracer::Scope::ScopeId GetBackgroundTracingScope() override {

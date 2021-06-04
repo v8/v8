@@ -848,14 +848,11 @@ enum MinimumCapacity {
 
 enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
-enum class LocalSpaceKind {
+enum class CompactionSpaceKind {
   kNone,
   kCompactionSpaceForScavenge,
   kCompactionSpaceForMarkCompact,
   kCompactionSpaceForMinorMarkCompact,
-
-  kFirstCompactionSpace = kCompactionSpaceForScavenge,
-  kLastCompactionSpace = kCompactionSpaceForMinorMarkCompact,
 };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
