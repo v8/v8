@@ -48,6 +48,11 @@ class Simd128 {
   FOREACH_SIMD_TYPE(DEFINE_SIMD_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_SIMD_TYPE_SPECIFIC_METHODS
 
+  explicit Simd128(byte* bytes) {
+    base::Memcpy(static_cast<void*>(val_), reinterpret_cast<void*>(bytes),
+                 kSimd128Size);
+  }
+
   const uint8_t* bytes() { return val_; }
 
   template <typename T>
@@ -126,6 +131,12 @@ class WasmValue {
   bool operator==(const WasmValue& other) const {
     return type_ == other.type_ &&
            !memcmp(bit_pattern_, other.bit_pattern_, 16);
+  }
+
+  void CopyTo(byte* to) {
+    DCHECK(type_.is_numeric());
+    base::Memcpy(static_cast<void*>(to), static_cast<void*>(bit_pattern_),
+                 type_.element_size_bytes());
   }
 
   template <typename T>

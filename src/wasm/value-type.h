@@ -186,6 +186,18 @@ enum ValueKind : uint8_t {
 #undef DEF_ENUM
 };
 
+constexpr bool is_numeric(ValueKind kind) {
+  switch (kind) {
+#define NUMERIC_CASE(kind, ...) \
+  case k##kind:                 \
+    return true;
+    FOREACH_NUMERIC_VALUE_TYPE(NUMERIC_CASE)
+#undef NUMERIC_CASE
+    default:
+      return false;
+  }
+}
+
 constexpr bool is_reference(ValueKind kind) {
   return kind == kRef || kind == kOptRef || kind == kRtt ||
          kind == kRttWithDepth;
@@ -312,6 +324,8 @@ class ValueType {
   }
 
   /******************************** Type checks *******************************/
+  constexpr bool is_numeric() const { return wasm::is_numeric(kind()); }
+
   constexpr bool is_reference() const { return wasm::is_reference(kind()); }
 
   constexpr bool is_object_reference() const {

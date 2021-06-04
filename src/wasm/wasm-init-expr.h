@@ -17,6 +17,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+struct WasmModule;
+class WasmFeatures;
+
 // Representation of an initializer expression.
 class WasmInitExpr {
  public:
@@ -143,6 +146,9 @@ class WasmInitExpr {
   V8_INLINE bool operator!=(const WasmInitExpr& other) {
     return !(*this == other);
   }
+
+  ValueType type(const WasmModule* module,
+                 const WasmFeatures& enabled_features) const;
 
  private:
   Immediate immediate_;

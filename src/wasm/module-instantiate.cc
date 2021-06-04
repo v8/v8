@@ -426,13 +426,13 @@ class InstanceBuilder {
   int ProcessImports(Handle<WasmInstanceObject> instance);
 
   template <typename T>
-  T* GetRawGlobalPtr(const WasmGlobal& global);
+  T* GetRawUntaggedGlobalPtr(const WasmGlobal& global);
 
   // Process initialization of globals.
   void InitGlobals(Handle<WasmInstanceObject> instance);
 
-  Handle<Object> RecursivelyEvaluateGlobalInitializer(
-      const WasmInitExpr& init, Handle<WasmInstanceObject> instance);
+  WasmValue EvaluateInitExpression(const WasmInitExpr& init,
+                                   Handle<WasmInstanceObject> instance);
 
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.
@@ -934,7 +934,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
         global.type.name().c_str());
   switch (global.type.kind()) {
     case kI32:
-      WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
+      WriteLittleEndianValue<int32_t>(GetRawUntaggedGlobalPtr<int32_t>(global),
                                       DoubleToInt32(num));
       break;
     case kI64:
@@ -943,11 +943,12 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
       // https://github.com/WebAssembly/JS-BigInt-integration/issues/12
       UNREACHABLE();
     case kF32:
-      WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
+      WriteLittleEndianValue<float>(GetRawUntaggedGlobalPtr<float>(global),
                                     DoubleToFloat32(num));
       break;
     case kF64:
-      WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
+      WriteLittleEndianValue<double>(GetRawUntaggedGlobalPtr<double>(global),
+                                     num);
       break;
     default:
       UNREACHABLE();
@@ -959,7 +960,8 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, int64_t num) {
         raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
         global.type.name().c_str());
   DCHECK_EQ(kWasmI64, global.type);
-  WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
+  WriteLittleEndianValue<int64_t>(GetRawUntaggedGlobalPtr<int64_t>(global),
+                                  num);
 }
 
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
@@ -969,25 +971,29 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
   switch (global.type.kind()) {
     case kI32: {
       int32_t num = value->GetI32();
-      WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global), num);
+      WriteLittleEndianValue<int32_t>(GetRawUntaggedGlobalPtr<int32_t>(global),
+                                      num);
       TRACE("%d", num);
       break;
     }
     case kI64: {
       int64_t num = value->GetI64();
-      WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
+      WriteLittleEndianValue<int64_t>(GetRawUntaggedGlobalPtr<int64_t>(global),
+                                      num);
       TRACE("%" PRId64, num);
       break;
     }
     case kF32: {
       float num = value->GetF32();
-      WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global), num);
+      WriteLittleEndianValue<float>(GetRawUntaggedGlobalPtr<float>(global),
+                                    num);
       TRACE("%f", num);
       break;
     }
     case kF64: {
       double num = value->GetF64();
-      WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
+      WriteLittleEndianValue<double>(GetRawUntaggedGlobalPtr<double>(global),
+                                     num);
       TRACE("%lf", num);
       break;
     }
@@ -1603,45 +1609,78 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 }
 
 template <typename T>
-T* InstanceBuilder::GetRawGlobalPtr(const WasmGlobal& global) {
+T* InstanceBuilder::GetRawUntaggedGlobalPtr(const WasmGlobal& global) {
   return reinterpret_cast<T*>(raw_buffer_ptr(untagged_globals_, global.offset));
 }
 
-Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
+WasmValue InstanceBuilder::EvaluateInitExpression(
     const WasmInitExpr& init, Handle<WasmInstanceObject> instance) {
   switch (init.kind()) {
-    case WasmInitExpr::kI32Const:
-    case WasmInitExpr::kI64Const:
-    case WasmInitExpr::kF32Const:
-    case WasmInitExpr::kF64Const:
-    case WasmInitExpr::kS128Const:
-    case WasmInitExpr::kRefNullConst:
-    case WasmInitExpr::kRefFuncConst:
     case WasmInitExpr::kNone:
-      // Handled directly by {InitGlobals()}, can't occur as recursive case.
       UNREACHABLE();
-      break;
+    case WasmInitExpr::kI32Const:
+      return WasmValue(init.immediate().i32_const);
+    case WasmInitExpr::kI64Const:
+      return WasmValue(init.immediate().i64_const);
+    case WasmInitExpr::kF32Const:
+      return WasmValue(init.immediate().f32_const);
+    case WasmInitExpr::kF64Const:
+      return WasmValue(init.immediate().f64_const);
+    case WasmInitExpr::kS128Const:
+      return WasmValue(Simd128(init.immediate().s128_const.data()));
+    case WasmInitExpr::kRefNullConst:
+      return WasmValue(handle(ReadOnlyRoots(isolate_).null_value(), isolate_),
+                       init.type(module_, enabled_));
+    case WasmInitExpr::kRefFuncConst: {
+      auto function = WasmInstanceObject::GetOrCreateWasmExternalFunction(
+          isolate_, instance, init.immediate().index);
+      return WasmValue(function, init.type(module_, enabled_));
+    }
     case WasmInitExpr::kGlobalGet: {
-      // We can only get here for reference-type globals, but we don't have
-      // enough information to DCHECK that directly.
-      DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
-      uint32_t old_offset = module_->globals[init.immediate().index].offset;
-      DCHECK(static_cast<int>(old_offset) < tagged_globals_->length());
-      return handle(tagged_globals_->get(old_offset), isolate_);
+      const WasmGlobal& global = module_->globals[init.immediate().index];
+      switch (global.type.kind()) {
+        case kI32:
+          return WasmValue(*GetRawUntaggedGlobalPtr<int32_t>(global));
+        case kI64:
+          return WasmValue(*GetRawUntaggedGlobalPtr<int64_t>(global));
+        case kF32:
+          return WasmValue(*GetRawUntaggedGlobalPtr<float>(global));
+        case kF64:
+          return WasmValue(*GetRawUntaggedGlobalPtr<double>(global));
+        case kS128:
+          return WasmValue(Simd128(GetRawUntaggedGlobalPtr<byte>(global)));
+        case kRef:
+        case kOptRef:
+        case kRtt:
+        case kRttWithDepth: {
+          DCHECK(static_cast<int>(global.offset) < tagged_globals_->length());
+          return WasmValue(
+              handle(tagged_globals_->get(global.offset), isolate_),
+              init.type(module_, enabled_));
+        }
+        case kI8:
+        case kI16:
+        case kBottom:
+        case kVoid:
+          UNREACHABLE();
+      }
     }
     case WasmInitExpr::kRttCanon: {
       int map_index = init.immediate().index;
-      return handle(instance->managed_object_maps().get(map_index), isolate_);
+      return WasmValue(
+          handle(instance->managed_object_maps().get(map_index), isolate_),
+          init.type(module_, enabled_));
     }
     case WasmInitExpr::kRttSub:
     case WasmInitExpr::kRttFreshSub: {
       uint32_t type = init.immediate().index;
-      Handle<Object> parent =
-          RecursivelyEvaluateGlobalInitializer(*init.operand(), instance);
-      return AllocateSubRtt(isolate_, instance, type, Handle<Map>::cast(parent),
-                            init.kind() == WasmInitExpr::kRttSub
-                                ? WasmRttSubMode::kCanonicalize
-                                : WasmRttSubMode::kFresh);
+      WasmValue parent = EvaluateInitExpression(*init.operand(), instance);
+      return WasmValue(AllocateSubRtt(isolate_, instance, type,
+                                      Handle<Map>::cast(parent.to_ref()),
+                                      init.kind() == WasmInitExpr::kRttSub
+                                          ? WasmRttSubMode::kCanonicalize
+                                          : WasmRttSubMode::kFresh),
+                       init.type(module_, enabled_));
     }
   }
 }
@@ -1649,76 +1688,16 @@ Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
 // Process initialization of globals.
 void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
   for (const WasmGlobal& global : module_->globals) {
-    if (global.mutability && global.imported) {
-      continue;
-    }
+    if (global.mutability && global.imported) continue;
+    // Happens with imported globals.
+    if (global.init.kind() == WasmInitExpr::kNone) continue;
 
-    switch (global.init.kind()) {
-      case WasmInitExpr::kI32Const:
-        WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
-                                        global.init.immediate().i32_const);
-        break;
-      case WasmInitExpr::kI64Const:
-        WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global),
-                                        global.init.immediate().i64_const);
-        break;
-      case WasmInitExpr::kF32Const:
-        WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
-                                      global.init.immediate().f32_const);
-        break;
-      case WasmInitExpr::kF64Const:
-        WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global),
-                                       global.init.immediate().f64_const);
-        break;
-      case WasmInitExpr::kS128Const:
-        DCHECK(enabled_.has_simd());
-        WriteLittleEndianValue<std::array<uint8_t, kSimd128Size>>(
-            GetRawGlobalPtr<std::array<uint8_t, kSimd128Size>>(global),
-            global.init.immediate().s128_const);
-        break;
-      case WasmInitExpr::kRefNullConst:
-        DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
-        if (global.imported) break;  // We already initialized imported globals.
+    WasmValue value = EvaluateInitExpression(global.init, instance);
 
-        tagged_globals_->set(global.offset,
-                             ReadOnlyRoots(isolate_).null_value(),
-                             SKIP_WRITE_BARRIER);
-        break;
-      case WasmInitExpr::kRefFuncConst: {
-        DCHECK(enabled_.has_reftypes());
-        auto function = WasmInstanceObject::GetOrCreateWasmExternalFunction(
-            isolate_, instance, global.init.immediate().index);
-        tagged_globals_->set(global.offset, *function);
-        break;
-      }
-      case WasmInitExpr::kGlobalGet: {
-        // Initialize with another global.
-        uint32_t new_offset = global.offset;
-        uint32_t old_offset =
-            module_->globals[global.init.immediate().index].offset;
-        TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
-        if (global.type.is_reference()) {
-          DCHECK(enabled_.has_reftypes());
-          tagged_globals_->set(new_offset, tagged_globals_->get(old_offset));
-        } else {
-          size_t size = (global.type == kWasmI64 || global.type == kWasmF64)
-                            ? sizeof(double)
-                            : sizeof(int32_t);
-          base::Memcpy(raw_buffer_ptr(untagged_globals_, new_offset),
-                       raw_buffer_ptr(untagged_globals_, old_offset), size);
-        }
-        break;
-      }
-      case WasmInitExpr::kRttCanon:
-      case WasmInitExpr::kRttSub:
-      case WasmInitExpr::kRttFreshSub:
-        tagged_globals_->set(
-            global.offset,
-            *RecursivelyEvaluateGlobalInitializer(global.init, instance));
-        break;
-      case WasmInitExpr::kNone:
-        // Happens with imported globals.
-        break;
+    if (value.type().is_reference()) {
+      tagged_globals_->set(global.offset, *value.to_ref());
+    } else {
+      value.CopyTo(GetRawUntaggedGlobalPtr<byte>(global));
     }
   }
 }
