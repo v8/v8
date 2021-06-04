@@ -40,6 +40,49 @@ void WebSnapshotSerializerDeserializer::Throw(const char* message) {
   }
 }
 
+uint32_t WebSnapshotSerializerDeserializer::FunctionKindToFunctionFlags(
+    FunctionKind kind) {
+  // TODO(v8:11525): Support more function kinds.
+  switch (kind) {
+    case FunctionKind::kNormalFunction:
+    case FunctionKind::kArrowFunction:
+    case FunctionKind::kGeneratorFunction:
+    case FunctionKind::kAsyncFunction:
+    case FunctionKind::kAsyncArrowFunction:
+    case FunctionKind::kAsyncGeneratorFunction:
+      break;
+    default:
+      Throw("Web Snapshot: Unsupported function kind");
+  }
+  auto thing = ArrowFunctionBitField::encode(IsArrowFunction(kind)) +
+               AsyncFunctionBitField::encode(IsAsyncFunction(kind)) +
+               GeneratorFunctionBitField::encode(IsGeneratorFunction(kind));
+  return thing;
+}
+
+FunctionKind WebSnapshotSerializerDeserializer::FunctionFlagsToFunctionKind(
+    uint32_t flags) {
+  static const FunctionKind kFunctionKinds[] = {
+      // is_generator = false, is_async = false
+      FunctionKind::kNormalFunction,  // is_arrow = false
+      FunctionKind::kArrowFunction,   // is_arrow = true
+      // is_generator = false, is_async = true
+      FunctionKind::kAsyncFunction,       // is_arrow = false
+      FunctionKind::kAsyncArrowFunction,  // is_arrow = true
+      // is_generator = true, is_async = false
+      FunctionKind::kGeneratorFunction,  // is_arrow = false
+      FunctionKind::kInvalid,            // is_arrow = true
+      // is_generator = true, is_async = true
+      FunctionKind::kAsyncGeneratorFunction,  // is_arrow = false
+      FunctionKind::kInvalid};                // is_arrow = true
+
+  FunctionKind kind = kFunctionKinds[flags];
+  if (kind == FunctionKind::kInvalid) {
+    Throw("Web Snapshots: Invalid function flags\n");
+  }
+  return kind;
+}
+
 WebSnapshotSerializer::WebSnapshotSerializer(v8::Isolate* isolate)
     : WebSnapshotSerializerDeserializer(
           reinterpret_cast<v8::internal::Isolate*>(isolate)),
@@ -243,6 +286,7 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
 // - String id (source snippet)
 // - Start position in the source snippet
 // - Length in the source snippet
+// - Flags (see FunctionFlags)
 // TODO(v8:11525): Investigate whether the length is really needed.
 void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
                                               uint32_t& id) {
@@ -278,6 +322,9 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
   function_serializer_.WriteUint32(start);
   int end = function->shared().EndPosition();
   function_serializer_.WriteUint32(end - start);
+
+  function_serializer_.WriteUint32(
+      FunctionKindToFunctionFlags(function->shared().kind()));
   // TODO(v8:11525): Serialize .prototype.
   // TODO(v8:11525): Support properties in functions.
 }
@@ -748,13 +795,14 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
 
     uint32_t start_position;
     uint32_t length;
+    uint32_t flags;
     if (!deserializer_->ReadUint32(&start_position) ||
-        !deserializer_->ReadUint32(&length)) {
+        !deserializer_->ReadUint32(&length) ||
+        !deserializer_->ReadUint32(&flags)) {
       Throw("Web snapshot: Malformed function");
       return;
     }
 
-    // TODO(v8:11525): Support other function kinds.
     // TODO(v8:11525): Support (exported) top level functions.
 
     // TODO(v8:11525): Deduplicate the SFIs for inner functions the user creates
@@ -763,7 +811,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     Handle<SharedFunctionInfo> shared =
         isolate_->factory()->NewSharedFunctionInfo(
             isolate_->factory()->empty_string(), MaybeHandle<Code>(),
-            Builtins::kCompileLazy, FunctionKind::kNormalFunction);
+            Builtins::kCompileLazy, FunctionFlagsToFunctionKind(flags));
     shared->set_script(*script);
     // Index 0 is reserved for top-level shared function info (which web
     // snapshot scripts don't have).

@@ -54,6 +54,9 @@ class WebSnapshotSerializerDeserializer {
     REGEXP
   };
 
+  uint32_t FunctionKindToFunctionFlags(FunctionKind kind);
+  FunctionKind FunctionFlagsToFunctionKind(uint32_t flags);
+
   // The maximum count of items for each value type (strings, objects etc.)
   static constexpr uint32_t kMaxItemCount =
       static_cast<uint32_t>(FixedArray::kMaxLength - 1);
@@ -74,6 +77,12 @@ class WebSnapshotSerializerDeserializer {
       delete;
   WebSnapshotSerializerDeserializer& operator=(
       const WebSnapshotSerializerDeserializer&) = delete;
+
+  // Keep most common function kinds in the 7 least significant bits to make the
+  // flags fit in 1 byte.
+  using ArrowFunctionBitField = base::BitField<bool, 0, 1>;
+  using AsyncFunctionBitField = ArrowFunctionBitField::Next<bool, 1>;
+  using GeneratorFunctionBitField = AsyncFunctionBitField::Next<bool, 1>;
 };
 
 class V8_EXPORT WebSnapshotSerializer
