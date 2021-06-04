@@ -4542,7 +4542,8 @@ bool ProcessMessages(
         // executed.
         while (v8::platform::PumpMessageLoop(
             g_default_platform,
-            kProcessGlobalPredictablePlatformWorkerTaskQueue, behavior())) {
+            kProcessGlobalPredictablePlatformWorkerTaskQueue,
+            platform::MessageLoopBehavior::kDoNotWait)) {
         }
       }
     }
