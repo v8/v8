@@ -41,6 +41,10 @@ class RiscvOperandGenerator final : public OperandGenerator {
   }
 
   bool IsIntegerConstant(Node* node) {
+    if (node->opcode() == IrOpcode::kNumberConstant) {
+      const double value = OpParameter<double>(node->op());
+      return bit_cast<int64_t>(value) == 0;
+    }
     return (node->opcode() == IrOpcode::kInt32Constant) ||
            (node->opcode() == IrOpcode::kInt64Constant);
   }
@@ -48,9 +52,13 @@ class RiscvOperandGenerator final : public OperandGenerator {
   int64_t GetIntegerConstantValue(Node* node) {
     if (node->opcode() == IrOpcode::kInt32Constant) {
       return OpParameter<int32_t>(node->op());
+    } else if (node->opcode() == IrOpcode::kInt64Constant) {
+      return OpParameter<int64_t>(node->op());
     }
-    DCHECK_EQ(IrOpcode::kInt64Constant, node->opcode());
-    return OpParameter<int64_t>(node->op());
+    DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
+    const double value = OpParameter<double>(node->op());
+    DCHECK_EQ(bit_cast<int64_t>(value), 0);
+    return bit_cast<int64_t>(value);
   }
 
   bool IsFloatConstant(Node* node) {
@@ -296,12 +304,12 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   if (TryMatchImmediate(selector, &opcode, m.right().node(), &input_count,
                         &inputs[1])) {
-    inputs[0] = g.UseRegister(m.left().node());
+    inputs[0] = g.UseRegisterOrImmediateZero(m.left().node());
     input_count++;
   } else if (has_reverse_opcode &&
              TryMatchImmediate(selector, &reverse_opcode, m.left().node(),
                                &input_count, &inputs[1])) {
-    inputs[0] = g.UseRegister(m.right().node());
+    inputs[0] = g.UseRegisterOrImmediateZero(m.right().node());
     opcode = reverse_opcode;
     input_count++;
   } else {
@@ -1718,6 +1726,13 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
+// Shared routine for multiple compare operations.
+static void VisitWordCompareZero(InstructionSelector* selector,
+                                 InstructionOperand value,
+                                 FlagsContinuation* cont) {
+  selector->EmitWithContinuation(kRiscvCmpZero, value, cont);
+}
+
 // Shared routine for multiple float32 compare operations.
 void VisitFloat32Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
@@ -1753,8 +1768,12 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   RiscvOperandGenerator g(selector);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-
-  // Match immediates on left or right side of comparison.
+  // If one of the two inputs is an immediate, make sure it's on the right.
+  if (!g.CanBeImmediate(right, opcode) && g.CanBeImmediate(left, opcode)) {
+    cont->Commute();
+    std::swap(left, right);
+  }
+  // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right, opcode)) {
     if (opcode == kRiscvTst) {
       VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
@@ -1767,49 +1786,36 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
             VisitCompare(selector, opcode, g.UseRegister(left),
                          g.UseImmediate(right), cont);
           } else {
+            Int32BinopMatcher m(node, true);
+            NumberBinopMatcher n(node, true);
+            if (m.right().Is(0) || n.right().IsZero()) {
+              VisitWordCompareZero(selector, g.UseRegister(left), cont);
+            } else {
+              VisitCompare(selector, opcode, g.UseRegister(left),
+                           g.UseRegister(right), cont);
+            }
+          }
+          break;
+        case kSignedLessThan:
+        case kSignedGreaterThanOrEqual:
+        case kUnsignedLessThan:
+        case kUnsignedGreaterThanOrEqual: {
+          Int32BinopMatcher m(node, true);
+          if (m.right().Is(0)) {
+            VisitWordCompareZero(selector, g.UseRegister(left), cont);
+          } else {
+            VisitCompare(selector, opcode, g.UseRegister(left),
+                         g.UseImmediate(right), cont);
+          }
+        } break;
+        default:
+          Int32BinopMatcher m(node, true);
+          if (m.right().Is(0)) {
+            VisitWordCompareZero(selector, g.UseRegister(left), cont);
+          } else {
             VisitCompare(selector, opcode, g.UseRegister(left),
                          g.UseRegister(right), cont);
           }
-          break;
-        case kSignedLessThan:
-        case kSignedGreaterThanOrEqual:
-        case kUnsignedLessThan:
-        case kUnsignedGreaterThanOrEqual:
-          VisitCompare(selector, opcode, g.UseRegister(left),
-                       g.UseImmediate(right), cont);
-          break;
-        default:
-          VisitCompare(selector, opcode, g.UseRegister(left),
-                       g.UseRegister(right), cont);
-      }
-    }
-  } else if (g.CanBeImmediate(left, opcode)) {
-    if (!commutative) cont->Commute();
-    if (opcode == kRiscvTst) {
-      VisitCompare(selector, opcode, g.UseRegister(right), g.UseImmediate(left),
-                   cont);
-    } else {
-      switch (cont->condition()) {
-        case kEqual:
-        case kNotEqual:
-          if (cont->IsSet()) {
-            VisitCompare(selector, opcode, g.UseRegister(right),
-                         g.UseImmediate(left), cont);
-          } else {
-            VisitCompare(selector, opcode, g.UseRegister(right),
-                         g.UseRegister(left), cont);
-          }
-          break;
-        case kSignedLessThan:
-        case kSignedGreaterThanOrEqual:
-        case kUnsignedLessThan:
-        case kUnsignedGreaterThanOrEqual:
-          VisitCompare(selector, opcode, g.UseRegister(right),
-                       g.UseImmediate(left), cont);
-          break;
-        default:
-          VisitCompare(selector, opcode, g.UseRegister(right),
-                       g.UseRegister(left), cont);
       }
     }
   } else {
