@@ -68,13 +68,17 @@ Interpreter::Interpreter(Isolate* isolate)
       interpreter_entry_trampoline_instruction_start_(kNullAddress) {
   memset(dispatch_table_, 0, sizeof(dispatch_table_));
 
-  if (FLAG_trace_ignition_dispatches) {
-    static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
-    bytecode_dispatch_counters_table_.reset(
-        new uintptr_t[kBytecodeCount * kBytecodeCount]);
-    memset(bytecode_dispatch_counters_table_.get(), 0,
-           sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
+  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
+    InitDispatchCounters();
   }
+}
+
+void Interpreter::InitDispatchCounters() {
+  static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
+  bytecode_dispatch_counters_table_.reset(
+      new uintptr_t[kBytecodeCount * kBytecodeCount]);
+  memset(bytecode_dispatch_counters_table_.get(), 0,
+         sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
 }
 
 namespace {
@@ -375,6 +379,9 @@ const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
 uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
   int from_index = Bytecodes::ToByte(from);
   int to_index = Bytecodes::ToByte(to);
+  CHECK_WITH_MSG(bytecode_dispatch_counters_table_ != nullptr,
+                 "Dispatch counters require building with "
+                 "v8_enable_ignition_dispatch_counting");
   return bytecode_dispatch_counters_table_[from_index * kNumberOfBytecodes +
                                            to_index];
 }

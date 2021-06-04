@@ -5095,7 +5095,7 @@ bool Genesis::InstallExtensions(Isolate* isolate,
           InstallExtension(isolate, "v8/statistics", &extension_states)) &&
          (!FLAG_expose_trigger_failure ||
           InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
-         (!FLAG_trace_ignition_dispatches ||
+         (!FLAG_expose_ignition_statistics ||
           InstallExtension(isolate, "v8/ignition-statistics",
                            &extension_states)) &&
          (!isValidCpuTraceMarkFunctionName() ||

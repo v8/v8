@@ -5175,8 +5175,7 @@ int Shell::Main(int argc, char* argv[]) {
         RunShell(isolate);
       }
 
-      if (i::FLAG_trace_ignition_dispatches &&
-          i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
+      if (i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
         WriteIgnitionDispatchCountersFile(isolate);
       }
 

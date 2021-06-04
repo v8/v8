@@ -150,6 +150,15 @@ declare_args() {
   # v8_enable_concurrent_marking_state. See the default setting code below.
   v8_enable_concurrent_marking = true
 
+  # Sets -dV8_IGNITION_DISPATCH_COUNTING.
+  # Enables counting frequencies of bytecode dispatches. After building in this
+  # configuration, subsequent runs of d8 can output frequencies for each pair
+  # of (current, next) bytecode instructions executed if you specify
+  # --trace-ignition-dispatches-output-file, or can generate a JS object with
+  # those frequencies if you run with --expose-ignition-statistics and call the
+  # extension function getIgnitionDispatchCounters().
+  v8_enable_ignition_dispatch_counting = false
+
   # Runs mksnapshot with --turbo-profiling. After building in this
   # configuration, any subsequent run of d8 will output information about usage
   # of basic blocks in builtins.
@@ -824,6 +833,9 @@ config("features") {
   }
   if (v8_enable_atomic_marking_state) {
     defines += [ "V8_ATOMIC_MARKING_STATE" ]
+  }
+  if (v8_enable_ignition_dispatch_counting) {
+    defines += [ "V8_IGNITION_DISPATCH_COUNTING" ]
   }
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
