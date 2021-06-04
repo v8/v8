@@ -2079,7 +2079,7 @@ class LiftoffCompiler {
   }
 
   void LocalGet(FullDecoder* decoder, Value* result,
-                const LocalIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     auto local_slot = __ cache_state()->stack_state[imm.index];
     __ cache_state()->stack_state.emplace_back(
         local_slot.kind(), __ NextSpillOffset(local_slot.kind()));
@@ -2143,12 +2143,12 @@ class LiftoffCompiler {
   }
 
   void LocalSet(FullDecoder* decoder, const Value& value,
-                const LocalIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     LocalSet(imm.index, false);
   }
 
   void LocalTee(FullDecoder* decoder, const Value& value, Value* result,
-                const LocalIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     LocalSet(imm.index, true);
   }
 
@@ -2293,7 +2293,7 @@ class LiftoffCompiler {
   }
 
   void TableGet(FullDecoder* decoder, const Value&, Value*,
-                const TableIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     LiftoffRegList pinned;
 
     LiftoffRegister table_index_reg =
@@ -2317,7 +2317,7 @@ class LiftoffCompiler {
   }
 
   void TableSet(FullDecoder* decoder, const Value&, const Value&,
-                const TableIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     LiftoffRegList pinned;
 
     LiftoffRegister table_index_reg =
@@ -4624,7 +4624,7 @@ class LiftoffCompiler {
 
     LiftoffRegister segment_index =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(segment_index, WasmValue(imm.data_segment_index));
+    __ LoadConstant(segment_index, WasmValue(imm.data_segment.index));
 
     ExternalReference ext_ref = ExternalReference::wasm_memory_init();
     auto sig =
@@ -4640,7 +4640,7 @@ class LiftoffCompiler {
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp());
   }
 
-  void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
+  void DataDrop(FullDecoder* decoder, const IndexImmediate<validate>& imm) {
     LiftoffRegList pinned;
 
     Register seg_size_array =
@@ -4719,7 +4719,7 @@ class LiftoffCompiler {
 
     LiftoffRegister segment_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(segment_index_reg, imm.elem_segment_index);
+    LoadSmi(segment_index_reg, imm.element_segment.index);
     LiftoffAssembler::VarState segment_index(kPointerKind, segment_index_reg,
                                              0);
 
@@ -4738,7 +4738,7 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
-  void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
+  void ElemDrop(FullDecoder* decoder, const IndexImmediate<validate>& imm) {
     LiftoffRegList pinned;
     Register dropped_elem_segments =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -4788,7 +4788,7 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
-  void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+  void TableGrow(FullDecoder* decoder, const IndexImmediate<validate>& imm,
                  const Value&, const Value&, Value* result) {
     LiftoffRegList pinned;
 
@@ -4813,7 +4813,7 @@ class LiftoffCompiler {
     __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
   }
 
-  void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+  void TableSize(FullDecoder* decoder, const IndexImmediate<validate>& imm,
                  Value*) {
     // We have to look up instance->tables[table_index].length.
 
@@ -4840,7 +4840,7 @@ class LiftoffCompiler {
     __ PushRegister(kI32, LiftoffRegister(result));
   }
 
-  void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+  void TableFill(FullDecoder* decoder, const IndexImmediate<validate>& imm,
                  const Value&, const Value&, const Value&) {
     LiftoffRegList pinned;
 
@@ -4912,12 +4912,12 @@ class LiftoffCompiler {
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_obj,
-                 const FieldIndexImmediate<validate>& field, bool is_signed,
+                 const FieldImmediate<validate>& field, bool is_signed,
                  Value* result) {
-    const StructType* struct_type = field.struct_index.struct_type;
-    ValueKind field_kind = struct_type->field(field.index).kind();
+    const StructType* struct_type = field.struct_imm.struct_type;
+    ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
     if (!CheckSupportedType(decoder, field_kind, "field load")) return;
-    int offset = StructFieldOffset(struct_type, field.index);
+    int offset = StructFieldOffset(struct_type, field.field_imm.index);
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -4929,11 +4929,11 @@ class LiftoffCompiler {
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_obj,
-                 const FieldIndexImmediate<validate>& field,
+                 const FieldImmediate<validate>& field,
                  const Value& field_value) {
-    const StructType* struct_type = field.struct_index.struct_type;
-    ValueKind field_kind = struct_type->field(field.index).kind();
-    int offset = StructFieldOffset(struct_type, field.index);
+    const StructType* struct_type = field.struct_imm.struct_type;
+    ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
+    int offset = StructFieldOffset(struct_type, field.field_imm.index);
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
@@ -5628,7 +5628,7 @@ class LiftoffCompiler {
     Register tmp_const = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register indirect_function_table = no_reg;
-    if (imm.table_index != 0) {
+    if (imm.table_imm.index != 0) {
       Register indirect_function_tables =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       LOAD_TAGGED_PTR_INSTANCE_FIELD(indirect_function_tables,
@@ -5637,7 +5637,7 @@ class LiftoffCompiler {
       indirect_function_table = indirect_function_tables;
       __ LoadTaggedPointer(
           indirect_function_table, indirect_function_tables, no_reg,
-          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.table_index),
+          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.table_imm.index),
           pinned);
     }
 
@@ -5646,13 +5646,13 @@ class LiftoffCompiler {
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapTableOutOfBounds);
 
     uint32_t canonical_sig_num =
-        env_->module->canonicalized_type_ids[imm.sig_index];
+        env_->module->canonicalized_type_ids[imm.sig_imm.index];
     DCHECK_GE(canonical_sig_num, 0);
     DCHECK_GE(kMaxInt, canonical_sig_num);
 
     // Compare against table size stored in
     // {instance->indirect_function_table_size}.
-    if (imm.table_index == 0) {
+    if (imm.table_imm.index == 0) {
       LOAD_INSTANCE_FIELD(tmp_const, IndirectFunctionTableSize, kUInt32Size,
                           pinned);
     } else {
@@ -5688,7 +5688,7 @@ class LiftoffCompiler {
 
     DEBUG_CODE_COMMENT("Check indirect call signature");
     // Load the signature from {instance->ift_sig_ids[key]}
-    if (imm.table_index == 0) {
+    if (imm.table_imm.index == 0) {
       LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds,
                           kSystemPointerSize, pinned);
     } else {
@@ -5721,7 +5721,7 @@ class LiftoffCompiler {
     // At this point {index} has already been multiplied by kTaggedSize.
 
     // Load the instance from {instance->ift_instances[key]}
-    if (imm.table_index == 0) {
+    if (imm.table_imm.index == 0) {
       LOAD_TAGGED_PTR_INSTANCE_FIELD(table, IndirectFunctionTableRefs, pinned);
     } else {
       __ LoadTaggedPointer(
@@ -5743,7 +5743,7 @@ class LiftoffCompiler {
     Register* explicit_instance = &tmp_const;
 
     // Load the target from {instance->ift_targets[key]}
-    if (imm.table_index == 0) {
+    if (imm.table_imm.index == 0) {
       LOAD_INSTANCE_FIELD(table, IndirectFunctionTableTargets,
                           kSystemPointerSize, pinned);
     } else {

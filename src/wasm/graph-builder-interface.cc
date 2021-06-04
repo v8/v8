@@ -364,17 +364,17 @@ class WasmGraphBuildingInterface {
   void Drop(FullDecoder* decoder) {}
 
   void LocalGet(FullDecoder* decoder, Value* result,
-                const LocalIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     result->node = ssa_env_->locals[imm.index];
   }
 
   void LocalSet(FullDecoder* decoder, const Value& value,
-                const LocalIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     ssa_env_->locals[imm.index] = value.node;
   }
 
   void LocalTee(FullDecoder* decoder, const Value& value, Value* result,
-                const LocalIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     result->node = value.node;
     ssa_env_->locals[imm.index] = value.node;
   }
@@ -403,13 +403,13 @@ class WasmGraphBuildingInterface {
   }
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
-                const TableIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     result->node =
         builder_->TableGet(imm.index, index.node, decoder->position());
   }
 
   void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
-                const TableIndexImmediate<validate>& imm) {
+                const IndexImmediate<validate>& imm) {
     builder_->TableSet(imm.index, index.node, value.node, decoder->position());
   }
 
@@ -625,17 +625,17 @@ class WasmGraphBuildingInterface {
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    DoCall(decoder, kCallIndirect, imm.table_index,
-           CheckForNull::kWithoutNullCheck, index.node, imm.sig, imm.sig_index,
-           args, returns);
+    DoCall(decoder, kCallIndirect, imm.table_imm.index,
+           CheckForNull::kWithoutNullCheck, index.node, imm.sig,
+           imm.sig_imm.index, args, returns);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
-    DoReturnCall(decoder, kCallIndirect, imm.table_index,
-                 CheckForNull::kWithoutNullCheck, index, imm.sig, imm.sig_index,
-                 args);
+    DoReturnCall(decoder, kCallIndirect, imm.table_imm.index,
+                 CheckForNull::kWithoutNullCheck, index, imm.sig,
+                 imm.sig_imm.index, args);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
@@ -837,11 +837,11 @@ class WasmGraphBuildingInterface {
   void MemoryInit(FullDecoder* decoder,
                   const MemoryInitImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {
-    builder_->MemoryInit(imm.data_segment_index, dst.node, src.node, size.node,
+    builder_->MemoryInit(imm.data_segment.index, dst.node, src.node, size.node,
                          decoder->position());
   }
 
-  void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
+  void DataDrop(FullDecoder* decoder, const IndexImmediate<validate>& imm) {
     builder_->DataDrop(imm.index, decoder->position());
   }
 
@@ -859,11 +859,12 @@ class WasmGraphBuildingInterface {
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
-    builder_->TableInit(imm.table.index, imm.elem_segment_index, args[0].node,
-                        args[1].node, args[2].node, decoder->position());
+    builder_->TableInit(imm.table.index, imm.element_segment.index,
+                        args[0].node, args[1].node, args[2].node,
+                        decoder->position());
   }
 
-  void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
+  void ElemDrop(FullDecoder* decoder, const IndexImmediate<validate>& imm) {
     builder_->ElemDrop(imm.index, decoder->position());
   }
 
@@ -873,17 +874,17 @@ class WasmGraphBuildingInterface {
                         args[1].node, args[2].node, decoder->position());
   }
 
-  void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+  void TableGrow(FullDecoder* decoder, const IndexImmediate<validate>& imm,
                  const Value& value, const Value& delta, Value* result) {
     result->node = builder_->TableGrow(imm.index, value.node, delta.node);
   }
 
-  void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+  void TableSize(FullDecoder* decoder, const IndexImmediate<validate>& imm,
                  Value* result) {
     result->node = builder_->TableSize(imm.index);
   }
 
-  void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+  void TableFill(FullDecoder* decoder, const IndexImmediate<validate>& imm,
                  const Value& start, const Value& value, const Value& count) {
     builder_->TableFill(imm.index, start.node, value.node, count.node);
   }
@@ -912,24 +913,24 @@ class WasmGraphBuildingInterface {
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
-                 const FieldIndexImmediate<validate>& field, bool is_signed,
+                 const FieldImmediate<validate>& field, bool is_signed,
                  Value* result) {
     CheckForNull null_check = struct_object.type.is_nullable()
                                   ? CheckForNull::kWithNullCheck
                                   : CheckForNull::kWithoutNullCheck;
     result->node = builder_->StructGet(
-        struct_object.node, field.struct_index.struct_type, field.index,
+        struct_object.node, field.struct_imm.struct_type, field.field_imm.index,
         null_check, is_signed, decoder->position());
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
-                 const FieldIndexImmediate<validate>& field,
+                 const FieldImmediate<validate>& field,
                  const Value& field_value) {
     CheckForNull null_check = struct_object.type.is_nullable()
                                   ? CheckForNull::kWithNullCheck
                                   : CheckForNull::kWithoutNullCheck;
-    builder_->StructSet(struct_object.node, field.struct_index.struct_type,
-                        field.index, field_value.node, null_check,
+    builder_->StructSet(struct_object.node, field.struct_imm.struct_type,
+                        field.field_imm.index, field_value.node, null_check,
                         decoder->position());
   }
 

@@ -1813,7 +1813,8 @@ class ModuleDecoderImpl : public Decoder {
             return {};
           }
 
-          FunctionIndexImmediate<Decoder::kFullValidation> imm(this, pc() + 1);
+          IndexImmediate<Decoder::kFullValidation> imm(this, pc() + 1,
+                                                       "function index");
           len = 1 + imm.length;
           if (V8_UNLIKELY(module->functions.size() <= imm.index)) {
             errorf(pc(), "invalid function index: %u", imm.index);
@@ -1847,7 +1848,7 @@ class ModuleDecoderImpl : public Decoder {
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           switch (opcode) {
             case kExprRttCanon: {
-              TypeIndexImmediate<validate> imm(this, pc() + 2);
+              IndexImmediate<validate> imm(this, pc() + 2, "type index");
               if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
                 errorf(pc() + 2, "type index %u is out of bounds", imm.index);
                 return {};
@@ -1864,7 +1865,7 @@ class ModuleDecoderImpl : public Decoder {
               }
               V8_FALLTHROUGH;
             case kExprRttSub: {
-              TypeIndexImmediate<validate> imm(this, pc() + 2);
+              IndexImmediate<validate> imm(this, pc() + 2, "type index");
               if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
                 errorf(pc() + 2, "type index %u is out of bounds", imm.index);
                 return {};
