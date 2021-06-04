@@ -2803,13 +2803,13 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
 Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
   Local<ObjectTemplate> os_template = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_template);
-#if V8_TARGET_OS_LINUX
+#if defined(V8_TARGET_OS_LINUX)
   const char os_name[] = "linux";
-#elif V8_TARGET_OS_WIN
+#elif defined(V8_TARGET_OS_WIN)
   const char os_name[] = "windows";
-#elif V8_TARGET_OS_MACOSX
+#elif defined(V8_TARGET_OS_MACOSX)
   const char os_name[] = "macos";
-#elif V8_TARGET_OS_ANDROID
+#elif defined(V8_TARGET_OS_ANDROID)
   const char os_name[] = "android";
 #else
   const char os_name[] = "unknown";
