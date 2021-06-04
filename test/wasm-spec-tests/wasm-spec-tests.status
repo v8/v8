@@ -10,7 +10,6 @@
 
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
-  'proposals/js-types/unreached-invalid': [FAIL],
   'proposals/memory64/linking': [FAIL],
   'proposals/memory64/table': [FAIL],
   'proposals/memory64/unreached-invalid': [FAIL],
@@ -27,7 +26,6 @@
   'proposals/tail-call/globals': [FAIL],
   'proposals/tail-call/linking': [FAIL],
   'proposals/tail-call/type': [FAIL],
-  'proposals/tail-call/unreached-invalid': [FAIL],
 
   # TODO(v8:11401): Fix memory64 spec tests / the v8 implementation (whatever
   # is broken).
