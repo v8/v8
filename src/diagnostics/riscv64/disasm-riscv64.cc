@@ -764,7 +764,7 @@ void Decoder::DecodeRType(Instruction* instr) {
       break;
     case RO_SUB:
       if (instr->Rs1Value() == zero_reg.code())
-        Format(instr, "neg       'rd, rs2");
+        Format(instr, "neg       'rd, 'rs2");
       else
         Format(instr, "sub       'rd, 'rs1, 'rs2");
       break;

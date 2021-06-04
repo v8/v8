@@ -410,7 +410,7 @@ TEST(PSEUDO) {
   COMPARE(RV_li(t6, -12), "ff400f93       li        t6, -12");
   COMPARE(mv(t0, a4), "00070293       mv        t0, a4");
   COMPARE(not_(t0, a5), "fff7c293       not       t0, a5");
-  COMPARE(neg(ra, a6), "410000b3       neg       ra, rs2");
+  COMPARE(neg(ra, a6), "410000b3       neg       ra, a6");
   COMPARE(negw(t2, fp), "408003bb       negw      t2, fp");
   COMPARE(sext_w(t0, s1), "0004829b       sext.w    t0, s1");
   COMPARE(seqz(sp, s2), "00193113       seqz      sp, s2");
