@@ -1517,6 +1517,24 @@ PerIsolateData::RealmScope::~RealmScope() {
   delete[] data_->realms_;
 }
 
+PerIsolateData::ExplicitRealmScope::ExplicitRealmScope(PerIsolateData* data,
+                                                       int index)
+    : data_(data), index_(index) {
+  realm_ = Local<Context>::New(data->isolate_, data->realms_[index_]);
+  realm_->Enter();
+  previous_index_ = data->realm_current_;
+  data->realm_current_ = data->realm_switch_ = index_;
+}
+
+PerIsolateData::ExplicitRealmScope::~ExplicitRealmScope() {
+  realm_->Exit();
+  data_->realm_current_ = data_->realm_switch_ = previous_index_;
+}
+
+Local<Context> PerIsolateData::ExplicitRealmScope::context() const {
+  return realm_;
+}
+
 int PerIsolateData::RealmFind(Local<Context> context) {
   for (int i = 0; i < realm_count_; ++i) {
     if (realms_[i] == context) return i;
@@ -1783,18 +1801,15 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
            .ToLocal(&script)) {
     return;
   }
-  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
-  realm->Enter();
-  int previous_index = data->realm_current_;
-  data->realm_current_ = data->realm_switch_ = index;
   Local<Value> result;
-  if (!script->BindToCurrentContext()->Run(realm).ToLocal(&result)) {
-    realm->Exit();
-    data->realm_current_ = data->realm_switch_ = previous_index;
-    return;
+  {
+    PerIsolateData::ExplicitRealmScope realm_scope(data, index);
+    if (!script->BindToCurrentContext()
+             ->Run(realm_scope.context())
+             .ToLocal(&result)) {
+      return;
+    }
   }
-  realm->Exit();
-  data->realm_current_ = data->realm_switch_ = previous_index;
   args.GetReturnValue().Set(result);
 }
 
@@ -1841,23 +1856,17 @@ void Shell::RealmTakeWebSnapshot(
     }
     exports->Set(isolate, i, str);
   }
-  // Enter the realm.
-  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
-  realm->Enter();
-  int previous_index = data->realm_current_;
-  data->realm_current_ = data->realm_switch_ = index;
-  // Take the snapshot.
-  i::WebSnapshotSerializer serializer(isolate);
+  // Take the snapshot in the specified Realm.
   auto snapshot_data_shared = std::make_shared<i::WebSnapshotData>();
-  if (!serializer.TakeSnapshot(realm, exports, *snapshot_data_shared)) {
-    realm->Exit();
-    data->realm_current_ = data->realm_switch_ = previous_index;
-    args.GetReturnValue().Set(Undefined(isolate));
-    return;
+  {
+    PerIsolateData::ExplicitRealmScope realm_scope(data, index);
+    i::WebSnapshotSerializer serializer(isolate);
+    if (!serializer.TakeSnapshot(realm_scope.context(), exports,
+                                 *snapshot_data_shared)) {
+      args.GetReturnValue().Set(Undefined(isolate));
+      return;
+    }
   }
-  // Exit the realm.
-  realm->Exit();
-  data->realm_current_ = data->realm_switch_ = previous_index;
   // Create a snapshot object and store the WebSnapshotData as an embedder
   // field. TODO(v8:11525): Use methods on global Snapshot objects with
   // signature checks.
@@ -1869,7 +1878,8 @@ void Shell::RealmTakeWebSnapshot(
   Local<ObjectTemplate> snapshot_template =
       data->GetSnapshotObjectCtor()->InstanceTemplate();
   Local<Object> snapshot_instance =
-      snapshot_template->NewInstance(realm).ToLocalChecked();
+      snapshot_template->NewInstance(isolate->GetCurrentContext())
+          .ToLocalChecked();
   snapshot_instance->SetInternalField(0, shapshot_data);
   args.GetReturnValue().Set(snapshot_instance);
 }
@@ -1899,18 +1909,14 @@ void Shell::RealmUseWebSnapshot(
       i::Handle<i::Managed<i::WebSnapshotData>>::cast(snapshot_data_handle);
   std::shared_ptr<i::WebSnapshotData> snapshot_data_shared =
       snapshot_data_managed->get();
-  // Enter the realm.
-  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
-  realm->Enter();
-  int previous_index = data->realm_current_;
-  data->realm_current_ = data->realm_switch_ = index;
-  // Deserialize the snapshot.
-  i::WebSnapshotDeserializer deserializer(isolate);
-  bool success = deserializer.UseWebSnapshot(snapshot_data_shared->buffer,
-                                             snapshot_data_shared->buffer_size);
-  args.GetReturnValue().Set(success);
-  realm->Exit();
-  data->realm_current_ = data->realm_switch_ = previous_index;
+  // Deserialize the snapshot in the specified Realm.
+  {
+    PerIsolateData::ExplicitRealmScope realm_scope(data, index);
+    i::WebSnapshotDeserializer deserializer(isolate);
+    bool success = deserializer.UseWebSnapshot(
+        snapshot_data_shared->buffer, snapshot_data_shared->buffer_size);
+    args.GetReturnValue().Set(success);
+  }
 }
 
 void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {

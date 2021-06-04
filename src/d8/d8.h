@@ -254,6 +254,22 @@ class PerIsolateData {
     PerIsolateData* data_;
   };
 
+  // Contrary to RealmScope (which creates a new Realm), ExplicitRealmScope
+  // allows for entering an existing Realm, as specified by its index.
+  class V8_NODISCARD ExplicitRealmScope {
+   public:
+    explicit ExplicitRealmScope(PerIsolateData* data, int index);
+    ~ExplicitRealmScope();
+
+    Local<Context> context() const;
+
+   private:
+    PerIsolateData* data_;
+    Local<Context> realm_;
+    int index_;
+    int previous_index_;
+  };
+
   inline void SetTimeout(Local<Function> callback, Local<Context> context);
   inline MaybeLocal<Function> GetTimeoutCallback();
   inline MaybeLocal<Context> GetTimeoutContext();
