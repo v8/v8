@@ -1640,13 +1640,17 @@ WasmValue InstanceBuilder::EvaluateInitExpression(
       const WasmGlobal& global = module_->globals[init.immediate().index];
       switch (global.type.kind()) {
         case kI32:
-          return WasmValue(*GetRawUntaggedGlobalPtr<int32_t>(global));
+          return WasmValue(ReadLittleEndianValue<int32_t>(
+              GetRawUntaggedGlobalPtr<int32_t>(global)));
         case kI64:
-          return WasmValue(*GetRawUntaggedGlobalPtr<int64_t>(global));
+          return WasmValue(ReadLittleEndianValue<int64_t>(
+              GetRawUntaggedGlobalPtr<int64_t>(global)));
         case kF32:
-          return WasmValue(*GetRawUntaggedGlobalPtr<float>(global));
+          return WasmValue(ReadLittleEndianValue<float>(
+              GetRawUntaggedGlobalPtr<float>(global)));
         case kF64:
-          return WasmValue(*GetRawUntaggedGlobalPtr<double>(global));
+          return WasmValue(ReadLittleEndianValue<double>(
+              GetRawUntaggedGlobalPtr<double>(global)));
         case kS128:
           return WasmValue(Simd128(GetRawUntaggedGlobalPtr<byte>(global)));
         case kRef:
