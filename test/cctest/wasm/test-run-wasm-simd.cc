@@ -3357,7 +3357,7 @@ void RunAddExtAddPairwiseTest(
   r.Call();
 
   for (size_t i = 0; i < expectedOutput.size(); i++) {
-    CHECK_EQ(expectedOutput[i], x[i]);
+    CHECK_EQ(expectedOutput[i], ReadLittleEndianValue<T>(&x[i]));
   }
 }
 
