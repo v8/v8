@@ -114,10 +114,17 @@ class Builtins {
   }
 
 #ifdef V8_IS_TSAN
-  static Name GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode) {
-    return fp_mode == SaveFPRegsMode::kIgnore
-               ? Builtins::kTSANRelaxedStoreIgnoreFP
-               : Builtins::kTSANRelaxedStoreSaveFP;
+  static Name GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode, int size) {
+    if (size == kInt32Size) {
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtins::kTSANRelaxedStore32IgnoreFP
+                 : Builtins::kTSANRelaxedStore32SaveFP;
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtins::kTSANRelaxedStore64IgnoreFP
+                 : Builtins::kTSANRelaxedStore64SaveFP;
+    }
   }
 #endif  // V8_IS_TSAN
 

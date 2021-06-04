@@ -12,6 +12,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
@@ -327,7 +328,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 class OutOfLineTSANRelaxedStore final : public OutOfLineCode {
  public:
   OutOfLineTSANRelaxedStore(CodeGenerator* gen, Operand operand, Register value,
-                            Register scratch0, StubCallMode stub_mode)
+                            Register scratch0, StubCallMode stub_mode, int size)
       : OutOfLineCode(gen),
         operand_(operand),
         value_(value),
@@ -335,6 +336,7 @@ class OutOfLineTSANRelaxedStore final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
+        size_(size),
         zone_(gen->zone()) {
     DCHECK(!AreAliased(value, scratch0));
   }
@@ -350,13 +352,13 @@ class OutOfLineTSANRelaxedStore final : public OutOfLineCode {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ CallTSANRelaxedStoreStub(scratch0_, value_, save_fp_mode,
+      __ CallTSANRelaxedStoreStub(scratch0_, value_, save_fp_mode, size_,
                                   StubCallMode::kCallWasmRuntimeStub);
       return;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    __ CallTSANRelaxedStoreStub(scratch0_, value_, save_fp_mode);
+    __ CallTSANRelaxedStoreStub(scratch0_, value_, save_fp_mode, size_);
   }
 
  private:
@@ -366,8 +368,41 @@ class OutOfLineTSANRelaxedStore final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
+  int size_;
   Zone* zone_;
 };
+
+void EmitTSANStoreOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
+                              TurboAssembler* tasm, Operand operand,
+                              Register value_reg, X64OperandConverter& i,
+                              StubCallMode mode, int size) {
+  Register scratch0 = i.TempRegister(0);
+  auto tsan_ool = zone->New<OutOfLineTSANRelaxedStore>(
+      codegen, operand, value_reg, scratch0, mode, size);
+  tasm->jmp(tsan_ool->entry());
+  tasm->bind(tsan_ool->exit());
+}
+
+void EmitTSANStoreOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
+                              TurboAssembler* tasm, Operand operand,
+                              Immediate value, X64OperandConverter& i,
+                              StubCallMode mode, int size) {
+  Register value_reg = i.TempRegister(1);
+  tasm->movq(value_reg, value);
+  EmitTSANStoreOOLIfNeeded(zone, codegen, tasm, operand, value_reg, i, mode,
+                           size);
+}
+
+#else
+void EmitTSANStoreOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
+                              TurboAssembler* tasm, Operand operand,
+                              Register value_reg, X64OperandConverter& i,
+                              StubCallMode mode, int size) {}
+
+void EmitTSANStoreOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
+                              TurboAssembler* tasm, Operand operand,
+                              Immediate value, X64OperandConverter& i,
+                              StubCallMode mode, int size) {}
 #endif  // V8_IS_TSAN
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1236,13 +1271,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
       Register scratch0 = i.TempRegister(0);
 
-#ifdef V8_IS_TSAN
-      auto tsan_ool = zone()->New<OutOfLineTSANRelaxedStore>(
-          this, operand, value, scratch0, DetermineStubCallMode());
-      __ jmp(tsan_ool->entry());
-      __ bind(tsan_ool->exit());
-#endif  // V8_IS_TSAN
-
+      EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
+                               DetermineStubCallMode(), kTaggedSize);
       Register scratch1 = i.TempRegister(1);
       auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
                                                    scratch0, scratch1, mode,
@@ -2187,25 +2217,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
         Immediate value = i.InputImmediate(index);
-#ifdef V8_IS_TSAN
-        Register value_reg = i.TempRegister(1);
-        __ movq(value_reg, value);
-        Register scratch0 = i.TempRegister(0);
-        auto tsan_ool = zone()->New<OutOfLineTSANRelaxedStore>(
-            this, operand, value_reg, scratch0, DetermineStubCallMode());
-        __ jmp(tsan_ool->entry());
-        __ bind(tsan_ool->exit());
-#endif  // V8_IS_TSAN
+        EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
+                                 DetermineStubCallMode(), kTaggedSize);
         __ StoreTaggedField(operand, value);
       } else {
         Register value = i.InputRegister(index);
-#ifdef V8_IS_TSAN
-        Register scratch0 = i.TempRegister(0);
-        auto tsan_ool = zone()->New<OutOfLineTSANRelaxedStore>(
-            this, operand, value, scratch0, DetermineStubCallMode());
-        __ jmp(tsan_ool->entry());
-        __ bind(tsan_ool->exit());
-#endif  // V8_IS_TSAN
+        EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
+                                 DetermineStubCallMode(), kTaggedSize);
         __ StoreTaggedField(operand, value);
       }
       break;

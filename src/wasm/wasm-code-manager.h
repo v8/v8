@@ -95,8 +95,10 @@ struct WasmModule;
   V(RecordWriteEmitRememberedSetIgnoreFP) \
   V(RecordWriteOmitRememberedSetIgnoreFP) \
   V(ToNumber)                             \
-  IF_TSAN(V, TSANRelaxedStoreIgnoreFP)    \
-  IF_TSAN(V, TSANRelaxedStoreSaveFP)      \
+  IF_TSAN(V, TSANRelaxedStore32IgnoreFP)  \
+  IF_TSAN(V, TSANRelaxedStore32SaveFP)    \
+  IF_TSAN(V, TSANRelaxedStore64IgnoreFP)  \
+  IF_TSAN(V, TSANRelaxedStore64SaveFP)    \
   V(WasmAllocateArrayWithRtt)             \
   V(WasmArrayCopy)                        \
   V(WasmArrayCopyWithChecks)              \
@@ -177,10 +179,18 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
 
 #ifdef V8_IS_TSAN
-  static RuntimeStubId GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode) {
-    return fp_mode == SaveFPRegsMode::kIgnore
-               ? RuntimeStubId::kTSANRelaxedStoreIgnoreFP
-               : RuntimeStubId::kTSANRelaxedStoreSaveFP;
+  static RuntimeStubId GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode,
+                                               int size) {
+    if (size == kInt32Size) {
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? RuntimeStubId::kTSANRelaxedStore32IgnoreFP
+                 : RuntimeStubId::kTSANRelaxedStore32SaveFP;
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? RuntimeStubId::kTSANRelaxedStore64IgnoreFP
+                 : RuntimeStubId::kTSANRelaxedStore64SaveFP;
+    }
   }
 #endif  // V8_IS_TSAN
 
