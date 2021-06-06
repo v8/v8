@@ -18,9 +18,9 @@
 // Test deopt when array map changes.
 (function () {
   "use strict";
-  var sum_js3_got_interpreted = true;
-  function sum_js3(a, b, c) {
-    sum_js3_got_interpreted = %IsBeingInterpreted();
+  var sum_js_got_interpreted = true;
+  function sum_js(a, b, c) {
+    sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c;
   }
   function foo(x, y, z, str) {
@@ -28,25 +28,25 @@
     if (str) {
       v[0] = str;
     }
-    return sum_js3.apply(null, v);
+    return sum_js.apply(null, v);
   }
 
-  %PrepareFunctionForOptimization(sum_js3);
+  %PrepareFunctionForOptimization(sum_js);
   for (let i = 0; i < 5; i++) {
     %PrepareFunctionForOptimization(foo);
     assertEquals(78, foo(26, 6, 46, null));
-    assertTrue(sum_js3_got_interpreted);
+    assertTrue(sum_js_got_interpreted);
 
-    // Compile function foo; inlines 'sum_js3' into 'foo'.
+    // Compile function foo; inlines 'sum_js' into 'foo'.
     %OptimizeFunctionOnNextCall(foo);
     assertEquals(78, foo(26, 6, 46, null));
     assertOptimized(foo);
 
     if (i < 3) {
-      assertFalse(sum_js3_got_interpreted);
+      assertFalse(sum_js_got_interpreted);
     } else {
-      // i: 3: Speculation mode prevents optimization of sum_js3.apply() call.
-      assertTrue(sum_js3_got_interpreted);
+      // i: 3: Speculation mode prevents optimization of sum_js.apply() call.
+      assertTrue(sum_js_got_interpreted);
     }
 
     // This should deoptimize:
@@ -54,7 +54,7 @@
     // i: 1,2: Deopt eager: wrong map.
     // i: 3: Won't deopt anymore.
     assertEquals("v8646", foo(26, 6, 46, "v8"));
-    assertTrue(sum_js3_got_interpreted);
+    assertTrue(sum_js_got_interpreted);
 
     if (i < 3) {
       assertUnoptimized(foo);

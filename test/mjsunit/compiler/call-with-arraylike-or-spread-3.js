@@ -20,33 +20,33 @@
 (function () {
   "use strict";
 
-  var sum_js3_got_interpreted = true;
-  function sum_js3(a, b, c) {
-    sum_js3_got_interpreted = %IsBeingInterpreted();
-    return a + b + c;
+  var sum_js_got_interpreted = true;
+  function sum_js(a, b, c, d) {
+    sum_js_got_interpreted = %IsBeingInterpreted();
+    return a + b + c + d;
   }
   function foo(x, y) {
-    return sum_js3.apply(null, [x, , y]);
+    return sum_js.apply(null, ["", x, ,y]);
   }
 
-  %PrepareFunctionForOptimization(sum_js3);
+  %PrepareFunctionForOptimization(sum_js);
   %PrepareFunctionForOptimization(foo);
   assertEquals('AundefinedB', foo('A', 'B'));
-  assertTrue(sum_js3_got_interpreted);
+  assertTrue(sum_js_got_interpreted);
 
   %OptimizeFunctionOnNextCall(foo);
   assertEquals('AundefinedB', foo('A', 'B'));
-  assertFalse(sum_js3_got_interpreted);
+  assertFalse(sum_js_got_interpreted);
   assertOptimized(foo);
 
   // Modify the array prototype, define a default value for element [1].
-  Array.prototype[1] = 'x';
+  Array.prototype[2] = 'x';
   assertUnoptimized(foo);
 
   // Now the call will not be inlined.
   %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals('AxB', foo('A', 'B'));
-  assertTrue(sum_js3_got_interpreted);
+  assertTrue(sum_js_got_interpreted);
   assertOptimized(foo);
 })();

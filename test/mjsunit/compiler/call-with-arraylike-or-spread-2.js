@@ -17,25 +17,25 @@
   "use strict";
 
   // Setting value to be retrieved in place of hole.
-  Array.prototype[1] = 'x';
+  Array.prototype[2] = 'x';
 
-  var sum_js3_got_interpreted = true;
-  function sum_js3(a, b, c) {
-    sum_js3_got_interpreted = %IsBeingInterpreted();
-    return a + b + c;
+  var sum_js_got_interpreted = true;
+  function sum_js(a, b, c, d) {
+    sum_js_got_interpreted = %IsBeingInterpreted();
+    return a + b + c + d;
   }
   function foo(x, y) {
-    return sum_js3.apply(null, [x, , y]);
+    return sum_js.apply(null, ["", x, ,y]);
   }
 
-  %PrepareFunctionForOptimization(sum_js3);
+  %PrepareFunctionForOptimization(sum_js);
   %PrepareFunctionForOptimization(foo);
   assertEquals('AxB', foo('A', 'B'));
-  assertTrue(sum_js3_got_interpreted);
+  assertTrue(sum_js_got_interpreted);
 
   // The protector should be invalidated, which prevents inlining.
   %OptimizeFunctionOnNextCall(foo);
   assertEquals('AxB', foo('A', 'B'));
-  assertTrue(sum_js3_got_interpreted);
+  assertTrue(sum_js_got_interpreted);
   assertOptimized(foo);
 })();
