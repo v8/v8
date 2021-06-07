@@ -2566,9 +2566,21 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           if ((maybe_attributes.FromJust() & READ_ONLY) != 0) {
             return WriteToReadOnlyProperty(it, value, should_throw);
           }
-          if (maybe_attributes.FromJust() == ABSENT) break;
-          *found = false;
-          return Nothing<bool>();
+          // At this point we might have called interceptor's query or getter
+          // callback. Assuming that the callbacks have side effects, we use
+          // Object::SetSuperProperty() which works properly regardless on
+          // whether the property was present on the receiver or not when
+          // storing to the receiver.
+          if (maybe_attributes.FromJust() == ABSENT) {
+            // Proceed lookup from the next state.
+            it->Next();
+          } else {
+            // Finish lookup in order to make Object::SetSuperProperty() store
+            // property to the receiver.
+            it->NotFound();
+          }
+          return Object::SetSuperProperty(it, value, store_origin,
+                                          should_throw);
         }
         break;
       }
@@ -2686,6 +2698,8 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   }
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
 
+  // Note, the callers rely on the fact that this code is redoing the full own
+  // lookup from scratch.
   LookupIterator::Configuration c = LookupIterator::OWN;
   LookupIterator own_lookup =
       it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
