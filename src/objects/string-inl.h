@@ -620,33 +620,44 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
 }
 
 uint16_t String::Get(int index, Isolate* isolate) const {
-  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
-  return GetImpl(index);
+  SharedStringAccessGuardIfNeeded scope(isolate);
+  return GetImpl(index, scope);
 }
 
 uint16_t String::Get(int index, LocalIsolate* local_isolate) const {
   SharedStringAccessGuardIfNeeded scope(local_isolate);
-  return GetImpl(index);
+  return GetImpl(index, scope);
 }
 
-uint16_t String::GetImpl(int index) const {
+uint16_t String::Get(
+    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+  return GetImpl(index, access_guard);
+}
+
+uint16_t String::GetImpl(
+    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   DCHECK(index >= 0 && index < length());
 
   class StringGetDispatcher : public AllStatic {
    public:
 #define DEFINE_METHOD(Type)                                  \
-  static inline uint16_t Handle##Type(Type str, int index) { \
-    return str.Get(index);                                   \
+  static inline uint16_t Handle##Type(                       \
+      Type str, int index,                                   \
+      const SharedStringAccessGuardIfNeeded& access_guard) { \
+    return str.Get(index, access_guard);                     \
   }
     STRING_CLASS_TYPES(DEFINE_METHOD)
 #undef DEFINE_METHOD
-    static inline uint16_t HandleInvalidString(String str, int index) {
+    static inline uint16_t HandleInvalidString(
+        String str, int index,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
       UNREACHABLE();
     }
   };
 
   return StringShape(*this)
-      .DispatchToSpecificType<StringGetDispatcher, uint16_t>(*this, index);
+      .DispatchToSpecificType<StringGetDispatcher, uint16_t>(*this, index,
+                                                             access_guard);
 }
 
 void String::Set(int index, uint16_t value) {
@@ -768,6 +779,13 @@ uint32_t String::ToValidIndex(Object number) {
 }
 
 uint8_t SeqOneByteString::Get(int index) const {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return Get(index, SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+uint8_t SeqOneByteString::Get(
+    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+  USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return ReadField<byte>(kHeaderSize + index * kCharSize);
 }
@@ -814,7 +832,9 @@ uc16* SeqTwoByteString::GetChars(
   return reinterpret_cast<uc16*>(GetCharsAddress());
 }
 
-uint16_t SeqTwoByteString::Get(int index) const {
+uint16_t SeqTwoByteString::Get(
+    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+  USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return ReadField<uint16_t>(kHeaderSize + index * kShortSize);
 }
@@ -964,7 +984,9 @@ const uint8_t* ExternalOneByteString::GetChars() const {
   return reinterpret_cast<const uint8_t*>(resource()->data());
 }
 
-uint8_t ExternalOneByteString::Get(int index) const {
+uint8_t ExternalOneByteString::Get(
+    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+  USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }
@@ -1029,7 +1051,9 @@ const uint16_t* ExternalTwoByteString::GetChars() const {
   return resource()->data();
 }
 
-uint16_t ExternalTwoByteString::Get(int index) const {
+uint16_t ExternalTwoByteString::Get(
+    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+  USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }

@@ -220,6 +220,11 @@ class String : public TorqueGeneratedString<String, Name> {
   // be used.
   V8_INLINE uint16_t Get(int index, Isolate* isolate = nullptr) const;
   V8_INLINE uint16_t Get(int index, LocalIsolate* local_isolate) const;
+  // Method to pass down the access_guard. Useful for recursive calls such as
+  // ThinStrings where we go String::Get into ThinString::Get into String::Get
+  // again for the internalized string.
+  V8_INLINE uint16_t
+  Get(int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
   static Handle<Object> ToNumber(Isolate* isolate, Handle<String> subject);
@@ -542,7 +547,8 @@ class String : public TorqueGeneratedString<String, Name> {
   friend class InternalizedStringKey;
 
   // Implementation of the Get() public methods. Do not use directly.
-  V8_INLINE uint16_t GetImpl(int index) const;
+  V8_INLINE uint16_t
+  GetImpl(int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // Implementation of the IsEqualTo() public methods. Do not use directly.
   template <EqualityType kEqType, typename Char>
@@ -633,8 +639,12 @@ class SeqOneByteString
   static const bool kHasOneByteEncoding = true;
   using Char = uint8_t;
 
-  // Dispatched behavior.
+  // Dispatched behavior. The non SharedStringAccessGuardIfNeeded method is also
+  // defined for convenience and it will check that the access guard is not
+  // needed.
   inline uint8_t Get(int index) const;
+  inline uint8_t Get(int index,
+                     const SharedStringAccessGuardIfNeeded& access_guard) const;
   inline void SeqOneByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
@@ -680,7 +690,8 @@ class SeqTwoByteString
   using Char = uint16_t;
 
   // Dispatched behavior.
-  inline uint16_t Get(int index) const;
+  inline uint16_t Get(
+      int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
   inline void SeqTwoByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
@@ -737,7 +748,8 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
   inline Object unchecked_second();
 
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE uint16_t Get(int index) const;
+  V8_EXPORT_PRIVATE uint16_t
+  Get(int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // Minimum length for a cons string.
   static const int kMinLength = 13;
@@ -760,7 +772,8 @@ class ThinString : public TorqueGeneratedThinString<ThinString, String> {
  public:
   DECL_GETTER(unchecked_actual, HeapObject)
 
-  V8_EXPORT_PRIVATE uint16_t Get(int index) const;
+  V8_EXPORT_PRIVATE uint16_t
+  Get(int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   DECL_VERIFIER(ThinString)
 
@@ -786,7 +799,8 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
   inline void set_parent(String parent,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE uint16_t Get(int index) const;
+  V8_EXPORT_PRIVATE uint16_t
+  Get(int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
@@ -868,7 +882,8 @@ class ExternalOneByteString : public ExternalString {
   inline const uint8_t* GetChars() const;
 
   // Dispatched behavior.
-  inline uint8_t Get(int index) const;
+  inline uint8_t Get(int index,
+                     const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   DECL_CAST(ExternalOneByteString)
 
@@ -914,7 +929,8 @@ class ExternalTwoByteString : public ExternalString {
   inline const uint16_t* GetChars() const;
 
   // Dispatched behavior.
-  inline uint16_t Get(int index) const;
+  inline uint16_t Get(
+      int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
