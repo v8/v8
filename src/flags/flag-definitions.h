@@ -2049,8 +2049,18 @@ DEFINE_IMPLICATION(print_all_code, print_regexp_code)
 //
 
 DEFINE_BOOL(predictable, false, "enable predictable mode")
-DEFINE_IMPLICATION(predictable, single_threaded)
 DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
+// TODO(v8:11848): These flags were recursively implied via --single-threaded
+// before. Audit them, and remove any unneeded implications.
+DEFINE_IMPLICATION(predictable, single_threaded_gc)
+DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
+DEFINE_NEG_IMPLICATION(predictable, compiler_dispatcher)
+DEFINE_NEG_IMPLICATION(predictable, stress_concurrent_inlining)
+#if V8_ENABLE_WEBASSEMBLY
+DEFINE_VALUE_IMPLICATION(predictable, wasm_num_compilation_tasks, 0)
+DEFINE_NEG_IMPLICATION(predictable, wasm_async_compilation)
+DEFINE_NEG_IMPLICATION(predictable, wasm_tier_up)
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 DEFINE_BOOL(predictable_gc_schedule, false,
             "Predictable garbage collection schedule. Fixes heap growing, "
