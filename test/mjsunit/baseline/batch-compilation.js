@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --sparkplug --no-always-sparkplug --sparkplug-filter="-"
-// Flags: --allow-natives-syntax --expose-gc
+// Flags: --allow-natives-syntax --expose-gc --lazy-feedback-allocation
 // Flags: --baseline-batch-compilation --baseline-batch-compilation-threshold=200
 
 // Basic test
