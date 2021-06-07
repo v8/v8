@@ -935,14 +935,15 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   size_t old_pages = old_size / wasm::kWasmPageSize;
   uint32_t max_pages = wasm::kSpecMaxMemoryPages;
   if (memory_object->has_maximum_pages()) {
+    DCHECK_GE(max_pages, memory_object->maximum_pages());
     max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
-    DCHECK_GE(max_pages, old_pages);
-    if (pages > max_pages - old_pages) return -1;
   }
+  DCHECK_GE(max_pages, old_pages);
+  if (pages > max_pages - old_pages) return -1;
 
   base::Optional<size_t> result_inplace =
       backing_store->GrowWasmMemoryInPlace(isolate, pages, max_pages);
-  // Try to handle shared memory first.
+  // Handle shared memory first.
   if (old_buffer->is_shared()) {
     // Shared memories can only be grown in place; no copying.
     if (!result_inplace.has_value()) {
@@ -972,7 +973,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     return static_cast<int32_t>(result_inplace.value());  // success
   }
 
-  // Try to grow non-shared memory in-place.
+  // Check if the non-shared memory could grow in-place.
   if (result_inplace.has_value()) {
     // Detach old and create a new one with the grown backing store.
     old_buffer->Detach(true);
@@ -989,6 +990,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
 
   size_t new_pages = old_pages + pages;
+  DCHECK_LT(old_pages, new_pages);
   // Try allocating a new backing store and copying.
   std::unique_ptr<BackingStore> new_backing_store =
       backing_store->CopyWasmMemory(isolate, new_pages);
