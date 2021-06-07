@@ -21,6 +21,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/globals.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-utils-inl.h"
@@ -3028,6 +3029,12 @@ bool Heap::CanMoveObjectStart(HeapObject object) {
   if (isolate()->heap_profiler()->is_sampling_allocations()) return false;
 
   if (IsLargeObject(object)) return false;
+
+  // Compilation jobs may have references to the object.
+  if (isolate()->concurrent_recompilation_enabled() &&
+      isolate()->optimizing_compile_dispatcher()->HasJobs()) {
+    return false;
+  }
 
   // We can move the object start if the page was already swept.
   return Page::FromHeapObject(object)->SweepingDone();
