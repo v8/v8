@@ -686,7 +686,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Store input value into generator object.
   __ StoreTaggedField(
       FieldOperand(rdx, JSGeneratorObject::kInputOrDebugPosOffset), rax);
-  __ RecordWriteField(rdx, JSGeneratorObject::kInputOrDebugPosOffset, rax, rcx,
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  __ Move(object, rdx);
+  __ RecordWriteField(object, JSGeneratorObject::kInputOrDebugPosOffset, rax,
+                      WriteBarrierDescriptor::SlotAddressRegister(),
                       SaveFPRegsMode::kIgnore);
 
   Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r8 : no_reg;
@@ -1086,7 +1089,8 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   __ LoadAnyTaggedField(
       optimized_code_entry,
       FieldOperand(feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset));
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, closure, r8, r15,
+  TailCallOptimizedCodeSlot(masm, optimized_code_entry, closure, r9,
+                            WriteBarrierDescriptor::SlotAddressRegister(),
                             jump_mode);
 }
 
@@ -1327,9 +1331,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                               FieldOperand(kInterpreterBytecodeArrayRegister,
                                            BaselineData::kBaselineCodeOffset));
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-    ReplaceClosureCodeWithOptimizedCode(masm, rcx, closure,
-                                        kInterpreterBytecodeArrayRegister,
-                                        kInterpreterBytecodeOffsetRegister);
+    ReplaceClosureCodeWithOptimizedCode(
+        masm, rcx, closure, kInterpreterBytecodeArrayRegister,
+        WriteBarrierDescriptor::SlotAddressRegister());
     __ JumpCodeObject(rcx);
 
     __ bind(&install_baseline_code);
@@ -1856,7 +1860,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 void Builtins::Generate_TailCallOptimizedCodeSlot(MacroAssembler* masm) {
   Register optimized_code_entry = kJavaScriptCallCodeStartRegister;
   Register closure = kJSFunctionRegister;
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, closure, r8, r15,
+  TailCallOptimizedCodeSlot(masm, optimized_code_entry, closure, r9,
+                            WriteBarrierDescriptor::SlotAddressRegister(),
                             JumpMode::kJump);
 }
 

@@ -84,8 +84,10 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
 
   DCHECK(data->IsInitialized());
   DCHECK(this->CheckFloatingPointParameters(data));
+#if DEBUG
+  DerivedDescriptor::Verify(data);
+#endif
 }
-
 // static
 template <typename DerivedDescriptor>
 constexpr int
