@@ -188,6 +188,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
   base::Optional<bool> TryGetBooleanValue() const;
   Maybe<double> OddballToNumber() const;
 
+  bool should_access_heap() const;
+
   Isolate* isolate() const;
 
   struct Hash {
@@ -318,8 +320,16 @@ class JSObjectRef : public JSReceiverRef {
   // Return the element at key {index} if {index} is known to be an own data
   // property of the object that is non-writable and non-configurable.
   base::Optional<ObjectRef> GetOwnConstantElement(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+      const FixedArrayBaseRef& elements_ref, uint32_t index,
+      CompilationDependencies* dependencies = nullptr,
+      SerializationPolicy policy =
+          SerializationPolicy::kAssumeSerialized) const;
+  // The direct-read implementation of the above, extracted into a helper since
+  // it's also called from compilation-dependency validation. This helper is
+  // guaranteed to not create new Ref instances.
+  base::Optional<Object> GetOwnConstantElementFromHeap(
+      FixedArrayBase elements, ElementsKind elements_kind,
+      uint32_t index) const;
 
   // Return the value of the property identified by the field {index}
   // if {index} is known to be an own data property of the object.
@@ -334,10 +344,12 @@ class JSObjectRef : public JSReceiverRef {
       InternalIndex index, SerializationPolicy policy =
                                SerializationPolicy::kAssumeSerialized) const;
 
-  base::Optional<FixedArrayBaseRef> elements() const;
+  // When concurrent inlining is enabled, reads the elements through a direct
+  // relaxed read. This is to ease the transition to unserialized (or
+  // background-serialized) elements.
+  base::Optional<FixedArrayBaseRef> elements(RelaxedLoadTag) const;
   void SerializeElements();
-  bool IsElementsTenured();
-  ElementsKind GetElementsKind() const;
+  bool IsElementsTenured(const FixedArrayBaseRef& elements);
 
   void SerializeObjectCreateMap();
   base::Optional<MapRef> GetObjectCreateMap() const;

@@ -1372,6 +1372,7 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
   // - single_character_string_cache()->get().
 
   if (IsFrozenElementsKind(elements_kind)) {
+    if (!elements.IsFixedArray()) return kGaveUp;
     FixedArray elements_fixed_array = FixedArray::cast(elements);
     if (index >= static_cast<uint32_t>(elements_fixed_array.length())) {
       return kGaveUp;
@@ -1384,7 +1385,7 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
     *result_out = result;
     return kPresent;
   } else if (IsDictionaryElementsKind(elements_kind)) {
-    DCHECK(elements.IsNumberDictionary());
+    if (!elements.IsNumberDictionary()) return kGaveUp;
     // TODO(jgruber, v8:7790): Add support. Dictionary elements require racy
     // NumberDictionary lookups. This should be okay in general (slot iteration
     // depends only on the dict's capacity), but 1. we'd need to update

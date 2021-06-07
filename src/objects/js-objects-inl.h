@@ -55,6 +55,11 @@ DEF_GETTER(JSObject, elements, FixedArrayBase) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
 }
 
+FixedArrayBase JSObject::elements(RelaxedLoadTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return elements(cage_base, tag);
+}
+
 FixedArrayBase JSObject::elements(PtrComprCageBase cage_base,
                                   RelaxedLoadTag) const {
   return TaggedField<FixedArrayBase, kElementsOffset>::Relaxed_Load(cage_base,

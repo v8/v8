@@ -1743,9 +1743,9 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
   builder.Store(AccessBuilder::ForJSObjectElements(), elements);
   if (boilerplate.IsJSArray()) {
     JSArrayRef boilerplate_array = boilerplate.AsJSArray();
-    builder.Store(
-        AccessBuilder::ForJSArrayLength(boilerplate_array.GetElementsKind()),
-        boilerplate_array.GetBoilerplateLength());
+    builder.Store(AccessBuilder::ForJSArrayLength(
+                      boilerplate_array.map().elements_kind()),
+                  boilerplate_array.GetBoilerplateLength());
   }
   for (auto const& inobject_field : inobject_fields) {
     builder.Store(inobject_field.first, inobject_field.second);
@@ -1756,15 +1756,18 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
 base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
     Node* effect, Node* control, JSObjectRef boilerplate,
     AllocationType allocation) {
-  FixedArrayBaseRef boilerplate_elements = boilerplate.elements().value();
+  base::Optional<FixedArrayBaseRef> maybe_boilerplate_elements =
+      boilerplate.elements(kRelaxedLoad);
+  if (!maybe_boilerplate_elements.has_value()) return {};
+  FixedArrayBaseRef boilerplate_elements = maybe_boilerplate_elements.value();
 
   // Empty or copy-on-write elements just store a constant.
   int const elements_length = boilerplate_elements.length();
   MapRef elements_map = boilerplate_elements.map();
   if (boilerplate_elements.length() == 0 || elements_map.IsFixedCowArrayMap()) {
-    if (allocation == AllocationType::kOld) {
-      if (!boilerplate.IsElementsTenured()) return {};
-      boilerplate_elements = boilerplate.elements().value();
+    if (allocation == AllocationType::kOld &&
+        !boilerplate.IsElementsTenured(boilerplate_elements)) {
+      return {};
     }
     return jsgraph()->HeapConstant(boilerplate_elements.object());
   }

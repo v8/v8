@@ -568,6 +568,14 @@ class V8_NODISCARD UnparkedScopeIfNeeded {
   base::Optional<UnparkedScope> unparked_scope;
 };
 
+template <class T,
+          typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
+base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
+    JSHeapBroker* broker, ObjectData* data) {
+  if (data == nullptr) return {};
+  return {typename ref_traits<T>::ref_type(broker, data)};
+}
+
 // Usage:
 //
 //  base::Optional<FooRef> ref = TryMakeRef(broker, o);
@@ -583,9 +591,8 @@ base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {
     TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(object));
-    return {};
   }
-  return {typename ref_traits<T>::ref_type(broker, data)};
+  return TryMakeRef<T>(broker, data);
 }
 
 template <class T,
@@ -596,9 +603,8 @@ base::Optional<typename ref_traits<T>::ref_type> TryMakeRef(
   if (data == nullptr) {
     DCHECK_EQ(flags & kCrashOnError, 0);
     TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(*object));
-    return {};
   }
-  return {typename ref_traits<T>::ref_type(broker, data)};
+  return TryMakeRef<T>(broker, data);
 }
 
 template <class T,

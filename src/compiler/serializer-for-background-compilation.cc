@@ -3333,16 +3333,18 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
         if (key_ref.IsSmi() && key_ref.AsSmi() >= 0) {
           base::Optional<ObjectRef> element;
           if (receiver_ref.IsJSObject()) {
-            receiver_ref.AsJSObject().SerializeElements();
+            JSObjectRef jsobject_ref = receiver_ref.AsJSObject();
+            jsobject_ref.SerializeElements();
             element = receiver_ref.AsJSObject().GetOwnConstantElement(
-                key_ref.AsSmi(), SerializationPolicy::kSerializeIfNeeded);
+                jsobject_ref.elements(kRelaxedLoad).value(), key_ref.AsSmi(),
+                nullptr, SerializationPolicy::kSerializeIfNeeded);
             if (!element.has_value() && receiver_ref.IsJSArray()) {
               // We didn't find a constant element, but if the receiver is a
               // cow-array we can exploit the fact that any future write to the
               // element will replace the whole elements storage.
               JSArrayRef array_ref = receiver_ref.AsJSArray();
               array_ref.GetOwnCowElement(
-                  array_ref.elements().value(), key_ref.AsSmi(),
+                  array_ref.elements(kRelaxedLoad).value(), key_ref.AsSmi(),
                   SerializationPolicy::kSerializeIfNeeded);
             }
           } else if (receiver_ref.IsString()) {

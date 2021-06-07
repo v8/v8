@@ -8,6 +8,7 @@
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/zone/zone-handle-set.h"
@@ -437,15 +438,16 @@ class ElementsKindDependency final : public CompilationDependency {
       : site_(site), kind_(kind) {
     DCHECK(AllocationSite::ShouldTrack(kind_));
     DCHECK_EQ(kind_, site_.PointsToLiteral()
-                         ? site_.boilerplate().value().GetElementsKind()
+                         ? site_.boilerplate().value().map().elements_kind()
                          : site_.GetElementsKind());
   }
 
   bool IsValid() const override {
     Handle<AllocationSite> site = site_.object();
-    ElementsKind kind = site->PointsToLiteral()
-                            ? site->boilerplate(kAcquireLoad).GetElementsKind()
-                            : site->GetElementsKind();
+    ElementsKind kind =
+        site->PointsToLiteral()
+            ? site->boilerplate(kAcquireLoad).map().elements_kind()
+            : site->GetElementsKind();
     return kind_ == kind;
   }
 
@@ -459,6 +461,35 @@ class ElementsKindDependency final : public CompilationDependency {
  private:
   AllocationSiteRef site_;
   ElementsKind kind_;
+};
+
+// Only valid if the holder can use direct reads, since validation uses
+// GetOwnConstantElementFromHeap.
+class OwnConstantElementDependency final : public CompilationDependency {
+ public:
+  OwnConstantElementDependency(const JSObjectRef& holder, uint32_t index,
+                               const ObjectRef& element)
+      : holder_(holder), index_(index), element_(element) {}
+
+  bool IsValid() const override {
+    DisallowGarbageCollection no_gc;
+    JSObject holder = *holder_.object();
+    base::Optional<Object> maybe_element =
+        holder_.GetOwnConstantElementFromHeap(holder.elements(),
+                                              holder.GetElementsKind(), index_);
+    if (!maybe_element.has_value()) return false;
+
+    return maybe_element.value() == *element_.object();
+  }
+
+  void Install(const MaybeObjectHandle& code) const override {
+    // This dependency has no effect after code finalization.
+  }
+
+ private:
+  const JSObjectRef holder_;
+  const uint32_t index_;
+  const ObjectRef element_;
 };
 
 class InitialMapInstanceSizePredictionDependency final
@@ -620,11 +651,20 @@ void CompilationDependencies::DependOnElementsKind(
   DCHECK(!site.IsNeverSerializedHeapObject());
   // Do nothing if the object doesn't have any useful element transitions left.
   ElementsKind kind = site.PointsToLiteral()
-                          ? site.boilerplate().value().GetElementsKind()
+                          ? site.boilerplate().value().map().elements_kind()
                           : site.GetElementsKind();
   if (AllocationSite::ShouldTrack(kind)) {
     RecordDependency(zone_->New<ElementsKindDependency>(site, kind));
   }
+}
+
+void CompilationDependencies::DependOnOwnConstantElement(
+    const JSObjectRef& holder, uint32_t index, const ObjectRef& element) {
+  // Only valid if the holder can use direct reads, since validation uses
+  // GetOwnConstantElementFromHeap.
+  DCHECK(holder.should_access_heap() || broker_->is_concurrent_inlining());
+  RecordDependency(
+      zone_->New<OwnConstantElementDependency>(holder, index, element));
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {

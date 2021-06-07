@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/codegen/code-factory.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/protectors-inl.h"
@@ -101,7 +102,7 @@ class ObjectData : public ZoneObject {
                                    << " (" << Brief(*object) << ")");
 
     // It is safe to access read only heap objects and builtins from a
-    // background thread. When we read fileds of these objects, we may create
+    // background thread. When we read fields of these objects, we may create
     // ObjectData on the background thread even without a canonical handle
     // scope. This is safe too since we don't create handles but just get
     // handles from read only root table or builtins table which is what
@@ -3056,10 +3057,9 @@ void JSObjectRef::SerializeElements() {
   data()->AsJSObject()->SerializeElements(broker());
 }
 
-bool JSObjectRef::IsElementsTenured() {
-  if (data_->should_access_heap()) {
-    Handle<FixedArrayBase> object_elements = elements().value().object();
-    return !ObjectInYoungGeneration(*object_elements);
+bool JSObjectRef::IsElementsTenured(const FixedArrayBaseRef& elements) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return !ObjectInYoungGeneration(*elements.object());
   }
   return data()->AsJSObject()->cow_or_empty_elements_tenured();
 }
@@ -3870,65 +3870,74 @@ Maybe<double> ObjectRef::OddballToNumber() const {
   }
 }
 
+bool ObjectRef::should_access_heap() const {
+  return data()->should_access_heap();
+}
+
 base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
-    uint32_t index, SerializationPolicy policy) const {
+    const FixedArrayBaseRef& elements_ref, uint32_t index,
+    CompilationDependencies* dependencies, SerializationPolicy policy) const {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // `elements` are currently still serialized as members of JSObjectRef.
-    // TODO(jgruber,v8:7790): Once JSObject is no longer serialized, we must
-    // guarantee consistency between `object`, `elements_kind` and `elements`
-    // through other means (store/load order? locks? storing elements_kind in
-    // elements.map?).
-    STATIC_ASSERT(IsSerializedRef<JSObject>());
+    base::Optional<Object> maybe_element = GetOwnConstantElementFromHeap(
+        *elements_ref.object(), map().elements_kind(), index);
 
-    base::Optional<FixedArrayBaseRef> maybe_elements_ref = elements();
-    if (!maybe_elements_ref.has_value()) {
-      TRACE_BROKER_MISSING(broker(), "JSObject::elements" << *this);
-      return {};
+    if (!maybe_element.has_value()) return {};
+
+    base::Optional<ObjectRef> result =
+        TryMakeRef(broker(), maybe_element.value());
+    if (dependencies != nullptr && result.has_value()) {
+      dependencies->DependOnOwnConstantElement(*this, index, result.value());
     }
-
-    FixedArrayBaseRef elements_ref = maybe_elements_ref.value();
-    ElementsKind elements_kind = GetElementsKind();
-
-    DCHECK_LE(index, JSObject::kMaxElementIndex);
-
-    // See also ElementsAccessorBase::GetMaxIndex.
-    if (IsJSArray()) {
-      // For JSArrays we additionally need to check against JSArray::length.
-      // Length_unsafe is safe to use in this case since:
-      // - GetOwnConstantElement only detects a constant for JSArray holders if
-      //   the array is frozen/sealed.
-      // - Frozen/sealed arrays can't change length.
-      // - We've already seen a map with frozen/sealed elements_kinds (above);
-      // - The release-load of that map ensures we read the newest value
-      //   of `length` below.
-      uint32_t array_length;
-      if (!AsJSArray().length_unsafe().object()->ToArrayLength(&array_length)) {
-        return {};
-      }
-      if (index >= array_length) return {};
-    }
-
-    Object maybe_element;
-    auto result = ConcurrentLookupIterator::TryGetOwnConstantElement(
-        &maybe_element, broker()->isolate(), broker()->local_isolate(),
-        *object(), *elements_ref.object(), elements_kind, index);
-
-    if (result == ConcurrentLookupIterator::kGaveUp) {
-      TRACE_BROKER_MISSING(broker(), "JSObject::GetOwnConstantElement on "
-                                         << *this << " at index " << index);
-      return {};
-    } else if (result == ConcurrentLookupIterator::kNotPresent) {
-      return {};
-    }
-
-    DCHECK_EQ(result, ConcurrentLookupIterator::kPresent);
-    return MakeRef(broker(), maybe_element);
+    return result;
   } else {
     ObjectData* element =
         data()->AsJSObject()->GetOwnConstantElement(broker(), index, policy);
-    if (element == nullptr) return base::nullopt;
-    return ObjectRef(broker(), element);
+    return TryMakeRef<Object>(broker(), element);
   }
+}
+
+base::Optional<Object> JSObjectRef::GetOwnConstantElementFromHeap(
+    FixedArrayBase elements, ElementsKind elements_kind, uint32_t index) const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  DCHECK_LE(index, JSObject::kMaxElementIndex);
+
+  Handle<JSObject> holder = object();
+
+  // This block is carefully constructed to avoid Ref creation and access since
+  // this method may be called after the broker has retired.
+  // The relaxed `length` read is safe to use in this case since:
+  // - GetOwnConstantElement only detects a constant for JSArray holders if
+  //   the array is frozen/sealed.
+  // - Frozen/sealed arrays can't change length.
+  // - We've already seen a map with frozen/sealed elements_kinds (above);
+  // - The release-load of that map ensures we read the newest value
+  //   of `length` below.
+  if (holder->IsJSArray()) {
+    uint32_t array_length;
+    if (!JSArray::cast(*holder)
+             .length(broker()->isolate(), kRelaxedLoad)
+             .ToArrayLength(&array_length)) {
+      return {};
+    }
+    // See also ElementsAccessorBase::GetMaxIndex.
+    if (index >= array_length) return {};
+  }
+
+  Object maybe_element;
+  auto result = ConcurrentLookupIterator::TryGetOwnConstantElement(
+      &maybe_element, broker()->isolate(), broker()->local_isolate(), *holder,
+      elements, elements_kind, index);
+
+  if (result == ConcurrentLookupIterator::kGaveUp) {
+    TRACE_BROKER_MISSING(broker(), "JSObject::GetOwnConstantElement on "
+                                       << *this << " at index " << index);
+    return {};
+  } else if (result == ConcurrentLookupIterator::kNotPresent) {
+    return {};
+  }
+
+  DCHECK_EQ(result, ConcurrentLookupIterator::kPresent);
+  return maybe_element;
 }
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
@@ -3941,8 +3950,7 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
   }
   ObjectData* property = data()->AsJSObject()->GetOwnFastDataProperty(
       broker(), field_representation, index, policy);
-  if (property == nullptr) return base::nullopt;
-  return ObjectRef(broker(), property);
+  return TryMakeRef<Object>(broker(), property);
 }
 
 ObjectRef JSObjectRef::GetOwnDictionaryProperty(
@@ -3978,21 +3986,15 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
     FixedArrayBaseRef elements_ref, uint32_t index,
     SerializationPolicy policy) const {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // `elements` are currently still serialized as members of JSObjectRef.
-    // TODO(jgruber,v8:7790): Remove the elements equality DCHECK below once
-    // JSObject is no longer serialized.
-    static_assert(std::is_base_of<JSObject, JSArray>::value, "");
-    STATIC_ASSERT(IsSerializedRef<JSObject>());
-
-    // The elements_ref is passed in by callers to make explicit that it is
-    // also used outside of this function, and must match the `elements` used
-    // inside this function.
-    DCHECK(elements_ref.equals(elements().value()));
+    // Note: we'd like to check `elements_ref == elements()` here, but due to
+    // concurrency this may not hold. The code below must be able to deal with
+    // concurrent `elements` modifications.
 
     // Due to concurrency, the kind read here may not be consistent with
-    // `elements_ref`. But consistency is guaranteed at runtime due to the
-    // `elements` equality check in the caller.
-    ElementsKind elements_kind = GetElementsKind();
+    // `elements_ref`. The caller has to guarantee consistency at runtime by
+    // other means (e.g. through a runtime equality check or a compilation
+    // dependency).
+    ElementsKind elements_kind = map().elements_kind();
 
     // We only inspect fixed COW arrays, which may only occur for fast
     // smi/objects elements kinds.
@@ -4003,7 +4005,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
     // As the name says, the `length` read here is unsafe and may not match
     // `elements`. We rely on the invariant that any `length` change will
     // also result in an `elements` change to make this safe. The `elements`
-    // equality check in the caller thus also guards the value of `length`.
+    // consistency check in the caller thus also guards the value of `length`.
     ObjectRef length_ref = length_unsafe();
 
     // Likewise we only deal with smi lengths.
@@ -4015,7 +4017,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
             elements_kind, length_ref.AsSmi(), index);
     if (!result.has_value()) return {};
 
-    return MakeRef(broker(), result.value());
+    return TryMakeRef(broker(), result.value());
   } else {
     DCHECK(!data_->should_access_heap());
     DCHECK(!broker()->is_concurrent_inlining());
@@ -4024,7 +4026,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
     // GetOwnElement accesses the serialized `elements` field on its own.
     USE(elements_ref);
 
-    if (!elements().value().map().IsFixedCowArrayMap()) return base::nullopt;
+    if (!elements(kRelaxedLoad).value().map().IsFixedCowArrayMap()) return {};
 
     ObjectData* element =
         data()->AsJSArray()->GetOwnElement(broker(), index, policy);
@@ -4108,13 +4110,10 @@ base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
   }
 }
 
-ElementsKind JSObjectRef::GetElementsKind() const {
-  return map().elements_kind();
-}
-
-base::Optional<FixedArrayBaseRef> JSObjectRef::elements() const {
-  if (data_->should_access_heap()) {
-    return TryMakeRef(broker(), object()->elements());
+base::Optional<FixedArrayBaseRef> JSObjectRef::elements(
+    RelaxedLoadTag tag) const {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return TryMakeRef(broker(), object()->elements(tag));
   }
   const JSObjectData* d = data()->AsJSObject();
   if (!d->serialized_elements()) {
@@ -4569,8 +4568,7 @@ base::Optional<PropertyCellRef> JSGlobalObjectRef::GetPropertyCell(
   }
   ObjectData* property_cell_data = data()->AsJSGlobalObject()->GetPropertyCell(
       broker(), name.data(), policy);
-  if (property_cell_data == nullptr) return base::nullopt;
-  return PropertyCellRef(broker(), property_cell_data);
+  return TryMakeRef<PropertyCell>(broker(), property_cell_data);
 }
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {

@@ -322,8 +322,9 @@ class ConcurrentLookupIterator final : public AllStatic {
       Isolate* isolate, FixedArray array_elements, ElementsKind elements_kind,
       int array_length, size_t index);
 
-  // Unlike above, the contract is that holder, elements, and elements_kind are
-  // a consistent view of the world; and index must be a valid element index.
+  // As above, the contract is that the elements and elements kind should be
+  // read from the same holder, but this function is implemented defensively to
+  // tolerate concurrency issues.
   V8_EXPORT_PRIVATE static Result TryGetOwnConstantElement(
       Object* result_out, Isolate* isolate, LocalIsolate* local_isolate,
       JSObject holder, FixedArrayBase elements, ElementsKind elements_kind,

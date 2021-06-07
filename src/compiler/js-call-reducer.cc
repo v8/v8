@@ -4211,7 +4211,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
 
     // Speculate on that array's length being equal to the dynamic length of
     // arguments_list; generate a deopt check.
-    ElementsKind elements_kind = boilerplate_array->GetElementsKind();
+    ElementsKind elements_kind = array_map.elements_kind();
     effect = CheckArrayLength(arguments_list, elements_kind, array_length,
                               feedback_source, effect, control);
 

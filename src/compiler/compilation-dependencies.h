@@ -97,6 +97,9 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(const AllocationSiteRef& site);
 
+  void DependOnOwnConstantElement(const JSObjectRef& holder, uint32_t index,
+                                  const ObjectRef& element);
+
   // For each given map, depend on the stability of (the maps of) all prototypes
   // up to (and including) the {last_prototype}.
   template <class MapContainer>
