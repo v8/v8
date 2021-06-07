@@ -1116,7 +1116,8 @@ class Heap {
   void CompleteSweepingFull();
   void CompleteSweepingYoung(GarbageCollector collector);
 
-  void EnsureSweepingCompleted();
+  // Ensures that sweeping is finished for that object's page.
+  void EnsureSweepingCompleted(Handle<HeapObject> object);
 
   IncrementalMarking* incremental_marking() const {
     return incremental_marking_.get();

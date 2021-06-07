@@ -626,7 +626,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       // must ensure that the sweeper is not running or has already swept the
       // object's page. Otherwise the GC can add the contents of
       // mutable_double_buffer to the free list.
-      isolate()->heap()->EnsureSweepingCompleted();
+      isolate()->heap()->EnsureSweepingCompleted(mutable_double_buffer);
       mutable_double_buffer->set_length(0);
     }
   }

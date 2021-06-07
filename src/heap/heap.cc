@@ -2266,8 +2266,10 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
   array_buffer_sweeper()->EnsureFinished();
 }
 
-void Heap::EnsureSweepingCompleted() {
+void Heap::EnsureSweepingCompleted(Handle<HeapObject> object) {
+  // TODO(dinfuehr): Only sweep that object's page instead of whole heap.
   mark_compact_collector()->EnsureSweepingCompleted();
+  USE(object);
 }
 
 void Heap::UpdateCurrentEpoch(GarbageCollector collector) {
