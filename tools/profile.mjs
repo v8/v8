@@ -48,8 +48,9 @@ export class SourcePosition {
 }
 
 export class Script {
-  name;
+  url;
   source;
+  name;
   // Map<line, Map<column, SourcePosition>>
   lineToColumn = new Map();
   _entries = [];
@@ -1222,7 +1223,9 @@ JsonProfile.prototype.addSourcePositions = function (
 };
 
 JsonProfile.prototype.addScriptSource = function (id, url, source) {
-  this.scripts_[id] = new Script(id, url, source);
+  const script = new Script(id);
+  script.update(url, source);
+  this.scripts_[id] = script;
 };
 
 JsonProfile.prototype.deoptCode = function (
