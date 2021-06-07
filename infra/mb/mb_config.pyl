@@ -475,8 +475,7 @@
       'release_bot', 'x64', 'cfi_clusterfuzz'],
     'release_x64_fuzzilli': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
-      'v8_verify_heap', 'v8_verify_csa', 'v8_enable_verify_predictable',
-      'fuzzilli'],
+      'v8_verify_heap', 'v8_verify_csa', 'fuzzilli'],
     'release_x64_msvc': [
       'release_bot_no_goma', 'x64', 'minimal_symbols', 'msvc'],
     'release_x64_correctness_fuzzer' : [
