@@ -1228,6 +1228,9 @@
   'test-code-pages/OptimizedCodeWithCodeRange': [SKIP],
   'test-code-pages/Sorted': [SKIP],
   'test-code-pages/CodeRangeCorrectContents': [SKIP],
+  # Timeout (too many GCs)
+  'test-heap/Regress8014': [SKIP],
+  'test-accessors/HandleScopePop': [SKIP],
 }], # third_party_heap
 
 ################################################################################

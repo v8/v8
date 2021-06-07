@@ -1604,6 +1604,13 @@
   'wasm/shared-memory-worker-stress': [SKIP],
   'wasm/worker-memory': [SKIP],
   'wasm/worker-module': [SKIP],
+  # Timeout (too many GCs)
+  'wasm/many-memories-no-trap-handler': [SKIP],
+  'wasm/memory_2gb_oob': [SKIP],
+  'wasm/memory_1gb_oob': [SKIP],
+  'wasm/memory_4gb_oob': [SKIP],
+  'regress/regress-331444': [SKIP],
+  'regress/regress-708247': [SKIP],
   # Performs GC
   'code-coverage-precise': [SKIP],
   'compiler/monomorphic-named-load-with-no-map': [SKIP],

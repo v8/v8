@@ -218,6 +218,8 @@
 ################################################################################
 ['third_party_heap', {
   # Requires a second isolate
+  'debugger/wasm-side-effect-free-debug-evaluate': [SKIP],
+  'regress/regress-crbug-1081162': [SKIP],
   'regress/regress-crbug-1207867': [SKIP],
   'regress/regress-crbug-1197392': [SKIP],
   'debugger/command-line-api-with-arrow-function': [SKIP],
