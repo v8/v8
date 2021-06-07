@@ -671,6 +671,9 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
 
 }  // namespace
 
+// static
+constexpr uint64_t CompilationEnv::kMaxMemoryPagesAtRuntime;
+
 //////////////////////////////////////////////////////
 // PIMPL implementation of {CompilationState}.
 
