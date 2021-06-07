@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 import './timeline/timeline-track.mjs';
+import './timeline/timeline-track-map.mjs';
+import './timeline/timeline-track-tick.mjs';
 
 import {SynchronizeSelectionEvent} from './events.mjs';
 import {DOM, V8CustomElement} from './helper.mjs';
@@ -19,13 +21,19 @@ DOM.defineCustomElement(
       }
 
       set nofChunks(count) {
+        const time = this.currentTime
         for (const track of this.timelineTracks) {
           track.nofChunks = count;
+          track.currentTime = time;
         }
       }
 
       get nofChunks() {
         return this.timelineTracks[0].nofChunks;
+      }
+
+      get currentTime() {
+        return this.timelineTracks[0].currentTime;
       }
 
       get timelineTracks() {

@@ -9,17 +9,19 @@ import {ApiLogEntry} from './log/api.mjs';
 import {CodeLogEntry, DeoptLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
+import {TickLogEntry} from './log/tick.mjs';
 import {Timeline} from './timeline.mjs';
 
 // ===========================================================================
 
 export class Processor extends LogReader {
   _profile = new Profile();
-  _mapTimeline = new Timeline();
-  _icTimeline = new Timeline();
-  _deoptTimeline = new Timeline();
-  _codeTimeline = new Timeline();
   _apiTimeline = new Timeline();
+  _codeTimeline = new Timeline();
+  _deoptTimeline = new Timeline();
+  _icTimeline = new Timeline();
+  _mapTimeline = new Timeline();
+  _tickTimeline = new Timeline();
   _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   _lastTimestamp = 0;
   _lastCodeLogEntry;
@@ -275,8 +277,8 @@ export class Processor extends LogReader {
   }
 
   processTick(
-      pc, ns_since_start, is_external_callback, tos_or_external_callback,
-      vmState, stack) {
+      pc, time_ns, is_external_callback, tos_or_external_callback, vmState,
+      stack) {
     if (is_external_callback) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
@@ -292,9 +294,10 @@ export class Processor extends LogReader {
         tos_or_external_callback = 0;
       }
     }
-    this._profile.recordTick(
-        ns_since_start, vmState,
+    const entryStack = this._profile.recordTick(
+        time_ns, vmState,
         this.processStack(pc, tos_or_external_callback, stack));
+    this._tickTimeline.push(new TickLogEntry(time_ns, vmState, entryStack))
   }
 
   processCodeSourceInfo(
@@ -474,6 +477,10 @@ export class Processor extends LogReader {
 
   get apiTimeline() {
     return this._apiTimeline;
+  }
+
+  get tickTimeline() {
+    return this._tickTimeline;
   }
 
   get scripts() {

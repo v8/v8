@@ -20,18 +20,7 @@
   --violet: #d26edc;
   --border-color-rgb: 128, 128, 128;
   --border-color: rgba(var(--border-color-rgb), 0.2);
-}
-
-body {
-  font-family: sans-serif;
-  font-size: 14px;
-  color: var(--on-background-color);
-  margin: 10px 10px 0 10px;
-  background-color: var(--background-color);
-}
-
-section {
-  margin-bottom: 10px;
+  scrollbar-color:  rgba(128, 128, 128, 0.5)  rgba(0, 0, 0, 0.0);
 }
 
 ::-webkit-scrollbar, ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner {
@@ -48,6 +37,18 @@ section {
 }
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(128, 128, 128, 0.8);
+}
+
+body {
+  font-family: sans-serif;
+  font-size: 14px;
+  color: var(--on-background-color);
+  margin: 10px 10px 0 10px;
+  background-color: var(--background-color);
+}
+
+section {
+  margin-bottom: 10px;
 }
 
 kbd {

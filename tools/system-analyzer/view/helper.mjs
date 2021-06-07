@@ -125,11 +125,24 @@ export class CSSColor {
 export class DOM {
   static element(type, classes) {
     const node = document.createElement(type);
-    if (classes === undefined) return node;
+    if (classes !== undefined) {
+      if (typeof classes === 'string') {
+        node.className = classes;
+      } else {
+        DOM.addClasses(node, classes);
+      }
+    }
+    return node;
+  }
+
+  static addClasses(node, classes) {
+    const classList = node.classList;
     if (typeof classes === 'string') {
-      node.className = classes;
+      classList.add(classes);
     } else {
-      classes.forEach(cls => node.classList.add(cls));
+      for (let i = 0; i < classes.length; i++) {
+        classList.add(classes[i]);
+      }
     }
     return node;
   }
@@ -182,14 +195,44 @@ export class DOM {
     range.deleteContents();
   }
 
-  static defineCustomElement(path, generator) {
-    let name = path.substring(path.lastIndexOf('/') + 1, path.length);
+  static defineCustomElement(
+      path, nameOrGenerator, maybeGenerator = undefined) {
+    let generator = nameOrGenerator;
+    let name = nameOrGenerator;
+    if (typeof nameOrGenerator == 'function') {
+      console.assert(maybeGenerator === undefined);
+      name = path.substring(path.lastIndexOf('/') + 1, path.length);
+    } else {
+      console.assert(typeof nameOrGenerator == 'string');
+      generator = maybeGenerator;
+    }
     path = path + '-template.html';
     fetch(path)
         .then(stream => stream.text())
         .then(
             templateText =>
                 customElements.define(name, generator(templateText)));
+  }
+}
+
+const SVGNamespace = 'http://www.w3.org/2000/svg';
+export class SVG {
+  static element(type, classes) {
+    const node = document.createElementNS(SVGNamespace, type);
+    if (classes !== undefined) DOM.addClasses(node, classes);
+    return node;
+  }
+
+  static svg() {
+    return this.element('svg');
+  }
+
+  static rect(classes) {
+    return this.element('rect', classes);
+  }
+
+  static g() {
+    return this.element('g');
   }
 }
 
@@ -394,7 +437,7 @@ export function gradientStopsFromGroups(
   for (let group of groups) {
     const color = colorFn(group.key);
     increment += group.count;
-    let height = (increment / totalLength * kMaxHeight) | 0;
+    const height = (increment / totalLength * kMaxHeight) | 0;
     stops.push(`${color} ${lastHeight}${kUnit} ${height}${kUnit}`)
     lastHeight = height;
   }

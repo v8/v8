@@ -50,10 +50,11 @@ DOM.defineCustomElement(
       set targetNode(targetNode) {
         this._intersectionObserver.disconnect();
         this._targetNode = targetNode;
-        if (targetNode) {
+        if (targetNode === undefined) return;
+        if (!(targetNode instanceof SVGElement)) {
           this._intersectionObserver.observe(targetNode);
-          this.requestUpdate(true);
         }
+        this.requestUpdate(true);
       }
 
       set position(position) {

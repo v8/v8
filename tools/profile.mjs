@@ -159,14 +159,6 @@ class SourceInfo {
   }
 }
 
-class Tick {
-  constructor(time_ns, vmState, processedStack) {
-    this.time = time_ns;
-    this.state = vmState;
-    this.stack = processedStack;
-  }
-}
-
 /**
  * Creates a profile object for processing profiling-related events
  * and calculating function execution times.
@@ -178,7 +170,6 @@ export class Profile {
   topDownTree_ = new CallTree();
   bottomUpTree_ = new CallTree();
   c_entries_ = {};
-  ticks_ = [];
   scripts_ = [];
   urlToScript_ = new Map();
 
@@ -491,7 +482,7 @@ export class Profile {
     this.bottomUpTree_.addPath(nameStack);
     nameStack.reverse();
     this.topDownTree_.addPath(nameStack);
-    this.ticks_.push(new Tick(time_ns, vmState, entryStack));
+    return entryStack;
   }
 
   /**

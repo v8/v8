@@ -120,8 +120,7 @@ class Timeline {
   }
 
   duration() {
-    if (this.isEmpty()) return 0;
-    return this.last().time - this.first().time;
+    return this.endTime - this.startTime;
   }
 
   forEachChunkSize(count, fn) {
@@ -240,7 +239,7 @@ class Chunk {
   yOffset(event) {
     // items[0]   == oldest event, displayed at the top of the chunk
     // items[n-1] == youngest event, displayed at the bottom of the chunk
-    return (1 - (this.indexOf(event) + 0.5) / this.size()) * this.height;
+    return ((this.indexOf(event) + 0.5) / this.size()) * this.height;
   }
 
   indexOf(event) {
