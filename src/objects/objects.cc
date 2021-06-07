@@ -2655,6 +2655,8 @@ Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
     if (found) return result;
   }
 
+  // TODO(ishell): refactor this: both SetProperty and and SetSuperProperty have
+  // this piece of code.
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to
   // throw a reference error in strict mode.  In sloppy mode, we continue.
@@ -2760,6 +2762,25 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
       case LookupIterator::TRANSITION:
         UNREACHABLE();
     }
+  }
+
+  // TODO(ishell): refactor this: both SetProperty and and SetSuperProperty have
+  // this piece of code.
+  // If the receiver is the JSGlobalObject, the store was contextual. In case
+  // the property did not exist yet on the global object itself, we have to
+  // throw a reference error in strict mode.  In sloppy mode, we continue.
+  if (receiver->IsJSGlobalObject() &&
+      (GetShouldThrow(isolate, should_throw) == ShouldThrow::kThrowOnError)) {
+    if (own_lookup.state() == LookupIterator::TRANSITION) {
+      // The property cell that we have created is garbage because we are going
+      // to throw now instead of putting it into the global dictionary. However,
+      // the cell might already have been stored into the feedback vector, so
+      // we must invalidate it nevertheless.
+      own_lookup.transition_cell()->ClearAndInvalidate(ReadOnlyRoots(isolate));
+    }
+    isolate->Throw(*isolate->factory()->NewReferenceError(
+        MessageTemplate::kNotDefined, own_lookup.GetName()));
+    return Nothing<bool>();
   }
 
   return AddDataProperty(&own_lookup, value, NONE, should_throw, store_origin);
