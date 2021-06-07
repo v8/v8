@@ -462,7 +462,7 @@ class AsyncStreamingDecoder::DecodeFunctionLength : public DecodeVarInt32 {
   explicit DecodeFunctionLength(SectionBuffer* section_buffer,
                                 size_t buffer_offset,
                                 size_t num_remaining_functions)
-      : DecodeVarInt32(kV8MaxWasmFunctionSize, "body size"),
+      : DecodeVarInt32(kV8MaxWasmFunctionSize, "function body size"),
         section_buffer_(section_buffer),
         buffer_offset_(buffer_offset),
         // We are reading a new function, so one function less is remaining.
@@ -549,8 +549,8 @@ AsyncStreamingDecoder::DecodeVarInt32::Next(AsyncStreamingDecoder* streaming) {
 
   if (value_ > max_value_) {
     std::ostringstream oss;
-    oss << "function size > maximum function size: " << value_ << " < "
-        << max_value_;
+    oss << "The value " << value_ << " for " << field_name_
+        << " exceeds the maximum allowed value of " << max_value_;
     return streaming->Error(oss.str());
   }
 
