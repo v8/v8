@@ -81,9 +81,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
 INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
   "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*"]
                + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-  "predictable": ["--liftoff", "--parallel-compile-tasks",
+  "predictable": ["--parallel-compile-tasks",
                   "--concurrent-recompilation",
-                  "--wasm-num-compilation-tasks=*",
                   "--stress-concurrent-allocation"],
 }
 
