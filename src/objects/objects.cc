@@ -3216,19 +3216,6 @@ MaybeHandle<JSProxy> JSProxy::New(Isolate* isolate, Handle<Object> target,
                                         Handle<JSReceiver>::cast(handler));
 }
 
-// static
-MaybeHandle<NativeContext> JSProxy::GetFunctionRealm(Handle<JSProxy> proxy) {
-  DCHECK(proxy->map().is_constructor());
-  if (proxy->IsRevoked()) {
-    THROW_NEW_ERROR(proxy->GetIsolate(),
-                    NewTypeError(MessageTemplate::kProxyRevoked),
-                    NativeContext);
-  }
-  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()),
-                            proxy->GetIsolate());
-  return JSReceiver::GetFunctionRealm(target);
-}
-
 Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
   PropertyDescriptor desc;
   Maybe<bool> found = JSProxy::GetOwnPropertyDescriptor(

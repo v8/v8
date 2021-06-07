@@ -304,8 +304,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
       Handle<AllocationSite> site);
 
-  static MaybeHandle<NativeContext> GetFunctionRealm(Handle<JSObject> object);
-
   // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(

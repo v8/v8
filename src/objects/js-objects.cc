@@ -567,20 +567,37 @@ MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
 // static
 MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
     Handle<JSReceiver> receiver) {
-  if (receiver->IsJSProxy()) {
-    return JSProxy::GetFunctionRealm(Handle<JSProxy>::cast(receiver));
-  }
-
-  if (receiver->IsJSFunction()) {
-    return JSFunction::GetFunctionRealm(Handle<JSFunction>::cast(receiver));
-  }
-
-  if (receiver->IsJSBoundFunction()) {
-    return JSBoundFunction::GetFunctionRealm(
-        Handle<JSBoundFunction>::cast(receiver));
-  }
-
-  return JSObject::GetFunctionRealm(Handle<JSObject>::cast(receiver));
+  Isolate* isolate = receiver->GetIsolate();
+  // This is implemented as a loop because it's possible to construct very
+  // long chains of bound functions or proxies where a recursive implementation
+  // would run out of stack space.
+  DisallowGarbageCollection no_gc;
+  JSReceiver current = *receiver;
+  do {
+    DCHECK(current.map().is_constructor());
+    if (current.IsJSProxy()) {
+      JSProxy proxy = JSProxy::cast(current);
+      if (proxy.IsRevoked()) {
+        AllowGarbageCollection allow_allocating_errors;
+        THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyRevoked),
+                        NativeContext);
+      }
+      current = JSReceiver::cast(proxy.target());
+      continue;
+    }
+    if (current.IsJSFunction()) {
+      JSFunction function = JSFunction::cast(current);
+      return handle(function.context().native_context(), isolate);
+    }
+    if (current.IsJSBoundFunction()) {
+      JSBoundFunction function = JSBoundFunction::cast(current);
+      current = function.bound_target_function();
+      continue;
+    }
+    JSObject object = JSObject::cast(current);
+    DCHECK(!object.IsJSFunction());
+    return object.GetCreationContext();
+  } while (true);
 }
 
 // static
@@ -3137,13 +3154,6 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
                                                ElementsKind to_kind) {
   Handle<Map> map(object->map(), object->GetIsolate());
   return Map::TransitionElementsTo(object->GetIsolate(), map, to_kind);
-}
-
-// static
-MaybeHandle<NativeContext> JSObject::GetFunctionRealm(Handle<JSObject> object) {
-  DCHECK(object->map().is_constructor());
-  DCHECK(!object->IsJSFunction());
-  return object->GetCreationContext();
 }
 
 void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {

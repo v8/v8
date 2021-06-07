@@ -37,8 +37,6 @@ class JSBoundFunction
                                      Handle<JSBoundFunction> function);
   static Maybe<int> GetLength(Isolate* isolate,
                               Handle<JSBoundFunction> function);
-  static MaybeHandle<NativeContext> GetFunctionRealm(
-      Handle<JSBoundFunction> function);
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -77,7 +75,6 @@ class JSFunction : public JSFunctionOrBoundFunction {
   inline int length();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
-  static Handle<NativeContext> GetFunctionRealm(Handle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See
