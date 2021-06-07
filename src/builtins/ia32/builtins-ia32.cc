@@ -798,8 +798,8 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   DCHECK(!AreAliased(edx, edi, optimized_code_entry));
 
   Register closure = edi;
-  __ movd(xmm0, eax);
-  __ movd(xmm1, edx);
+  __ Push(eax);
+  __ Push(edx);
 
   Label heal_optimized_code_slot;
 
@@ -821,16 +821,16 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       eax);
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   __ LoadCodeObjectEntry(ecx, optimized_code_entry);
-  __ movd(edx, xmm1);
-  __ movd(eax, xmm0);
+  __ Pop(edx);
+  __ Pop(eax);
   __ jmp(ecx);
 
   // Optimized code slot contains deoptimized code or code is cleared and
   // optimized code marker isn't updated. Evict the code, update the marker
   // and re-enter the closure's code.
   __ bind(&heal_optimized_code_slot);
-  __ movd(edx, xmm1);
-  __ movd(eax, xmm0);
+  __ Pop(edx);
+  __ Pop(eax);
   GenerateTailCallToReturnedCode(masm, Runtime::kHealOptimizedCodeSlot);
 }
 
@@ -1256,9 +1256,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ mov(ecx, FieldOperand(ecx, BaselineData::kBaselineCodeOffset));
     static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
     __ push(edx);  // Spill.
+    __ Push(xmm0, eax);  // Save the argument count (currently in xmm0).
     ReplaceClosureCodeWithOptimizedCode(masm, ecx, closure, eax, edx);
+    __ pop(eax);  // Restore the argument count.
     __ pop(edx);
-    __ movd(eax, xmm0);  // Recover argument count.
     __ JumpCodeObject(ecx);
 
     __ bind(&install_baseline_code);
