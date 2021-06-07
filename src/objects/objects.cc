@@ -2645,6 +2645,34 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
   return Nothing<bool>();
 }
 
+namespace {
+
+// If the receiver is the JSGlobalObject, the store was contextual. In case
+// the property did not exist yet on the global object itself, we have to
+// throw a reference error in strict mode.  In sloppy mode, we continue.
+// Returns false if the exception was thrown, otherwise true.
+bool CheckContextualStoreToJSGlobalObject(LookupIterator* it,
+                                          Maybe<ShouldThrow> should_throw) {
+  Isolate* isolate = it->isolate();
+
+  if (it->GetReceiver()->IsJSGlobalObject(isolate) &&
+      (GetShouldThrow(isolate, should_throw) == ShouldThrow::kThrowOnError)) {
+    if (it->state() == LookupIterator::TRANSITION) {
+      // The property cell that we have created is garbage because we are going
+      // to throw now instead of putting it into the global dictionary. However,
+      // the cell might already have been stored into the feedback vector, so
+      // we must invalidate it nevertheless.
+      it->transition_cell()->ClearAndInvalidate(ReadOnlyRoots(isolate));
+    }
+    isolate->Throw(*isolate->factory()->NewReferenceError(
+        MessageTemplate::kNotDefined, it->GetName()));
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 StoreOrigin store_origin,
                                 Maybe<ShouldThrow> should_throw) {
@@ -2655,26 +2683,9 @@ Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
     if (found) return result;
   }
 
-  // TODO(ishell): refactor this: both SetProperty and and SetSuperProperty have
-  // this piece of code.
-  // If the receiver is the JSGlobalObject, the store was contextual. In case
-  // the property did not exist yet on the global object itself, we have to
-  // throw a reference error in strict mode.  In sloppy mode, we continue.
-  if (it->GetReceiver()->IsJSGlobalObject() &&
-      (GetShouldThrow(it->isolate(), should_throw) ==
-       ShouldThrow::kThrowOnError)) {
-    if (it->state() == LookupIterator::TRANSITION) {
-      // The property cell that we have created is garbage because we are going
-      // to throw now instead of putting it into the global dictionary. However,
-      // the cell might already have been stored into the feedback vector, so
-      // we must invalidate it nevertheless.
-      it->transition_cell()->ClearAndInvalidate(ReadOnlyRoots(it->isolate()));
-    }
-    it->isolate()->Throw(*it->isolate()->factory()->NewReferenceError(
-        MessageTemplate::kNotDefined, it->GetName()));
+  if (!CheckContextualStoreToJSGlobalObject(it, should_throw)) {
     return Nothing<bool>();
   }
-
   return AddDataProperty(it, value, NONE, should_throw, store_origin);
 }
 
@@ -2764,25 +2775,9 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
     }
   }
 
-  // TODO(ishell): refactor this: both SetProperty and and SetSuperProperty have
-  // this piece of code.
-  // If the receiver is the JSGlobalObject, the store was contextual. In case
-  // the property did not exist yet on the global object itself, we have to
-  // throw a reference error in strict mode.  In sloppy mode, we continue.
-  if (receiver->IsJSGlobalObject() &&
-      (GetShouldThrow(isolate, should_throw) == ShouldThrow::kThrowOnError)) {
-    if (own_lookup.state() == LookupIterator::TRANSITION) {
-      // The property cell that we have created is garbage because we are going
-      // to throw now instead of putting it into the global dictionary. However,
-      // the cell might already have been stored into the feedback vector, so
-      // we must invalidate it nevertheless.
-      own_lookup.transition_cell()->ClearAndInvalidate(ReadOnlyRoots(isolate));
-    }
-    isolate->Throw(*isolate->factory()->NewReferenceError(
-        MessageTemplate::kNotDefined, own_lookup.GetName()));
+  if (!CheckContextualStoreToJSGlobalObject(&own_lookup, should_throw)) {
     return Nothing<bool>();
   }
-
   return AddDataProperty(&own_lookup, value, NONE, should_throw, store_origin);
 }
 
