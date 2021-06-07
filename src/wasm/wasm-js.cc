@@ -1885,7 +1885,7 @@ void WebAssemblyGlobalSetValue(
     thrower.TypeError("Can't set the value of an immutable global.");
     return;
   }
-  if (args[0]->IsUndefined()) {
+  if (args.Length() == 0) {
     thrower.TypeError("Argument 0 is required");
     return;
   }

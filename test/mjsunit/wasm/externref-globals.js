@@ -249,7 +249,7 @@ function dummy_func() {
   }
 
   TestGlobal(null);
-  assertThrows(() => TestGlobal(undefined), TypeError);
+  TestGlobal(undefined);
   TestGlobal(1663);
   TestGlobal("testmyglobal");
   TestGlobal({ a: 11 });
