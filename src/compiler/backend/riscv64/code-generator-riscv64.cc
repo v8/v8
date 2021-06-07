@@ -606,7 +606,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsImmediate()) {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
-        Register reg = i.InputOrZeroRegister(0);
+        Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
@@ -618,7 +618,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
-      Register builtin_index = i.InputOrZeroRegister(0);
+      Register builtin_index = i.InputRegister(0);
       __ CallBuiltinByIndex(builtin_index);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -1882,7 +1882,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvStoreCompressTagged: {
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
-      __ StoreTaggedField(i.InputRegister(index), operand);
+      __ StoreTaggedField(i.InputOrZeroRegister(index), operand);
       break;
     }
     case kRiscvLoadDecompressTaggedSigned: {
