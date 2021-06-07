@@ -88,30 +88,30 @@ const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
 
 }  // namespace
 
-BytecodeOffset Builtins::GetContinuationBytecodeOffset(Name name) {
-  DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC ||
-         Builtins::KindOf(name) == TFS);
-  return BytecodeOffset(BytecodeOffset::kFirstBuiltinContinuationId + name);
+BytecodeOffset Builtins::GetContinuationBytecodeOffset(Builtin builtin) {
+  DCHECK(Builtins::KindOf(builtin) == TFJ || Builtins::KindOf(builtin) == TFC ||
+         Builtins::KindOf(builtin) == TFS);
+  return BytecodeOffset(BytecodeOffset::kFirstBuiltinContinuationId + builtin);
 }
 
-Builtins::Name Builtins::GetBuiltinFromBytecodeOffset(BytecodeOffset id) {
+Builtin Builtins::GetBuiltinFromBytecodeOffset(BytecodeOffset id) {
   int builtin_index = id.ToInt() - BytecodeOffset::kFirstBuiltinContinuationId;
   DCHECK(Builtins::KindOf(builtin_index) == TFJ ||
          Builtins::KindOf(builtin_index) == TFC ||
          Builtins::KindOf(builtin_index) == TFS);
-  return static_cast<Name>(builtin_index);
+  return static_cast<Builtin>(builtin_index);
 }
 
 void Builtins::TearDown() { initialized_ = false; }
 
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
-  Builtins::Name builtin = InstructionStream::TryLookupCode(isolate_, pc);
+  Builtin builtin = InstructionStream::TryLookupCode(isolate_, pc);
   if (Builtins::IsBuiltinId(builtin)) return name(builtin);
 
   // May be called during initialization (disassembler).
   if (initialized_) {
-    for (int i = 0; i < builtin_count; i++) {
+    for (int i = 0; i < kBuiltinCount; i++) {
       if (isolate_->heap()->builtin(i).contains(isolate_, pc)) return name(i);
     }
   }
@@ -177,19 +177,19 @@ Handle<Code> Builtins::builtin_handle(int index) {
 }
 
 // static
-int Builtins::GetStackParameterCount(Name name) {
-  DCHECK(Builtins::KindOf(name) == TFJ);
-  return builtin_metadata[name].data.parameter_count;
+int Builtins::GetStackParameterCount(Builtin builtin) {
+  DCHECK(Builtins::KindOf(builtin) == TFJ);
+  return builtin_metadata[static_cast<int>(builtin)].data.parameter_count;
 }
 
 // static
-CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Name name) {
+CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
   CallDescriptors::Key key;
-  switch (name) {
+  switch (builtin) {
 // This macro is deliberately crafted so as to emit very little code,
 // in order to keep binary size of this function under control.
 #define CASE_OTHER(Name, ...)                          \
-  case k##Name: {                                      \
+  case Builtin::k##Name: {                             \
     key = Builtin_##Name##_InterfaceDescriptor::key(); \
     break;                                             \
   }
@@ -197,7 +197,7 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Name name) {
                  CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
 #undef CASE_OTHER
     default:
-      Builtins::Kind kind = Builtins::KindOf(name);
+      Builtins::Kind kind = Builtins::KindOf(builtin);
       DCHECK_NE(BCH, kind);
       if (kind == TFJ || kind == CPP) {
         return JSTrampolineDescriptor{};
@@ -208,16 +208,16 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Name name) {
 }
 
 // static
-Callable Builtins::CallableFor(Isolate* isolate, Name name) {
-  Handle<Code> code = isolate->builtins()->builtin_handle(name);
-  return Callable{code, CallInterfaceDescriptorFor(name)};
+Callable Builtins::CallableFor(Isolate* isolate, Builtin builtin) {
+  Handle<Code> code = isolate->builtins()->builtin_handle(builtin);
+  return Callable{code, CallInterfaceDescriptorFor(builtin)};
 }
 
 // static
 bool Builtins::HasJSLinkage(int builtin_index) {
-  Name name = static_cast<Name>(builtin_index);
-  DCHECK_NE(BCH, Builtins::KindOf(name));
-  return CallInterfaceDescriptorFor(name) == JSTrampolineDescriptor{};
+  Builtin index = static_cast<Builtin>(builtin_index);
+  DCHECK_NE(BCH, Builtins::KindOf(index));
+  return CallInterfaceDescriptorFor(index) == JSTrampolineDescriptor{};
 }
 
 // static
@@ -229,7 +229,7 @@ const char* Builtins::name(int index) {
 void Builtins::PrintBuiltinCode() {
   DCHECK(FLAG_print_builtin_code);
 #ifdef ENABLE_DISASSEMBLER
-  for (int i = 0; i < builtin_count; i++) {
+  for (int i = 0; i < kBuiltinCount; i++) {
     const char* builtin_name = name(i);
     Handle<Code> code = builtin_handle(i);
     if (PassesFilter(CStrVector(builtin_name),
@@ -245,7 +245,7 @@ void Builtins::PrintBuiltinCode() {
 
 void Builtins::PrintBuiltinSize() {
   DCHECK(FLAG_print_builtin_size);
-  for (int i = 0; i < builtin_count; i++) {
+  for (int i = 0; i < kBuiltinCount; i++) {
     const char* builtin_name = name(i);
     const char* kind = KindNameOf(i);
     Code code = builtin(i);
@@ -270,7 +270,7 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
   Heap* heap = isolate_->heap();
   Address handle_location = maybe_code.address();
   Address start = heap->builtin_address(0);
-  Address end = heap->builtin_address(Builtins::builtin_count);
+  Address end = heap->builtin_address(Builtins::kBuiltinCount);
   if (handle_location >= end) return false;
   if (handle_location < start) return false;
   *index = static_cast<int>(handle_location - start) >> kSystemPointerSizeLog2;
@@ -289,7 +289,7 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
 void Builtins::InitializeBuiltinEntryTable(Isolate* isolate) {
   EmbeddedData d = EmbeddedData::FromBlob(isolate);
   Address* builtin_entry_table = isolate->builtin_entry_table();
-  for (int i = 0; i < builtin_count; i++) {
+  for (int i = 0; i < kBuiltinCount; i++) {
     // TODO(jgruber,chromium:1020986): Remove the CHECK once the linked issue is
     // resolved.
     CHECK(Builtins::IsBuiltinId(isolate->heap()->builtin(i).builtin_index()));
@@ -314,8 +314,8 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
                                      Builtins::name(i)));
   }
 
-  STATIC_ASSERT(kLastBytecodeHandlerPlusOne == builtin_count);
-  for (; i < builtin_count; i++) {
+  STATIC_ASSERT(kLastBytecodeHandlerPlusOne == kBuiltinCount);
+  for (; i < kBuiltinCount; i++) {
     Handle<AbstractCode> code(AbstractCode::cast(Object(builtins[i])), isolate);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
@@ -408,6 +408,10 @@ Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
   return reloc_info;
 }
 
+Builtins::Kind Builtins::KindOf(Builtin builtin) {
+  return KindOf(static_cast<int>(builtin));
+}
+
 // static
 Builtins::Kind Builtins::KindOf(int index) {
   DCHECK(IsBuiltinId(index));
@@ -473,25 +477,25 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
   // currently cause problems if they're not executable. This list should be
   // pared down as much as possible.
   switch (builtin_index) {
-    case Builtins::kInterpreterEntryTrampoline:
-    case Builtins::kCompileLazy:
-    case Builtins::kCompileLazyDeoptimizedCode:
-    case Builtins::kCallFunction_ReceiverIsNullOrUndefined:
-    case Builtins::kCallFunction_ReceiverIsNotNullOrUndefined:
-    case Builtins::kCallFunction_ReceiverIsAny:
-    case Builtins::kCallBoundFunction:
-    case Builtins::kCall_ReceiverIsNullOrUndefined:
-    case Builtins::kCall_ReceiverIsNotNullOrUndefined:
-    case Builtins::kCall_ReceiverIsAny:
-    case Builtins::kHandleApiCall:
-    case Builtins::kInstantiateAsmJs:
+    case Builtin::kInterpreterEntryTrampoline:
+    case Builtin::kCompileLazy:
+    case Builtin::kCompileLazyDeoptimizedCode:
+    case Builtin::kCallFunction_ReceiverIsNullOrUndefined:
+    case Builtin::kCallFunction_ReceiverIsNotNullOrUndefined:
+    case Builtin::kCallFunction_ReceiverIsAny:
+    case Builtin::kCallBoundFunction:
+    case Builtin::kCall_ReceiverIsNullOrUndefined:
+    case Builtin::kCall_ReceiverIsNotNullOrUndefined:
+    case Builtin::kCall_ReceiverIsAny:
+    case Builtin::kHandleApiCall:
+    case Builtin::kInstantiateAsmJs:
 #if V8_ENABLE_WEBASSEMBLY
-    case Builtins::kGenericJSToWasmWrapper:
+    case Builtin::kGenericJSToWasmWrapper:
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined
     // or are converted to use kCallBuiltinPointer.
-    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
       return true;
     default:
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
@@ -505,12 +509,12 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
   }
 }
 
-Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(
+Builtin ExampleBuiltinForTorqueFunctionPointerType(
     size_t function_pointer_type_id) {
   switch (function_pointer_type_id) {
 #define FUNCTION_POINTER_ID_CASE(id, name) \
   case id:                                 \
-    return Builtins::k##name;
+    return Builtin::k##name;
     TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(FUNCTION_POINTER_ID_CASE)
 #undef FUNCTION_POINTER_ID_CASE
     default:

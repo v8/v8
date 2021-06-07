@@ -998,12 +998,12 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
-  STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
+  STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::kBuiltinCount);
 
   Address addr = rinfo->target_off_heap_target();
   CHECK_NE(kNullAddress, addr);
 
-  Builtins::Name builtin = InstructionStream::TryLookupCode(isolate(), addr);
+  Builtin builtin = InstructionStream::TryLookupCode(isolate(), addr);
   CHECK(Builtins::IsBuiltinId(builtin));
   CHECK(Builtins::IsIsolateIndependent(builtin));
 

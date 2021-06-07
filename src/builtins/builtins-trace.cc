@@ -123,7 +123,7 @@ BUILTIN(IsTraceCategoryEnabled) {
   return isolate->heap()->ToBoolean(enabled);
 }
 
-// Builtins::kTrace(phase, category, name, id, data) : bool
+// Builtin::kTrace(phase, category, name, id, data) : bool
 BUILTIN(Trace) {
   HandleScope handle_scope(isolate);
 

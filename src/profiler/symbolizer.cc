@@ -96,8 +96,8 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
         src_line_not_found = false;
         stack_trace.push_back({pc_entry, src_line});
 
-        if (pc_entry->builtin_id() == Builtins::kFunctionPrototypeApply ||
-            pc_entry->builtin_id() == Builtins::kFunctionPrototypeCall) {
+        if (pc_entry->builtin_id() == Builtin::kFunctionPrototypeApply ||
+            pc_entry->builtin_id() == Builtin::kFunctionPrototypeCall) {
           // When current function is either the Function.prototype.apply or the
           // Function.prototype.call builtin the top frame is either frame of
           // the calling JS function or internal frame.

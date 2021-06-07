@@ -632,25 +632,25 @@ void Deoptimizer::DeleteFrameDescriptions() {
 #endif  // DEBUG
 }
 
-Builtins::Name Deoptimizer::GetDeoptWithResumeBuiltin(DeoptimizeReason reason) {
+Builtin Deoptimizer::GetDeoptWithResumeBuiltin(DeoptimizeReason reason) {
   switch (reason) {
     case DeoptimizeReason::kDynamicCheckMaps:
-      return Builtins::kDynamicCheckMapsTrampoline;
+      return Builtin::kDynamicCheckMapsTrampoline;
     default:
       UNREACHABLE();
   }
 }
 
-Builtins::Name Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
+Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
-      return Builtins::kDeoptimizationEntry_Eager;
+      return Builtin::kDeoptimizationEntry_Eager;
     case DeoptimizeKind::kSoft:
-      return Builtins::kDeoptimizationEntry_Soft;
+      return Builtin::kDeoptimizationEntry_Soft;
     case DeoptimizeKind::kBailout:
-      return Builtins::kDeoptimizationEntry_Bailout;
+      return Builtin::kDeoptimizationEntry_Bailout;
     case DeoptimizeKind::kLazy:
-      return Builtins::kDeoptimizationEntry_Lazy;
+      return Builtin::kDeoptimizationEntry_Lazy;
     case DeoptimizeKind::kEagerWithResume:
       // EagerWithResume deopts will call a special builtin (specified by
       // GetDeoptWithResumeBuiltin) which will itself select the deoptimization
@@ -661,20 +661,20 @@ Builtins::Name Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
 
 bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
                                         DeoptimizeKind* type_out) {
-  Builtins::Name builtin = InstructionStream::TryLookupCode(isolate, addr);
+  Builtin builtin = InstructionStream::TryLookupCode(isolate, addr);
   if (!Builtins::IsBuiltinId(builtin)) return false;
 
   switch (builtin) {
-    case Builtins::kDeoptimizationEntry_Eager:
+    case Builtin::kDeoptimizationEntry_Eager:
       *type_out = DeoptimizeKind::kEager;
       return true;
-    case Builtins::kDeoptimizationEntry_Soft:
+    case Builtin::kDeoptimizationEntry_Soft:
       *type_out = DeoptimizeKind::kSoft;
       return true;
-    case Builtins::kDeoptimizationEntry_Bailout:
+    case Builtin::kDeoptimizationEntry_Bailout:
       *type_out = DeoptimizeKind::kBailout;
       return true;
-    case Builtins::kDeoptimizationEntry_Lazy:
+    case Builtin::kDeoptimizationEntry_Lazy:
       *type_out = DeoptimizeKind::kLazy;
       return true;
     default:
@@ -991,13 +991,13 @@ void Deoptimizer::DoComputeOutputFrames() {
 namespace {
 
 // Get the dispatch builtin for unoptimized frames.
-Builtins::Name DispatchBuiltinFor(bool is_baseline, bool advance_bc) {
+Builtin DispatchBuiltinFor(bool is_baseline, bool advance_bc) {
   if (is_baseline) {
-    return advance_bc ? Builtins::kBaselineEnterAtNextBytecode
-                      : Builtins::kBaselineEnterAtBytecode;
+    return advance_bc ? Builtin::kBaselineEnterAtNextBytecode
+                      : Builtin::kBaselineEnterAtBytecode;
   } else {
-    return advance_bc ? Builtins::kInterpreterEnterAtNextBytecode
-                      : Builtins::kInterpreterEnterAtBytecode;
+    return advance_bc ? Builtin::kInterpreterEnterAtNextBytecode
+                      : Builtin::kInterpreterEnterAtBytecode;
   }
 }
 
@@ -1300,7 +1300,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
     // Set the continuation for the topmost frame.
-    Code continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
+    Code continuation = builtins->builtin(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation.InstructionStart()));
   }
@@ -1380,7 +1380,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK(!is_topmost || deopt_kind_ == DeoptimizeKind::kLazy);
 
   Builtins* builtins = isolate_->builtins();
-  Code construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
+  Code construct_stub = builtins->builtin(Builtin::kJSConstructStubGeneric);
   BytecodeOffset bytecode_offset = translated_frame->bytecode_offset();
 
   const int parameters_count = translated_frame->height();
@@ -1536,7 +1536,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   if (is_topmost) {
     Builtins* builtins = isolate_->builtins();
     DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
-    Code continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
+    Code continuation = builtins->builtin(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation.InstructionStart()));
   }
@@ -1573,18 +1573,18 @@ StackFrame::Type BuiltinContinuationModeToFrameType(
 
 }  // namespace
 
-Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
+Builtin Deoptimizer::TrampolineForBuiltinContinuation(
     BuiltinContinuationMode mode, bool must_handle_result) {
   switch (mode) {
     case BuiltinContinuationMode::STUB:
-      return must_handle_result ? Builtins::kContinueToCodeStubBuiltinWithResult
-                                : Builtins::kContinueToCodeStubBuiltin;
+      return must_handle_result ? Builtin::kContinueToCodeStubBuiltinWithResult
+                                : Builtin::kContinueToCodeStubBuiltin;
     case BuiltinContinuationMode::JAVASCRIPT:
     case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
     case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
       return must_handle_result
-                 ? Builtins::kContinueToJavaScriptBuiltinWithResult
-                 : Builtins::kContinueToJavaScriptBuiltin;
+                 ? Builtin::kContinueToJavaScriptBuiltinWithResult
+                 : Builtin::kContinueToJavaScriptBuiltin;
   }
   UNREACHABLE();
 }
@@ -1703,7 +1703,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
 
   const BytecodeOffset bytecode_offset = translated_frame->bytecode_offset();
-  Builtins::Name builtin_name =
+  Builtin builtin_name =
       Builtins::GetBuiltinFromBytecodeOffset(bytecode_offset);
   CallInterfaceDescriptor continuation_descriptor =
       Builtins::CallInterfaceDescriptorFor(builtin_name);
@@ -1977,7 +1977,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   }
 
   Code continuation =
-      isolate()->builtins()->builtin(Builtins::kNotifyDeoptimized);
+      isolate()->builtins()->builtin(Builtin::kNotifyDeoptimized);
   output_frame->SetContinuation(
       static_cast<intptr_t>(continuation.InstructionStart()));
 }

@@ -435,7 +435,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                       JumpMode jump_mode = JumpMode::kJump);
 
   void CallBuiltinByIndex(Register builtin_index);
-  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+  void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
 

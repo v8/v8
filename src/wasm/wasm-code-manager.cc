@@ -1469,16 +1469,16 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
         region);
     CHECK(region.contains(far_jump_table->instruction_start()));
     EmbeddedData embedded_data = EmbeddedData::FromBlob();
-#define RUNTIME_STUB(Name) Builtins::k##Name,
+#define RUNTIME_STUB(Name) Builtin::k##Name,
 #define RUNTIME_STUB_TRAP(Name) RUNTIME_STUB(ThrowWasm##Name)
-    Builtins::Name stub_names[WasmCode::kRuntimeStubCount] = {
+    Builtin stub_names[WasmCode::kRuntimeStubCount] = {
         WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
 #undef RUNTIME_STUB
 #undef RUNTIME_STUB_TRAP
     STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
     Address builtin_addresses[WasmCode::kRuntimeStubCount];
     for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
-      Builtins::Name builtin = stub_names[i];
+      Builtin builtin = stub_names[i];
       builtin_addresses[i] = embedded_data.InstructionStartOfBuiltin(builtin);
     }
     JumpTableAssembler::GenerateFarJumpTable(
@@ -2346,10 +2346,10 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   code->IncRef();
 }
 
-Builtins::Name RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId stub_id) {
-#define RUNTIME_STUB_NAME(Name) Builtins::k##Name,
-#define RUNTIME_STUB_NAME_TRAP(Name) Builtins::kThrowWasm##Name,
-  constexpr Builtins::Name builtin_names[] = {
+Builtin RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId stub_id) {
+#define RUNTIME_STUB_NAME(Name) Builtin::k##Name,
+#define RUNTIME_STUB_NAME_TRAP(Name) Builtin::kThrowWasm##Name,
+  constexpr Builtin builtin_names[] = {
       WASM_RUNTIME_STUB_LIST(RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP)};
 #undef RUNTIME_STUB_NAME
 #undef RUNTIME_STUB_NAME_TRAP

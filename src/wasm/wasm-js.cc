@@ -2096,7 +2096,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<String> name = v8_str(isolate, "WebAssembly");
   // Not supposed to be called, hence using the kIllegal builtin as code.
   Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
+      factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal);
   info->set_language_mode(LanguageMode::kStrict);
 
   Handle<JSFunction> cons =

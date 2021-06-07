@@ -236,7 +236,7 @@ IGNITION_HANDLER(StaGlobal, InterpreterAssembler) {
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);
   TNode<HeapObject> maybe_vector = LoadFeedbackVector();
 
-  CallBuiltin(Builtins::kStoreGlobalIC, context, name, value, slot,
+  CallBuiltin(Builtin::kStoreGlobalIC, context, name, value, slot,
               maybe_vector);
 
   Dispatch();
@@ -559,7 +559,7 @@ IGNITION_HANDLER(LdaNamedPropertyFromSuper, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 
   TNode<Object> result =
-      CallBuiltin(Builtins::kLoadSuperIC, context, receiver,
+      CallBuiltin(Builtin::kLoadSuperIC, context, receiver,
                   home_object_prototype, name, slot, feedback_vector);
   SetAccumulator(result);
   Dispatch();
@@ -577,7 +577,7 @@ IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 
   TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtins::kKeyedLoadIC, context, object, name, slot,
+  var_result = CallBuiltin(Builtin::kKeyedLoadIC, context, object, name, slot,
                            feedback_vector);
   SetAccumulator(var_result.value());
   Dispatch();
@@ -616,7 +616,7 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 IGNITION_HANDLER(StaNamedProperty, InterpreterStoreNamedPropertyAssembler) {
-  Callable ic = Builtins::CallableFor(isolate(), Builtins::kStoreIC);
+  Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreIC);
   StaNamedProperty(ic, NamedPropertyType::kNotOwn);
 }
 
@@ -643,8 +643,8 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 
   TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtins::kKeyedStoreIC, context, object, name,
-                           value, slot, maybe_vector);
+  var_result = CallBuiltin(Builtin::kKeyedStoreIC, context, object, name, value,
+                           slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
@@ -667,7 +667,7 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 
   TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtins::kStoreInArrayLiteralIC, context, array,
+  var_result = CallBuiltin(Builtin::kStoreInArrayLiteralIC, context, array,
                            index, value, slot, feedback_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
@@ -1148,7 +1148,7 @@ IGNITION_HANDLER(Negate, InterpreterAssembler) {
 IGNITION_HANDLER(ToName, InterpreterAssembler) {
   TNode<Object> object = GetAccumulator();
   TNode<Context> context = GetContext();
-  TNode<Object> result = CallBuiltin(Builtins::kToName, context, object);
+  TNode<Object> result = CallBuiltin(Builtin::kToName, context, object);
   StoreRegisterAtOperandIndex(result, 0);
   Dispatch();
 }
@@ -1173,7 +1173,7 @@ IGNITION_HANDLER(ToNumeric, InterpreterAssembler) {
 IGNITION_HANDLER(ToObject, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
   TNode<Context> context = GetContext();
-  TNode<Object> result = CallBuiltin(Builtins::kToObject, context, accumulator);
+  TNode<Object> result = CallBuiltin(Builtin::kToObject, context, accumulator);
   StoreRegisterAtOperandIndex(result, 0);
   Dispatch();
 }
@@ -1293,7 +1293,7 @@ IGNITION_HANDLER(DeletePropertyStrict, InterpreterAssembler) {
   TNode<Object> key = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<Object> result =
-      CallBuiltin(Builtins::kDeleteProperty, context, object, key,
+      CallBuiltin(Builtin::kDeleteProperty, context, object, key,
                   SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
   SetAccumulator(result);
   Dispatch();
@@ -1308,7 +1308,7 @@ IGNITION_HANDLER(DeletePropertySloppy, InterpreterAssembler) {
   TNode<Object> key = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<Object> result =
-      CallBuiltin(Builtins::kDeleteProperty, context, object, key,
+      CallBuiltin(Builtin::kDeleteProperty, context, object, key,
                   SmiConstant(Smi::FromEnum(LanguageMode::kSloppy)));
   SetAccumulator(result);
   Dispatch();
@@ -1678,7 +1678,7 @@ IGNITION_HANDLER(TestIn, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 
   TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtins::kKeyedHasIC, context, object, name, slot,
+  var_result = CallBuiltin(Builtin::kKeyedHasIC, context, object, name, slot,
                            feedback_vector);
   SetAccumulator(var_result.value());
   Dispatch();
@@ -2309,7 +2309,7 @@ IGNITION_HANDLER(CreateArrayFromIterable, InterpreterAssembler) {
   TNode<Object> iterable = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<Object> result =
-      CallBuiltin(Builtins::kIterableToListWithSymbolLookup, context, iterable);
+      CallBuiltin(Builtin::kIterableToListWithSymbolLookup, context, iterable);
   SetAccumulator(result);
   Dispatch();
 }
@@ -2389,7 +2389,7 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  TNode<Object> result = CallBuiltin(Builtins::kCloneObjectIC, context, source,
+  TNode<Object> result = CallBuiltin(Builtin::kCloneObjectIC, context, source,
                                      smi_flags, slot, maybe_feedback_vector);
   SetAccumulator(result);
   Dispatch();
@@ -2409,7 +2409,7 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
   TNode<UintPtrT> slot = BytecodeOperandIdx(1);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Object> result =
-      CallBuiltin(Builtins::kGetTemplateObject, context, shared_info,
+      CallBuiltin(Builtin::kGetTemplateObject, context, shared_info,
                   description, slot, maybe_feedback_vector);
   SetAccumulator(result);
   Dispatch();
@@ -2439,7 +2439,7 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   BIND(&if_fast);
   {
     TNode<Object> result =
-        CallBuiltin(Builtins::kFastNewClosure, context, shared, feedback_cell);
+        CallBuiltin(Builtin::kFastNewClosure, context, shared, feedback_cell);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2773,8 +2773,7 @@ IGNITION_HANDLER(IncBlockCounter, InterpreterAssembler) {
   TNode<Smi> coverage_array_slot = BytecodeOperandIdxSmi(0);
   TNode<Context> context = GetContext();
 
-  CallBuiltin(Builtins::kIncBlockCounter, context, closure,
-              coverage_array_slot);
+  CallBuiltin(Builtin::kIncBlockCounter, context, closure, coverage_array_slot);
 
   Dispatch();
 }
@@ -2919,7 +2918,7 @@ IGNITION_HANDLER(GetIterator, InterpreterAssembler) {
   TNode<TaggedIndex> call_slot = BytecodeOperandIdxTaggedIndex(2);
 
   TNode<Object> iterator =
-      CallBuiltin(Builtins::kGetIteratorWithFeedback, context, receiver,
+      CallBuiltin(Builtin::kGetIteratorWithFeedback, context, receiver,
                   load_slot, call_slot, feedback_vector);
   SetAccumulator(iterator);
   Dispatch();

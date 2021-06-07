@@ -443,7 +443,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   // 4. For each element nextSource of sources, in ascending index order,
   args.ForEach(
       [=](TNode<Object> next_source) {
-        CallBuiltin(Builtins::kSetDataProperties, context, to, next_source);
+        CallBuiltin(Builtin::kSetDataProperties, context, to, next_source);
       },
       IntPtrConstant(1));
   Goto(&done);
@@ -569,7 +569,7 @@ TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
   ThrowTypeError(context, MessageTemplate::kUndefinedOrNullToObject);
 
   BIND(&not_undefined_nor_null);
-  Return(CallBuiltin(Builtins::kObjectPrototypeHasOwnProperty, context, target,
+  Return(CallBuiltin(Builtin::kObjectPrototypeHasOwnProperty, context, target,
                      new_target, Int32Constant(2), object, key));
 }
 
@@ -1303,7 +1303,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   TNode<JSReceiver> object = ToObject_Inline(context, object_input);
 
   // 2. Let key be ? ToPropertyKey(P).
-  key = CallBuiltin(Builtins::kToName, context, key);
+  key = CallBuiltin(Builtin::kToName, context, key);
 
   // 3. Let desc be ? obj.[[GetOwnProperty]](key).
   Label if_keyisindex(this), if_iskeyunique(this),

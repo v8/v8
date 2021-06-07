@@ -1039,7 +1039,7 @@ class GlobalWasmCodeRef {
   const std::shared_ptr<NativeModule> native_module_;
 };
 
-Builtins::Name RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId);
+Builtin RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId);
 const char* GetRuntimeStubName(WasmCode::RuntimeStubId);
 
 }  // namespace wasm

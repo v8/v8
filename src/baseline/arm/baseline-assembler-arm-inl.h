@@ -117,21 +117,21 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
   __ JumpIfNotSmi(value, target);
 }
 
-void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
+void BaselineAssembler::CallBuiltin(Builtin builtin) {
   //  __ CallBuiltin(static_cast<int>(builtin));
   __ RecordCommentForOffHeapTrampoline(builtin);
   ScratchRegisterScope temps(this);
   Register temp = temps.AcquireScratch();
-  __ LoadEntryFromBuiltinIndex(builtin, temp);
+  __ LoadEntryFromBuiltin(builtin, temp);
   __ Call(temp);
   __ RecordComment("]");
 }
 
-void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
+void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
   __ RecordCommentForOffHeapTrampoline(builtin);
   ScratchRegisterScope temps(this);
   Register temp = temps.AcquireScratch();
-  __ LoadEntryFromBuiltinIndex(builtin, temp);
+  __ LoadEntryFromBuiltin(builtin, temp);
   __ Jump(temp);
   __ RecordComment("]");
 }

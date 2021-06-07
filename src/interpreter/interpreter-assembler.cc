@@ -1551,9 +1551,9 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
 
   BIND(&if_objectisother);
   {
-    auto builtin = Builtins::kNonNumberToNumber;
+    auto builtin = Builtin::kNonNumberToNumber;
     if (mode == Object::Conversion::kToNumeric) {
-      builtin = Builtins::kNonNumberToNumeric;
+      builtin = Builtin::kNonNumberToNumeric;
       // Special case for collecting BigInt feedback.
       Label not_bigint(this);
       GotoIfNot(IsBigInt(CAST(object)), &not_bigint);

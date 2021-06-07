@@ -4849,7 +4849,7 @@ void SimplifiedLowering::DoUnsigned32ToUint8Clamped(Node* node) {
 
 Node* SimplifiedLowering::ToNumberCode() {
   if (!to_number_code_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumber);
     to_number_code_.set(jsgraph()->HeapConstant(callable.code()));
   }
   return to_number_code_.get();
@@ -4858,7 +4858,7 @@ Node* SimplifiedLowering::ToNumberCode() {
 Node* SimplifiedLowering::ToNumberConvertBigIntCode() {
   if (!to_number_convert_big_int_code_.is_set()) {
     Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kToNumberConvertBigInt);
+        Builtins::CallableFor(isolate(), Builtin::kToNumberConvertBigInt);
     to_number_convert_big_int_code_.set(
         jsgraph()->HeapConstant(callable.code()));
   }
@@ -4867,7 +4867,7 @@ Node* SimplifiedLowering::ToNumberConvertBigIntCode() {
 
 Node* SimplifiedLowering::ToNumericCode() {
   if (!to_numeric_code_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumeric);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumeric);
     to_numeric_code_.set(jsgraph()->HeapConstant(callable.code()));
   }
   return to_numeric_code_.get();
@@ -4875,7 +4875,7 @@ Node* SimplifiedLowering::ToNumericCode() {
 
 Operator const* SimplifiedLowering::ToNumberOperator() {
   if (!to_number_operator_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
@@ -4889,7 +4889,7 @@ Operator const* SimplifiedLowering::ToNumberOperator() {
 Operator const* SimplifiedLowering::ToNumberConvertBigIntOperator() {
   if (!to_number_convert_big_int_operator_.is_set()) {
     Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kToNumberConvertBigInt);
+        Builtins::CallableFor(isolate(), Builtin::kToNumberConvertBigInt);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
@@ -4902,7 +4902,7 @@ Operator const* SimplifiedLowering::ToNumberConvertBigIntOperator() {
 
 Operator const* SimplifiedLowering::ToNumericOperator() {
   if (!to_numeric_operator_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumeric);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumeric);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),

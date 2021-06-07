@@ -611,9 +611,9 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
   BIND(&if_proxy);
   {
-    TNode<Name> name = CAST(CallBuiltin(Builtins::kToName, context, key));
+    TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
     GotoIf(IsPrivateSymbol(name), &slow);
-    TailCallBuiltin(Builtins::kProxyDeleteProperty, context, receiver, name,
+    TailCallBuiltin(Builtin::kProxyDeleteProperty, context, receiver, name,
                     language_mode);
   }
 
@@ -678,7 +678,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
         ForEachEnumerableOwnProperty(
             context, source_map, CAST(source), kEnumerationOrder,
             [=](TNode<Name> key, TNode<Object> value) {
-              CallBuiltin(Builtins::kSetPropertyInLiteral, context, target, key,
+              CallBuiltin(Builtin::kSetPropertyInLiteral, context, target, key,
                           value);
             },
             if_runtime);
@@ -1054,12 +1054,12 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
   BIND(&if_proxy);
   {
     // Convert the {key} to a Name first.
-    TNode<Object> name = CallBuiltin(Builtins::kToName, context, key);
+    TNode<Object> name = CallBuiltin(Builtin::kToName, context, key);
 
     // The {object} is a JSProxy instance, look up the {name} on it, passing
     // {object} both as receiver and holder. If {name} is absent we can safely
     // return undefined from here.
-    TailCallBuiltin(Builtins::kProxyGetProperty, context, object, name, object,
+    TailCallBuiltin(Builtin::kProxyGetProperty, context, object, name, object,
                     SmiConstant(OnNonExistent::kReturnUndefined));
   }
 }
@@ -1119,7 +1119,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
   BIND(&if_proxy);
   {
     // Convert the {key} to a Name first.
-    TNode<Name> name = CAST(CallBuiltin(Builtins::kToName, context, key));
+    TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
 
     // Proxy cannot handle private symbol so bailout.
     GotoIf(IsPrivateSymbol(name), &if_slow);
@@ -1127,8 +1127,8 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
     // The {object} is a JSProxy instance, look up the {name} on it, passing
     // {object} both as receiver and holder. If {name} is absent we can safely
     // return undefined from here.
-    TailCallBuiltin(Builtins::kProxyGetProperty, context, object, name,
-                    receiver, on_non_existent);
+    TailCallBuiltin(Builtin::kProxyGetProperty, context, object, name, receiver,
+                    on_non_existent);
   }
 }
 

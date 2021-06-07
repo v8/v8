@@ -1431,7 +1431,7 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
   switch (functionId) {
     case Runtime::kInlineAsyncFunctionResolve: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncFunctionResolve));
+                            Builtin::kAsyncFunctionResolve));
       interpreter::Register first_reg = iterator->GetRegisterOperand(1);
       size_t reg_count = iterator->GetRegisterCountOperand(2);
       CHECK_EQ(reg_count, 3);
@@ -1443,60 +1443,60 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
     case Runtime::kInlineAsyncGeneratorReject:
     case Runtime::kAsyncGeneratorReject: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncGeneratorReject));
+                            Builtin::kAsyncGeneratorReject));
       break;
     }
     case Runtime::kInlineAsyncGeneratorResolve:
     case Runtime::kAsyncGeneratorResolve: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncGeneratorResolve));
+                            Builtin::kAsyncGeneratorResolve));
       break;
     }
     case Runtime::kInlineAsyncGeneratorYield:
     case Runtime::kAsyncGeneratorYield: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncGeneratorYield));
+                            Builtin::kAsyncGeneratorYield));
       break;
     }
     case Runtime::kInlineAsyncGeneratorAwaitUncaught:
     case Runtime::kAsyncGeneratorAwaitUncaught: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncGeneratorAwaitUncaught));
+                            Builtin::kAsyncGeneratorAwaitUncaught));
       break;
     }
     case Runtime::kInlineAsyncGeneratorAwaitCaught:
     case Runtime::kAsyncGeneratorAwaitCaught: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncGeneratorAwaitCaught));
+                            Builtin::kAsyncGeneratorAwaitCaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionAwaitUncaught:
     case Runtime::kAsyncFunctionAwaitUncaught: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncFunctionAwaitUncaught));
+                            Builtin::kAsyncFunctionAwaitUncaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionAwaitCaught:
     case Runtime::kAsyncFunctionAwaitCaught: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncFunctionAwaitCaught));
+                            Builtin::kAsyncFunctionAwaitCaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionReject:
     case Runtime::kAsyncFunctionReject: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncFunctionReject));
+                            Builtin::kAsyncFunctionReject));
       break;
     }
     case Runtime::kAsyncFunctionResolve: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kAsyncFunctionResolve));
+                            Builtin::kAsyncFunctionResolve));
       break;
     }
     case Runtime::kInlineCopyDataProperties:
     case Runtime::kCopyDataProperties: {
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kCopyDataProperties));
+                            Builtin::kCopyDataProperties));
       break;
     }
     case Runtime::kInlineGetImportMetaObject: {
@@ -2243,9 +2243,9 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
 void SerializerForBackgroundCompilation::ProcessApiCall(
     Handle<SharedFunctionInfo> target, const HintsVector& arguments) {
   for (const auto b :
-       {Builtins::kCallFunctionTemplate_CheckAccess,
-        Builtins::kCallFunctionTemplate_CheckCompatibleReceiver,
-        Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver}) {
+       {Builtin::kCallFunctionTemplate_CheckAccess,
+        Builtin::kCallFunctionTemplate_CheckCompatibleReceiver,
+        Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver}) {
     MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(b));
   }
   FunctionTemplateInfoRef target_template_info =
@@ -2314,7 +2314,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
   const char* name = Builtins::name(builtin_id);
   TRACE_BROKER(broker(), "Serializing for call to builtin " << name);
   switch (builtin_id) {
-    case Builtins::kObjectCreate: {
+    case Builtin::kObjectCreate: {
       if (arguments.size() >= 2) {
         ProcessHintsForObjectCreate(arguments[1]);
       } else {
@@ -2323,7 +2323,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
     }
-    case Builtins::kPromisePrototypeCatch: {
+    case Builtin::kPromisePrototypeCatch: {
       // For JSCallReducer::ReducePromisePrototypeCatch.
       if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
         if (arguments.size() >= 1) {
@@ -2332,7 +2332,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
     }
-    case Builtins::kPromisePrototypeFinally: {
+    case Builtin::kPromisePrototypeFinally: {
       // For JSCallReducer::ReducePromisePrototypeFinally.
       if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
         if (arguments.size() >= 1) {
@@ -2347,7 +2347,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
     }
-    case Builtins::kPromisePrototypeThen: {
+    case Builtin::kPromisePrototypeThen: {
       // For JSCallReducer::ReducePromisePrototypeThen.
       if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
         if (arguments.size() >= 1) {
@@ -2356,7 +2356,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
     }
-    case Builtins::kPromiseResolveTrampoline:
+    case Builtin::kPromiseResolveTrampoline:
       // For JSCallReducer::ReducePromiseInternalResolve and
       // JSNativeContextSpecialization::ReduceJSResolvePromise.
       if (arguments.size() >= 1) {
@@ -2369,8 +2369,8 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForPromiseResolve(resolution_hints);
       }
       break;
-    case Builtins::kRegExpPrototypeTest:
-    case Builtins::kRegExpPrototypeTestFast:
+    case Builtin::kRegExpPrototypeTest:
+    case Builtin::kRegExpPrototypeTestFast:
       // For JSCallReducer::ReduceRegExpPrototypeTest.
       if (arguments.size() >= 1 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
@@ -2378,13 +2378,13 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForRegExpTest(regexp_hints);
       }
       break;
-    case Builtins::kArrayEvery:
-    case Builtins::kArrayFilter:
-    case Builtins::kArrayForEach:
-    case Builtins::kArrayPrototypeFind:
-    case Builtins::kArrayPrototypeFindIndex:
-    case Builtins::kArrayMap:
-    case Builtins::kArraySome:
+    case Builtin::kArrayEvery:
+    case Builtin::kArrayFilter:
+    case Builtin::kArrayForEach:
+    case Builtin::kArrayPrototypeFind:
+    case Builtin::kArrayPrototypeFindIndex:
+    case Builtin::kArrayMap:
+    case Builtin::kArraySome:
       if (arguments.size() >= 2 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
         Hints const& callback = arguments[1];
@@ -2410,8 +2410,8 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         }
       }
       break;
-    case Builtins::kArrayReduce:
-    case Builtins::kArrayReduceRight:
+    case Builtin::kArrayReduce:
+    case Builtin::kArrayReduceRight:
       if (arguments.size() >= 2 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
         Hints const& callback = arguments[1];
@@ -2435,7 +2435,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         }
       }
       break;
-    case Builtins::kFunctionPrototypeApply:
+    case Builtin::kFunctionPrototypeApply:
       if (arguments.size() >= 1) {
         // Drop hints for all arguments except the user-given receiver.
         Hints const new_receiver =
@@ -2457,7 +2457,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         }
       }
       break;
-    case Builtins::kPromiseConstructor:
+    case Builtin::kPromiseConstructor:
       if (arguments.size() >= 1) {
         // "Call(executor, undefined, « resolvingFunctions.[[Resolve]],
         //                              resolvingFunctions.[[Reject]] »)"
@@ -2488,7 +2488,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
                             ->promise_capability_default_resolve_shared_fun());
 
       break;
-    case Builtins::kFunctionPrototypeCall:
+    case Builtin::kFunctionPrototypeCall:
       if (arguments.size() >= 1) {
         HintsVector new_arguments(arguments.begin() + 1, arguments.end(),
                                   zone());
@@ -2504,7 +2504,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         }
       }
       break;
-    case Builtins::kReflectApply:
+    case Builtin::kReflectApply:
       if (arguments.size() >= 2) {
         // Drop hints for all arguments except the user-given receiver.
         Hints const new_receiver =
@@ -2527,7 +2527,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
 
-    case Builtins::kReflectConstruct:
+    case Builtin::kReflectConstruct:
       if (arguments.size() >= 2) {
         for (auto constant : arguments[1].constants()) {
           if (constant->IsJSFunction()) {
@@ -2536,18 +2536,18 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         }
       }
       break;
-    case Builtins::kObjectPrototypeIsPrototypeOf:
+    case Builtin::kObjectPrototypeIsPrototypeOf:
       if (arguments.size() >= 2) {
         ProcessHintsForHasInPrototypeChain(arguments[1]);
       }
       break;
-    case Builtins::kFunctionPrototypeHasInstance:
+    case Builtin::kFunctionPrototypeHasInstance:
       // For JSCallReducer::ReduceFunctionPrototypeHasInstance.
       if (arguments.size() >= 2) {
         ProcessHintsForOrdinaryHasInstance(arguments[0], arguments[1]);
       }
       break;
-    case Builtins::kFastFunctionPrototypeBind:
+    case Builtin::kFastFunctionPrototypeBind:
       if (arguments.size() >= 1 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
         Hints const& bound_target = arguments[0];
@@ -2559,8 +2559,8 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
             broker());
       }
       break;
-    case Builtins::kObjectGetPrototypeOf:
-    case Builtins::kReflectGetPrototypeOf:
+    case Builtin::kObjectGetPrototypeOf:
+    case Builtin::kReflectGetPrototypeOf:
       if (arguments.size() >= 2) {
         ProcessHintsForObjectGetPrototype(arguments[1]);
       } else {
@@ -2569,20 +2569,20 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForObjectGetPrototype(undefined_hint);
       }
       break;
-    case Builtins::kObjectPrototypeGetProto:
+    case Builtin::kObjectPrototypeGetProto:
       if (arguments.size() >= 1) {
         ProcessHintsForObjectGetPrototype(arguments[0]);
       }
       break;
-    case Builtins::kMapIteratorPrototypeNext:
+    case Builtin::kMapIteratorPrototypeNext:
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kOrderedHashTableHealIndex));
+                            Builtin::kOrderedHashTableHealIndex));
       MakeRef<FixedArray>(
           broker(), broker()->isolate()->factory()->empty_ordered_hash_map());
       break;
-    case Builtins::kSetIteratorPrototypeNext:
+    case Builtin::kSetIteratorPrototypeNext:
       MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
-                            Builtins::kOrderedHashTableHealIndex));
+                            Builtin::kOrderedHashTableHealIndex));
       MakeRef<FixedArray>(
           broker(), broker()->isolate()->factory()->empty_ordered_hash_set());
       break;
@@ -3457,7 +3457,7 @@ void SerializerForBackgroundCompilation::ProcessConstantForInstanceOf(
       function.Serialize();
       if (function.shared().HasBuiltinId() &&
           function.shared().builtin_id() ==
-              Builtins::kFunctionPrototypeHasInstance) {
+              Builtin::kFunctionPrototypeHasInstance) {
         // For JSCallReducer::ReduceFunctionPrototypeHasInstance.
         ProcessConstantForOrdinaryHasInstance(constructor_heap_object,
                                               walk_prototypes);

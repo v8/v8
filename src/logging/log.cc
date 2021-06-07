@@ -1359,7 +1359,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code) return;
   if (*code == AbstractCode::cast(
-                   isolate_->builtins()->builtin(Builtins::kCompileLazy))) {
+                   isolate_->builtins()->builtin(Builtin::kCompileLazy))) {
     return;
   }
   {

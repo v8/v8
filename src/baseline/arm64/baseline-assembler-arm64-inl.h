@@ -115,19 +115,19 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
   __ JumpIfNotSmi(value, target);
 }
 
-void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
+void BaselineAssembler::CallBuiltin(Builtin builtin) {
   if (masm()->options().short_builtin_calls) {
     // Generate pc-relative call.
     __ CallBuiltin(builtin);
   } else {
     ScratchRegisterScope temps(this);
     Register temp = temps.AcquireScratch();
-    __ LoadEntryFromBuiltinIndex(builtin, temp);
+    __ LoadEntryFromBuiltin(builtin, temp);
     __ Call(temp);
   }
 }
 
-void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
+void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
   if (masm()->options().short_builtin_calls) {
     // Generate pc-relative call.
     __ TailCallBuiltin(builtin);
@@ -147,7 +147,7 @@ void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
     UseScratchRegisterScope temps(masm());
     temps.Exclude(temp);
 
-    __ LoadEntryFromBuiltinIndex(builtin, temp);
+    __ LoadEntryFromBuiltin(builtin, temp);
     __ Jump(temp);
   }
 }

@@ -955,9 +955,8 @@ const TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
     const TNode<Context> context, const TNode<String> string) {
   const TNode<String> dollar_string = HeapConstant(
       isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
-  const TNode<Smi> dollar_ix =
-      CAST(CallBuiltin(Builtins::kStringIndexOf, context, string, dollar_string,
-                       SmiConstant(0)));
+  const TNode<Smi> dollar_ix = CAST(CallBuiltin(
+      Builtin::kStringIndexOf, context, string, dollar_string, SmiConstant(0)));
   return dollar_ix;
 }
 
@@ -987,7 +986,7 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
     CSA_ASSERT(this, TaggedIsPositiveSmi(dollar_index));
 
     const TNode<Object> matched =
-        CallBuiltin(Builtins::kStringSubstring, context, subject_string,
+        CallBuiltin(Builtin::kStringSubstring, context, subject_string,
                     SmiUntag(match_start_index), SmiUntag(match_end_index));
     const TNode<String> replacement_string = CAST(
         CallRuntime(Runtime::kGetSubstitution, context, matched, subject_string,
@@ -1022,7 +1021,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
                                RootIndex::kreplace_symbol,
                                Context::REGEXP_REPLACE_FUNCTION_INDEX},
       [=]() {
-        Return(CallBuiltin(Builtins::kRegExpReplace, context, search, receiver,
+        Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
                            replace));
       },
       [=](TNode<Object> fn) {
@@ -1071,7 +1070,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   // (2-byte).
 
   const TNode<Smi> match_start_index =
-      CAST(CallBuiltin(Builtins::kStringIndexOf, context, subject_string,
+      CAST(CallBuiltin(Builtin::kStringIndexOf, context, subject_string,
                        search_string, smi_zero));
 
   // Early exit if no match found.
@@ -1109,7 +1108,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
     GotoIf(SmiEqual(match_start_index, smi_zero), &next);
     const TNode<String> prefix =
-        CAST(CallBuiltin(Builtins::kStringSubstring, context, subject_string,
+        CAST(CallBuiltin(Builtin::kStringSubstring, context, subject_string,
                          IntPtrConstant(0), SmiUntag(match_start_index)));
     var_result = prefix;
 
@@ -1131,7 +1130,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
              match_start_index, subject_string);
     const TNode<String> replacement_string =
         ToString_Inline(context, replacement);
-    var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+    var_result = CAST(CallBuiltin(Builtin::kStringAdd_CheckNone, context,
                                   var_result.value(), replacement_string));
     Goto(&out);
   }
@@ -1142,7 +1141,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     const TNode<Object> replacement =
         GetSubstitution(context, subject_string, match_start_index,
                         match_end_index, replace_string);
-    var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+    var_result = CAST(CallBuiltin(Builtin::kStringAdd_CheckNone, context,
                                   var_result.value(), replacement));
     Goto(&out);
   }
@@ -1150,10 +1149,10 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   BIND(&out);
   {
     const TNode<Object> suffix =
-        CallBuiltin(Builtins::kStringSubstring, context, subject_string,
+        CallBuiltin(Builtin::kStringSubstring, context, subject_string,
                     SmiUntag(match_end_index), subject_length);
     const TNode<Object> result = CallBuiltin(
-        Builtins::kStringAdd_CheckNone, context, var_result.value(), suffix);
+        Builtin::kStringAdd_CheckNone, context, var_result.value(), suffix);
     Return(result);
   }
 }
@@ -1208,7 +1207,7 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
       TNode<String> flags_string = ToString_Inline(context, flags);
       TNode<String> global_char_string = StringConstant("g");
       TNode<Smi> global_ix =
-          CAST(CallBuiltin(Builtins::kStringIndexOf, context, flags_string,
+          CAST(CallBuiltin(Builtin::kStringIndexOf, context, flags_string,
                            global_char_string, SmiConstant(0)));
       Branch(SmiEqual(global_ix, SmiConstant(-1)), &throw_exception, &next);
     }
@@ -1364,8 +1363,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
                                RootIndex::ksplit_symbol,
                                Context::REGEXP_SPLIT_FUNCTION_INDEX},
       [&]() {
-        args.PopAndReturn(CallBuiltin(Builtins::kRegExpSplit, context,
-                                      separator, receiver, limit));
+        args.PopAndReturn(CallBuiltin(Builtin::kRegExpSplit, context, separator,
+                                      receiver, limit));
       },
       [&](TNode<Object> fn) {
         args.PopAndReturn(Call(context, fn, separator, receiver, limit));

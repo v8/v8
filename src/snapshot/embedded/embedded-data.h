@@ -32,7 +32,7 @@ class InstructionStream final : public AllStatic {
 
   // Returns the corresponding builtin ID if lookup succeeds, and kNoBuiltinId
   // otherwise.
-  static Builtins::Name TryLookupCode(Isolate* isolate, Address address);
+  static Builtin TryLookupCode(Isolate* isolate, Address address);
 
   // During snapshot creation, we first create an executable off-heap area
   // containing all off-heap code. The area is guaranteed to be contiguous.
@@ -183,7 +183,7 @@ class EmbeddedData final {
   // [0] instruction section of builtin 0
   // ... instruction sections
 
-  static constexpr uint32_t kTableSize = Builtins::builtin_count;
+  static constexpr uint32_t kTableSize = Builtins::kBuiltinCount;
   static constexpr uint32_t EmbeddedBlobDataHashOffset() { return 0; }
   static constexpr uint32_t EmbeddedBlobDataHashSize() { return kSizetSize; }
   static constexpr uint32_t EmbeddedBlobCodeHashOffset() {

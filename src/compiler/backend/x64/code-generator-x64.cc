@@ -237,7 +237,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     } else if (tasm()->options().inline_offheap_trampolines) {
       // With embedded builtins we do not need the isolate here. This allows
       // the call to be generated asynchronously.
-      __ CallBuiltin(Builtins::kDoubleToI);
+      __ CallBuiltin(Builtin::kDoubleToI);
     } else {
       __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
     }
@@ -1188,9 +1188,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(
-            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
-            RelocInfo::CODE_TARGET);
+        __ Call(isolate()->builtins()->builtin_handle(Builtin::kAbortCSAAssert),
+                RelocInfo::CODE_TARGET);
       }
       __ int3();
       unwinding_info_writer_.MarkBlockWillExit();

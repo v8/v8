@@ -74,11 +74,11 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     if (!value->IsJSFunction()) return false;                              \
     SharedFunctionInfo shared = Handle<JSFunction>::cast(value)->shared(); \
     if (!shared.HasBuiltinId() ||                                          \
-        shared.builtin_id() != Builtins::kMath##FName) {                   \
+        shared.builtin_id() != Builtin::kMath##FName) {                    \
       return false;                                                        \
     }                                                                      \
     DCHECK_EQ(shared.GetCode(),                                            \
-              isolate->builtins()->builtin(Builtins::kMath##FName));       \
+              isolate->builtins()->builtin(Builtin::kMath##FName));        \
   }
   STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC

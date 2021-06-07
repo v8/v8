@@ -157,7 +157,7 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
   w->DeclareLabel(EmbeddedBlobCodeDataSymbol().c_str());
 
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < i::Builtins::builtin_count; i++) {
+  for (int i = 0; i < i::Builtins::kBuiltinCount; i++) {
     WriteBuiltin(w, blob, i);
   }
   w->Newline();
@@ -283,7 +283,7 @@ int EmbeddedFileWriter::GetExternallyCompiledFilenameCount() const {
 }
 
 void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
     // Retrieve the SourcePositionTable and copy it.
     Code code = builtins->builtin(i);
     // Verify that the code object is still the "real code" and not a
@@ -298,9 +298,9 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
 
 void EmbeddedFileWriter::PrepareBuiltinLabelInfoMap(int create_offset,
                                                     int invoke_offset) {
-  label_info_[Builtins::kJSConstructStubGeneric].push_back(
+  label_info_[Builtin::kJSConstructStubGeneric].push_back(
       {create_offset, "construct_stub_create_deopt_addr"});
-  label_info_[Builtins::kJSConstructStubGeneric].push_back(
+  label_info_[Builtin::kJSConstructStubGeneric].push_back(
       {invoke_offset, "construct_stub_invoke_deopt_addr"});
 }
 

@@ -298,7 +298,7 @@ class Code : public HeapObject {
 
   // [builtin_index]: For builtins, tells which builtin index the code object
   // has. The builtin index is a non-negative integer for builtins, and
-  // Builtins::kNoBuiltinId (-1) otherwise.
+  // Builtin::kNoBuiltinId (-1) otherwise.
   inline int builtin_index() const;
   inline void set_builtin_index(int id);
   inline bool is_builtin() const;

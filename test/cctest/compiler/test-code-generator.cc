@@ -1010,7 +1010,7 @@ class CodeGeneratorTester {
         base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
         PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
-        Builtins::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
+        Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
 
     generator_->tasm()->CodeEntry();

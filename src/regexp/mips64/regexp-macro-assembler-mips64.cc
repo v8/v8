@@ -1173,8 +1173,8 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
   __ li(t9, Operand(stack_guard_check));
 
   EmbeddedData d = EmbeddedData::FromBlob();
-  CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
-  Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+  CHECK(Builtins::IsIsolateIndependent(Builtin::kDirectCEntry));
+  Address entry = d.InstructionStartOfBuiltin(Builtin::kDirectCEntry);
   __ li(kScratchReg, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(kScratchReg);
 

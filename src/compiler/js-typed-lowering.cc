@@ -1131,7 +1131,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
   Node* rfalse;
   {
     // Convert {receiver} using the ToObjectStub.
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kToObject);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),
@@ -1788,7 +1788,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       DCHECK(Builtins::HasJSLinkage(shared->builtin_id()));
       // Patch {node} to a direct code object call.
       Callable callable = Builtins::CallableFor(
-          isolate(), static_cast<Builtins::Name>(shared->builtin_id()));
+          isolate(), static_cast<Builtin>(shared->builtin_id()));
       CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
@@ -1913,7 +1913,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
         // Filter the {key} to check if it's still a valid property of the
         // {receiver} (does the ToName conversion implicitly).
         Callable const callable =
-            Builtins::CallableFor(isolate(), Builtins::kForInFilter);
+            Builtins::CallableFor(isolate(), Builtin::kForInFilter);
         auto call_descriptor = Linkage::GetStubCallDescriptor(
             graph()->zone(), callable.descriptor(),
             callable.descriptor().GetStackParameterCount(),

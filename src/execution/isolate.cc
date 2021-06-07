@@ -391,7 +391,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   size_t hash = kSeed;
 
   // Hash data sections of builtin code objects.
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
     Code code = heap_.builtin(i);
 
     DCHECK(Internals::HasHeapObjectTag(code.ptr()));
@@ -872,7 +872,7 @@ bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 namespace {
 
 bool IsBuiltinFunction(Isolate* isolate, HeapObject object,
-                       Builtins::Name builtin_index) {
+                       Builtin builtin_index) {
   if (!object.IsJSFunction()) return false;
   JSFunction const function = JSFunction::cast(object);
   return function.code() == isolate->builtins()->builtin(builtin_index);
@@ -893,11 +893,11 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
     // Check if the {reaction} has one of the known async function or
     // async generator continuations as its fulfill handler.
     if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtins::kAsyncFunctionAwaitResolveClosure) ||
+                          Builtin::kAsyncFunctionAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtins::kAsyncGeneratorAwaitResolveClosure) ||
+                          Builtin::kAsyncGeneratorAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtins::kAsyncGeneratorYieldResolveClosure)) {
+                          Builtin::kAsyncGeneratorYieldResolveClosure)) {
       // Now peak into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
@@ -925,7 +925,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                          isolate);
       }
     } else if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                                 Builtins::kPromiseAllResolveElementClosure)) {
+                                 Builtin::kPromiseAllResolveElementClosure)) {
       Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
                                   isolate);
       Handle<Context> context(function->context(), isolate);
@@ -943,7 +943,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       if (!capability->promise().IsJSPromise()) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->reject_handler(),
-                                 Builtins::kPromiseAnyRejectElementClosure)) {
+                                 Builtin::kPromiseAnyRejectElementClosure)) {
       Handle<JSFunction> function(JSFunction::cast(reaction->reject_handler()),
                                   isolate);
       Handle<Context> context(function->context(), isolate);
@@ -960,7 +960,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       if (!capability->promise().IsJSPromise()) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                                 Builtins::kPromiseCapabilityDefaultResolve)) {
+                                 Builtin::kPromiseCapabilityDefaultResolve)) {
       Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
                                   isolate);
       Handle<Context> context(function->context(), isolate);
@@ -1087,15 +1087,15 @@ Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
       // Check if the {reaction} has one of the known async function or
       // async generator continuations as its fulfill handler.
       if (IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                            Builtins::kAsyncFunctionAwaitResolveClosure) ||
+                            Builtin::kAsyncFunctionAwaitResolveClosure) ||
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                            Builtins::kAsyncGeneratorAwaitResolveClosure) ||
+                            Builtin::kAsyncGeneratorAwaitResolveClosure) ||
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                            Builtins::kAsyncGeneratorYieldResolveClosure) ||
+                            Builtin::kAsyncGeneratorYieldResolveClosure) ||
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                            Builtins::kAsyncFunctionAwaitRejectClosure) ||
+                            Builtin::kAsyncFunctionAwaitRejectClosure) ||
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                            Builtins::kAsyncGeneratorAwaitRejectClosure)) {
+                            Builtin::kAsyncGeneratorAwaitRejectClosure)) {
         // Now peak into the handlers' AwaitContext to get to
         // the JSGeneratorObject for the async function.
         Handle<Context> context(
@@ -1913,8 +1913,7 @@ Object Isolate::UnwindAndFindHandler() {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));
 
-          Code code =
-              builtins()->builtin(Builtins::kInterpreterEnterAtBytecode);
+          Code code = builtins()->builtin(Builtin::kInterpreterEnterAtBytecode);
           return FoundHandler(context, code.InstructionStart(), 0,
                               code.constant_pool(), return_sp, frame->fp());
         }
@@ -2687,7 +2686,7 @@ void Isolate::ReleaseSharedPtrs() {
 bool Isolate::IsBuiltinsTableHandleLocation(Address* handle_location) {
   FullObjectSlot location(handle_location);
   FullObjectSlot first_root(builtins_table());
-  FullObjectSlot last_root(builtins_table() + Builtins::builtin_count);
+  FullObjectSlot last_root(builtins_table() + Builtins::kBuiltinCount);
   if (location >= last_root) return false;
   if (location < first_root) return false;
   return true;
@@ -3384,7 +3383,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
   EmbeddedData d = EmbeddedData::FromBlob(isolate);
 
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
     Address instruction_start = d.InstructionStartOfBuiltin(i);
     Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
         builtins->builtin_handle(i), instruction_start);
@@ -3722,7 +3721,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // this at mksnapshot-time, but not at runtime.
     // See also: https://crbug.com/v8/8713.
     heap_.SetInterpreterEntryTrampolineForProfiling(
-        heap_.builtin(Builtins::kInterpreterEntryTrampoline));
+        heap_.builtin(Builtin::kInterpreterEntryTrampoline));
 #endif
 
     builtins_constants_table_builder_->Finalize();
@@ -4620,14 +4619,14 @@ void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
           }
           last_frame_was_promise_builtin = false;
           if (info->HasBuiltinId()) {
-            if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
+            if (info->builtin_id() == Builtin::kPromisePrototypeThen) {
               type = debug::kDebugPromiseThen;
               last_frame_was_promise_builtin = true;
-            } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
+            } else if (info->builtin_id() == Builtin::kPromisePrototypeCatch) {
               type = debug::kDebugPromiseCatch;
               last_frame_was_promise_builtin = true;
             } else if (info->builtin_id() ==
-                       Builtins::kPromisePrototypeFinally) {
+                       Builtin::kPromisePrototypeFinally) {
               type = debug::kDebugPromiseFinally;
               last_frame_was_promise_builtin = true;
             }

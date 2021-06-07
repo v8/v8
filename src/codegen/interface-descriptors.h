@@ -502,7 +502,7 @@ class StaticJSCallInterfaceDescriptor
       Descriptor>::StaticCallInterfaceDescriptor;
 };
 
-template <Builtins::Name kBuiltin>
+template <Builtin kBuiltin>
 struct CallInterfaceDescriptorFor;
 
 // Stub class replacing std::array<Register, 0>, as a workaround for MSVC's

@@ -38,19 +38,19 @@ void init_memcopy_functions() {
   if (Isolate::CurrentEmbeddedBlobIsBinaryEmbedded()) {
     EmbeddedData d = EmbeddedData::FromBlob();
     memmove_function = reinterpret_cast<MemMoveFunction>(
-        d.InstructionStartOfBuiltin(Builtins::kMemMove));
+        d.InstructionStartOfBuiltin(Builtin::kMemMove));
   }
 #elif V8_OS_POSIX && V8_HOST_ARCH_ARM
   if (Isolate::CurrentEmbeddedBlobIsBinaryEmbedded()) {
     EmbeddedData d = EmbeddedData::FromBlob();
     memcopy_uint8_function = reinterpret_cast<MemCopyUint8Function>(
-        d.InstructionStartOfBuiltin(Builtins::kMemCopyUint8Uint8));
+        d.InstructionStartOfBuiltin(Builtin::kMemCopyUint8Uint8));
   }
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
   if (Isolate::CurrentEmbeddedBlobIsBinaryEmbedded()) {
     EmbeddedData d = EmbeddedData::FromBlob();
     memcopy_uint8_function = reinterpret_cast<MemCopyUint8Function>(
-        d.InstructionStartOfBuiltin(Builtins::kMemCopyUint8Uint8));
+        d.InstructionStartOfBuiltin(Builtin::kMemCopyUint8Uint8));
   }
 #endif
 }

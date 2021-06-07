@@ -76,11 +76,10 @@ void CallOrConstructBuiltinsAssembler::BuildConstruct(
                            &if_construct_array, &allocation_site);
 
   BIND(&if_construct_generic);
-  TailCallBuiltin(Builtins::kConstruct, eager_context, target, new_target,
-                  argc);
+  TailCallBuiltin(Builtin::kConstruct, eager_context, target, new_target, argc);
 
   BIND(&if_construct_array);
-  TailCallBuiltin(Builtins::kArrayConstructorImpl, eager_context, target,
+  TailCallBuiltin(Builtin::kArrayConstructorImpl, eager_context, target,
                   new_target, argc, allocation_site.value());
 }
 
@@ -256,7 +255,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
   Handle<Code> lazy_builtin_handle =
-      isolate()->builtins()->builtin_handle(Builtins::kCompileLazy);
+      isolate()->builtins()->builtin_handle(Builtin::kCompileLazy);
   TNode<Code> lazy_builtin = HeapConstant(lazy_builtin_handle);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);

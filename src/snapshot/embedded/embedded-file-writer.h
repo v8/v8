@@ -46,7 +46,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   void SetBuiltinUnwindData(
       int builtin_index,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) override {
-    DCHECK_LT(builtin_index, Builtins::builtin_count);
+    DCHECK_LT(builtin_index, Builtins::kBuiltinCount);
     unwind_infos_[builtin_index] = unwinding_info;
   }
 #endif  // V8_OS_WIN64
@@ -180,11 +180,11 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
  private:
-  std::vector<byte> source_positions_[Builtins::builtin_count];
-  std::vector<LabelInfo> label_info_[Builtins::builtin_count];
+  std::vector<byte> source_positions_[Builtins::kBuiltinCount];
+  std::vector<LabelInfo> label_info_[Builtins::kBuiltinCount];
 
 #if defined(V8_OS_WIN64)
-  win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::builtin_count];
+  win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::kBuiltinCount];
 #endif  // V8_OS_WIN64
 
   std::map<const char*, int> external_filenames_;

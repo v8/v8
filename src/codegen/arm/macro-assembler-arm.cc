@@ -166,7 +166,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK_IMPLIES(options().use_pc_relative_calls_and_jumps,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
-  int builtin_index = Builtins::kNoBuiltinId;
+  int builtin_index = Builtin::kNoBuiltinId;
   bool target_is_builtin =
       isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
@@ -181,7 +181,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     int offset = IsolateData::builtin_entry_slot_offset(
-        static_cast<Builtins::Name>(code->builtin_index()));
+        static_cast<Builtin>(code->builtin_index()));
     ldr(scratch, MemOperand(kRootRegister, offset));
     Jump(scratch, cond);
     return;
@@ -258,7 +258,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK_IMPLIES(options().use_pc_relative_calls_and_jumps,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
-  int builtin_index = Builtins::kNoBuiltinId;
+  int builtin_index = Builtin::kNoBuiltinId;
   bool target_is_builtin =
       isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
@@ -271,7 +271,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     // creation at runtime. At this point, Code space isn't restricted to a
     // size s.t. pc-relative calls may be used.
     int offset = IsolateData::builtin_entry_slot_offset(
-        static_cast<Builtins::Name>(code->builtin_index()));
+        static_cast<Builtin>(code->builtin_index()));
     ldr(ip, MemOperand(kRootRegister, offset));
     Call(ip, cond);
     return;
@@ -306,13 +306,12 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   Call(builtin_index);
 }
 
-void TurboAssembler::LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
-                                               Register destination) {
-  ldr(destination, EntryFromBuiltinIndexAsOperand(builtin_index));
+void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin_index,
+                                          Register destination) {
+  ldr(destination, EntryFromBuiltinAsOperand(builtin_index));
 }
 
-MemOperand TurboAssembler::EntryFromBuiltinIndexAsOperand(
-    Builtins::Name builtin_index) {
+MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin_index) {
   DCHECK(root_array_available());
   return MemOperand(kRootRegister,
                     IsolateData::builtin_entry_slot_offset(builtin_index));
@@ -1917,7 +1916,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else if (options().inline_offheap_trampolines) {
-    CallBuiltin(Builtins::kDoubleToI);
+    CallBuiltin(Builtin::kDoubleToI);
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }
@@ -2609,9 +2608,9 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   mov(kSpeculationPoisonRegister, Operand(-1));
 }
 
-void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
-                                           Label* exit, DeoptimizeKind kind,
-                                           Label* ret, Label*) {
+void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
+                                           DeoptimizeKind kind, Label* ret,
+                                           Label*) {
   BlockConstPoolScope block_const_pool(this);
   ldr(ip, MemOperand(kRootRegister,
                      IsolateData::builtin_entry_slot_offset(target)));

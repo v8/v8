@@ -181,7 +181,7 @@ void AccessorAssembler::TryMegaDOMCase(TNode<Object> lookup_start_object,
   // TODO(gsathya): This builtin throws an exception on interface check fail but
   // we should miss to the runtime.
   exit_point->Return(
-      CallBuiltin(Builtins::kCallFunctionTemplate_CheckCompatibleReceiver,
+      CallBuiltin(Builtin::kCallFunctionTemplate_CheckCompatibleReceiver,
                   context, getter, IntPtrConstant(0), lookup_start_object));
 }
 
@@ -770,7 +770,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
       BIND(&if_unique_name);
       exit_point->ReturnCallStub(
-          Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
+          Builtins::CallableFor(isolate(), Builtin::kProxyGetProperty),
           p->context(), holder, var_unique.value(), p->receiver(),
           SmiConstant(on_nonexistent));
 
@@ -787,7 +787,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
                                     p->receiver(), SmiConstant(on_nonexistent));
     } else {
       exit_point->ReturnCallStub(
-          Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
+          Builtins::CallableFor(isolate(), Builtin::kProxyGetProperty),
           p->context(), holder, p->name(), p->receiver(),
           SmiConstant(on_nonexistent));
     }
@@ -913,7 +913,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
                 WordEqual(handler_kind,
                           IntPtrConstant(LoadHandler::kModuleExport)))));
     exit_point->ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtins::kHasProperty), p->context(),
+        Builtins::CallableFor(isolate(), Builtin::kHasProperty), p->context(),
         p->receiver(), p->name());
   }
 
@@ -1895,7 +1895,7 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
               &to_name_failed);
 
     BIND(&if_unique_name);
-    CallBuiltin(Builtins::kProxySetProperty, p->context(), proxy,
+    CallBuiltin(Builtin::kProxySetProperty, p->context(), proxy,
                 var_unique.value(), p->value(), p->receiver());
     Return(p->value());
 
@@ -1909,9 +1909,8 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
     TailCallRuntime(Runtime::kSetPropertyWithReceiver, p->context(), proxy,
                     p->name(), p->value(), p->receiver());
   } else {
-    TNode<Object> name =
-        CallBuiltin(Builtins::kToName, p->context(), p->name());
-    TailCallBuiltin(Builtins::kProxySetProperty, p->context(), proxy, name,
+    TNode<Object> name = CallBuiltin(Builtin::kToName, p->context(), p->name());
+    TailCallBuiltin(Builtin::kProxySetProperty, p->context(), proxy, name,
                     p->value(), p->receiver());
   }
 }
@@ -2580,7 +2579,7 @@ void AccessorAssembler::GenericElementLoad(
     TNode<IntPtrT> length = LoadStringLengthAsWord(CAST(lookup_start_object));
     GotoIfNot(UintPtrLessThan(index, length), slow);
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
-    TailCallBuiltin(Builtins::kStringCharAt, NoContextConstant(),
+    TailCallBuiltin(Builtin::kStringCharAt, NoContextConstant(),
                     lookup_start_object, index);
   }
 
@@ -2763,7 +2762,7 @@ void AccessorAssembler::GenericPropertyLoad(
     GotoIf(IsPrivateSymbol(name), slow);
 
     direct_exit.ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
+        Builtins::CallableFor(isolate(), Builtin::kProxyGetProperty),
         p->context(), lookup_start_object, name, p->receiver(),
         SmiConstant(OnNonExistent::kReturnUndefined));
   }
@@ -2942,8 +2941,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
     Comment("LoadIC_BytecodeHandler_noninlined");
 
     // Call into the stub that implements the non-inlined parts of LoadIC.
-    Callable ic =
-        Builtins::CallableFor(isolate(), Builtins::kLoadIC_Noninlined);
+    Callable ic = Builtins::CallableFor(isolate(), Builtin::kLoadIC_Noninlined);
     TNode<Code> code_target = HeapConstant(ic.code());
     exit_point->ReturnCallStub(ic.descriptor(), code_target, p->context(),
                                p->receiver_and_lookup_start_object(), p->name(),
@@ -2955,7 +2953,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
     Comment("LoadIC_BytecodeHandler_nofeedback");
     // Call into the stub that implements the non-inlined parts of LoadIC.
     exit_point->ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtins::kLoadIC_NoFeedback),
+        Builtins::CallableFor(isolate(), Builtin::kLoadIC_NoFeedback),
         p->context(), p->receiver(), p->name(),
         SmiConstant(FeedbackSlotKind::kLoadProperty));
   }
@@ -3018,7 +3016,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
     Comment("LoadIC_nofeedback");
     // Call into the stub that implements the non-inlined parts of LoadIC.
     direct_exit.ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtins::kLoadIC_NoFeedback),
+        Builtins::CallableFor(isolate(), Builtin::kLoadIC_NoFeedback),
         p->context(), p->receiver(), p->name(),
         SmiConstant(FeedbackSlotKind::kLoadProperty));
   }
@@ -3212,7 +3210,7 @@ void AccessorAssembler::LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
                              ? FeedbackSlotKind::kLoadGlobalInsideTypeof
                              : FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
     exit_point->ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtins::kLoadGlobalIC_NoFeedback),
+        Builtins::CallableFor(isolate(), Builtin::kLoadGlobalIC_NoFeedback),
         lazy_context(), lazy_name(), SmiConstant(ic_kind));
   }
 }
@@ -3335,7 +3333,7 @@ void AccessorAssembler::LoadGlobalIC_NoFeedback(TNode<Context> context,
   BIND(&regular_load);
   TNode<JSGlobalObject> global_object =
       CAST(LoadContextElement(native_context, Context::EXTENSION_INDEX));
-  TailCallStub(Builtins::CallableFor(isolate(), Builtins::kLoadIC_NoFeedback),
+  TailCallStub(Builtins::CallableFor(isolate(), Builtin::kLoadIC_NoFeedback),
                context, global_object, name, smi_typeof_mode);
 }
 
@@ -3390,11 +3388,10 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
   BIND(&generic);
   {
     // TODO(jkummerow): Inline this? Or some of it?
-    TailCallBuiltin(access_mode == LoadAccessMode::kLoad
-                        ? Builtins::kKeyedLoadIC_Megamorphic
-                        : Builtins::kKeyedHasIC_Megamorphic,
-                    p->context(), p->receiver(), p->name(), p->slot(),
-                    p->vector());
+    TailCallBuiltin(
+        access_mode == LoadAccessMode::kLoad ? Builtin::kKeyedLoadIC_Megamorphic
+                                             : Builtin::kKeyedHasIC_Megamorphic,
+        p->context(), p->receiver(), p->name(), p->slot(), p->vector());
   }
 
   BIND(&try_uninitialized);
@@ -3447,8 +3444,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
       // If the name comparison succeeded, we know we have a weak fixed array
       // with at least one map/handler pair.
       TailCallBuiltin(access_mode == LoadAccessMode::kLoad
-                          ? Builtins::kKeyedLoadIC_PolymorphicName
-                          : Builtins::kKeyedHasIC_PolymorphicName,
+                          ? Builtin::kKeyedLoadIC_PolymorphicName
+                          : Builtin::kKeyedHasIC_PolymorphicName,
                       p->context(), p->receiver(), var_name.value(), p->slot(),
                       p->vector());
     }
@@ -3492,7 +3489,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
     BIND(&if_other);
     {
-      var_name = CallBuiltin(Builtins::kToName, p->context(), var_name.value());
+      var_name = CallBuiltin(Builtin::kToName, p->context(), var_name.value());
       TryToName(var_name.value(), &if_index, &var_index, &if_unique_name,
                 &var_unique, &if_runtime, &if_notunique);
     }
@@ -3641,7 +3638,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 
   BIND(&no_feedback);
   {
-    TailCallBuiltin(Builtins::kStoreIC_NoFeedback, p->context(), p->receiver(),
+    TailCallBuiltin(Builtin::kStoreIC_NoFeedback, p->context(), p->receiver(),
                     p->name(), p->value(), p->slot());
   }
 
@@ -3832,7 +3829,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
 
     BIND(&no_feedback);
     {
-      TailCallBuiltin(Builtins::kKeyedStoreIC_Megamorphic, p->context(),
+      TailCallBuiltin(Builtin::kKeyedStoreIC_Megamorphic, p->context(),
                       p->receiver(), p->name(), p->value(), p->slot());
     }
 
@@ -3950,8 +3947,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
   BIND(&no_feedback);
   {
     Comment("StoreInArrayLiteralIC_NoFeedback");
-    TailCallBuiltin(Builtins::kSetPropertyInLiteral, p->context(),
-                    p->receiver(), p->name(), p->value());
+    TailCallBuiltin(Builtin::kSetPropertyInLiteral, p->context(), p->receiver(),
+                    p->name(), p->value());
   }
 
   BIND(&miss);
@@ -4068,7 +4065,7 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtins::kLoadIC, context, receiver, name, slot, vector);
+  TailCallBuiltin(Builtin::kLoadIC, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadICBaseline() {
@@ -4080,7 +4077,7 @@ void AccessorAssembler::GenerateLoadICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kLoadIC, context, receiver, name, slot, vector);
+  TailCallBuiltin(Builtin::kLoadIC, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
@@ -4092,7 +4089,7 @@ void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtins::kLoadIC_Megamorphic, context, receiver, name, slot,
+  TailCallBuiltin(Builtin::kLoadIC_Megamorphic, context, receiver, name, slot,
                   vector);
 }
 
@@ -4121,8 +4118,8 @@ void AccessorAssembler::GenerateLoadSuperICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kLoadSuperIC, context, receiver,
-                  lookup_start_object, name, slot, vector);
+  TailCallBuiltin(Builtin::kLoadSuperIC, context, receiver, lookup_start_object,
+                  name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadGlobalIC_NoFeedback() {
@@ -4275,8 +4272,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtins::kKeyedLoadIC, context, receiver, name, slot,
-                  vector);
+  TailCallBuiltin(Builtin::kKeyedLoadIC, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedLoadICBaseline() {
@@ -4288,8 +4284,7 @@ void AccessorAssembler::GenerateKeyedLoadICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kKeyedLoadIC, context, receiver, name, slot,
-                  vector);
+  TailCallBuiltin(Builtin::kKeyedLoadIC, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
@@ -4301,7 +4296,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtins::kKeyedLoadIC_Megamorphic, context, receiver, name,
+  TailCallBuiltin(Builtin::kKeyedLoadIC_Megamorphic, context, receiver, name,
                   slot, vector);
 }
 
@@ -4340,7 +4335,7 @@ void AccessorAssembler::GenerateStoreGlobalICTrampoline() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtins::kStoreGlobalIC, context, name, value, slot, vector);
+  TailCallBuiltin(Builtin::kStoreGlobalIC, context, name, value, slot, vector);
 }
 
 void AccessorAssembler::GenerateStoreGlobalICBaseline() {
@@ -4352,7 +4347,7 @@ void AccessorAssembler::GenerateStoreGlobalICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kStoreGlobalIC, context, name, value, slot, vector);
+  TailCallBuiltin(Builtin::kStoreGlobalIC, context, name, value, slot, vector);
 }
 
 void AccessorAssembler::GenerateStoreIC() {
@@ -4379,7 +4374,7 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtins::kStoreIC, context, receiver, name, value, slot,
+  TailCallBuiltin(Builtin::kStoreIC, context, receiver, name, value, slot,
                   vector);
 }
 
@@ -4393,7 +4388,7 @@ void AccessorAssembler::GenerateStoreICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kStoreIC, context, receiver, name, value, slot,
+  TailCallBuiltin(Builtin::kStoreIC, context, receiver, name, value, slot,
                   vector);
 }
 
@@ -4421,7 +4416,7 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtins::kKeyedStoreIC, context, receiver, name, value, slot,
+  TailCallBuiltin(Builtin::kKeyedStoreIC, context, receiver, name, value, slot,
                   vector);
 }
 
@@ -4435,7 +4430,7 @@ void AccessorAssembler::GenerateKeyedStoreICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kKeyedStoreIC, context, receiver, name, value, slot,
+  TailCallBuiltin(Builtin::kKeyedStoreIC, context, receiver, name, value, slot,
                   vector);
 }
 
@@ -4464,8 +4459,8 @@ void AccessorAssembler::GenerateStoreInArrayLiteralICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kStoreInArrayLiteralIC, context, array, index,
-                  value, slot, vector);
+  TailCallBuiltin(Builtin::kStoreInArrayLiteralIC, context, array, index, value,
+                  slot, vector);
 }
 
 void AccessorAssembler::GenerateCloneObjectIC_Slow() {
@@ -4531,7 +4526,7 @@ void AccessorAssembler::GenerateCloneObjectICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kCloneObjectIC, context, source, flags, slot,
+  TailCallBuiltin(Builtin::kCloneObjectIC, context, source, flags, slot,
                   vector);
 }
 
@@ -4664,7 +4659,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 
   BIND(&slow);
   {
-    TailCallBuiltin(Builtins::kCloneObjectIC_Slow, context, source, flags, slot,
+    TailCallBuiltin(Builtin::kCloneObjectIC_Slow, context, source, flags, slot,
                     maybe_vector);
   }
 
@@ -4703,7 +4698,7 @@ void AccessorAssembler::GenerateKeyedHasICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtins::kKeyedHasIC, context, receiver, name, slot, vector);
+  TailCallBuiltin(Builtin::kKeyedHasIC, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {

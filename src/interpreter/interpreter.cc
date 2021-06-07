@@ -97,7 +97,7 @@ int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
     // kIllegalBytecodeHandlerEncoding for illegal bytecode/scale combinations.
     uint8_t offset = kWideBytecodeToBuiltinsMapping[index];
     if (offset == kIllegalBytecodeHandlerEncoding) {
-      return Builtins::kIllegalHandler;
+      return Builtin::kIllegalHandler;
     } else {
       index = kNumberOfBytecodeHandlers + offset;
       if (operand_scale == OperandScale::kQuadruple) {
@@ -105,7 +105,7 @@ int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
       }
     }
   }
-  return Builtins::kFirstBytecodeHandler + index;
+  return Builtin::kFirstBytecodeHandler + index;
 }
 
 }  // namespace

@@ -340,16 +340,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
 
-  Operand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
+  Operand EntryFromBuiltinAsOperand(Builtin builtin_index);
   Operand EntryFromBuiltinIndexAsOperand(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index);
-  void CallBuiltin(Builtins::Name builtin) {
-    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+  void CallBuiltin(Builtin builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtin one.
     return CallBuiltin(static_cast<int>(builtin));
   }
   void CallBuiltin(int builtin_index);
-  void TailCallBuiltin(Builtins::Name builtin) {
-    // TODO(11527): drop the int overload in favour of the Builtins::Name one.
+  void TailCallBuiltin(Builtin builtin) {
+    // TODO(11527): drop the int overload in favour of the Builtin one.
     return TailCallBuiltin(static_cast<int>(builtin));
   }
   void TailCallBuiltin(int builtin_index);
@@ -370,7 +370,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 
   void RetpolineJump(Register reg);
 
-  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+  void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
 

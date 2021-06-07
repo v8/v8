@@ -331,7 +331,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   Handle<Code> code;
   if (use_generic_wrapper_) {
     code =
-        isolate_->builtins()->builtin_handle(Builtins::kGenericJSToWasmWrapper);
+        isolate_->builtins()->builtin_handle(Builtin::kGenericJSToWasmWrapper);
   } else {
     CompilationJob::Status status = job_->FinalizeJob(isolate_);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);

@@ -526,7 +526,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static const int kExtendedHeaderSize = kTodoHeaderSize + kExtensionSize;
 
   // A region of native context entries containing maps for functions created
-  // by Builtins::kFastNewClosure.
+  // by Builtin::kFastNewClosure.
   static const int FIRST_FUNCTION_MAP_INDEX = SLOPPY_FUNCTION_MAP_INDEX;
   static const int LAST_FUNCTION_MAP_INDEX = CLASS_FUNCTION_MAP_INDEX;
 

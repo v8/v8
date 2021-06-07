@@ -107,7 +107,7 @@ TEST(TestLinkageStubCall) {
   // TODO(bbudge) Add tests for FP registers.
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
-  Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
+  Callable callable = Builtins::CallableFor(isolate, Builtin::kToNumber);
   OptimizedCompilationInfo info(ArrayVector("test"), &zone,
                                 CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -129,7 +129,7 @@ TEST(TestFPLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable =
-      Builtins::CallableFor(isolate, Builtins::kWasmFloat64ToNumber);
+      Builtins::CallableFor(isolate, Builtin::kWasmFloat64ToNumber);
   OptimizedCompilationInfo info(ArrayVector("test"), &zone,
                                 CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(

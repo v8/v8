@@ -228,7 +228,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     }
     tasm()->bind(exit->label());
   }
-  Builtins::Name target =
+  Builtin target =
       deopt_kind == DeoptimizeKind::kEagerWithResume
           ? Deoptimizer::GetDeoptWithResumeBuiltin(deoptimization_reason)
           : Deoptimizer::GetDeoptimizationEntry(deopt_kind);

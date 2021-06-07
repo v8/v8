@@ -38,14 +38,13 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
     LoadRoot(destination, root_index);
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin_index)) {
     // Similar to roots, builtins may be loaded from the builtins table.
-    LoadRootRelative(destination,
-                     RootRegisterOffsetForBuiltinIndex(builtin_index));
+    LoadRootRelative(destination, RootRegisterOffsetForBuiltin(builtin_index));
   } else if (object.is_identical_to(code_object_) &&
              Builtins::IsBuiltinId(maybe_builtin_index_)) {
     // The self-reference loaded through Codevalue() may also be a builtin
     // and thus viable for a fast load.
     LoadRootRelative(destination,
-                     RootRegisterOffsetForBuiltinIndex(maybe_builtin_index_));
+                     RootRegisterOffsetForBuiltin(maybe_builtin_index_));
   } else {
     CHECK(isolate()->IsGeneratingEmbeddedBuiltins());
     // Ensure the given object is in the builtins constants table and fetch its
@@ -84,8 +83,7 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
-    int builtin_index) {
+int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltin(int builtin_index) {
   return IsolateData::builtin_slot_offset(builtin_index);
 }
 

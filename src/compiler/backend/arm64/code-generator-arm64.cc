@@ -942,9 +942,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(
-            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
-            RelocInfo::CODE_TARGET);
+        __ Call(isolate()->builtins()->builtin_handle(Builtin::kAbortCSAAssert),
+                RelocInfo::CODE_TARGET);
       }
       __ Debug("kArchAbortCSAAssert", 0, BREAK);
       unwinding_info_writer_.MarkBlockWillExit();
@@ -3388,12 +3387,12 @@ void CodeGenerator::PrepareForDeoptimizationExits(
     __ bind(&jump_deoptimization_entry_labels_[i]);
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     if (kind == DeoptimizeKind::kEagerWithResume) {
-      __ LoadEntryFromBuiltinIndex(
+      __ LoadEntryFromBuiltin(
           Deoptimizer::GetDeoptWithResumeBuiltin(eager_with_resume_reason),
           scratch);
     } else {
-      __ LoadEntryFromBuiltinIndex(Deoptimizer::GetDeoptimizationEntry(kind),
-                                   scratch);
+      __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind),
+                              scratch);
     }
     __ Jump(scratch);
   }

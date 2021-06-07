@@ -2494,7 +2494,7 @@ TEST(CallBuiltin) {
     auto name = m.Parameter<Name>(2);
     auto context = m.Parameter<Context>(kNumParams + 3);
 
-    auto value = m.CallBuiltin(Builtins::kGetProperty, context, receiver, name);
+    auto value = m.CallBuiltin(Builtin::kGetProperty, context, receiver, name);
     m.Return(value);
   }
 
@@ -2523,7 +2523,7 @@ TEST(TailCallBuiltin) {
     auto name = m.Parameter<Name>(2);
     auto context = m.Parameter<Context>(kNumParams + 3);
 
-    m.TailCallBuiltin(Builtins::kGetProperty, context, receiver, name);
+    m.TailCallBuiltin(Builtin::kGetProperty, context, receiver, name);
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3003,7 +3003,7 @@ TEST(NewPromiseCapability) {
 
     const TNode<Oddball> debug_event = m.TrueConstant();
     const TNode<Object> capability =
-        m.CallBuiltin(Builtins::kNewPromiseCapability, context,
+        m.CallBuiltin(Builtin::kNewPromiseCapability, context,
                       promise_constructor, debug_event);
     m.Return(capability);
 
@@ -3049,7 +3049,7 @@ TEST(NewPromiseCapability) {
     auto constructor = m.Parameter<Object>(1);
     const TNode<Oddball> debug_event = m.TrueConstant();
     const TNode<Object> capability = m.CallBuiltin(
-        Builtins::kNewPromiseCapability, context, constructor, debug_event);
+        Builtin::kNewPromiseCapability, context, constructor, debug_event);
     m.Return(capability);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3900,7 +3900,7 @@ TEST(TestCallBuiltinInlineTrampoline) {
 
   TNode<Smi> index = m.SmiConstant(2);
 
-  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
+  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtin::kStringRepeat),
                       context, str, index));
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   options.inline_offheap_trampolines = true;
@@ -3926,7 +3926,7 @@ DISABLED_TEST(TestCallBuiltinIndirectLoad) {
 
   TNode<Smi> index = m.SmiConstant(2);
 
-  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
+  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtin::kStringRepeat),
                       context, str, index));
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   options.inline_offheap_trampolines = false;
@@ -4003,7 +4003,7 @@ TEST(WasmInt32ToHeapNumber) {
     CodeStubAssembler m(asm_tester.state());
     const TNode<Int32T> arg = m.Int32Constant(test_value);
     const TNode<Object> call_result = m.CallBuiltin(
-        Builtins::kWasmInt32ToHeapNumber, m.NoContextConstant(), arg);
+        Builtin::kWasmInt32ToHeapNumber, m.NoContextConstant(), arg);
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -4049,7 +4049,7 @@ TEST(WasmTaggedNonSmiToInt32) {
   const auto arg = m.Parameter<Object>(1);
   int32_t result = 0;
   Node* base = m.IntPtrConstant(reinterpret_cast<intptr_t>(&result));
-  Node* value = m.CallBuiltin(Builtins::kWasmTaggedNonSmiToInt32, context, arg);
+  Node* value = m.CallBuiltin(Builtin::kWasmTaggedNonSmiToInt32, context, arg);
   m.StoreNoWriteBarrier(MachineRepresentation::kWord32, base, value);
   m.Return(m.UndefinedConstant());
 
@@ -4089,7 +4089,7 @@ TEST(WasmFloat32ToNumber) {
     CodeStubAssembler m(asm_tester.state());
     const TNode<Float32T> arg = m.Float32Constant(test_value);
     const TNode<Object> call_result = m.CallBuiltin(
-        Builtins::kWasmFloat32ToNumber, m.NoContextConstant(), arg);
+        Builtin::kWasmFloat32ToNumber, m.NoContextConstant(), arg);
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -4129,7 +4129,7 @@ TEST(WasmFloat64ToNumber) {
     CodeStubAssembler m(asm_tester.state());
     const TNode<Float64T> arg = m.Float64Constant(test_value);
     const TNode<Object> call_result = m.CallBuiltin(
-        Builtins::kWasmFloat64ToNumber, m.NoContextConstant(), arg);
+        Builtin::kWasmFloat64ToNumber, m.NoContextConstant(), arg);
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -4185,7 +4185,7 @@ TEST(WasmTaggedToFloat64) {
   const auto arg = m.Parameter<Object>(1);
   double result = 0;
   Node* base = m.IntPtrConstant(reinterpret_cast<intptr_t>(&result));
-  Node* value = m.CallBuiltin(Builtins::kWasmTaggedToFloat64, context, arg);
+  Node* value = m.CallBuiltin(Builtin::kWasmTaggedToFloat64, context, arg);
   m.StoreNoWriteBarrier(MachineRepresentation::kFloat64, base, value);
   m.Return(m.UndefinedConstant());
 

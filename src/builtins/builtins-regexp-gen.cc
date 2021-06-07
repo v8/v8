@@ -53,7 +53,7 @@ TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
   TNode<Int32T> builtin_index =
       LoadObjectField<Int32T>(code, Code::kBuiltinIndexOffset);
   {
-    GotoIfNot(Word32Equal(builtin_index, Int32Constant(Builtins::kNoBuiltinId)),
+    GotoIfNot(Word32Equal(builtin_index, Int32Constant(Builtin::kNoBuiltinId)),
               &if_code_is_off_heap);
     var_result = ReinterpretCast<RawPtrT>(
         IntPtrAdd(BitcastTaggedToWord(code),
@@ -226,7 +226,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   // to avoid an unnecessary write barrier storing the first result.
 
   TNode<String> first =
-      CAST(CallBuiltin(Builtins::kSubString, context, string, start, end));
+      CAST(CallBuiltin(Builtin::kSubString, context, string, start, end));
 
   // Load flags and check if the result object needs to have indices.
   const TNode<Smi> flags =
@@ -269,7 +269,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
         CAST(UnsafeLoadFixedArrayElement(match_info, from_cursor_plus1));
 
     TNode<String> capture =
-        CAST(CallBuiltin(Builtins::kSubString, context, string, start, end));
+        CAST(CallBuiltin(Builtin::kSubString, context, string, start, end));
     UnsafeStoreFixedArrayElement(result_elements, to_cursor, capture);
     Goto(&next_iter);
 
@@ -765,7 +765,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   {
     // TODO(jgruber): A call with 4 args stresses register allocation, this
     // should probably just be inlined.
-    var_result = CAST(CallBuiltin(Builtins::kRegExpExecAtom, context, regexp,
+    var_result = CAST(CallBuiltin(Builtin::kRegExpExecAtom, context, regexp,
                                   string, last_index, match_info));
     Goto(&out);
   }
@@ -961,7 +961,7 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
                                      IntPtrConstant(0)));
 
   const TNode<Smi> match_from =
-      CAST(CallBuiltin(Builtins::kStringIndexOf, context, subject_string,
+      CAST(CallBuiltin(Builtin::kStringIndexOf, context, subject_string,
                        needle_string, last_index));
 
   Label if_failure(this), if_success(this);
@@ -1588,7 +1588,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
           native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
       const TNode<Object> match_indices =
-          CallBuiltin(Builtins::kRegExpExecInternal, context, regexp, string,
+          CallBuiltin(Builtin::kRegExpExecInternal, context, regexp, string,
                       SmiZero(), last_match_info);
 
       Label return_singleton_array(this);
@@ -1682,7 +1682,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
     {
       const TNode<Smi> from = last_matched_until;
       const TNode<Smi> to = match_from;
-      array.Push(CallBuiltin(Builtins::kSubString, context, string, from, to));
+      array.Push(CallBuiltin(Builtin::kSubString, context, string, from, to));
       GotoIf(WordEqual(array.length(), int_limit), &out);
     }
 
@@ -1718,7 +1718,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
         BIND(&select_capture);
         {
           var_value =
-              CallBuiltin(Builtins::kSubString, context, string, from, to);
+              CallBuiltin(Builtin::kSubString, context, string, from, to);
           Goto(&store_value);
         }
 
@@ -1753,7 +1753,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   {
     const TNode<Smi> from = var_last_matched_until.value();
     const TNode<Smi> to = string_length;
-    array.Push(CallBuiltin(Builtins::kSubString, context, string, from, to));
+    array.Push(CallBuiltin(Builtin::kSubString, context, string, from, to));
     Goto(&out);
   }
 

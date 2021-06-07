@@ -130,10 +130,8 @@ class CodeEntry {
 
   void FillFunctionInfo(SharedFunctionInfo shared);
 
-  void SetBuiltinId(Builtins::Name id);
-  Builtins::Name builtin_id() const {
-    return BuiltinIdField::decode(bit_field_);
-  }
+  void SetBuiltinId(Builtin id);
+  Builtin builtin_id() const { return BuiltinIdField::decode(bit_field_); }
 
   bool is_shared_cross_origin() const {
     return SharedCrossOriginField::decode(bit_field_);
@@ -208,8 +206,8 @@ class CodeEntry {
   RareData* EnsureRareData();
 
   using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
-  using BuiltinIdField = base::BitField<Builtins::Name, 8, 20>;
-  static_assert(Builtins::builtin_count <= BuiltinIdField::kNumValues,
+  using BuiltinIdField = base::BitField<Builtin, 8, 20>;
+  static_assert(Builtins::kBuiltinCount <= BuiltinIdField::kNumValues,
                 "builtin_count exceeds size of bitfield");
   using CodeTypeField = base::BitField<CodeType, 28, 2>;
   using UsedField = base::BitField<bool, 30, 1>;

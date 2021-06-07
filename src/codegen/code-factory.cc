@@ -70,61 +70,61 @@ Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
 
 // static
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kCallApiGetter);
+  return Builtins::CallableFor(isolate, Builtin::kCallApiGetter);
 }
 
 // static
 Callable CodeFactory::CallApiCallback(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kCallApiCallback);
+  return Builtins::CallableFor(isolate, Builtin::kCallApiCallback);
 }
 
 // static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
   return typeof_mode == TypeofMode::kNotInside
-             ? Builtins::CallableFor(isolate, Builtins::kLoadGlobalICTrampoline)
+             ? Builtins::CallableFor(isolate, Builtin::kLoadGlobalICTrampoline)
              : Builtins::CallableFor(
-                   isolate, Builtins::kLoadGlobalICInsideTypeofTrampoline);
+                   isolate, Builtin::kLoadGlobalICInsideTypeofTrampoline);
 }
 
 // static
 Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                                                   TypeofMode typeof_mode) {
   return typeof_mode == TypeofMode::kNotInside
-             ? Builtins::CallableFor(isolate, Builtins::kLoadGlobalIC)
+             ? Builtins::CallableFor(isolate, Builtin::kLoadGlobalIC)
              : Builtins::CallableFor(isolate,
-                                     Builtins::kLoadGlobalICInsideTypeof);
+                                     Builtin::kLoadGlobalICInsideTypeof);
 }
 
 Callable CodeFactory::StoreOwnIC(Isolate* isolate) {
   // TODO(ishell): Currently we use StoreOwnIC only for storing properties that
   // already exist in the boilerplate therefore we can use StoreIC.
-  return Builtins::CallableFor(isolate, Builtins::kStoreICTrampoline);
+  return Builtins::CallableFor(isolate, Builtin::kStoreICTrampoline);
 }
 
 Callable CodeFactory::StoreOwnICInOptimizedCode(Isolate* isolate) {
   // TODO(ishell): Currently we use StoreOwnIC only for storing properties that
   // already exist in the boilerplate therefore we can use StoreIC.
-  return Builtins::CallableFor(isolate, Builtins::kStoreIC);
+  return Builtins::CallableFor(isolate, Builtin::kStoreIC);
 }
 
 Callable CodeFactory::KeyedStoreIC_SloppyArguments(Isolate* isolate,
                                                    KeyedAccessStoreMode mode) {
-  Builtins::Name builtin_index;
+  Builtin builtin_index;
   switch (mode) {
     case STANDARD_STORE:
-      builtin_index = Builtins::kKeyedStoreIC_SloppyArguments_Standard;
+      builtin_index = Builtin::kKeyedStoreIC_SloppyArguments_Standard;
       break;
     case STORE_AND_GROW_HANDLE_COW:
       builtin_index =
-          Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW;
+          Builtin::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW;
       break;
     case STORE_IGNORE_OUT_OF_BOUNDS:
       builtin_index =
-          Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB;
+          Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB;
       break;
     case STORE_HANDLE_COW:
       builtin_index =
-          Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW;
+          Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW;
       break;
     default:
       UNREACHABLE();
@@ -134,22 +134,22 @@ Callable CodeFactory::KeyedStoreIC_SloppyArguments(Isolate* isolate,
 
 Callable CodeFactory::ElementsTransitionAndStore(Isolate* isolate,
                                                  KeyedAccessStoreMode mode) {
-  Builtins::Name builtin_index;
+  Builtin builtin_index;
   switch (mode) {
     case STANDARD_STORE:
-      builtin_index = Builtins::kElementsTransitionAndStore_Standard;
+      builtin_index = Builtin::kElementsTransitionAndStore_Standard;
       break;
     case STORE_AND_GROW_HANDLE_COW:
       builtin_index =
-          Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW;
+          Builtin::kElementsTransitionAndStore_GrowNoTransitionHandleCOW;
       break;
     case STORE_IGNORE_OUT_OF_BOUNDS:
       builtin_index =
-          Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB;
+          Builtin::kElementsTransitionAndStore_NoTransitionIgnoreOOB;
       break;
     case STORE_HANDLE_COW:
       builtin_index =
-          Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW;
+          Builtin::kElementsTransitionAndStore_NoTransitionHandleCOW;
       break;
     default:
       UNREACHABLE();
@@ -159,19 +159,19 @@ Callable CodeFactory::ElementsTransitionAndStore(Isolate* isolate,
 
 Callable CodeFactory::StoreFastElementIC(Isolate* isolate,
                                          KeyedAccessStoreMode mode) {
-  Builtins::Name builtin_index;
+  Builtin builtin_index;
   switch (mode) {
     case STANDARD_STORE:
-      builtin_index = Builtins::kStoreFastElementIC_Standard;
+      builtin_index = Builtin::kStoreFastElementIC_Standard;
       break;
     case STORE_AND_GROW_HANDLE_COW:
-      builtin_index = Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW;
+      builtin_index = Builtin::kStoreFastElementIC_GrowNoTransitionHandleCOW;
       break;
     case STORE_IGNORE_OUT_OF_BOUNDS:
-      builtin_index = Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB;
+      builtin_index = Builtin::kStoreFastElementIC_NoTransitionIgnoreOOB;
       break;
     case STORE_HANDLE_COW:
-      builtin_index = Builtins::kStoreFastElementIC_NoTransitionHandleCOW;
+      builtin_index = Builtin::kStoreFastElementIC_NoTransitionHandleCOW;
       break;
     default:
       UNREACHABLE();
@@ -183,27 +183,27 @@ Callable CodeFactory::StoreFastElementIC(Isolate* isolate,
 Callable CodeFactory::BinaryOperation(Isolate* isolate, Operation op) {
   switch (op) {
     case Operation::kShiftRight:
-      return Builtins::CallableFor(isolate, Builtins::kShiftRight);
+      return Builtins::CallableFor(isolate, Builtin::kShiftRight);
     case Operation::kShiftLeft:
-      return Builtins::CallableFor(isolate, Builtins::kShiftLeft);
+      return Builtins::CallableFor(isolate, Builtin::kShiftLeft);
     case Operation::kShiftRightLogical:
-      return Builtins::CallableFor(isolate, Builtins::kShiftRightLogical);
+      return Builtins::CallableFor(isolate, Builtin::kShiftRightLogical);
     case Operation::kAdd:
-      return Builtins::CallableFor(isolate, Builtins::kAdd);
+      return Builtins::CallableFor(isolate, Builtin::kAdd);
     case Operation::kSubtract:
-      return Builtins::CallableFor(isolate, Builtins::kSubtract);
+      return Builtins::CallableFor(isolate, Builtin::kSubtract);
     case Operation::kMultiply:
-      return Builtins::CallableFor(isolate, Builtins::kMultiply);
+      return Builtins::CallableFor(isolate, Builtin::kMultiply);
     case Operation::kDivide:
-      return Builtins::CallableFor(isolate, Builtins::kDivide);
+      return Builtins::CallableFor(isolate, Builtin::kDivide);
     case Operation::kModulus:
-      return Builtins::CallableFor(isolate, Builtins::kModulus);
+      return Builtins::CallableFor(isolate, Builtin::kModulus);
     case Operation::kBitwiseOr:
-      return Builtins::CallableFor(isolate, Builtins::kBitwiseOr);
+      return Builtins::CallableFor(isolate, Builtin::kBitwiseOr);
     case Operation::kBitwiseAnd:
-      return Builtins::CallableFor(isolate, Builtins::kBitwiseAnd);
+      return Builtins::CallableFor(isolate, Builtin::kBitwiseAnd);
     case Operation::kBitwiseXor:
-      return Builtins::CallableFor(isolate, Builtins::kBitwiseXor);
+      return Builtins::CallableFor(isolate, Builtin::kBitwiseXor);
     default:
       break;
   }
@@ -228,18 +228,18 @@ Callable CodeFactory::OrdinaryToPrimitive(Isolate* isolate,
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags) {
   switch (flags) {
     case STRING_ADD_CHECK_NONE:
-      return Builtins::CallableFor(isolate, Builtins::kStringAdd_CheckNone);
+      return Builtins::CallableFor(isolate, Builtin::kStringAdd_CheckNone);
     case STRING_ADD_CONVERT_LEFT:
-      return Builtins::CallableFor(isolate, Builtins::kStringAddConvertLeft);
+      return Builtins::CallableFor(isolate, Builtin::kStringAddConvertLeft);
     case STRING_ADD_CONVERT_RIGHT:
-      return Builtins::CallableFor(isolate, Builtins::kStringAddConvertRight);
+      return Builtins::CallableFor(isolate, Builtin::kStringAddConvertRight);
   }
   UNREACHABLE();
 }
 
 // static
 Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kResumeGeneratorTrampoline);
+  return Builtins::CallableFor(isolate, Builtin::kResumeGeneratorTrampoline);
 }
 
 // static
@@ -248,10 +248,10 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
   switch (scope_type) {
     case ScopeType::EVAL_SCOPE:
       return Builtins::CallableFor(isolate,
-                                   Builtins::kFastNewFunctionContextEval);
+                                   Builtin::kFastNewFunctionContextEval);
     case ScopeType::FUNCTION_SCOPE:
       return Builtins::CallableFor(isolate,
-                                   Builtins::kFastNewFunctionContextFunction);
+                                   Builtin::kFastNewFunctionContextFunction);
     default:
       UNREACHABLE();
   }
@@ -268,25 +268,25 @@ Callable CodeFactory::Call_WithFeedback(Isolate* isolate,
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
       return Builtins::CallableFor(
-          isolate, Builtins::kCall_ReceiverIsNullOrUndefined_WithFeedback);
+          isolate, Builtin::kCall_ReceiverIsNullOrUndefined_WithFeedback);
     case ConvertReceiverMode::kNotNullOrUndefined:
       return Builtins::CallableFor(
-          isolate, Builtins::kCall_ReceiverIsNotNullOrUndefined_WithFeedback);
+          isolate, Builtin::kCall_ReceiverIsNotNullOrUndefined_WithFeedback);
     case ConvertReceiverMode::kAny:
       return Builtins::CallableFor(isolate,
-                                   Builtins::kCall_ReceiverIsAny_WithFeedback);
+                                   Builtin::kCall_ReceiverIsAny_WithFeedback);
   }
   UNREACHABLE();
 }
 
 // static
 Callable CodeFactory::CallWithArrayLike(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kCallWithArrayLike);
+  return Builtins::CallableFor(isolate, Builtin::kCallWithArrayLike);
 }
 
 // static
 Callable CodeFactory::CallWithSpread(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kCallWithSpread);
+  return Builtins::CallableFor(isolate, Builtin::kCallWithSpread);
 }
 
 // static
@@ -297,48 +297,48 @@ Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
 
 // static
 Callable CodeFactory::CallVarargs(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kCallVarargs);
+  return Builtins::CallableFor(isolate, Builtin::kCallVarargs);
 }
 
 // static
 Callable CodeFactory::CallForwardVarargs(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kCallForwardVarargs);
+  return Builtins::CallableFor(isolate, Builtin::kCallForwardVarargs);
 }
 
 // static
 Callable CodeFactory::CallFunctionForwardVarargs(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kCallFunctionForwardVarargs);
+  return Builtins::CallableFor(isolate, Builtin::kCallFunctionForwardVarargs);
 }
 
 // static
 Callable CodeFactory::Construct(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kConstruct);
+  return Builtins::CallableFor(isolate, Builtin::kConstruct);
 }
 
 // static
 Callable CodeFactory::ConstructWithSpread(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kConstructWithSpread);
+  return Builtins::CallableFor(isolate, Builtin::kConstructWithSpread);
 }
 
 // static
 Callable CodeFactory::ConstructFunction(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kConstructFunction);
+  return Builtins::CallableFor(isolate, Builtin::kConstructFunction);
 }
 
 // static
 Callable CodeFactory::ConstructVarargs(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kConstructVarargs);
+  return Builtins::CallableFor(isolate, Builtin::kConstructVarargs);
 }
 
 // static
 Callable CodeFactory::ConstructForwardVarargs(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtins::kConstructForwardVarargs);
+  return Builtins::CallableFor(isolate, Builtin::kConstructForwardVarargs);
 }
 
 // static
 Callable CodeFactory::ConstructFunctionForwardVarargs(Isolate* isolate) {
   return Builtins::CallableFor(isolate,
-                               Builtins::kConstructFunctionForwardVarargs);
+                               Builtin::kConstructFunctionForwardVarargs);
 }
 
 // static
@@ -352,16 +352,16 @@ Callable CodeFactory::InterpreterPushArgsThenCall(
       UNREACHABLE();
     case InterpreterPushArgsMode::kWithFinalSpread:
       return Builtins::CallableFor(
-          isolate, Builtins::kInterpreterPushArgsThenCallWithFinalSpread);
+          isolate, Builtin::kInterpreterPushArgsThenCallWithFinalSpread);
     case InterpreterPushArgsMode::kOther:
       switch (receiver_mode) {
         case ConvertReceiverMode::kNullOrUndefined:
           return Builtins::CallableFor(
-              isolate, Builtins::kInterpreterPushUndefinedAndArgsThenCall);
+              isolate, Builtin::kInterpreterPushUndefinedAndArgsThenCall);
         case ConvertReceiverMode::kNotNullOrUndefined:
         case ConvertReceiverMode::kAny:
           return Builtins::CallableFor(isolate,
-                                       Builtins::kInterpreterPushArgsThenCall);
+                                       Builtin::kInterpreterPushArgsThenCall);
       }
   }
   UNREACHABLE();
@@ -373,13 +373,13 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
   switch (mode) {
     case InterpreterPushArgsMode::kArrayFunction:
       return Builtins::CallableFor(
-          isolate, Builtins::kInterpreterPushArgsThenConstructArrayFunction);
+          isolate, Builtin::kInterpreterPushArgsThenConstructArrayFunction);
     case InterpreterPushArgsMode::kWithFinalSpread:
       return Builtins::CallableFor(
-          isolate, Builtins::kInterpreterPushArgsThenConstructWithFinalSpread);
+          isolate, Builtin::kInterpreterPushArgsThenConstructWithFinalSpread);
     case InterpreterPushArgsMode::kOther:
       return Builtins::CallableFor(isolate,
-                                   Builtins::kInterpreterPushArgsThenConstruct);
+                                   Builtin::kInterpreterPushArgsThenConstruct);
   }
   UNREACHABLE();
 }
@@ -401,14 +401,14 @@ Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
 // static
 Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
   return Builtins::CallableFor(isolate,
-                               Builtins::kInterpreterOnStackReplacement);
+                               Builtin::kInterpreterOnStackReplacement);
 }
 
 // static
 Callable CodeFactory::InterpreterOnStackReplacement_ToBaseline(
     Isolate* isolate) {
   return Builtins::CallableFor(
-      isolate, Builtins::kInterpreterOnStackReplacement_ToBaseline);
+      isolate, Builtin::kInterpreterOnStackReplacement_ToBaseline);
 }
 
 // static
@@ -419,7 +419,7 @@ Callable CodeFactory::ArrayNoArgumentConstructor(
   case kind_caps:                               \
     return Builtins::CallableFor(               \
         isolate,                                \
-        Builtins::kArrayNoArgumentConstructor_##kind_camel##_##mode_camel);
+        Builtin::kArrayNoArgumentConstructor_##kind_camel##_##mode_camel);
   if (override_mode == DONT_OVERRIDE && AllocationSite::ShouldTrack(kind)) {
     DCHECK(IsSmiElementsKind(kind));
     switch (kind) {
@@ -453,7 +453,7 @@ Callable CodeFactory::ArraySingleArgumentConstructor(
   case kind_caps:                               \
     return Builtins::CallableFor(               \
         isolate,                                \
-        Builtins::kArraySingleArgumentConstructor_##kind_camel##_##mode_camel)
+        Builtin::kArraySingleArgumentConstructor_##kind_camel##_##mode_camel)
   if (override_mode == DONT_OVERRIDE && AllocationSite::ShouldTrack(kind)) {
     DCHECK(IsSmiElementsKind(kind));
     switch (kind) {

@@ -126,8 +126,8 @@ class BaselineAssembler {
   template <typename... T>
   inline void Pop(T... registers);
 
-  inline void CallBuiltin(Builtins::Name builtin);
-  inline void TailCallBuiltin(Builtins::Name builtin);
+  inline void CallBuiltin(Builtin builtin);
+  inline void TailCallBuiltin(Builtin builtin);
   inline void CallRuntime(Runtime::FunctionId function, int nargs);
 
   inline void LoadTaggedPointerField(Register output, Register source,

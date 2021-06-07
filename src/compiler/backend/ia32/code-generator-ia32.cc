@@ -283,7 +283,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else if (tasm()->options().inline_offheap_trampolines) {
-      __ CallBuiltin(Builtins::kDoubleToI);
+      __ CallBuiltin(Builtin::kDoubleToI);
     } else {
       __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
     }
@@ -928,9 +928,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(
-            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
-            RelocInfo::CODE_TARGET);
+        __ Call(isolate()->builtins()->builtin_handle(Builtin::kAbortCSAAssert),
+                RelocInfo::CODE_TARGET);
       }
       __ int3();
       break;

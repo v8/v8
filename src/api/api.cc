@@ -6116,7 +6116,7 @@ Local<Context> NewContext(
   // TODO(jkummerow): This is for crbug.com/713699. Remove it if it doesn't
   // fail.
   // Sanity-check that the isolate is initialized and usable.
-  CHECK(isolate->builtins()->builtin(i::Builtins::kIllegal).IsCode());
+  CHECK(isolate->builtins()->builtin(i::Builtin::kIllegal).IsCode());
 
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.NewContext");
   LOG_API(isolate, Context, New);
@@ -8964,10 +8964,10 @@ JSEntryStubs Isolate::GetJSEntryStubs() {
   JSEntryStubs entry_stubs;
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  std::array<std::pair<i::Builtins::Name, JSEntryStub*>, 3> stubs = {
-      {{i::Builtins::kJSEntry, &entry_stubs.js_entry_stub},
-       {i::Builtins::kJSConstructEntry, &entry_stubs.js_construct_entry_stub},
-       {i::Builtins::kJSRunMicrotasksEntry,
+  std::array<std::pair<i::Builtin, JSEntryStub*>, 3> stubs = {
+      {{i::Builtin::kJSEntry, &entry_stubs.js_entry_stub},
+       {i::Builtin::kJSConstructEntry, &entry_stubs.js_construct_entry_stub},
+       {i::Builtin::kJSRunMicrotasksEntry,
         &entry_stubs.js_run_microtasks_entry_stub}}};
   for (auto& pair : stubs) {
     i::Code js_entry = isolate->heap()->builtin(pair.first);

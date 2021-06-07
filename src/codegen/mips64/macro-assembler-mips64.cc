@@ -301,7 +301,7 @@ void TurboAssembler::CallRecordWriteStub(
       // Inline the trampoline.
       DCHECK(Builtins::IsBuiltinId(builtin_index));
       RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -4344,12 +4344,12 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     Jump(t9, cond, rs, rt, bd);
     return;
   } else if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
+    int builtin_index = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
         Builtins::IsIsolateIndependent(builtin_index)) {
       // Inline the trampoline.
       RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -4423,12 +4423,12 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     Call(t9, cond, rs, rt, bd);
     return;
   } else if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
+    int builtin_index = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
         Builtins::IsIsolateIndependent(builtin_index)) {
       // Inline the trampoline.
       RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -6070,9 +6070,9 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   li(kSpeculationPoisonRegister, -1);
 }
 
-void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
-                                           Label* exit, DeoptimizeKind kind,
-                                           Label* ret, Label*) {
+void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
+                                           DeoptimizeKind kind, Label* ret,
+                                           Label*) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Ld(t9,
      MemOperand(kRootRegister, IsolateData::builtin_entry_slot_offset(target)));

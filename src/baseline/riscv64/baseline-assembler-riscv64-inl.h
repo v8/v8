@@ -112,19 +112,19 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
   __ JumpIfSmi(value, target);
 }
 
-void BaselineAssembler::CallBuiltin(Builtins::Name builtin) {
+void BaselineAssembler::CallBuiltin(Builtin builtin) {
   if (masm()->options().short_builtin_calls) {
     __ CallBuiltin(builtin);
   } else {
     __ RecordCommentForOffHeapTrampoline(builtin);
     Register temp = t6;
-    __ LoadEntryFromBuiltinIndex(builtin, temp);
+    __ LoadEntryFromBuiltin(builtin, temp);
     __ Call(temp);
     __ RecordComment("]");
   }
 }
 
-void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
+void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
   if (masm()->options().short_builtin_calls) {
     // Generate pc-relative jump.
     __ TailCallBuiltin(builtin);
@@ -133,7 +133,7 @@ void BaselineAssembler::TailCallBuiltin(Builtins::Name builtin) {
     // t6 be used for function call in RISCV64
     // For example 'jalr t6' or 'jal t6'
     Register temp = t6;
-    __ LoadEntryFromBuiltinIndex(builtin, temp);
+    __ LoadEntryFromBuiltin(builtin, temp);
     __ Jump(temp);
     __ RecordComment("]");
   }

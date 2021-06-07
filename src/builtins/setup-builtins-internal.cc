@@ -101,9 +101,9 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   int handler_table_offset = 0;
 
   // JSEntry builtins are a special case and need to generate a handler table.
-  DCHECK_EQ(Builtins::KindOf(Builtins::kJSEntry), Builtins::ASM);
-  DCHECK_EQ(Builtins::KindOf(Builtins::kJSConstructEntry), Builtins::ASM);
-  DCHECK_EQ(Builtins::KindOf(Builtins::kJSRunMicrotasksEntry), Builtins::ASM);
+  DCHECK_EQ(Builtins::KindOf(Builtin::kJSEntry), Builtins::ASM);
+  DCHECK_EQ(Builtins::KindOf(Builtin::kJSConstructEntry), Builtins::ASM);
+  DCHECK_EQ(Builtins::KindOf(Builtin::kJSRunMicrotasksEntry), Builtins::ASM);
   if (Builtins::IsJSEntryVariant(builtin_index)) {
     handler_table_offset = HandlerTable::EmitReturnTableStart(&masm);
     HandlerTable::EmitReturnEntry(
@@ -210,7 +210,7 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
   // support circular references between builtins.
   Builtins* builtins = isolate->builtins();
   HandleScope scope(isolate);
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
     Handle<Code> placeholder = BuildPlaceholder(isolate, i);
     AddBuiltin(builtins, i, *placeholder);
   }
@@ -227,7 +227,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
     Code code = builtins->builtin(i);
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
@@ -330,18 +330,18 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 #undef BUILD_TFH
 #undef BUILD_BCH
 #undef BUILD_ASM
-  CHECK_EQ(Builtins::builtin_count, index);
+  CHECK_EQ(Builtins::kBuiltinCount, index);
 
   ReplacePlaceholders(isolate);
 
 #define SET_PROMISE_REJECTION_PREDICTION(Name) \
-  builtins->builtin(Builtins::k##Name).set_is_promise_rejection(true);
+  builtins->builtin(Builtin::k##Name).set_is_promise_rejection(true);
 
   BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
 #undef SET_PROMISE_REJECTION_PREDICTION
 
 #define SET_EXCEPTION_CAUGHT_PREDICTION(Name) \
-  builtins->builtin(Builtins::k##Name).set_is_exception_caught(true);
+  builtins->builtin(Builtin::k##Name).set_is_exception_caught(true);
 
   BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
 #undef SET_EXCEPTION_CAUGHT_PREDICTION

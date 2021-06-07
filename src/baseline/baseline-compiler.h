@@ -129,12 +129,12 @@ class BaselineCompiler {
                        Label::Distance distance = Label::kFar);
 
   // Call helpers.
-  template <Builtins::Name kBuiltin, typename... Args>
+  template <Builtin kBuiltin, typename... Args>
   void CallBuiltin(Args... args);
   template <typename... Args>
   void CallRuntime(Runtime::FunctionId function, Args... args);
 
-  template <Builtins::Name kBuiltin, typename... Args>
+  template <Builtin kBuiltin, typename... Args>
   void TailCallBuiltin(Args... args);
 
   template <ConvertReceiverMode kMode, typename... Args>

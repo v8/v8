@@ -102,7 +102,7 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   Label throwtypeerror(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &throwtypeerror);
 
-  TNode<Object> result = CallBuiltin(Builtins::kCreateTypedArray, context,
+  TNode<Object> result = CallBuiltin(Builtin::kCreateTypedArray, context,
                                      target, new_target, arg1, arg2, arg3);
   args.PopAndReturn(result);
 

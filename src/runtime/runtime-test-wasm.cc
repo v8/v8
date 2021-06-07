@@ -237,7 +237,7 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
     return ReadOnlyRoots(isolate).false_value();
   }
   if (function.shared().HasBuiltinId() &&
-      function.shared().builtin_id() == Builtins::kInstantiateAsmJs) {
+      function.shared().builtin_id() == Builtin::kInstantiateAsmJs) {
     // Hasn't been compiled yet.
     return ReadOnlyRoots(isolate).false_value();
   }
@@ -270,7 +270,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
   bool is_js_to_wasm =
       function.code().kind() == CodeKind::JS_TO_WASM_FUNCTION ||
       (function.code().is_builtin() &&
-       function.code().builtin_index() == Builtins::kGenericJSToWasmWrapper);
+       function.code().builtin_index() == Builtin::kGenericJSToWasmWrapper);
   return isolate->heap()->ToBoolean(is_js_to_wasm);
 }
 

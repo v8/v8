@@ -448,28 +448,28 @@ inline bool Code::is_interpreter_trampoline_builtin() const {
   // Check for kNoBuiltinId first to abort early when the current Code object
   // is not a builtin.
   const int index = builtin_index();
-  return index != Builtins::kNoBuiltinId &&
-         (index == Builtins::kInterpreterEntryTrampoline ||
-          index == Builtins::kInterpreterEnterAtBytecode ||
-          index == Builtins::kInterpreterEnterAtNextBytecode);
+  return index != Builtin::kNoBuiltinId &&
+         (index == Builtin::kInterpreterEntryTrampoline ||
+          index == Builtin::kInterpreterEnterAtBytecode ||
+          index == Builtin::kInterpreterEnterAtNextBytecode);
 }
 
 inline bool Code::is_baseline_trampoline_builtin() const {
   const int index = builtin_index();
-  return index != Builtins::kNoBuiltinId &&
-         (index == Builtins::kBaselineOutOfLinePrologue ||
-          index == Builtins::kBaselineEnterAtBytecode ||
-          index == Builtins::kBaselineEnterAtNextBytecode);
+  return index != Builtin::kNoBuiltinId &&
+         (index == Builtin::kBaselineOutOfLinePrologue ||
+          index == Builtin::kBaselineEnterAtBytecode ||
+          index == Builtin::kBaselineEnterAtNextBytecode);
 }
 
 inline bool Code::is_baseline_leave_frame_builtin() const {
-  return builtin_index() == Builtins::kBaselineLeaveFrame;
+  return builtin_index() == Builtin::kBaselineLeaveFrame;
 }
 
 inline bool Code::checks_optimization_marker() const {
   bool checks_marker =
-      (builtin_index() == Builtins::kCompileLazy ||
-       builtin_index() == Builtins::kInterpreterEntryTrampoline ||
+      (builtin_index() == Builtin::kCompileLazy ||
+       builtin_index() == Builtin::kInterpreterEntryTrampoline ||
        CodeKindCanTierUp(kind()));
   return checks_marker ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
@@ -540,17 +540,17 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
 
 int Code::builtin_index() const {
   int index = RELAXED_READ_INT_FIELD(*this, kBuiltinIndexOffset);
-  DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
+  DCHECK(index == Builtin::kNoBuiltinId || Builtins::IsBuiltinId(index));
   return index;
 }
 
 void Code::set_builtin_index(int index) {
-  DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
+  DCHECK(index == Builtin::kNoBuiltinId || Builtins::IsBuiltinId(index));
   RELAXED_WRITE_INT_FIELD(*this, kBuiltinIndexOffset, index);
 }
 
 bool Code::is_builtin() const {
-  return builtin_index() != Builtins::kNoBuiltinId;
+  return builtin_index() != Builtin::kNoBuiltinId;
 }
 
 unsigned Code::inlined_bytecode_size() const {

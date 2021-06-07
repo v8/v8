@@ -77,7 +77,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
-  static int32_t RootRegisterOffsetForBuiltinIndex(int builtin_index);
+  static int32_t RootRegisterOffsetForBuiltin(int builtin_index);
 
   // Returns the root-relative offset to reference.address().
   static intptr_t RootRegisterOffsetForExternalReference(
@@ -124,15 +124,15 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   bool hard_abort_ = false;
 
   // May be set while generating builtins.
-  int maybe_builtin_index_ = Builtins::kNoBuiltinId;
+  int maybe_builtin_index_ = Builtin::kNoBuiltinId;
 
   bool has_frame_ = false;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TurboAssemblerBase);
 };
 
-// Avoids emitting calls to the {Builtins::kAbort} builtin when emitting debug
-// code during the lifetime of this scope object.
+// Avoids emitting calls to the {Builtin::kAbort} builtin when emitting
+// debug code during the lifetime of this scope object.
 class V8_NODISCARD HardAbortScope {
  public:
   explicit HardAbortScope(TurboAssemblerBase* assembler)

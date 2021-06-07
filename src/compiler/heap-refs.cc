@@ -2007,7 +2007,7 @@ SharedFunctionInfoData::SharedFunctionInfoData(
     Handle<SharedFunctionInfo> object)
     : HeapObjectData(broker, storage, object),
       builtin_id_(object->HasBuiltinId() ? object->builtin_id()
-                                         : Builtins::kNoBuiltinId),
+                                         : Builtin::kNoBuiltinId),
       context_header_size_(object->scope_info().ContextHeaderLength()),
       GetBytecodeArray_(object->HasBytecodeArray()
                             ? broker->GetOrCreateData(
@@ -2021,7 +2021,7 @@ SharedFunctionInfoData::SharedFunctionInfoData(
       function_template_info_(nullptr),
       template_objects_(broker->zone()),
       scope_info_(nullptr) {
-  DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtins::kNoBuiltinId);
+  DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtin::kNoBuiltinId);
   DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
 }
 

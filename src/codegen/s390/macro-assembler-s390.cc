@@ -401,14 +401,14 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
-  int builtin_index = Builtins::kNoBuiltinId;
+  int builtin_index = Builtin::kNoBuiltinId;
   bool target_is_builtin =
       isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
   if (options().inline_offheap_trampolines && target_is_builtin) {
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin_index);
-    CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+    CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
     EmbeddedData d = EmbeddedData::FromBlob();
     Address entry = d.InstructionStartOfBuiltin(builtin_index);
     mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -462,14 +462,14 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
-  int builtin_index = Builtins::kNoBuiltinId;
+  int builtin_index = Builtin::kNoBuiltinId;
   bool target_is_builtin =
       isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
   if (target_is_builtin && options().inline_offheap_trampolines) {
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin_index);
-    CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+    CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
     EmbeddedData d = EmbeddedData::FromBlob();
     Address entry = d.InstructionStartOfBuiltin(builtin_index);
     mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -935,7 +935,7 @@ void TurboAssembler::CallRecordWriteStub(
         Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
     if (options().inline_offheap_trampolines) {
       RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -4723,9 +4723,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   bind(&return_label);
 }
 
-void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
-                                           Label* exit, DeoptimizeKind kind,
-                                           Label* ret, Label*) {
+void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
+                                           DeoptimizeKind kind, Label* ret,
+                                           Label*) {
   LoadU64(ip, MemOperand(kRootRegister,
                          IsolateData::builtin_entry_slot_offset(target)));
   Call(ip);

@@ -331,7 +331,7 @@ Handle<FeedbackVector> NewFeedbackVectorForTesting(
   Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), Builtins::kIllegal);
+          isolate->factory()->empty_string(), Builtin::kIllegal);
   // Set the raw feedback metadata to circumvent checks that we are not
   // overwriting existing metadata.
   shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
@@ -1174,18 +1174,18 @@ namespace {
 bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   switch (builtin_index) {
-    case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
-    case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
-    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
-    case Builtins::kStoreFastElementIC_Standard:
-    case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
-    case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
-    case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
-    case Builtins::kElementsTransitionAndStore_Standard:
-    case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
-    case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
-    case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
+    case Builtin::kKeyedStoreIC_SloppyArguments_Standard:
+    case Builtin::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
+    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
+    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
+    case Builtin::kStoreFastElementIC_Standard:
+    case Builtin::kStoreFastElementIC_GrowNoTransitionHandleCOW:
+    case Builtin::kStoreFastElementIC_NoTransitionIgnoreOOB:
+    case Builtin::kStoreFastElementIC_NoTransitionHandleCOW:
+    case Builtin::kElementsTransitionAndStore_Standard:
+    case Builtin::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
+    case Builtin::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
+    case Builtin::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return true;
     default:
       return false;
@@ -1196,21 +1196,21 @@ bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
 KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
   DCHECK(BuiltinHasKeyedAccessStoreMode(builtin_index));
   switch (builtin_index) {
-    case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
-    case Builtins::kStoreFastElementIC_Standard:
-    case Builtins::kElementsTransitionAndStore_Standard:
+    case Builtin::kKeyedStoreIC_SloppyArguments_Standard:
+    case Builtin::kStoreFastElementIC_Standard:
+    case Builtin::kElementsTransitionAndStore_Standard:
       return STANDARD_STORE;
-    case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
-    case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
-    case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
+    case Builtin::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
+    case Builtin::kStoreFastElementIC_GrowNoTransitionHandleCOW:
+    case Builtin::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
       return STORE_AND_GROW_HANDLE_COW;
-    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
-    case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
-    case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
+    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
+    case Builtin::kStoreFastElementIC_NoTransitionIgnoreOOB:
+    case Builtin::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
       return STORE_IGNORE_OUT_OF_BOUNDS;
-    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
-    case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
-    case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
+    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
+    case Builtin::kStoreFastElementIC_NoTransitionHandleCOW:
+    case Builtin::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return STORE_HANDLE_COW;
     default:
       UNREACHABLE();

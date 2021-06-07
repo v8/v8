@@ -395,10 +395,10 @@ void ProfilerCodeObserver::CreateEntriesForRuntimeCallStats() {
 void ProfilerCodeObserver::LogBuiltins() {
   Builtins* builtins = isolate_->builtins();
   DCHECK(builtins->is_initialized());
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
     CodeEventsContainer evt_rec(CodeEventRecord::REPORT_BUILTIN);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
-    Builtins::Name id = static_cast<Builtins::Name>(i);
+    Builtin id = static_cast<Builtin>(i);
     Code code = builtins->builtin(id);
     rec->instruction_start = code.InstructionStart();
     rec->instruction_size = code.InstructionSize();

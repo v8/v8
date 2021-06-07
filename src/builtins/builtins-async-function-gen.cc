@@ -188,7 +188,7 @@ TF_BUILTIN(AsyncFunctionReject, AsyncFunctionBuiltinsAssembler) {
   // Reject the {promise} for the given {reason}, disabling the
   // additional debug event for the rejection since a debug event
   // already happend for the exception that got us here.
-  CallBuiltin(Builtins::kRejectPromise, context, promise, reason,
+  CallBuiltin(Builtin::kRejectPromise, context, promise, reason,
               FalseConstant());
 
   Label if_debugging(this, Label::kDeferred);
@@ -210,7 +210,7 @@ TF_BUILTIN(AsyncFunctionResolve, AsyncFunctionBuiltinsAssembler) {
   TNode<JSPromise> promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
-  CallBuiltin(Builtins::kResolvePromise, context, promise, value);
+  CallBuiltin(Builtin::kResolvePromise, context, promise, value);
 
   Label if_debugging(this, Label::kDeferred);
   GotoIf(HasAsyncEventDelegate(), &if_debugging);

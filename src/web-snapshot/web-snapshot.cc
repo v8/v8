@@ -811,7 +811,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     Handle<SharedFunctionInfo> shared =
         isolate_->factory()->NewSharedFunctionInfo(
             isolate_->factory()->empty_string(), MaybeHandle<Code>(),
-            Builtins::kCompileLazy, FunctionFlagsToFunctionKind(flags));
+            Builtin::kCompileLazy, FunctionFlagsToFunctionKind(flags));
     shared->set_script(*script);
     // Index 0 is reserved for top-level shared function info (which web
     // snapshot scripts don't have).

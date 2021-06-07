@@ -98,7 +98,7 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceCopyDataProperties(Node* node) {
   return Change(
-      node, Builtins::CallableFor(isolate(), Builtins::kCopyDataProperties), 0);
+      node, Builtins::CallableFor(isolate(), Builtin::kCopyDataProperties), 0);
 }
 
 Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
@@ -158,13 +158,13 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwaitCaught(Node* node) {
   return Change(
       node,
-      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitCaught), 0);
+      Builtins::CallableFor(isolate(), Builtin::kAsyncFunctionAwaitCaught), 0);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwaitUncaught(Node* node) {
   return Change(
       node,
-      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitUncaught),
+      Builtins::CallableFor(isolate(), Builtin::kAsyncFunctionAwaitUncaught),
       0);
 }
 
@@ -188,33 +188,31 @@ Reduction JSIntrinsicLowering::ReduceAsyncFunctionResolve(Node* node) {
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorAwaitCaught(Node* node) {
   return Change(
       node,
-      Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorAwaitCaught),
-      0);
+      Builtins::CallableFor(isolate(), Builtin::kAsyncGeneratorAwaitCaught), 0);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorAwaitUncaught(Node* node) {
   return Change(
       node,
-      Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorAwaitUncaught),
+      Builtins::CallableFor(isolate(), Builtin::kAsyncGeneratorAwaitUncaught),
       0);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
   return Change(
-      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorReject),
+      node, Builtins::CallableFor(isolate(), Builtin::kAsyncGeneratorReject),
       0);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorResolve(Node* node) {
   return Change(
-      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorResolve),
+      node, Builtins::CallableFor(isolate(), Builtin::kAsyncGeneratorResolve),
       0);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorYield(Node* node) {
   return Change(
-      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorYield),
-      0);
+      node, Builtins::CallableFor(isolate(), Builtin::kAsyncGeneratorYield), 0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorGetResumeMode(Node* node) {
@@ -353,7 +351,7 @@ Reduction JSIntrinsicLowering::ReduceIncBlockCounter(Node* node) {
   DCHECK(!Linkage::NeedsFrameStateInput(Runtime::kIncBlockCounter));
   DCHECK(!Linkage::NeedsFrameStateInput(Runtime::kInlineIncBlockCounter));
   return Change(node,
-                Builtins::CallableFor(isolate(), Builtins::kIncBlockCounter), 0,
+                Builtins::CallableFor(isolate(), Builtin::kIncBlockCounter), 0,
                 kDoesNotNeedFrameState);
 }
 

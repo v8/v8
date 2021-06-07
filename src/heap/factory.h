@@ -840,7 +840,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     }
 
     CodeBuilder& set_builtin_index(int32_t builtin_index) {
-      DCHECK_IMPLIES(builtin_index != Builtins::kNoBuiltinId,
+      DCHECK_IMPLIES(builtin_index != Builtin::kNoBuiltinId,
                      !CodeKindIsJSFunction(kind_));
       builtin_index_ = builtin_index;
       return *this;
@@ -912,7 +912,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     const CodeKind kind_;
 
     MaybeHandle<Object> self_reference_;
-    int32_t builtin_index_ = Builtins::kNoBuiltinId;
+    int32_t builtin_index_ = Builtin::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
     int32_t kind_specific_flags_ = 0;
     // Either source_position_table for non-baseline code

@@ -263,7 +263,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared =
       NewSharedFunctionInfo(literal->GetName(isolate()), MaybeHandle<Code>(),
-                            Builtins::kCompileLazy, kind);
+                            Builtin::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
                                               is_toplevel);
   shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
@@ -335,7 +335,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     raw.set_builtin_id(maybe_builtin_index);
   } else {
     DCHECK(raw.HasBuiltinId());
-    DCHECK_EQ(Builtins::kIllegal, raw.builtin_id());
+    DCHECK_EQ(Builtin::kIllegal, raw.builtin_id());
   }
 
   raw.CalculateConstructAsBuiltin();

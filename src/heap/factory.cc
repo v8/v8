@@ -1407,7 +1407,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result.set_serialized_signature(*serialized_sig);
   // Default value, will be overwritten by the caller.
   result.set_wasm_to_js_wrapper_code(
-      isolate()->heap()->builtin(Builtins::kAbort));
+      isolate()->heap()->builtin(Builtin::kAbort));
   return handle(result, isolate());
 }
 
@@ -1457,18 +1457,18 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
 Handle<SharedFunctionInfo>
 Factory::NewSharedFunctionInfoForWasmExportedFunction(
     Handle<String> name, Handle<WasmExportedFunctionData> data) {
-  return NewSharedFunctionInfo(name, data, Builtins::kNoBuiltinId);
+  return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmJSFunction(
     Handle<String> name, Handle<WasmJSFunctionData> data) {
-  return NewSharedFunctionInfo(name, data, Builtins::kNoBuiltinId);
+  return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmCapiFunction(
     Handle<WasmCapiFunctionData> data) {
   return NewSharedFunctionInfo(MaybeHandle<String>(), data,
-                               Builtins::kNoBuiltinId, kConciseMethod);
+                               Builtin::kNoBuiltinId, kConciseMethod);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2911,7 +2911,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
     MaybeHandle<String> maybe_name,
     Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      maybe_name, function_template_info, Builtins::kNoBuiltinId, kind);
+      maybe_name, function_template_info, Builtin::kNoBuiltinId, kind);
   return shared;
 }
 
@@ -3605,7 +3605,7 @@ bool Factory::EmptyStringRootIsInitialized() {
 
 Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {
   Handle<SharedFunctionInfo> info =
-      NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
+      NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal);
   info->set_language_mode(LanguageMode::kSloppy);
   return JSFunctionBuilder{isolate(), info, isolate()->native_context()}
       .Build();

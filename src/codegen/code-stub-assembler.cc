@@ -5400,7 +5400,7 @@ TNode<Float64T> CodeStubAssembler::TruncateTaggedToFloat64(
     BIND(&if_valueisnotnumber);
     {
       // Convert the {value} to a Number first.
-      var_value = CallBuiltin(Builtins::kNonNumberToNumber, context, value);
+      var_value = CallBuiltin(Builtin::kNonNumberToNumber, context, value);
       Goto(&loop);
     }
   }
@@ -5485,8 +5485,8 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
       GotoIf(InstanceTypeEqual(instance_type, ODDBALL_TYPE), &is_oddball);
       // Not an oddball either -> convert.
       auto builtin = conversion == Object::Conversion::kToNumeric
-                         ? Builtins::kNonNumberToNumeric
-                         : Builtins::kNonNumberToNumber;
+                         ? Builtin::kNonNumberToNumeric
+                         : Builtin::kNonNumberToNumber;
       var_value = CallBuiltin(builtin, context, value);
       OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
       Goto(&loop);
@@ -5751,7 +5751,7 @@ TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
       Label if_valueisnullorundefined(this, Label::kDeferred);
       GotoIf(IsNullOrUndefined(value), &if_valueisnullorundefined);
       // Convert the {value} to a String.
-      var_value = CallBuiltin(Builtins::kToString, context, value);
+      var_value = CallBuiltin(Builtin::kToString, context, value);
       Goto(&if_valueisstring);
 
       BIND(&if_valueisnullorundefined);
@@ -5765,7 +5765,7 @@ TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
   BIND(&if_valueissmi);
   {
     // The {value} is a Smi, convert it to a String.
-    var_value = CallBuiltin(Builtins::kNumberToString, context, value);
+    var_value = CallBuiltin(Builtin::kNumberToString, context, value);
     Goto(&if_valueisstring);
   }
   BIND(&if_valueisstring);
@@ -5817,7 +5817,7 @@ TNode<Int32T> CodeStubAssembler::ChangeTaggedNonSmiToInt32(
       },
       [=] {
         return TruncateNumberToWord32(
-            CAST(CallBuiltin(Builtins::kNonNumberToNumber, context, input)));
+            CAST(CallBuiltin(Builtin::kNonNumberToNumber, context, input)));
       });
 }
 
@@ -5836,7 +5836,7 @@ TNode<Float64T> CodeStubAssembler::ChangeTaggedToFloat64(TNode<Context> context,
       [=] { return LoadHeapNumberValue(CAST(input)); },
       [=] {
         return ChangeNumberToFloat64(
-            CAST(CallBuiltin(Builtins::kNonNumberToNumber, context, input)));
+            CAST(CallBuiltin(Builtin::kNonNumberToNumber, context, input)));
       });
   Goto(&end);
 
@@ -7404,8 +7404,7 @@ TNode<Number> CodeStubAssembler::ToNumber_Inline(TNode<Context> context,
     var_result = Select<Number>(
         IsHeapNumber(CAST(input)), [=] { return CAST(input); },
         [=] {
-          return CAST(
-              CallBuiltin(Builtins::kNonNumberToNumber, context, input));
+          return CAST(CallBuiltin(Builtin::kNonNumberToNumber, context, input));
         });
     Goto(&end);
   }
@@ -7552,7 +7551,7 @@ void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
   // {heap_object_value} is not a Numeric yet.
   GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &if_oddball);
   *var_numeric = CAST(
-      CallBuiltin(Builtins::kNonNumberToNumeric, context, heap_object_value));
+      CallBuiltin(Builtin::kNonNumberToNumeric, context, heap_object_value));
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
   Goto(&done);
 
@@ -7693,7 +7692,7 @@ TNode<String> CodeStubAssembler::ToString_Inline(TNode<Context> context,
   Branch(IsString(CAST(input)), &out, &stub_call);
 
   BIND(&stub_call);
-  var_result = CallBuiltin(Builtins::kToString, context, input);
+  var_result = CallBuiltin(Builtin::kToString, context, input);
   Goto(&out);
 
   BIND(&out);
@@ -7702,7 +7701,7 @@ TNode<String> CodeStubAssembler::ToString_Inline(TNode<Context> context,
 
 TNode<JSReceiver> CodeStubAssembler::ToObject(TNode<Context> context,
                                               TNode<Object> input) {
-  return CAST(CallBuiltin(Builtins::kToObject, context, input));
+  return CAST(CallBuiltin(Builtin::kToObject, context, input));
 }
 
 TNode<JSReceiver> CodeStubAssembler::ToObject_Inline(TNode<Context> context,
@@ -7734,7 +7733,7 @@ TNode<Number> CodeStubAssembler::ToLength_Inline(TNode<Context> context,
   TNode<Smi> smi_zero = SmiConstant(0);
   return Select<Number>(
       TaggedIsSmi(input), [=] { return SmiMax(CAST(input), smi_zero); },
-      [=] { return CAST(CallBuiltin(Builtins::kToLength, context, input)); });
+      [=] { return CAST(CallBuiltin(Builtin::kToLength, context, input)); });
 }
 
 TNode<Object> CodeStubAssembler::OrdinaryToPrimitive(
@@ -9458,7 +9457,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
         TNode<NativeContext> creation_context =
             GetCreationContext(CAST(holder), if_bailout);
         var_value = CallBuiltin(
-            Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
+            Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
             creation_context, getter, IntPtrConstant(0), receiver);
         Goto(&done);
 
@@ -10629,7 +10628,7 @@ TNode<Word32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Word32T>(
 
   BIND(&convert);
   {
-    var_input = CallBuiltin(Builtins::kNonNumberToNumber, context, input);
+    var_input = CallBuiltin(Builtin::kNonNumberToNumber, context, input);
     Goto(&loop);
   }
 
@@ -10677,7 +10676,7 @@ TNode<Float32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float32T>(
 
   BIND(&convert);
   {
-    var_input = CallBuiltin(Builtins::kNonNumberToNumber, context, input);
+    var_input = CallBuiltin(Builtin::kNonNumberToNumber, context, input);
     Goto(&loop);
   }
 
@@ -10724,7 +10723,7 @@ TNode<Float64T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float64T>(
 
   BIND(&convert);
   {
-    var_input = CallBuiltin(Builtins::kNonNumberToNumber, context, input);
+    var_input = CallBuiltin(Builtin::kNonNumberToNumber, context, input);
     Goto(&loop);
   }
 
@@ -11725,8 +11724,7 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
         // dedicated ToPrimitive(right, hint Number) operation, as the
         // ToNumeric(right) will by itself already invoke ToPrimitive with
         // a Number hint.
-        var_right =
-            CallBuiltin(Builtins::kNonNumberToNumeric, context(), right);
+        var_right = CallBuiltin(Builtin::kNonNumberToNumeric, context(), right);
         Goto(&loop);
       }
     }
@@ -11771,8 +11769,7 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
           // dedicated ToPrimitive(left, hint Number) operation, as the
           // ToNumeric(left) will by itself already invoke ToPrimitive with
           // a Number hint.
-          var_left =
-              CallBuiltin(Builtins::kNonNumberToNumeric, context(), left);
+          var_left = CallBuiltin(Builtin::kNonNumberToNumeric, context(), left);
           Goto(&loop);
         }
       }
@@ -11828,7 +11825,7 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
             // ToNumeric(right) will by itself already invoke ToPrimitive with
             // a Number hint.
             var_right =
-                CallBuiltin(Builtins::kNonNumberToNumeric, context(), right);
+                CallBuiltin(Builtin::kNonNumberToNumeric, context(), right);
             Goto(&loop);
           }
         }
@@ -11883,7 +11880,7 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
             // ToNumeric(right) will by itself already invoke ToPrimitive with
             // a Number hint.
             var_right =
-                CallBuiltin(Builtins::kNonNumberToNumeric, context(), right);
+                CallBuiltin(Builtin::kNonNumberToNumeric, context(), right);
             Goto(&loop);
           }
         }
@@ -11898,19 +11895,19 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
 
           // Both {left} and {right} are strings.
           CombineFeedback(var_type_feedback, CompareOperationFeedback::kString);
-          Builtins::Name builtin;
+          Builtin builtin;
           switch (op) {
             case Operation::kLessThan:
-              builtin = Builtins::kStringLessThan;
+              builtin = Builtin::kStringLessThan;
               break;
             case Operation::kLessThanOrEqual:
-              builtin = Builtins::kStringLessThanOrEqual;
+              builtin = Builtin::kStringLessThanOrEqual;
               break;
             case Operation::kGreaterThan:
-              builtin = Builtins::kStringGreaterThan;
+              builtin = Builtin::kStringGreaterThan;
               break;
             case Operation::kGreaterThanOrEqual:
-              builtin = Builtins::kStringGreaterThanOrEqual;
+              builtin = Builtin::kStringGreaterThanOrEqual;
               break;
             default:
               UNREACHABLE();
@@ -11934,8 +11931,8 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
                    &if_right_receiver);
 
             var_left =
-                CallBuiltin(Builtins::kNonNumberToNumeric, context(), left);
-            var_right = CallBuiltin(Builtins::kToNumeric, context(), right);
+                CallBuiltin(Builtin::kNonNumberToNumeric, context(), left);
+            var_right = CallBuiltin(Builtin::kToNumeric, context(), right);
             Goto(&loop);
 
             BIND(&if_right_bigint);
@@ -11998,9 +11995,8 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
           GotoIf(IsJSReceiverInstanceType(left_instance_type),
                  &if_left_receiver);
 
-          var_right = CallBuiltin(Builtins::kToNumeric, context(), right);
-          var_left =
-              CallBuiltin(Builtins::kNonNumberToNumeric, context(), left);
+          var_right = CallBuiltin(Builtin::kToNumeric, context(), right);
+          var_left = CallBuiltin(Builtin::kNonNumberToNumeric, context(), left);
           Goto(&loop);
 
           BIND(&if_left_receiver);
@@ -12309,7 +12305,7 @@ TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
       {
         GotoIfNot(IsStringInstanceType(right_type), &use_symmetry);
         result =
-            CAST(CallBuiltin(Builtins::kStringEqual, context(), left, right));
+            CAST(CallBuiltin(Builtin::kStringEqual, context(), left, right));
         CombineFeedback(var_type_feedback,
                         SmiOr(CollectFeedbackForString(left_type),
                               CollectFeedbackForString(right_type)));
@@ -12569,7 +12565,7 @@ TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
         CombineFeedback(var_type_feedback,
                         CollectFeedbackForString(right_type));
       }
-      var_right = CallBuiltin(Builtins::kStringToNumber, context(), right);
+      var_right = CallBuiltin(Builtin::kStringToNumber, context(), right);
       Goto(&loop);
     }
 
@@ -12774,7 +12770,7 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
                     CollectFeedbackForString(rhs_instance_type);
                 *var_type_feedback = SmiOr(lhs_feedback, rhs_feedback);
               }
-              result = CAST(CallBuiltin(Builtins::kStringEqual,
+              result = CAST(CallBuiltin(Builtin::kStringEqual,
                                         NoContextConstant(), lhs, rhs));
               Goto(&end);
             }
@@ -13051,7 +13047,7 @@ void CodeStubAssembler::BranchIfSameValue(TNode<Object> lhs, TNode<Object> rhs,
               // with the same sequence of characters.
               GotoIfNot(IsString(CAST(rhs)), if_false);
               const TNode<Object> result = CallBuiltin(
-                  Builtins::kStringEqual, NoContextConstant(), lhs, rhs);
+                  Builtin::kStringEqual, NoContextConstant(), lhs, rhs);
               Branch(IsTrue(result), if_true, if_false);
             }
 
@@ -13136,13 +13132,13 @@ TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
 
   BIND(&if_proxy);
   {
-    TNode<Name> name = CAST(CallBuiltin(Builtins::kToName, context, key));
+    TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
     switch (mode) {
       case kHasProperty:
         GotoIf(IsPrivateSymbol(name), &return_false);
 
         result = CAST(
-            CallBuiltin(Builtins::kProxyHasProperty, context, object, name));
+            CallBuiltin(Builtin::kProxyHasProperty, context, object, name));
         Goto(&end);
         break;
       case kForInHasProperty:
@@ -13433,7 +13429,7 @@ TNode<Oddball> CodeStubAssembler::InstanceOf(TNode<Object> object,
 
     // Use the OrdinaryHasInstance algorithm.
     var_result = CAST(
-        CallBuiltin(Builtins::kOrdinaryHasInstance, context, callable, object));
+        CallBuiltin(Builtin::kOrdinaryHasInstance, context, callable, object));
     Goto(&return_result);
   }
 
@@ -14132,7 +14128,7 @@ TNode<BoolT> CodeStubAssembler::NeedsAnyPromiseHooks(TNode<Uint32T> flags) {
 }
 
 TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
-  CSA_ASSERT(this, SmiBelow(builtin_id, SmiConstant(Builtins::builtin_count)));
+  CSA_ASSERT(this, SmiBelow(builtin_id, SmiConstant(Builtins::kBuiltinCount)));
 
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(SmiToBInt(builtin_id), SYSTEM_POINTER_ELEMENTS);
@@ -14159,7 +14155,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     *data_type_out = Uint16Constant(0);
   }
   if (if_compile_lazy) {
-    GotoIf(SmiEqual(CAST(sfi_data), SmiConstant(Builtins::kCompileLazy)),
+    GotoIf(SmiEqual(CAST(sfi_data), SmiConstant(Builtin::kCompileLazy)),
            if_compile_lazy);
   }
   sfi_code = LoadBuiltin(CAST(sfi_data));

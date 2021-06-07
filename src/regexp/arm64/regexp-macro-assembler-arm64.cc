@@ -1407,7 +1407,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
 
-  __ CallBuiltin(Builtins::kDirectCEntry);
+  __ CallBuiltin(Builtin::kDirectCEntry);
 
   // The input string may have been moved in memory, we need to reload it.
   __ Peek(input_start(), kSystemPointerSize);

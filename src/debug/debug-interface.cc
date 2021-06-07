@@ -847,7 +847,7 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   i::HandleScope handle_scope(isolate);
 
   CHECK_EQ(builtin, kStringToLowerCase);
-  i::Builtins::Name builtin_id = i::Builtins::kStringPrototypeToLocaleLowerCase;
+  i::Builtin builtin_id = i::Builtin::kStringPrototypeToLocaleLowerCase;
 
   i::Factory* factory = isolate->factory();
   i::Handle<i::String> name = isolate->factory()->empty_string();

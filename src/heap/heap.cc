@@ -4514,7 +4514,7 @@ Code Heap::builtin(int index) {
 }
 
 Address Heap::builtin_address(int index) {
-  DCHECK(Builtins::IsBuiltinId(index) || index == Builtins::builtin_count);
+  DCHECK(Builtins::IsBuiltinId(index) || index == Builtins::kBuiltinCount);
   return reinterpret_cast<Address>(&isolate()->builtins_table()[index]);
 }
 
@@ -4739,7 +4739,7 @@ void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
 }
 
 void Heap::IterateBuiltins(RootVisitor* v) {
-  for (int i = 0; i < Builtins::builtin_count; i++) {
+  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
     v->VisitRootPointer(Root::kBuiltins, Builtins::name(i),
                         FullObjectSlot(builtin_address(i)));
   }
@@ -6476,7 +6476,7 @@ void Heap::SetDetachedContexts(WeakArrayList detached_contexts) {
 }
 
 void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
-  DCHECK_EQ(Builtins::kInterpreterEntryTrampoline, code.builtin_index());
+  DCHECK_EQ(Builtin::kInterpreterEntryTrampoline, code.builtin_index());
   set_interpreter_entry_trampoline_for_profiling(code);
 }
 
@@ -6802,8 +6802,7 @@ Code Heap::GcSafeCastToCode(HeapObject object, Address inner_pointer) {
 bool Heap::GcSafeCodeContains(Code code, Address addr) {
   Map map = GcSafeMapOfCodeSpaceObject(code);
   DCHECK(map == ReadOnlyRoots(this).code_map());
-  Builtins::Name maybe_builtin =
-      InstructionStream::TryLookupCode(isolate(), addr);
+  Builtin maybe_builtin = InstructionStream::TryLookupCode(isolate(), addr);
   if (Builtins::IsBuiltinId(maybe_builtin) &&
       code.builtin_index() == maybe_builtin) {
     return true;
@@ -6814,7 +6813,7 @@ bool Heap::GcSafeCodeContains(Code code, Address addr) {
 }
 
 Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
-  Builtins::Name maybe_builtin =
+  Builtin maybe_builtin =
       InstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
     return builtin(maybe_builtin);

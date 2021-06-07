@@ -1829,7 +1829,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
+    int builtin_index = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index)) {
       // Inline the trampoline.
       CHECK_EQ(cond, Condition::al);  // Implement if necessary.
@@ -1877,7 +1877,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   BlockPoolsScope scope(this);
 
   if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
+    int builtin_index = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index)) {
       // Inline the trampoline.
       CallBuiltin(builtin_index);
@@ -1924,13 +1924,12 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   }
 }
 
-void TurboAssembler::LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
-                                               Register destination) {
-  Ldr(destination, EntryFromBuiltinIndexAsOperand(builtin_index));
+void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin_index,
+                                          Register destination) {
+  Ldr(destination, EntryFromBuiltinAsOperand(builtin_index));
 }
 
-MemOperand TurboAssembler::EntryFromBuiltinIndexAsOperand(
-    Builtins::Name builtin_index) {
+MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin_index) {
   DCHECK(root_array_available());
   return MemOperand(kRootRegister,
                     IsolateData::builtin_entry_slot_offset(builtin_index));
@@ -1944,7 +1943,7 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 void TurboAssembler::CallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
   if (options().short_builtin_calls) {
     EmbeddedData d = EmbeddedData::FromBlob(isolate());
     Address entry = d.InstructionStartOfBuiltin(builtin_index);
@@ -1964,7 +1963,7 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
 void TurboAssembler::TailCallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
   if (options().short_builtin_calls) {
     EmbeddedData d = EmbeddedData::FromBlob(isolate());
     Address entry = d.InstructionStartOfBuiltin(builtin_index);
@@ -2100,8 +2099,8 @@ bool TurboAssembler::IsNearCallOffset(int64_t offset) {
 }
 
 void TurboAssembler::CallForDeoptimization(
-    Builtins::Name target, int deopt_id, Label* exit, DeoptimizeKind kind,
-    Label* ret, Label* jump_deoptimization_entry_label) {
+    Builtin target, int deopt_id, Label* exit, DeoptimizeKind kind, Label* ret,
+    Label* jump_deoptimization_entry_label) {
   BlockPoolsScope scope(this);
   bl(jump_deoptimization_entry_label);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
@@ -2496,7 +2495,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else if (options().inline_offheap_trampolines) {
-    CallBuiltin(Builtins::kDoubleToI);
+    CallBuiltin(Builtin::kDoubleToI);
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }

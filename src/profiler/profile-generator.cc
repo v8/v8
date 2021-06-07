@@ -157,12 +157,10 @@ bool CodeEntry::IsSameFunctionAs(const CodeEntry* entry) const {
          line_number_ == entry->line_number_;
 }
 
-
-void CodeEntry::SetBuiltinId(Builtins::Name id) {
+void CodeEntry::SetBuiltinId(Builtin id) {
   bit_field_ = TagField::update(bit_field_, CodeEventListener::BUILTIN_TAG);
   bit_field_ = BuiltinIdField::update(bit_field_, id);
 }
-
 
 int CodeEntry::GetSourceLine(int pc_offset) const {
   if (line_info_) return line_info_->GetSourceLineNumber(pc_offset);

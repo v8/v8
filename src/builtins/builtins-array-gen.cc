@@ -305,7 +305,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     // from the current frame here in order to reduce register pressure on the
     // fast path.
     TNode<JSFunction> target = LoadTargetFromFrame();
-    TailCallBuiltin(Builtins::kArrayPop, context, target, UndefinedConstant(),
+    TailCallBuiltin(Builtin::kArrayPop, context, target, UndefinedConstant(),
                     argc);
   }
 }
@@ -430,7 +430,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     // from the current frame here in order to reduce register pressure on the
     // fast path.
     TNode<JSFunction> target = LoadTargetFromFrame();
-    TailCallBuiltin(Builtins::kArrayPush, context, target, UndefinedConstant(),
+    TailCallBuiltin(Builtin::kArrayPush, context, target, UndefinedConstant(),
                     argc);
   }
 }
@@ -678,12 +678,11 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
 
   BIND(&if_smiorobjects);
   {
-    Callable callable =
-        (variant == kIncludes)
-            ? Builtins::CallableFor(isolate(),
-                                    Builtins::kArrayIncludesSmiOrObject)
-            : Builtins::CallableFor(isolate(),
-                                    Builtins::kArrayIndexOfSmiOrObject);
+    Callable callable = (variant == kIncludes)
+                            ? Builtins::CallableFor(
+                                  isolate(), Builtin::kArrayIncludesSmiOrObject)
+                            : Builtins::CallableFor(
+                                  isolate(), Builtin::kArrayIndexOfSmiOrObject);
     TNode<Object> result = CallStub(callable, context, elements, search_element,
                                     array_length, SmiTag(index_var.value()));
     args.PopAndReturn(result);
@@ -694,9 +693,9 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
     Callable callable =
         (variant == kIncludes)
             ? Builtins::CallableFor(isolate(),
-                                    Builtins::kArrayIncludesPackedDoubles)
+                                    Builtin::kArrayIncludesPackedDoubles)
             : Builtins::CallableFor(isolate(),
-                                    Builtins::kArrayIndexOfPackedDoubles);
+                                    Builtin::kArrayIndexOfPackedDoubles);
     TNode<Object> result = CallStub(callable, context, elements, search_element,
                                     array_length, SmiTag(index_var.value()));
     args.PopAndReturn(result);
@@ -707,9 +706,9 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
     Callable callable =
         (variant == kIncludes)
             ? Builtins::CallableFor(isolate(),
-                                    Builtins::kArrayIncludesHoleyDoubles)
+                                    Builtin::kArrayIncludesHoleyDoubles)
             : Builtins::CallableFor(isolate(),
-                                    Builtins::kArrayIndexOfHoleyDoubles);
+                                    Builtin::kArrayIndexOfHoleyDoubles);
     TNode<Object> result = CallStub(callable, context, elements, search_element,
                                     array_length, SmiTag(index_var.value()));
     args.PopAndReturn(result);
@@ -1258,7 +1257,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
     // Check that the {index} is within the bounds of the {array}s "length".
     TNode<Number> length = CAST(
-        CallBuiltin(Builtins::kToLength, context,
+        CallBuiltin(Builtin::kToLength, context,
                     GetProperty(context, array, factory()->length_string())));
     GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
     StoreJSArrayIteratorNextIndex(iterator, NumberInc(index));
@@ -1446,7 +1445,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
           //                                          elementLen, targetIndex,
           //                                          depth - 1).
           var_target_index = CAST(
-              CallBuiltin(Builtins::kFlattenIntoArray, context, target, element,
+              CallBuiltin(Builtin::kFlattenIntoArray, context, target, element,
                           element_length, target_index, NumberDec(depth)));
           Goto(&next);
         }
@@ -1463,7 +1462,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
           //                                          elementLen, targetIndex,
           //                                          depth - 1).
           var_target_index = CAST(
-              CallBuiltin(Builtins::kFlattenIntoArray, context, target, element,
+              CallBuiltin(Builtin::kFlattenIntoArray, context, target, element,
                           element_length, target_index, NumberDec(depth)));
           Goto(&next);
         }
@@ -1569,7 +1568,7 @@ TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
   const TNode<JSReceiver> a = Construct(context, constructor, SmiConstant(0));
 
   // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, depthNum).
-  CallBuiltin(Builtins::kFlattenIntoArray, context, a, o, source_length,
+  CallBuiltin(Builtin::kFlattenIntoArray, context, a, o, source_length,
               SmiConstant(0), var_depth_num.value());
 
   // 7. Return A.
@@ -1606,7 +1605,7 @@ TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
   const TNode<JSReceiver> a = Construct(context, constructor, SmiConstant(0));
 
   // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, 1, mapperFunction, T).
-  CallBuiltin(Builtins::kFlatMapIntoArray, context, a, o, source_length,
+  CallBuiltin(Builtin::kFlatMapIntoArray, context, a, o, source_length,
               SmiConstant(0), SmiConstant(1), mapper_function, t);
 
   // 7. Return A.
@@ -1631,8 +1630,8 @@ TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
 
   // Run the native code for the Array function called as a normal function.
   TNode<Oddball> no_gc_site = UndefinedConstant();
-  TailCallBuiltin(Builtins::kArrayConstructorImpl, context, function,
-                  new_target, argc, no_gc_site);
+  TailCallBuiltin(Builtin::kArrayConstructorImpl, context, function, new_target,
+                  argc, no_gc_site);
 }
 
 void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(

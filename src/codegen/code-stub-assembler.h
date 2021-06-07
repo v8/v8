@@ -3025,19 +3025,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Object> GetProperty(TNode<Context> context, TNode<Object> receiver,
                             TNode<Object> name) {
-    return CallBuiltin(Builtins::kGetProperty, context, receiver, name);
+    return CallBuiltin(Builtin::kGetProperty, context, receiver, name);
   }
 
   TNode<Object> SetPropertyStrict(TNode<Context> context,
                                   TNode<Object> receiver, TNode<Object> key,
                                   TNode<Object> value) {
-    return CallBuiltin(Builtins::kSetProperty, context, receiver, key, value);
+    return CallBuiltin(Builtin::kSetProperty, context, receiver, key, value);
   }
 
   TNode<Object> SetPropertyInLiteral(TNode<Context> context,
                                      TNode<JSObject> receiver,
                                      TNode<Object> key, TNode<Object> value) {
-    return CallBuiltin(Builtins::kSetPropertyInLiteral, context, receiver, key,
+    return CallBuiltin(Builtin::kSetPropertyInLiteral, context, receiver, key,
                        value);
   }
 
@@ -3052,15 +3052,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                             TNode<Object> sync_iterator);
 
   template <class... TArgs>
-  TNode<Object> CallBuiltin(Builtins::Name id, TNode<Object> context,
-                            TArgs... args) {
+  TNode<Object> CallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
     return CallStub<Object>(Builtins::CallableFor(isolate(), id), context,
                             args...);
   }
 
   template <class... TArgs>
-  void TailCallBuiltin(Builtins::Name id, TNode<Object> context,
-                       TArgs... args) {
+  void TailCallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
     return TailCallStub(Builtins::CallableFor(isolate(), id), context, args...);
   }
 

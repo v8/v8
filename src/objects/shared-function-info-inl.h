@@ -314,7 +314,7 @@ void SharedFunctionInfo::CalculateConstructAsBuiltin() {
   bool uses_builtins_construct_stub = false;
   if (HasBuiltinId()) {
     int id = builtin_id();
-    if (id != Builtins::kCompileLazy && id != Builtins::kEmptyFunction) {
+    if (id != Builtin::kCompileLazy && id != Builtin::kEmptyFunction) {
       uses_builtins_construct_stub = true;
     }
   } else if (IsApiFunction()) {
@@ -444,7 +444,7 @@ void SharedFunctionInfo::set_feedback_metadata(FeedbackMetadata value,
 
 bool SharedFunctionInfo::is_compiled() const {
   Object data = function_data(kAcquireLoad);
-  return data != Smi::FromEnum(Builtins::kCompileLazy) &&
+  return data != Smi::FromEnum(Builtin::kCompileLazy) &&
          !data.IsUncompiledData();
 }
 
@@ -549,7 +549,7 @@ void SharedFunctionInfo::SetActiveBytecodeArray(BytecodeArray bytecode) {
 }
 
 void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
-  DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtins::kCompileLazy) ||
+  DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtin::kCompileLazy) ||
          HasUncompiledData());
   set_function_data(bytecode, kReleaseStore);
 }
@@ -641,7 +641,7 @@ AsmWasmData SharedFunctionInfo::asm_wasm_data() const {
 }
 
 void SharedFunctionInfo::set_asm_wasm_data(AsmWasmData data) {
-  DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtins::kCompileLazy) ||
+  DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtin::kCompileLazy) ||
          HasUncompiledData() || HasAsmWasmData());
   set_function_data(data, kReleaseStore);
 }
@@ -690,7 +690,7 @@ UncompiledData SharedFunctionInfo::uncompiled_data() const {
 }
 
 void SharedFunctionInfo::set_uncompiled_data(UncompiledData uncompiled_data) {
-  DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtins::kCompileLazy) ||
+  DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtin::kCompileLazy) ||
          HasUncompiledData());
   DCHECK(uncompiled_data.IsUncompiledData());
   set_function_data(uncompiled_data, kReleaseStore);
@@ -708,7 +708,7 @@ SharedFunctionInfo::uncompiled_data_with_preparse_data() const {
 
 void SharedFunctionInfo::set_uncompiled_data_with_preparse_data(
     UncompiledDataWithPreparseData uncompiled_data_with_preparse_data) {
-  DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtins::kCompileLazy));
+  DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtin::kCompileLazy));
   DCHECK(uncompiled_data_with_preparse_data.IsUncompiledDataWithPreparseData());
   set_function_data(uncompiled_data_with_preparse_data, kReleaseStore);
 }

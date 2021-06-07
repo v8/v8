@@ -1062,7 +1062,7 @@ void GraphAssembler::InitializeEffectControl(Node* effect, Node* control) {
 Operator const* JSGraphAssembler::PlainPrimitiveToNumberOperator() {
   if (!to_number_operator_.is_set()) {
     Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kPlainPrimitiveToNumber);
+        Builtins::CallableFor(isolate(), Builtin::kPlainPrimitiveToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),

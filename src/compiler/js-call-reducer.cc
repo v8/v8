@@ -841,7 +841,7 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
     Handle<FeedbackCell> feedback_cell =
         isolate()->factory()->many_closures_cell();
     Callable const callable = Builtins::CallableFor(
-        isolate(), static_cast<Builtins::Name>(shared.builtin_id()));
+        isolate(), static_cast<Builtin>(shared.builtin_id()));
     return AddNode<JSFunction>(graph()->NewNode(
         javascript()->CreateClosure(shared.object(), callable.code()),
         HeapConstant(feedback_cell), context, effect(), control()));
@@ -1237,7 +1237,7 @@ struct ForEachFrameStateParams {
 
 FrameState ForEachLoopLazyFrameState(const ForEachFrameStateParams& params,
                                      TNode<Object> k) {
-  Builtins::Name builtin = Builtins::kArrayForEachLoopLazyDeoptContinuation;
+  Builtin builtin = Builtin::kArrayForEachLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -1248,7 +1248,7 @@ FrameState ForEachLoopLazyFrameState(const ForEachFrameStateParams& params,
 
 FrameState ForEachLoopEagerFrameState(const ForEachFrameStateParams& params,
                                       TNode<Object> k) {
-  Builtins::Name builtin = Builtins::kArrayForEachLoopEagerDeoptContinuation;
+  Builtin builtin = Builtin::kArrayForEachLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -1317,10 +1317,9 @@ FrameState ReducePreLoopLazyFrameState(const ReduceFrameStateParams& params,
                                        TNode<Object> receiver,
                                        TNode<Object> callback, TNode<Object> k,
                                        TNode<Number> original_length) {
-  Builtins::Name builtin =
-      (params.direction == ArrayReduceDirection::kLeft)
-          ? Builtins::kArrayReduceLoopLazyDeoptContinuation
-          : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
+  Builtin builtin = (params.direction == ArrayReduceDirection::kLeft)
+                        ? Builtin::kArrayReduceLoopLazyDeoptContinuation
+                        : Builtin::kArrayReduceRightLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
@@ -1332,10 +1331,10 @@ FrameState ReducePreLoopEagerFrameState(const ReduceFrameStateParams& params,
                                         TNode<Object> receiver,
                                         TNode<Object> callback,
                                         TNode<Number> original_length) {
-  Builtins::Name builtin =
+  Builtin builtin =
       (params.direction == ArrayReduceDirection::kLeft)
-          ? Builtins::kArrayReducePreLoopEagerDeoptContinuation
-          : Builtins::kArrayReduceRightPreLoopEagerDeoptContinuation;
+          ? Builtin::kArrayReducePreLoopEagerDeoptContinuation
+          : Builtin::kArrayReduceRightPreLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
@@ -1347,10 +1346,9 @@ FrameState ReduceLoopLazyFrameState(const ReduceFrameStateParams& params,
                                     TNode<Object> receiver,
                                     TNode<Object> callback, TNode<Object> k,
                                     TNode<Number> original_length) {
-  Builtins::Name builtin =
-      (params.direction == ArrayReduceDirection::kLeft)
-          ? Builtins::kArrayReduceLoopLazyDeoptContinuation
-          : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
+  Builtin builtin = (params.direction == ArrayReduceDirection::kLeft)
+                        ? Builtin::kArrayReduceLoopLazyDeoptContinuation
+                        : Builtin::kArrayReduceRightLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
@@ -1363,10 +1361,9 @@ FrameState ReduceLoopEagerFrameState(const ReduceFrameStateParams& params,
                                      TNode<Object> callback, TNode<Object> k,
                                      TNode<Number> original_length,
                                      TNode<Object> accumulator) {
-  Builtins::Name builtin =
-      (params.direction == ArrayReduceDirection::kLeft)
-          ? Builtins::kArrayReduceLoopEagerDeoptContinuation
-          : Builtins::kArrayReduceRightLoopEagerDeoptContinuation;
+  Builtin builtin = (params.direction == ArrayReduceDirection::kLeft)
+                        ? Builtin::kArrayReduceLoopEagerDeoptContinuation
+                        : Builtin::kArrayReduceRightLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length,
                                accumulator};
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -1501,7 +1498,7 @@ FrameState MapPreLoopLazyFrameState(const MapFrameStateParams& params) {
                                params.this_arg, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtins::kArrayMapPreLoopLazyDeoptContinuation, params.target,
+      Builtin::kArrayMapPreLoopLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
       params.outer_frame_state, ContinuationFrameStateMode::LAZY);
 }
@@ -1513,7 +1510,7 @@ FrameState MapLoopLazyFrameState(const MapFrameStateParams& params,
       params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtins::kArrayMapLoopLazyDeoptContinuation, params.target,
+      Builtin::kArrayMapLoopLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
       params.outer_frame_state, ContinuationFrameStateMode::LAZY);
 }
@@ -1525,7 +1522,7 @@ FrameState MapLoopEagerFrameState(const MapFrameStateParams& params,
       params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtins::kArrayMapLoopEagerDeoptContinuation, params.target,
+      Builtin::kArrayMapLoopEagerDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
       params.outer_frame_state, ContinuationFrameStateMode::EAGER);
 }
@@ -1625,7 +1622,7 @@ FrameState FilterLoopLazyFrameState(const FilterFrameStateParams& params,
                                to};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtins::kArrayFilterLoopLazyDeoptContinuation, params.target,
+      Builtin::kArrayFilterLoopLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
       params.outer_frame_state, ContinuationFrameStateMode::LAZY);
 }
@@ -1634,9 +1631,9 @@ FrameState FilterLoopEagerPostCallbackFrameState(
     const FilterFrameStateParams& params, TNode<Number> k, TNode<Number> to,
     TNode<Object> element, TNode<Object> callback_value) {
   // Note that we are intentionally reusing the
-  // Builtins::kArrayFilterLoopLazyDeoptContinuation as an *eager* entry point
-  // in this case. This is safe, because re-evaluating a [ToBoolean] coercion is
-  // safe.
+  // Builtin::kArrayFilterLoopLazyDeoptContinuation as an *eager* entry
+  // point in this case. This is safe, because re-evaluating a [ToBoolean]
+  // coercion is safe.
   Node* checkpoint_params[] = {params.receiver,
                                params.callback,
                                params.this_arg,
@@ -1648,7 +1645,7 @@ FrameState FilterLoopEagerPostCallbackFrameState(
                                callback_value};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtins::kArrayFilterLoopLazyDeoptContinuation, params.target,
+      Builtin::kArrayFilterLoopLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
       params.outer_frame_state, ContinuationFrameStateMode::EAGER);
 }
@@ -1664,7 +1661,7 @@ FrameState FilterLoopEagerFrameState(const FilterFrameStateParams& params,
                                to};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtins::kArrayFilterLoopEagerDeoptContinuation, params.target,
+      Builtin::kArrayFilterLoopEagerDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
       params.outer_frame_state, ContinuationFrameStateMode::EAGER);
 }
@@ -1766,10 +1763,9 @@ struct FindFrameStateParams {
 
 FrameState FindLoopLazyFrameState(const FindFrameStateParams& params,
                                   TNode<Number> k, ArrayFindVariant variant) {
-  Builtins::Name builtin =
-      (variant == ArrayFindVariant::kFind)
-          ? Builtins::kArrayFindLoopLazyDeoptContinuation
-          : Builtins::kArrayFindIndexLoopLazyDeoptContinuation;
+  Builtin builtin = (variant == ArrayFindVariant::kFind)
+                        ? Builtin::kArrayFindLoopLazyDeoptContinuation
+                        : Builtin::kArrayFindIndexLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -1780,10 +1776,9 @@ FrameState FindLoopLazyFrameState(const FindFrameStateParams& params,
 
 FrameState FindLoopEagerFrameState(const FindFrameStateParams& params,
                                    TNode<Number> k, ArrayFindVariant variant) {
-  Builtins::Name builtin =
-      (variant == ArrayFindVariant::kFind)
-          ? Builtins::kArrayFindLoopEagerDeoptContinuation
-          : Builtins::kArrayFindIndexLoopEagerDeoptContinuation;
+  Builtin builtin = (variant == ArrayFindVariant::kFind)
+                        ? Builtin::kArrayFindLoopEagerDeoptContinuation
+                        : Builtin::kArrayFindIndexLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -1795,10 +1790,10 @@ FrameState FindLoopEagerFrameState(const FindFrameStateParams& params,
 FrameState FindLoopAfterCallbackLazyFrameState(
     const FindFrameStateParams& params, TNode<Number> next_k,
     TNode<Object> if_found_value, ArrayFindVariant variant) {
-  Builtins::Name builtin =
+  Builtin builtin =
       (variant == ArrayFindVariant::kFind)
-          ? Builtins::kArrayFindLoopAfterCallbackLazyDeoptContinuation
-          : Builtins::kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation;
+          ? Builtin::kArrayFindLoopAfterCallbackLazyDeoptContinuation
+          : Builtin::kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver,        params.callback,
                                params.this_arg,        next_k,
                                params.original_length, if_found_value};
@@ -1884,9 +1879,9 @@ struct EverySomeFrameStateParams {
 FrameState EverySomeLoopLazyFrameState(const EverySomeFrameStateParams& params,
                                        TNode<Number> k,
                                        ArrayEverySomeVariant variant) {
-  Builtins::Name builtin = (variant == ArrayEverySomeVariant::kEvery)
-                               ? Builtins::kArrayEveryLoopLazyDeoptContinuation
-                               : Builtins::kArraySomeLoopLazyDeoptContinuation;
+  Builtin builtin = (variant == ArrayEverySomeVariant::kEvery)
+                        ? Builtin::kArrayEveryLoopLazyDeoptContinuation
+                        : Builtin::kArraySomeLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -1898,9 +1893,9 @@ FrameState EverySomeLoopLazyFrameState(const EverySomeFrameStateParams& params,
 FrameState EverySomeLoopEagerFrameState(const EverySomeFrameStateParams& params,
                                         TNode<Number> k,
                                         ArrayEverySomeVariant variant) {
-  Builtins::Name builtin = (variant == ArrayEverySomeVariant::kEvery)
-                               ? Builtins::kArrayEveryLoopEagerDeoptContinuation
-                               : Builtins::kArraySomeLoopEagerDeoptContinuation;
+  Builtin builtin = (variant == ArrayEverySomeVariant::kEvery)
+                        ? Builtin::kArrayEveryLoopEagerDeoptContinuation
+                        : Builtin::kArraySomeLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
@@ -1978,14 +1973,14 @@ Callable GetCallableForArrayIndexOfIncludes(ArrayIndexOfIncludesVariant variant,
       case PACKED_ELEMENTS:
       case HOLEY_ELEMENTS:
         return Builtins::CallableFor(isolate,
-                                     Builtins::kArrayIndexOfSmiOrObject);
+                                     Builtin::kArrayIndexOfSmiOrObject);
       case PACKED_DOUBLE_ELEMENTS:
         return Builtins::CallableFor(isolate,
-                                     Builtins::kArrayIndexOfPackedDoubles);
+                                     Builtin::kArrayIndexOfPackedDoubles);
       default:
         DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
         return Builtins::CallableFor(isolate,
-                                     Builtins::kArrayIndexOfHoleyDoubles);
+                                     Builtin::kArrayIndexOfHoleyDoubles);
     }
   } else {
     DCHECK_EQ(variant, ArrayIndexOfIncludesVariant::kIncludes);
@@ -1995,14 +1990,14 @@ Callable GetCallableForArrayIndexOfIncludes(ArrayIndexOfIncludesVariant variant,
       case PACKED_ELEMENTS:
       case HOLEY_ELEMENTS:
         return Builtins::CallableFor(isolate,
-                                     Builtins::kArrayIncludesSmiOrObject);
+                                     Builtin::kArrayIncludesSmiOrObject);
       case PACKED_DOUBLE_ELEMENTS:
         return Builtins::CallableFor(isolate,
-                                     Builtins::kArrayIncludesPackedDoubles);
+                                     Builtin::kArrayIncludesPackedDoubles);
       default:
         DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
         return Builtins::CallableFor(isolate,
-                                     Builtins::kArrayIncludesHoleyDoubles);
+                                     Builtin::kArrayIncludesHoleyDoubles);
     }
   }
   UNREACHABLE();
@@ -2116,10 +2111,10 @@ FrameState PromiseConstructorLazyFrameState(
       jsgraph->TheHoleConstant()    /* exception */
   };
   return CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph, params.shared,
-      Builtins::kPromiseConstructorLazyDeoptContinuation, params.target,
-      params.context, checkpoint_params, arraysize(checkpoint_params),
-      constructor_frame_state, ContinuationFrameStateMode::LAZY);
+      jsgraph, params.shared, Builtin::kPromiseConstructorLazyDeoptContinuation,
+      params.target, params.context, checkpoint_params,
+      arraysize(checkpoint_params), constructor_frame_state,
+      ContinuationFrameStateMode::LAZY);
 }
 
 FrameState PromiseConstructorLazyWithCatchFrameState(
@@ -2133,7 +2128,7 @@ FrameState PromiseConstructorLazyWithCatchFrameState(
       promise, reject};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtins::kPromiseConstructorLazyDeoptContinuation, params.target,
+      Builtin::kPromiseConstructorLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
       constructor_frame_state, ContinuationFrameStateMode::LAZY_WITH_CATCH);
 }
@@ -3073,8 +3068,7 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   Node* etrue = effect;
   Node* vtrue;
   {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kGetProperty);
+    Callable callable = Builtins::CallableFor(isolate(), Builtin::kGetProperty);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),
@@ -3737,14 +3731,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       // and/or the compatible receiver check, so use the generic builtin
       // that does those checks dynamically. This is still significantly
       // faster than the generic call sequence.
-      Builtins::Name builtin_name;
+      Builtin builtin_name;
       if (function_template_info.accept_any_receiver()) {
-        builtin_name = Builtins::kCallFunctionTemplate_CheckCompatibleReceiver;
+        builtin_name = Builtin::kCallFunctionTemplate_CheckCompatibleReceiver;
       } else if (function_template_info.is_signature_undefined()) {
-        builtin_name = Builtins::kCallFunctionTemplate_CheckAccess;
+        builtin_name = Builtin::kCallFunctionTemplate_CheckAccess;
       } else {
         builtin_name =
-            Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver;
+            Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver;
       }
 
       // The CallFunctionTemplate builtin requires the {receiver} to be
@@ -4508,333 +4502,333 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   // Check for known builtin functions.
 
   int builtin_id =
-      shared.HasBuiltinId() ? shared.builtin_id() : Builtins::kNoBuiltinId;
+      shared.HasBuiltinId() ? shared.builtin_id() : Builtin::kNoBuiltinId;
   switch (builtin_id) {
-    case Builtins::kArrayConstructor:
+    case Builtin::kArrayConstructor:
       return ReduceArrayConstructor(node);
-    case Builtins::kBooleanConstructor:
+    case Builtin::kBooleanConstructor:
       return ReduceBooleanConstructor(node);
-    case Builtins::kFunctionPrototypeApply:
+    case Builtin::kFunctionPrototypeApply:
       return ReduceFunctionPrototypeApply(node);
-    case Builtins::kFastFunctionPrototypeBind:
+    case Builtin::kFastFunctionPrototypeBind:
       return ReduceFunctionPrototypeBind(node);
-    case Builtins::kFunctionPrototypeCall:
+    case Builtin::kFunctionPrototypeCall:
       return ReduceFunctionPrototypeCall(node);
-    case Builtins::kFunctionPrototypeHasInstance:
+    case Builtin::kFunctionPrototypeHasInstance:
       return ReduceFunctionPrototypeHasInstance(node);
-    case Builtins::kObjectConstructor:
+    case Builtin::kObjectConstructor:
       return ReduceObjectConstructor(node);
-    case Builtins::kObjectCreate:
+    case Builtin::kObjectCreate:
       return ReduceObjectCreate(node);
-    case Builtins::kObjectGetPrototypeOf:
+    case Builtin::kObjectGetPrototypeOf:
       return ReduceObjectGetPrototypeOf(node);
-    case Builtins::kObjectIs:
+    case Builtin::kObjectIs:
       return ReduceObjectIs(node);
-    case Builtins::kObjectPrototypeGetProto:
+    case Builtin::kObjectPrototypeGetProto:
       return ReduceObjectPrototypeGetProto(node);
-    case Builtins::kObjectPrototypeHasOwnProperty:
+    case Builtin::kObjectPrototypeHasOwnProperty:
       return ReduceObjectPrototypeHasOwnProperty(node);
-    case Builtins::kObjectPrototypeIsPrototypeOf:
+    case Builtin::kObjectPrototypeIsPrototypeOf:
       return ReduceObjectPrototypeIsPrototypeOf(node);
-    case Builtins::kReflectApply:
+    case Builtin::kReflectApply:
       return ReduceReflectApply(node);
-    case Builtins::kReflectConstruct:
+    case Builtin::kReflectConstruct:
       return ReduceReflectConstruct(node);
-    case Builtins::kReflectGet:
+    case Builtin::kReflectGet:
       return ReduceReflectGet(node);
-    case Builtins::kReflectGetPrototypeOf:
+    case Builtin::kReflectGetPrototypeOf:
       return ReduceReflectGetPrototypeOf(node);
-    case Builtins::kReflectHas:
+    case Builtin::kReflectHas:
       return ReduceReflectHas(node);
-    case Builtins::kArrayForEach:
+    case Builtin::kArrayForEach:
       return ReduceArrayForEach(node, shared);
-    case Builtins::kArrayMap:
+    case Builtin::kArrayMap:
       return ReduceArrayMap(node, shared);
-    case Builtins::kArrayFilter:
+    case Builtin::kArrayFilter:
       return ReduceArrayFilter(node, shared);
-    case Builtins::kArrayReduce:
+    case Builtin::kArrayReduce:
       return ReduceArrayReduce(node, shared);
-    case Builtins::kArrayReduceRight:
+    case Builtin::kArrayReduceRight:
       return ReduceArrayReduceRight(node, shared);
-    case Builtins::kArrayPrototypeFind:
+    case Builtin::kArrayPrototypeFind:
       return ReduceArrayFind(node, shared);
-    case Builtins::kArrayPrototypeFindIndex:
+    case Builtin::kArrayPrototypeFindIndex:
       return ReduceArrayFindIndex(node, shared);
-    case Builtins::kArrayEvery:
+    case Builtin::kArrayEvery:
       return ReduceArrayEvery(node, shared);
-    case Builtins::kArrayIndexOf:
+    case Builtin::kArrayIndexOf:
       return ReduceArrayIndexOf(node);
-    case Builtins::kArrayIncludes:
+    case Builtin::kArrayIncludes:
       return ReduceArrayIncludes(node);
-    case Builtins::kArraySome:
+    case Builtin::kArraySome:
       return ReduceArraySome(node, shared);
-    case Builtins::kArrayPrototypePush:
+    case Builtin::kArrayPrototypePush:
       return ReduceArrayPrototypePush(node);
-    case Builtins::kArrayPrototypePop:
+    case Builtin::kArrayPrototypePop:
       return ReduceArrayPrototypePop(node);
-    case Builtins::kArrayPrototypeShift:
+    case Builtin::kArrayPrototypeShift:
       return ReduceArrayPrototypeShift(node);
-    case Builtins::kArrayPrototypeSlice:
+    case Builtin::kArrayPrototypeSlice:
       return ReduceArrayPrototypeSlice(node);
-    case Builtins::kArrayPrototypeEntries:
+    case Builtin::kArrayPrototypeEntries:
       return ReduceArrayIterator(node, ArrayIteratorKind::kArrayLike,
                                  IterationKind::kEntries);
-    case Builtins::kArrayPrototypeKeys:
+    case Builtin::kArrayPrototypeKeys:
       return ReduceArrayIterator(node, ArrayIteratorKind::kArrayLike,
                                  IterationKind::kKeys);
-    case Builtins::kArrayPrototypeValues:
+    case Builtin::kArrayPrototypeValues:
       return ReduceArrayIterator(node, ArrayIteratorKind::kArrayLike,
                                  IterationKind::kValues);
-    case Builtins::kArrayIteratorPrototypeNext:
+    case Builtin::kArrayIteratorPrototypeNext:
       return ReduceArrayIteratorPrototypeNext(node);
-    case Builtins::kArrayIsArray:
+    case Builtin::kArrayIsArray:
       return ReduceArrayIsArray(node);
-    case Builtins::kArrayBufferIsView:
+    case Builtin::kArrayBufferIsView:
       return ReduceArrayBufferIsView(node);
-    case Builtins::kDataViewPrototypeGetByteLength:
+    case Builtin::kDataViewPrototypeGetByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,
           AccessBuilder::ForJSArrayBufferViewByteLength());
-    case Builtins::kDataViewPrototypeGetByteOffset:
+    case Builtin::kDataViewPrototypeGetByteOffset:
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,
           AccessBuilder::ForJSArrayBufferViewByteOffset());
-    case Builtins::kDataViewPrototypeGetUint8:
+    case Builtin::kDataViewPrototypeGetUint8:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalUint8Array);
-    case Builtins::kDataViewPrototypeGetInt8:
+    case Builtin::kDataViewPrototypeGetInt8:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalInt8Array);
-    case Builtins::kDataViewPrototypeGetUint16:
+    case Builtin::kDataViewPrototypeGetUint16:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalUint16Array);
-    case Builtins::kDataViewPrototypeGetInt16:
+    case Builtin::kDataViewPrototypeGetInt16:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalInt16Array);
-    case Builtins::kDataViewPrototypeGetUint32:
+    case Builtin::kDataViewPrototypeGetUint32:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalUint32Array);
-    case Builtins::kDataViewPrototypeGetInt32:
+    case Builtin::kDataViewPrototypeGetInt32:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalInt32Array);
-    case Builtins::kDataViewPrototypeGetFloat32:
+    case Builtin::kDataViewPrototypeGetFloat32:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalFloat32Array);
-    case Builtins::kDataViewPrototypeGetFloat64:
+    case Builtin::kDataViewPrototypeGetFloat64:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalFloat64Array);
-    case Builtins::kDataViewPrototypeSetUint8:
+    case Builtin::kDataViewPrototypeSetUint8:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalUint8Array);
-    case Builtins::kDataViewPrototypeSetInt8:
+    case Builtin::kDataViewPrototypeSetInt8:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalInt8Array);
-    case Builtins::kDataViewPrototypeSetUint16:
+    case Builtin::kDataViewPrototypeSetUint16:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalUint16Array);
-    case Builtins::kDataViewPrototypeSetInt16:
+    case Builtin::kDataViewPrototypeSetInt16:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalInt16Array);
-    case Builtins::kDataViewPrototypeSetUint32:
+    case Builtin::kDataViewPrototypeSetUint32:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalUint32Array);
-    case Builtins::kDataViewPrototypeSetInt32:
+    case Builtin::kDataViewPrototypeSetInt32:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalInt32Array);
-    case Builtins::kDataViewPrototypeSetFloat32:
+    case Builtin::kDataViewPrototypeSetFloat32:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalFloat32Array);
-    case Builtins::kDataViewPrototypeSetFloat64:
+    case Builtin::kDataViewPrototypeSetFloat64:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalFloat64Array);
-    case Builtins::kTypedArrayPrototypeByteLength:
+    case Builtin::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE,
           AccessBuilder::ForJSArrayBufferViewByteLength());
-    case Builtins::kTypedArrayPrototypeByteOffset:
+    case Builtin::kTypedArrayPrototypeByteOffset:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE,
           AccessBuilder::ForJSArrayBufferViewByteOffset());
-    case Builtins::kTypedArrayPrototypeLength:
+    case Builtin::kTypedArrayPrototypeLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE, AccessBuilder::ForJSTypedArrayLength());
-    case Builtins::kTypedArrayPrototypeToStringTag:
+    case Builtin::kTypedArrayPrototypeToStringTag:
       return ReduceTypedArrayPrototypeToStringTag(node);
-    case Builtins::kMathAbs:
+    case Builtin::kMathAbs:
       return ReduceMathUnary(node, simplified()->NumberAbs());
-    case Builtins::kMathAcos:
+    case Builtin::kMathAcos:
       return ReduceMathUnary(node, simplified()->NumberAcos());
-    case Builtins::kMathAcosh:
+    case Builtin::kMathAcosh:
       return ReduceMathUnary(node, simplified()->NumberAcosh());
-    case Builtins::kMathAsin:
+    case Builtin::kMathAsin:
       return ReduceMathUnary(node, simplified()->NumberAsin());
-    case Builtins::kMathAsinh:
+    case Builtin::kMathAsinh:
       return ReduceMathUnary(node, simplified()->NumberAsinh());
-    case Builtins::kMathAtan:
+    case Builtin::kMathAtan:
       return ReduceMathUnary(node, simplified()->NumberAtan());
-    case Builtins::kMathAtanh:
+    case Builtin::kMathAtanh:
       return ReduceMathUnary(node, simplified()->NumberAtanh());
-    case Builtins::kMathCbrt:
+    case Builtin::kMathCbrt:
       return ReduceMathUnary(node, simplified()->NumberCbrt());
-    case Builtins::kMathCeil:
+    case Builtin::kMathCeil:
       return ReduceMathUnary(node, simplified()->NumberCeil());
-    case Builtins::kMathCos:
+    case Builtin::kMathCos:
       return ReduceMathUnary(node, simplified()->NumberCos());
-    case Builtins::kMathCosh:
+    case Builtin::kMathCosh:
       return ReduceMathUnary(node, simplified()->NumberCosh());
-    case Builtins::kMathExp:
+    case Builtin::kMathExp:
       return ReduceMathUnary(node, simplified()->NumberExp());
-    case Builtins::kMathExpm1:
+    case Builtin::kMathExpm1:
       return ReduceMathUnary(node, simplified()->NumberExpm1());
-    case Builtins::kMathFloor:
+    case Builtin::kMathFloor:
       return ReduceMathUnary(node, simplified()->NumberFloor());
-    case Builtins::kMathFround:
+    case Builtin::kMathFround:
       return ReduceMathUnary(node, simplified()->NumberFround());
-    case Builtins::kMathLog:
+    case Builtin::kMathLog:
       return ReduceMathUnary(node, simplified()->NumberLog());
-    case Builtins::kMathLog1p:
+    case Builtin::kMathLog1p:
       return ReduceMathUnary(node, simplified()->NumberLog1p());
-    case Builtins::kMathLog10:
+    case Builtin::kMathLog10:
       return ReduceMathUnary(node, simplified()->NumberLog10());
-    case Builtins::kMathLog2:
+    case Builtin::kMathLog2:
       return ReduceMathUnary(node, simplified()->NumberLog2());
-    case Builtins::kMathRound:
+    case Builtin::kMathRound:
       return ReduceMathUnary(node, simplified()->NumberRound());
-    case Builtins::kMathSign:
+    case Builtin::kMathSign:
       return ReduceMathUnary(node, simplified()->NumberSign());
-    case Builtins::kMathSin:
+    case Builtin::kMathSin:
       return ReduceMathUnary(node, simplified()->NumberSin());
-    case Builtins::kMathSinh:
+    case Builtin::kMathSinh:
       return ReduceMathUnary(node, simplified()->NumberSinh());
-    case Builtins::kMathSqrt:
+    case Builtin::kMathSqrt:
       return ReduceMathUnary(node, simplified()->NumberSqrt());
-    case Builtins::kMathTan:
+    case Builtin::kMathTan:
       return ReduceMathUnary(node, simplified()->NumberTan());
-    case Builtins::kMathTanh:
+    case Builtin::kMathTanh:
       return ReduceMathUnary(node, simplified()->NumberTanh());
-    case Builtins::kMathTrunc:
+    case Builtin::kMathTrunc:
       return ReduceMathUnary(node, simplified()->NumberTrunc());
-    case Builtins::kMathAtan2:
+    case Builtin::kMathAtan2:
       return ReduceMathBinary(node, simplified()->NumberAtan2());
-    case Builtins::kMathPow:
+    case Builtin::kMathPow:
       return ReduceMathBinary(node, simplified()->NumberPow());
-    case Builtins::kMathClz32:
+    case Builtin::kMathClz32:
       return ReduceMathClz32(node);
-    case Builtins::kMathImul:
+    case Builtin::kMathImul:
       return ReduceMathImul(node);
-    case Builtins::kMathMax:
+    case Builtin::kMathMax:
       return ReduceMathMinMax(node, simplified()->NumberMax(),
                               jsgraph()->Constant(-V8_INFINITY));
-    case Builtins::kMathMin:
+    case Builtin::kMathMin:
       return ReduceMathMinMax(node, simplified()->NumberMin(),
                               jsgraph()->Constant(V8_INFINITY));
-    case Builtins::kNumberIsFinite:
+    case Builtin::kNumberIsFinite:
       return ReduceNumberIsFinite(node);
-    case Builtins::kNumberIsInteger:
+    case Builtin::kNumberIsInteger:
       return ReduceNumberIsInteger(node);
-    case Builtins::kNumberIsSafeInteger:
+    case Builtin::kNumberIsSafeInteger:
       return ReduceNumberIsSafeInteger(node);
-    case Builtins::kNumberIsNaN:
+    case Builtin::kNumberIsNaN:
       return ReduceNumberIsNaN(node);
-    case Builtins::kNumberParseInt:
+    case Builtin::kNumberParseInt:
       return ReduceNumberParseInt(node);
-    case Builtins::kGlobalIsFinite:
+    case Builtin::kGlobalIsFinite:
       return ReduceGlobalIsFinite(node);
-    case Builtins::kGlobalIsNaN:
+    case Builtin::kGlobalIsNaN:
       return ReduceGlobalIsNaN(node);
-    case Builtins::kMapPrototypeGet:
+    case Builtin::kMapPrototypeGet:
       return ReduceMapPrototypeGet(node);
-    case Builtins::kMapPrototypeHas:
+    case Builtin::kMapPrototypeHas:
       return ReduceMapPrototypeHas(node);
-    case Builtins::kRegExpPrototypeTest:
+    case Builtin::kRegExpPrototypeTest:
       return ReduceRegExpPrototypeTest(node);
-    case Builtins::kReturnReceiver:
+    case Builtin::kReturnReceiver:
       return ReduceReturnReceiver(node);
-    case Builtins::kStringPrototypeIndexOf:
+    case Builtin::kStringPrototypeIndexOf:
       return ReduceStringPrototypeIndexOf(node);
-    case Builtins::kStringPrototypeCharAt:
+    case Builtin::kStringPrototypeCharAt:
       return ReduceStringPrototypeCharAt(node);
-    case Builtins::kStringPrototypeCharCodeAt:
+    case Builtin::kStringPrototypeCharCodeAt:
       return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
                                            node);
-    case Builtins::kStringPrototypeCodePointAt:
+    case Builtin::kStringPrototypeCodePointAt:
       return ReduceStringPrototypeStringAt(simplified()->StringCodePointAt(),
                                            node);
-    case Builtins::kStringPrototypeSubstring:
+    case Builtin::kStringPrototypeSubstring:
       return ReduceStringPrototypeSubstring(node);
-    case Builtins::kStringPrototypeSlice:
+    case Builtin::kStringPrototypeSlice:
       return ReduceStringPrototypeSlice(node);
-    case Builtins::kStringPrototypeSubstr:
+    case Builtin::kStringPrototypeSubstr:
       return ReduceStringPrototypeSubstr(node);
-    case Builtins::kStringPrototypeStartsWith:
+    case Builtin::kStringPrototypeStartsWith:
       return ReduceStringPrototypeStartsWith(node);
 #ifdef V8_INTL_SUPPORT
-    case Builtins::kStringPrototypeToLowerCaseIntl:
+    case Builtin::kStringPrototypeToLowerCaseIntl:
       return ReduceStringPrototypeToLowerCaseIntl(node);
-    case Builtins::kStringPrototypeToUpperCaseIntl:
+    case Builtin::kStringPrototypeToUpperCaseIntl:
       return ReduceStringPrototypeToUpperCaseIntl(node);
 #endif  // V8_INTL_SUPPORT
-    case Builtins::kStringFromCharCode:
+    case Builtin::kStringFromCharCode:
       return ReduceStringFromCharCode(node);
-    case Builtins::kStringFromCodePoint:
+    case Builtin::kStringFromCodePoint:
       return ReduceStringFromCodePoint(node);
-    case Builtins::kStringPrototypeIterator:
+    case Builtin::kStringPrototypeIterator:
       return ReduceStringPrototypeIterator(node);
-    case Builtins::kStringIteratorPrototypeNext:
+    case Builtin::kStringIteratorPrototypeNext:
       return ReduceStringIteratorPrototypeNext(node);
-    case Builtins::kStringPrototypeConcat:
+    case Builtin::kStringPrototypeConcat:
       return ReduceStringPrototypeConcat(node);
-    case Builtins::kTypedArrayPrototypeEntries:
+    case Builtin::kTypedArrayPrototypeEntries:
       return ReduceArrayIterator(node, ArrayIteratorKind::kTypedArray,
                                  IterationKind::kEntries);
-    case Builtins::kTypedArrayPrototypeKeys:
+    case Builtin::kTypedArrayPrototypeKeys:
       return ReduceArrayIterator(node, ArrayIteratorKind::kTypedArray,
                                  IterationKind::kKeys);
-    case Builtins::kTypedArrayPrototypeValues:
+    case Builtin::kTypedArrayPrototypeValues:
       return ReduceArrayIterator(node, ArrayIteratorKind::kTypedArray,
                                  IterationKind::kValues);
-    case Builtins::kPromisePrototypeCatch:
+    case Builtin::kPromisePrototypeCatch:
       return ReducePromisePrototypeCatch(node);
-    case Builtins::kPromisePrototypeFinally:
+    case Builtin::kPromisePrototypeFinally:
       return ReducePromisePrototypeFinally(node);
-    case Builtins::kPromisePrototypeThen:
+    case Builtin::kPromisePrototypeThen:
       return ReducePromisePrototypeThen(node);
-    case Builtins::kPromiseResolveTrampoline:
+    case Builtin::kPromiseResolveTrampoline:
       return ReducePromiseResolveTrampoline(node);
-    case Builtins::kMapPrototypeEntries:
+    case Builtin::kMapPrototypeEntries:
       return ReduceCollectionIteration(node, CollectionKind::kMap,
                                        IterationKind::kEntries);
-    case Builtins::kMapPrototypeKeys:
+    case Builtin::kMapPrototypeKeys:
       return ReduceCollectionIteration(node, CollectionKind::kMap,
                                        IterationKind::kKeys);
-    case Builtins::kMapPrototypeGetSize:
+    case Builtin::kMapPrototypeGetSize:
       return ReduceCollectionPrototypeSize(node, CollectionKind::kMap);
-    case Builtins::kMapPrototypeValues:
+    case Builtin::kMapPrototypeValues:
       return ReduceCollectionIteration(node, CollectionKind::kMap,
                                        IterationKind::kValues);
-    case Builtins::kMapIteratorPrototypeNext:
+    case Builtin::kMapIteratorPrototypeNext:
       return ReduceCollectionIteratorPrototypeNext(
           node, OrderedHashMap::kEntrySize, factory()->empty_ordered_hash_map(),
           FIRST_JS_MAP_ITERATOR_TYPE, LAST_JS_MAP_ITERATOR_TYPE);
-    case Builtins::kSetPrototypeEntries:
+    case Builtin::kSetPrototypeEntries:
       return ReduceCollectionIteration(node, CollectionKind::kSet,
                                        IterationKind::kEntries);
-    case Builtins::kSetPrototypeGetSize:
+    case Builtin::kSetPrototypeGetSize:
       return ReduceCollectionPrototypeSize(node, CollectionKind::kSet);
-    case Builtins::kSetPrototypeValues:
+    case Builtin::kSetPrototypeValues:
       return ReduceCollectionIteration(node, CollectionKind::kSet,
                                        IterationKind::kValues);
-    case Builtins::kSetIteratorPrototypeNext:
+    case Builtin::kSetIteratorPrototypeNext:
       return ReduceCollectionIteratorPrototypeNext(
           node, OrderedHashSet::kEntrySize, factory()->empty_ordered_hash_set(),
           FIRST_JS_SET_ITERATOR_TYPE, LAST_JS_SET_ITERATOR_TYPE);
-    case Builtins::kDatePrototypeGetTime:
+    case Builtin::kDatePrototypeGetTime:
       return ReduceDatePrototypeGetTime(node);
-    case Builtins::kDateNow:
+    case Builtin::kDateNow:
       return ReduceDateNow(node);
-    case Builtins::kNumberConstructor:
+    case Builtin::kNumberConstructor:
       return ReduceNumberConstructor(node);
-    case Builtins::kBigIntAsUintN:
+    case Builtin::kBigIntAsUintN:
       return ReduceBigIntAsUintN(node);
     default:
       break;
@@ -4972,9 +4966,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       // Check for known builtin functions.
       int builtin_id = function.shared().HasBuiltinId()
                            ? function.shared().builtin_id()
-                           : Builtins::kNoBuiltinId;
+                           : Builtin::kNoBuiltinId;
       switch (builtin_id) {
-        case Builtins::kArrayConstructor: {
+        case Builtin::kArrayConstructor: {
           // TODO(bmeurer): Deal with Array subclasses here.
           // Turn the {node} into a {JSCreateArray} call.
           STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
@@ -4984,7 +4978,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
               node, javascript()->CreateArray(arity, Handle<AllocationSite>()));
           return Changed(node);
         }
-        case Builtins::kObjectConstructor: {
+        case Builtin::kObjectConstructor: {
           // If no value is passed, we can immediately lower to a simple
           // JSCreate and don't need to do any massaging of the {node}.
           if (arity == 0) {
@@ -5009,9 +5003,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           }
           break;
         }
-        case Builtins::kPromiseConstructor:
+        case Builtin::kPromiseConstructor:
           return ReducePromiseConstructor(node);
-        case Builtins::kTypedArrayConstructor:
+        case Builtin::kTypedArrayConstructor:
           return ReduceTypedArrayConstructor(node, function.shared());
         default:
           break;
@@ -5835,7 +5829,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
       Node* vfalse1;
       {
         // Call the generic C++ implementation.
-        const int builtin_index = Builtins::kArrayShift;
+        const int builtin_index = Builtin::kArrayShift;
         auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
             graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
             Builtins::name(builtin_index), node->op()->properties(),
@@ -5955,13 +5949,13 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
   // allocation in here. That way we'd even get escape analysis and scalar
   // replacement to help in some cases.
   Callable callable =
-      Builtins::CallableFor(isolate(), Builtins::kCloneFastJSArray);
+      Builtins::CallableFor(isolate(), Builtin::kCloneFastJSArray);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
       Operator::kNoThrow | Operator::kNoDeopt);
 
-  // Calls to Builtins::kCloneFastJSArray produce COW arrays
+  // Calls to Builtin::kCloneFastJSArray produce COW arrays
   // if the original array is COW
   Node* clone = effect = graph()->NewNode(
       common()->Call(call_descriptor), jsgraph()->HeapConstant(callable.code()),
@@ -6763,7 +6757,7 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
   Handle<FeedbackCell> feedback_cell =
       isolate()->factory()->many_closures_cell();
   Callable const callable = Builtins::CallableFor(
-      isolate(), static_cast<Builtins::Name>(shared.builtin_id()));
+      isolate(), static_cast<Builtin>(shared.builtin_id()));
   return graph()->NewNode(
       javascript()->CreateClosure(shared.object(), callable.code()),
       jsgraph()->HeapConstant(feedback_cell), context, effect, control);
@@ -7007,7 +7001,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   Node* const parameters[] = {jsgraph()->TheHoleConstant()};
   int const num_parameters = static_cast<int>(arraysize(parameters));
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kGenericLazyDeoptContinuation, target,
+      jsgraph(), shared, Builtin::kGenericLazyDeoptContinuation, target,
       context, parameters, num_parameters, frame_state,
       ContinuationFrameStateMode::LAZY);
 
@@ -7364,7 +7358,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
         simplified()->LoadField(AccessBuilder::ForJSCollectionIteratorIndex()),
         receiver, effect, control);
     Callable const callable =
-        Builtins::CallableFor(isolate(), Builtins::kOrderedHashTableHealIndex);
+        Builtins::CallableFor(isolate(), Builtin::kOrderedHashTableHealIndex);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),
@@ -8011,7 +8005,7 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   int stack_parameter_count = arraysize(stack_parameters);
   Node* continuation_frame_state =
       CreateJavaScriptBuiltinContinuationFrameState(
-          jsgraph(), shared_info, Builtins::kGenericLazyDeoptContinuation,
+          jsgraph(), shared_info, Builtin::kGenericLazyDeoptContinuation,
           target, context, stack_parameters, stack_parameter_count, frame_state,
           ContinuationFrameStateMode::LAZY);
 

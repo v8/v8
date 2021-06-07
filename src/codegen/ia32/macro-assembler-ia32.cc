@@ -231,12 +231,11 @@ Operand TurboAssembler::HeapObjectAsOperand(Handle<HeapObject> object) {
   if (isolate()->roots_table().IsRootHandle(object, &root_index)) {
     return Operand(kRootRegister, RootRegisterOffsetForRootIndex(root_index));
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin_index)) {
-    return Operand(kRootRegister,
-                   RootRegisterOffsetForBuiltinIndex(builtin_index));
+    return Operand(kRootRegister, RootRegisterOffsetForBuiltin(builtin_index));
   } else if (object.is_identical_to(code_object_) &&
              Builtins::IsBuiltinId(maybe_builtin_index_)) {
     return Operand(kRootRegister,
-                   RootRegisterOffsetForBuiltinIndex(maybe_builtin_index_));
+                   RootRegisterOffsetForBuiltin(maybe_builtin_index_));
   } else {
     // Objects in the constants table need an additional indirection, which
     // cannot be represented as a single Operand.
@@ -2173,7 +2172,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
+    int builtin_index = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index)) {
       // Inline the trampoline.
       CallBuiltin(builtin_index);
@@ -2207,14 +2206,13 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 void TurboAssembler::CallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
   RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
   EmbeddedData d = EmbeddedData::FromBlob();
   Address entry = d.InstructionStartOfBuiltin(builtin_index);
   call(entry, RelocInfo::OFF_HEAP_TARGET);
 }
 
-Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(
-    Builtins::Name builtin_index) {
+Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin_index) {
   return Operand(kRootRegister,
                  IsolateData::builtin_entry_slot_offset(builtin_index));
 }
@@ -2290,11 +2288,11 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
+    int builtin_index = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index)) {
       // Inline the trampoline.
       RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+      CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       jmp(entry, RelocInfo::OFF_HEAP_TARGET);
@@ -2391,9 +2389,9 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   }
 }
 
-void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
-                                           Label* exit, DeoptimizeKind kind,
-                                           Label* ret, Label*) {
+void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
+                                           DeoptimizeKind kind, Label* ret,
+                                           Label*) {
   CallBuiltin(target);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy)

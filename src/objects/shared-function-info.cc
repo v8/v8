@@ -32,7 +32,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   // Set the function data to the "illegal" builtin. Ideally we'd use some sort
   // of "uninitialized" marker here, but it's cheaper to use a valid buitin and
   // avoid having to do uninitialized checks elsewhere.
-  set_builtin_id(Builtins::kIllegal);
+  set_builtin_id(Builtin::kIllegal);
 
   // Set the name to the no-name sentinel, this can be updated later.
   set_name_or_scope_info(SharedFunctionInfo::kNoSharedNameSentinel,
@@ -82,7 +82,7 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsBytecodeArray()) {
     // Having a bytecode array means we are a compiled, interpreted function.
     DCHECK(HasBytecodeArray());
-    return isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
+    return isolate->builtins()->builtin(Builtin::kInterpreterEntryTrampoline);
   }
   if (data.IsBaselineData()) {
     // Having BaselineData means we are a compiled, baseline function.
@@ -93,7 +93,7 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsAsmWasmData()) {
     // Having AsmWasmData means we are an asm.js/wasm function.
     DCHECK(HasAsmWasmData());
-    return isolate->builtins()->builtin(Builtins::kInstantiateAsmJs);
+    return isolate->builtins()->builtin(Builtin::kInstantiateAsmJs);
   }
   if (data.IsWasmExportedFunctionData()) {
     // Having a WasmExportedFunctionData means the code is in there.
@@ -110,12 +110,12 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsUncompiledData()) {
     // Having uncompiled data (with or without scope) means we need to compile.
     DCHECK(HasUncompiledData());
-    return isolate->builtins()->builtin(Builtins::kCompileLazy);
+    return isolate->builtins()->builtin(Builtin::kCompileLazy);
   }
   if (data.IsFunctionTemplateInfo()) {
     // Having a function template info means we are an API function.
     DCHECK(IsApiFunction());
-    return isolate->builtins()->builtin(Builtins::kHandleApiCall);
+    return isolate->builtins()->builtin(Builtin::kHandleApiCall);
   }
   if (data.IsInterpreterData()) {
     Code code = InterpreterTrampoline();
@@ -605,7 +605,7 @@ int SharedFunctionInfo::StartPosition() const {
     return uncompiled_data().start_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
+    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
     return 0;
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -632,7 +632,7 @@ int SharedFunctionInfo::EndPosition() const {
     return uncompiled_data().end_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
+    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
     return 0;
   }
 #if V8_ENABLE_WEBASSEMBLY

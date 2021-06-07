@@ -332,7 +332,7 @@ class SharedFunctionInfo
   inline const wasm::FunctionSig* wasm_function_signature() const;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  // builtin_id corresponds to the auto-generated Builtins::Name id.
+  // builtin_id corresponds to the auto-generated Builtin id.
   inline bool HasBuiltinId() const;
   inline int builtin_id() const;
   inline void set_builtin_id(int builtin_id);
