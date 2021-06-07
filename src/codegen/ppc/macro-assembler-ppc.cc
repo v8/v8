@@ -2742,7 +2742,6 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
     }                                                            \
   }
 
-// Load a "pointer" sized value from the memory location
 void TurboAssembler::LoadU64(Register dst, const MemOperand& mem,
                              Register scratch) {
   GenerateMemoryOperationWithAlign(dst, mem, ld, ldx);
@@ -2753,7 +2752,6 @@ void TurboAssembler::LoadU64WithUpdate(Register dst, const MemOperand& mem,
   GenerateMemoryOperation(dst, mem, ldu, ldux);
 }
 
-// Store a "pointer" sized value to the memory location
 void TurboAssembler::StoreU64(Register src, const MemOperand& mem,
                               Register scratch) {
   GenerateMemoryOperationWithAlign(src, mem, std, stdx);
@@ -2769,15 +2767,11 @@ void TurboAssembler::LoadS32(Register dst, const MemOperand& mem,
   GenerateMemoryOperationWithAlign(dst, mem, lwa, lwax);
 }
 
-// Variable length depending on whether offset fits into immediate field
-// MemOperand currently only supports d-form
 void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
                              Register scratch) {
   GenerateMemoryOperation(dst, mem, lwz, lwzx);
 }
 
-// Variable length depending on whether offset fits into immediate field
-// MemOperand current only supports d-form
 void TurboAssembler::StoreU32(Register src, const MemOperand& mem,
                               Register scratch) {
   GenerateMemoryOperation(src, mem, stw, stwx);
@@ -2788,48 +2782,24 @@ void TurboAssembler::LoadS16(Register dst, const MemOperand& mem,
   GenerateMemoryOperation(dst, mem, lha, lhax);
 }
 
-// Variable length depending on whether offset fits into immediate field
-// MemOperand currently only supports d-form
 void TurboAssembler::LoadU16(Register dst, const MemOperand& mem,
                              Register scratch) {
   GenerateMemoryOperation(dst, mem, lhz, lhzx);
 }
 
-// Variable length depending on whether offset fits into immediate field
-// MemOperand current only supports d-form
 void TurboAssembler::StoreU16(Register src, const MemOperand& mem,
                               Register scratch) {
   GenerateMemoryOperation(src, mem, sth, sthx);
 }
 
-// Variable length depending on whether offset fits into immediate field
-// MemOperand currently only supports d-form
 void TurboAssembler::LoadU8(Register dst, const MemOperand& mem,
                             Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    lbzx(dst, MemOperand(base, scratch));
-  } else {
-    lbz(dst, mem);
-  }
+  GenerateMemoryOperation(dst, mem, lbz, lbzx);
 }
 
-// Variable length depending on whether offset fits into immediate field
-// MemOperand current only supports d-form
 void TurboAssembler::StoreU8(Register src, const MemOperand& mem,
                              Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    LoadIntLiteral(scratch, offset);
-    stbx(src, MemOperand(base, scratch));
-  } else {
-    stb(src, mem);
-  }
+  GenerateMemoryOperation(src, mem, stb, stbx);
 }
 
 void TurboAssembler::LoadDouble(DoubleRegister dst, const MemOperand& mem,
