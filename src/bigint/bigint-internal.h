@@ -5,6 +5,8 @@
 #ifndef V8_BIGINT_BIGINT_INTERNAL_H_
 #define V8_BIGINT_BIGINT_INTERNAL_H_
 
+#include <memory>
+
 #include "src/bigint/bigint.h"
 
 namespace v8 {
