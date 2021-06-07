@@ -391,6 +391,10 @@ struct WasmEngine::IsolateInfo {
   // Keep new modules in tiered down state.
   bool keep_tiered_down = false;
 
+  // Keep track whether we already added a sample for PKU support (we only want
+  // one sample per Isolate).
+  bool pku_support_sampled = false;
+
   // Elapsed time since last throw/rethrow/catch event.
   base::ElapsedTimer throw_timer;
   base::ElapsedTimer rethrow_timer;
@@ -990,15 +994,6 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
 
-  // Record memory protection key support.
-  if (FLAG_wasm_memory_protection_keys) {
-    auto* histogram =
-        isolate->counters()->wasm_memory_protection_keys_support();
-    bool has_mpk =
-        code_manager()->memory_protection_key_ != kNoMemoryProtectionKey;
-    histogram->AddSample(has_mpk ? 1 : 0);
-  }
-
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
   // bias samples towards apps with high memory pressure. We should switch to
@@ -1146,13 +1141,24 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
       native_module.get(), std::make_unique<NativeModuleInfo>(native_module)));
   DCHECK(pair.second);  // inserted new entry.
   pair.first->second.get()->isolates.insert(isolate);
-  auto& modules_per_isolate = isolates_[isolate]->native_modules;
-  modules_per_isolate.insert(native_module.get());
-  if (isolates_[isolate]->keep_tiered_down) {
+  auto* isolate_info = isolates_[isolate].get();
+  isolate_info->native_modules.insert(native_module.get());
+  if (isolate_info->keep_tiered_down) {
     native_module->SetTieringState(kTieredDown);
   }
+
+  // Record memory protection key support.
+  if (FLAG_wasm_memory_protection_keys && !isolate_info->pku_support_sampled) {
+    isolate_info->pku_support_sampled = true;
+    auto* histogram =
+        isolate->counters()->wasm_memory_protection_keys_support();
+    bool has_mpk =
+        code_manager_.memory_protection_key_ != kNoMemoryProtectionKey;
+    histogram->AddSample(has_mpk ? 1 : 0);
+  }
+
   isolate->counters()->wasm_modules_per_isolate()->AddSample(
-      static_cast<int>(modules_per_isolate.size()));
+      static_cast<int>(isolate_info->native_modules.size()));
   isolate->counters()->wasm_modules_per_engine()->AddSample(
       static_cast<int>(native_modules_.size()));
   return native_module;
