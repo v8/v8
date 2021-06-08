@@ -1927,16 +1927,28 @@ void Heap::CompleteSweepingFull() {
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     int gc_flags, const GCCallbackFlags gc_callback_flags) {
   if (incremental_marking()->IsStopped()) {
-    IncrementalMarkingLimit reached_limit = IncrementalMarkingLimitReached();
-    if (reached_limit == IncrementalMarkingLimit::kSoftLimit) {
-      incremental_marking()->incremental_marking_job()->ScheduleTask(this);
-    } else if (reached_limit == IncrementalMarkingLimit::kHardLimit) {
-      StartIncrementalMarking(
-          gc_flags,
-          OldGenerationSpaceAvailable() <= NewSpaceCapacity()
-              ? GarbageCollectionReason::kAllocationLimit
-              : GarbageCollectionReason::kGlobalAllocationLimit,
-          gc_callback_flags);
+    switch (IncrementalMarkingLimitReached()) {
+      case IncrementalMarkingLimit::kHardLimit:
+        StartIncrementalMarking(
+            gc_flags,
+            OldGenerationSpaceAvailable() <= NewSpaceCapacity()
+                ? GarbageCollectionReason::kAllocationLimit
+                : GarbageCollectionReason::kGlobalAllocationLimit,
+            gc_callback_flags);
+        break;
+      case IncrementalMarkingLimit::kSoftLimit:
+        incremental_marking()->incremental_marking_job()->ScheduleTask(this);
+        break;
+      case IncrementalMarkingLimit::kFallbackForEmbedderLimit:
+        // This is a fallback case where no appropriate limits have been
+        // configured yet.
+        MemoryReducer::Event event;
+        event.type = MemoryReducer::kPossibleGarbage;
+        event.time_ms = MonotonicallyIncreasingTimeInMs();
+        memory_reducer()->NotifyPossibleGarbage(event);
+        break;
+      case IncrementalMarkingLimit::kNoLimit:
+        break;
     }
   }
 }
@@ -4996,12 +5008,14 @@ size_t Heap::OldGenerationSizeOfObjects() {
   return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
 }
 
+size_t Heap::EmbedderSizeOfObjects() const {
+  return local_embedder_heap_tracer()
+             ? local_embedder_heap_tracer()->used_size()
+             : 0;
+}
+
 size_t Heap::GlobalSizeOfObjects() {
-  const size_t on_heap_size = OldGenerationSizeOfObjects();
-  const size_t embedder_size = local_embedder_heap_tracer()
-                                   ? local_embedder_heap_tracer()->used_size()
-                                   : 0;
-  return on_heap_size + embedder_size;
+  return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects();
 }
 
 uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() {
@@ -5152,11 +5166,13 @@ double Heap::PercentToGlobalMemoryLimit() {
   return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
 }
 
-// This function returns either kNoLimit, kSoftLimit, or kHardLimit.
-// The kNoLimit means that either incremental marking is disabled or it is too
+// - kNoLimit means that either incremental marking is disabled or it is too
 // early to start incremental marking.
-// The kSoftLimit means that incremental marking should be started soon.
-// The kHardLimit means that incremental marking should be started immediately.
+// - kSoftLimit means that incremental marking should be started soon.
+// - kHardLimit means that incremental marking should be started immediately.
+// - kFallbackForEmbedderLimit means that incremental marking should be
+// started as soon as the embedder does not allocate with high throughput
+// anymore.
 Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   // Code using an AlwaysAllocateScope assumes that the GC state does not
   // change; that implies that no marking steps must be performed.
@@ -5221,6 +5237,15 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (old_generation_space_available > NewSpaceCapacity() &&
       (!global_memory_available ||
        global_memory_available > NewSpaceCapacity())) {
+    if (local_embedder_heap_tracer()->InUse() &&
+        !old_generation_size_configured_ && gc_count_ == 0) {
+      // At this point the embedder memory is above the activation
+      // threshold. No GC happened so far and it's thus unlikely to get a
+      // configured heap any time soon. Start a memory reducer in this case
+      // which will wait until the allocation rate is low to trigger garbage
+      // collection.
+      return IncrementalMarkingLimit::kFallbackForEmbedderLimit;
+    }
     return IncrementalMarkingLimit::kNoLimit;
   }
   if (ShouldOptimizeForMemoryUsage()) {
