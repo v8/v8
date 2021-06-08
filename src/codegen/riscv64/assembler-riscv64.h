@@ -883,6 +883,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Check if an instruction is a branch of some kind.
   static bool IsBranch(Instr instr);
   static bool IsCBranch(Instr instr);
+  static bool IsNop(Instr instr);
   static bool IsJump(Instr instr);
   static bool IsJal(Instr instr);
   static bool IsCJal(Instr instr);
@@ -958,7 +959,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   int target_at(int pos, bool is_internal);
 
   // Patch branch instruction at pos to branch to given branch target pos.
-  void target_at_put(int pos, int target_pos, bool is_internal);
+  void target_at_put(int pos, int target_pos, bool is_internal,
+                     bool trampoline = false);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);

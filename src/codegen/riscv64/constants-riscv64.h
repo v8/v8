@@ -261,6 +261,7 @@ const int kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
 const int kFcsrBits = kFcsrFlagsBits + kFcsrFrmBits;
 const int kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
 
+const int kNopByte = 0x00000013;
 // Original MIPS constants
 // TODO(RISCV): to be cleaned up
 const int kImm16Shift = 0;
