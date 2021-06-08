@@ -1564,8 +1564,13 @@ std::vector<std::string> BestFitSupportedLocales(
           matcher.getBestMatchResult(desired, status);
       if (U_FAILURE(status)) continue;
       if (matched.getSupportedIndex() < 0) continue;
-      std::string bestfit =
-          matched.makeResolvedLocale(status).toLanguageTag<std::string>(status);
+
+      // The BestFitSupportedLocales abstract operation returns the *SUBSET* of
+      // the provided BCP 47 language priority list requestedLocales for which
+      // availableLocales has a matching locale when using the Best Fit Matcher
+      // algorithm. Locales appear in the same order in the returned list as in
+      // requestedLocales. The steps taken are implementation dependent.
+      std::string bestfit = desired.toLanguageTag<std::string>(status);
       if (U_FAILURE(status)) continue;
       result.push_back(bestfit);
     }
