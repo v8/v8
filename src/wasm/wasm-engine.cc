@@ -208,6 +208,8 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
         return shared_native_module;
       }
     }
+    // TODO(11858): This deadlocks in predictable mode, because there is only a
+    // single thread.
     cache_cv_.Wait(&mutex_);
   }
 }
