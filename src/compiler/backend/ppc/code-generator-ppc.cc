@@ -1239,9 +1239,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->OutputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
-          __ LoadDouble(i.OutputDoubleRegister(), MemOperand(fp, offset), r0);
+          __ LoadF64(i.OutputDoubleRegister(), MemOperand(fp, offset), r0);
         } else if (op->representation() == MachineRepresentation::kFloat32) {
-          __ LoadFloat32(i.OutputFloatRegister(), MemOperand(fp, offset), r0);
+          __ LoadF32(i.OutputFloatRegister(), MemOperand(fp, offset), r0);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
           __ mov(ip, Operand(offset));
@@ -4451,9 +4451,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsFPRegister()) {
       LocationOperand* op = LocationOperand::cast(source);
       if (op->representation() == MachineRepresentation::kFloat64) {
-        __ LoadDouble(g.ToDoubleRegister(destination), src, r0);
+        __ LoadF64(g.ToDoubleRegister(destination), src, r0);
       } else if (op->representation() == MachineRepresentation::kFloat32) {
-        __ LoadSingle(g.ToDoubleRegister(destination), src, r0);
+        __ LoadF32(g.ToDoubleRegister(destination), src, r0);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         MemOperand src = g.ToMemOperand(source);
@@ -4465,10 +4465,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       LocationOperand* op = LocationOperand::cast(source);
       DoubleRegister temp = kScratchDoubleReg;
       if (op->representation() == MachineRepresentation::kFloat64) {
-        __ LoadDouble(temp, src, r0);
+        __ LoadF64(temp, src, r0);
         __ StoreDouble(temp, g.ToMemOperand(destination), r0);
       } else if (op->representation() == MachineRepresentation::kFloat32) {
-        __ LoadSingle(temp, src, r0);
+        __ LoadF32(temp, src, r0);
         __ StoreSingle(temp, g.ToMemOperand(destination), r0);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());

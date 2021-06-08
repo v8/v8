@@ -2804,8 +2804,8 @@ void TurboAssembler::StoreU8(Register src, const MemOperand& mem,
   GenerateMemoryOperation(src, mem, stb, stbx);
 }
 
-void TurboAssembler::LoadDouble(DoubleRegister dst, const MemOperand& mem,
-                                Register scratch) {
+void TurboAssembler::LoadF64(DoubleRegister dst, const MemOperand& mem,
+                             Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2817,8 +2817,8 @@ void TurboAssembler::LoadDouble(DoubleRegister dst, const MemOperand& mem,
   }
 }
 
-void TurboAssembler::LoadFloat32(DoubleRegister dst, const MemOperand& mem,
-                                 Register scratch) {
+void TurboAssembler::LoadF32(DoubleRegister dst, const MemOperand& mem,
+                             Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2830,8 +2830,9 @@ void TurboAssembler::LoadFloat32(DoubleRegister dst, const MemOperand& mem,
   }
 }
 
-void MacroAssembler::LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
-                                 Register scratch) {
+void MacroAssembler::LoadF64WithUpdate(DoubleRegister dst,
+                                       const MemOperand& mem,
+                                       Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2843,21 +2844,9 @@ void MacroAssembler::LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
   }
 }
 
-void TurboAssembler::LoadSingle(DoubleRegister dst, const MemOperand& mem,
-                                Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    lfsx(dst, MemOperand(base, scratch));
-  } else {
-    lfs(dst, mem);
-  }
-}
-
-void TurboAssembler::LoadSingleU(DoubleRegister dst, const MemOperand& mem,
-                                 Register scratch) {
+void TurboAssembler::LoadF32WithUpdate(DoubleRegister dst,
+                                       const MemOperand& mem,
+                                       Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -3016,7 +3005,7 @@ void TurboAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
                                  DoubleRegister scratch) {
   DCHECK(!AreAliased(src, scratch));
   fmr(scratch, src);
-  LoadSingle(src, dst, r0);
+  LoadF32(src, dst, r0);
   StoreSingle(scratch, dst, r0);
 }
 
@@ -3024,8 +3013,8 @@ void TurboAssembler::SwapFloat32(MemOperand src, MemOperand dst,
                                  DoubleRegister scratch_0,
                                  DoubleRegister scratch_1) {
   DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadSingle(scratch_0, src, r0);
-  LoadSingle(scratch_1, dst, r0);
+  LoadF32(scratch_0, src, r0);
+  LoadF32(scratch_1, dst, r0);
   StoreSingle(scratch_0, dst, r0);
   StoreSingle(scratch_1, src, r0);
 }
@@ -3043,7 +3032,7 @@ void TurboAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
                                 DoubleRegister scratch) {
   DCHECK(!AreAliased(src, scratch));
   fmr(scratch, src);
-  LoadDouble(src, dst, r0);
+  LoadF64(src, dst, r0);
   StoreDouble(scratch, dst, r0);
 }
 
@@ -3051,8 +3040,8 @@ void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
                                 DoubleRegister scratch_0,
                                 DoubleRegister scratch_1) {
   DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadDouble(scratch_0, src, r0);
-  LoadDouble(scratch_1, dst, r0);
+  LoadF64(scratch_0, src, r0);
+  LoadF64(scratch_1, dst, r0);
   StoreDouble(scratch_0, dst, r0);
   StoreDouble(scratch_1, src, r0);
 }

@@ -138,10 +138,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     mov(kRootRegister, Operand(isolate_root));
   }
 
-  void LoadDouble(DoubleRegister dst, const MemOperand& mem,
-                  Register scratch = no_reg);
-  void LoadFloat32(DoubleRegister dst, const MemOperand& mem,
-                   Register scratch = no_reg);
+  void LoadF64(DoubleRegister dst, const MemOperand& mem,
+               Register scratch = no_reg);
+  void LoadF32(DoubleRegister dst, const MemOperand& mem,
+               Register scratch = no_reg);
   void LoadDoubleLiteral(DoubleRegister result, Double value, Register scratch);
   void LoadSimd128(Simd128Register dst, const MemOperand& mem);
 
@@ -150,10 +150,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // load an SMI value <value> to GPR <dst>
   void LoadSmiLiteral(Register dst, Smi smi);
 
-  void LoadSingle(DoubleRegister dst, const MemOperand& mem,
-                  Register scratch = no_reg);
-  void LoadSingleU(DoubleRegister dst, const MemOperand& mem,
-                   Register scratch = no_reg);
+  void LoadF32WithUpdate(DoubleRegister dst, const MemOperand& mem,
+                         Register scratch = no_reg);
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
 
@@ -788,8 +786,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // load a literal double value <value> to FPR <result>
 
-  void LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
-                   Register scratch = no_reg);
+  void LoadF64WithUpdate(DoubleRegister dst, const MemOperand& mem,
+                         Register scratch = no_reg);
 
   void Cmplwi(Register src1, const Operand& src2, Register scratch,
               CRegister cr = cr7);
