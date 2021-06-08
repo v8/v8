@@ -412,17 +412,22 @@ void WebSnapshotSerializer::SerializePendingObject(Handle<JSObject> object) {
 
 // Format (serialized export):
 // - String id (export name)
-// - Object id (exported object)
+// - Serialized value (export value)
 void WebSnapshotSerializer::SerializeExport(Handle<JSObject> object,
                                             Handle<String> export_name) {
-  // TODO(v8:11525): Support exporting functions.
   ++export_count_;
   uint32_t string_id = 0;
   SerializeString(export_name, string_id);
-  uint32_t object_id = 0;
-  SerializeObject(object, object_id);
   export_serializer_.WriteUint32(string_id);
-  export_serializer_.WriteUint32(object_id);
+  if (object->IsJSPrimitiveWrapper()) {
+    Handle<JSPrimitiveWrapper> wrapper =
+        Handle<JSPrimitiveWrapper>::cast(object);
+    Handle<Object> export_value =
+        handle(JSPrimitiveWrapper::cast(*wrapper).value(), isolate_);
+    WriteValue(export_value, export_serializer_);
+  } else {
+    WriteValue(object, export_serializer_);
+  }
 }
 
 // Format (serialized value):
@@ -901,12 +906,9 @@ void WebSnapshotDeserializer::DeserializeExports() {
   }
   for (uint32_t i = 0; i < count; ++i) {
     Handle<String> export_name = ReadString(true);
-    uint32_t object_id = 0;
-    if (!deserializer_->ReadUint32(&object_id) || object_id >= object_count_) {
-      Throw("Web snapshot: Malformed export");
-      return;
-    }
-    Handle<Object> exported_object = handle(objects_->get(object_id), isolate_);
+    Handle<Object> export_value;
+    Representation representation;
+    ReadValue(export_value, representation);
 
     // Check for the correctness of the snapshot (thus far) before producing
     // something observable. TODO(v8:11525): Strictly speaking, we should
@@ -917,7 +919,7 @@ void WebSnapshotDeserializer::DeserializeExports() {
     }
 
     auto result = Object::SetProperty(isolate_, isolate_->global_object(),
-                                      export_name, exported_object);
+                                      export_name, export_value);
     if (result.is_null()) {
       Throw("Web snapshot: Setting global property failed");
       return;
