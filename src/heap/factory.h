@@ -69,6 +69,12 @@ class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
 class WeakCell;
+#if V8_ENABLE_WEBASSEMBLY
+namespace wasm {
+class StructType;
+class WasmValue;
+}  // namespace wasm
+#endif
 
 enum class SharedFlag : uint8_t;
 enum class InitializedFlag : uint8_t;
@@ -569,6 +575,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Address opt_call_target, Handle<JSReceiver> callable, int return_count,
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
       Handle<Code> wrapper_code);
+  Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
+                                   wasm::WasmValue* args, Handle<Map> map);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       Handle<String> name, Handle<WasmExportedFunctionData> data);

@@ -1808,10 +1808,57 @@ class ModuleDecoderImpl : public Decoder {
           // the type check or stack height check at the end.
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           switch (opcode) {
+            case kExprStructNewWithRtt: {
+              if (!V8_LIKELY(enabled_features_.has_gc_experiments())) {
+                error(pc(),
+                      "invalid opcode struct.new_with_rtt in init. expression, "
+                      "enable with --experimental-wasm-gc-experiments");
+                return {};
+              }
+              IndexImmediate<validate> imm(this, pc() + len, "struct index");
+              if (!V8_LIKELY(module->has_struct(imm.index))) {
+                errorf(pc() + len, "invalid struct type index #%u", imm.index);
+                return {};
+              }
+              len += imm.length;
+              const StructType* type = module->struct_type(imm.index);
+              if (!V8_LIKELY(stack.size() >= type->field_count() + 1)) {
+                error(pc(), "not enough arguments for struct.new");
+                return {};
+              }
+              std::vector<WasmInitExpr> arguments(type->field_count() + 1);
+              WasmInitExpr* stack_args = &stack.back() - type->field_count();
+              for (uint32_t i = 0; i < type->field_count(); i++) {
+                WasmInitExpr& argument = stack_args[i];
+                if (!IsSubtypeOf(TypeOf(argument), type->field(i), module)) {
+                  errorf(pc(), "struct.new[%u]: expected %s, found %s instead",
+                         i, type->field(i).name().c_str(),
+                         TypeOf(argument).name().c_str());
+                  return {};
+                }
+                arguments[i] = std::move(argument);
+              }
+              WasmInitExpr& rtt = stack.back();
+              if (!IsSubtypeOf(TypeOf(rtt), ValueType::Rtt(imm.index),
+                               module)) {
+                errorf(pc(), "struct.new[%u]: expected %s, found %s instead",
+                       type->field_count(),
+                       ValueType::Rtt(imm.index).name().c_str(),
+                       TypeOf(rtt).name().c_str());
+                return {};
+              }
+              arguments[type->field_count()] = std::move(rtt);
+              for (uint32_t i = 0; i <= type->field_count(); i++) {
+                stack.pop_back();
+              }
+              stack.push_back(WasmInitExpr::StructNewWithRtt(
+                  imm.index, std::move(arguments)));
+              break;
+            }
             case kExprRttCanon: {
-              IndexImmediate<validate> imm(this, pc() + 2, "type index");
-              if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
-                errorf(pc() + 2, "type index %u is out of bounds", imm.index);
+              IndexImmediate<validate> imm(this, pc() + len, "type index");
+              if (V8_UNLIKELY(!module_->has_type(imm.index))) {
+                errorf(pc() + len, "type index %u is out of bounds", imm.index);
                 return {};
               }
               len += imm.length;
@@ -1826,9 +1873,9 @@ class ModuleDecoderImpl : public Decoder {
               }
               V8_FALLTHROUGH;
             case kExprRttSub: {
-              IndexImmediate<validate> imm(this, pc() + 2, "type index");
-              if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
-                errorf(pc() + 2, "type index %u is out of bounds", imm.index);
+              IndexImmediate<validate> imm(this, pc() + len, "type index");
+              if (V8_UNLIKELY(!module_->has_type(imm.index))) {
+                errorf(pc() + len, "type index %u is out of bounds", imm.index);
                 return {};
               }
               len += imm.length;

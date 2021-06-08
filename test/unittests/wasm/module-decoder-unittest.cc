@@ -35,6 +35,9 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_FUNC_REF_NULL WASM_REF_NULL(kFuncRefCode), kExprEnd
 #define WASM_INIT_EXPR_REF_FUNC(val) WASM_REF_FUNC(val), kExprEnd
 #define WASM_INIT_EXPR_GLOBAL(index) WASM_GLOBAL_GET(index), kExprEnd
+#define WASM_INIT_EXPR_STRUCT_NEW(index, ...) \
+  WASM_STRUCT_NEW_WITH_RTT(index, __VA_ARGS__), kExprEnd
+#define WASM_INIT_EXPR_RTT_CANON(index) WASM_RTT_CANON(index), kExprEnd
 
 #define REF_NULL_ELEMENT kExprRefNull, kFuncRefCode, kExprEnd
 #define REF_FUNC_ELEMENT(v) kExprRefFunc, U32V_1(v), kExprEnd
@@ -1076,6 +1079,56 @@ TEST_F(WasmModuleVerifyTest, RttFreshSubGlobalTypeError) {
   EXPECT_NOT_OK(result,
                 "type error in init expression, expected (rtt 0 0), got "
                 "(rtt 1 0)");
+}
+
+TEST_F(WasmModuleVerifyTest, StructNewInitExpr) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(gc_experiments);
+
+  static const byte basic[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
+      SECTION(Global, ENTRY_COUNT(1),  // --
+              kRefCode, 0, 0,          // type, mutability
+              WASM_INIT_EXPR_STRUCT_NEW(0, WASM_I32V(42), WASM_RTT_CANON(0)))};
+  EXPECT_VERIFIES(basic);
+
+  static const byte global_args[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
+      SECTION(Global, ENTRY_COUNT(3),                        // --
+              kI32Code, 0,                                   // type, mutability
+              WASM_INIT_EXPR_I32V_1(10),                     // --
+              kRttCode, 0, 0,                                // type, mutability
+              WASM_RTT_SUB(0, WASM_RTT_CANON(0)), kExprEnd,  // --
+              kRefCode, 0, 0,                                // type, mutability
+              WASM_INIT_EXPR_STRUCT_NEW(0, WASM_GLOBAL_GET(0),
+                                        WASM_GLOBAL_GET(1)))};
+  EXPECT_VERIFIES(global_args);
+
+  static const byte type_error[] = {
+      SECTION(Type, ENTRY_COUNT(2),  // --
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI64Code, true))),
+      SECTION(Global, ENTRY_COUNT(1),  // --
+              kRefCode, 1, 0,          // type, mutability
+              WASM_INIT_EXPR_STRUCT_NEW(0, WASM_I32V(42), WASM_RTT_CANON(0)))};
+  EXPECT_FAILURE_WITH_MSG(
+      type_error,
+      "type error in init expression, expected (ref 1), got (ref 0)");
+
+  static const byte subexpr_type_error[] = {
+      SECTION(Type, ENTRY_COUNT(2),  // --
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI64Code, true))),
+      SECTION(Global, ENTRY_COUNT(1),  // --
+              kRefCode, 0, 0,          // type, mutability
+              WASM_INIT_EXPR_STRUCT_NEW(0, WASM_I32V(42), WASM_RTT_CANON(1)))};
+  EXPECT_FAILURE_WITH_MSG(
+      subexpr_type_error,
+      "struct.new[1]: expected (rtt 0), found (rtt 0 1) instead");
 }
 
 TEST_F(WasmModuleVerifyTest, EmptyStruct) {

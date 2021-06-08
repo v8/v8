@@ -67,6 +67,9 @@
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
 #include "src/strings/unicode-inl.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-value.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -1451,6 +1454,25 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   result.set_wrapper_code(*wrapper_code);
   result.set_embedder_data(*embedder_data);
   result.set_serialized_signature(*serialized_sig);
+  return handle(result, isolate());
+}
+
+Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
+                                          wasm::WasmValue* args,
+                                          Handle<Map> map) {
+  DCHECK_EQ(WasmStruct::Size(type), map->wasm_type_info().instance_size());
+  HeapObject raw = AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
+  raw.set_map_after_allocation(*map);
+  WasmStruct result = WasmStruct::cast(raw);
+  result.set_raw_properties_or_hash(*empty_fixed_array());
+  for (uint32_t i = 0; i < type->field_count(); i++) {
+    Address address = result.RawFieldAddress(type->field_offset(i));
+    if (type->field(i).is_numeric()) {
+      args[i].CopyToWithSystemEndianness(reinterpret_cast<byte*>(address));
+    } else {
+      base::WriteUnalignedValue<Object>(address, *args[i].to_ref());
+    }
+  }
   return handle(result, isolate());
 }
 

@@ -1864,12 +1864,18 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
         os << base::ReadUnalignedValue<double>(field_address);
         break;
       case wasm::kI8:
+        os << base::ReadUnalignedValue<int8_t>(field_address);
+        break;
       case wasm::kI16:
-      case wasm::kS128:
+        os << base::ReadUnalignedValue<int16_t>(field_address);
+        break;
       case wasm::kRef:
       case wasm::kOptRef:
       case wasm::kRtt:
       case wasm::kRttWithDepth:
+        os << Brief(base::ReadUnalignedValue<Object>(field_address));
+        break;
+      case wasm::kS128:
       case wasm::kBottom:
       case wasm::kVoid:
         os << "UNIMPLEMENTED";  // TODO(7748): Implement.

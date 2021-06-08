@@ -945,7 +945,7 @@ class Binary {
     }
   }
 
-  emit_init_expr(expr) {
+  emit_init_expr_recursive(expr) {
     switch (expr.kind) {
       case kExprGlobalGet:
         this.emit_u8(kExprGlobalGet);
@@ -974,8 +974,35 @@ class Binary {
         this.emit_u8(kExprRefNull);
         this.emit_u32v(expr.value);
         break;
+      case kExprStructNewWithRtt:
+        for (let operand of expr.operands) {
+          this.emit_init_expr_recursive(operand);
+        }
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(kExprStructNewWithRtt);
+        this.emit_u32v(expr.value);
+        break;
+      case kExprRttCanon:
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(kExprRttCanon);
+        this.emit_u32v(expr.value);
+        break;
+      case kExprRttSub:
+        this.emit_init_expr_recursive(expr.parent);
+        this.emit_u8(kGcPrefix);
+        this.emit_u8(kExprRttSub);
+        this.emit_u32v(expr.value);
+      case kExprRttFreshSub:
+        this.emit_init_expr_recursive(expr.parent);
+        this.emit_u8(kGcPrefix);
+        this.emit_u8(kExprRttFreshSub);
+        this.emit_u32v(expr.value);
     }
-    this.emit_u8(kExprEnd);  // end of init expression
+  }
+
+  emit_init_expr(expr) {
+    this.emit_init_expr_recursive(expr);
+    this.emit_u8(kExprEnd);
   }
 
   emit_header() {
@@ -1099,6 +1126,18 @@ class WasmInitExpr {
   static RefNull(type) {
     return {kind: kExprRefNull, value: type};
   }
+  static StructNewWithRtt(type, args) {
+    return {kind: kExprStructNewWithRtt, value: type, operands: args};
+  }
+  static RttCanon(type) {
+    return {kind: kExprRttCanon, value: type};
+  }
+  static RttSub(type, parent) {
+    return {kind: kExprRttSub, value: type, parent: parent};
+  }
+  static RttFreshSub(type, parent) {
+    return {kind: kExprRttFreshSub, value: type, parent: parent};
+  }
 
   static defaultFor(type) {
     switch (type) {
@@ -1113,6 +1152,9 @@ class WasmInitExpr {
       case kWasmS128:
         return this.S128Const(new Array(16).fill(0));
       default:
+        if ((typeof type) != 'number' && type.opcode != kWasmOptRef) {
+          throw new Error("Non-defaultable type");
+        }
         let heap_type = (typeof type) == 'number' ? type : type.index;
         return this.RefNull(heap_type);
     }

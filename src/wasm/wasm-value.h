@@ -139,6 +139,44 @@ class WasmValue {
                  type_.element_size_bytes());
   }
 
+  void CopyToWithSystemEndianness(byte* to) {
+    DCHECK(type_.is_numeric());
+    switch (type_.kind()) {
+      case kI32: {
+        int32_t value = to_i32();
+        base::Memcpy(static_cast<void*>(to), &value, sizeof(value));
+        break;
+      }
+      case kI64: {
+        int64_t value = to_i64();
+        base::Memcpy(static_cast<void*>(to), &value, sizeof(value));
+        break;
+      }
+      case kF32: {
+        float value = to_f32();
+        base::Memcpy(static_cast<void*>(to), &value, sizeof(value));
+        break;
+      }
+      case kF64: {
+        double value = to_f64();
+        base::Memcpy(static_cast<void*>(to), &value, sizeof(value));
+        break;
+      }
+      case kS128:
+        base::Memcpy(static_cast<void*>(to), to_s128().bytes(), kSimd128Size);
+        break;
+      case kRtt:
+      case kRttWithDepth:
+      case kRef:
+      case kOptRef:
+      case kBottom:
+      case kVoid:
+      case kI8:
+      case kI16:
+        UNREACHABLE();
+    }
+  }
+
   template <typename T>
   inline T to() const;
 

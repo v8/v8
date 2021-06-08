@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
+// Flags: --experimental-wasm-gc-experiments
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function Test1() {
-  var exporting_instance = (function () {
+(function TestReferenceGlobals() {
+  var exporting_instance = (function() {
     var builder = new WasmModuleBuilder();
 
     var sig_index = builder.addType(kSig_i_ii);
@@ -102,4 +102,50 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   // The correct function reference has been passed.
   assertEquals(66, instance.exports.test_import(42, 24));
+})();
+
+(function TestStructInitExpr() {
+  var builder = new WasmModuleBuilder();
+  var struct_index = builder.addStruct([{type: kWasmI32, mutability: false}]);
+  var composite_struct_index = builder.addStruct(
+      [{type: kWasmI32, mutability: false},
+       {type: wasmRefType(struct_index), mutability: false}]);
+
+  let field1_value = 432;
+  let field2_value = -123;
+
+  var global0 = builder.addGlobal(
+      wasmRefType(struct_index), false,
+      WasmInitExpr.StructNewWithRtt(
+          struct_index,
+          [WasmInitExpr.I32Const(field2_value),
+           WasmInitExpr.RttCanon(struct_index)]));
+
+  var global = builder.addGlobal(
+      wasmRefType(composite_struct_index), false,
+      WasmInitExpr.StructNewWithRtt(
+          composite_struct_index,
+          [WasmInitExpr.I32Const(field1_value),
+           WasmInitExpr.GlobalGet(global0.index),
+           WasmInitExpr.RttCanon(composite_struct_index)]));
+
+  builder.addFunction("field_1", kSig_i_v)
+    .addBody([
+      kExprGlobalGet, global.index,
+      kGCPrefix, kExprStructGet, composite_struct_index, 0
+    ])
+    .exportFunc();
+
+  builder.addFunction("field_2", kSig_i_v)
+    .addBody([
+      kExprGlobalGet, global.index,
+      kGCPrefix, kExprStructGet, composite_struct_index, 1,
+      kGCPrefix, kExprStructGet, struct_index, 0
+    ])
+    .exportFunc();
+
+  var instance = builder.instantiate({});
+
+  assertEquals(field1_value, instance.exports.field_1());
+  assertEquals(field2_value, instance.exports.field_2());
 })();

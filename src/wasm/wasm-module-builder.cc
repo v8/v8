@@ -517,6 +517,15 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
       }
       break;
     }
+    case WasmInitExpr::kStructNewWithRtt:
+      STATIC_ASSERT((kExprStructNewWithRtt >> 8) == kGCPrefix);
+      buffer->write_u8(kGCPrefix);
+      buffer->write_u8(static_cast<uint8_t>(kExprStructNewWithRtt));
+      buffer->write_u32v(init.immediate().index);
+      for (const WasmInitExpr& operand : init.operands()) {
+        WriteInitializerExpression(buffer, operand, kWasmBottom);
+      }
+      break;
     case WasmInitExpr::kRttCanon:
       STATIC_ASSERT((kExprRttCanon >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
@@ -526,7 +535,7 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kRttSub:
     case WasmInitExpr::kRttFreshSub:
       // The operand to rtt.sub must be emitted first.
-      WriteInitializerExpression(buffer, *init.operand(), kWasmBottom);
+      WriteInitializerExpression(buffer, init.operands()[0], kWasmBottom);
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprRttFreshSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);

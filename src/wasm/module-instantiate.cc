@@ -1669,6 +1669,18 @@ WasmValue InstanceBuilder::EvaluateInitExpression(
           UNREACHABLE();
       }
     }
+    case WasmInitExpr::kStructNewWithRtt: {
+      const StructType* type = module_->struct_type(init.immediate().index);
+      std::vector<WasmValue> fields(type->field_count());
+      for (uint32_t i = 0; i < type->field_count(); i++) {
+        fields[i] = EvaluateInitExpression(init.operands()[i], instance);
+      }
+      auto rtt = Handle<Map>::cast(
+          EvaluateInitExpression(init.operands().back(), instance).to_ref());
+      return WasmValue(
+          isolate_->factory()->NewWasmStruct(type, fields.data(), rtt),
+          init.type(module_, enabled_));
+    }
     case WasmInitExpr::kRttCanon: {
       int map_index = init.immediate().index;
       return WasmValue(
@@ -1678,7 +1690,7 @@ WasmValue InstanceBuilder::EvaluateInitExpression(
     case WasmInitExpr::kRttSub:
     case WasmInitExpr::kRttFreshSub: {
       uint32_t type = init.immediate().index;
-      WasmValue parent = EvaluateInitExpression(*init.operand(), instance);
+      WasmValue parent = EvaluateInitExpression(init.operands()[0], instance);
       return WasmValue(AllocateSubRtt(isolate_, instance, type,
                                       Handle<Map>::cast(parent.to_ref()),
                                       init.kind() == WasmInitExpr::kRttSub
@@ -1698,7 +1710,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
 
     WasmValue value = EvaluateInitExpression(global.init, instance);
 
-    if (value.type().is_reference()) {
+    if (global.type.is_reference()) {
       tagged_globals_->set(global.offset, *value.to_ref());
     } else {
       value.CopyTo(GetRawUntaggedGlobalPtr<byte>(global));
