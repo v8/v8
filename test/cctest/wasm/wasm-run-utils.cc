@@ -4,9 +4,11 @@
 
 #include "test/cctest/wasm/wasm-run-utils.h"
 
+#include "src/base/optional.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
@@ -547,15 +549,26 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
       builder_->instance_object()->module_object().native_module();
   ForDebugging for_debugging =
       native_module->IsTieredDown() ? kForDebugging : kNoDebugging;
-  WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
-                           for_debugging);
+
   WasmFeatures unused_detected_features;
-  WasmCompilationResult result = unit.ExecuteCompilation(
-      isolate()->wasm_engine(), &env,
-      native_module->compilation_state()->GetWireBytesStorage(),
-      isolate()->counters(), &unused_detected_features);
+
+  base::Optional<WasmCompilationResult> result;
+  if (builder_->test_execution_tier() ==
+      TestExecutionTier::kLiftoffForFuzzing) {
+    result.emplace(ExecuteLiftoffCompilation(
+        isolate()->wasm_engine()->allocator(), &env, func_body,
+        function_->func_index, kForDebugging, isolate()->counters(),
+        &unused_detected_features, {}, nullptr, 0, builder_->max_steps_ptr()));
+  } else {
+    WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
+                             for_debugging);
+    result.emplace(unit.ExecuteCompilation(
+        isolate()->wasm_engine(), &env,
+        native_module->compilation_state()->GetWireBytesStorage(),
+        isolate()->counters(), &unused_detected_features));
+  }
   WasmCode* code = native_module->PublishCode(
-      native_module->AddCompiledCode(std::move(result)));
+      native_module->AddCompiledCode(std::move(*result)));
   DCHECK_NOT_NULL(code);
   DisallowGarbageCollection no_gc;
   Script script = builder_->instance_object()->module_object().script();

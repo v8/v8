@@ -50,7 +50,8 @@ namespace wasm {
 enum class TestExecutionTier : int8_t {
   kLiftoff = static_cast<int8_t>(ExecutionTier::kLiftoff),
   kTurbofan = static_cast<int8_t>(ExecutionTier::kTurbofan),
-  kInterpreter
+  kInterpreter,
+  kLiftoffForFuzzing
 };
 static_assert(
     std::is_same<std::underlying_type<ExecutionTier>::type,
@@ -242,6 +243,8 @@ class TestingModuleBuilder {
 
   CompilationEnv CreateCompilationEnv();
 
+  TestExecutionTier test_execution_tier() const { return execution_tier_; }
+
   ExecutionTier execution_tier() const {
     switch (execution_tier_) {
       case TestExecutionTier::kTurbofan:
@@ -256,6 +259,9 @@ class TestingModuleBuilder {
   RuntimeExceptionSupport runtime_exception_support() const {
     return runtime_exception_support_;
   }
+
+  void set_max_steps(int n) { max_steps_ = n; }
+  int* max_steps_ptr() { return &max_steps_; }
 
   void EnableFeature(WasmFeature feature) { enabled_features_.Add(feature); }
 
@@ -272,6 +278,7 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
   RuntimeExceptionSupport runtime_exception_support_;
+  int max_steps_ = 0;
 
   // Data segment arrays that are normally allocated on the instance.
   std::vector<byte> data_segment_data_;
@@ -626,6 +633,8 @@ class WasmRunner : public WasmRunnerBase {
   void CheckCallViaJSTraps(ParamTypes... p) {
     CheckCallViaJS(static_cast<double>(0xDEADBEEF), p...);
   }
+
+  void SetMaxSteps(int n) { builder_.set_max_steps(n); }
 };
 
 // A macro to define tests that run in different engine configurations.

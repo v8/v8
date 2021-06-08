@@ -586,6 +586,7 @@
   'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
+  'test-liftoff-for-fuzzing/*': [SKIP],
   'test-liftoff-inspection/*': [SKIP],
   'test-run-wasm*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
