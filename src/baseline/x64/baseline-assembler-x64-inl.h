@@ -100,6 +100,10 @@ void BaselineAssembler::JumpTarget() {
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ jmp(target, distance);
 }
+void BaselineAssembler::JumpIf(Condition cc, Label* target,
+                               Label::Distance distance) {
+  __ j(AsMasmCondition(cc), target, distance);
+}
 void BaselineAssembler::JumpIfRoot(Register value, RootIndex index,
                                    Label* target, Label::Distance distance) {
   __ JumpIfRoot(value, index, target, distance);
@@ -139,74 +143,45 @@ void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
   }
 }
 
-void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
-                                      Label* target, Label::Distance distance) {
+void BaselineAssembler::Test(Register value, int mask) {
   if ((mask & 0xff) == mask) {
     __ testb(value, Immediate(mask));
   } else {
     __ testl(value, Immediate(mask));
   }
-  __ j(AsMasmCondition(cc), target, distance);
 }
 
-void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
-                               Label* target, Label::Distance distance) {
-  __ cmpq(lhs, rhs);
-  __ j(AsMasmCondition(cc), target, distance);
-}
-void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
-                                         InstanceType instance_type,
-                                         Register map, Label* target,
-                                         Label::Distance distance) {
+void BaselineAssembler::CmpObjectType(Register object,
+                                      InstanceType instance_type,
+                                      Register map) {
   __ AssertNotSmi(object);
   __ CmpObjectType(object, instance_type, map);
-  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
-                                           InstanceType instance_type,
-                                           Label* target,
-                                           Label::Distance distance) {
+void BaselineAssembler::CmpInstanceType(Register map,
+                                        InstanceType instance_type) {
   if (FLAG_debug_code) {
     __ AssertNotSmi(map);
     __ CmpObjectType(map, MAP_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
   __ CmpInstanceType(map, instance_type);
-  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
-                                      MemOperand operand, Label* target,
-                                      Label::Distance distance) {
+void BaselineAssembler::Cmp(Register value, Smi smi) { __ Cmp(value, smi); }
+void BaselineAssembler::ComparePointer(Register value, MemOperand operand) {
   __ cmpq(value, operand);
-  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Smi smi,
-                                  Label* target, Label::Distance distance) {
-  __ SmiCompare(lhs, smi);
-  __ j(AsMasmCondition(cc), target, distance);
-}
-void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
-                                  Label* target, Label::Distance distance) {
+void BaselineAssembler::SmiCompare(Register lhs, Register rhs) {
   __ SmiCompare(lhs, rhs);
-  __ j(AsMasmCondition(cc), target, distance);
 }
 // cmp_tagged
-void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
-                                     MemOperand operand, Label* target,
-                                     Label::Distance distance) {
+void BaselineAssembler::CompareTagged(Register value, MemOperand operand) {
   __ cmp_tagged(value, operand);
-  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
-                                     Register value, Label* target,
-                                     Label::Distance distance) {
+void BaselineAssembler::CompareTagged(MemOperand operand, Register value) {
   __ cmp_tagged(operand, value);
-  __ j(AsMasmCondition(cc), target, distance);
 }
-void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
-                                   Label* target, Label::Distance distance) {
+void BaselineAssembler::CompareByte(Register value, int32_t byte) {
   __ cmpb(value, Immediate(byte));
-  __ j(AsMasmCondition(cc), target, distance);
 }
 
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
@@ -355,8 +330,7 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
   __ StoreTaggedField(FieldOperand(target, offset), value);
 }
 
-void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
-    int32_t weight, Label* skip_interrupt_label) {
+void BaselineAssembler::AddToInterruptBudget(int32_t weight) {
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
@@ -364,14 +338,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
                          JSFunction::kFeedbackCellOffset);
   __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
           Immediate(weight));
-  if (skip_interrupt_label) {
-    DCHECK_LT(weight, 0);
-    __ j(greater_equal, skip_interrupt_label);
-  }
 }
 
-void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
-    Register weight, Label* skip_interrupt_label) {
+void BaselineAssembler::AddToInterruptBudget(Register weight) {
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
@@ -379,7 +348,6 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
                          JSFunction::kFeedbackCellOffset);
   __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
           weight);
-  if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
@@ -425,9 +393,11 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   Register params_size = BaselineLeaveFrameDescriptor::ParamsSizeRegister();
 
   __ RecordComment("[ Update Interrupt Budget");
+  __ AddToInterruptBudget(weight);
 
+  // Use compare flags set by AddToInterruptBudget
   Label skip_interrupt_label;
-  __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
+  __ JumpIf(Condition::kGreaterThanEqual, &skip_interrupt_label);
   {
     __ masm()->SmiTag(params_size);
     __ Push(params_size, kInterpreterAccumulatorRegister);
@@ -455,7 +425,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   // arguments.
   Label corrected_args_count;
   __ masm()->cmpq(params_size, actual_params_size);
-  __ masm()->j(greater_equal, &corrected_args_count);
+  __ JumpIf(Condition::kGreaterThanEqual, &corrected_args_count, Label::kNear);
   __ masm()->movq(params_size, actual_params_size);
   __ Bind(&corrected_args_count);
 

@@ -498,8 +498,8 @@ void BaselineCompiler::VerifyFrame() {
       __ Move(scratch, __ FeedbackVectorOperand());
       Label is_smi, is_ok;
       __ JumpIfSmi(scratch, &is_smi);
-      __ JumpIfObjectType(Condition::kEqual, scratch, FEEDBACK_VECTOR_TYPE,
-                          scratch, &is_ok);
+      __ CmpObjectType(scratch, FEEDBACK_VECTOR_TYPE, scratch);
+      __ JumpIf(Condition::kEqual, &is_ok);
       __ Bind(&is_smi);
       __ masm()->Abort(AbortReason::kExpectedFeedbackVector);
       __ Bind(&is_ok);
@@ -540,9 +540,11 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
     int weight, Label* label, Label* skip_interrupt_label) {
   if (weight != 0) {
     __ RecordComment("[ Update Interrupt Budget");
-    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, skip_interrupt_label);
+    __ AddToInterruptBudget(weight);
 
     if (weight < 0) {
+      // Use compare flags set by AddToInterruptBudget
+      __ JumpIf(Condition::kGreaterThanEqual, skip_interrupt_label);
       SaveAccumulatorScope accumulator_scope(&basm_);
       CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode,
                   __ FunctionOperand());
@@ -613,8 +615,9 @@ void BaselineCompiler::JumpIfToBoolean(bool do_jump_if_true, Label* label,
   // the original value into kInterpreterAccumulatorRegister, so we don't have
   // to worry about it getting clobbered.
   STATIC_ASSERT(kReturnRegister0 == kInterpreterAccumulatorRegister);
-  __ JumpIfSmi(do_jump_if_true ? Condition::kNotEqual : Condition::kEqual,
-               kReturnRegister1, Smi::FromInt(0), label, distance);
+  __ Cmp(kReturnRegister1, Smi::FromInt(0));
+  __ JumpIf(do_jump_if_true ? Condition::kNotEqual : Condition::kEqual, label,
+            distance);
 }
 
 void BaselineCompiler::VisitLdaZero() {
@@ -1338,10 +1341,10 @@ void BaselineCompiler::VisitIntrinsicIsJSReceiver(
         // If we ever added more instance types after LAST_JS_RECEIVER_TYPE,
         // this would have to become a range check.
         STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-        __ JumpIfObjectType(Condition::kGreaterThanEqual,
-                            kInterpreterAccumulatorRegister,
-                            FIRST_JS_RECEIVER_TYPE,
-                            scratch_scope.AcquireScratch(), is_true, distance);
+        __ CmpObjectType(kInterpreterAccumulatorRegister,
+                         FIRST_JS_RECEIVER_TYPE,
+                         scratch_scope.AcquireScratch());
+        __ JumpIf(Condition::kGreaterThanEqual, is_true, distance);
 
         __ Bind(&is_smi);
       });
@@ -1357,9 +1360,9 @@ void BaselineCompiler::VisitIntrinsicIsArray(interpreter::RegisterList args) {
         Label is_smi;
         __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
-        __ JumpIfObjectType(Condition::kEqual, kInterpreterAccumulatorRegister,
-                            JS_ARRAY_TYPE, scratch_scope.AcquireScratch(),
-                            is_true, distance);
+        __ CmpObjectType(kInterpreterAccumulatorRegister, JS_ARRAY_TYPE,
+                         scratch_scope.AcquireScratch());
+        __ JumpIf(Condition::kEqual, is_true, distance);
 
         __ Bind(&is_smi);
       });
@@ -1562,13 +1565,13 @@ void BaselineCompiler::VisitTestGreaterThanOrEqual() {
 }
 
 void BaselineCompiler::VisitTestReferenceEqual() {
-  SelectBooleanConstant(
-      kInterpreterAccumulatorRegister,
-      [&](Label* is_true, Label::Distance distance) {
-        __ JumpIfTagged(Condition::kEqual,
-                        __ RegisterFrameOperand(RegisterOperand(0)),
-                        kInterpreterAccumulatorRegister, is_true, distance);
-      });
+  SelectBooleanConstant(kInterpreterAccumulatorRegister,
+                        [&](Label* is_true, Label::Distance distance) {
+                          __ CompareTagged(
+                              __ RegisterFrameOperand(RegisterOperand(0)),
+                              kInterpreterAccumulatorRegister);
+                          __ JumpIf(Condition::kEqual, is_true, distance);
+                        });
 }
 
 void BaselineCompiler::VisitTestInstanceOf() {
@@ -1596,8 +1599,8 @@ void BaselineCompiler::VisitTestUndetectable() {
   Register map_bit_field = kInterpreterAccumulatorRegister;
   __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
   __ LoadByteField(map_bit_field, map_bit_field, Map::kBitFieldOffset);
-  __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask,
-                   Condition::kZero, &not_undetectable, Label::kNear);
+  __ Test(map_bit_field, Map::Bits1::IsUndetectableBit::kMask);
+  __ JumpIf(Condition::kZero, &not_undetectable, Label::kNear);
 
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
   __ Jump(&done, Label::kNear);
@@ -1637,9 +1640,9 @@ void BaselineCompiler::VisitTestTypeOf() {
     case interpreter::TestTypeOfFlags::LiteralFlag::kNumber: {
       Label is_smi, is_heap_number;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
-      __ JumpIfObjectType(Condition::kEqual, kInterpreterAccumulatorRegister,
-                          HEAP_NUMBER_TYPE, scratch_scope.AcquireScratch(),
-                          &is_heap_number, Label::kNear);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, HEAP_NUMBER_TYPE,
+                       scratch_scope.AcquireScratch());
+      __ JumpIf(Condition::kEqual, &is_heap_number, Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
       __ Jump(&done, Label::kNear);
@@ -1653,10 +1656,9 @@ void BaselineCompiler::VisitTestTypeOf() {
       Label is_smi, bad_instance_type;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
       STATIC_ASSERT(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
-      __ JumpIfObjectType(Condition::kGreaterThanEqual,
-                          kInterpreterAccumulatorRegister, FIRST_NONSTRING_TYPE,
-                          scratch_scope.AcquireScratch(), &bad_instance_type,
-                          Label::kNear);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, FIRST_NONSTRING_TYPE,
+                       scratch_scope.AcquireScratch());
+      __ JumpIf(Condition::kGreaterThanEqual, &bad_instance_type, Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
       __ Jump(&done, Label::kNear);
@@ -1669,9 +1671,9 @@ void BaselineCompiler::VisitTestTypeOf() {
     case interpreter::TestTypeOfFlags::LiteralFlag::kSymbol: {
       Label is_smi, bad_instance_type;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
-      __ JumpIfObjectType(Condition::kNotEqual, kInterpreterAccumulatorRegister,
-                          SYMBOL_TYPE, scratch_scope.AcquireScratch(),
-                          &bad_instance_type, Label::kNear);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, SYMBOL_TYPE,
+                       scratch_scope.AcquireScratch());
+      __ JumpIf(Condition::kNotEqual, &bad_instance_type, Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
       __ Jump(&done, Label::kNear);
@@ -1699,9 +1701,9 @@ void BaselineCompiler::VisitTestTypeOf() {
     case interpreter::TestTypeOfFlags::LiteralFlag::kBigInt: {
       Label is_smi, bad_instance_type;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
-      __ JumpIfObjectType(Condition::kNotEqual, kInterpreterAccumulatorRegister,
-                          BIGINT_TYPE, scratch_scope.AcquireScratch(),
-                          &bad_instance_type, Label::kNear);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, BIGINT_TYPE,
+                       scratch_scope.AcquireScratch());
+      __ JumpIf(Condition::kNotEqual, &bad_instance_type, Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
       __ Jump(&done, Label::kNear);
@@ -1723,8 +1725,8 @@ void BaselineCompiler::VisitTestTypeOf() {
       Register map_bit_field = kInterpreterAccumulatorRegister;
       __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
       __ LoadByteField(map_bit_field, map_bit_field, Map::kBitFieldOffset);
-      __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask,
-                       Condition::kZero, &not_undetectable, Label::kNear);
+      __ Test(map_bit_field, Map::Bits1::IsUndetectableBit::kMask);
+      __ JumpIf(Condition::kZero, &not_undetectable, Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
       __ Jump(&done, Label::kNear);
@@ -1743,10 +1745,10 @@ void BaselineCompiler::VisitTestTypeOf() {
       Register map_bit_field = kInterpreterAccumulatorRegister;
       __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
       __ LoadByteField(map_bit_field, map_bit_field, Map::kBitFieldOffset);
-      __ TestAndBranch(map_bit_field, Map::Bits1::IsCallableBit::kMask,
-                       Condition::kZero, &not_callable, Label::kNear);
-      __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask,
-                       Condition::kNotZero, &undetectable, Label::kNear);
+      __ Test(map_bit_field, Map::Bits1::IsCallableBit::kMask);
+      __ JumpIf(Condition::kZero, &not_callable, Label::kNear);
+      __ Test(map_bit_field, Map::Bits1::IsUndetectableBit::kMask);
+      __ JumpIf(Condition::kNotZero, &undetectable, Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
       __ Jump(&done, Label::kNear);
@@ -1768,18 +1770,16 @@ void BaselineCompiler::VisitTestTypeOf() {
       // If the object's instance type isn't within the range, return false.
       STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
       Register map = scratch_scope.AcquireScratch();
-      __ JumpIfObjectType(Condition::kLessThan, kInterpreterAccumulatorRegister,
-                          FIRST_JS_RECEIVER_TYPE, map, &bad_instance_type,
-                          Label::kNear);
+      __ CmpObjectType(kInterpreterAccumulatorRegister, FIRST_JS_RECEIVER_TYPE,
+                       map);
+      __ JumpIf(Condition::kLessThan, &bad_instance_type, Label::kNear);
 
       // If the map is undetectable or callable, return false.
       Register map_bit_field = kInterpreterAccumulatorRegister;
       __ LoadByteField(map_bit_field, map, Map::kBitFieldOffset);
-      __ TestAndBranch(map_bit_field,
-                       Map::Bits1::IsUndetectableBit::kMask |
-                           Map::Bits1::IsCallableBit::kMask,
-                       Condition::kNotZero, &undetectable_or_callable,
-                       Label::kNear);
+      __ Test(map_bit_field, Map::Bits1::IsUndetectableBit::kMask |
+                                 Map::Bits1::IsCallableBit::kMask);
+      __ JumpIf(Condition::kNotZero, &undetectable_or_callable, Label::kNear);
 
       __ Bind(&is_null);
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
@@ -1990,8 +1990,8 @@ void BaselineCompiler::VisitJumpLoop() {
   __ LoadRegister(osr_level, interpreter::Register::bytecode_array());
   __ LoadByteField(osr_level, osr_level, BytecodeArray::kOsrNestingLevelOffset);
   int loop_depth = iterator().GetImmediateOperand(1);
-  __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_level, loop_depth,
-                &osr_not_armed);
+  __ CompareByte(osr_level, loop_depth);
+  __ JumpIf(Condition::kUnsignedLessThanEqual, &osr_not_armed);
   CallBuiltin<Builtin::kBaselineOnStackReplacement>();
   __ RecordComment("]");
 
@@ -2099,9 +2099,9 @@ void BaselineCompiler::VisitJumpIfJSReceiver() {
   Label is_smi, dont_jump;
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
-  __ JumpIfObjectType(Condition::kLessThan, kInterpreterAccumulatorRegister,
-                      FIRST_JS_RECEIVER_TYPE, scratch_scope.AcquireScratch(),
-                      &dont_jump);
+  __ CmpObjectType(kInterpreterAccumulatorRegister, FIRST_JS_RECEIVER_TYPE,
+                   scratch_scope.AcquireScratch());
+  __ JumpIf(Condition::kLessThan, &dont_jump);
   UpdateInterruptBudgetAndDoInterpreterJump();
 
   __ Bind(&is_smi);
@@ -2146,11 +2146,10 @@ void BaselineCompiler::VisitForInContinue() {
   SelectBooleanConstant(kInterpreterAccumulatorRegister,
                         [&](Label* is_true, Label::Distance distance) {
                           LoadRegister(kInterpreterAccumulatorRegister, 0);
-                          __ JumpIfTagged(
-                              Condition::kNotEqual,
+                          __ CompareTagged(
                               kInterpreterAccumulatorRegister,
-                              __ RegisterFrameOperand(RegisterOperand(1)),
-                              is_true, distance);
+                              __ RegisterFrameOperand(RegisterOperand(1)));
+                          __ JumpIf(Condition::kNotEqual, is_true, distance);
                         });
 }
 
@@ -2246,8 +2245,8 @@ void BaselineCompiler::VisitThrowIfNotSuperConstructor() {
   Register map_bit_field = scratch_scope.AcquireScratch();
   __ LoadMap(map_bit_field, reg);
   __ LoadByteField(map_bit_field, map_bit_field, Map::kBitFieldOffset);
-  __ TestAndBranch(map_bit_field, Map::Bits1::IsConstructorBit::kMask,
-                   Condition::kNotZero, &done, Label::kNear);
+  __ Test(map_bit_field, Map::Bits1::IsConstructorBit::kMask);
+  __ JumpIf(Condition::kNotZero, &done, Label::kNear);
 
   CallRuntime(Runtime::kThrowNotSuperConstructor, reg, __ FunctionOperand());
 

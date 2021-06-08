@@ -88,7 +88,8 @@ void BaselineCompiler::PrologueFillFrame() {
       __ masm()->Push(kInterpreterAccumulatorRegister,
                       kInterpreterAccumulatorRegister);
     }
-    __ masm()->Branch(&loop, gt, scratch, Operand(1));
+    __ masm()->Sub64(scratch, scratch, 1);
+    __ JumpIf(Condition::kGreaterThan, &loop);
   }
   __ RecordComment("]");
 }

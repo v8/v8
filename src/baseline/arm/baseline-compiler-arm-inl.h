@@ -75,7 +75,7 @@ void BaselineCompiler::PrologueFillFrame() {
       __ Push(kInterpreterAccumulatorRegister);
     }
     __ masm()->sub(scratch, scratch, Operand(1), SetCC);
-    __ masm()->b(gt, &loop);
+    __ JumpIf(Condition::kGreaterThan, &loop);
   }
   __ RecordComment("]");
 }

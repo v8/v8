@@ -72,7 +72,7 @@ void BaselineCompiler::PrologueFillFrame() {
       __ Push(kInterpreterAccumulatorRegister);
     }
     __ masm()->dec(scratch);
-    __ masm()->j(greater, &loop);
+    __ JumpIf(Condition::kGreaterThan, &loop);
   }
   __ RecordComment("]");
 }
