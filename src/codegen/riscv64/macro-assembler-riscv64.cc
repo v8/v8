@@ -3165,7 +3165,7 @@ void TurboAssembler::TailCallBuiltin(int builtin_index) {
 
 void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin_index,
                                           Register destination) {
-  Ld(destination, EntryFromBuiltinIndexAsOperand(builtin_index));
+  Ld(destination, EntryFromBuiltinAsOperand(builtin_index));
 }
 
 MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin_index) {
