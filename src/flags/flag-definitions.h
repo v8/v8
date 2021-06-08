@@ -669,6 +669,8 @@ DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
 DEFINE_INT(baseline_batch_compilation_threshold, 4 * KB,
            "the estimated instruction size of a batch to trigger compilation")
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
+DEFINE_BOOL(trace_baseline_batch_compilation, false,
+            "trace baseline batch compilation")
 
 #undef FLAG
 #define FLAG FLAG_FULL

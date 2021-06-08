@@ -50,12 +50,31 @@ bool BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
         isolate_, function, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
   }
 
+  int estimated_size;
   {
     DisallowHeapAllocation no_gc;
-    estimated_instruction_size_ += BaselineCompiler::EstimateInstructionSize(
+    estimated_size = BaselineCompiler::EstimateInstructionSize(
         shared->GetBytecodeArray(isolate_));
   }
+  estimated_instruction_size_ += estimated_size;
+  if (FLAG_trace_baseline_batch_compilation) {
+    CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
+    PrintF(trace_scope.file(),
+           "[Baseline batch compilation] Enqueued function ");
+    function->PrintName(trace_scope.file());
+    PrintF(trace_scope.file(),
+           " with estimated size %d (current budget: %d/%d)\n", estimated_size,
+           estimated_instruction_size_,
+           FLAG_baseline_batch_compilation_threshold);
+  }
   if (ShouldCompileBatch()) {
+    if (FLAG_trace_baseline_batch_compilation) {
+      CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
+      PrintF(trace_scope.file(),
+             "[Baseline batch compilation] Compiling current batch of %d "
+             "functions\n",
+             (last_index_ + 1));
+    }
     CompileBatch(function);
     return true;
   }
