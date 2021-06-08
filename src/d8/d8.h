@@ -443,6 +443,7 @@ class Shell : public i::AllStatic {
     kProcessMessageQueue = true,
     kNoProcessMessageQueue = false
   };
+  enum class CodeType { kFileName, kString, kFunction, kInvalid, kNone };
 
   static bool ExecuteString(Isolate* isolate, Local<String> source,
                             Local<Value> name, PrintResult print_result,
@@ -539,6 +540,16 @@ class Shell : public i::AllStatic {
   static void WriteChars(const char* name, uint8_t* buffer, size_t buffer_size);
   static void ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadCodeTypeAndArguments(
+      const v8::FunctionCallbackInfo<v8::Value>& args, int index,
+      CodeType* code_type, Local<Value>* arguments = nullptr);
+  static bool FunctionAndArgumentsToString(Local<Function> function,
+                                           Local<Value> arguments,
+                                           Local<String>* source,
+                                           Isolate* isolate);
+  static MaybeLocal<String> ReadSource(
+      const v8::FunctionCallbackInfo<v8::Value>& args, int index,
+      CodeType default_type);
   static void WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerPostMessage(
       const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -4,28 +4,22 @@
 
 // Flags: --experimental-d8-web-snapshot-api
 
-function callString(f) {
-  return '(' + f.toString() + ')()';
-}
-
-function use() {
+function use(exports) {
   const result = Object.create(null);
-  Realm.shared.exports.forEach(x => result[x] = globalThis[x]);
+  exports.forEach(x => result[x] = globalThis[x]);
   return result;
 }
 
 function takeAndUseWebSnapshot(createObjects, exports) {
-  // Make the exports list available across Realms.
-  Realm.shared = { exports };
   // Take a snapshot in Realm r1.
   const r1 = Realm.create();
-  Realm.eval(r1, callString(createObjects));
+  Realm.eval(r1, createObjects, {type: 'function'});
   const snapshot = Realm.takeWebSnapshot(r1, exports);
   // Use the snapshot in Realm r2.
   const r2 = Realm.create();
   const success = Realm.useWebSnapshot(r2, snapshot);
   assertTrue(success);
-  return Realm.eval(r2, callString(use));
+  return Realm.eval(r2, use, {type: 'function', arguments: [exports]});
 }
 
 (function TestMinimal() {
