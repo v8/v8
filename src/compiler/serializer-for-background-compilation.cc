@@ -2557,6 +2557,15 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         result_hints->AddVirtualBoundFunction(
             VirtualBoundFunction(bound_target, new_arguments), zone(),
             broker());
+
+        broker()
+            ->target_native_context()
+            .bound_function_with_constructor_map()
+            .SerializePrototype();
+        broker()
+            ->target_native_context()
+            .bound_function_without_constructor_map()
+            .SerializePrototype();
       }
       break;
     case Builtin::kObjectGetPrototypeOf:
