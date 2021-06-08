@@ -791,8 +791,6 @@ class ThinString : public TorqueGeneratedThinString<ThinString, String> {
 // are not nested since the double indirection is simplified when creating
 // such a substring.
 // Currently missing features are:
-//  - handling externalized parent strings
-//  - external strings as parent
 //  - truncating sliced string to enable otherwise unneeded parent to be GC'ed.
 class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
  public:
