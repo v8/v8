@@ -73,7 +73,7 @@ class NameTrait final : public NameTraitBase {
 
  private:
   static HeapObjectName GetNameFor(const NameProvider* name_provider) {
-    return {name_provider->GetName(), false};
+    return {name_provider->GetHumanReadableName(), false};
   }
 
   static HeapObjectName GetNameFor(...) {

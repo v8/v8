@@ -108,7 +108,7 @@ class GCed final : public BaseWithoutName, public cppgc::NameProvider {
   static constexpr const char kExpectedName[] = "GCed";
 
   void Trace(cppgc::Visitor* v) const final { BaseWithoutName::Trace(v); }
-  const char* GetName() const final { return "GCed"; }
+  const char* GetHumanReadableName() const final { return "GCed"; }
 };
 // static
 constexpr const char GCed::kExpectedName[];
