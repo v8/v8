@@ -357,7 +357,7 @@ void Deserializer::PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
       Handle<String> result =
           isolate()->string_table()->LookupKey(isolate(), &key);
 
-      if (FLAG_thin_strings && *result != *string) {
+      if (*result != *string) {
         string->MakeThin(isolate(), *result);
         // Mutate the given object handle so that the backreference entry is
         // also updated.

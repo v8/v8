@@ -768,14 +768,14 @@ TEST(TryToName) {
     ft.CheckTrue(key, expect_bailout);
   }
 
-  if (FLAG_thin_strings) {
+  {
     // TryToName(<thin string>) => internalized version.
     Handle<String> s = isolate->factory()->NewStringFromAsciiChecked("foo");
     Handle<String> internalized = isolate->factory()->InternalizeString(s);
     ft.CheckTrue(s, expect_unique, internalized);
   }
 
-  if (FLAG_thin_strings) {
+  {
     // TryToName(<thin two-byte string>) => internalized version.
     uc16 array1[] = {2001, 2002, 2003};
     Handle<String> s = isolate->factory()

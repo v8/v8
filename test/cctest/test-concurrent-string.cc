@@ -239,8 +239,6 @@ TEST(InspectTwoByteExternalizing) {
 // Inspect a one byte string, while the main thread externalizes it. Same as
 // InspectOneByteExternalizing, but using thin strings.
 TEST(InspectOneByteExternalizing_ThinString) {
-  if (!FLAG_thin_strings) return;
-
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -302,7 +300,6 @@ TEST(InspectOneByteExternalizing_ThinString) {
 // bytes string. Same as InspectOneIntoTwoByteExternalizing, but using thin
 // strings.
 TEST(InspectOneIntoTwoByteExternalizing_ThinString) {
-  if (!FLAG_thin_strings) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -364,8 +361,6 @@ TEST(InspectOneIntoTwoByteExternalizing_ThinString) {
 // Inspect a two byte string, while the main thread externalizes it. Same as
 // InspectTwoByteExternalizing, but using thin strings.
 TEST(InspectTwoByteExternalizing_ThinString) {
-  if (!FLAG_thin_strings) return;
-
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 

@@ -1367,7 +1367,6 @@ TEST(InternalizeExternal) {
   if (FLAG_minor_mc) return;
 #endif  // ENABLE_MINOR_MC
   FLAG_stress_incremental_marking = false;
-  FLAG_thin_strings = true;
   CcTest::InitializeVM();
   i::Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
