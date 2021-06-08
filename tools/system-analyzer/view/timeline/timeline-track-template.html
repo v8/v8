@@ -212,6 +212,17 @@ found in the LICENSE file. -->
     stroke-width: 2;
     fill: none;
   }
+  .markerLine {
+    stroke: var(--on-background-color);
+    stroke-dasharray: 2 2;
+  }
+  .markerText {
+    fill: var(--on-surface-color);
+    dominant-baseline: hanging;
+    font-size: 9px;
+  }
+  #scalableContent {
+  }
 </style>
 
 <div class="content">
@@ -226,9 +237,11 @@ found in the LICENSE file. -->
       <div id="rightHandle"></div>
     </div>
     <div id="timelineLabel">Frequency</div>
-    <svg id="timelineChunks" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="timelineChunks" xmlns="http://www.w3.org/2000/svg">
+      <g id="scalableContent"></g>
+    </svg>
     <svg id="timelineAnnotations" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div id="timelineMarkers"></div>
+    <svg id="timelineMarkers" xmlns="http://www.w3.org/2000/svg"></svg>
     <canvas id="timelineCanvas"></canvas>
   </div>
 

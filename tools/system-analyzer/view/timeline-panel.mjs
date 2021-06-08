@@ -42,7 +42,6 @@ DOM.defineCustomElement(
       }
 
       handleTrackScroll(event) {
-        // TODO(zcankara) add forEachTrack  helper method
         for (const track of this.timelineTracks) {
           track.scrollLeft = event.detail;
         }

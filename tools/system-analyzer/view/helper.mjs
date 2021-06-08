@@ -223,16 +223,16 @@ export class SVG {
     return node;
   }
 
-  static svg() {
-    return this.element('svg');
+  static svg(classes) {
+    return this.element('svg', classes);
   }
 
   static rect(classes) {
     return this.element('rect', classes);
   }
 
-  static g() {
-    return this.element('g');
+  static g(classes) {
+    return this.element('g', classes);
   }
 }
 

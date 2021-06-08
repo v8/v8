@@ -4,15 +4,18 @@
 
 import {Profile} from '../../../profile.mjs'
 import {delay} from '../../helper.mjs';
+import {Timeline} from '../../timeline.mjs';
 import {CSSColor, DOM, SVG, V8CustomElement} from '../helper.mjs';
 
 import {TimelineTrackBase} from './timeline-track-base.mjs'
 
 class Flame {
-  constructor(time, entry) {
+  constructor(time, entry, depth, id) {
     this.start = time;
     this.end = this.start;
     this.entry = entry;
+    this.depth = depth;
+    this.id = id;
   }
   stop(time) {
     this.end = time;
@@ -23,68 +26,131 @@ class Flame {
 DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
                         (templateText) =>
                             class TimelineTrackTick extends TimelineTrackBase {
+  _flames = new Timeline();
+  _originalContentWidth = 0;
+
   constructor() {
     super(templateText);
   }
 
-  async _drawContent() {
-    this.timelineChunks.innerHTML = '';
+  _updateChunks() {
+    // We don't need to update the chunks here.
+    this._updateDimensions();
+    this.requestUpdate();
+  }
+
+  set data(timeline) {
+    super.data = timeline;
+    this._contentWidth = 0;
+    this._updateFlames();
+  }
+
+  _getEntryForEvent(event) {
+    let logEntry = false;
+    const target = event.target;
+    const id = event.target.getAttribute('data-id');
+    if (id) {
+      const codeEntry = this._flames.at(id).entry;
+      if (codeEntry.logEntry) {
+        logEntry = codeEntry.logEntry;
+      }
+    }
+    return {logEntry, target};
+  }
+
+  _updateFlames() {
+    const tmpFlames = [];
     const stack = [];
-    let buffer = '';
-    const kMinPixelWidth = 1
-    const kMinTimeDelta = kMinPixelWidth / this._timeToPixel;
-    let lastTime = 0;
-    let flameCount = 0;
     const ticks = this._timeline.values;
+
     for (let tickIndex = 0; tickIndex < ticks.length; tickIndex++) {
       const tick = ticks[tickIndex];
-      // Skip ticks beyond visible resolution.
-      if ((tick.time - lastTime) < kMinTimeDelta) continue;
-      lastTime = tick.time;
-      if (flameCount > 1000) {
-        const svg = SVG.svg();
-        svg.innerHTML = buffer;
-        this.timelineChunks.appendChild(svg);
-        buffer = '';
-        flameCount = 0;
-        await delay(15);
-      }
       for (let stackIndex = 0; stackIndex < tick.stack.length; stackIndex++) {
         const entry = tick.stack[stackIndex];
         if (stack.length <= stackIndex) {
-          stack.push(new Flame(tick.time, entry));
+          const newFlame =
+              new Flame(tick.time, entry, stackIndex, tmpFlames.length);
+          tmpFlames.push(newFlame);
+          stack.push(newFlame);
         } else {
-          const flame = stack[stackIndex];
-          if (flame.entry !== entry) {
+          if (stack[stackIndex].entry !== entry) {
             for (let k = stackIndex; k < stack.length; k++) {
               stack[k].stop(tick.time);
-              buffer += this.drawFlame(stack[k], k);
-              flameCount++
             }
             stack.length = stackIndex;
-            stack[stackIndex] = new Flame(tick.time, entry);
+            const replacementFlame =
+                new Flame(tick.time, entry, stackIndex, tmpFlames.length);
+            tmpFlames.push(replacementFlame);
+            stack[stackIndex] = replacementFlame;
           }
         }
       }
     }
-    const svg = SVG.svg();
-    svg.innerHTML = buffer;
-    this.timelineChunks.appendChild(svg);
+    const lastTime = ticks[ticks.length - 1].time;
+    for (let stackIndex = 0; stackIndex < stack.length; stackIndex++) {
+      stack[stackIndex].stop(lastTime);
+    }
+    this._flames = new Timeline(Flame, tmpFlames);
   }
 
-  drawFlame(flame, depth) {
+  _scaleContent(currentWidth) {
+    if (this._originalContentWidth > 0) {
+      // Instead of repainting just scale the flames
+      const ratio = currentWidth / this._originalContentWidth;
+      this._scalableContentNode.style.transform = `scale(${ratio}, 1)`;
+    }
+  }
+
+  async _drawContent() {
+    if (this._originalContentWidth > 0) return;
+    this._originalContentWidth = parseInt(this.timelineMarkersNode.style.width);
+    this._scalableContentNode.innerHTML = '';
+    let buffer = '';
+    const add = () => {
+      const svg = SVG.svg();
+      svg.innerHTML = buffer;
+      this._scalableContentNode.appendChild(svg);
+      buffer = '';
+    };
+    const rawFlames = this._flames.values;
+    for (let i = 0; i < rawFlames.length; i++) {
+      if ((i % 3000) == 0) {
+        add();
+        await delay(50);
+      }
+      buffer += this.drawFlame(rawFlames[i]);
+    }
+    add();
+  }
+
+  drawFlame(flame) {
     let type = 'native';
     if (flame.entry?.state) {
       type = Profile.getKindFromState(flame.entry.state);
     }
     const kHeight = 9;
     const x = this.timeToPosition(flame.start);
-    const y = depth * (kHeight + 1);
-    const width = (flame.duration * this._timeToPixel - 0.5);
+    const y = flame.depth * (kHeight + 1);
+    let width = flame.duration * this._timeToPixel;
+    width -= width * 0.1;
     const color = this._legend.colorForType(type);
 
-    let buffer =
-        `<rect x=${x} y=${y} width=${width} height=${kHeight} fill=${color} />`;
+    return `<rect x=${x} y=${y} width=${width} height=${kHeight} fill=${
+        color} data-id=${flame.id} />`;
+  }
+
+  drawFlameText(flame) {
+    let type = 'native';
+    if (flame.entry?.state) {
+      type = Profile.getKindFromState(flame.entry.state);
+    }
+    const kHeight = 9;
+    const x = this.timeToPosition(flame.start);
+    const y = flame.depth * (kHeight + 1);
+    let width = flame.duration * this._timeToPixel;
+    width -= width * 0.1;
+
+    let buffer = '';
     if (width < 15 || type == 'native') return buffer;
     const rawName = flame.entry.getRawName();
     if (rawName.length == 0) return buffer;

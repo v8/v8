@@ -13,13 +13,9 @@ export class TimelineTrackBase extends V8CustomElement {
   _chunks;
   _selectedEntry;
   _timeToPixel;
-  _timeStartOffset;
+  _timeStartPixelOffset;
   _legend;
-
-  _chunkMouseMoveHandler = this._handleChunkMouseMove.bind(this);
-  _chunkClickHandler = this._handleChunkClick.bind(this);
-  _chunkDoubleClickHandler = this._handleChunkDoubleClick.bind(this);
-  _flameMouseOverHandler = this._handleFlameMouseOver.bind(this);
+  _lastContentWidth = 0;
 
   constructor(templateText) {
     super(templateText);
@@ -28,9 +24,9 @@ export class TimelineTrackBase extends V8CustomElement {
     this._legend.onFilter = (type) => this._handleFilterTimeline();
     this.timelineNode.addEventListener(
         'scroll', e => this._handleTimelineScroll(e));
-    this.timelineNode.ondblclick = (e) =>
-        this._selectionHandler.clearSelection();
-    this.timelineChunks.onmousemove = this._chunkMouseMoveHandler;
+    this.timelineNode.onclick = (e) => this._handleClick(e);
+    this.timelineNode.ondblclick = (e) => this._handleDoubleClick(e);
+    this.timelineChunks.onmousemove = (e) => this._handleMouseMove(e);
     this.isLocked = false;
   }
 
@@ -73,25 +69,18 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   positionToTime(pagePosX) {
-    let posTimelineX =
-        this.positionOnTimeline(pagePosX) + this._timeStartOffset;
-    return posTimelineX / this._timeToPixel;
+    return this.relativePositionToTime(this.positionOnTimeline(pagePosX));
+  }
+
+  relativePositionToTime(timelineRelativeX) {
+    const timelineAbsoluteX = timelineRelativeX + this._timeStartPixelOffset;
+    return timelineAbsoluteX / this._timeToPixel;
   }
 
   timeToPosition(time) {
     let relativePosX = time * this._timeToPixel;
-    relativePosX -= this._timeStartOffset;
+    relativePosX -= this._timeStartPixelOffset;
     return relativePosX;
-  }
-
-  get currentTime() {
-    const centerOffset = this.timelineNode.getBoundingClientRect().width / 2;
-    return this.positionToTime(this.timelineNode.scrollLeft + centerOffset);
-  }
-
-  set currentTime(time) {
-    const centerOffset = this.timelineNode.getBoundingClientRect().width / 2;
-    this.timelineNode.scrollLeft = this.timeToPosition(time) - centerOffset;
   }
 
   get timelineCanvas() {
@@ -127,18 +116,12 @@ export class TimelineTrackBase extends V8CustomElement {
     return this.$('#timelineMarkers');
   }
 
-  _update() {
-    this._updateTimeline();
-    this._legend.update();
-  }
-
-  _handleFlameMouseOver(event) {
-    const codeEntry = event.target.data;
-    this.dispatchEvent(new ToolTipEvent(codeEntry.logEntry, event.target));
+  get _scalableContentNode() {
+    return this.$('#scalableContent');
   }
 
   set nofChunks(count) {
-    this._nofChunks = count;
+    this._nofChunks = count | 0;
     this._updateChunks();
   }
 
@@ -147,8 +130,8 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _updateChunks() {
-    this._chunks =
-        this._timeline.chunks(this.nofChunks, this._legend.filterPredicate);
+    this._chunks = undefined;
+    this._updateDimensions();
     this.requestUpdate();
   }
 
@@ -183,29 +166,44 @@ export class TimelineTrackBase extends V8CustomElement {
         'scrolltrack', {bubbles: true, composed: true, detail: horizontal}));
   }
 
-  _updateTimeline() {
-    const chunks = this.chunks;
-    const start = this._timeline.startTime;
-    const end = this._timeline.endTime;
-    const duration = end - start;
-    const width = chunks.length * kChunkWidth;
-    let oldWidth = width;
-    if (this.timelineChunks.style.width) {
-      oldWidth = parseInt(this.timelineChunks.style.width);
-    }
+  _updateDimensions() {
+    const centerOffset = this.timelineNode.getBoundingClientRect().width / 2;
+    const time = this.relativePositionToTime(
+        this.timelineNode.scrollLeft + centerOffset);
 
-    this._timeToPixel = width / duration;
-    this._timeStartOffset = start * this._timeToPixel;
+    const start = this._timeline.startTime;
+    const width = this._nofChunks * kChunkWidth;
+    this._lastContentWidth = parseInt(this.timelineMarkersNode.style.width);
+    this._timeToPixel = width / this._timeline.duration();
+    this._timeStartPixelOffset = start * this._timeToPixel;
     this.timelineChunks.style.width = `${width}px`;
     this.timelineMarkersNode.style.width = `${width}px`;
     this.timelineAnnotationsNode.style.width = `${width}px`;
-
     this._drawMarkers();
+    this._selectionHandler.update();
+    this._scaleContent(width);
+    this.timelineNode.scrollLeft = this.timeToPosition(time) - centerOffset;
+  }
+
+  _scaleContent(currentWidth) {
+    if (!this._lastContentWidth) return;
+    const ratio = currentWidth / this._lastContentWidth;
+    this._scalableContentNode.style.transform = `scale(${ratio}, 1)`;
+  }
+
+  _update() {
+    this._legend.update();
     this._drawContent();
     this._drawAnnotations(this.selectedEntry);
   }
 
   async _drawContent() {
+    await delay(5);
+    if (this.chunks?.length != this.nofChunks) {
+      this._chunks =
+          this._timeline.chunks(this.nofChunks, this._legend.filterPredicate);
+      console.assert(this._chunks.length == this._nofChunks);
+    }
     const chunks = this.chunks;
     const max = chunks.max(each => each.size());
     let buffer = '';
@@ -218,7 +216,8 @@ export class TimelineTrackBase extends V8CustomElement {
       buffer += this._drawChunk(i, chunk);
       buffer += '</g>'
     }
-    this.timelineChunks.innerHTML = buffer;
+    this._scalableContentNode.innerHTML = buffer;
+    this._scalableContentNode.style.transform = 'scale(1, 1)';
   }
 
   _drawChunk(chunkIndex, chunk) {
@@ -240,9 +239,8 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _drawMarkers() {
-    const fragment = new DocumentFragment();
     // Put a time marker roughly every 20 chunks.
-    const expected = this._timeline.duration() / this.chunks.length * 20;
+    const expected = this._timeline.duration() / this._nofChunks * 20;
     let interval = (10 ** Math.floor(Math.log10(expected)));
     let correction = Math.log10(expected / interval);
     correction = (correction < 0.33) ? 1 : (correction < 0.75) ? 2.5 : 5;
@@ -250,49 +248,64 @@ export class TimelineTrackBase extends V8CustomElement {
 
     const start = this._timeline.startTime;
     let time = start;
+    let buffer = '';
     while (time < this._timeline.endTime) {
-      const timeNode = DOM.div('timestamp');
-      timeNode.innerText = `${((time - start) / 1000) | 0} ms`;
-      timeNode.style.left = `${((time - start) * this._timeToPixel) | 0}px`;
-      fragment.appendChild(timeNode);
+      const delta = time - start;
+      const text = `${(delta / 1000) | 0} ms`;
+      const x = (delta * this._timeToPixel) | 0;
+      buffer += `<text x=${x - 2} y=0 class=markerText >${text}</text>`
+      buffer +=
+          `<line x1=${x} x2=${x} y1=12 y2=2000 dy=100% class=markerLine />`
       time += interval;
     }
-    DOM.removeAllChildren(this.timelineMarkersNode);
-    this.timelineMarkersNode.appendChild(fragment);
-  }
-
-  _handleChunkMouseMove(event) {
-    if (this.isLocked) return false;
-    if (this._selectionHandler.isSelecting) return false;
-    let target = event.target;
-    if (target === this.timelineChunks) return false;
-    target = target.parentNode;
-    const time = this.positionToTime(event.pageX);
-    const chunkIndex = (time - this._timeline.startTime) /
-        this._timeline.duration() * this._nofChunks;
-    const chunk = this.chunks[chunkIndex | 0];
-    if (!chunk || chunk.isEmpty()) return;
-    const relativeIndex =
-        Math.round((200 - event.layerY) / chunk.height * (chunk.size() - 1));
-    if (relativeIndex > chunk.size()) return;
-    const logEntry = chunk.at(relativeIndex);
-    this.dispatchEvent(new ToolTipEvent(logEntry, target));
-    this._drawAnnotations(logEntry);
+    this.timelineMarkersNode.innerHTML = buffer;
   }
 
   _drawAnnotations(logEntry) {
     // Subclass responsibility.
   }
 
-  _handleChunkClick(event) {
+  _handleClick(event) {
+    if (event.target === this.timelineChunks) return;
     this.isLocked = !this.isLocked;
+    event.stopImmediatePropagation();
+    event.stopPropagation();
+    return false;
   }
 
-  _handleChunkDoubleClick(event) {
+  _handleDoubleClick(event) {
+    this._selectionHandler.clearSelection();
     const chunk = event.target.chunk;
     if (!chunk) return;
-    event.stopPropagation();
+    event.stopImmediatePropagation();
     this.dispatchEvent(new SelectTimeEvent(chunk.start, chunk.end));
+    return false;
+  }
+
+  _handleMouseMove(event) {
+    if (this.isLocked) return false;
+    if (this._selectionHandler.isSelecting) return false;
+    const {logEntry, target} = this._getEntryForEvent(event);
+    if (!logEntry) return false;
+    this.dispatchEvent(new ToolTipEvent(logEntry, target));
+    this._drawAnnotations(logEntry);
+  }
+
+  _getEntryForEvent(event) {
+    let target = event.target;
+    let logEntry = false;
+    if (target === this.timelineChunks) return {logEntry, target};
+    target = target.parentNode;
+    const time = this.positionToTime(event.pageX);
+    const chunkIndex = (time - this._timeline.startTime) /
+        this._timeline.duration() * this._nofChunks;
+    const chunk = this.chunks[chunkIndex | 0];
+    if (!chunk?.isEmpty()) {
+      const relativeIndex =
+          Math.round((200 - event.layerY) / chunk.height * (chunk.size() - 1));
+      if (relativeIndex < chunk.size()) logEntry = chunk.at(relativeIndex);
+    }
+    return {logEntry, target};
   }
 };
 

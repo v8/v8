@@ -18,6 +18,10 @@ class Timeline {
     this._values = values;
     this.startTime = startTime;
     this.endTime = endTime;
+    if (values.length > 0) {
+      if (startTime === 0) this.startTime = values[0].time;
+      if (endTime === 0) this.endTime = values[values.length - 1].time;
+    }
   }
 
   get model() {
