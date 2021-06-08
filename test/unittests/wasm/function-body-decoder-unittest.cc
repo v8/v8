@@ -1090,9 +1090,8 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(gc_experiments);
   WASM_FEATURE_SCOPE(return_call);
-  FlagScope<bool> flag_gc_experiments(&FLAG_experimental_wasm_gc_experiments,
-                                      true);
 
   byte function_index = builder.AddFunction(sigs.i_ii());
   byte struct_index = builder.AddStruct({F(kWasmI32, true), F(kWasmI64, true)});
@@ -4291,9 +4290,7 @@ TEST_F(FunctionBodyDecoderTest, RttSub) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(eh);
-  FlagScope<bool> flag_gc_experiments(&FLAG_experimental_wasm_gc_experiments,
-                                      true);
+  WASM_FEATURE_SCOPE(gc_experiments);
 
   TestModuleBuilder builder;
   module = builder.module();

@@ -4215,11 +4215,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return opcode_length + imm.length;
       }
       case kExprRttFreshSub:
-        if (!FLAG_experimental_wasm_gc_experiments) {
-          this->DecodeError(
-              "rtt.fresh_sub requires --experimental-wasm-gc-experiments");
-          return 0;
-        }
+        CHECK_PROTOTYPE_OPCODE(gc_experiments);
         V8_FALLTHROUGH;
       case kExprRttSub: {
         IndexImmediate<validate> imm(this, this->pc_ + opcode_length,

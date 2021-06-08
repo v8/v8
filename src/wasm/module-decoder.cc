@@ -1866,7 +1866,7 @@ class ModuleDecoderImpl : public Decoder {
               break;
             }
             case kExprRttFreshSub:
-              if (!FLAG_experimental_wasm_gc_experiments) {
+              if (!V8_LIKELY(enabled_features_.has_gc_experiments())) {
                 error(pc(),
                       "rtt.fresh requires --experimental-wasm-gc-experiments");
                 return {};
