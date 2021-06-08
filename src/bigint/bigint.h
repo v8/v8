@@ -206,7 +206,18 @@ class Platform {
 // mechanism when it takes too long. These functions return a {Status} value.
 
 // Returns r such that r < 0 if A < B; r > 0 if A > B; r == 0 if A == B.
-int Compare(Digits A, Digits B);
+// Defined here to be inlineable, which helps ia32 a lot (64-bit platforms
+// don't care).
+inline int Compare(Digits A, Digits B) {
+  A.Normalize();
+  B.Normalize();
+  int diff = A.len() - B.len();
+  if (diff != 0) return diff;
+  int i = A.len() - 1;
+  while (i >= 0 && A[i] == B[i]) i--;
+  if (i < 0) return 0;
+  return A[i] > B[i] ? 1 : -1;
+}
 
 enum class Status { kOk, kInterrupted };
 

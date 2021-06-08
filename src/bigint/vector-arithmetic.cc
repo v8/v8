@@ -34,16 +34,5 @@ void SubAt(RWDigits Z, Digits X) {
   }
 }
 
-int Compare(Digits A, Digits B) {
-  A.Normalize();
-  B.Normalize();
-  int diff = A.len() - B.len();
-  if (diff != 0) return diff;
-  int i = A.len() - 1;
-  while (i >= 0 && A[i] == B[i]) i--;
-  if (i < 0) return 0;
-  return A[i] > B[i] ? 1 : -1;
-}
-
 }  // namespace bigint
 }  // namespace v8
