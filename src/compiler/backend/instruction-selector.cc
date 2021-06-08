@@ -11,6 +11,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/tick-counter.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-heap-broker.h"
@@ -962,10 +963,10 @@ struct CallBuffer {
 // InstructionSelector::VisitCall platform independent instead.
 void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                                                CallBufferFlags flags,
-                                               bool is_tail_call,
                                                int stack_param_delta) {
   OperandGenerator g(this);
   size_t ret_count = buffer->descriptor->ReturnCount();
+  bool is_tail_call = (flags & kCallTail) != 0;
   DCHECK_LE(call->op()->ValueOutputCount(), ret_count);
   DCHECK_EQ(
       call->op()->ValueInputCount(),
@@ -1135,20 +1136,19 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // as an InstructionOperand argument to the call.
   auto iter(call->inputs().begin());
   size_t pushed_count = 0;
-  bool call_tail = (flags & kCallTail) != 0;
   for (size_t index = 0; index < input_count; ++iter, ++index) {
     DCHECK(iter != call->inputs().end());
     DCHECK_NE(IrOpcode::kFrameState, (*iter)->op()->opcode());
     if (index == 0) continue;  // The first argument (callee) is already done.
 
     LinkageLocation location = buffer->descriptor->GetInputLocation(index);
-    if (call_tail) {
+    if (is_tail_call) {
       location = LinkageLocation::ConvertToTailCallerLocation(
           location, stack_param_delta);
     }
     InstructionOperand op = g.UseLocation(*iter, location);
     UnallocatedOperand unallocated = UnallocatedOperand::cast(op);
-    if (unallocated.HasFixedSlotPolicy() && !call_tail) {
+    if (unallocated.HasFixedSlotPolicy() && !is_tail_call) {
       int stack_index = buffer->descriptor->GetStackIndexFromSlot(
           unallocated.fixed_slot_index());
       // This can insert empty slots before stack_index and will insert enough
@@ -1180,7 +1180,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
   DCHECK_EQ(input_count, buffer->instruction_args.size() + pushed_count -
                              frame_state_entries - 1);
-  if (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK && call_tail &&
+  if (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK && is_tail_call &&
       stack_param_delta != 0) {
     // For tail calls that change the size of their parameter list and keep
     // their return address on the stack, move the return address to just above
@@ -2932,11 +2932,11 @@ void InstructionSelector::UpdateMaxPushedArgumentCount(size_t count) {
 void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   OperandGenerator g(this);
   auto call_descriptor = CallDescriptorOf(node->op());
+  SaveFPRegsMode mode = call_descriptor->NeedsCallerSavedFPRegisters()
+                            ? SaveFPRegsMode::kSave
+                            : SaveFPRegsMode::kIgnore;
 
   if (call_descriptor->NeedsCallerSavedRegisters()) {
-    SaveFPRegsMode mode = call_descriptor->NeedsCallerSavedFPRegisters()
-                              ? SaveFPRegsMode::kSave
-                              : SaveFPRegsMode::kIgnore;
     Emit(kArchSaveCallerRegisters | MiscField::encode(static_cast<int>(mode)),
          g.NoOutput());
   }
@@ -2956,7 +2956,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Improve constant pool and the heuristics in the register allocator
   // for where to emit constants.
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
-  InitializeCallBuffer(node, &buffer, call_buffer_flags, false);
+  InitializeCallBuffer(node, &buffer, call_buffer_flags);
 
   EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);
   UpdateMaxPushedArgumentCount(buffer.pushed_nodes.size());
@@ -3014,9 +3014,6 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   EmitPrepareResults(&(buffer.output_nodes), call_descriptor, node);
 
   if (call_descriptor->NeedsCallerSavedRegisters()) {
-    SaveFPRegsMode mode = call_descriptor->NeedsCallerSavedFPRegisters()
-                              ? SaveFPRegsMode::kSave
-                              : SaveFPRegsMode::kIgnore;
     Emit(
         kArchRestoreCallerRegisters | MiscField::encode(static_cast<int>(mode)),
         g.NoOutput());
@@ -3041,7 +3038,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   if (callee->flags() & CallDescriptor::kFixedTargetRegister) {
     flags |= kCallFixedTargetRegister;
   }
-  InitializeCallBuffer(node, &buffer, flags, true, stack_param_delta);
+  InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
   UpdateMaxPushedArgumentCount(stack_param_delta);
 
   // Select the appropriate opcode based on the call type.
