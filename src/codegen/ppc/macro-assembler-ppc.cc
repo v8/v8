@@ -2806,56 +2806,24 @@ void TurboAssembler::StoreU8(Register src, const MemOperand& mem,
 
 void TurboAssembler::LoadF64(DoubleRegister dst, const MemOperand& mem,
                              Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    lfdx(dst, MemOperand(base, scratch));
-  } else {
-    lfd(dst, mem);
-  }
+  GenerateMemoryOperation(dst, mem, lfd, lfdx);
 }
 
 void TurboAssembler::LoadF32(DoubleRegister dst, const MemOperand& mem,
                              Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    lfsx(dst, MemOperand(base, scratch));
-  } else {
-    lfs(dst, mem);
-  }
+  GenerateMemoryOperation(dst, mem, lfs, lfsx);
 }
 
 void MacroAssembler::LoadF64WithUpdate(DoubleRegister dst,
                                        const MemOperand& mem,
                                        Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    lfdux(dst, MemOperand(base, scratch));
-  } else {
-    lfdu(dst, mem);
-  }
+  GenerateMemoryOperation(dst, mem, lfdu, lfdux);
 }
 
 void TurboAssembler::LoadF32WithUpdate(DoubleRegister dst,
                                        const MemOperand& mem,
                                        Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    lfsux(dst, MemOperand(base, scratch));
-  } else {
-    lfsu(dst, mem);
-  }
+  GenerateMemoryOperation(dst, mem, lfsu, lfsux);
 }
 
 void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem) {
