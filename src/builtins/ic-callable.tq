@@ -108,10 +108,15 @@ macro CollectCallFeedback(
     if (IsMegamorphic(feedback)) return;
     if (IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
 
+    // If cleared, we have a new chance to become monomorphic.
+    const feedbackValue: HeapObject =
+        MaybeObjectToStrong(feedback) otherwise TryReinitializeAsMonomorphic;
+
     if (FeedbackValueIsReceiver(feedbackVector, slotId) &&
         TaggedEqualPrototypeApplyFunction(maybeTarget)) {
-      // If the Receiver is recorded and the target is Function.prototype.apply,
-      // check whether we can stay monomorphic based on the receiver.
+      // If the Receiver is recorded and the target is
+      // Function.prototype.apply, check whether we can stay monomorphic based
+      // on the receiver.
       if (IsMonomorphic(feedback, RunLazy(maybeReceiver))) {
         return;
       } else {
@@ -123,10 +128,6 @@ macro CollectCallFeedback(
         return;
       }
     }
-
-    // If cleared, we have a new chance to become monomorphic.
-    const feedbackValue: HeapObject =
-        MaybeObjectToStrong(feedback) otherwise TryInitializeAsMonomorphic;
 
     // Try transitioning to a feedback cell.
     // Check if {target}s feedback cell matches the {feedbackValue}.
@@ -146,6 +147,10 @@ macro CollectCallFeedback(
 
     StoreWeakReferenceInFeedbackVector(feedbackVector, slotId, feedbackCell);
     ReportFeedbackUpdate(feedbackVector, slotId, 'Call:FeedbackVectorCell');
+  } label TryReinitializeAsMonomorphic {
+    SetCallFeedbackContent(
+        feedbackVector, slotId, CallFeedbackContent::kTarget);
+    goto TryInitializeAsMonomorphic;
   } label TryInitializeAsMonomorphic {
     let recordedFunction = maybeTarget;
     if (TaggedEqualPrototypeApplyFunction(maybeTarget)) {
