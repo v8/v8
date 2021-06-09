@@ -342,6 +342,12 @@ Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
   }
 }
 
+Object JSObject::RawFastPropertyAt(FieldIndex index, RelaxedLoadTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  CHECK(index.is_inobject());
+  return TaggedField<Object>::Relaxed_Load(cage_base, *this, index.offset());
+}
+
 void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
                                             WriteBarrierMode mode) {
   DCHECK(index.is_inobject());

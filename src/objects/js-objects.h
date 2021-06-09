@@ -651,6 +651,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   inline Object RawFastPropertyAt(FieldIndex index) const;
   inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
                                   FieldIndex index) const;
+  // A specialized version of the above for use by TurboFan. Only supports
+  // in-object properties.
+  inline Object RawFastPropertyAt(FieldIndex index, RelaxedLoadTag) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Object value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

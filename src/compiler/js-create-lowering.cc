@@ -1656,8 +1656,21 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
 base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     Node* effect, Node* control, JSObjectRef boilerplate,
     AllocationType allocation) {
-  // Compute the in-object properties to store first (might have effects).
+  // Prevent concurrent migrations of boilerplate objects.
+  JSHeapBroker::BoilerplateMigrationGuardIfNeeded boilerplate_access_guard(
+      broker());
+
+  // Now that we hold the migration lock, get the current map.
   MapRef boilerplate_map = boilerplate.map();
+  base::Optional<MapRef> current_boilerplate_map =
+      boilerplate.map_direct_read();
+
+  if (!current_boilerplate_map.has_value() ||
+      !current_boilerplate_map.value().equals(boilerplate_map)) {
+    return {};
+  }
+
+  // Compute the in-object properties to store first (might have effects).
   ZoneVector<std::pair<FieldAccess, Node*>> inobject_fields(zone());
   inobject_fields.reserve(boilerplate_map.GetInObjectProperties());
   int const boilerplate_nof = boilerplate_map.NumberOfOwnDescriptors();
@@ -1678,14 +1691,48 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
                           kFullWriteBarrier,
                           LoadSensitivity::kUnsafe,
                           const_field_info};
-    ObjectRef boilerplate_value = boilerplate.RawFastPropertyAt(index);
-    bool is_uninitialized =
-        boilerplate_value.IsHeapObject() &&
+
+    // Note: the use of RawFastPropertyAt (vs. the higher-level
+    // GetOwnFastDataProperty) here is necessary, since the underlying value
+    // may be `uninitialized`, which the latter explicitly does not support.
+    base::Optional<ObjectRef> maybe_boilerplate_value =
+        boilerplate.RawFastPropertyAt(index);
+    if (!maybe_boilerplate_value.has_value()) return {};
+
+    // Note: We don't need to take a compilation dependency verifying the value
+    // of `boilerplate_value`, since boilerplate properties are constant after
+    // initialization modulo map migration. We protect against concurrent map
+    // migrations via the boilerplate_migration_access lock.
+    ObjectRef boilerplate_value = maybe_boilerplate_value.value();
+
+    // Uninitialized fields are marked through the `uninitialized_value`, or in
+    // the case of double representation through a HeapNumber containing a
+    // special sentinel value. The boilerplate value is not updated to keep up
+    // with the map, thus conversions may be necessary. Specifically:
+    //
+    // - Smi representation: uninitialized is converted to Smi 0.
+    // - Not double representation: the special heap number sentinel is
+    //   converted to `uninitialized_value`.
+    //
+    // Note that although we create nodes to write `uninitialized_value` into
+    // the object, the field should be overwritten immediately with a real
+    // value, and `uninitialized_value` should never be exposed to JS.
+    bool is_uninitialized = false;
+    if (boilerplate_value.IsHeapObject() &&
         boilerplate_value.AsHeapObject().map().oddball_type() ==
-            OddballType::kUninitialized;
-    if (is_uninitialized) {
+            OddballType::kUninitialized) {
+      is_uninitialized = true;
+      access.const_field_info = ConstFieldInfo::None();
+    } else if (!property_details.representation().IsDouble() &&
+               boilerplate_value.IsHeapNumber() &&
+               boilerplate_value.AsHeapNumber().value_as_bits() ==
+                   kHoleNanInt64) {
+      is_uninitialized = true;
+      boilerplate_value =
+          MakeRef<HeapObject>(broker(), factory()->uninitialized_value());
       access.const_field_info = ConstFieldInfo::None();
     }
+
     Node* value;
     if (boilerplate_value.IsJSObject()) {
       JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();

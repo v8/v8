@@ -672,7 +672,20 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &shared_function_info_access_;
   }
 
+  // Protects (most) map update operations, see also MapUpdater.
   base::SharedMutex* map_updater_access() { return &map_updater_access_; }
+
+  // Protects JSObject boilerplate migrations (i.e. calls to MigrateInstance on
+  // boilerplate objects; elements kind transitions are *not* protected).
+  // Note this lock interacts with `map_updater_access` as follows
+  //
+  // - boilerplate migrations may trigger map updates.
+  // - if so, `boilerplate_migration_access` is locked before
+  //   `map_updater_access`.
+  // - backgrounds threads must use the same lock order to avoid deadlocks.
+  base::SharedMutex* boilerplate_migration_access() {
+    return &boilerplate_migration_access_;
+  }
 
   // The isolate's string table.
   StringTable* string_table() const { return string_table_.get(); }
@@ -1936,6 +1949,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::SharedMutex full_transition_array_access_;
   base::SharedMutex shared_function_info_access_;
   base::SharedMutex map_updater_access_;
+  base::SharedMutex boilerplate_migration_access_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
