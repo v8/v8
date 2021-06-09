@@ -57,6 +57,8 @@ let if_unr = [kExprIf, kWasmVoid, kExprUnreachable, kExprEnd];
 let if_else_unr = [kExprIf, kWasmVoid, kExprUnreachable, kExprElse, kExprUnreachable, kExprEnd];
 let block_unr = [kExprBlock, kWasmVoid, kExprUnreachable, kExprEnd];
 let loop_unr = [kExprLoop, kWasmVoid, kExprUnreachable, kExprEnd];
+// An i32-typed loop returning a polymorphic stack.
+let iloop_poly = [kExprLoop, kWasmI32, kExprUnreachable, kExprI32Const, 0, kExprSelect, kExprEnd];
 let block_block_unr = [kExprBlock, kWasmVoid, kExprBlock, kWasmVoid, kExprUnreachable, kExprEnd, kExprEnd];
 let block = [kExprBlock, kWasmVoid]
 let iblock = [kExprBlock, kWasmI32]
@@ -100,6 +102,7 @@ run(I, '0 0 ret iadd', [...zero, ...zero, ret, iadd]);
 run(I, '(block U) iadd drop', [...block_unr, iadd, drop]);
 run(I, '(block (block U)) iadd drop', [...block_block_unr, iadd, drop]);
 run(I, '(loop U) iadd drop', [...loop_unr, iadd]);
+run(V, '(iloop (iloop U 0 select)) drop', [kExprLoop, kWasmI32, ...iloop_poly, kExprEnd, drop]);
 run(I, '(if 0 U U) iadd drop', [...zero, ...if_else_unr, iadd, drop]);
 run(I, 'U (i_iblock leqz)', [unr, ...i_iblock, leqz, end, drop]);
 run(V, 'U (i_iblock ieqz)', [unr, ...i_iblock, ieqz, end, drop]);

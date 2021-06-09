@@ -3623,8 +3623,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(PopControl, c);
 
-    // A loop just leaves the values on the stack.
-    if (!c->is_loop()) PushMergeValues(c, &c->end_merge);
+    // - In non-unreachable code, a loop just leaves the values on the stack.
+    // - In unreachable code, it is not guaranteed that we have Values of the
+    //   correct types on the stack, so we have to make sure we do. Their values
+    //   do not matter, so we might as well push the (uninitialized) values of
+    //   the loop's end merge.
+    if (!c->is_loop() || c->unreachable()) {
+      PushMergeValues(c, &c->end_merge);
+    }
 
     bool parent_reached =
         c->reachable() || c->end_merge.reached || c->is_onearmed_if();
