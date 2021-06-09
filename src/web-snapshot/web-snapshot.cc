@@ -10,6 +10,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/script.h"

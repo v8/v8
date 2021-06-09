@@ -10,7 +10,7 @@
 #include "include/v8.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/scanner.h"
 #include "src/strings/unicode-inl.h"

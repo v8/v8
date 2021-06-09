@@ -29,9 +29,6 @@ namespace internal {
 
 #ifdef V8_RUNTIME_CALL_STATS
 
-#define RCS_SCOPE(...) \
-  v8::internal::RuntimeCallTimerScope rcs_timer_scope(__VA_ARGS__)
-
 class RuntimeCallCounter final {
  public:
   RuntimeCallCounter() : RuntimeCallCounter(nullptr) {}
@@ -743,7 +740,6 @@ class V8_NODISCARD RuntimeCallTimerScope {
 
 #else  // RUNTIME_CALL_STATS
 
-#define RCS_SCOPE(...)
 #define TRACE_HANDLER_STATS(...)
 #define CHANGE_CURRENT_RUNTIME_COUNTER(...)
 

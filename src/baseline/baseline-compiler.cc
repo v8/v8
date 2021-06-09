@@ -8,13 +8,12 @@
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 
-#include "src/baseline/baseline-compiler.h"
-
 #include <algorithm>
 #include <type_traits>
 
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-assembler.h"
+#include "src/baseline/baseline-compiler.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins.h"
@@ -27,6 +26,7 @@
 #include "src/execution/frame-constants.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/code.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type.h"

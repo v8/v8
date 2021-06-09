@@ -15,7 +15,7 @@
 #include "src/baseline/baseline-compiler.h"
 #include "src/debug/debug.h"
 #include "src/heap/factory-inl.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 

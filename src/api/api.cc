@@ -59,6 +59,7 @@
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/logging/tracing-flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/api-callbacks.h"

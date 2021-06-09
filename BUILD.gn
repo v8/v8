@@ -2792,6 +2792,7 @@ v8_header_set("v8_internal_headers") {
     "src/logging/log-utils.h",
     "src/logging/log.h",
     "src/logging/metrics.h",
+    "src/logging/runtime-call-stats-scope.h",
     "src/logging/runtime-call-stats.h",
     "src/logging/tracing-flags.h",
     "src/numbers/bignum-dtoa.h",

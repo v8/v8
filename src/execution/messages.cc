@@ -14,7 +14,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/stack-frame-info-inl.h"

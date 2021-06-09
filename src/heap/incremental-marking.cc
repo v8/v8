@@ -22,6 +22,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/safepoint.h"
 #include "src/init/v8.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"

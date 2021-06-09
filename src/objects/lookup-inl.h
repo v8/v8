@@ -7,9 +7,12 @@
 
 #include "src/objects/lookup.h"
 
+// Include other inline headers *after* including lookup.h, such that e.g. the
+// definition of LookupIterator is available (and this comment prevents
+// clang-format from merging that include into the following ones).
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/map-inl.h"
