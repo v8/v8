@@ -485,7 +485,6 @@ DEFINE_WEAK_IMPLICATION(future, super_ic)
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
-DEFINE_WEAK_IMPLICATION(future, baseline_batch_compilation)
 #endif
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
@@ -665,7 +664,8 @@ DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 #endif
 DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
-DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
+DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
+DEFINE_NEG_NEG_IMPLICATION(sparkplug, baseline_batch_compilation)
 DEFINE_INT(baseline_batch_compilation_threshold, 4 * KB,
            "the estimated instruction size of a batch to trigger compilation")
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
