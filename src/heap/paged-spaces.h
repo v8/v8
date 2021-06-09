@@ -302,11 +302,14 @@ class V8_EXPORT_PRIVATE PagedSpace
   Address original_limit() { return original_limit_; }
 
   void MoveOriginalTopForward() {
-    base::SharedMutexGuard<base::kExclusive> guard(
-        &heap_->pending_allocation_mutex_);
+    base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
     DCHECK_GE(top(), original_top_);
     DCHECK_LE(top(), original_limit_);
     original_top_ = top();
+  }
+
+  base::SharedMutex* pending_allocation_mutex() {
+    return &pending_allocation_mutex_;
   }
 
  private:
@@ -415,9 +418,12 @@ class V8_EXPORT_PRIVATE PagedSpace
   base::Mutex space_mutex_;
 
   // The top and the limit at the time of setting the linear allocation area.
-  // These values are protected by Heap::pending_allocation_mutex_.
+  // These values are protected by pending_allocation_mutex_.
   Address original_top_;
   Address original_limit_;
+
+  // Protects original_top_ and original_limit_.
+  base::SharedMutex pending_allocation_mutex_;
 
   friend class IncrementalMarking;
   friend class MarkCompactCollector;

@@ -474,8 +474,7 @@ void NewSpace::UpdateLinearAllocationArea(Address known_top) {
   // The order of the following two stores is important.
   // See the corresponding loads in ConcurrentMarking::Run.
   {
-    base::SharedMutexGuard<base::kExclusive> guard(
-        &heap_->pending_allocation_mutex_);
+    base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
     original_limit_.store(limit(), std::memory_order_relaxed);
     original_top_.store(top(), std::memory_order_release);
   }

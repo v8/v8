@@ -136,10 +136,7 @@ void Heap::SetPendingOptimizeForTestBytecode(Object hash_table) {
 }
 
 PagedSpace* Heap::paged_space(int idx) {
-  DCHECK_NE(idx, LO_SPACE);
-  DCHECK_NE(idx, NEW_SPACE);
-  DCHECK_NE(idx, CODE_LO_SPACE);
-  DCHECK_NE(idx, NEW_LO_SPACE);
+  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == MAP_SPACE);
   return static_cast<PagedSpace*>(space_[idx]);
 }
 
@@ -586,34 +583,51 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
 }
 
 bool Heap::IsPendingAllocation(HeapObject object) {
-  if (ReadOnlyHeap::Contains(object)) return false;
+  DCHECK(deserialization_complete());
 
-  // Prevents concurrent modification by main thread
-  base::SharedMutexGuard<base::kShared> guard(&pending_allocation_mutex_);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
+  if (chunk->InReadOnlySpace()) return false;
 
-  // TODO(ulan): Optimize this function to perform 3 loads at most.
+  BaseSpace* base_space = chunk->owner();
   Address addr = object.address();
-  Address top, limit;
 
-  if (new_space_) {
-    top = new_space_->original_top_acquire();
-    limit = new_space_->original_limit_relaxed();
-    DCHECK_LE(top, limit);
-    if (top && top <= addr && addr < limit) return true;
+  switch (base_space->identity()) {
+    case NEW_SPACE: {
+      base::SharedMutexGuard<base::kShared> guard(
+          new_space_->pending_allocation_mutex());
+      Address top = new_space_->original_top_acquire();
+      Address limit = new_space_->original_limit_relaxed();
+      DCHECK_LE(top, limit);
+      return top && top <= addr && addr < limit;
+    }
+
+    case OLD_SPACE:
+    case CODE_SPACE:
+    case MAP_SPACE: {
+      PagedSpace* paged_space = static_cast<PagedSpace*>(base_space);
+      base::SharedMutexGuard<base::kShared> guard(
+          paged_space->pending_allocation_mutex());
+      Address top = paged_space->original_top();
+      Address limit = paged_space->original_limit();
+      DCHECK_LE(top, limit);
+      return top && top <= addr && addr < limit;
+    }
+
+    case LO_SPACE:
+    case CODE_LO_SPACE:
+    case NEW_LO_SPACE: {
+      LargeObjectSpace* large_space =
+          static_cast<LargeObjectSpace*>(base_space);
+      base::SharedMutexGuard<base::kShared> guard(
+          large_space->pending_allocation_mutex());
+      return addr == large_space->pending_object();
+    }
+
+    case RO_SPACE:
+      UNREACHABLE();
   }
 
-  PagedSpaceIterator spaces(this);
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    top = space->original_top();
-    limit = space->original_limit();
-    DCHECK_LE(top, limit);
-    if (top && top <= addr && addr < limit) return true;
-  }
-  if (addr == lo_space_->pending_object()) return true;
-  if (new_lo_space_ && addr == new_lo_space_->pending_object()) return true;
-  if (addr == code_lo_space_->pending_object()) return true;
-  return false;
+  UNREACHABLE();
 }
 
 void Heap::ExternalStringTable::AddString(String string) {

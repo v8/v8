@@ -2429,9 +2429,6 @@ class Heap {
 
   HeapObject pending_layout_change_object_;
 
-  // This mutex protects original_top/limit and pending_object for all spaces.
-  base::SharedMutex pending_allocation_mutex_;
-
   base::Mutex unprotected_memory_chunks_mutex_;
   std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
   bool unprotected_memory_chunks_registry_enabled_ = false;

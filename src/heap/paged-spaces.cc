@@ -278,7 +278,7 @@ void PagedSpace::SetTopAndLimit(Address top, Address limit) {
 
   base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
   if (!is_compaction_space())
-    optional_guard.emplace(&heap_->pending_allocation_mutex_);
+    optional_guard.emplace(&pending_allocation_mutex_);
   original_limit_ = limit;
   original_top_ = top;
 }
