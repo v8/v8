@@ -8720,6 +8720,13 @@ class V8_EXPORT Isolate {
   void MemoryPressureNotification(MemoryPressureLevel level);
 
   /**
+   * Drop non-essential caches. Should only be called from testing code.
+   * The method can potentially block for a long time and does not necessarily
+   * trigger GC.
+   */
+  void ClearCachesForTesting();
+
+  /**
    * Methods below this point require holding a lock (using Locker) in
    * a multi-threaded environment.
    */

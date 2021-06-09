@@ -8906,6 +8906,12 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
   isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
 }
 
+void Isolate::ClearCachesForTesting() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->AbortConcurrentOptimization(i::BlockingBehavior::kBlock);
+  isolate->ClearSerializerData();
+}
+
 void Isolate::EnableMemorySavingsMode() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->EnableMemorySavingsMode();
