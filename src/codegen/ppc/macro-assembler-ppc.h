@@ -138,10 +138,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     mov(kRootRegister, Operand(isolate_root));
   }
 
-  void LoadF64(DoubleRegister dst, const MemOperand& mem,
-               Register scratch = no_reg);
-  void LoadF32(DoubleRegister dst, const MemOperand& mem,
-               Register scratch = no_reg);
   void LoadDoubleLiteral(DoubleRegister result, Double value, Register scratch);
   void LoadSimd128(Simd128Register dst, const MemOperand& mem);
 
@@ -150,21 +146,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // load an SMI value <value> to GPR <dst>
   void LoadSmiLiteral(Register dst, Smi smi);
 
-  void LoadF32WithUpdate(DoubleRegister dst, const MemOperand& mem,
-                         Register scratch = no_reg);
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
-
-  void StoreF64(DoubleRegister src, const MemOperand& mem,
-                Register scratch = no_reg);
-  void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem,
-                          Register scratch = no_reg);
-
-  void StoreF32(DoubleRegister src, const MemOperand& mem,
-                Register scratch = no_reg);
-  void StoreF32WithUpdate(DoubleRegister src, const MemOperand& mem,
-                          Register scratch = no_reg);
-  void StoreSimd128(Simd128Register src, const MemOperand& mem);
 
   void Cmpi(Register src1, const Operand& src2, Register scratch,
             CRegister cr = cr7);
@@ -694,10 +677,27 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressAnyTagged(Register destination, MemOperand field_operand);
   void DecompressAnyTagged(Register destination, Register source);
 
-  void LoadU64WithUpdate(Register dst, const MemOperand& mem,
+  void LoadF64(DoubleRegister dst, const MemOperand& mem,
+               Register scratch = no_reg);
+  void LoadF32(DoubleRegister dst, const MemOperand& mem,
+               Register scratch = no_reg);
+
+  void StoreF32(DoubleRegister src, const MemOperand& mem,
+                Register scratch = no_reg);
+  void StoreF64(DoubleRegister src, const MemOperand& mem,
+                Register scratch = no_reg);
+
+  void LoadF32WithUpdate(DoubleRegister dst, const MemOperand& mem,
                          Register scratch = no_reg);
-  void StoreU64WithUpdate(Register src, const MemOperand& mem,
+  void LoadF64WithUpdate(DoubleRegister dst, const MemOperand& mem,
+                         Register scratch = no_reg);
+
+  void StoreF32WithUpdate(DoubleRegister src, const MemOperand& mem,
                           Register scratch = no_reg);
+  void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem,
+                          Register scratch = no_reg);
+
+  void StoreSimd128(Simd128Register src, const MemOperand& mem);
 
   void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadU32(Register dst, const MemOperand& mem, Register scratch = no_reg);
@@ -710,6 +710,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreU32(Register src, const MemOperand& mem, Register scratch);
   void StoreU16(Register src, const MemOperand& mem, Register scratch);
   void StoreU8(Register src, const MemOperand& mem, Register scratch);
+
+  void LoadU64WithUpdate(Register dst, const MemOperand& mem,
+                         Register scratch = no_reg);
+  void StoreU64WithUpdate(Register src, const MemOperand& mem,
+                          Register scratch = no_reg);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -785,9 +790,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // than assembler-ppc and may generate variable length sequences
 
   // load a literal double value <value> to FPR <result>
-
-  void LoadF64WithUpdate(DoubleRegister dst, const MemOperand& mem,
-                         Register scratch = no_reg);
 
   void Cmplwi(Register src1, const Operand& src2, Register scratch,
               CRegister cr = cr7);

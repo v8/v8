@@ -2814,7 +2814,7 @@ void TurboAssembler::LoadF32(DoubleRegister dst, const MemOperand& mem,
   GenerateMemoryOperation(dst, mem, lfs, lfsx);
 }
 
-void MacroAssembler::LoadF64WithUpdate(DoubleRegister dst,
+void TurboAssembler::LoadF64WithUpdate(DoubleRegister dst,
                                        const MemOperand& mem,
                                        Register scratch) {
   GenerateMemoryOperation(dst, mem, lfdu, lfdux);
@@ -2833,56 +2833,24 @@ void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem) {
 
 void TurboAssembler::StoreF64(DoubleRegister src, const MemOperand& mem,
                               Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    stfdx(src, MemOperand(base, scratch));
-  } else {
-    stfd(src, mem);
-  }
+  GenerateMemoryOperation(src, mem, stfd, stfdx);
 }
 
 void TurboAssembler::StoreF64WithUpdate(DoubleRegister src,
                                         const MemOperand& mem,
                                         Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    stfdux(src, MemOperand(base, scratch));
-  } else {
-    stfdu(src, mem);
-  }
+  GenerateMemoryOperation(src, mem, stfdu, stfdux);
 }
 
 void TurboAssembler::StoreF32(DoubleRegister src, const MemOperand& mem,
                               Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    stfsx(src, MemOperand(base, scratch));
-  } else {
-    stfs(src, mem);
-  }
+  GenerateMemoryOperation(src, mem, stfs, stfsx);
 }
 
 void TurboAssembler::StoreF32WithUpdate(DoubleRegister src,
                                         const MemOperand& mem,
                                         Register scratch) {
-  Register base = mem.ra();
-  int offset = mem.offset();
-
-  if (!is_int16(offset)) {
-    mov(scratch, Operand(offset));
-    stfsux(src, MemOperand(base, scratch));
-  } else {
-    stfsu(src, mem);
-  }
+  GenerateMemoryOperation(src, mem, stfsu, stfsux);
 }
 
 void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
