@@ -328,7 +328,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_LoadWordU16:
     case kPPC_LoadWordS32:
     case kPPC_LoadWordU32:
+    case kPPC_LoadByteRev32:
     case kPPC_LoadWord64:
+    case kPPC_LoadByteRev64:
     case kPPC_LoadFloat32:
     case kPPC_LoadDouble:
     case kPPC_LoadSimd128:
@@ -361,7 +363,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_StoreWord8:
     case kPPC_StoreWord16:
     case kPPC_StoreWord32:
+    case kPPC_StoreByteRev32:
     case kPPC_StoreWord64:
+    case kPPC_StoreByteRev64:
     case kPPC_StoreFloat32:
     case kPPC_StoreDouble:
     case kPPC_StoreSimd128:

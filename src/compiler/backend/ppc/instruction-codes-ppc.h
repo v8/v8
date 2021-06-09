@@ -120,7 +120,9 @@ namespace compiler {
   V(PPC_LoadWordU16)                 \
   V(PPC_LoadWordS32)                 \
   V(PPC_LoadWordU32)                 \
+  V(PPC_LoadByteRev32)               \
   V(PPC_LoadWord64)                  \
+  V(PPC_LoadByteRev64)               \
   V(PPC_LoadFloat32)                 \
   V(PPC_LoadDouble)                  \
   V(PPC_LoadSimd128)                 \
@@ -128,7 +130,9 @@ namespace compiler {
   V(PPC_StoreWord8)                  \
   V(PPC_StoreWord16)                 \
   V(PPC_StoreWord32)                 \
+  V(PPC_StoreByteRev32)              \
   V(PPC_StoreWord64)                 \
+  V(PPC_StoreByteRev64)              \
   V(PPC_StoreFloat32)                \
   V(PPC_StoreDouble)                 \
   V(PPC_StoreSimd128)                \

@@ -578,6 +578,18 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     DCHECK_EQ(LeaveRC, i.OutputRCBit());             \
   } while (0)
 
+#define ASSEMBLE_LOAD_INTEGER_RR(asm_instr)      \
+  do {                                           \
+    Register result = i.OutputRegister();        \
+    AddressingMode mode = kMode_None;            \
+    MemOperand operand = i.MemoryOperand(&mode); \
+    DCHECK_EQ(mode, kMode_MRR);                  \
+    bool is_atomic = i.InputInt32(2);            \
+    __ asm_instr(result, operand);               \
+    if (is_atomic) __ lwsync();                  \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());         \
+  } while (0)
+
 #define ASSEMBLE_STORE_FLOAT(asm_instr, asm_instrx)      \
   do {                                                   \
     size_t index = 0;                                    \
@@ -610,6 +622,20 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     } else {                                             \
       __ asm_instrx(value, operand);                     \
     }                                                    \
+    if (is_atomic) __ sync();                            \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
+  } while (0)
+
+#define ASSEMBLE_STORE_INTEGER_RR(asm_instr)             \
+  do {                                                   \
+    size_t index = 0;                                    \
+    AddressingMode mode = kMode_None;                    \
+    MemOperand operand = i.MemoryOperand(&mode, &index); \
+    DCHECK_EQ(mode, kMode_MRR);                          \
+    Register value = i.InputRegister(index);             \
+    bool is_atomic = i.InputInt32(3);                    \
+    if (is_atomic) __ lwsync();                          \
+    __ asm_instr(value, operand);                        \
     if (is_atomic) __ sync();                            \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
   } while (0)
@@ -2213,7 +2239,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ extsw(output, temp1);
       break;
     }
-#ifdef V8_TARGET_ARCH_PPC64
+    case kPPC_LoadByteRev32: {
+      ASSEMBLE_LOAD_INTEGER_RR(lwbrx);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
+      break;
+    }
+    case kPPC_StoreByteRev32: {
+      ASSEMBLE_STORE_INTEGER_RR(stwbrx);
+      break;
+    }
     case kPPC_ByteRev64: {
       Register input = i.InputRegister(0);
       Register output = i.OutputRegister();
@@ -2231,7 +2265,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ orx(output, temp2, temp3);
       break;
     }
-#endif  // V8_TARGET_ARCH_PPC64
+    case kPPC_LoadByteRev64: {
+      ASSEMBLE_LOAD_INTEGER_RR(ldbrx);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
+      break;
+    }
+    case kPPC_StoreByteRev64: {
+      ASSEMBLE_STORE_INTEGER_RR(stdbrx);
+      break;
+    }
     case kPPC_F64x2Splat: {
       constexpr int lane_width_in_bytes = 8;
       Simd128Register dst = i.OutputSimd128Register();

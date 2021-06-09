@@ -1240,6 +1240,10 @@ using Instr = uint32_t;
   V(stfsux, STFSUX, 0x7C00056E)                         \
   /* Store Floating-Point Single Indexed */             \
   V(stfsx, STFSX, 0x7C00052E)                           \
+  /* Store Doubleword Byte-Reverse Indexed */           \
+  V(stdbrx, STDBRX, 0x7C000528)                         \
+  /* Store Word Byte-Reverse Indexed */                 \
+  V(stwbrx, STWBRX, 0x7C00052C)                         \
   /* Load Vector Indexed */                             \
   V(lvx, LVX, 0x7C0000CE)                               \
   /* Store Vector Indexed */                            \
@@ -1286,8 +1290,6 @@ using Instr = uint32_t;
   V(lwax, LWAX, 0x7C0002AA)                                                   \
   /* Parity Doubleword */                                                     \
   V(prtyd, PRTYD, 0x7C000174)                                                 \
-  /* Store Doubleword Byte-Reverse Indexed */                                 \
-  V(stdbrx, STDBRX, 0x7C000528)                                               \
   /* Trap Doubleword */                                                       \
   V(td, TD, 0x7C000088)                                                       \
   /* Branch Conditional to Branch Target Address Register */                  \
@@ -1314,8 +1316,6 @@ using Instr = uint32_t;
   V(prtyw, PRTYW, 0x7C000134)                                                 \
   /* Store Halfword Byte-Reverse Indexed */                                   \
   V(sthbrx, STHBRX, 0x7C00072C)                                               \
-  /* Store Word Byte-Reverse Indexed */                                       \
-  V(stwbrx, STWBRX, 0x7C00052C)                                               \
   /* Synchronize */                                                           \
   V(sync, SYNC, 0x7C0004AC)                                                   \
   /* Trap Word */                                                             \
