@@ -168,7 +168,6 @@ class V8_EXPORT_PRIVATE ObjectRef {
   Handle<Object> object() const;
 
   bool equals(const ObjectRef& other) const;
-  bool ShouldHaveBeenSerialized() const;
 
   bool IsSmi() const;
   int AsSmi() const;
@@ -979,7 +978,6 @@ class JSTypedArrayRef : public JSObjectRef {
 
   void Serialize();
   bool serialized() const;
-  bool ShouldHaveBeenSerialized() const;
 
   HeapObjectRef buffer() const;
 };
